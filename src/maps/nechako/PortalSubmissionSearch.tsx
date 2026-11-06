@@ -3,8 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadBlob, downloadText } from '@/lib/download'
-import { formatDate } from '@/lib/format'
+import { DEFAULT_LOCALE, formatDate } from '@/lib/format'
 import { errorText, portalRead, PORTAL_CONNECTION_EVENT } from '@/lib/nechakoPortal'
 import { PortalExpressionBuilder } from './PortalExpressionBuilder'
 import { PortalSubmissionDialog } from './PortalSubmissionDialog'
@@ -399,8 +400,8 @@ export function PortalSubmissionSearch({
           </nav>
         )}
         <div className="min-h-[120px] flex-1 overflow-auto rounded border bg-background" data-nechako-submission-table>
-          <table className="w-full min-w-[650px] table-fixed text-left text-xs">
-            <thead className="sticky top-0 z-10 bg-muted">
+          <EngineeringTable variant="text" className="min-w-[650px] table-fixed">
+            <thead className="sticky top-0 z-10">
               <tr>
                 {[
                   ['Type', 'w-16'],
@@ -409,17 +410,14 @@ export function PortalSubmissionSearch({
                   ['Submission Date', 'w-28'],
                   ['Submitted By', 'w-28'],
                 ].map(([label, width]) => (
-                  <th key={label} className={`${width} border-b p-2 font-medium`}>
-                    {label}
-                  </th>
+                  <ColumnHeader key={label} label={label} className={width} />
                 ))}
               </tr>
             </thead>
             <tbody>
               {rows.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).map((record) => (
-                <tr key={record.id} className="border-b hover:bg-muted/50" aria-selected={selected?.id === record.id}>
+                <tr key={record.id} aria-selected={selected?.id === record.id}>
                   <td
-                    className="p-2"
                     title={
                       record.parentId === undefined
                         ? 'Parent relationship not supplied'
@@ -430,7 +428,7 @@ export function PortalSubmissionSearch({
                   >
                     {submissionType(record)}
                   </td>
-                  <td className="p-2">
+                  <td>
                     <button
                       type="button"
                       className="block w-full truncate text-left text-primary underline-offset-2 hover:underline"
@@ -440,26 +438,26 @@ export function PortalSubmissionSearch({
                       {record.title || `Submission ${record.id}`}
                     </button>
                   </td>
-                  <td className="truncate p-2" title={record.name}>
+                  <td className="truncate" title={record.name}>
                     {record.name || '—'}
                   </td>
-                  <td className="truncate p-2" title={record.date}>
+                  <td className="truncate" title={record.date}>
                     {record.date || 'Not supplied'}
                   </td>
-                  <td className="truncate p-2" title={record.submittedBy}>
+                  <td className="truncate" title={record.submittedBy}>
                     {record.submittedBy || 'Not supplied'}
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </EngineeringTable>
           {snapshot && !rows.length && <p className="p-4 text-sm text-muted-foreground">No matching submissions.</p>}
         </div>
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 text-xs">
         <span aria-live="polite">
-          {rows.length.toLocaleString()} {view === 'browser' ? 'captured submissions' : 'submissions'} · Page{' '}
-          {currentPage + 1} of {pages}
+          {rows.length.toLocaleString(DEFAULT_LOCALE)} {view === 'browser' ? 'captured submissions' : 'submissions'} ·
+          Page {currentPage + 1} of {pages}
         </span>
         <div className="flex gap-1">
           <Button
@@ -538,7 +536,7 @@ export function PortalSubmissionSearch({
             : 'Click Search to apply the source spatial selection. '
           : ''}
         {snapshot
-          ? `${snapshot.manifest.recordCount.toLocaleString()} captured anonymous submissions · ${formatDate(snapshot.manifest.capturedAt)}`
+          ? `${snapshot.manifest.recordCount.toLocaleString(DEFAULT_LOCALE)} captured anonymous submissions · ${formatDate(snapshot.manifest.capturedAt)}`
           : 'Anonymous submission snapshot'}
       </p>
       {selected && snapshot && (

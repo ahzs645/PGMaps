@@ -7,6 +7,7 @@ import { fetchJson } from '@/lib/fetchJson'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { selectResearchBoundary } from '../adapters/researchBoundary'
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function useAggregateBoundary(feature: ExplorerFeature<'aggregate-boundary'> | undefined) {
   const [visible, setVisible] = useState(false)
@@ -137,7 +138,7 @@ export function AggregateBoundaryMapFeature({
             className="rounded-md border border-blue-500/50 bg-background/95 px-3 py-2 text-center text-xs shadow-sm"
           >
             <div className="font-medium">{feature.title}</div>
-            <div className="text-base font-semibold tabular-nums">{count.toLocaleString()}</div>
+            <div className="text-base font-semibold tabular-nums">{count.toLocaleString(DEFAULT_LOCALE)}</div>
             <div className="text-muted-foreground">regional-only publications</div>
           </div>
         </MarkerContent>

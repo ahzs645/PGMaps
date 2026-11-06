@@ -13,6 +13,7 @@ import {
   type NetworkPlanning,
   type NetworkTarget,
 } from './planning'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export { createNetworkPlanning, networkSeedReason, parseNetworkPlanning, parseNetworkScenario } from './planning'
 export type { NetworkPlanning, NetworkTarget } from './planning'
 
@@ -139,12 +140,12 @@ export async function prepareNetworkScenario(
   if (width * height > MAX_NETWORK_CELLS) {
     const suggested = Math.ceil(Math.sqrt(((maxX - minX) * (maxY - minY)) / (MAX_NETWORK_CELLS * 0.95)))
     throw Error(
-      `This area needs ${(width * height).toLocaleString()} cells; the limit is ${MAX_NETWORK_CELLS.toLocaleString()}. Use at least ${suggested} m cells, reduce the margin, or select shorter road sections.`,
+      `This area needs ${(width * height).toLocaleString(DEFAULT_LOCALE)} cells; the limit is ${MAX_NETWORK_CELLS.toLocaleString(DEFAULT_LOCALE)}. Use at least ${suggested} m cells, reduce the margin, or select shorter road sections.`,
     )
   }
   const grid: RoadsGrid = { origin: [minX, maxY], cellM, width, height, values: new Float64Array(width * height) }
   const elevations = new Float64Array(width * height)
-  onProgress?.(`Sampling ${grid.values.length.toLocaleString()} terrain cells…`)
+  onProgress?.(`Sampling ${grid.values.length.toLocaleString(DEFAULT_LOCALE)} terrain cells…`)
   let missing = 0
   for (let i = 0; i < grid.values.length; i++) {
     if (i % 2048 === 0) {
@@ -160,7 +161,7 @@ export async function prepareNetworkScenario(
   const warnings: string[] = []
   if (cellM > planning.cellM)
     warnings.push(`Grid spacing raised to source resolution (${cellM} m); no finer terrain was invented.`)
-  if (missing) warnings.push(`${missing.toLocaleString()} cells have missing terrain and are blocked.`)
+  if (missing) warnings.push(`${missing.toLocaleString(DEFAULT_LOCALE)} cells have missing terrain and are blocked.`)
   onProgress?.('Applying exclusion areas and relative crossing weights…')
   for (const feature of project.context) {
     signal?.throwIfAborted()

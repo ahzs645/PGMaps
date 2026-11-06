@@ -1,6 +1,7 @@
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useState, type ReactNode } from 'react'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ExternalLink } from '@/components/ui/text-button'
 import { Crosshair, Info, Layers as LayersIcon, Loader2, Maximize, Minus, Plus, RotateCcw } from 'lucide-react'
 import { useMap } from '@/components/ui/map'
 import { MapFloatingPanel } from '@/components/ui/map-overlays'
@@ -697,7 +698,15 @@ function getAqmapSourceLinks() {
   } satisfies Record<Exclude<AqNetworkSlug, 'other'> | WmsLayerKey | SmokeLayerKey, string>
 }
 
-export function MapUtilityControls({ onReset, locale }: { onReset: () => void; locale: AqmapLocale }) {
+export function MapUtilityControls({
+  onReset,
+  locale,
+  tableButton,
+}: {
+  onReset: () => void
+  locale: AqmapLocale
+  tableButton?: ReactNode
+}) {
   const { map } = useMap()
   const [waitingForLocation, setWaitingForLocation] = useState(false)
   const geolocationAvailable = typeof navigator !== 'undefined' && 'geolocation' in navigator
@@ -752,46 +761,49 @@ export function MapUtilityControls({ onReset, locale }: { onReset: () => void; l
   return (
     <MapFloatingPanel
       position="top-left"
-      className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex flex-col overflow-hidden rounded border border-border bg-background shadow-md md:top-3"
+      className="top-[calc(env(safe-area-inset-top)+3.75rem)] flex items-start gap-2 md:top-3"
     >
-      <button type="button" aria-label="Zoom in" onClick={zoomIn} className="p-2 hover:bg-secondary">
-        <Plus className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Zoom out"
-        onClick={zoomOut}
-        className="border-t border-border p-2 hover:bg-secondary"
-      >
-        <Minus className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={translate('controls.zoomToLocation', locale)}
-        title={translate('controls.zoomToLocation', locale)}
-        onClick={locate}
-        disabled={!geolocationAvailable || waitingForLocation}
-        className="border-t border-border p-2 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        {waitingForLocation ? <Loader2 className="size-4 animate-spin" /> : <Crosshair className="size-4" />}
-      </button>
-      <button
-        type="button"
-        aria-label={translate('controls.resetView', locale)}
-        title={translate('controls.resetView', locale)}
-        onClick={reset}
-        className="border-t border-border p-2 hover:bg-secondary"
-      >
-        <RotateCcw className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label="Toggle fullscreen"
-        onClick={toggleFullscreen}
-        className="hidden border-t border-border p-2 hover:bg-secondary md:block"
-      >
-        <Maximize className="size-4" />
-      </button>
+      <div className="flex flex-col overflow-hidden rounded border border-border bg-background shadow-md">
+        <button type="button" aria-label="Zoom in" onClick={zoomIn} className="p-2 hover:bg-secondary">
+          <Plus className="size-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Zoom out"
+          onClick={zoomOut}
+          className="border-t border-border p-2 hover:bg-secondary"
+        >
+          <Minus className="size-4" />
+        </button>
+        <button
+          type="button"
+          aria-label={translate('controls.zoomToLocation', locale)}
+          title={translate('controls.zoomToLocation', locale)}
+          onClick={locate}
+          disabled={!geolocationAvailable || waitingForLocation}
+          className="border-t border-border p-2 hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {waitingForLocation ? <Loader2 className="size-4 animate-spin" /> : <Crosshair className="size-4" />}
+        </button>
+        <button
+          type="button"
+          aria-label={translate('controls.resetView', locale)}
+          title={translate('controls.resetView', locale)}
+          onClick={reset}
+          className="border-t border-border p-2 hover:bg-secondary"
+        >
+          <RotateCcw className="size-4" />
+        </button>
+        <button
+          type="button"
+          aria-label="Toggle fullscreen"
+          onClick={toggleFullscreen}
+          className="hidden border-t border-border p-2 hover:bg-secondary md:block"
+        >
+          <Maximize className="size-4" />
+        </button>
+      </div>
+      {tableButton}
     </MapFloatingPanel>
   )
 }
@@ -880,7 +892,8 @@ function MapInfoText({
   locale: AqmapLocale
   attributionClassName: string
 }) {
-  const linkClassName = 'underline-offset-2 hover:text-foreground hover:underline'
+  const linkClassName =
+    'inline font-normal text-inherit underline-offset-2 hover:text-foreground hover:underline dark:text-inherit'
   return (
     <>
       <div>
@@ -888,18 +901,13 @@ function MapInfoText({
       </div>
       <div className={cn('text-muted-foreground', attributionClassName)}>
         ©{' '}
-        <a href="https://carto.com/about-carto/" target="_blank" rel="noopener noreferrer" className={linkClassName}>
+        <ExternalLink hideIcon href="https://carto.com/about-carto/" className={linkClassName}>
           CARTO
-        </a>
+        </ExternalLink>
         , ©{' '}
-        <a
-          href="http://www.openstreetmap.org/about/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={linkClassName}
-        >
+        <ExternalLink hideIcon href="http://www.openstreetmap.org/about/" className={linkClassName}>
           OpenStreetMap
-        </a>{' '}
+        </ExternalLink>{' '}
         contributors
       </div>
     </>

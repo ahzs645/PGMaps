@@ -1,6 +1,7 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { PaginationControls } from '@/components/ui/pagination-controls'
@@ -106,16 +107,8 @@ export function ComparisonDialog({
             }}
           />
         </FormField>
-        {busy && (
-          <p role="status" className="text-sm">
-            Validating comparison data…
-          </p>
-        )}
-        {error && (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        )}
+        {busy && <InlineAlert loading>Validating comparison data…</InlineAlert>}
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
         {pending && (
           <ImportReview
             key={pending.revision}
@@ -419,45 +412,46 @@ function ComparisonResults({ left, right }: { left: ComparisonSnapshot; right: C
         </p>
         {rows.length ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <EngineeringTable rowHeaders className="whitespace-normal text-xs [&_td]:py-2 [&_tbody_th]:py-2">
               <caption className="sr-only">CCISS aligned comparison</caption>
               <thead>
                 <tr>
-                  {['Metric / entity', 'Period', 'A', 'B', 'Change', 'Status'].map((heading) => (
-                    <th key={heading} scope="col" className="p-2">
-                      {heading}
-                    </th>
-                  ))}
+                  <ColumnHeader label="Metric / entity" className="text-left" />
+                  <ColumnHeader label="Period" className="text-left" />
+                  <ColumnHeader label="A" />
+                  <ColumnHeader label="B" />
+                  <ColumnHeader label="Change" />
+                  <ColumnHeader label="Status" className="text-left" />
                 </tr>
               </thead>
               <tbody>
                 {rows.map((row) => (
-                  <tr className="border-t border-border" key={row.key}>
-                    <th scope="row" className="p-2 font-normal">
+                  <tr key={row.key}>
+                    <th scope="row">
                       <span className="block font-medium">
                         {metricLabel(row)} · {row.metric.entity}
                       </span>
                       <span className="block text-xs text-muted-foreground">{dimensions(row)}</span>
                     </th>
-                    <td className="p-2">
+                    <td className="text-left">
                       {row.metric.period ?? row.metric.periodCoverage?.join(', ') ?? 'Unknown coverage'}
                     </td>
-                    <td className="p-2 tabular-nums">
+                    <td>
                       {comparisonValue(row.leftValue, row, 'left')}
                       {row.left && <small className="block text-muted-foreground">{row.left.unit}</small>}
                       {row.leftImputed && <small className="block">Inferred zero</small>}
                     </td>
-                    <td className="p-2 tabular-nums">
+                    <td>
                       {comparisonValue(row.rightValue, row, 'right')}
                       {row.right && <small className="block text-muted-foreground">{row.right.unit}</small>}
                       {row.rightImputed && <small className="block">Inferred zero</small>}
                     </td>
-                    <td className="p-2 tabular-nums">{comparisonDelta(row)}</td>
-                    <td className="p-2 text-xs">{row.reason ?? row.interpretation}</td>
+                    <td>{comparisonDelta(row)}</td>
+                    <td className="text-left">{row.reason ?? row.interpretation}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
         ) : (
           <p role="status" className="text-sm">

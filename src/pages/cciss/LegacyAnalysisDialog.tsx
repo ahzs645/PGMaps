@@ -1,3 +1,4 @@
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -128,7 +129,7 @@ function Location({ point, onChange }: { point: [number, number]; onChange: (p: 
         Use these coordinates or close this window and click the map. The analysis uses numeric rasters; the displayed
         map layer does not change its inputs.
       </p>
-      {error && <p role="alert">{error}</p>}
+      {error && <InlineAlert tone="error">{error}</InlineAlert>}
     </form>
   )
 }
@@ -219,7 +220,7 @@ function Comparison({
   if (error?.pointKey === pointKey)
     return (
       <div>
-        <p role="alert">Could not load analysis: {error.message}</p>
+        <InlineAlert tone="error">Could not load analysis: {error.message}</InlineAlert>
         <Button
           onClick={() => {
             setError(null)
@@ -231,7 +232,7 @@ function Comparison({
       </div>
     )
   if (!data || !comparison)
-    return <p role="status">{progress?.pointKey === pointKey ? progress.message : 'Loading dataset…'}</p>
+    return <InlineAlert loading>{progress?.pointKey === pointKey ? progress.message : 'Loading dataset…'}</InlineAlert>
   if (!comparison.members.length || !comparison.species.length || !siteConditions.length)
     return (
       <InlineAlert tone="warning">
@@ -427,24 +428,28 @@ function Comparison({
             rating means no lookup result, not unsuitable.
           </p>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <EngineeringTable variant="text" className="text-sm">
               <caption className="sr-only">Legacy species suitability</caption>
               <thead>
                 <tr>
-                  <th>Species</th>
-                  <th>{comparison.baseline ? periodLabel(comparison.baseline.period) : 'Baseline'}</th>
-                  <th>{comparison.observed ? `${periodLabel(comparison.observed.period)} observed` : 'Observed'}</th>
+                  <ColumnHeader label="Species" />
+                  <ColumnHeader label={comparison.baseline ? periodLabel(comparison.baseline.period) : 'Baseline'} />
+                  <ColumnHeader
+                    label={comparison.observed ? `${periodLabel(comparison.observed.period)} observed` : 'Observed'}
+                  />
                   {comparison.periods.map((p) => (
-                    <th key={p} className={p === selectedPeriod ? 'bg-secondary' : ''}>
-                      {periodLabel(p)} model
-                    </th>
+                    <ColumnHeader
+                      key={p}
+                      label={`${periodLabel(p)} model`}
+                      className={p === selectedPeriod ? 'bg-secondary' : ''}
+                    />
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {comparison.species.map((s) => (
-                  <tr key={s.species} className="border-t">
-                    <td className="py-2">
+                  <tr key={s.species}>
+                    <td>
                       {s.species} · {s.name}
                     </td>
                     <td>
@@ -463,7 +468,7 @@ function Comparison({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
         </SidebarSection>
       )}
@@ -549,25 +554,25 @@ function Comparison({
             baseline gives no ratio.
           </p>
           {regionError ? (
-            <p role="alert">{regionError}</p>
+            <InlineAlert tone="error">{regionError}</InlineAlert>
           ) : selectedRegion && regional?.id !== regionId ? (
-            <p role="status">Loading regional summary…</p>
+            <InlineAlert loading>Loading regional summary…</InlineAlert>
           ) : (
             <>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <EngineeringTable className="whitespace-normal text-xs [&_td]:py-2">
                   <caption className="sr-only">Regional persistence and expansion</caption>
                   <thead>
                     <tr>
-                      <th>Period / run</th>
-                      <th>Persistence</th>
-                      <th>Expansion</th>
+                      <ColumnHeader label="Period / run" className="text-left" />
+                      <ColumnHeader label="Persistence" />
+                      <ColumnHeader label="Expansion" />
                     </tr>
                   </thead>
                   <tbody>
                     {trends.map((r) => (
-                      <tr className="border-t" key={`${r.PERIOD}|${r.RUN}`}>
-                        <td className="py-2">
+                      <tr key={`${r.PERIOD}|${r.RUN}`}>
+                        <td className="text-left">
                           {periodLabel(r.PERIOD)} · {r.RUN}
                         </td>
                         <td>{percent(r.persistence)}</td>
@@ -575,7 +580,7 @@ function Comparison({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
               {!trends.length && <p>No regional rows for this selection.</p>}
             </>
@@ -620,7 +625,7 @@ function Comparison({
         </Button>
       </div>
       {regionError && tab !== 'region' && (
-        <p role="alert">
+        <InlineAlert tone="error">
           Regional data unavailable: {regionError}.{' '}
           <button
             className="underline"
@@ -631,7 +636,7 @@ function Comparison({
           >
             Retry
           </button>
-        </p>
+        </InlineAlert>
       )}
       <p className="text-xs text-muted-foreground">
         Source: Province of British Columbia, CCISS_ShinyApp / Development/OLD/spatial_app. Loaded numeric rasters are
@@ -667,27 +672,27 @@ function Matrix({
 }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <EngineeringTable variant="text" className="text-sm [&_td]:py-3">
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>
-            <th>Model / run / scenario</th>
+            <ColumnHeader label="Model / run / scenario" />
             {periods.map((p) => (
-              <th key={p}>{periodLabel(p)}</th>
+              <ColumnHeader key={p} label={periodLabel(p)} />
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr className="border-t" key={r.label}>
-              <td className="py-3">{r.label}</td>
+            <tr key={r.label}>
+              <td>{r.label}</td>
               {r.values.map((v, i) => (
                 <td key={periods[i]}>{v}</td>
               ))}
             </tr>
           ))}
         </tbody>
-      </table>
+      </EngineeringTable>
     </div>
   )
 }

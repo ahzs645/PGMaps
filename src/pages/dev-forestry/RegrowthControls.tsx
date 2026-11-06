@@ -1,6 +1,7 @@
 import type { DriveState } from './Sidebar'
 import type { ForestHistoryData } from './bcForestHistory'
 import type { RegrowthStand } from './regrowth'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type Props = {
   drive: DriveState
@@ -113,7 +114,10 @@ export function RegrowthControls({ drive, update, year, loading, data, stands, u
         </details>
       )}
       {data && (
-        <p>DataBC harvest + RESULTS planting/forest cover · loaded {new Date(data.retrievedAt).toLocaleString()}</p>
+        <p>
+          DataBC harvest + RESULTS planting/forest cover · loaded{' '}
+          {new Date(data.retrievedAt).toLocaleString(DEFAULT_LOCALE)}
+        </p>
       )}
     </div>
   )

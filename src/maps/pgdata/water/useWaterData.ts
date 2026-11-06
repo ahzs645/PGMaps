@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE } from '@/lib/format'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { useJsonManifest } from '../shared'
+import type { MapTableSource } from '@/components/map/useMapTable'
 import {
   WATER_BOUNDARY_CONFIG,
   WATER_CENSUS_LEVEL_OPTIONS,
@@ -43,10 +44,12 @@ import type {
   WaterFacilityFeatureProperties,
   WaterLayerMode,
   WaterManifest,
+  WaterNoticeRow,
   WaterPointCategory,
   WaterSampleKindFilter,
   WaterSampleRow,
 } from './types'
+import { buildWaterTableSources, findRowFacility, WATER_FACILITIES_SOURCE } from './waterTable'
 
 function useWaterJson<T>(active: boolean, filename: string) {
   return useJsonManifest<T>(active ? `${WATER_ROOT}/${filename}` : null)
@@ -110,7 +113,7 @@ export function useWaterData(active: boolean) {
       )
       const facilityName = firstString(facility, ['facilityName', 'facility_name', 'name'])
       const rows = Array.isArray(facility.samples) ? facility.samples.filter(isRecord) : []
-      rows.forEach((row, rowIndex) => {
+      rows.forEach((row) => {
         bacteriologicalRows.push(
           normalizeSample(
             {
@@ -118,7 +121,8 @@ export function useWaterData(active: boolean) {
               facilityId,
               facilityName,
             },
-            bacteriologicalRows.length + rowIndex,
+            // Already counts the rows pushed so far, and a fallback id must stay unique.
+            bacteriologicalRows.length,
             'bacteriological',
           ),
         )
@@ -479,6 +483,28 @@ export function useWaterData(active: boolean) {
     [visibleFacilities],
   )
 
+  const tableSources = useMemo(
+    () =>
+      buildWaterTableSources({
+        facilities: visibleFacilities,
+        samples: filteredSamples,
+        notices: activeNotices,
+        lookup: facilityLookup,
+        loading: !facilitiesJson.data && !facilitiesJson.error,
+      }),
+    [activeNotices, facilitiesJson.data, facilitiesJson.error, facilityLookup, filteredSamples, visibleFacilities],
+  )
+  const selectTableRow = useCallback(
+    (row: WaterFacility | WaterSampleRow | WaterNoticeRow, source: MapTableSource) => {
+      setSelectedFacilityId(
+        source.id === WATER_FACILITIES_SOURCE
+          ? row.id
+          : (findRowFacility(row as WaterSampleRow | WaterNoticeRow, facilityLookup)?.id ?? null),
+      )
+    },
+    [facilityLookup, setSelectedFacilityId],
+  )
+
   const visibleNoticeCount = useMemo(
     () => visibleFacilities.reduce((sum, facility) => sum + facility.activeNotices, 0),
     [visibleFacilities],
@@ -740,6 +766,9 @@ export function useWaterData(active: boolean) {
     selectedFacilityInspections,
     selectedFacilityId,
     setSelectedFacilityId,
+    tableSources,
+    selectedTableRowId: selectedFacilityId,
+    selectTableRow,
     showSelectedFacilityReport,
     setShowSelectedFacilityReport,
     sampleDateRange,

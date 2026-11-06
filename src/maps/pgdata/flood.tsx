@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AlertTriangle, Waves } from 'lucide-react'
+import { textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import {
@@ -230,6 +232,29 @@ const FLOOD_POINT_BUCKETS = [
   { id: 'nodata', label: 'No data', color: '#94a3b8', test: (score: number) => score < 0 },
 ]
 
+// Return periods read like "2-5 year", so both columns sort on the score the map colours by.
+const FLOOD_STATION_COLUMNS = [
+  textColumn<FloodStationFeature>('name', 'Station', (feature) => feature.properties.name, { width: 260 }),
+  textColumn<FloodStationFeature>('basin', 'Basin', (feature) => feature.properties.basin),
+  textColumn<FloodStationFeature>(
+    'observed',
+    'Observed return period',
+    (feature) => feature.properties.observedReturnPeriod,
+    { getSortValue: (feature) => getReturnPeriodScore(feature.properties.observedReturnPeriod) },
+  ),
+  textColumn<FloodStationFeature>(
+    'forecast',
+    'Forecast return period',
+    (feature) => feature.properties.forecastReturnPeriod,
+    { getSortValue: (feature) => feature.properties.riskScore },
+  ),
+  textColumn<FloodStationFeature>('reading', 'Reading', (feature) => feature.properties.reading, { width: 130 }),
+  textColumn<FloodStationFeature>('forecastMaximum', 'Max forecast', (feature) => feature.properties.forecastMaximum, {
+    width: 130,
+  }),
+  textColumn<FloodStationFeature>('updatedAt', 'Updated', (feature) => feature.properties.updatedAt),
+]
+
 export function useFloodData(active: boolean) {
   const [mode, setMode] = useState<FloodPointMode>('current')
   const [riskFilter, setRiskFilter] = useState<FloodRiskFilter>('all')
@@ -314,6 +339,29 @@ export function useFloodData(active: boolean) {
     [basins],
   )
 
+  const tableSources = useMemo(
+    () =>
+      showStations
+        ? [
+            defineTableSource<FloodStationFeature>({
+              id: 'flood-stations',
+              label: 'Flood stations',
+              color: FLOOD_POINT_BUCKETS[0].color,
+              shape: 'point',
+              rows: filteredStations,
+              columns: FLOOD_STATION_COLUMNS,
+              getRowId: (feature) => feature.properties.id,
+              getRowCenter: (feature) => [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+              flyZoom: 11,
+              status: error ? 'error' : loading ? 'loading' : 'ready',
+              emptyMessage: error ?? undefined,
+            }),
+          ]
+        : [],
+    [error, filteredStations, loading, showStations],
+  )
+  const selectTableRow = useCallback((feature: FloodStationFeature) => setSelectedStationId(feature.properties.id), [])
+
   return {
     mode,
     setMode,
@@ -330,6 +378,9 @@ export function useFloodData(active: boolean) {
     selectedStation,
     selectedStationId,
     setSelectedStationId,
+    tableSources,
+    selectedTableRowId: selectedStationId,
+    selectTableRow,
     loading,
     error,
     highRiskCount,
@@ -390,7 +441,7 @@ export function FloodSidebar({ flood }: { flood: FloodState }) {
           ]}
         />
         {flood.loading && <InlineAlert loading>Loading BC RFC data...</InlineAlert>}
-        {flood.error && <InlineAlert tone="warning">{flood.error}</InlineAlert>}
+        {flood.error && <InlineAlert tone="error">{flood.error}</InlineAlert>}
         {selected && (
           <SelectedItemCard
             title={selected.name}

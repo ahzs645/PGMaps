@@ -21,6 +21,7 @@ import { RoadConditionEditor } from './RoadConditionEditor'
 import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function ExistingRoadsPanel({
   workspace: w,
@@ -226,7 +227,9 @@ export function ExistingRoadsPanel({
               <p className="break-all">
                 {evidence.sourceId ? `Source record: ${evidence.sourceId} · ` : ''}Section reference: {road.id}
               </p>
-              {evidence.retrievedAt && <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString()}</p>}
+              {evidence.retrievedAt && (
+                <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString(DEFAULT_LOCALE)}</p>
+              )}
               {evidence.awardDate && <p>Tenure awarded: {evidence.awardDate}</p>}
               {evidence.retirementDate && <p>Tenure retired: {evidence.retirementDate}</p>}
               <p>

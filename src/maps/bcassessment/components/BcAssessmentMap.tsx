@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { formatCompactCurrency } from '@/lib/format'
-import { Map as PgMap, type MapRef } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { Map as PgMap, MapScaleBar, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { interpolateStopColor, stopColor } from '@/lib/valueBands'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
@@ -21,6 +22,7 @@ interface BcAssessmentMapProps {
   onPropertyClick: (property: Property) => void
   onBoundaryClick: (boundaryId: string) => void
   loading?: boolean
+  table: MapTableController
 }
 
 const ZOOM = PG_DEFAULT_ZOOM
@@ -65,6 +67,7 @@ export function BcAssessmentMap({
   onPropertyClick,
   onBoundaryClick,
   loading = false,
+  table,
 }: BcAssessmentMapProps) {
   const mapRef = useRef<MapRef>(null)
 
@@ -163,7 +166,9 @@ export function BcAssessmentMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading} deferResize={table.deferResize}>
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" className="max-md:hidden" />
         {/* Property parcels — hidden when boundary overlay is active */}
         <MapFillLayer
           data={geojson}

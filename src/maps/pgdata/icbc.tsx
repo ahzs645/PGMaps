@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { ShieldAlert } from 'lucide-react'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
@@ -65,6 +67,7 @@ interface IcbcCrashProperties {
   geocodeMatchType: string
 }
 
+type IcbcCrashFeature = GeoJSON.Feature<GeoJSON.Point, IcbcCrashProperties>
 type IcbcCrashFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, IcbcCrashProperties>
 
 const ICBC_DATASET_LABELS: Record<string, string> = {
@@ -113,6 +116,21 @@ function getIcbcMarkerSize(crashCount: number, maxCrashCount: number): number {
 function getIcbcLocationKey(feature: GeoJSON.Feature<GeoJSON.Point, IcbcCrashProperties>): string {
   return `${feature.properties.dataset}:${feature.properties.location}`
 }
+
+const ICBC_LOCATION_COLUMNS = [
+  textColumn<IcbcCrashFeature>('location', 'Location', (feature) => feature.properties.location, { width: 260 }),
+  textColumn<IcbcCrashFeature>('municipality', 'Municipality', (feature) => feature.properties.municipality),
+  numberColumn<IcbcCrashFeature>('crashCount', 'Crashes', (feature) => feature.properties.crashCount, { width: 100 }),
+  textColumn<IcbcCrashFeature>('crashType', 'Crash type', (feature) =>
+    getIcbcDatasetLabelById(feature.properties.dataset, feature.properties.datasetTitle),
+  ),
+  textColumn<IcbcCrashFeature>('matchedTo', 'Matched to', (feature) => feature.properties.sourceLocationName, {
+    width: 240,
+  }),
+  textColumn<IcbcCrashFeature>('matchType', 'Match type', (feature) => feature.properties.geocodeMatchType, {
+    defaultHidden: true,
+  }),
+]
 
 function aggregateIcbcCrashFeatures(
   features: Array<GeoJSON.Feature<GeoJSON.Point, IcbcCrashProperties>>,
@@ -293,8 +311,10 @@ export function useIcbcData(
 
   const selectedCrash = useMemo(() => {
     if (!selectedLocation) return null
-    return typedCrashFeatures.find((feature) => getIcbcLocationKey(feature) === selectedLocation) ?? null
-  }, [selectedLocation, typedCrashFeatures])
+    const matches = (feature: IcbcCrashFeature) => getIcbcLocationKey(feature) === selectedLocation
+    // A table row is a whole location, which "All crashes" draws as one marker per crash type.
+    return typedCrashFeatures.find(matches) ?? crashFeatures.find(matches) ?? null
+  }, [crashFeatures, selectedLocation, typedCrashFeatures])
   const maxCrashCount = useMemo(
     () => crashFeatures.reduce((max, feature) => Math.max(max, Number(feature.properties.crashCount) || 0), 0),
     [crashFeatures],
@@ -302,6 +322,26 @@ export function useIcbcData(
   const totalCrashes = useMemo(
     () => crashFeatures.reduce((sum, feature) => sum + (Number(feature.properties.crashCount) || 0), 0),
     [crashFeatures],
+  )
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<IcbcCrashFeature>({
+        id: 'icbc-locations',
+        label: 'Crash locations',
+        color: '#f97316',
+        shape: 'point',
+        rows: crashFeatures,
+        columns: ICBC_LOCATION_COLUMNS,
+        getRowId: (feature) => feature.properties.location,
+        getRowCenter: (feature) => [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+        status: crashes.error || manifest.error ? 'error' : crashes.data ? 'ready' : 'loading',
+      }),
+    ],
+    [crashFeatures, crashes.data, crashes.error, manifest.error],
+  )
+  const selectTableRow = useCallback(
+    (feature: IcbcCrashFeature) => setSelectedLocation(getIcbcLocationKey(feature)),
+    [],
   )
   const heatmapData = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point>>(
     () => ({
@@ -334,6 +374,9 @@ export function useIcbcData(
     typedCrashFeatures,
     heatmapData,
     selectedCrash,
+    tableSources,
+    selectedTableRowId: selectedCrash?.properties.location ?? null,
+    selectTableRow,
     maxCrashCount,
     totalCrashes,
     timelineEnabled,

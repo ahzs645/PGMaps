@@ -1,3 +1,5 @@
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -151,7 +153,7 @@ export function LidarComparison({
                 title={m.name}
                 metrics={[
                   { label: 'Core instances', value: String(m.instances_core) },
-                  { label: 'Unassigned core returns', value: m.unassigned_points.toLocaleString() },
+                  { label: 'Unassigned core returns', value: m.unassigned_points.toLocaleString(DEFAULT_LOCALE) },
                   {
                     label: 'Run / peak RSS',
                     value: `${m.runtime_seconds?.toFixed(2) ?? '—'} s / ${m.peak_rss_mb?.toFixed(0) ?? '—'} MB`,
@@ -189,15 +191,15 @@ export function LidarComparison({
       </div>
       <div className="max-h-[24dvh] shrink-0 overflow-y-auto overscroll-contain border-t p-3 text-xs">
         <p>
-          <strong>{plot.accepted_returns.toLocaleString()} full input returns processed.</strong> Views display the same
-          deterministic {plot.sample.sampled.toLocaleString()}-point sample. Grey means unassigned; colours are each
-          method’s own IDs.
+          <strong>{plot.accepted_returns.toLocaleString(DEFAULT_LOCALE)} full input returns processed.</strong> Views
+          display the same deterministic {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)}-point sample. Grey means
+          unassigned; colours are each method’s own IDs.
         </p>
         <p className="mt-1 text-muted-foreground">
           Adjusted Rand agreement: {agreement?.adjusted_rand_index?.toFixed(3) ?? 'unavailable'} ·{' '}
-          {agreement?.common_assigned_points.toLocaleString() ?? '—'} common assigned core returns. Agreement and
-          assigned coverage are not accuracy. Watershed timing is membership lookup; treeX includes its own terrain
-          processing.
+          {agreement?.common_assigned_points.toLocaleString(DEFAULT_LOCALE) ?? '—'} common assigned core returns.
+          Agreement and assigned coverage are not accuracy. Watershed timing is membership lookup; treeX includes its
+          own terrain processing.
         </p>
         {picked && (
           <p className="mt-1">
@@ -207,28 +209,28 @@ export function LidarComparison({
         <details className="mt-2">
           <summary className="cursor-pointer font-medium">All methods, versions and processing parameters</summary>
           <div className="mt-2 overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <EngineeringTable>
               <thead>
                 <tr>
-                  <th className="p-1">Method</th>
-                  <th className="p-1">Core instances</th>
-                  <th className="p-1">Unassigned returns</th>
-                  <th className="p-1">Run time</th>
+                  <ColumnHeader label="Method" className="text-left" />
+                  <ColumnHeader label="Core instances" />
+                  <ColumnHeader label="Unassigned returns" />
+                  <ColumnHeader label="Run time" />
                 </tr>
               </thead>
               <tbody>
                 {plot.methods.map((m) => (
                   <tr key={m.id}>
-                    <td className="p-1">
+                    <td className="text-left">
                       {m.name} · {m.version}
                     </td>
-                    <td className="p-1">{m.instances_core}</td>
-                    <td className="p-1">{m.unassigned_points.toLocaleString()}</td>
-                    <td className="p-1">{m.runtime_seconds?.toFixed(2) ?? '—'} s</td>
+                    <td>{m.instances_core}</td>
+                    <td>{m.unassigned_points.toLocaleString(DEFAULT_LOCALE)}</td>
+                    <td>{m.runtime_seconds?.toFixed(2) ?? '—'} s</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[10px]">
             {JSON.stringify(

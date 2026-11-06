@@ -18,6 +18,7 @@ import { hideNativeLoadSection } from './las'
 import { loadPointSource, POINT_BUDGET } from './pointSource'
 import { unionBounds } from './coordinates'
 import { errorText, type ImportedLayer, type ImportSession } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 const EMPTY = { type: 'FeatureCollection' as const, features: [] }
 const colour = (value: string) => {
   let hash = 0
@@ -292,7 +293,7 @@ export function ImportMap(props: Props) {
       const progress = control.getStreamingProgress()
       if (active && progress)
         latest.current.onPointStatus(
-          progress.loadedPoints.toLocaleString() + ' loaded points · streaming budget 750,000',
+          progress.loadedPoints.toLocaleString(DEFAULT_LOCALE) + ' loaded points · streaming budget 750,000',
         )
     })
     control.on('pointclick', (event) => {
@@ -314,7 +315,7 @@ export function ImportMap(props: Props) {
             latest.current.onPointStatus(
               info.name +
                 ' · ' +
-                info.pointCount.toLocaleString() +
+                info.pointCount.toLocaleString(DEFAULT_LOCALE) +
                 ' points · extra fields: ' +
                 (fields.join(', ') || 'none reported'),
             )

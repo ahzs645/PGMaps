@@ -1,4 +1,5 @@
 import { NativeSelect } from '@/components/ui/form-field'
+import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
@@ -16,6 +17,23 @@ import {
   type ForestMode,
   type ForestProperties,
 } from './forestry'
+import { DEFAULT_LOCALE } from '@/lib/format'
+
+const FIELD_CHECK_CSV_COLUMNS = [
+  'id',
+  'longitude',
+  'latitude',
+  'metric',
+  'metric_value',
+  'eligible_m2',
+  'canopy_percent',
+  'ground_support_p95_m',
+  'return_selection',
+  'edge_distance_m',
+  'eligible_min_percent',
+  'canopy_min_percent',
+  'source_sha256',
+]
 
 interface Props {
   data: ForestData
@@ -67,31 +85,27 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
       'application/geo+json',
     )
   const exportVisits = () => {
-    const csv = [
-      'id,longitude,latitude,metric,metric_value,eligible_m2,canopy_percent,ground_support_p95_m,return_selection,edge_distance_m,eligible_min_percent,canopy_min_percent,source_sha256',
-    ]
-    for (const f of shortlist) {
+    const rows = shortlist.map((f) => {
       const p = byId.get(f.properties.id)!.properties,
         [lon, lat] = featureCentre(f)
-      csv.push(
-        [
-          p.id,
-          lon.toFixed(7),
-          lat.toFixed(7),
-          mode,
-          value(p),
-          p.sampled_m2,
-          p.canopy_percent,
-          p.ground_support_p95_m,
-          options.returnMode,
-          options.edgeDistance,
-          options.support,
-          options.canopyMinimum,
-          data.source_sha256,
-        ].join(','),
-      )
-    }
-    downloadText(csv.join('\n') + '\n', `forestry-${mode}-field-checks.csv`, 'text/csv')
+      return [
+        p.id,
+        lon.toFixed(7),
+        lat.toFixed(7),
+        mode,
+        value(p),
+        p.sampled_m2,
+        p.canopy_percent,
+        p.ground_support_p95_m,
+        options.returnMode,
+        options.edgeDistance,
+        options.support,
+        options.canopyMinimum,
+        data.source_sha256,
+      ]
+    })
+    const csv = toCsv(FIELD_CHECK_CSV_COLUMNS, rows, { quote: 'needed', newline: '\n' })
+    downloadText(`${csv}\n`, `forestry-${mode}-field-checks.csv`, 'text/csv')
   }
   return (
     <>
@@ -219,7 +233,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 value: `${selected.properties.surface_p95_m} / ${selected.properties.surface_sd_m} m`,
               },
               { label: 'Ground-support P95', value: `${selected.properties.ground_support_p95_m} m` },
-              { label: 'Accepted returns', value: profile.returns.toLocaleString() },
+              { label: 'Accepted returns', value: profile.returns.toLocaleString(DEFAULT_LOCALE) },
               {
                 label: '2–5 m share of ≥2 m returns',
                 value:

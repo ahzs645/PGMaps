@@ -1,14 +1,17 @@
 import { useObserveMapViewport } from '@/components/ui/map-viewport'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { contours as makeContours } from 'd3'
-import type { CanvasSource, MapMouseEvent } from 'maplibre-gl'
+import type { CanvasSource, Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-import { MapCircleLayer, MapLineLayer } from '@/components/ui/map-layers'
+import { boundsToQuad, MapCanvasLayer, MapCircleLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import type { HeatGridSpec, HeatTheme, Point, TransitData, TravelResult } from './types'
 import { blendHeatPixels, makeHeatRaster } from './heat-raster'
 import { viewportGrid } from './live-grid'
 export { PALETTE } from './heat-raster'
+
+const quadOf = ([west, south, east, north]: HeatGridSpec['bbox']) => boundsToQuad({ west, south, east, north })
+const firstSymbolLayer = (map: MapLibreMap) => map.getStyle().layers.find((layer) => layer.type === 'symbol')?.id
 
 function HeatLayer({
   data,
@@ -22,42 +25,22 @@ function HeatLayer({
   theme: HeatTheme
 }) {
   const { map, isLoaded } = useMap()
-  const surface = useRef<{ canvas: HTMLCanvasElement; painted: boolean; bbox: HeatGridSpec['bbox'] } | null>(null)
-  useEffect(() => {
-    if (!map || !isLoaded) return
+  const [source, setSource] = useState<CanvasSource | null>(null)
+  // One canvas per dataset, starting at the study area until a frame moves it.
+  const surface = useMemo(() => {
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = 1
-    surface.current = { canvas, painted: false, bbox: data.meta.bbox }
-    const [west, south, east, north] = data.meta.bbox
-    const coordinates: [Point, Point, Point, Point] = [
-      [west, north],
-      [east, north],
-      [east, south],
-      [west, south],
-    ]
-    map.addSource('pg-transit-heat', { type: 'canvas', canvas, coordinates, animate: false })
-    const firstSymbol = map.getStyle().layers.find((layer) => layer.type === 'symbol')?.id
-    map.addLayer(
-      {
-        id: 'pg-transit-heat',
-        source: 'pg-transit-heat',
-        type: 'raster',
-        paint: { 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
-      },
-      firstSymbol,
-    )
-    return () => {
-      surface.current = null
-      if (map.getLayer('pg-transit-heat')) map.removeLayer('pg-transit-heat')
-      if (map.getSource('pg-transit-heat')) map.removeSource('pg-transit-heat')
-    }
-  }, [map, isLoaded, data])
+    const { bbox } = data.meta
+    return { canvas, bbox, coordinates: quadOf(bbox) }
+  }, [data])
+  const drawn = useRef<{ source: CanvasSource; painted: boolean; bbox: HeatGridSpec['bbox'] } | null>(null)
 
   useEffect(() => {
-    const current = surface.current
-    const source = map?.getSource('pg-transit-heat') as CanvasSource | undefined
-    if (!current || !source || !isLoaded) return
-    const { canvas } = current
+    // A new dataset commits before its source reports in; a style swap brings a new source.
+    if (!map || !isLoaded || !source || source.getCanvas() !== surface.canvas) return
+    if (drawn.current?.source !== source) drawn.current = { source, painted: false, bbox: surface.bbox }
+    const current = drawn.current
+    const canvas = source.getCanvas()
     const ctx = canvas.getContext('2d')!
     const previous = document.createElement('canvas')
     const spec = result.heatGrid ?? { ...data.grid, bbox: data.meta.bbox }
@@ -83,12 +66,7 @@ function HeatLayer({
       canvas.height = raster.height
     }
     if (JSON.stringify(current.bbox) !== JSON.stringify(spec.bbox)) {
-      source.setCoordinates([
-        [west, north],
-        [east, north],
-        [east, south],
-        [west, south],
-      ])
+      source.setCoordinates(quadOf(spec.bbox))
       current.bbox = spec.bbox
     }
     const pixels = ctx.createImageData(raster.width, raster.height)
@@ -112,8 +90,17 @@ function HeatLayer({
       cancelAnimationFrame(frame)
       source.pause()
     }
-  }, [map, isLoaded, data, result, max, theme])
-  return null
+  }, [map, isLoaded, source, surface, data, result, max, theme])
+  return (
+    <MapCanvasLayer
+      id="pg-transit-heat"
+      canvas={surface.canvas}
+      coordinates={surface.coordinates}
+      onSource={setSource}
+      opacity={1}
+      beforeId={firstSymbolLayer}
+    />
+  )
 }
 
 export function TravelLayers({

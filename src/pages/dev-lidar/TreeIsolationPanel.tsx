@@ -6,6 +6,7 @@ import { ResultRow } from '@/components/ui/result-list'
 import { downloadText } from '@/lib/download'
 import type { WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 import { treeCropCSV, type CrownFeature, type TreeCrop, type TreeIsolation } from './treeIsolation'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export interface TreePanelData {
   data: TreeIsolation | null
   error: string
@@ -53,9 +54,9 @@ export function TreeIsolationPanel({
         ) : (
           <>
             <p className="text-xs leading-5">
-              {product.data.crowns.features.length.toLocaleString()} candidate crowns were separated from the 1 m LiDAR
-              height surface. Colours help distinguish candidates; they do not indicate species. Click a footprint or
-              treetop to select it.
+              {product.data.crowns.features.length.toLocaleString(DEFAULT_LOCALE)} candidate crowns were separated from
+              the 1 m LiDAR height surface. Colours help distinguish candidates; they do not indicate species. Click a
+              footprint or treetop to select it.
             </p>
             <label className="mt-3 block text-xs">
               Minimum candidate height · {options.treeMinimum} m
@@ -94,7 +95,7 @@ export function TreeIsolationPanel({
               Hide tile-edge candidates
             </label>
             <p className="mt-3 text-xs font-medium" role="status">
-              {features.length.toLocaleString()} matching crown candidates
+              {features.length.toLocaleString(DEFAULT_LOCALE)} matching crown candidates
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={onAll}>
@@ -175,8 +176,8 @@ export function TreeIsolationPanel({
           {crop && (
             <>
               <p className="mt-2 text-xs">
-                {crop.points.length.toLocaleString()} isolated returns · {crop.loaded_nodes}/{crop.available_nodes}{' '}
-                intersecting EPT nodes loaded.
+                {crop.points.length.toLocaleString(DEFAULT_LOCALE)} isolated returns · {crop.loaded_nodes}/
+                {crop.available_nodes} intersecting EPT nodes loaded.
               </p>
               <p className="mt-2 text-[10px] text-muted-foreground">
                 {crop.budget_limited

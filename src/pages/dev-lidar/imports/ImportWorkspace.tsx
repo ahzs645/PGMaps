@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { isMobileViewport } from '@/hooks/useIsMobile'
 import { Button } from '@/components/ui/button'
-import { downloadText } from '@/lib/download'
+import { downloadBlob, downloadText } from '@/lib/download'
 import type { Basemap } from '../basemaps'
 import { ImportMap } from './ImportMap'
 import { ImportSidebar } from './ImportSidebar'
@@ -10,6 +10,7 @@ import { fileLayer, restoreProject, exportProject } from './files'
 import { getImportSession, resetImportSession, setImportSession, useImportSession } from './session'
 import { errorText, type PointSource } from './types'
 import { CRS_OPTION_GROUPS } from '@/lib/geo/projectedCrs'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; cloudBase: string }) {
   const session = useImportSession(),
     epoch = useRef(0),
@@ -85,7 +86,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             results.push(
               file.name +
                 ': ' +
-                header.points.toLocaleString() +
+                header.points.toLocaleString(DEFAULT_LOCALE) +
                 ' points, ' +
                 (header.copc ? 'COPC streaming' : 'bounded full-file load') +
                 '.',
@@ -137,12 +138,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
   }
   function sourceDownload() {
     if (!layer) return
-    const url = URL.createObjectURL(new Blob([layer.original]))
-    const anchor = document.createElement('a')
-    anchor.href = url
-    anchor.download = layer.source.name
-    anchor.click()
-    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    downloadBlob(new Blob([layer.original]), layer.source.name)
   }
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="LiDAR import and project workspace">

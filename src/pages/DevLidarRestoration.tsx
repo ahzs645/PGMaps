@@ -28,6 +28,7 @@ import {
   restorationManifest,
   restorationZip,
 } from '@/features/lidar-restoration/outputs'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const SOURCE_URL = 'https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view'
 
@@ -242,10 +243,11 @@ export default function DevLidarRestoration() {
             <p className="mt-2 text-xs text-muted-foreground">{PRODUCTS[product].description}</p>
             <dl className="mt-3 space-y-1 text-xs" aria-label="Run summary">
               <div>
-                Read: <strong data-testid="returns-read">{result.counts.read.toLocaleString()}</strong> returns
+                Read: <strong data-testid="returns-read">{result.counts.read.toLocaleString(DEFAULT_LOCALE)}</strong>{' '}
+                returns
               </div>
-              <div>Excluded noise / withheld: {result.counts.excluded.toLocaleString()}</div>
-              <div>Ground returns: {result.counts.ground.toLocaleString()}</div>
+              <div>Excluded noise / withheld: {result.counts.excluded.toLocaleString(DEFAULT_LOCALE)}</div>
+              <div>Ground returns: {result.counts.ground.toLocaleString(DEFAULT_LOCALE)}</div>
               <div>
                 Terrain support: {((100 * result.counts.normalized) / (result.counts.accepted || 1)).toFixed(2)}% of
                 accepted returns

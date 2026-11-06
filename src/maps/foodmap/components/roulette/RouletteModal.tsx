@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/compone
 import { FilterChipGroup } from '@/components/ui/map-panels'
 import { FilterToggleButton } from '@/components/ui/sticky-list-toolbar'
 import { SelectAllActions } from '@/components/ui/text-button'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { ROULETTE_CATEGORIES } from '../../dining'
 import { RouletteFilters } from './RouletteFilters'
 import { RouletteWheel } from './RouletteWheel'
@@ -156,7 +157,7 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
                 eligibleRestaurants.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
               }`}
             >
-              {eligibleRestaurants.length.toLocaleString()} available
+              {eligibleRestaurants.length.toLocaleString(DEFAULT_LOCALE)} available
             </span>
             {!hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
               <button

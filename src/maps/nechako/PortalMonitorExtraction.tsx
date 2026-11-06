@@ -9,6 +9,7 @@ import { saveLocalWorkbench } from './data/localWorkbench'
 import { csvExport } from './data/monitoring'
 import { monitorPageTable } from './data/monitoringRelations'
 import type { ProjectRead } from './data/projectManager'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function PortalMonitorExtraction({
   params,
@@ -143,8 +144,9 @@ export function PortalMonitorExtraction({
       </div>
       {progress && (
         <p role="status" className="text-sm">
-          {progress.phase === 'verify' ? 'Verifying boundaries' : 'Downloading'}: {progress.rows.toLocaleString()} /{' '}
-          {progress.total.toLocaleString()} rows · {progress.pages} pages
+          {progress.phase === 'verify' ? 'Verifying boundaries' : 'Downloading'}:{' '}
+          {progress.rows.toLocaleString(DEFAULT_LOCALE)} / {progress.total.toLocaleString(DEFAULT_LOCALE)} rows ·{' '}
+          {progress.pages} pages
         </p>
       )}
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
@@ -155,7 +157,8 @@ export function PortalMonitorExtraction({
             <strong>
               {result.status === 'complete' ? 'Count-verified complete extract' : 'Partial extract — row limit reached'}
             </strong>
-            : {result.downloadedRows.toLocaleString()} / {result.expectedRows.toLocaleString()} rows.
+            : {result.downloadedRows.toLocaleString(DEFAULT_LOCALE)} /{' '}
+            {result.expectedRows.toLocaleString(DEFAULT_LOCALE)} rows.
           </InlineAlert>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -177,7 +180,7 @@ export function PortalMonitorExtraction({
               onClick={() =>
                 onChart(
                   csv(),
-                  `${name} · ${result.status} ${result.downloadedRows.toLocaleString()} rows`,
+                  `${name} · ${result.status} ${result.downloadedRows.toLocaleString(DEFAULT_LOCALE)} rows`,
                   monitorPageTable({
                     fields: result.fields,
                     data: result.rows,

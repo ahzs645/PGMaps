@@ -1,3 +1,4 @@
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
 import { Silvics } from './Silvics'
 import type { ComparisonSnapshot } from './comparison'
@@ -270,12 +271,8 @@ export function ShinyReportDialog({
             </p>
           </SidebarSection>
         )}
-        {loading && <p role="status">Loading report…</p>}
-        {error && (
-          <p role="alert" className="text-destructive">
-            {error}
-          </p>
-        )}
+        {loading && <InlineAlert loading>Loading report…</InlineAlert>}
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
         <TabBar
           label="CCISS report pages"
           value={tab}
@@ -438,33 +435,33 @@ export function ShinyReportDialog({
                   </details>
                 )}
                 {selected && <p className="text-xs text-muted-foreground">{reportSummaryStatus(selected, policy)}</p>}
-                {weightError && <p role="alert">{weightError}</p>}
+                {weightError && <InlineAlert tone="error">{weightError}</InlineAlert>}
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm">
-                    <caption className="mb-2 text-left font-semibold">Species summary</caption>
+                  <EngineeringTable className="whitespace-normal text-xs [&_td]:py-2">
+                    <caption className="mb-2 text-left text-sm font-semibold">Species summary</caption>
                     <thead>
                       <tr>
-                        <th>Species</th>
-                        <th>Baseline</th>
-                        <th>Establishment¹</th>
-                        <th>Maturation¹</th>
-                        <th>Stable / improving¹</th>
-                        <th>Declining / unsuitable¹</th>
+                        <ColumnHeader label="Species" className="text-left" />
+                        <ColumnHeader label="Baseline" className="text-left" />
+                        <ColumnHeader label="Establishment¹" className="text-left" />
+                        <ColumnHeader label="Maturation¹" className="text-left" />
+                        <ColumnHeader label="Stable / improving¹" />
+                        <ColumnHeader label="Declining / unsuitable¹" />
                       </tr>
                     </thead>
                     <tbody>
                       {rows.map((r, i) => (
-                        <tr key={r.species} className="border-t">
-                          <td className="py-2">{r.species}</td>
-                          <td>{ratingLabel(r.current)}</td>
-                          <td>{summaries[i] ? ratingLabel(summaries[i]!.establishment) : '—'}</td>
-                          <td>{summaries[i] ? ratingLabel(summaries[i]!.maturation) : '—'}</td>
+                        <tr key={r.species}>
+                          <td className="text-left">{r.species}</td>
+                          <td className="text-left">{ratingLabel(r.current)}</td>
+                          <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.establishment) : '—'}</td>
+                          <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.maturation) : '—'}</td>
                           <td>{summaries[i] ? `${summaries[i]!.improve}%` : '—'}</td>
                           <td>{summaries[i] ? `${summaries[i]!.decline}%` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </EngineeringTable>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   ¹ Calculated in this browser from the imported votes. — means required periods or complete votes are

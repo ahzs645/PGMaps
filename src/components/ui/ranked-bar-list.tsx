@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export interface RankedBarListItem {
   id: string
@@ -49,7 +50,7 @@ export function RankedBarList({
               />
             </span>
             <span className="w-8 shrink-0 text-right tabular-nums text-muted-foreground">
-              {item.value.toLocaleString()}
+              {item.value.toLocaleString(DEFAULT_LOCALE)}
             </span>
           </>
         )

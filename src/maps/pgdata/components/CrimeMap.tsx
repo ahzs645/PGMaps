@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { MapClusterLayer, MapMarker, MapPopup, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import { KeyValueRows } from '@/components/ui/map-panels'
@@ -9,6 +9,8 @@ import { formatDate } from '@/lib/format'
 import { getCrimeCategory, getCrimeCategoryColor, CRIME_CATEGORY_COLORS } from '../constants'
 import type { CrimeIncident, CrimeCategory } from '../types'
 import { hexToRgba } from '@/lib/color'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { formatCrimeTime } from './CrimeTable'
 
 interface CrimeMapProps {
   incidents: CrimeIncident[]
@@ -18,23 +20,13 @@ interface CrimeMapProps {
   onIncidentClear: () => void
   showCrimeLayer: boolean
   loading?: boolean
+  table: MapTableController
 }
 
 type CrimeFeatureProperties = {
   id: number
   crimeType: string
   category: string
-}
-
-function formatTime(time: string): string {
-  if (!time || time === '00:00:00') return ''
-  const parts = time.split(':')
-  if (parts.length < 2) return time
-  const h = parseInt(parts[0], 10)
-  const m = parts[1]
-  const ampm = h >= 12 ? 'PM' : 'AM'
-  const hour = h % 12 || 12
-  return `${hour}:${m} ${ampm}`
 }
 
 function CrimeHeatmapLayer({ incidents }: { incidents: CrimeIncident[] }) {
@@ -86,6 +78,7 @@ export function CrimeMap({
   onIncidentClear,
   showCrimeLayer,
   loading = false,
+  table,
 }: CrimeMapProps) {
   const incidentById = useMemo(() => {
     const map = new Map<number, CrimeIncident>()
@@ -124,6 +117,9 @@ export function CrimeMap({
   return (
     <div className="h-full w-full">
       <SharedMap loading={loading} loadingLabel="Loading crime map data">
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" className="max-md:hidden" />
+
         {/* Crime cluster layers */}
         {showCrimeLayer &&
           !showHeatmap &&
@@ -184,7 +180,7 @@ export function CrimeMap({
                     <div className="mt-1 text-xs text-muted-foreground">{selectedIncident.address}</div>
                     <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatDate(selectedIncident.date)}</span>
-                      {formatTime(selectedIncident.time) && <span>{formatTime(selectedIncident.time)}</span>}
+                      {formatCrimeTime(selectedIncident.time) && <span>{formatCrimeTime(selectedIncident.time)}</span>}
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">{selectedIncident.community}</div>
                     <div className="mt-1.5 flex items-center gap-2">
@@ -211,10 +207,10 @@ export function CrimeMap({
 function MobileCrimeFeatureCard({ incident, onClose }: { incident: CrimeIncident; onClose: () => void }) {
   const category = getCrimeCategory(incident.crimeType)
   const categoryColor = getCrimeCategoryColor(incident.crimeType)
-  const incidentTime = formatTime(incident.time)
+  const incidentTime = formatCrimeTime(incident.time)
 
   return (
-    <MobileFeatureCard title={incident.crimeType} subtitle={incident.address} onClose={onClose}>
+    <MobileFeatureCard cardKey={incident.id} title={incident.crimeType} subtitle={incident.address} onClose={onClose}>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
         <span>{formatDate(incident.date)}</span>
         {incidentTime ? <span>{incidentTime}</span> : null}

@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils'
 import { RecordDialog, RecordEmptyState } from '@/components/ui/record-dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { formatFullAddress } from '../address'
 import { assessViolationRisk, summarizeViolationRisk } from '../risk'
 import { getHazardRating } from '../hazard'
@@ -165,14 +166,12 @@ export function InspectionPanel({
       closeLabel="Close inspection panel"
       // The source link sits inline with the attribution, so the footer keeps one action.
       footerStart={
-        <a
+        <ExternalLink
           href={restaurant.details_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          className="font-normal text-muted-foreground underline-offset-2 hover:text-foreground dark:text-muted-foreground"
         >
-          Northern Health HealthSpace ↗
-        </a>
+          Northern Health HealthSpace
+        </ExternalLink>
       }
       onClose={onClose}
       toolbar={

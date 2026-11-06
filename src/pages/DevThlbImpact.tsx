@@ -1,21 +1,46 @@
 import { StepMarker, type StepStatus } from '@/components/ui/step-section'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { TreePine } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { FormField, NativeSelect, NumberField } from '@/components/ui/form-field'
 import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
+import { formatNumber } from '@/lib/format'
+import { bboxOf } from './dev-avast/geometry'
+import { albersBoxToLngLat } from './dev-avast/projection'
 import { InputsPanel } from './dev-thlb/InputsPanel'
 import { ResultsPanel } from './dev-thlb/ResultsPanel'
 import { ThlbMap } from './dev-thlb/ThlbMap'
 import { inputSignature, useAnalysis } from './dev-thlb/useAnalysis'
 import { useInputs } from './dev-thlb/useInputs'
-import type { Settings } from './dev-thlb/types'
+import type { Settings, Summary } from './dev-thlb/types'
 
 type Tab = 'inputs' | 'settings' | 'results'
+
+/** The assessment outline's colour on the map. */
+const AREA_COLOR = '#d946ef'
+
+const twoDecimals = (value: number) => formatNumber(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const hectareColumn = (id: string, header: string, read: (row: Summary) => number | null) =>
+  numberColumn<Summary>(id, header, read, { format: twoDecimals, width: 140 })
+
+const AREA_COLUMNS = [
+  textColumn<Summary>('id', 'Area', (row) => row.id, { width: 200 }),
+  hectareColumn('areaHa', 'Area (ha)', (row) => row.areaHa),
+  hectareColumn('thlbHa', 'Known THLB (ha)', (row) => row.thlbHa),
+  hectareColumn('officialThlbHa', 'Official THLB (ha)', (row) => row.officialThlbHa),
+  hectareColumn('proxyThlbHa', 'Proxy THLB (ha)', (row) => row.proxyThlbHa),
+  hectareColumn('uncoveredHa', 'No source (ha)', (row) => row.uncoveredHa),
+  hectareColumn('unknownFactorHa', 'Missing factor (ha)', (row) => row.unknownFactorHa),
+  hectareColumn('matureThlbHa', 'Mature THLB (ha)', (row) => row.matureThlbHa),
+  hectareColumn('deferralThlbHa', 'Deferral THLB (ha)', (row) => row.deferralThlbHa),
+  hectareColumn('reductionHa', 'Reduction (ha)', (row) => row.reductionHa),
+]
 
 export default function DevThlbImpact() {
   const inputs = useInputs()
@@ -41,6 +66,35 @@ export default function DevThlbImpact() {
     setTab('results')
     void analysis.run(inputs.entries, next)
   }
+  // The rows hold the numbers and the areas the shapes; the two share an id.
+  const tableSources = useMemo(() => {
+    const result = analysis.result
+    if (!result) return []
+    const boxes = new Map(result.areas.map((area) => [area.id, albersBoxToLngLat(bboxOf(area.geometry))]))
+    return [
+      defineTableSource<Summary>({
+        id: 'areas',
+        label: 'Assessment areas',
+        color: AREA_COLOR,
+        shape: 'fill',
+        rows: result.rows,
+        columns: AREA_COLUMNS,
+        getRowId: (row) => row.id,
+        getRowCenter: (row) => {
+          const box = boxes.get(row.id)
+          return box ? [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] : null
+        },
+        getRowBounds: (row) => boxes.get(row.id) ?? null,
+      }),
+    ]
+  }, [analysis.result])
+  // The map's `Camera` already fits a selected area.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selected,
+    onSelectRow: (row: Summary) => setSelected(row.id),
+    flyOnSelect: false,
+  })
   const panel = (id: Tab) => ({
     role: 'tabpanel' as const,
     id: `thlb-panel-${id}`,
@@ -232,8 +286,9 @@ export default function DevThlbImpact() {
       desktopSidebarWidth={420}
       mobilePeekTitle="THLB impact"
       mobilePeekSubtitle={analysis.busy ? analysis.message : 'Assessment areas and harvestable hectares'}
+      table={table}
     >
-      <ThlbMap result={analysis.result} selected={selected} onSelect={setSelected} />
+      <ThlbMap result={analysis.result} selected={selected} onSelect={setSelected} table={table} />
     </MapSectionLayout>
   )
 }

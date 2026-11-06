@@ -2,6 +2,7 @@ import { IndexLabResultCard } from '@pgmaps/geo-toolkit/index-lab/react'
 import { useMemo, useState } from 'react'
 import { Download, Image as ImageIcon } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { CollapsibleSection, InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { EmptyHint, ListState } from '@/components/ui/result-list'
 import { DEFAULT_LOCALE } from '@/lib/format'
@@ -44,6 +45,8 @@ interface RegionsTabProps {
   onClearBaseline: () => void
 }
 
+const COMPARED_METRIC_LIMIT = 6
+
 export function RegionsTab({
   className,
   loading,
@@ -76,6 +79,7 @@ export function RegionsTab({
   const visibleRows = useMemo(() => filteredRegions.slice(0, visibleCount), [filteredRegions, visibleCount])
   const remainingRows = Math.max(0, filteredRegions.length - visibleRows.length)
   const [equityOpen, setEquityOpen] = useState(false)
+  const weightedMetrics = SCORE_METRICS.filter((m) => weights[m.key] !== 0)
 
   // Region cards summarize the heaviest active metric; a fixed metric would
   // read as 0 whenever its data source is switched off.
@@ -216,33 +220,34 @@ export function RegionsTab({
             <>
               <RadarChart regions={comparisonRegions} weights={weights} className="mt-2" />
               <div className="mt-2 overflow-x-auto">
-                <table className="w-full text-xs">
+                <EngineeringTable>
                   <thead>
                     <tr className="text-amber-700 dark:text-amber-300">
-                      <th className="pr-2 text-left font-medium">Metric</th>
+                      <ColumnHeader label="Metric" className="text-left" />
                       {comparisonRegions.map((r) => (
-                        <th key={r.region.id} className="px-1 text-right font-medium">
-                          {r.region.name.slice(0, 12)}
-                        </th>
+                        <ColumnHeader key={r.region.id} label={r.region.name.slice(0, 12)} />
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {SCORE_METRICS.filter((m) => weights[m.key] !== 0)
-                      .slice(0, 6)
-                      .map((m) => (
-                        <tr key={m.key} className="text-amber-800 dark:text-amber-200">
-                          <td className="pr-2 text-left">{m.shortLabel}</td>
-                          {comparisonRegions.map((r) => (
-                            <td key={r.region.id} className="px-1 text-right font-mono">
-                              {formatMetricValue(m.key, r.metrics[m.key], true)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
+                    {weightedMetrics.slice(0, COMPARED_METRIC_LIMIT).map((m) => (
+                      <tr key={m.key} className="text-amber-800 dark:text-amber-200">
+                        <td className="text-left">{m.shortLabel}</td>
+                        {comparisonRegions.map((r) => (
+                          <td key={r.region.id} className="font-mono">
+                            {formatMetricValue(m.key, r.metrics[m.key], true)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
+              {weightedMetrics.length > COMPARED_METRIC_LIMIT && (
+                <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
+                  Showing the first {COMPARED_METRIC_LIMIT} of {weightedMetrics.length} weighted metrics.
+                </p>
+              )}
             </>
           )}
         </InlineAlert>

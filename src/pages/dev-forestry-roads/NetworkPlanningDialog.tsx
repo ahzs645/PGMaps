@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { ExternalLink } from '@/components/ui/text-button'
 import { NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -396,11 +398,7 @@ export function NetworkPlanningDialog({
             { value: 'results', label: 'Results & utilities' },
           ]}
         />
-        {error && (
-          <div role="alert">
-            <InlineAlert tone="warning">{error}</InlineAlert>
-          </div>
-        )}
+        {error && <InlineAlert tone="error">{error}</InlineAlert>}
         {note && (
           <p className="text-sm" role="status">
             {note}
@@ -752,23 +750,23 @@ export function NetworkPlanningDialog({
               <p className="text-xs text-muted-foreground">{review.prepared.provenance}</p>
               {review.results.length > 1 && (
                 <div className="overflow-x-auto rounded border">
-                  <table className="w-full text-left text-xs">
-                    <caption className="p-2 text-left font-semibold">
+                  <EngineeringTable rowHeaders>
+                    <caption className="whitespace-normal p-2 text-left text-xs font-semibold">
                       Method comparison · relative objective, unique edge lengths
                     </caption>
                     <thead>
-                      <tr className="border-b">
-                        <th className="p-2">Method</th>
-                        <th className="p-2">New road m</th>
-                        <th className="p-2">Reused m</th>
-                        <th className="p-2">Objective</th>
-                        <th className="p-2">Targets reached</th>
+                      <tr>
+                        <ColumnHeader label="Method" className="text-left" />
+                        <ColumnHeader label="New road" unit="m" />
+                        <ColumnHeader label="Reused" unit="m" />
+                        <ColumnHeader label="Objective" />
+                        <ColumnHeader label="Targets reached" />
                       </tr>
                     </thead>
                     <tbody>
                       {review.results.map((result) => (
-                        <tr key={result.method} className={result === activeResult ? 'bg-primary/10' : ''}>
-                          <th className="p-2 font-normal">
+                        <tr key={result.method} aria-selected={result === activeResult}>
+                          <th scope="row">
                             <button
                               className="text-left underline underline-offset-2"
                               aria-pressed={result === activeResult}
@@ -781,10 +779,10 @@ export function NetworkPlanningDialog({
                               {methodLabel(result.method)}
                             </button>
                           </th>
-                          <td className="p-2">{fmt(result.newLengthM)}</td>
-                          <td className="p-2">{fmt(result.reusedLengthM)}</td>
-                          <td className="p-2">{fmt(result.objective, 2)}</td>
-                          <td className="p-2">
+                          <td>{fmt(result.newLengthM)}</td>
+                          <td>{fmt(result.reusedLengthM)}</td>
+                          <td>{fmt(result.objective, 2)}</td>
+                          <td>
                             {
                               result.targets.filter(
                                 (target) => target.status === 'connected' || target.status === 'already-connected',
@@ -795,7 +793,7 @@ export function NetworkPlanningDialog({
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </EngineeringTable>
                 </div>
               )}
               <NetworkResultPreview prepared={review.prepared} result={activeResult} selectedPathId={activePath?.id} />
@@ -822,28 +820,28 @@ export function NetworkPlanningDialog({
                 </InlineAlert>
               )}
               <div className="overflow-x-auto rounded border">
-                <table className="w-full text-left text-xs" aria-label="Network target outcomes">
+                <EngineeringTable variant="text" rowHeaders aria-label="Network target outcomes">
                   <thead>
-                    <tr className="border-b">
-                      <th className="p-2">Landing</th>
-                      <th className="p-2">Status</th>
-                      <th className="p-2">Grid cell</th>
-                      <th className="p-2">Details</th>
+                    <tr>
+                      <ColumnHeader label="Landing" />
+                      <ColumnHeader label="Status" />
+                      <ColumnHeader label="Grid cell" />
+                      <ColumnHeader label="Details" />
                     </tr>
                   </thead>
                   <tbody>
                     {activeResult.targets.map((target, index) => (
-                      <tr key={`${target.id}-${index}`} className="border-b last:border-0">
-                        <th className="p-2 font-normal">{target.name ?? target.id}</th>
-                        <td className="p-2">{target.status.replace(/-/g, ' ')}</td>
-                        <td className="p-2">{target.cell}</td>
-                        <td className="p-2">
+                      <tr key={`${target.id}-${index}`}>
+                        <th scope="row">{target.name ?? target.id}</th>
+                        <td>{target.status.replace(/-/g, ' ')}</td>
+                        <td>{target.cell}</td>
+                        <td>
                           {target.message ?? `${target.pathIds.length} path${target.pathIds.length === 1 ? '' : 's'}`}
                         </td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
               {activeResult.paths.length > 0 && (
                 <div className="space-y-2 rounded border p-3">
@@ -1006,9 +1004,13 @@ export function NetworkPlanningDialog({
           <summary className="cursor-pointer font-medium">Methods and source</summary>
           <p className="mt-2">
             Browser adaptation of{' '}
-            <a className="underline" href="https://github.com/LandSciTech/roads" target="_blank" rel="noreferrer">
+            <ExternalLink
+              href="https://github.com/LandSciTech/roads"
+              hideIcon
+              className="inline font-normal text-inherit underline dark:text-inherit"
+            >
               LandSciTech/roads
-            </a>
+            </ExternalLink>
             , with Apache-2.0 attribution included in the code. Network projection runs in a browser worker. Method
             choices can produce different networks; a minimum spanning tree of terminal paths does not establish a
             globally optimal engineered road network.

@@ -33,6 +33,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import {
   buildProjectLabUrl,
   downloadProjectPackage,
@@ -644,16 +645,19 @@ function ProjectCatalogPage({
 
           {desktop ? (
             <div ref={resultsRef} className="min-h-0 flex-1 overflow-auto">
-              <table className="w-full table-fixed border-separate border-spacing-0 text-left">
-                <thead className="sticky top-0 z-10 bg-background text-xs uppercase tracking-wide text-muted-foreground shadow-[0_1px_0_0_hsl(var(--border))]">
+              <EngineeringTable
+                variant="text"
+                className="table-fixed [&_td:first-child]:px-4 [&_td:last-child]:px-4 [&_td]:px-3 [&_td]:py-3 [&_tbody_tr[aria-selected=true]]:bg-primary/5 [&_tbody_tr[aria-selected=true]]:font-normal"
+              >
+                <thead className="sticky top-0 z-10 uppercase tracking-wide text-muted-foreground">
                   <tr>
-                    <th className="w-[48%] px-4 py-3 font-semibold">Project</th>
-                    <th className="w-[20%] px-3 py-3 font-semibold">Type</th>
-                    <th className="w-[18%] px-3 py-3 font-semibold">Resources</th>
-                    <th className="w-[14%] px-4 py-3 text-right font-semibold">Open</th>
+                    <ColumnHeader label="Project" className="w-[48%] px-4 py-3 font-semibold" />
+                    <ColumnHeader label="Type" className="w-[20%] px-3 py-3 font-semibold" />
+                    <ColumnHeader label="Resources" className="w-[18%] px-3 py-3 font-semibold" />
+                    <ColumnHeader label="Open" className="w-[14%] px-4 py-3 text-right font-semibold" />
                   </tr>
                 </thead>
-                <tbody className="divide-y">
+                <tbody>
                   {pagination.items.map((entry) => {
                     if (entry.type === 'folder') {
                       return (
@@ -666,9 +670,10 @@ function ProjectCatalogPage({
                       <tr
                         key={project.slug}
                         data-entry="project"
-                        className={cn('align-top transition-colors', active ? 'bg-primary/5' : 'hover:bg-muted/30')}
+                        aria-selected={active}
+                        className="align-top transition-colors"
                       >
-                        <td className="px-4 py-3">
+                        <td>
                           <button
                             type="button"
                             onClick={() => onSelectProject(project.slug)}
@@ -693,7 +698,7 @@ function ProjectCatalogPage({
                             </span>
                           </button>
                         </td>
-                        <td className="px-3 py-3">
+                        <td>
                           <div>
                             <span
                               className={cn(
@@ -705,7 +710,7 @@ function ProjectCatalogPage({
                             </span>
                           </div>
                         </td>
-                        <td className="px-3 py-3 text-xs leading-5 text-muted-foreground">
+                        <td className="text-xs leading-5 text-muted-foreground">
                           <div>
                             <span className="font-medium text-foreground">
                               {project.catalogCounts?.layers ?? project.layers.length}
@@ -722,7 +727,7 @@ function ProjectCatalogPage({
                             <span className="font-medium text-foreground">{project.lab ? 'Lab' : 'Story'}</span> recipe
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="text-right">
                           <Button
                             type="button"
                             variant={active ? 'default' : 'outline'}
@@ -737,7 +742,7 @@ function ProjectCatalogPage({
                     )
                   })}
                 </tbody>
-              </table>
+              </EngineeringTable>
 
               {entries.length === 0 && (
                 <div className="p-8 text-center text-sm text-muted-foreground">{emptyMessage}</div>

@@ -1,6 +1,7 @@
 import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useEffect, useMemo } from 'react'
-import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { MapClusterLayer, MapMarker, MapPopup, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
@@ -38,6 +39,7 @@ interface AirQualityMapProps {
   basemap: AirQualityBasemap
   correctionModel: AirQualityCorrectionModel
   loading?: boolean
+  table: MapTableController
   onBoundsChange?: (bounds: AirQualityMapBounds) => void
   onMonitorClick: (monitor: AirMonitor) => void
   onBrowseBoundaryClick?: (feature: { code: string; name: string }) => void
@@ -192,6 +194,7 @@ export function AirQualityMap({
   basemap,
   correctionModel,
   loading = false,
+  table,
   onBoundsChange,
   onMonitorClick,
   onBrowseBoundaryClick,
@@ -279,6 +282,8 @@ export function AirQualityMap({
 
   return (
     <SharedMap styles={mapStyles} loading={loading} loadingLabel="Loading air quality data">
+      <MapTableBridge table={table} />
+      <MapScaleBar position="bottom-left" />
       <BoundaryBrowseLayer
         features={browseBoundaryFeatures}
         visible={browseBoundariesVisible}
@@ -403,7 +408,7 @@ function MobileAirQualityFeatureCard({
   const subtitle = [monitor.city, monitor.province].filter(Boolean).join(', ') || 'Location available'
 
   return (
-    <MobileFeatureCard title={monitor.name} subtitle={subtitle} onClose={onClose}>
+    <MobileFeatureCard cardKey={monitorEntryKey(monitor)} title={monitor.name} subtitle={subtitle} onClose={onClose}>
       {monitorsAtLocation.length > 1 && (
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {monitorsAtLocation.length} sensors at this location

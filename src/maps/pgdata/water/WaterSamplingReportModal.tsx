@@ -3,6 +3,7 @@ import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { RecordDialog } from '@/components/ui/record-dialog'
 import { StatGroup, type StatItem } from '@/components/ui/stat-group'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { formatDate } from '../shared'
 import { firstDate, firstString, formatUnknown, getNoticeDetailsUrl, parseSampleLocation } from './utils'
 import { EmptyWaterDetail, WaterNoticeCard } from './WaterDetails'
@@ -210,6 +211,8 @@ function FacilityHistorySection({ water }: { water: WaterState }) {
   )
 }
 
+const SAMPLE_COLUMNS = ['Date', 'Type', 'Parameter', 'Result', 'Location / results']
+
 function WaterSamplingGrid({ samples }: { samples: WaterSampleRow[] }) {
   if (samples.length === 0) {
     return <EmptyWaterDetail label="No sample rows for this facility." />
@@ -218,14 +221,12 @@ function WaterSamplingGrid({ samples }: { samples: WaterSampleRow[] }) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
       <div className="max-h-[58vh] overflow-auto">
-        <table className="min-w-full border-separate border-spacing-0 text-left text-xs">
-          <thead className="sticky top-0 z-10 bg-muted/90 text-xs uppercase tracking-wide text-muted-foreground backdrop-blur">
+        <EngineeringTable variant="text" className="w-auto min-w-full [&_td]:px-3 [&_td]:py-2">
+          <thead className="sticky top-0 z-10 uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="border-b border-border px-3 py-2 font-semibold">Date</th>
-              <th className="border-b border-border px-3 py-2 font-semibold">Type</th>
-              <th className="border-b border-border px-3 py-2 font-semibold">Parameter</th>
-              <th className="border-b border-border px-3 py-2 font-semibold">Result</th>
-              <th className="border-b border-border px-3 py-2 font-semibold">Location / results</th>
+              {SAMPLE_COLUMNS.map((label) => (
+                <ColumnHeader key={label} label={label} className="px-3 py-2 font-semibold" />
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -233,7 +234,7 @@ function WaterSamplingGrid({ samples }: { samples: WaterSampleRow[] }) {
               <WaterSamplingGridRow key={`${sample.id}-${index}`} sample={sample} />
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
     </div>
   )
@@ -255,20 +256,16 @@ function WaterSamplingGridRow({ sample }: { sample: WaterSampleRow }) {
     : []
 
   return (
-    <tr className="align-top odd:bg-muted/20">
-      <td className="border-b border-border/70 px-3 py-2 whitespace-nowrap text-muted-foreground">
-        {formatDate(sample.date?.toISOString())}
-      </td>
-      <td className="border-b border-border/70 px-3 py-2">
+    <tr className="align-top">
+      <td className="whitespace-nowrap text-muted-foreground">{formatDate(sample.date?.toISOString())}</td>
+      <td>
         <Badge tone={sample.kind === 'chemical' ? 'cyan' : 'info'} size="sm" pill className="capitalize">
           {sample.kind}
         </Badge>
       </td>
-      <td className="border-b border-border/70 px-3 py-2 font-medium text-foreground">
-        {sample.parameter || 'Unknown parameter'}
-      </td>
-      <td className="border-b border-border/70 px-3 py-2 font-mono text-foreground">{result}</td>
-      <td className="border-b border-border/70 px-3 py-2 text-muted-foreground">
+      <td className="font-medium text-foreground">{sample.parameter || 'Unknown parameter'}</td>
+      <td className="font-mono text-foreground">{result}</td>
+      <td className="text-muted-foreground">
         {details.length === 0 ? (
           <span className="text-muted-foreground/70">-</span>
         ) : (

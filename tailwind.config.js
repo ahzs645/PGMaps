@@ -12,6 +12,18 @@ export default {
   ],
   theme: {
     extend: {
+      // Also registered in the toolkit's `cn`, or tailwind-merge reads `text-2xs` as a
+      // colour and drops it next to one. Add a name in both places.
+      fontSize: {
+        '3xs': '10px',
+        '2xs': '11px'
+      },
+      zIndex: {
+        menu: '1300',
+        overlay: '1400',
+        'workspace-menu': '1500',
+        'workspace-popover': '1600'
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

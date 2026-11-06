@@ -3,6 +3,7 @@ import { useKeyedState } from './useKeyedState'
 import treeUrl from './treeIsolation.generated.json?url'
 import { readSourceGrid, sourceCell, sourceValue, toMetric } from './sourceGrids'
 import { crownCells, type TreeIsolation, type CrownFeature, type TreeCrop } from './treeIsolation'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export { treeUrl }
 export function useTreeIsolation(enabled: boolean, base: string, hash: string) {
   const [data, setData] = useState<TreeIsolation | null>(null),
@@ -162,7 +163,7 @@ export function useTreeCrop(
       .then((next) => {
         if (active) {
           setCrop(next)
-          setStatus(`${next.points.length.toLocaleString()} cropped original returns`)
+          setStatus(`${next.points.length.toLocaleString(DEFAULT_LOCALE)} cropped original returns`)
         }
       })
       .catch((e) => {

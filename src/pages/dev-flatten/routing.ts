@@ -1,6 +1,7 @@
 import { assetBase, CITIES, type CityConfig, type CityId } from './cities'
 import { Bundle, Geometry, Graph, Grid, loadBundle, type Route, type RouteStats, type TravelMode } from './engine.js'
 import { Index } from './search.js'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const MILE = 1609.344
 export type Place = { lon: number; lat: number; label: string }
@@ -278,7 +279,7 @@ export function distanceText(meters: number, units: Units) {
   return `${(meters / (units === 'mi' ? MILE : 1000)).toFixed(1)} ${units}`
 }
 export function climbText(meters: number, units: Units) {
-  return `${Math.round(units === 'mi' ? meters * 3.28084 : meters).toLocaleString()} ${units === 'mi' ? 'ft' : 'm'}`
+  return `${Math.round(units === 'mi' ? meters * 3.28084 : meters).toLocaleString(DEFAULT_LOCALE)} ${units === 'mi' ? 'ft' : 'm'}`
 }
 export function routeStreets(model: Model, member: RouteMember): string[] {
   const names: string[] = []

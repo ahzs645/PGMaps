@@ -256,6 +256,58 @@ function regionGeoJson(regions: ScoredBoundaryRegion[], options: RegionExportOpt
   }
 }
 
+/** The scored regions as CSV text; every cell is quoted and escaped. */
+export function scoredRegionsCsv(
+  scoredRegions: ScoredBoundaryRegion[],
+  metrics: ScoreMetricDefinition[],
+  aggregation: ScoreMethodSettings['aggregation'],
+): string {
+  const metricKeys = metrics.map((m) => m.key)
+  const header = [
+    'Rank',
+    'Rank confidence',
+    'Rank interval',
+    'Score',
+    'Score interval',
+    'Score method',
+    'Comparison universe',
+    'HealthyPlan demographic metric',
+    'HealthyPlan environment metric',
+    'HealthyPlan demographic decile',
+    'HealthyPlan environment decile',
+    'HealthyPlan priority score',
+    'HealthyPlan priority',
+    'Module scores',
+    'Missing data flags',
+    'Name',
+    'Code',
+    'Area (km²)',
+    ...metrics.map((m) => m.label),
+  ]
+  const rows = scoredRegions.map((r) => [
+    r.rank,
+    r.rankConfidence,
+    `${r.rankInterval[0]}-${r.rankInterval[1]}`,
+    r.score.toFixed(1),
+    `${r.scoreInterval[0].toFixed(1)}-${r.scoreInterval[1].toFixed(1)}`,
+    r.scoreMethodLabel || aggregation,
+    r.comparisonUniverseLabel,
+    r.healthyPlanPriority?.demographicMetric ?? '',
+    r.healthyPlanPriority?.environmentMetric ?? '',
+    r.healthyPlanPriority?.demographicRank ?? '',
+    r.healthyPlanPriority?.environmentRank ?? '',
+    r.healthyPlanPriority?.priorityScore ?? '',
+    r.healthyPlanPriority?.equityPriority ? 'yes' : r.healthyPlanPriority ? 'no' : '',
+    (r.moduleScores || []).map((module) => `${module.label}:${(module.rank * 100).toFixed(1)}`).join('; '),
+    (r.missingDataFlags || []).join('; '),
+    r.region.name,
+    r.region.code,
+    r.region.areaKm2.toFixed(1),
+    ...metricKeys.map((k) => r.metrics[k].toFixed(4)),
+  ])
+  return toCsv(header, rows)
+}
+
 /** Downloads the scored regions as a CSV or GeoJSON file. */
 export function exportScoredRegions(
   format: 'csv' | 'geojson',

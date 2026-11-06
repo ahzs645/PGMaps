@@ -9,6 +9,7 @@ import { InventoryDetail, number } from './InventoryDetail'
 import { MODEL_SOURCES } from './allometry'
 import type { EstimatedTree, summarizeInventory } from './summary'
 import type { InventoryData, InventoryRules, TreeReview } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 interface Props {
   data: InventoryData
   name: string
@@ -186,9 +187,9 @@ export function InventorySidebar({
         ) : (
           <SidebarSection title="Methods and provenance">
             <p className="text-xs leading-5">
-              Snapshot {new Date(data.snapshot_utc).toLocaleString()}. All ≥5 m candidates from seven non-overlapping 50
-              m cores are included. This subset is spatially selected and not representative of the whole tile. Neural
-              IDs await final seam merging. Roofs and merged crowns can be candidates.
+              Snapshot {new Date(data.snapshot_utc).toLocaleString(DEFAULT_LOCALE)}. All ≥5 m candidates from seven
+              non-overlapping 50 m cores are included. This subset is spatially selected and not representative of the
+              whole tile. Neural IDs await final seam merging. Roofs and merged crowns can be candidates.
             </p>
             <p className="mt-2 text-xs leading-5">
               ForestTools {data.foresttools.version}: vwf treetops, mcws crowns and glcm texture on the native 1 m CHM

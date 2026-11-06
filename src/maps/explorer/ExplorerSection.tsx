@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { HeatmapMashupLayer } from '@/components/HeatmapMashupLayer'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { NeighborhoodReport } from '@/components/NeighborhoodReport'
 import { formatNumber } from '@/lib/format'
+import { EXPLORER_DATASETS } from './constants'
+import { EXPLORER_TABLE_SHAPE, explorerTableColumns } from './explorerTable'
 import { ExplorerLegend } from './components/ExplorerLegend'
 import { ExplorerMap } from './components/ExplorerMap'
 import { ExplorerSidebar } from './components/ExplorerSidebar'
@@ -14,6 +17,7 @@ import { useExplorerItems } from './hooks/useExplorerItems'
 import { useExplorerMapData } from './hooks/useExplorerMapData'
 import { useExplorerSearch } from './hooks/useExplorerSearch'
 import { useExplorerTimeline } from './hooks/useExplorerTimeline'
+import type { ExplorerDatasetId, ExplorerItem } from './types'
 
 export default function ExplorerSection() {
   const isMobileViewport = useIsMobile()
@@ -58,10 +62,48 @@ export default function ExplorerSection() {
   )
   const handleExport = useExplorerExport(filteredItems)
 
+  // One table per dataset on the map: their items share no columns but name and relevance.
+  const tableSources = useMemo(() => {
+    const groups = new Map<ExplorerDatasetId, ExplorerItem[]>()
+    for (const item of filteredItems) {
+      const group = groups.get(item.datasetId)
+      if (group) group.push(item)
+      else groups.set(item.datasetId, [item])
+    }
+    return EXPLORER_DATASETS.filter(
+      (dataset) => datasetSet.has(dataset.id) && geometrySet.has(dataset.geometryType),
+    ).map((dataset) => {
+      const rows = groups.get(dataset.id) ?? []
+      return defineTableSource<ExplorerItem>({
+        id: dataset.id,
+        label: dataset.label,
+        color: dataset.color,
+        shape: EXPLORER_TABLE_SHAPE[dataset.geometryType],
+        rows,
+        columns: explorerTableColumns(rows),
+        getRowId: (item) => item.id,
+        getRowCenter: ({ bounds }) => [(bounds.minLng + bounds.maxLng) / 2, (bounds.minLat + bounds.maxLat) / 2],
+        getRowBounds: ({ bounds }) => [bounds.minLng, bounds.minLat, bounds.maxLng, bounds.maxLat],
+        status: loading ? 'loading' : 'ready',
+        emptyMessage: 'No items match these filters.',
+        exportFileName: `explorer-${dataset.id}`,
+      })
+    })
+  }, [datasetSet, filteredItems, geometrySet, loading])
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedItem?.id ?? null,
+    onSelectRow: (item: ExplorerItem) => setSelectedItemId(item.id),
+    // ExplorerMap fits the selected item, which also covers a click on the map.
+    flyOnSelect: false,
+    inlineButton: true,
+  })
+
   const showLegend = showHeatmap || (activeDatasetIds.length > 0 && geometryFilters.length > 0)
 
   return (
     <MapSectionLayout
+      table={table}
       desktopSidebarWidth={370}
       mobilePeekTitle={<>Explorer · {formatNumber(filteredItems.length)} visible</>}
       mobilePeekSubtitle={
@@ -106,12 +148,17 @@ export default function ExplorerSection() {
           lineCollections={lineCollections}
           polygonCollections={polygonCollections}
           selectedItem={selectedItem}
-          onItemSelect={(itemId) => setSelectedItemId((current) => (current === itemId ? null : itemId))}
+          onItemSelect={(itemId) => {
+            setSelectedItemId((current) => (current === itemId ? null : itemId))
+            const datasetId = filteredItems.find((item) => item.id === itemId)?.datasetId
+            if (datasetId) table.follow(datasetId)
+          }}
           spatialFilter={spatialFilter}
           onSpatialFilterChange={setSpatialFilter}
           onMapRightClick={(lng, lat) => setNeighborhoodPoint({ lat, lng })}
           heatmapLayer={showHeatmap ? <HeatmapMashupLayer datasets={heatmapDatasets} visible /> : null}
           loading={loading}
+          table={table}
         />
 
         {neighborhoodPoint && (

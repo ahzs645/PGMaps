@@ -5,6 +5,7 @@ import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { featureName } from './vector'
 import { getImportSession, setImportSession } from './session'
 import type { ImportSession } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function ImportSidebar({
   session,
   selected,
@@ -108,10 +109,10 @@ export function ImportSidebar({
                   label: 'Type',
                   value:
                     layer.kind === 'vector'
-                      ? layer.data.features.length.toLocaleString() + ' features'
+                      ? layer.data.features.length.toLocaleString(DEFAULT_LOCALE) + ' features'
                       : layer.width + ' × ' + layer.height + ' cells',
                 },
-                { label: 'Source bytes', value: layer.source.bytes.toLocaleString() },
+                { label: 'Source bytes', value: layer.source.bytes.toLocaleString(DEFAULT_LOCALE) },
               ]}
             />
             <div className="mt-2 flex gap-2">
@@ -126,7 +127,7 @@ export function ImportSidebar({
               <div className="mt-2 text-xs">
                 <p>
                   Native range {layer.minimum.toPrecision(6)} – {layer.maximum.toPrecision(6)} ·{' '}
-                  {layer.valid.toLocaleString()} valid cells.
+                  {layer.valid.toLocaleString(DEFAULT_LOCALE)} valid cells.
                 </p>
                 <div
                   className="my-1 h-2"
@@ -145,7 +146,7 @@ export function ImportSidebar({
           </SidebarSection>
         )}
         {layer?.kind === 'vector' && (
-          <SidebarSection title={'Features · ' + rows.length.toLocaleString()}>
+          <SidebarSection title={'Features · ' + rows.length.toLocaleString(DEFAULT_LOCALE)}>
             <input
               aria-label="Search imported feature IDs"
               className="mb-2 w-full rounded border bg-background p-2 text-sm"

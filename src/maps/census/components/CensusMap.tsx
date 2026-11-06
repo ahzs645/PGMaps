@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { Map as PgMap, type MapRef } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { Map as PgMap, MapScaleBar, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { useMapViewUrlState } from '@/components/ui/map-url-state'
 import { PG_CENTER, getChoroplethColor } from '@/components/ui/map-styles'
@@ -13,6 +14,7 @@ interface CensusMapProps {
   onUnitClick: (id: string) => void
   variableValuesByGeoUid?: Map<string, number | null> | null
   loading?: boolean
+  table: MapTableController
 }
 
 const ZOOM = 10
@@ -25,6 +27,7 @@ export function CensusMap({
   onUnitClick,
   variableValuesByGeoUid,
   loading = false,
+  table,
 }: CensusMapProps) {
   const mapRef = useRef<MapRef>(null)
   const lastBoundsKeyRef = useRef<string | null>(null)
@@ -163,7 +166,10 @@ export function CensusMap({
         zoom={initialView.zoom}
         loading={loading}
         onViewportChange={onViewportChange}
+        deferResize={table.deferResize}
       >
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" />
         <MapFillLayer
           data={featureCollection}
           fillColor={['coalesce', ['get', 'color'], '#475569']}

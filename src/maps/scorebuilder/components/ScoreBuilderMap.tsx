@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Map as PgMap, MapClusterLayer, type MapRef } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { Map as PgMap, MapClusterLayer, MapScaleBar, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { hexToRgbaArray } from '@/lib/color'
@@ -33,6 +34,8 @@ interface ScoreBuilderMapProps {
   unrankedRegions?: ScoredBoundaryRegion[]
   /** Hover text per region id, as HTML the caller has already escaped. */
   regionTooltips?: Record<string, string>
+  /** The Explore view's table. The Build view and project previews have none. */
+  table?: MapTableController
 }
 
 interface WalkabilityHeatmapManifest {
@@ -87,6 +90,7 @@ export function ScoreBuilderMap({
   studyAreaBounds = null,
   unrankedRegions = NO_REGIONS,
   regionTooltips,
+  table,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef | null>(null)
   const [mapReady, setMapReady] = useState(false)
@@ -176,7 +180,9 @@ export function ScoreBuilderMap({
 
   return (
     <div className="h-full w-full">
-      <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
+      <PgMap ref={setMapRef} center={PG_CENTER} zoom={ZOOM} loading={loading} deferResize={table?.deferResize}>
+        {table && <MapTableBridge table={table} />}
+        <MapScaleBar position="bottom-left" />
         {walkabilitySourceSurface && (
           <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />
         )}

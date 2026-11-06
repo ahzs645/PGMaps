@@ -251,6 +251,11 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
     // The build/explore view param is owned by the section; carry it through rewrites.
     const view = searchParamsRef.current.get('view')
     if (lab === 'index' && (view === 'build' || view === 'explore')) params.set('view', view)
+    // So are the map table's own params: dropping them here would close an open table.
+    for (const key of ['table', 'row']) {
+      const value = searchParamsRef.current.get(key)
+      if (value) params.set(key, value)
+    }
     setSearchParams(params, { replace: true })
   }, [lab, quickPending, setSearchParams, urlQuery])
 

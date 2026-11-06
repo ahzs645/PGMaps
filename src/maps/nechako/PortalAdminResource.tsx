@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { PaginationControls } from '@/components/ui/pagination-controls'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
 import { errorText } from '@/lib/nechakoPortal'
 import { CheckState, JsonResults, useReadCheck } from './PortalChecks'
@@ -123,28 +124,24 @@ export function AdminDataTable({
       </p>
       {filtered.length ? (
         <div className="max-w-full overflow-x-auto rounded border">
-          <table className="w-full text-left text-sm" aria-label={title}>
-            <thead className="bg-muted/50">
+          <EngineeringTable variant="text" className="text-sm" aria-label={title}>
+            <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column.key} scope="col" className="p-2 align-top">
-                    {column.label}
-                  </th>
+                  <ColumnHeader key={column.key} label={column.label} className="align-top" />
                 ))}
-                <th scope="col" className="p-2">
-                  Details
-                </th>
+                <ColumnHeader label="Details" className="align-top" />
               </tr>
             </thead>
             <tbody>
               {filtered.slice(current * pageSize, (current + 1) * pageSize).map((row, index) => (
-                <tr key={current * pageSize + index} className="border-t">
+                <tr key={current * pageSize + index}>
                   {columns.map((column) => (
-                    <td key={column.key} className="max-w-80 break-words p-2 align-top">
+                    <td key={column.key} className="max-w-80 break-words align-top">
                       {adminCell(row[column.key], column.boolean)}
                     </td>
                   ))}
-                  <td className="p-2 align-top">
+                  <td className="align-top">
                     <Button
                       size="sm"
                       variant="outline"
@@ -157,7 +154,7 @@ export function AdminDataTable({
                 </tr>
               ))}
             </tbody>
-          </table>
+          </EngineeringTable>
         </div>
       ) : (
         <InlineAlert>

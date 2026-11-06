@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import { FormField, NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
+import { formatNumber } from '@/lib/format'
 import { THLB_SOURCES } from './sources'
 import type { Fields, InputRole } from './types'
 import type { InputEntry, useInputs } from './useInputs'
@@ -97,7 +99,7 @@ function Entry({ entry, inputs, disabled }: { entry: InputEntry; inputs: Inputs;
             </NativeSelect>
           </FormField>
           <p className="text-xs text-muted-foreground">
-            {layer?.featureCount.toLocaleString()} features · {layer?.crs || 'CRS checked when reading'}
+            {formatNumber(layer?.featureCount)} features · {layer?.crs || 'CRS checked when reading'}
           </p>
           {entry.role === 'areas' && select('id', 'Assessment ID', true)}
           {(entry.role === 'official' || entry.role === 'proxy') && (
@@ -162,16 +164,14 @@ export function InputsPanel({ inputs, disabled }: { inputs: Inputs; disabled: bo
         <p className="mb-2 text-xs leading-5 text-muted-foreground">
           Download the data, then add the ZIP or geodatabase below. Files are read locally; nothing is uploaded.
         </p>
-        <div className="flex flex-col gap-2 text-xs">
-          <a className="text-primary underline" href={THLB_SOURCES.official.download} target="_blank" rel="noreferrer">
-            Official THLB: TSA and available TFL downloads ↗
-          </a>
-          <a className="text-primary underline" href={THLB_SOURCES.proxy.download} target="_blank" rel="noreferrer">
-            Download public Proxy THLB (ZIP, about 279 MB) ↗
-          </a>
-          <a className="text-primary underline" href={THLB_SOURCES.proxy.catalogue} target="_blank" rel="noreferrer">
-            Proxy catalogue, use conditions and methodology ↗
-          </a>
+        <div className="flex flex-col items-start gap-2">
+          <ExternalLink href={THLB_SOURCES.official.download}>
+            Official THLB: TSA and available TFL downloads
+          </ExternalLink>
+          <ExternalLink href={THLB_SOURCES.proxy.download}>Download public Proxy THLB (ZIP, about 279 MB)</ExternalLink>
+          <ExternalLink href={THLB_SOURCES.proxy.catalogue}>
+            Proxy catalogue, use conditions and methodology
+          </ExternalLink>
         </div>
       </SidebarSection>
       {ROLES.map((role) => (

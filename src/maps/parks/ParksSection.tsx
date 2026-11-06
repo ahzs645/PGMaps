@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { KeyValueRows, LegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { toggleArrayItem } from '@/hooks/useToggleArray'
@@ -12,6 +14,7 @@ import { ParksSidebar } from './components/ParksSidebar'
 import { useParksData } from './hooks/useParksData'
 import { getClassificationColor, getTrailColor } from './constants'
 import type { Park, Trail, ParkClassification, TrailUserClass, ActiveLayer } from './types'
+import { geometryBounds } from '@/lib/geo'
 import { formatArea, formatLength, formatNumber } from '@/lib/format'
 
 const ALL_CLASSIFICATIONS: ParkClassification[] = [
@@ -30,6 +33,33 @@ const ALL_TRAIL_TYPES: TrailUserClass[] = ['Walking', 'Multiuse', 'Equine']
 
 const getParkId = (park: Park) => String(park.id)
 const getTrailId = (trail: Trail) => String(trail.id)
+// Parks and trails each number their own OBJECTIDs, so a table row names its kind.
+const parkRowId = (park: Park) => `park-${park.id}`
+const trailRowId = (trail: Trail) => `trail-${trail.id}`
+const wholeNumber = (value: number) => formatNumber(value, { maximumFractionDigits: 0 })
+
+const PARK_COLUMNS = [
+  textColumn<Park>('name', 'Name', (park) => park.name, { width: 240 }),
+  textColumn<Park>('classification', 'Classification', (park) => park.classification),
+  textColumn<Park>('subType', 'Type', (park) => park.subType, { width: 120 }),
+  textColumn<Park>('developed', 'Developed', (park) => (park.developed ? 'Yes' : 'No'), { width: 110 }),
+  numberColumn<Park>('area', 'Area (m²)', (park) => park.area, { format: wholeNumber }),
+]
+
+const TRAIL_COLUMNS = [
+  textColumn<Trail>('name', 'Name', (trail) => trail.name, { width: 240 }),
+  textColumn<Trail>('parkName', 'Park', (trail) => trail.parkName, { width: 200 }),
+  textColumn<Trail>('userClass', 'Trail type', (trail) => trail.userClass, { width: 120 }),
+  textColumn<Trail>('surface', 'Surface', (trail) => trail.surfaceMaterial || trail.surfaceClass),
+  numberColumn<Trail>('length', 'Length (m)', (trail) => trail.length, { format: wholeNumber }),
+  textColumn<Trail>('winter', 'Winter maintenance', (trail) => (trail.winterMaintenance ? 'Yes' : 'No'), {
+    width: 160,
+  }),
+]
+
+function trailCenter(trail: Trail): [number, number] | null {
+  return trail.coordinates[Math.floor(trail.coordinates.length / 2)] ?? null
+}
 
 export default function ParksSection() {
   const [searchParams] = useSearchParams()
@@ -157,6 +187,62 @@ export default function ParksSection() {
     [handleClearSelection, parkSelection, trailSelection],
   )
 
+  const showParks = activeLayers.includes('parks')
+  const showTrails = activeLayers.includes('trails')
+  const tableSources = useMemo(() => {
+    const status = loading ? ('loading' as const) : error ? ('error' as const) : ('ready' as const)
+    return [
+      ...(showParks
+        ? [
+            defineTableSource<Park>({
+              id: 'parks',
+              label: 'Parks',
+              color: '#16a34a',
+              shape: 'fill',
+              rows: filteredParks,
+              columns: PARK_COLUMNS,
+              getRowId: parkRowId,
+              getRowCenter: (park) => [park.longitude, park.latitude],
+              getRowBounds: (park) => geometryBounds(park.geometry),
+              status,
+              emptyMessage: error ?? 'No parks match these filters.',
+              exportFileName: 'pg-parks',
+            }),
+          ]
+        : []),
+      ...(showTrails
+        ? [
+            defineTableSource<Trail>({
+              id: 'trails',
+              label: 'Trails',
+              color: '#ef4444',
+              shape: 'line',
+              rows: filteredTrails,
+              columns: TRAIL_COLUMNS,
+              getRowId: trailRowId,
+              getRowCenter: trailCenter,
+              getRowBounds: (trail) => geometryBounds({ type: 'LineString', coordinates: trail.coordinates }),
+              status,
+              emptyMessage: error ?? 'No trails match these filters.',
+              exportFileName: 'pg-trails',
+            }),
+          ]
+        : []),
+    ]
+  }, [error, filteredParks, filteredTrails, loading, showParks, showTrails])
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: visibleSelectedPark
+      ? parkRowId(visibleSelectedPark)
+      : visibleSelectedTrail
+        ? trailRowId(visibleSelectedTrail)
+        : null,
+    onSelectRow: (row: Park | Trail, source) =>
+      source.id === 'trails' ? handleTrailClick(row as Trail) : handleParkClick(row as Park),
+    // ParksMap fits the selected park or trail, which also covers a click on the map.
+    flyOnSelect: false,
+  })
+
   const parkLegendRows = useMemo(() => {
     const query = searchQuery.trim().toLowerCase()
     return ALL_CLASSIFICATIONS.map((classification) => ({
@@ -205,6 +291,7 @@ export default function ParksSection() {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={<>Parks & Trails · {formatNumber(filteredParks.length + filteredTrails.length)} visible</>}
       mobilePeekSubtitle={
         <>{visibleSelectedPark?.name || visibleSelectedTrail?.name || `${activeLayers.length} layers active`}</>
@@ -248,8 +335,15 @@ export default function ParksSection() {
           selectedTrail={visibleSelectedTrail}
           selectionFocusKey={selectionFocusKey}
           loading={loading}
-          onParkClick={handleParkClick}
-          onTrailClick={handleTrailClick}
+          table={table}
+          onParkClick={(park) => {
+            handleParkClick(park)
+            if (park) table.follow('parks')
+          }}
+          onTrailClick={(trail) => {
+            handleTrailClick(trail)
+            if (trail) table.follow('trails')
+          }}
         />
 
         {isMobileViewport && mobileFeatureSheetOpen && visibleSelectedPark && (

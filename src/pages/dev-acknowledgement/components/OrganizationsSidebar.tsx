@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Search } from 'lucide-react'
 
+import { SearchInput } from '@/components/ui/map-panels'
+import { ResultRow } from '@/components/ui/result-list'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { cn } from '@/lib/utils'
 import { organizations } from '../organizations'
 
@@ -37,39 +39,43 @@ export function OrganizationsSidebar({ selectedId, onSelect }: OrganizationsSide
         <p className="mt-0.5 text-xs leading-4 text-slate-500">
           {organizations.length} examples · choose one to review its source and draft
         </p>
-        <label className="mt-2 flex min-h-11 items-center gap-2 rounded-md border bg-white px-2.5">
-          <Search className="h-3.5 w-3.5 flex-none text-slate-400" />
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search"
-            aria-label="Search organizations"
-            className="min-w-0 flex-1 bg-transparent text-base outline-none"
-          />
-        </label>
+        {/* This page stays light under a dark app theme, so colours here are fixed, not tokens. */}
+        <SearchInput
+          icon
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
+          placeholder="Search"
+          aria-label="Search organizations"
+          wrapperClassName="mt-2"
+          className="min-h-11 rounded-md border-slate-200 bg-white text-slate-900 placeholder-slate-400"
+        />
       </div>
-      <div className="min-h-0 flex-1 space-y-1 p-2 lg:overflow-y-auto">
-        {filtered.map((org) => (
-          <button
-            key={org.id}
-            type="button"
-            onClick={() => onSelect(org.id)}
-            aria-current={selectedId === org.id}
-            className={cn(
-              'block min-h-11 w-full rounded-md border px-2 py-1.5 text-left transition',
-              selectedId === org.id ? 'border-teal-300 bg-teal-50' : 'border-transparent hover:bg-slate-50',
-            )}
-          >
-            <div className="break-words text-sm font-medium text-slate-900">{org.name}</div>
-            <div className="truncate text-xs text-slate-500">
-              {humanize(org.sector)} ·{' '}
-              {org.acknowledges.length
-                ? `${org.acknowledges.length} Nation${org.acknowledges.length === 1 ? '' : 's'}`
-                : 'region-wide'}
-            </div>
-          </button>
-        ))}
-        {filtered.length === 0 && <div className="p-2 text-xs text-slate-500">No organizations match “{query}”.</div>}
+      <div data-map-sidebar-scroll="true" className="max-h-[70dvh] min-h-0 flex-1 overflow-y-auto lg:max-h-none">
+        <VirtualResultList items={filtered} getKey={(org) => org.id} estimateSize={64} label="Organizations">
+          {(org) => {
+            const selected = selectedId === org.id
+            return (
+              <ResultRow
+                accent="teal"
+                selected={selected}
+                aria-current={selected}
+                onClick={() => onSelect(org.id)}
+                className={cn('min-h-11 py-2 dark:hover:bg-slate-50', selected && 'dark:bg-teal-50')}
+                title={<span className="whitespace-normal break-words text-slate-900">{org.name}</span>}
+                subtitle={
+                  <span className="text-slate-500">
+                    {humanize(org.sector)} ·{' '}
+                    {org.acknowledges.length
+                      ? `${org.acknowledges.length} Nation${org.acknowledges.length === 1 ? '' : 's'}`
+                      : 'region-wide'}
+                  </span>
+                }
+              />
+            )
+          }}
+        </VirtualResultList>
+        {filtered.length === 0 && <div className="p-4 text-xs text-slate-500">No organizations match “{query}”.</div>}
       </div>
     </aside>
   )

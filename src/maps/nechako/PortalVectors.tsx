@@ -14,6 +14,7 @@ import type { Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
 import { errorText } from '@/lib/nechakoPortal'
 import { csvExport } from './data/monitoring'
@@ -646,29 +647,27 @@ export function PortalVectors({
             </Button>
           </div>
           <div className="max-h-64 overflow-auto">
-            <table className="text-left text-xs">
+            <EngineeringTable variant="text" className="w-auto">
               <thead>
                 <tr>
-                  <th className="p-2">Feature</th>
-                  <th className="p-2">Geometry</th>
+                  <ColumnHeader label="Feature" />
+                  <ColumnHeader label="Geometry" />
                   {keys.map((key) => (
-                    <th key={key} className="p-2">
-                      {key}
-                    </th>
+                    <ColumnHeader key={key} label={key} />
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {selected.data.features.slice(current * 25, (current + 1) * 25).map((item, index) => (
-                  <tr key={index} className="border-t">
-                    <td className="p-2">
+                  <tr key={index}>
+                    <td>
                       <button className="text-primary underline" onClick={() => setFeatureIndex(current * 25 + index)}>
                         {current * 25 + index}
                       </button>
                     </td>
-                    <td className="p-2">{item.geometry?.type || 'None'}</td>
+                    <td>{item.geometry?.type || 'None'}</td>
                     {keys.map((key) => (
-                      <td key={key} className="max-w-72 break-words p-2">
+                      <td key={key} className="max-w-72 break-words">
                         {typeof item.properties?.[key] === 'object'
                           ? JSON.stringify(item.properties[key])
                           : String(item.properties?.[key] ?? '')}
@@ -677,7 +676,7 @@ export function PortalVectors({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <details>
             <summary className="cursor-pointer text-sm">Edit geometry and properties (GeoJSON)</summary>

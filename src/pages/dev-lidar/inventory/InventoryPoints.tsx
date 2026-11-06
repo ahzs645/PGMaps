@@ -6,6 +6,7 @@ import { ComparisonProfile } from '../comparisons/ComparisonProfile'
 import type { Basemap } from '../basemaps'
 import type { TreeCrop, IsolatedPoint } from '../treeIsolation'
 import { downloadText } from '@/lib/download'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function InventoryPoints({
   crop,
   error,
@@ -48,7 +49,7 @@ export function InventoryPoints({
     <div className="flex h-full min-h-[340px] flex-col overflow-hidden border-l" aria-label="Inventory point inspector">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-[11px]">
         <strong>{neural ? 'Assigned tree points' : 'Crown-column points'}</strong>
-        <span>{crop.points.length.toLocaleString()} returns</span>
+        <span>{crop.points.length.toLocaleString(DEFAULT_LOCALE)} returns</span>
         <label>
           <input type="checkbox" checked={black} onChange={(e) => setBlack(e.target.checked)} /> Silhouette
         </label>

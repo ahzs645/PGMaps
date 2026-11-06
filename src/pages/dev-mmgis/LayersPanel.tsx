@@ -8,6 +8,7 @@ import { LayerDetail } from '../dev-data/LayerDetail'
 import { LayerLegend } from '../dev-data/LayerLegend'
 import { effectiveStyle, type LoadedLayer, type ViewportBounds } from '../dev-data/layerData'
 import { clampText, copyLabel, MAX_KEY_TEXT, moveLayer, updateLayers, uid, type Mission } from './model'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function LayersPanel({
   mission,
@@ -199,8 +200,8 @@ export function LayersPanel({
               />
             </div>
             <p className="mm-layer-meta">
-              {l.group} · {loaded.collection.features.length.toLocaleString()} /{' '}
-              {l.data.features.length.toLocaleString()} features{l.timeProperty ? ' · temporal' : ''}
+              {l.group} · {loaded.collection.features.length.toLocaleString(DEFAULT_LOCALE)} /{' '}
+              {l.data.features.length.toLocaleString(DEFAULT_LOCALE)} features{l.timeProperty ? ' · temporal' : ''}
               {l.editable ? ' · editable' : ''}
             </p>
             {!!l.hiddenFeatures?.length && (

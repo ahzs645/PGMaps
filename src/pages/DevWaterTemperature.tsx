@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Check, Download, Droplets, Info, Library, LocateFixed, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { DashboardToolbar, RangeControls, SelectedSeriesList, SeriesLegend } from '@pgmaps/geo-toolkit/ui'
+import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, MapTableBridge, useMapTable, useMapTableState } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, MarkerTooltip, useMap } from '@/components/ui/map'
@@ -29,6 +31,19 @@ import { chartDownloads } from './dev-water-temperature/exportChart'
 
 const fieldClass =
   'min-w-0 w-full rounded-md border border-input bg-background px-2 py-2 text-base text-foreground md:text-sm'
+
+const STATION_COLOR = '#1b9e77'
+/** The map is shorter than a full map page, so the table opens lower than the default pane. */
+const TABLE_PANE_HEIGHT = 220
+const STATION_COLUMNS = [
+  textColumn<Station>('code', 'Station', (station) => station.station_code),
+  textColumn<Station>('waterbody', 'Waterbody', (station) => station.waterbody_name),
+  textColumn<Station>('description', 'Description', (station) => station.station_description),
+  textColumn<Station>('provider', 'Provider', (station) => station.provider_name),
+  dateColumn<Station>('start', 'First day', (station) => station.start),
+  dateColumn<Station>('end', 'Last day', (station) => station.end),
+  numberColumn<Station>('days', 'Days', (station) => station.n),
+]
 
 function FitStations({ stations }: { stations: Station[] }) {
   const { map, isLoaded } = useMap()
@@ -112,6 +127,31 @@ export default function DevWaterTemperature() {
         ),
     [data.stations, search, minimumDays, coversFrom, coversTo, selectedOnly, selectedIds, sort],
   )
+  const tableState = useMapTableState({ initialHeight: TABLE_PANE_HEIGHT })
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<Station>({
+        id: 'stations',
+        label: 'Stations',
+        color: STATION_COLOR,
+        shape: 'point',
+        rows: filtered,
+        columns: STATION_COLUMNS,
+        getRowId: (station) => station.station_id,
+        getRowCenter: (station) => [station.longitude, station.latitude],
+        flyZoom: 10,
+        exportFileName: 'water-temperature-stations',
+      }),
+    ],
+    [filtered],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    state: tableState,
+    selectedRowId: data.selection.items.at(-1)?.id ?? null,
+    onSelectRow: (station: Station) => data.toggle(station.station_id),
+    inlineButton: true,
+  })
   const visibleSeries = useMemo(
     () => data.series.filter((item) => !hiddenIds.has(item.station.station_id)),
     [data.series, hiddenIds],
@@ -310,14 +350,16 @@ export default function DevWaterTemperature() {
                 center={[-124.5, 54.2]}
                 zoom={7}
                 controls={<MapControls position="top-right" showZoom showCompass={false} />}
+                deferResize={table.deferResize}
               >
+                <MapTableBridge table={table} />
                 <FitStations stations={data.stations} />
                 <MapScaleBar position="bottom-left" />
                 {[...filtered]
                   .sort((a, b) => Number(selectedIds.has(a.station_id)) - Number(selectedIds.has(b.station_id)))
                   .map((station) => {
                     const selected = data.selection.items.find((item) => item.id === station.station_id)
-                    const color = selected ? SERIES_COLORS[selected.slot] : selectedIds.size ? '#808080' : '#1b9e77'
+                    const color = selected ? SERIES_COLORS[selected.slot] : selectedIds.size ? '#808080' : STATION_COLOR
                     return (
                       <MapMarker
                         key={station.station_id}
@@ -372,7 +414,15 @@ export default function DevWaterTemperature() {
               {!selectedIds.size && (
                 <div className="pointer-events-none absolute bottom-12 left-2 flex items-center gap-2 rounded-md bg-background/90 px-2 py-1 text-xs">
                   <svg width="18" height="18" aria-hidden="true">
-                    <circle cx="9" cy="9" r="8" stroke="#1b9e77" strokeWidth="2" fill="#1b9e77" fillOpacity="0.25" />
+                    <circle
+                      cx="9"
+                      cy="9"
+                      r="8"
+                      stroke={STATION_COLOR}
+                      strokeWidth="2"
+                      fill={STATION_COLOR}
+                      fillOpacity="0.25"
+                    />
                   </svg>
                   UNBC
                 </div>
@@ -380,6 +430,8 @@ export default function DevWaterTemperature() {
               <div className="absolute bottom-8 right-2 rounded-md border bg-background">
                 <FullscreenButton title="Station map" fullscreen={mapFullscreen} onClick={toggleMapFullscreen} />
               </div>
+              {table.button && <div className="absolute left-2 top-2 z-10">{table.button}</div>}
+              {table.layout.bottomPane}
             </div>
           </SidebarSection>
           <div className="shrink-0 px-3 pt-3">

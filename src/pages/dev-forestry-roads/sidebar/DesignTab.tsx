@@ -1,3 +1,4 @@
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Copy, Plus, Trash2 } from 'lucide-react'
@@ -581,12 +582,12 @@ function HorizontalPoints(p: SidebarProps) {
       <details className="mt-2">
         <summary className="cursor-pointer text-xs">Segment distances & ground grades</summary>
         <div className="mt-2 max-h-48 overflow-auto">
-          <table className="w-full text-right text-[11px]">
+          <EngineeringTable>
             <thead>
               <tr>
-                <th>Leg</th>
-                <th>Distance m</th>
-                <th>Ground %</th>
+                <ColumnHeader label="Leg" />
+                <ColumnHeader label="Distance" unit="m" />
+                <ColumnHeader label="Ground" unit="%" />
               </tr>
             </thead>
             <tbody>
@@ -613,7 +614,7 @@ function HorizontalPoints(p: SidebarProps) {
                 )
               })}
             </tbody>
-          </table>
+          </EngineeringTable>
         </div>
       </details>
     </RoadSection>

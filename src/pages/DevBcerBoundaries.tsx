@@ -1,11 +1,12 @@
 import area from '@turf/area'
 import intersect from '@turf/intersect'
-import { ExternalLink, GitCompareArrows, Loader2, MapPinned } from 'lucide-react'
+import { GitCompareArrows, Loader2, MapPinned } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { DevPageHeader } from '@/components/DevPageHeader'
 import { DEFAULT_LOCALE, formatBytes } from '@/lib/format'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -80,33 +81,17 @@ const VIEWPORT_PRESETS: Array<{ label: string; viewport: Viewport }> = [
   },
 ]
 
-const ZONE_FILL_EXPRESSION = [
-  'match',
-  ['get', 'NAME'],
-  'North',
-  '#2563eb',
-  'Central',
-  '#8b5cf6',
-  'South East',
-  '#f59e0b',
-  'South West',
-  '#14b8a6',
-  '#64748b',
+/** The one definition of the zones: both map layers and the legend read it. */
+const ZONES = [
+  { name: 'North', fill: '#2563eb', line: '#1e3a8a' },
+  { name: 'Central', fill: '#8b5cf6', line: '#5b21b6' },
+  { name: 'South East', fill: '#f59e0b', line: '#92400e' },
+  { name: 'South West', fill: '#14b8a6', line: '#0f766e' },
 ]
 
-const ZONE_LINE_EXPRESSION = [
-  'match',
-  ['get', 'NAME'],
-  'North',
-  '#1e3a8a',
-  'Central',
-  '#5b21b6',
-  'South East',
-  '#92400e',
-  'South West',
-  '#0f766e',
-  '#334155',
-]
+const ZONE_FILL_EXPRESSION = ['match', ['get', 'NAME'], ...ZONES.flatMap((zone) => [zone.name, zone.fill]), '#64748b']
+
+const ZONE_LINE_EXPRESSION = ['match', ['get', 'NAME'], ...ZONES.flatMap((zone) => [zone.name, zone.line]), '#334155']
 
 function countVertices(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon) {
   if (geometry.type === 'Polygon') {
@@ -345,15 +330,13 @@ function DevBcerBoundaries() {
                 <MapPinned className="size-4" />
                 Boundary explorer
               </Link>
-              <a
+              <ExternalLink
                 href={SOURCE_PAGE_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground shadow-sm hover:bg-muted touch:h-10"
+                variant="button"
+                className="h-9 gap-2 rounded-md border-border py-0 text-sm shadow-sm hover:bg-muted touch:h-10"
               >
                 BCER source
-                <ExternalLink className="size-4" />
-              </a>
+              </ExternalLink>
             </>
           }
         />
@@ -454,27 +437,15 @@ function DevBcerBoundaries() {
             </div>
 
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
-              {['North', 'Central', 'South East', 'South West'].map((zone) => (
+              {ZONES.map(({ name, fill }) => (
                 <button
-                  key={zone}
+                  key={name}
                   type="button"
-                  onClick={() => setSelectedZone((current) => (current === zone ? null : zone))}
+                  onClick={() => setSelectedZone((current) => (current === name ? null : name))}
                   className="inline-flex items-center gap-2 rounded-md px-1 py-0.5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring touch:min-h-10 touch:px-2"
                 >
-                  <span
-                    className="size-2.5 rounded-sm"
-                    style={{
-                      backgroundColor:
-                        zone === 'North'
-                          ? '#2563eb'
-                          : zone === 'Central'
-                            ? '#8b5cf6'
-                            : zone === 'South East'
-                              ? '#f59e0b'
-                              : '#14b8a6',
-                    }}
-                  />
-                  <span className={selectedZone === zone ? 'font-semibold text-foreground' : undefined}>{zone}</span>
+                  <span className="size-2.5 rounded-sm" style={{ backgroundColor: fill }} />
+                  <span className={selectedZone === name ? 'font-semibold text-foreground' : undefined}>{name}</span>
                 </button>
               ))}
               {selectedZone && (

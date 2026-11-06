@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ArrowLeft, Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
 import { DevCard, type DevEntry } from '@/components/dev/DevCard'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 
 const forestryTools: DevEntry[] = [
   {
@@ -102,24 +103,24 @@ export default function DevForestry() {
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
-        <div className="mb-8 sm:mb-10">
-          <Link
-            to="/dev"
-            className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Dev library
-          </Link>
-          <div className="mb-3 flex w-fit items-center gap-2 rounded-md border bg-background px-3 py-1 text-sm font-medium text-muted-foreground">
-            <TreePine className="h-4 w-4" />
-            Forestry
-          </div>
-          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Forestry tools</h1>
-          <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
-            Planning utilities for forest roads, cutblocks and stands: terrain, volume, visual quality, climate
-            suitability, landscape scenarios and LiDAR structure.
-          </p>
-        </div>
+        <ToolPageHeader
+          size="lg"
+          className="mb-8 sm:mb-10"
+          back={
+            <Link
+              to="/dev"
+              className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Dev library
+            </Link>
+          }
+          eyebrow="Forestry"
+          eyebrowIcon={TreePine}
+          eyebrowClassName="text-muted-foreground"
+          title="Forestry tools"
+          description="Planning utilities for forest roads, cutblocks and stands: terrain, volume, visual quality, climate suitability, landscape scenarios and LiDAR structure."
+        />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {forestryTools.map((entry) => (

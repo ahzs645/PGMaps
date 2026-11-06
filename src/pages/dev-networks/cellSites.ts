@@ -119,6 +119,22 @@ export function countSitesByGroup(manifest: CellSitesManifest | null) {
 const STRUCTURE_LABELS: Record<string, string> = { T: 'Tower', R: 'Rooftop' }
 const SITE_TYPE_LABELS: Record<string, string> = { O: 'Outdoor', I: 'Indoor' }
 
+export const cellSiteTypeText = (properties: CellSiteProperties) =>
+  properties.siteTypes.map((code) => SITE_TYPE_LABELS[code] ?? code).join(' / ')
+
+export const cellSiteStructureText = (properties: CellSiteProperties) =>
+  properties.structureTypes.map((code) => STRUCTURE_LABELS[code] ?? code).join(' / ')
+
+/**
+ * The snapshot carries no site id, and the filtered list is reordered by the
+ * operator chips, so identity comes from the site's own fields: its position,
+ * who is on it and where ISED says it is.
+ */
+export function cellSiteId({ geometry, properties }: CellSiteFeature): string {
+  const [longitude, latitude] = geometry.coordinates
+  return [`${longitude},${latitude}`, properties.operators.join('+'), properties.location ?? ''].join('|')
+}
+
 export function cellSiteTooltipRows(properties: CellSiteProperties): Array<[string, string | number | null]> {
   return [
     ...properties.operators.map((operator): [string, string] => {
@@ -126,13 +142,10 @@ export function cellSiteTooltipRows(properties: CellSiteProperties): Array<[stri
       return [operator, [detail?.technologies.join(', '), detail?.bands.join(', ')].filter(Boolean).join(' · ')]
     }),
     ['Location', properties.location],
-    ['Site', properties.siteTypes.map((code) => SITE_TYPE_LABELS[code] ?? code).join(' / ')],
+    ['Site', cellSiteTypeText(properties)],
     [
       'Structure',
-      [
-        properties.structureTypes.map((code) => STRUCTURE_LABELS[code] ?? code).join(' / '),
-        properties.heightM ? `${properties.heightM} m` : null,
-      ]
+      [cellSiteStructureText(properties), properties.heightM ? `${properties.heightM} m` : null]
         .filter(Boolean)
         .join(' · ') || null,
     ],

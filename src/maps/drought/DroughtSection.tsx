@@ -3,10 +3,14 @@ import { useTimelineState } from '@/hooks/useTimelineState'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useSearchParams } from 'react-router-dom'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Timeline } from '@/components/ui/timeline'
+import { featureCenter, featuresBounds } from '@/lib/featureBounds'
 import { formatDate, formatNumber } from '@/lib/format'
 import { DroughtBasinDetails } from './components/DroughtBasinDetails'
+import { DroughtLegend } from './components/DroughtLegend'
 import { DroughtMap } from './components/DroughtMap'
 import { DroughtSidebar } from './components/DroughtSidebar'
 import { useDroughtData } from './hooks/useDroughtData'
@@ -25,6 +29,31 @@ const DROUGHT_TIMELINE_WINDOW_OPTIONS = [
   { value: 2, label: '2 wk' },
   { value: 4, label: '4 wk' },
   { value: -1, label: 'Cumul.' },
+]
+
+/**
+ * A source date at local noon. A plain date parses as UTC midnight, which is the
+ * day before west of Greenwich, and the column shows local dates but exports UTC.
+ */
+function tableDate(value: string | null) {
+  return value ? `${value}T12:00:00` : null
+}
+
+const BASIN_COLUMNS = [
+  textColumn<DroughtFeature>('basin', 'Basin', (feature) => feature.properties.basinName, { width: 260 }),
+  numberColumn<DroughtFeature>('level', 'Level', (feature) => feature.properties.droughtLevel, {
+    format: String,
+    width: 90,
+  }),
+  textColumn<DroughtFeature>('reported', 'Reported as', (feature) => {
+    const raw = feature.properties.droughtLevelRaw
+    return raw == null ? '' : String(raw)
+  }),
+  dateColumn<DroughtFeature>('start', 'Start', (feature) => tableDate(feature.properties.startDate)),
+  dateColumn<DroughtFeature>('end', 'End', (feature) => tableDate(feature.properties.endDate)),
+  textColumn<DroughtFeature>('sourceBasin', 'Source basin', (feature) => feature.properties.sourceBasinName, {
+    defaultHidden: true,
+  }),
 ]
 
 function dateFromIso(value: string | null) {
@@ -177,6 +206,37 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
     return activeCollection.features.find((feature) => String(feature.id) === selectedId) ?? null
   }, [activeCollection.features, selectedId])
 
+  // Walking a province's worth of basin outlines on every map move is not free,
+  // and the outlines stay the same across years.
+  const basinBounds = useMemo(
+    () => new Map((collection?.features ?? []).map((feature) => [String(feature.id), featuresBounds([feature])])),
+    [collection],
+  )
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<DroughtFeature>({
+        id: 'drought-basins',
+        label: `Basins, ${selectedYear}`,
+        color: '#e4aa28',
+        shape: 'fill',
+        rows: activeCollection.features,
+        columns: BASIN_COLUMNS,
+        getRowId: (feature) => String(feature.id),
+        getRowCenter: featureCenter,
+        getRowBounds: (feature) => basinBounds.get(String(feature.id)) ?? null,
+        flyZoom: 6.5,
+        status: error ? 'error' : loading ? 'loading' : 'ready',
+        emptyMessage: error ?? undefined,
+      }),
+    ],
+    [activeCollection.features, basinBounds, error, loading, selectedYear],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedId,
+    onSelectRow: (feature: DroughtFeature) => setSelectedId(String(feature.id)),
+  })
+
   const handleYearChange = useCallback(
     (year: number) => {
       setSelectedYear(year)
@@ -188,6 +248,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={`Drought Levels · ${selectedYear}`}
       mobilePeekSubtitle={`${formatNumber(filledBasinCount)} filled basins`}
       sidebar={
@@ -215,6 +276,7 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
           selectedId={selectedId}
           onFeatureClick={(id) => setSelectedId((current) => (current === id ? null : id))}
           loading={loading}
+          table={table}
         />
 
         {/* The open timeline reads out the date itself. */}
@@ -248,6 +310,8 @@ export function DroughtSection({ yearParam = 'year' }: DroughtSectionProps) {
             }}
           />
         )}
+
+        <DroughtLegend />
       </div>
     </MapSectionLayout>
   )

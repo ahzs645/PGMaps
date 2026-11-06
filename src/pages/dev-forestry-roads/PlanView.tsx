@@ -1,8 +1,9 @@
 import type { RoadSelectionRange } from './roadSelection'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
+import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { PlanLegend } from './PlanLegend'
@@ -1367,24 +1368,21 @@ export function PlanView(props: PlanProps) {
     setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const settingsRef = useRef<HTMLDivElement>(null)
   const settingsButton = useRef<HTMLButtonElement>(null)
+  const settingsPanel = useRef<HTMLDivElement>(null)
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
   useEffect(() => {
     if (!settingsOpen) return
-    const dismiss = (event: PointerEvent) => {
-      if (!settingsRef.current?.contains(event.target as Node)) setSettingsOpen(false)
+    // The panel renders at the end of the body, so Tab from the button no longer reaches it.
+    const frame = requestAnimationFrame(() => settingsPanel.current?.querySelector('button')?.focus())
+    // An expanded plan traps Tab from a capture listener that treats the portal as outside it.
+    const keepTabInPanel = (event: KeyboardEvent) => {
+      if (event.key === 'Tab' && settingsPanel.current?.contains(document.activeElement)) event.stopPropagation()
     }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.stopPropagation()
-      setSettingsOpen(false)
-      settingsButton.current?.focus()
-    }
-    document.addEventListener('pointerdown', dismiss)
-    document.addEventListener('keydown', escape)
+    window.addEventListener('keydown', keepTabInPanel, true)
     return () => {
-      document.removeEventListener('pointerdown', dismiss)
-      document.removeEventListener('keydown', escape)
+      cancelAnimationFrame(frame)
+      window.removeEventListener('keydown', keepTabInPanel, true)
     }
   }, [settingsOpen])
   const drawing = props.pourPointPicking || !['inspect', 'edit'].includes(props.mode)
@@ -1465,7 +1463,7 @@ export function PlanView(props: PlanProps) {
             { value: 'none', label: 'Basemap' },
           ]}
         />
-        <div className="relative shrink-0" ref={settingsRef}>
+        <div className="shrink-0">
           <Button
             ref={settingsButton}
             size="icon"
@@ -1478,69 +1476,72 @@ export function PlanView(props: PlanProps) {
           >
             <Settings2 className="size-4" />
           </Button>
-          {settingsOpen && (
-            <div
-              role="dialog"
-              aria-label="Map display settings"
-              className="absolute left-0 top-10 z-40 w-60 max-w-[calc(100vw-3rem)] rounded-lg border bg-popover p-3 text-popover-foreground shadow-xl"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h3 className="text-xs font-semibold">Map settings</h3>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6"
-                  aria-label="Close map settings"
-                  onClick={() => setSettingsOpen(false)}
-                >
-                  <X className="size-3" />
-                </Button>
-              </div>
+          <AnchoredPopover
+            anchorRef={settingsButton}
+            panelRef={settingsPanel}
+            open={settingsOpen}
+            onClose={closeSettings}
+            role="dialog"
+            ariaLabel="Map display settings"
+            // Above an expanded plan pane (z-[1400]), like the Terrain display list next to it.
+            className="z-[1600] w-60 max-w-[calc(100vw-3rem)] rounded-lg p-3"
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <h3 className="text-xs font-semibold">Map settings</h3>
               <Button
-                size="sm"
-                variant="outline"
-                className="mb-2 w-full"
-                onClick={() => {
-                  fit('active')
-                  setSettingsOpen(false)
-                }}
+                size="icon"
+                variant="ghost"
+                className="size-6"
+                aria-label="Close map settings"
+                onClick={() => setSettingsOpen(false)}
               >
-                Fit selected road
+                <X className="size-3" />
               </Button>
-              {(
-                [
-                  ['Contours', showContours, setShowContours],
-                  ['Labels', showLabels, setShowLabels],
-                  ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
-                ] as const
-              ).map(([label, checked, set]) => (
-                <label key={label} className="flex items-center justify-between py-2 text-xs">
-                  {label}
-                  <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
-                </label>
-              ))}
-              {contextKinds.length > 0 && (
-                <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
-                  <legend className="text-xs font-medium">Context</legend>
-                  {contextKinds.map((kind) => (
-                    <label key={kind} className="flex items-center justify-between gap-2 py-2 text-xs">
-                      {CONTEXT_LABELS[kind]}
-                      <input
-                        type="checkbox"
-                        aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
-                        checked={!hiddenContextKinds.includes(kind)}
-                        onChange={(event) =>
-                          setHiddenContextKinds((previous) =>
-                            event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
-                          )
-                        }
-                      />
-                    </label>
-                  ))}
-                </fieldset>
-              )}
             </div>
-          )}
+            <Button
+              size="sm"
+              variant="outline"
+              className="mb-2 w-full"
+              onClick={() => {
+                fit('active')
+                setSettingsOpen(false)
+              }}
+            >
+              Fit selected road
+            </Button>
+            {(
+              [
+                ['Contours', showContours, setShowContours],
+                ['Labels', showLabels, setShowLabels],
+                ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+              ] as const
+            ).map(([label, checked, set]) => (
+              <label key={label} className="flex items-center justify-between py-2 text-xs">
+                {label}
+                <input type="checkbox" checked={checked} onChange={(event) => set(event.target.checked)} />
+              </label>
+            ))}
+            {contextKinds.length > 0 && (
+              <fieldset className="mt-2 border-t pt-2" data-testid="road-context-visibility">
+                <legend className="text-xs font-medium">Context</legend>
+                {contextKinds.map((kind) => (
+                  <label key={kind} className="flex items-center justify-between gap-2 py-2 text-xs">
+                    {CONTEXT_LABELS[kind]}
+                    <input
+                      type="checkbox"
+                      aria-label={`Show ${CONTEXT_LABELS[kind].toLowerCase()} context`}
+                      checked={!hiddenContextKinds.includes(kind)}
+                      onChange={(event) =>
+                        setHiddenContextKinds((previous) =>
+                          event.target.checked ? previous.filter((value) => value !== kind) : [...previous, kind],
+                        )
+                      }
+                    />
+                  </label>
+                ))}
+              </fieldset>
+            )}
+          </AnchoredPopover>
         </div>
         <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
       </div>

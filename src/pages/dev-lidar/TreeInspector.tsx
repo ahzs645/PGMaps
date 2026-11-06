@@ -22,6 +22,7 @@ import {
 import type { TreeInspectionController } from './useTreeInspection'
 import { ProfileCanvas, type ProfileInteraction } from './ProfileCanvas'
 import { downloadProfilePNG } from './profileExport'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function TreeInspector({
   controller,
@@ -374,7 +375,8 @@ export function TreeInspector({
                   {settings.lockScale
                     ? 'Shared metre scale · equal axes'
                     : 'Independent zoom / pan · shared-scale lock off'}{' '}
-                  · {visible.length.toLocaleString()} / {crop?.points.length.toLocaleString() ?? 0} crop returns shown.
+                  · {visible.length.toLocaleString(DEFAULT_LOCALE)} /{' '}
+                  {crop?.points.length.toLocaleString(DEFAULT_LOCALE) ?? 0} crop returns shown.
                 </p>
               </div>
             </CollapsibleSection>
@@ -572,7 +574,9 @@ export function TreeInspector({
                 ))}
               </NativeSelect>
             </label>
-            <p>{filtered.length.toLocaleString()} candidates in queue. Previous/Next follows this filter.</p>
+            <p>
+              {filtered.length.toLocaleString(DEFAULT_LOCALE)} candidates in queue. Previous/Next follows this filter.
+            </p>
             <details>
               <summary>Point-group editing · bounded loaded returns</summary>
               <p className="my-2 text-muted-foreground">
@@ -604,7 +608,7 @@ export function TreeInspector({
                   Clear selection
                 </Button>
               </div>
-              <p className="my-2">{selected.size.toLocaleString()} selected returns</p>
+              <p className="my-2">{selected.size.toLocaleString(DEFAULT_LOCALE)} selected returns</p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"

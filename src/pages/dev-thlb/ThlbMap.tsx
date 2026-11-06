@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
 import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
@@ -28,10 +29,12 @@ export function ThlbMap({
   result,
   selected,
   onSelect,
+  table,
 }: {
   result: AnalysisResult | null
   selected: string | null
   onSelect: (id: string | null) => void
+  table: MapTableController
 }) {
   const data = useMemo(() => {
     const areas: GeoJSON.FeatureCollection = {
@@ -60,7 +63,8 @@ export function ThlbMap({
     return areas?.length ? bboxOf(areas.flatMap((area) => area.geometry)) : null
   }, [result, selected])
   return (
-    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS}>
+    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS} deferResize={table.deferResize}>
+      <MapTableBridge table={table} />
       <Camera box={box} />
       <MapFillLayer
         data={data.pieces}

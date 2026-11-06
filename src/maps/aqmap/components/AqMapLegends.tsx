@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { MapImageLegend, MapLegendPanel, MapLegendSection, MapSteppedLegend } from '@/components/ui/map-panels'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import { cn } from '@/lib/utils'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR } from '../lib/aqhiScale'
 import { localizeSmokeDensity, localizeSmokeLabel, localizeWmsLabel, translate, type AqmapLocale } from '../lib/i18n'
@@ -38,13 +39,14 @@ export function AqMonitorLegend({
       (layer.legendUrl || layer.key === 'activeFires'),
   )
   const visibleSmoke = smokeLayers.filter((layer) => visibleSmokeLayers.has(layer.key))
+  const isMobile = useIsMobile()
   return (
     <MapLegendPanel
       title={translate('map.legend', locale)}
-      width="md"
+      width={isMobile ? 'sm' : 'md'}
       collapsible
       defaultCollapsed="mobile"
-      className="aqmap-monitor-legend max-h-[min(22rem,calc(100vh-8rem))] max-md:w-[min(14rem,calc(100vw-1.5rem))]"
+      className="aqmap-monitor-legend max-h-[min(22rem,calc(100vh-8rem))]"
       contentClassName="max-h-[calc(min(22rem,calc(100vh-8rem))-3rem)] space-y-3 overflow-y-auto pr-1"
     >
       <MapLegendSection>

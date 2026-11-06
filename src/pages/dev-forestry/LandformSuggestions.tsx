@@ -7,6 +7,7 @@ import type { BcSensitivityUnit } from './bcVisualInventory'
 import { metersPerDegree, polygonBounds } from './visibility'
 import { nearestLandformCandidates, nearestLandformsAlongRoad } from './landformCandidates'
 import { loadVisualInventorySnapshot, VISUAL_INVENTORY_PATH } from './visualInventorySnapshot'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function LandformSuggestions({
   scene,
@@ -201,7 +202,7 @@ export function LandformSuggestions({
       </div>
       {data && (
         <p className="mt-1 text-muted-foreground">
-          {data.manifest.featureCount.toLocaleString()} units · original boundary coordinates. Downloaded{' '}
+          {data.manifest.featureCount.toLocaleString(DEFAULT_LOCALE)} units · original boundary coordinates. Downloaded{' '}
           {data.manifest.retrievedAt.slice(0, 10)}; source records may be older. Static snapshot; inventory gaps and
           unrated areas remain.
         </p>

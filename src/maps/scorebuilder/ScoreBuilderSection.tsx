@@ -6,6 +6,7 @@ import {
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import type { MapRef } from '@/components/ui/map'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
@@ -44,6 +45,7 @@ import {
   type ScoreBuilderExportFormat,
 } from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
+import { indexLabColumns, lensLabColumns } from './lib/regionTable'
 import { captureBaselineSnapshot, compareAgainstBaseline, type BaselineSnapshot } from './lib/baselineComparison'
 import {
   BC_ENVIRO_SCREEN_DEFAULT_COLOR_BINS,
@@ -67,7 +69,7 @@ import {
 import { getScoreLab, type ScoreLabKind } from './lib/labs'
 import { regionsBounds } from './lib/spatial'
 import { BIVARIATE_3X3_PALETTE, RESIDUAL_GRADIENT } from './lib/correlationColors'
-import { MINIMUM_DATA_COVERAGE, type ScoreMetricKey } from './types'
+import { MINIMUM_DATA_COVERAGE, type ScoredBoundaryRegion, type ScoreMetricKey } from './types'
 
 /** Each lab keeps its own panel layout; the lens labs have a single sidebar. */
 function layoutStorageKey(lab: ScoreLabKind): string {
@@ -363,6 +365,55 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBaseline(captureBaselineSnapshot(results.scoredRegions, `Project: ${projectContextTitle}`))
   }, [datasets.loading, projectContextSlug, projectContextTitle, results.scoredRegions])
+
+  const tableColumns = useMemo(
+    () =>
+      lab === 'index'
+        ? indexLabColumns(sb.activeMetricDefinitions, state.weights)
+        : lensLabColumns(
+            sb.activeMetricDefinitions,
+            lab === 'density' ? [state.densityMetric] : [state.correlateMetricX, state.correlateMetricY],
+          ),
+    [
+      lab,
+      sb.activeMetricDefinitions,
+      state.correlateMetricX,
+      state.correlateMetricY,
+      state.densityMetric,
+      state.weights,
+    ],
+  )
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<ScoredBoundaryRegion>({
+        id: 'regions',
+        label: 'Regions',
+        color: '#6366f1',
+        shape: 'fill',
+        // What the map draws. The sidebar's search narrows its own list, and the table has its own search.
+        rows: results.scoredRegions,
+        columns: tableColumns,
+        getRowId: (entry) => entry.region.id,
+        getRowBounds: (entry) => entry.region.bounds,
+        status: datasets.loading ? 'loading' : 'ready',
+        emptyMessage: 'No regions match these filters.',
+        exportFileName: lab === 'index' ? 'index-lab-regions' : `${lab}-lab-regions`,
+      }),
+    ],
+    [datasets.loading, lab, results.scoredRegions, tableColumns],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: state.selectedRegionId,
+    // A map click toggles, and a table row only ever means "show this one".
+    onSelectRow: (entry: ScoredBoundaryRegion) => {
+      if (state.selectedRegionId !== entry.region.id) sb.handleMapRegionClick(entry.region.id)
+    },
+    // ScoreBuilderMap fits the selected region, which also covers a click on the map.
+    flyOnSelect: false,
+    // The phone action strip and the desktop map panels both start in the standard corner.
+    inlineButton: true,
+  })
 
   const mapInstanceRef = useRef<MapRef | null>(null)
   const handleMapInstance = useCallback((map: MapRef | null) => {
@@ -826,6 +877,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
             ))}
           <div className="min-h-0 flex-1">
             <MapSectionLayout
+              table={table}
               showDesktopSidebar={showSidebar}
               onToggleDesktopSidebar={toggleSidebar}
               desktopSidebarWidth={sidebarWidth}
@@ -871,7 +923,10 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     studyAreaBounds={studyAreaBounds}
                     unrankedRegions={unrankedRegions}
                     regionTooltips={regionTooltips}
+                    table={table}
                   />
+
+                  {isDesktop && table.button && <div className="absolute left-3 top-3 z-20">{table.button}</div>}
 
                   {bcEnviroScreenMapActive && (
                     <BcEnviroScreenMapControls
@@ -926,6 +981,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     >
                       <LabsBackLink size="lg" />
                       {/* Beside the back link: the right edge belongs to the map's zoom controls. */}
+                      {table.button}
                       {isIndexLab && (
                         <div className="flex shrink-0 items-center gap-1.5">
                           <button

@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { useMap } from '@/components/ui/map'
+import { MapRasterLayer } from '@/components/ui/map-layers'
 import { visibleMapInsets } from '@pgmaps/geo-toolkit/map/camera-framing'
 import { useWorkspace } from '@pgmaps/geo-toolkit/workspace/workspace-context'
 import { onMapCoveredBottomChange } from '@pgmaps/geo-toolkit/map/map-resize'
@@ -20,7 +21,6 @@ export function RasterMapLayer({
   onError: (text: string) => void
 }) {
   const { map } = useMap()
-  const currentOpacity = useRef(opacity)
   const workspace = useWorkspace()
   useEffect(() => {
     if (!map || !item) return
@@ -75,29 +75,9 @@ export function RasterMapLayer({
     const stopFollowing = (event: { originalEvent?: Event }) => {
       if (event.originalEvent) following = false
     }
-    const install = () => {
+    const fitLoadedStyle = () => {
       // A style can be ready while its background imagery is still downloading.
-      if (!map.getStyle()) return
-      ids.forEach((id, i) => {
-        const asset = item.assets[i]
-        if (map.getLayer(id)) map.removeLayer(id)
-        if (map.getSource(id)) map.removeSource(id)
-        map.addSource(id, {
-          type: 'raster',
-          tiles: asset.url ? [`pmtiles://${asset.url}/{z}/{x}/{y}`] : asset.tiles,
-          bounds: asset.bounds,
-          tileSize: 256,
-          minzoom: asset.minZoom,
-          maxzoom: asset.maxZoom,
-        })
-        map.addLayer({
-          id,
-          type: 'raster',
-          source: id,
-          paint: { 'raster-opacity': currentOpacity.current / 100, 'raster-fade-duration': 150 },
-        })
-      })
-      fit()
+      if (map.getStyle()) fit()
     }
     const error = (event: { sourceId?: string; error?: Error }) => {
       if (event.sourceId && ids.includes(event.sourceId)) {
@@ -106,7 +86,7 @@ export function RasterMapLayer({
         )
       }
     }
-    map.on('style.load', install)
+    map.on('style.load', fitLoadedStyle)
     map.on('error', error)
     map.on('resize', scheduleFit)
     map.on('movestart', stopFollowing)
@@ -118,31 +98,32 @@ export function RasterMapLayer({
       attributes: true,
       attributeFilter: ['data-map-target-visible-height'],
     })
-    install()
+    fitLoadedStyle()
     return () => {
-      map.off('style.load', install)
+      map.off('style.load', fitLoadedStyle)
       map.off('error', error)
       map.off('resize', scheduleFit)
       map.off('movestart', stopFollowing)
       stopCoverListener()
       panelsObserver.disconnect()
       cancelAnimationFrame(frame)
-      // The parent map may already have destroyed its style during unmount.
-      if (!map.getStyle()) return
-      ids.forEach((id) => {
-        if (map.getLayer(id)) map.removeLayer(id)
-        if (map.getSource(id)) map.removeSource(id)
-      })
     }
-    // Opacity has its own paint-only effect so moving the slider never refits the camera.
   }, [map, item, onError, workspace?.root])
-  useEffect(() => {
-    currentOpacity.current = opacity
-    if (!map || !item || !map.getStyle()) return
-    item.assets.forEach((_, i) => {
-      const id = `shared-raster-${i}`
-      if (map.getLayer(id)) map.setPaintProperty(id, 'raster-opacity', opacity / 100)
-    })
-  }, [map, item, opacity])
-  return null
+  return (
+    <>
+      {item?.assets.map((asset, i) => (
+        <MapRasterLayer
+          key={`${item.id}:${i}`}
+          id={`shared-raster-${i}`}
+          tiles={asset.url ? [`pmtiles://${asset.url}/{z}/{x}/{y}`] : (asset.tiles ?? [])}
+          bounds={asset.bounds}
+          minZoom={asset.minZoom}
+          maxZoom={asset.maxZoom}
+          opacity={opacity / 100}
+          fadeDuration={150}
+          addOnStyleLoad
+        />
+      ))}
+    </>
+  )
 }

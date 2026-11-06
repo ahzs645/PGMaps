@@ -12,6 +12,7 @@ import type {
   CastorYieldCurve,
   CastorNullField,
 } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type CastorInputRow = Record<string, unknown>
 export type CastorInputTables = Record<string, CastorInputRow[]>
@@ -121,7 +122,7 @@ export function castorProjectFromTables(
   const inventory = table(tables, 'pixels', 'inventory')
   if (!inventory.length) throw new Error('The import needs a pixels or inventory table.')
   if (inventory.length > CASTOR_IMPORT_MAX_ROWS)
-    throw new Error(`Inventory exceeds ${CASTOR_IMPORT_MAX_ROWS.toLocaleString()} rows.`)
+    throw new Error(`Inventory exceeds ${CASTOR_IMPORT_MAX_ROWS.toLocaleString(DEFAULT_LOCALE)} rows.`)
   const legacy = inventory.some((row) => inputValue(row, 'pixelid') !== undefined)
   if (legacy && (!grid || Math.abs(grid.cellSize - 100) > 1e-6)) {
     throw new Error(

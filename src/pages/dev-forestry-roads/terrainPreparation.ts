@@ -1,5 +1,6 @@
 /** Bounded terrain preparation in source grid metres. Null cells stay unknown. */
 import type { LocalRaster } from '../dev-forestry/types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const MAX_PREPARED_CELLS = 4_194_304
 export const MAX_TERRAIN_SOURCES = 12
@@ -196,7 +197,7 @@ export function strategicPointIndices(
     preserved = mask.reduce((a, b) => a + b, 0)
   if (preserved > maxPoints)
     throw Error(
-      `${preserved.toLocaleString()} protected points exceed the ${maxPoints.toLocaleString()} point budget; crop the source or narrow the preservation region.`,
+      `${preserved.toLocaleString(DEFAULT_LOCALE)} protected points exceed the ${maxPoints.toLocaleString(DEFAULT_LOCALE)} point budget; crop the source or narrow the preservation region.`,
     )
   if (n <= maxPoints) return { indices: Array.from({ length: n }, (_, i) => i), cellM: null, preserved }
   const remaining = maxPoints - preserved

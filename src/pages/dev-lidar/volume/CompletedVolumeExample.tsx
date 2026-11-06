@@ -18,6 +18,7 @@ import {
 } from './example'
 import exampleUrl from './example.generated.json?url'
 import { useKeyedState } from '../useKeyedState'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
   const [data, setData] = useState<VolumeExample | null>(null),
@@ -96,7 +97,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
         </div>
         <div>
           <strong className="block text-lg tabular-nums">
-            {Math.round(data.map.modelled_merchantable_m3).toLocaleString()} m³
+            {Math.round(data.map.modelled_merchantable_m3).toLocaleString(DEFAULT_LOCALE)} m³
           </strong>
           Modelled merchantable stem volume
         </div>
@@ -199,7 +200,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
               <p className="mt-2 text-sm font-semibold" aria-label="Example recovered volume">
                 {Math.round(
                   recoveredExampleVolume(data.map.modelled_merchantable_m3, retention, recovery),
-                ).toLocaleString()}{' '}
+                ).toLocaleString(DEFAULT_LOCALE)}{' '}
                 m³ scenario recovered
               </p>
               <p className="mt-1 text-[10px]">

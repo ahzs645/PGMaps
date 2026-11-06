@@ -9,6 +9,7 @@ import { ComparisonMap, sameCamera, type ComparisonCamera } from './ComparisonMa
 import { ComparisonPane } from './ComparisonPane'
 import { ComparisonProfile } from './ComparisonProfile'
 import type { ComparisonData } from './data'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function ShapeComparison({ data, basemap }: { data: ComparisonData; basemap: Basemap }) {
   const [a, setA] = useState('crown-85'),
@@ -120,7 +121,7 @@ export function ShapeComparison({ data, basemap }: { data: ComparisonData; basem
               label={index ? 'B' : 'A'}
               title={crop.id}
               metrics={[
-                { label: 'Original returns', value: crop.points.length.toLocaleString() },
+                { label: 'Original returns', value: crop.points.length.toLocaleString(DEFAULT_LOCALE) },
                 { label: 'Observed maximum', value: profiles[index].maximum.toFixed(2) + ' m' },
                 { label: 'Status', value: 'Unvalidated column selection' },
               ]}

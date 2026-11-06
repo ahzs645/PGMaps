@@ -4,6 +4,8 @@ import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { useUrlSelection } from '@/hooks/useUrlSelection'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { MapLegendPanel, MapSteppedLegend } from '@/components/ui/map-panels'
@@ -14,7 +16,7 @@ import { BcAssessmentSidebar, PropertyDetails } from './components/BcAssessmentS
 import { useBcAssessmentData } from './hooks/useBcAssessmentData'
 import { useBoundaryData } from './hooks/useBoundaryData'
 import { useBoundaryAggregates } from './hooks/useBoundaryAggregates'
-import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, VALUE_STOPS, YEAR_STOPS } from './constants'
+import { ALL_CATEGORIES, ASSESSMENT_HISTORY_START_YEAR, CATEGORY_LABELS, VALUE_STOPS, YEAR_STOPS } from './constants'
 import type {
   AssessmentBoundaryLevel,
   AssessmentBoundarySource,
@@ -26,6 +28,33 @@ import type {
 
 const REGION_PARAM = ['region'] as const
 const getPropertyId = (property: Property) => property.id
+
+// A search reads these for all ~30,000 parcels, and toLocaleString rebuilds its
+// formatter on each call, so the table keeps one formatter and plain property reads.
+const PARCEL_CURRENCY = new Intl.NumberFormat(DEFAULT_LOCALE, {
+  style: 'currency',
+  currency: 'CAD',
+  maximumFractionDigits: 0,
+})
+const parcelCurrency = (value: number) => PARCEL_CURRENCY.format(value)
+const parcelRowId = (property: Property) => property.id || property.roll
+
+const PARCEL_COLUMNS = [
+  textColumn<Property>('address', 'Address', (property) => property.address, { width: 240 }),
+  textColumn<Property>('category', 'Category', (property) => CATEGORY_LABELS[property.category], { width: 130 }),
+  numberColumn<Property>('totalAssessed', 'Total assessed', (property) => property.totalAssessed, {
+    format: parcelCurrency,
+    width: 140,
+  }),
+  numberColumn<Property>('totalLand', 'Land', (property) => property.totalLand, { format: parcelCurrency }),
+  numberColumn<Property>('totalBuilding', 'Building', (property) => property.totalBuilding, {
+    format: parcelCurrency,
+  }),
+  numberColumn<Property>('yearBuilt', 'Year built', (property) => property.yearBuilt, { format: String, width: 100 }),
+  numberColumn<Property>('salePrice', 'Sale price', (property) => property.salePrice, { format: parcelCurrency }),
+  textColumn<Property>('saleDate', 'Sale date', (property) => property.saleDate, { width: 120 }),
+  textColumn<Property>('roll', 'Roll', (property) => property.roll, { width: 130 }),
+]
 
 type AssessmentLegendMode = 'rows' | 'horizontal' | 'gradient'
 
@@ -211,6 +240,35 @@ export default function BcAssessmentSection() {
     [handleClearSelection, effectiveSelectedProperty, propertySelection],
   )
 
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<Property>({
+        id: 'parcels',
+        label: 'Parcels',
+        color: '#2563eb',
+        shape: 'fill',
+        rows: filteredProperties,
+        columns: PARCEL_COLUMNS,
+        getRowId: parcelRowId,
+        getRowCenter: (property) => [property.longitude, property.latitude],
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? 'No parcels match these filters.',
+        exportFileName: 'bc-assessment-parcels',
+      }),
+    ],
+    [error, filteredProperties, loading],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: visibleSelectedProperty ? parcelRowId(visibleSelectedProperty) : null,
+    // handlePropertyClick toggles, and a table row or a link only ever means "show this one".
+    onSelectRow: (property: Property) => {
+      if (effectiveSelectedProperty?.id !== property.id) handlePropertyClick(property)
+    },
+    // BcAssessmentMap flies to the selected parcel, which also covers a click on the map.
+    flyOnSelect: false,
+  })
+
   const handleBoundaryClick = useCallback(
     (boundaryId: string) => {
       if (selectedBoundaryId === boundaryId) {
@@ -253,6 +311,7 @@ export default function BcAssessmentSection() {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={<>BC Assessment | {filteredProperties.length.toLocaleString(DEFAULT_LOCALE)} parcels</>}
       mobilePeekSubtitle={<>{visibleSelectedProperty?.address || selectedBoundaryId || colorMetric}</>}
       sidebar={
@@ -301,6 +360,7 @@ export default function BcAssessmentSection() {
           onPropertyClick={handlePropertyClick}
           onBoundaryClick={handleBoundaryClick}
           loading={loading}
+          table={table}
         />
 
         {/* Legend */}

@@ -1,8 +1,10 @@
+import { ExternalLink } from '@/components/ui/text-button'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { portalRead, errorText, NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { useReadCheck } from './PortalChecks'
 import {
@@ -277,22 +279,22 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
             options={PERMISSION_KINDS.map((value) => ({ value, label: value.replace(/_/g, ' ') }))}
           />
           <div className="max-h-80 overflow-auto rounded border">
-            <table className="w-full text-sm">
+            <EngineeringTable variant="text" className="text-sm">
               <thead>
                 <tr>
-                  <th className="p-2 text-left">Resource</th>
-                  <th>Read / use</th>
-                  {['form', 'submission'].includes(kind) && <th>Edit</th>}
+                  <ColumnHeader label="Resource" />
+                  <ColumnHeader label="Read / use" className="text-center" />
+                  {['form', 'submission'].includes(kind) && <ColumnHeader label="Edit" className="text-center" />}
                 </tr>
               </thead>
               <tbody>
                 {edited[kind].map((row) => (
-                  <tr key={row.id} className="border-t">
-                    <td className="p-2">
+                  <tr key={row.id}>
+                    <td>
                       {row.name} · {row.id}
                     </td>
                     {(['form', 'submission'].includes(kind) ? ['checked', 'editChecked'] : ['checked']).map((key) => (
-                      <td key={key} className="p-2 text-center">
+                      <td key={key} className="text-center">
                         <input
                           type="checkbox"
                           disabled={busy || !canWrite}
@@ -314,7 +316,7 @@ function Permissions({ write, canWrite }: { write?: Write; canWrite: boolean }) 
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <Button
             variant="outline"
@@ -461,9 +463,9 @@ export function PortalAdministration({
           </div>
         )}
       </div>
-      <a href={NECHAKO_PORTAL} target="_blank" rel="noreferrer" className="text-sm text-primary underline">
+      <ExternalLink href={NECHAKO_PORTAL} className="text-sm font-normal text-primary underline dark:text-primary">
         Open original administration for other source workflows
-      </a>
+      </ExternalLink>
     </div>
   )
 }

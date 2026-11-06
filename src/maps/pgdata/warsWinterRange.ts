@@ -27,6 +27,7 @@ export type {
   WinterRangeProperties,
 } from './warsWinterRangeCore'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 /**
  * Legal Ungulate Winter Range (UWR) polygons, synced from bcdatamapper's BC
@@ -70,7 +71,7 @@ function emptyState(loading: boolean): WinterRangeState {
 }
 
 export function formatWinterRangeHectares(hectares: number): string {
-  return Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString()} ha` : ''
+  return Number.isFinite(hectares) && hectares > 0 ? `${Math.round(hectares).toLocaleString(DEFAULT_LOCALE)} ha` : ''
 }
 
 export function winterRangeTooltipHtml(properties: Record<string, unknown>): string {

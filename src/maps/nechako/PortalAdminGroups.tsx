@@ -2,6 +2,7 @@ import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { portalRead, errorText } from '@/lib/nechakoPortal'
 type Member = { uid: number; name: string; member: boolean; primary: boolean }
 export function PortalAdminGroups({
@@ -97,22 +98,22 @@ export function PortalAdminGroups({
       {edited.length > 0 && (
         <>
           <div className="max-h-80 overflow-auto rounded border">
-            <table className="w-full text-sm">
+            <EngineeringTable variant="text" className="text-sm">
               <thead>
                 <tr>
-                  <th className="p-2 text-left">User</th>
-                  <th>Member</th>
-                  <th>Primary group</th>
+                  <ColumnHeader label="User" />
+                  <ColumnHeader label="Member" className="text-center" />
+                  <ColumnHeader label="Primary group" className="text-center" />
                 </tr>
               </thead>
               <tbody>
                 {edited.map((user) => (
-                  <tr key={user.uid} className="border-t">
-                    <td className="p-2">
+                  <tr key={user.uid}>
+                    <td>
                       {user.name} · {user.uid}
                     </td>
                     {(['member', 'primary'] as const).map((key) => (
-                      <td key={key} className="p-2 text-center">
+                      <td key={key} className="text-center">
                         <input
                           type="checkbox"
                           disabled={!canWrite || busy || (key === 'primary' && !user.member)}
@@ -139,7 +140,7 @@ export function PortalAdminGroups({
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <Button
             variant="outline"

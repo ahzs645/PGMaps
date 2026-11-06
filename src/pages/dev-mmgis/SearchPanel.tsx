@@ -3,6 +3,7 @@ import { SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { effectiveStyle, featureTitle, filteredCollection, type LoadedLayer } from '../dev-data/layerData'
 import { matchesSearch, type Mission } from './model'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function SearchPanel({
   mission,
@@ -58,7 +59,7 @@ export function SearchPanel({
           results.
         </p>
         <p className="text-xs font-semibold" role="status">
-          {results.length.toLocaleString()} matching features
+          {results.length.toLocaleString(DEFAULT_LOCALE)} matching features
         </p>
       </SidebarSection>
       <VirtualResultList items={results} getKey={(v) => v.id} estimateSize={65} label="Mission search results">

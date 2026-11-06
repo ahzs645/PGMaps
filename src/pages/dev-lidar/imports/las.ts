@@ -1,5 +1,6 @@
 import { pointCloudRecords, readPointCloudHeader, recordsCrs, type Vlr } from '@/lib/lidar/lasHeader'
 import { LIMITS, checkAborted, type ImportFile } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export interface LasHeader {
   version: string
   points: number
@@ -72,7 +73,7 @@ export async function inspectLas(file: ImportFile, signal?: AbortSignal): Promis
 export function checkLasBudget(header: LasHeader, size: number) {
   if (!header.copc && (size > LIMITS.plainBytes || header.points > LIMITS.plainPoints))
     throw Error(
-      header.points.toLocaleString() +
+      header.points.toLocaleString(DEFAULT_LOCALE) +
         ' points: this ordinary LAS/LAZ needs COPC/EPT conversion for browser streaming. Plain files are limited to 2 million points and 64 MiB. The BC sample EPT button streams the original sample safely.',
     )
   if (!header.hasCRS)

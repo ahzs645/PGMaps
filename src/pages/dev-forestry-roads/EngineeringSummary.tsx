@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -169,22 +170,22 @@ export function EngineeringSummary({
         )}
         {tab === 'cost' && (
           <>
-            <table className="w-full text-xs" data-testid="road-cost-breakdown">
+            <EngineeringTable data-testid="road-cost-breakdown">
               <thead>
                 <tr>
-                  <th className="border-b p-2 text-left">Cost item</th>
-                  <th className="border-b p-2 text-right">CAD</th>
+                  <ColumnHeader label="Cost item" className="text-left" />
+                  <ColumnHeader label="CAD" />
                 </tr>
               </thead>
               <tbody>
                 {rows.map(([label, value]) => (
-                  <tr key={label} className={label === 'Total' ? 'bg-emerald-600/10 font-semibold' : ''}>
-                    <td className="border-b p-2">{label}</td>
-                    <td className="border-b p-2 text-right font-mono">${fmt(value, 2)}</td>
+                  <tr key={label} className={label === 'Total' ? '!bg-emerald-600/10 font-semibold' : ''}>
+                    <td className="text-left">{label}</td>
+                    <td className="font-mono">${fmt(value, 2)}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
             <p className="mt-2 text-[11px] text-muted-foreground">
               Entered rates and supported quantities define this estimate. Zero rates are unpriced work. Ground-material
               excavation replaces the default cut rate only where a horizon is assigned.
@@ -205,33 +206,31 @@ export function EngineeringSummary({
                 { label: 'Excavated stripping', value: `${fmt(result?.strippingCutM3 ?? 0)} m³` },
               ]}
             />
-            <table className="mt-2 w-full whitespace-nowrap text-right text-xs">
+            <EngineeringTable className="mt-2">
               <thead>
                 <tr>
-                  {['Material', 'Bank cut m³', 'Usable compacted m³', 'Unusable bank m³', 'Excavation CAD'].map((h) => (
-                    <th key={h} className="border-b p-2">
-                      {h}
-                    </th>
-                  ))}
+                  <ColumnHeader label="Material" className="text-left" />
+                  <ColumnHeader label="Bank cut" unit="m³" />
+                  <ColumnHeader label="Usable compacted" unit="m³" />
+                  <ColumnHeader label="Unusable bank" unit="m³" />
+                  <ColumnHeader label="Excavation" unit="CAD" />
                 </tr>
               </thead>
               <tbody>
                 {result?.materials.map((m) => (
                   <tr key={m.materialId}>
-                    <td className="border-b p-2 text-left">
+                    <td className="text-left">
                       <span style={{ background: m.color }} className="mr-1 inline-block size-2 rounded-sm" />
                       {m.name}
                       {m.purpose === 'stripping' ? ' · stripping' : ''}
                     </td>
                     {[m.bankCutM3, m.usableCompactedM3, m.unusableBankM3, m.excavationCost].map((v, i) => (
-                      <td key={i} className="border-b p-2">
-                        {fmt(v)}
-                      </td>
+                      <td key={i}>{fmt(v)}</td>
                     ))}
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
             {!result && (
               <p className="mt-3 text-xs text-muted-foreground">
                 Define ground materials and station/depth horizons in Engineering → Ground to classify excavation.
@@ -297,20 +296,23 @@ export function EngineeringSummary({
                     </Button>
                   </div>
                 </div>
-                <table className="w-full whitespace-nowrap text-right text-xs" data-testid="road-haul-transfers">
+                <EngineeringTable data-testid="road-haul-transfers">
                   <thead>
                     <tr>
-                      {['Type', 'From', 'To', 'Distance m', 'Volume m³', 'Basis', 'Haul class', 'Haul CAD'].map((h) => (
-                        <th key={h} className="border-b p-2">
-                          {h}
-                        </th>
-                      ))}
+                      <ColumnHeader label="Type" className="text-left" />
+                      <ColumnHeader label="From" />
+                      <ColumnHeader label="To" />
+                      <ColumnHeader label="Distance" unit="m" />
+                      <ColumnHeader label="Volume" unit="m³" />
+                      <ColumnHeader label="Basis" />
+                      <ColumnHeader label="Haul class" />
+                      <ColumnHeader label="Haul" unit="CAD" />
                     </tr>
                   </thead>
                   <tbody>
                     {movements.slice(currentPage * 100, (currentPage + 1) * 100).map((m) => (
                       <tr key={m.id}>
-                        <td className="border-b p-2 text-left">
+                        <td className="text-left">
                           {m.externalUnresolved
                             ? 'unresolved external'
                             : m.disposalMethod === 'sidecast'
@@ -318,12 +320,12 @@ export function EngineeringSummary({
                               : m.kind}
                           {m.demandLayer ? ` · ${m.demandLayer}` : ''}
                         </td>
-                        <td className="border-b p-2">
+                        <td>
                           <button className="underline" onClick={() => onStation(m.fromChainage)}>
                             {formatRoadStation(m.fromChainage)}
                           </button>
                         </td>
-                        <td className="border-b p-2">
+                        <td>
                           <button className="underline" onClick={() => onStation(m.toChainage)}>
                             {formatRoadStation(m.toChainage)}
                           </button>
@@ -335,14 +337,12 @@ export function EngineeringSummary({
                           m.category,
                           fmt(m.haulCost, 2),
                         ].map((v, i) => (
-                          <td key={i} className="border-b p-2">
-                            {v}
-                          </td>
+                          <td key={i}>{v}</td>
                         ))}
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </>
             )}
           </>
@@ -351,28 +351,22 @@ export function EngineeringSummary({
           <>
             {result?.culverts.length ? (
               <>
-                <table className="w-full whitespace-nowrap text-right text-xs">
+                <EngineeringTable>
                   <thead>
                     <tr>
-                      {[
-                        'Structure',
-                        'Station',
-                        'Grade %',
-                        'Cover m',
-                        'Required span m',
-                        'Inclined barrel m',
-                        'Cost CAD',
-                      ].map((h) => (
-                        <th key={h} className="border-b p-2">
-                          {h}
-                        </th>
-                      ))}
+                      <ColumnHeader label="Structure" className="text-left" />
+                      <ColumnHeader label="Station" />
+                      <ColumnHeader label="Grade" unit="%" />
+                      <ColumnHeader label="Cover" unit="m" />
+                      <ColumnHeader label="Required span" unit="m" />
+                      <ColumnHeader label="Inclined barrel" unit="m" />
+                      <ColumnHeader label="Cost" unit="CAD" />
                     </tr>
                   </thead>
                   <tbody>
                     {result.culverts.map((c) => (
-                      <tr key={c.id} className={c.id === selectedCulvert?.id ? 'bg-blue-600/10' : ''}>
-                        <td className="border-b p-2 text-left">
+                      <tr key={c.id} aria-selected={c.id === selectedCulvert?.id}>
+                        <td className="text-left">
                           <button
                             className="underline"
                             aria-pressed={selectedCulvert?.id === c.id}
@@ -384,16 +378,14 @@ export function EngineeringSummary({
                             {c.name}
                           </button>
                         </td>
-                        <td className="border-b p-2">{formatRoadStation(c.chainage)}</td>
+                        <td>{formatRoadStation(c.chainage)}</td>
                         {[c.gradePercent, c.coverM, c.requiredLengthM, c.barrelLengthM, c.installedCost].map((v, i) => (
-                          <td key={i} className="border-b p-2">
-                            {fmt(v)}
-                          </td>
+                          <td key={i}>{fmt(v)}</td>
                         ))}
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
                 {selectedCulvert && (
                   <div className="mt-2 space-y-2">
                     <CulvertProfile culvert={selectedCulvert} />

@@ -209,16 +209,29 @@ export function attributeCategory(value: unknown): string | null {
   return String(value).trim()
 }
 
+const numberFormats = new Map<string, Intl.NumberFormat>()
+
+/** `toLocaleString` builds a formatter per call, which costs seconds across a large table. */
+function numberFormat(maximumFractionDigits: number, minimumFractionDigits: number, useGrouping: boolean) {
+  const key = `${maximumFractionDigits}:${minimumFractionDigits}:${useGrouping}`
+  let formatter = numberFormats.get(key)
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits, minimumFractionDigits, useGrouping })
+    numberFormats.set(key, formatter)
+  }
+  return formatter
+}
+
 /** A number formatted with the attribute's own format, ignoring the column type. */
 export function formatAttributeNumber(value: number, format?: AttributeFormat): string {
   if (format?.kind === 'area') return formatArea(value) || '0 m²'
   if (format?.kind === 'length') return formatLength(value) || '0 m'
   const digits = format?.kind === 'number' ? format.digits : undefined
-  const text = value.toLocaleString(DEFAULT_LOCALE, {
-    maximumFractionDigits: digits ?? (Math.abs(value) >= 100 ? 0 : 2),
-    minimumFractionDigits: digits != null ? Math.min(digits, 2) : 0,
-    useGrouping: !(format?.kind === 'number' && format.grouping === false),
-  })
+  const text = numberFormat(
+    digits ?? (Math.abs(value) >= 100 ? 0 : 2),
+    digits != null ? Math.min(digits, 2) : 0,
+    !(format?.kind === 'number' && format.grouping === false),
+  ).format(value)
   if (format?.kind === 'number') return `${format.prefix ?? ''}${text}${format.suffix ?? ''}`
   return text
 }

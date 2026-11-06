@@ -1,10 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import MapLibreGL from 'maplibre-gl'
-import { MapClusterLayer, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { MapClusterLayer, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
 import { geometryBounds, type BBox } from '@/lib/geo'
-import { getClassificationColor, getTrailColor } from '../constants'
+import { AMENITY_MARKER_CAP, getClassificationColor, getTrailColor } from '../constants'
 import type { Park, Trail, ParkAmenity, ActiveLayer, CityPgOverlayData } from '../types'
 
 function toLngLatBounds(bbox: BBox | null): MapLibreGL.LngLatBounds {
@@ -30,6 +31,7 @@ interface ParksMapProps {
   selectedTrail: Trail | null
   selectionFocusKey: number
   loading?: boolean
+  table: MapTableController
   onParkClick: (park: Park | null) => void
   onTrailClick: (trail: Trail | null) => void
 }
@@ -44,6 +46,7 @@ export function ParksMap({
   selectedTrail,
   selectionFocusKey,
   loading = false,
+  table,
   onParkClick,
   onTrailClick,
 }: ParksMapProps) {
@@ -130,12 +133,14 @@ export function ParksMap({
 
   const visibleAmenities = useMemo(() => {
     if (!showAmenities) return []
-    return amenities.slice(0, 300)
+    return amenities.slice(0, AMENITY_MARKER_CAP)
   }, [amenities, showAmenities])
 
   return (
     <div className="h-full w-full">
       <SharedMap loading={loading} loadingLabel="Loading parks and trails data">
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" />
         <MapFillLayer
           data={parkGeojson}
           fillColor={['get', 'color']}

@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Bus, MapPin, Route } from 'lucide-react'
-import { MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
+import { MapMarker, MapPopup, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
 import { SharedMap } from '@/components/ui/persistent-map'
 import {
   InlineAlert,
+  KeyValueRows,
   LegendItem,
   MapLegendPanel,
   MapLegendSection,
@@ -14,6 +17,8 @@ import {
 } from '@/components/ui/map-panels'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { PG_CENTER } from '@/components/ui/map-styles'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -121,6 +126,18 @@ function stopDescription(stop: TransitStop): string {
   return `${subtypeLabel(stop.subtype)}${stop.accessible ? ' · accessible proxy' : ''}${stop.hasShelter ? ' · shelter/exchange' : ''}`
 }
 
+const STOP_COLUMNS = [
+  textColumn<TransitStop>('name', 'Stop', (stop) => stop.name, { width: 240 }),
+  textColumn<TransitStop>('id', 'Stop ID', (stop) => stop.id, { width: 110 }),
+  textColumn<TransitStop>('type', 'Type', (stop) => subtypeLabel(stop.subtype), { width: 130 }),
+  textColumn<TransitStop>('status', 'Status', (stop) => stop.status, { width: 100 }),
+  textColumn<TransitStop>('shelter', 'Shelter/exchange', (stop) => (stop.hasShelter ? 'Yes' : 'No'), { width: 150 }),
+  textColumn<TransitStop>('accessible', 'Accessible proxy', (stop) => (stop.accessible ? 'Yes' : 'No'), { width: 150 }),
+  numberColumn<TransitStop>('weekdayTrips', 'Weekday trips', (stop) => stop.weekdayTrips),
+  numberColumn<TransitStop>('serviceSpanHours', 'Service span (h)', (stop) => stop.serviceSpanHours),
+  textColumn<TransitStop>('frequent', 'Frequent', (stop) => (stop.frequent ? 'Yes' : 'No'), { width: 100 }),
+]
+
 function useRouteData() {
   const [routes, setRoutes] = useState<RouteFeatureCollection | null>(null)
   const [loading, setLoading] = useState(true)
@@ -182,14 +199,6 @@ export default function TransitDataSection() {
       return [stop.name, stop.id, stop.status, subtypeLabel(stop.subtype)].join(' ').toLowerCase().includes(query)
     })
   }, [hiddenStopCategories, searchQuery, statusFilter, stops])
-
-  const selectedStop = useMemo(
-    () =>
-      filteredStops.find((stop) => stop.id === selectedStopId) ??
-      stops.find((stop) => stop.id === selectedStopId) ??
-      null,
-    [filteredStops, selectedStopId, stops],
-  )
 
   const routeCounts = useMemo(() => {
     const routeIds = new Set<string>()
@@ -269,8 +278,41 @@ export default function TransitDataSection() {
     (activeLayers.includes('stops') && !allStopCategoriesHidden)
   const toggleSelectedStop = (stopId: string) => setSelectedStopId((current) => (current === stopId ? null : stopId))
 
+  // The stops layer starts off, and a stop picked from the table has to show on the map.
+  const selectStopFromTable = useCallback((stop: TransitStop) => {
+    setActiveLayers((current) => (current.includes('stops') ? current : [...current, 'stops']))
+    setSelectedStopId(stop.id)
+  }, [])
+
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<TransitStop>({
+        id: 'stops',
+        label: 'Transit stops',
+        color: '#0d9488',
+        shape: 'point',
+        rows: filteredStops,
+        columns: STOP_COLUMNS,
+        getRowId: (stop) => stop.id,
+        getRowCenter: (stop) => [stop.longitude, stop.latitude],
+        flyZoom: 15,
+        status: stopsLoading ? 'loading' : stopsError ? 'error' : 'ready',
+        emptyMessage: stopsError ?? 'No stops match these filters.',
+        exportFileName: 'pg-transit-stops',
+      }),
+    ],
+    [filteredStops, stopsError, stopsLoading],
+  )
+  const table = useMapTable({ sources: tableSources, selectedRowId: selectedStopId, onSelectRow: selectStopFromTable })
+
+  // Only a stop with a marker on the map gets a popup.
+  const detailStop = activeLayers.includes('stops')
+    ? (filteredStops.find((stop) => stop.id === selectedStopId) ?? null)
+    : null
+
   return (
     <MapSectionLayout
+      table={table}
       mobilePeek={
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">
@@ -291,7 +333,7 @@ export default function TransitDataSection() {
           dataset={DATASETS.transit}
         >
           <SidebarSection className="space-y-4">
-            {(stopsError || routesError) && <InlineAlert tone="error">{stopsError || routesError}</InlineAlert>}
+            {routesError && <InlineAlert tone="error">{routesError}</InlineAlert>}
 
             <StatGroup
               variant="tiles"
@@ -365,7 +407,9 @@ export default function TransitDataSection() {
           <ListState
             loading={stopsLoading}
             loadingLabel="Loading transit stops..."
-            empty={!stopsError && filteredStops.length === 0}
+            error={stopsError}
+            errorTitle="Could not load transit stops"
+            empty={filteredStops.length === 0}
             emptyLabel="No stops match these filters."
           >
             <ListHeader
@@ -391,6 +435,8 @@ export default function TransitDataSection() {
     >
       <div className="relative h-full">
         <SharedMap loading={stopsLoading || routesLoading} loadingLabel="Loading transit data">
+          <MapTableBridge table={table} />
+          <MapScaleBar position="bottom-left" />
           {visibleRouteInputs && (
             <TransitRouteLayers routes={visibleRouteInputs} visible={activeLayers.includes('routes')} />
           )}
@@ -413,17 +459,42 @@ export default function TransitDataSection() {
                     )}
                   />
                 </MarkerContent>
-                {selectedStop?.id === stop.id && (
-                  <MarkerPopup closeButton>
-                    <div className="max-w-[220px] p-2">
-                      <div className="text-sm font-semibold text-foreground">{stop.name}</div>
-                      <div className="mt-1 text-xs text-muted-foreground">Stop ID {stop.id}</div>
-                      <div className="mt-2 text-xs text-muted-foreground">{stopDescription(stop)}</div>
-                    </div>
-                  </MarkerPopup>
-                )}
               </MapMarker>
             ))}
+          {detailStop && (
+            <ResponsiveFeatureDetail
+              popup={
+                <MapPopup
+                  key={detailStop.id}
+                  longitude={detailStop.longitude}
+                  latitude={detailStop.latitude}
+                  closeButton
+                  onClose={() => setSelectedStopId(null)}
+                  className="max-w-[220px]"
+                >
+                  <MapPopupCard title={detailStop.name} subtitle={`Stop ID ${detailStop.id}`} className="pr-6">
+                    <p className="text-muted-foreground">{stopDescription(detailStop)}</p>
+                  </MapPopupCard>
+                </MapPopup>
+              }
+              card={
+                <MobileFeatureCard
+                  cardKey={detailStop.id}
+                  title={detailStop.name}
+                  subtitle={stopDescription(detailStop)}
+                  onClose={() => setSelectedStopId(null)}
+                >
+                  <KeyValueRows
+                    rows={[
+                      { label: 'Stop ID', value: detailStop.id },
+                      { label: 'Status', value: detailStop.status },
+                      { label: 'Weekday trips', value: formatNumber(detailStop.weekdayTrips) },
+                    ]}
+                  />
+                </MobileFeatureCard>
+              }
+            />
+          )}
         </SharedMap>
 
         {showLegend && (
@@ -432,6 +503,7 @@ export default function TransitDataSection() {
             icon={<Route className="h-3.5 w-3.5" />}
             width="md"
             collapsible
+            defaultCollapsed="mobile"
             actions={
               routeLegendItems.length > 0 ? (
                 <SelectAllActions

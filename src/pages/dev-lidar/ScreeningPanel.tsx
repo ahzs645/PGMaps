@@ -11,6 +11,7 @@ import { isForestMode } from './forestry'
 import { isSpeciesMode } from './species'
 
 import type { WorkflowPanelProps } from './WorkflowPanel'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; choose: (id: string) => void }) {
   const { data, options, features, selected, model } = props
   const [ledger, setLedger] = useState<ReviewLedger>({})
@@ -183,9 +184,9 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
               {options.mode === 'models' && (
                 <div className="space-y-3 text-xs">
                   <p>
-                    {data.models.engine.version} · {data.models.engine.screened_points.toLocaleString()} original
-                    cropped points. {data.models.records.filter((r) => r.success).length}/{models.length} engine
-                    successes; {models.filter((r) => r.closed_edge_incidence).length} pass closed-edge incidence.
+                    {data.models.engine.version} · {data.models.engine.screened_points.toLocaleString(DEFAULT_LOCALE)}{' '}
+                    original cropped points. {data.models.records.filter((r) => r.success).length}/{models.length}{' '}
+                    engine successes; {models.filter((r) => r.closed_edge_incidence).length} pass closed-edge incidence.
                   </p>
                   <label className="flex gap-2">
                     <input
@@ -228,7 +229,10 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   rows={
                     options.mode === 'gaps'
                       ? [
-                          { label: 'Source-cell area', value: `${properties.area_m2?.toLocaleString()} m²` },
+                          {
+                            label: 'Source-cell area',
+                            value: `${properties.area_m2?.toLocaleString(DEFAULT_LOCALE)} m²`,
+                          },
                           { label: 'High-cell boundary', value: `${properties.canopy_edge_percent}%` },
                           { label: 'Clipped boundary', value: properties.boundary_clipped ? 'Yes' : 'No' },
                           { label: 'Roof contact', value: properties.near_roof ? 'Yes' : 'No' },

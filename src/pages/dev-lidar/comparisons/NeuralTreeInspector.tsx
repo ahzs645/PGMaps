@@ -24,6 +24,7 @@ import {
   type NeuralTreeExamples,
 } from './neuralTrees'
 import treeUrl from './neural-trees.generated.json?url'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function NeuralTreeInspector({ snapshot, basemap }: { snapshot: NeuralSnapshot; basemap: Basemap }) {
   const [data, setData] = useState<NeuralTreeExamples | null>(null),
@@ -177,7 +178,7 @@ export function NeuralTreeViews({
           >
             {available.map((t) => (
               <option key={t.id} value={t.id}>
-                #{t.instance} · {t.height_max_m.toFixed(1)} m · {t.core_returns.toLocaleString()} points
+                #{t.instance} · {t.height_max_m.toFixed(1)} m · {t.core_returns.toLocaleString(DEFAULT_LOCALE)} points
               </option>
             ))}
           </NativeSelect>
@@ -263,7 +264,7 @@ export function NeuralTreeViews({
             label="3D"
             title={`${NEURAL_NAMES[model]} · candidate #${tree.instance}`}
             metrics={[
-              { label: 'Original core points', value: tree.core_returns.toLocaleString() },
+              { label: 'Original core points', value: tree.core_returns.toLocaleString(DEFAULT_LOCALE) },
               { label: 'Observed maximum height above DTM', value: `${tree.height_max_m.toFixed(1)} m` },
             ]}
           >
@@ -304,10 +305,11 @@ export function NeuralTreeViews({
       </div>
       <div className="max-h-[20dvh] shrink-0 overflow-y-auto border-t px-3 py-2 text-xs leading-5">
         <p>
-          <strong>One candidate, all {tree.core_returns.toLocaleString()} original core points.</strong> Choose a marker
-          or use Next to inspect another. The red box marks the observed point bounds, not a surveyed crown footprint.{' '}
+          <strong>One candidate, all {tree.core_returns.toLocaleString(DEFAULT_LOCALE)} original core points.</strong>{' '}
+          Choose a marker or use Next to inspect another. The red box marks the observed point bounds, not a surveyed
+          crown footprint.{' '}
           {context
-            ? `${(crop.points.length - tree.core_returns).toLocaleString()} nearby display points shown in grey; context is thinned.`
+            ? `${(crop.points.length - tree.core_returns).toLocaleString(DEFAULT_LOCALE)} nearby display points shown in grey; context is thinned.`
             : 'Neighbouring points are hidden.'}
         </p>
         <p>

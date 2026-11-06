@@ -65,7 +65,7 @@ function recordPaneTransition(page: Page, action: 'open' | 'toggle-full-screen' 
     sample()
     if (action === 'open') {
       ;[...document.querySelectorAll<HTMLButtonElement>('button')]
-        .find((button) => button.textContent === 'Open table')!
+        .find((button) => button.getAttribute('aria-label') === 'Open table')!
         .click()
     } else {
       const label = action === 'close' ? 'Close' : /Expand table pane|Collapse table pane/

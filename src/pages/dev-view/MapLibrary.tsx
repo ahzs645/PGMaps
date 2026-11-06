@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, type ReactNode } from 'react'
 import { FileImage, MapPinned } from 'lucide-react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -68,23 +69,29 @@ export function MapLibrary({
         if (!desktop) onScroll(event.currentTarget.scrollTop)
       }}
     >
-      <header className="border-b bg-background px-4 py-4 sm:px-6 md:px-8">
+      <div className="border-b bg-background px-4 py-4 sm:px-6 md:px-8">
         <div className="mx-auto max-w-7xl">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Map library</p>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-          {description && <p className="mt-2 hidden max-w-3xl text-sm text-muted-foreground sm:block">{description}</p>}
-          <p className="mt-1 text-sm text-muted-foreground">
-            {sourceMode
-              ? 'Available source images and archive leads. These records have no geographic placement.'
-              : 'Browse the images, then open a map to explore its placement.'}
-          </p>
+          <ToolPageHeader
+            className="mb-0"
+            eyebrow="Map library"
+            eyebrowClassName="font-semibold uppercase tracking-widest text-muted-foreground"
+            title={title}
+            description={
+              <>
+                {description && <span className="mb-1 hidden sm:block">{description}</span>}
+                {sourceMode
+                  ? 'Available source images and archive leads. These records have no geographic placement.'
+                  : 'Browse the images, then open a map to explore its placement.'}
+              </>
+            }
+          />
           {coverageSummary && <p className="mt-2 text-xs text-muted-foreground">{coverageSummary}</p>}
           <details className="mt-3 text-sm">
             <summary className="w-fit cursor-pointer text-muted-foreground">Open another map URL</summary>
             <div className="mt-3 max-w-2xl">{sourceForm}</div>
           </details>
         </div>
-      </header>
+      </div>
       <div className="border-b bg-background px-4 py-3 sm:px-6 lg:max-h-[45dvh] lg:shrink-0 lg:overflow-y-auto md:px-8">
         <div className="mx-auto max-w-7xl">{toolbar}</div>
       </div>

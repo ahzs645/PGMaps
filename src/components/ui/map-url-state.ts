@@ -22,7 +22,7 @@ import { useSearchParams } from 'react-router-dom'
  *   <Map center={initialView.center} zoom={initialView.zoom}
  *        onViewportChange={onViewportChange} />
  *
- * The hook writes through react-router's `setSearchParams` (functional updater,
+ * The hook writes through react-router's `setSearchParams` (on top of the current URL,
  * `{ replace: true }`) so it composes with other `useUrlState` params on the
  * same page without clobbering them. Maps that own the entire URL themselves
  * (aqmap, via `window.history.replaceState`) use the pure helpers directly
@@ -218,10 +218,18 @@ export interface UseMapViewUrlStateResult {
  * Persist a map's center/zoom in the URL query so the view is bookmarkable and
  * shareable, without making the map controlled (avoids the URL-mirrored-in-state
  * feedback loop). Reads the initial view once; writes subsequent moves through
- * `setSearchParams` (debounced, `{ replace: true }`, functional updater).
+ * `setSearchParams` (debounced, `{ replace: true }`, on top of the current URL).
  */
 export function useMapViewUrlState(options: MapViewUrlOptions): UseMapViewUrlStateResult {
   const [, setSearchParams] = useSearchParams()
+
+  // This write lands long after the render that scheduled it, and the router's params
+  // can lag the address bar, so it builds on the real URL. Building on router params
+  // would restore an old URL and drop whatever was set since, such as a selection.
+  const setSearchParamsRef = useRef(setSearchParams)
+  useEffect(() => {
+    setSearchParamsRef.current = setSearchParams
+  })
 
   // Keep the latest options reachable from the (async, debounced) write callback
   // without re-subscribing every render — callers usually pass an inline object.
@@ -250,17 +258,12 @@ export function useMapViewUrlState(options: MapViewUrlOptions): UseMapViewUrlSta
 
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
       timeoutRef.current = setTimeout(() => {
-        setSearchParams(
-          (current) => {
-            const params = new URLSearchParams(current)
-            applyMapViewToQuery(params, view, opts)
-            return params
-          },
-          { replace: true },
-        )
+        const params = new URLSearchParams(window.location.search)
+        applyMapViewToQuery(params, view, opts)
+        setSearchParamsRef.current(params, { replace: true })
       }, debounceMs)
     },
-    [setSearchParams, debounceMs],
+    [debounceMs],
   )
 
   useEffect(() => {

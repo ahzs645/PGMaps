@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ExternalLink } from '@/components/ui/text-button'
 import { OrganizationSummary } from './OrganizationSummary'
 import type { CatalogueFacets, RasterRecord } from './catalogue'
 
@@ -104,9 +105,9 @@ export function MapImagePreview({
             Map notes & sources
           </Button>
           {current?.url && (
-            <a href={current.url} target="_blank" rel="noreferrer" className="self-center px-2 text-sm underline">
-              Open larger image ↗
-            </a>
+            <ExternalLink href={current.url} className="self-center px-2 text-sm">
+              Open larger image
+            </ExternalLink>
           )}
         </div>
         <p className="text-xs leading-relaxed text-muted-foreground">

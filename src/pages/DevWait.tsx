@@ -5,6 +5,8 @@ import { Clock3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import {
   FilterChipGroup,
   InlineAlert,
@@ -81,6 +83,25 @@ const STATUS_META: Record<WaitStatus, { label: string; color: string; marker: st
   },
 }
 
+const HOSPITAL_COLUMNS = [
+  textColumn<WaitHospital>('name', 'Hospital', (hospitalItem) => hospitalItem.name, { width: 260 }),
+  textColumn<WaitHospital>('city', 'City', (hospitalItem) => hospitalItem.city),
+  textColumn<WaitHospital>('province', 'Province', (hospitalItem) =>
+    hospitalItem.province ? (PROVINCE_NAMES[hospitalItem.province] ?? hospitalItem.province) : null,
+  ),
+  textColumn<WaitHospital>('wait', 'Wait', (hospitalItem) => hospitalItem.waitLabel, { width: 110 }),
+  numberColumn<WaitHospital>('waitMinutes', 'Wait (min)', (hospitalItem) => hospitalItem.waitMinutes, {
+    format: String,
+  }),
+  textColumn<WaitHospital>('source', 'Wait source', (hospitalItem) => sourceLabel(hospitalItem.source)),
+  textColumn<WaitHospital>('status', 'Status', (hospitalItem) => hospitalItem.official_status),
+  dateColumn<WaitHospital>(
+    'updated',
+    'Updated',
+    (hospitalItem) => hospitalItem.data_updated_at ?? hospitalItem.official_updated_at ?? hospitalItem.predicted_at,
+  ),
+]
+
 function DevWait() {
   const {
     data,
@@ -132,6 +153,25 @@ function DevWait() {
       newest: newestTimestamp(hospitals),
     }
   }, [filteredHospitals.length, hospitals])
+
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<WaitHospital>({
+        id: 'hospitals',
+        label: 'Hospitals',
+        color: STATUS_META.quick.color,
+        shape: 'point',
+        rows: filteredHospitals,
+        columns: HOSPITAL_COLUMNS,
+        getRowId: hospitalId,
+        getRowCenter: hospitalCoordinates,
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? undefined,
+      }),
+    ],
+    [error, filteredHospitals, loading],
+  )
+  const table = useMapTable({ sources: tableSources, selectedRowId: selected?.id ?? null, onSelectRow: setSelected })
 
   const sidebar = (
     <MapSidebarShell
@@ -213,14 +253,17 @@ function DevWait() {
       mobilePeekTitle={`${stats.visible} ER markers`}
       mobilePeekSubtitle="Wait-time labels and ER status"
       sidebar={sidebar}
+      table={table}
     >
       <div className="relative h-full">
         <Map
           center={WAIT_MAP_CENTER}
           zoom={WAIT_MAP_ZOOM}
           loading={loading}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
+          <MapTableBridge table={table} />
           <WaitMarkers hospitals={filteredHospitals} selectedId={selected?.id ?? null} onSelect={setSelected} />
 
           {selected && (

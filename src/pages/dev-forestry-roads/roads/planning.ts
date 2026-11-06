@@ -3,6 +3,7 @@ import type { Coordinate, RoadProject, ContextFeature } from '../types'
 import type { RoadsOptions, RoadsLanding } from './types'
 import { assessRoadCondition } from '../roadCondition'
 import { MAX_ROADS_CELLS, MAX_ROADS_TARGETS, normalizeRoadsOptions } from './graph'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const MAX_NETWORK_CELLS = MAX_ROADS_CELLS
 export const MAX_NETWORK_TARGETS = MAX_ROADS_TARGETS
@@ -126,7 +127,7 @@ function parseImported(raw: unknown): ImportedNetworkScenario {
   const height = number(g.height, 'Grid height', 1, MAX_NETWORK_CELLS, true)
   const count = width * height
   if (count > MAX_NETWORK_CELLS)
-    throw Error(`Network grids support at most ${MAX_NETWORK_CELLS.toLocaleString()} cells.`)
+    throw Error(`Network grids support at most ${MAX_NETWORK_CELLS.toLocaleString(DEFAULT_LOCALE)} cells.`)
   const cells = (raw: unknown, label: string) => {
     const a = list(raw, label, count)
     if (a.length !== count) throw Error(`${label} length must match the grid.`)

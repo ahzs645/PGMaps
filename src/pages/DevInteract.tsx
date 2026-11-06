@@ -8,8 +8,8 @@ import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { CENTER, YEAR_FILTER_DOMAIN, neighbourhoodFeatures, parkFeatures, routeFeatures } from './dev-interact/data'
 import { DesktopFeaturePopup } from './dev-interact/DesktopFeaturePopup'
-import { DEFAULT_TABLE_PANE_HEIGHT } from '@/components/map/MapFeatureTable'
-import { FeatureTablePanel } from './dev-interact/FeatureTablePanel'
+import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
+import { interactTableSources } from './dev-interact/tableSources'
 import { MobileFeatureInspector } from './dev-interact/FeatureInspector'
 import {
   circleMeasurementStats,
@@ -165,9 +165,6 @@ function DevInteract() {
   const [scalePosition, setScalePosition] = useState<ScalePosition>('bottom-center')
   const [hiddenFeatureIds, setHiddenFeatureIds] = useState<Set<string>>(() => new Set())
   const [isolatedFeatureId, setIsolatedFeatureId] = useState<string | null>(null)
-  const [tableLayer, setTableLayer] = useState<LayerId | null>(null)
-  const [tableHeight, setTableHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
-  const [tableResizing, setTableResizing] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchMounted, setSearchMounted] = useState(false)
   const [zoomFeature, setZoomFeature] = useState<{ feature: InteractFeature; nonce: number } | null>(null)
@@ -272,6 +269,25 @@ function DevInteract() {
     },
     [selectedFeature?.properties.id, yearRange],
   )
+
+  const tableSources = useMemo(
+    () =>
+      interactTableSources({
+        parks: filteredParkFeatures.features,
+        neighbourhoods: filteredNeighbourhoodFeatures.features,
+        routes: filteredRouteFeatures.features,
+      }),
+    [filteredNeighbourhoodFeatures, filteredParkFeatures, filteredRouteFeatures],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedFeature?.properties.id ?? null,
+    onSelectRow: (feature: InteractFeature) => {
+      const bounds = featureBounds(feature)
+      setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
+    },
+  })
+  const { open: openTable } = table
 
   useEffect(() => {
     const openSearch = () => {
@@ -591,9 +607,9 @@ function DevInteract() {
         })
         return
       }
-      setTableLayer(feature.properties.layer)
+      openTable(feature.properties.layer)
     },
-    [clearSelection],
+    [clearSelection, openTable],
   )
 
   const sidebar = (
@@ -616,7 +632,6 @@ function DevInteract() {
       }}
       onStartMeasurement={startMeasurement}
       onStartCircleMeasurement={startCircleMeasurement}
-      onOpenTable={() => setTableLayer('parks')}
       onFinishMeasurement={finishMeasurement}
       onClearMeasurement={clearMeasurement}
       openInEnabled={openInEnabled}
@@ -677,38 +692,17 @@ function DevInteract() {
       mobileScrimEnabled={false}
       onMobileSheetStateChange={(sheetState) => dispatchMobilePanel({ type: 'syncControlsSheet', sheetState })}
       sidebar={sidebar}
-      bottomPaneHeight={tableLayer ? tableHeight : 0}
-      bottomPaneResizing={tableResizing}
-      bottomPane={
-        tableLayer ? (
-          <FeatureTablePanel
-            layer={tableLayer}
-            onLayerChange={setTableLayer}
-            hiddenFeatureIds={hiddenFeatureIds}
-            isolatedFeatureId={isolatedFeatureId}
-            yearRange={yearRange}
-            selectedFeatureId={selectedFeature?.properties.id ?? null}
-            height={tableHeight}
-            onHeightChange={setTableHeight}
-            onResizeStart={() => setTableResizing(true)}
-            onResizeEnd={() => setTableResizing(false)}
-            onClose={() => setTableLayer(null)}
-            onSelect={(feature) => {
-              const bounds = featureBounds(feature)
-              setSelection(feature, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
-            }}
-          />
-        ) : undefined
-      }
+      table={table}
     >
       <div className="relative h-full">
         <Map
           center={CENTER}
           zoom={11.1}
           attributionControl={false}
-          deferResize={tableResizing}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
+          <MapTableBridge table={table} />
           <MapClickCapture
             measurementMode={measurementMode}
             measurementShape={measurementShape}

@@ -1,8 +1,9 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Check, Copy, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { getLevelOptionsForSource } from '@/lib/studyArea'
@@ -130,7 +131,9 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const selectedRegionId = selectedRegion?.region.id ?? null
   useEffect(() => {
-    if (selectedRegionId) scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+    if (selectedRegionId) {
+      scrollRef.current?.closest('[data-map-sidebar-scroll="true"]')?.scrollTo({ top: 0, behavior: 'smooth' })
+    }
   }, [selectedRegionId])
 
   const handleCopyLink = () => {
@@ -138,177 +141,171 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
   }
 
   return (
-    <div
-      className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden bg-background', className)}
+    <MapSidebarShell
+      className={cn('bg-background backdrop-blur-none', className)}
       data-score-lab-sidebar={props.lab}
+      title={getScoreLab(props.lab).title}
+      // The page header names the lab on desktop, and the sheet handle on a phone.
+      titleClassName="sr-only"
+      headerClassName="border-0 p-0"
     >
-      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
-        <div className="border-b border-border px-4 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              {showDescription && (
-                <p className="mb-1 text-xs leading-snug text-muted-foreground">{getScoreLab(props.lab).description}</p>
-              )}
-              <div className="text-xs text-muted-foreground">{formatRegionCount(regionCount)}</div>
-            </div>
-            <button
-              type="button"
-              disabled={copyStatus === 'pending'}
-              onClick={handleCopyLink}
-              className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Copy link to this view"
-            >
-              {copyStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-              {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Failed' : 'Link'}
-            </button>
+      <div ref={scrollRef} className="border-b border-border px-4 py-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            {showDescription && (
+              <p className="mb-1 text-xs leading-snug text-muted-foreground">{getScoreLab(props.lab).description}</p>
+            )}
+            <div className="text-xs text-muted-foreground">{formatRegionCount(regionCount)}</div>
           </div>
-        </div>
-
-        {onExport && (
-          <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
-            <span className="text-xs text-muted-foreground">Export</span>
-            {exportFormats.map((format) => (
-              <button
-                key={format}
-                type="button"
-                onClick={() => onExport(format)}
-                className="inline-flex min-h-9 items-center rounded-md border border-input px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {EXPORT_LABELS[format]}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {dataErrors.length > 0 && (
-          <InlineAlert tone="error" title="Some data could not load" className="m-4 p-3">
-            {dataErrors.map((err, i) => (
-              <p key={i}>{err}</p>
-            ))}
-          </InlineAlert>
-        )}
-
-        {lensCoverage && lensCoverage.total > 1 && lensCoverage.covered / lensCoverage.total < 0.5 && (
-          <InlineAlert tone="warning" className="m-4 mb-0 leading-snug">
-            Only {lensCoverage.covered.toLocaleString(DEFAULT_LOCALE)} of{' '}
-            {lensCoverage.total.toLocaleString(DEFAULT_LOCALE)} regions have data for{' '}
-            {secondaryMetric ? 'these metrics' : 'this metric'}. The rest read as zero, so a smaller study area will say
-            more.
-          </InlineAlert>
-        )}
-
-        {unavailableTerms.size > 0 && (
-          <div className="space-y-1 px-4 pt-3">
-            {[...unavailableTerms].map(([key, unavailable]) => {
-              const metric = metrics.find((entry) => entry.key === key)
-              if (!metric) return null
-              return (
-                <InactiveTermNotice
-                  key={key}
-                  metric={metric}
-                  unavailable={unavailable}
-                  onEnableDataSource={onEnableDataSource}
-                />
-              )
-            })}
-          </div>
-        )}
-
-        {selectedRegion && (
-          <section className="border-b border-border px-4 py-3" data-score-lab-selected-region="true">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">{selectedRegion.region.name}</h3>
-              <button
-                type="button"
-                onClick={onClearRegionSelection}
-                className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Clear selected region"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <dl className="mt-1 space-y-1 text-xs">
-              {lensMetrics.map((metric) => (
-                <div key={metric} className="flex items-center justify-between gap-3">
-                  <dt className="min-w-0 truncate text-muted-foreground">{getMetricLabel(metric)}</dt>
-                  <dd className="shrink-0 font-medium text-foreground">
-                    {formatMetricValue(metric, selectedRegion.metrics[metric], true)}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        )}
-
-        <section className="border-b border-border" data-score-builder-lens-panel={props.lab}>
-          {props.lab === 'density' ? (
-            <DensityTab
-              className="p-4"
-              densityMetric={props.densityMetric}
-              onDensityMetricChange={props.onDensityMetricChange}
-              densitySummary={props.densitySummary}
-              densityLeaders={props.densityLeaders}
-              selectedRegion={selectedRegion}
-              onRegionSelect={onRegionSelect}
-            />
-          ) : (
-            <CorrelateTab
-              className="p-4"
-              metricX={props.correlateMetricX}
-              metricY={props.correlateMetricY}
-              onMetricXChange={props.onCorrelateMetricXChange}
-              onMetricYChange={props.onCorrelateMetricYChange}
-              visStyle={props.correlateVisStyle}
-              onVisStyleChange={props.onCorrelateVisStyleChange}
-              result={props.correlationResult}
-              topPairs={props.correlationTopPairs}
-              onApplyTopPair={props.onApplyTopPair}
-              boundarySource={boundarySource}
-              regionLevel={selectedRegionLevel}
-              selectedRegionId={selectedRegionId}
-              onRegionSelect={onRegionSelect}
-            />
-          )}
-        </section>
-
-        <StudyAreaSelector<BoundarySource, RegionLevel>
-          source={boundarySource}
-          sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
-          level={selectedRegionLevel}
-          levelOptions={boundaryLevelOptions}
-          levelOptionsForSource={getLevelOptionsForSource}
-          onSourceChange={(source) => {
-            onBoundarySourceChange(source)
-            onClearRegionSelection()
-          }}
-          onLevelChange={(level) => {
-            onRegionLevelChange(level)
-            onClearRegionSelection()
-          }}
-          title="Study area"
-          levelSelectId="score-lab-level"
-          dataPrefix="score-builder"
-        />
-
-        <div className="pb-4" data-score-builder-section="dataSources">
-          <CollapsibleSection
-            open={sourcesOpen}
-            onOpenChange={setSourcesOpen}
-            label={<span className="text-sm font-semibold">Data sources</span>}
-            summary={`${enabledDataSources.length} on`}
-            className="bg-transparent px-1"
-            contentClassName="px-3 pb-4"
+          <button
+            type="button"
+            disabled={copyStatus === 'pending'}
+            onClick={handleCopyLink}
+            className="inline-flex min-h-8 shrink-0 items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+            aria-label="Copy link to this view"
           >
-            <DataSourceToggleList
-              enabledSources={enabledSourceSet}
-              onToggleDataSource={onToggleDataSource}
-              showPoints={showPoints}
-              onTogglePoints={onTogglePoints}
-              unavailableTerms={unavailableTerms}
-            />
-          </CollapsibleSection>
+            {copyStatus === 'copied' ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+            {copyStatus === 'copied' ? 'Copied' : copyStatus === 'failed' ? 'Failed' : 'Link'}
+          </button>
         </div>
       </div>
-    </div>
+
+      {onExport && (
+        <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+          <span className="text-xs text-muted-foreground">Export</span>
+          {exportFormats.map((format) => (
+            <Button
+              key={format}
+              size="sm"
+              variant="outline"
+              className="min-h-9 text-xs"
+              onClick={() => onExport(format)}
+            >
+              {EXPORT_LABELS[format]}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {dataErrors.length > 0 && (
+        <InlineAlert tone="error" title="Some data could not load" className="m-4 p-3">
+          {dataErrors.map((err, i) => (
+            <p key={i}>{err}</p>
+          ))}
+        </InlineAlert>
+      )}
+
+      {unavailableTerms.size > 0 && (
+        <div className="space-y-1 px-4 pt-3">
+          {[...unavailableTerms].map(([key, unavailable]) => {
+            const metric = metrics.find((entry) => entry.key === key)
+            if (!metric) return null
+            return (
+              <InactiveTermNotice
+                key={key}
+                metric={metric}
+                unavailable={unavailable}
+                onEnableDataSource={onEnableDataSource}
+              />
+            )
+          })}
+        </div>
+      )}
+
+      <section className="border-b border-border" data-score-builder-lens-panel={props.lab}>
+        {props.lab === 'density' ? (
+          <DensityTab
+            className="p-4"
+            densityMetric={props.densityMetric}
+            onDensityMetricChange={props.onDensityMetricChange}
+            densitySummary={props.densitySummary}
+            densityLeaders={props.densityLeaders}
+            selectedRegion={selectedRegion}
+            onRegionSelect={onRegionSelect}
+          />
+        ) : (
+          <CorrelateTab
+            className="p-4"
+            metricX={props.correlateMetricX}
+            metricY={props.correlateMetricY}
+            onMetricXChange={props.onCorrelateMetricXChange}
+            onMetricYChange={props.onCorrelateMetricYChange}
+            visStyle={props.correlateVisStyle}
+            onVisStyleChange={props.onCorrelateVisStyleChange}
+            result={props.correlationResult}
+            topPairs={props.correlationTopPairs}
+            onApplyTopPair={props.onApplyTopPair}
+          />
+        )}
+      </section>
+
+      {selectedRegion && (
+        <SidebarSection
+          className="px-4 py-3"
+          data-score-lab-selected-region="true"
+          headingLevel={3}
+          title={selectedRegion.region.name}
+          actions={
+            <button
+              type="button"
+              onClick={onClearRegionSelection}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear selected region"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          }
+        >
+          <dl className="space-y-1 text-xs">
+            {lensMetrics.map((metric) => (
+              <div key={metric} className="flex items-center justify-between gap-3">
+                <dt className="min-w-0 truncate text-muted-foreground">{getMetricLabel(metric)}</dt>
+                <dd className="shrink-0 font-medium text-foreground">
+                  {formatMetricValue(metric, selectedRegion.metrics[metric], true)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </SidebarSection>
+      )}
+
+      <StudyAreaSelector<BoundarySource, RegionLevel>
+        source={boundarySource}
+        sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
+        level={selectedRegionLevel}
+        levelOptions={boundaryLevelOptions}
+        levelOptionsForSource={getLevelOptionsForSource}
+        onSourceChange={(source) => {
+          onBoundarySourceChange(source)
+          onClearRegionSelection()
+        }}
+        onLevelChange={(level) => {
+          onRegionLevelChange(level)
+          onClearRegionSelection()
+        }}
+        title="Study area"
+        levelSelectId="score-lab-level"
+        dataPrefix="score-builder"
+      />
+
+      <div className="pb-4" data-score-builder-section="dataSources">
+        <CollapsibleSection
+          open={sourcesOpen}
+          onOpenChange={setSourcesOpen}
+          label={<span className="text-sm font-semibold">Data sources</span>}
+          summary={`${enabledDataSources.length} on`}
+          className="bg-transparent px-1"
+          contentClassName="px-3 pb-4"
+        >
+          <DataSourceToggleList
+            enabledSources={enabledSourceSet}
+            onToggleDataSource={onToggleDataSource}
+            showPoints={showPoints}
+            onTogglePoints={onTogglePoints}
+            unavailableTerms={unavailableTerms}
+          />
+        </CollapsibleSection>
+      </div>
+    </MapSidebarShell>
   )
 }

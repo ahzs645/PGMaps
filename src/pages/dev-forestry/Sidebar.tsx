@@ -77,6 +77,7 @@ import {
   type VisualQualityClassId,
   type VisualQualityThresholds,
 } from './vqo'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape'
 
@@ -1259,8 +1260,8 @@ export function Sidebar({
                         ) : (
                           forestStatus !== null && (
                             <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
-                              {forestStatus.treeCount.toLocaleString()} stems standing around the camera · Distant
-                              instances represent canopy groups. Detail reduces with distance.
+                              {forestStatus.treeCount.toLocaleString(DEFAULT_LOCALE)} stems standing around the camera ·
+                              Distant instances represent canopy groups. Detail reduces with distance.
                               {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
                                 ? ` Species and height come from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
                                 : ' Species and height are a regional mix — run the BC inventory lookup to draw what the province recorded here.'}

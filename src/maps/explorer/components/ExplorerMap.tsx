@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Map as PgMap, MapClusterLayer, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
+import { Map as PgMap, MapClusterLayer, MapMarker, MapScaleBar, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { cn } from '@/lib/utils'
@@ -22,6 +23,7 @@ interface ExplorerMapProps {
   onMapRightClick?: (lng: number, lat: number) => void
   heatmapLayer?: React.ReactNode
   loading?: boolean
+  table: MapTableController
 }
 
 const ZOOM = PG_DEFAULT_ZOOM
@@ -37,6 +39,7 @@ export function ExplorerMap({
   onMapRightClick,
   heatmapLayer,
   loading = false,
+  table,
 }: ExplorerMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [drawMode, setDrawMode] = useState(false)
@@ -159,7 +162,9 @@ export function ExplorerMap({
 
   return (
     <div className="h-full w-full relative">
-      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading}>
+      <PgMap ref={mapRef} center={PG_CENTER} zoom={ZOOM} loading={loading} deferResize={table.deferResize}>
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" />
         {heatmapLayer}
 
         {polygonCollections.map((collection) => (
@@ -248,6 +253,7 @@ export function ExplorerMap({
 
       {/* Spatial filter controls */}
       <div className="absolute left-2 top-[calc(env(safe-area-inset-top)+3.75rem)] z-10 flex max-w-[calc(100%-4.5rem)] flex-wrap gap-1.5 sm:left-4 sm:max-w-[calc(100%-5rem)] sm:gap-2 md:top-4 md:max-w-none">
+        {table.button}
         <button
           type="button"
           aria-pressed={drawMode}

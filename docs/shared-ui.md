@@ -164,6 +164,70 @@ Logic for these pages lives in `src/lib/` and has no DOM access:
   `GeoFileImportError` messages are written for the person who dropped the
   file.
 
+## Table view
+
+Any map page with rows offers the same table: a docked pane on desktop, a
+`MobileFeatureCard` on phones, search, sort, column stats, column show/hide, CSV
+of what is shown, All/Visible, fly-to on row click, and `?table=&row=` links. A
+page supplies rows and columns and nothing else. Remediation is the reference.
+
+```tsx
+const sources = useMemo(
+  () => [
+    defineTableSource<Site>({
+      id: 'sites',
+      label: 'Sites',
+      color: SITE_COLOR,
+      shape: 'point',
+      rows: filteredSites, // what the map and filters show right now
+      columns: SITE_COLUMNS, // module-level, or memoized
+      getRowId: (site) => String(site.id),
+      getRowCenter: (site) => site.geometry.coordinates as [number, number],
+    }),
+  ],
+  [filteredSites],
+)
+const table = useMapTable({ sources, selectedRowId, onSelectRow: selectSite })
+
+<MapSectionLayout table={table} sidebar={sidebar}>
+  <Map deferResize={table.deferResize}>
+    <MapTableBridge table={table} />
+  </Map>
+</MapSectionLayout>
+```
+
+- **Rows must match the map.** Pass the page's filtered rows, never the raw
+  dataset. A table that disagrees with the map is worse than no table.
+- **No rows to offer:** pass `sources: []` (a tiles-only page, or while the page
+  has no usable data) and no button shows. A source still loading sets
+  `status: 'loading'`.
+- **Columns:** `textColumn`, `numberColumn`, `dateColumn` (`tableColumns.ts`) give
+  each kind of value its width, sort, CSV value and statistics. A CSV holds the raw
+  number; `format` only changes the display. For inferred GeoJSON schemas use
+  `attributeTableColumns`, which starts source ids (OBJECTID, GlobalID) hidden.
+- **Button:** `MapSectionLayout table={…}` puts it in the map's top-left corner. If
+  the page already has a map toolbar there, pass `inlineButton: true` and render
+  `table.button` in that toolbar. Never position it per page.
+- **Camera:** rows fly by default. Pass `flyOnSelect: false` when `onSelectRow`
+  already moves the camera, so the two do not fight.
+- **URL:** pass `url: false` on a page that writes its URL outside the router
+  (aqmap, a hash, share tokens), or that replaces its search params wholesale.
+  Row ids go in the URL, so keep them stable across reloads, never an array index
+  into filtered rows.
+- **Several layers:** one source per layer; the table's title becomes a layer
+  picker. Use `rows: () => …` when building rows is costly.
+- **Language:** pass `labels` (every word the table adds), `buttonLabel` and
+  `buttonText`. The AQ map's `aqTableLabels` is the reference.
+- `useMapTableState` is for a page that must know the open table before it can
+  build its sources, as `/dev/data` does to fetch that layer.
+- Keep sidebar lists: they are for quick picking, the table for comparing.
+- Schedules on the forestry tools stay `EngineeringTable`. The table is for rows
+  that sit on the map.
+
+Search matches a prebuilt index and each keystroke is deferred. `tableGridLayout`
+gives the grid a definite width on purpose: sized to its content, every flexible
+track grows to the longest cell in any column.
+
 ## Dialogs
 
 - `DialogShell` (`dialog-shell.tsx`): pinned title row with a finger-sized
@@ -201,6 +265,8 @@ Logic for these pages lives in `src/lib/` and has no DOM access:
 - Engineering schedules: `EngineeringTable` + `ColumnHeader` (`engineering-table.tsx`)
   give ruled columns, banded rows, a tinted `aria-selected` row and two-line
   quantity / unit headers. Format numbers with fixed decimals so columns align.
+  `variant="text"` keeps the rules, banding and headers but left-aligns and wraps,
+  for tables of text, chips, actions or checkboxes. `rowHeaders` styles a `tbody th`.
 
 ## Mobile sheets
 
@@ -210,6 +276,9 @@ CANUE graphs). The toolkit's [Mobile sheet stack](../packages/geo-toolkit/API.md
 guide covers how a stack looks, how to add a card and how to test one; the
 behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-stack).
 
+- `MapSearchSheet` on `/dev/interact` is a deliberate exception: it is a modal search,
+  and it reopens during its own exit, which `DialogShell` cannot do because it reports
+  a close only once the exit ends. `interface-motion.spec.ts` pins this.
 - New map detail on phones is a `MobileFeatureCard`, normally through
   `ResponsiveFeatureDetail`. Do not add a separate fixed bottom sheet: it sits
   outside the stack and covers, or hides behind, the other sheets.

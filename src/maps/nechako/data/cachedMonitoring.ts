@@ -1,5 +1,6 @@
 import { checkedMonitorPage, monitorPageTable } from './monitoringRelations'
 import { normalizeMonitoring, type MonitoringMapping } from './monitoring'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function cachedMonitoringTable(input: unknown): {
   table: ReturnType<typeof monitorPageTable>
@@ -23,7 +24,7 @@ export function cachedMonitoringTable(input: unknown): {
       throw new Error('A complete cached extract must contain the advertised row count.')
     return {
       table: monitorPageTable(page),
-      coverage: `${value.status === 'complete' ? 'Complete extract' : 'Partial extract'}: ${page.data.length.toLocaleString()} / ${page.recordCount.toLocaleString()} source rows. Download verification is retained in Local workbench.`,
+      coverage: `${value.status === 'complete' ? 'Complete extract' : 'Partial extract'}: ${page.data.length.toLocaleString(DEFAULT_LOCALE)} / ${page.recordCount.toLocaleString(DEFAULT_LOCALE)} source rows. Download verification is retained in Local workbench.`,
     }
   }
   if (
@@ -62,6 +63,6 @@ export function cachedMonitoringTable(input: unknown): {
   return {
     table: { headers, records },
     mapping,
-    coverage: `${records.length.toLocaleString()} rows from the original imported CSV. Source database coverage was not independently verified.`,
+    coverage: `${records.length.toLocaleString(DEFAULT_LOCALE)} rows from the original imported CSV. Source database coverage was not independently verified.`,
   }
 }

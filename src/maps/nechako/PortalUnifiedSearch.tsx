@@ -20,6 +20,7 @@ import {
 } from './data/portalCollections'
 import { errorText, type PortalSource } from '@/lib/nechakoPortal'
 import learningJson from '../../../public/data/projects/nechako-learning-module.json'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type Kind = 'all' | 'research' | 'project' | 'story' | 'layer' | 'submission' | 'document' | 'live'
 type Row = {
@@ -236,7 +237,7 @@ export function PortalUnifiedSearch({
             </InlineAlert>
           )}
           <p aria-live="polite" className="text-sm">
-            {matching.length.toLocaleString()} matching results · page {page + 1} of{' '}
+            {matching.length.toLocaleString(DEFAULT_LOCALE)} matching results · page {page + 1} of{' '}
             {Math.max(1, Math.ceil(matching.length / 25))}
           </p>
           <div className="max-h-[50vh] overflow-y-auto rounded-lg border">

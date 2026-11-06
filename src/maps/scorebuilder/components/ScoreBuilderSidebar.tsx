@@ -2,7 +2,7 @@ import { useClipboardText } from '@/hooks/useClipboardText'
 import { useMemo, useState } from 'react'
 import { BookOpen, Check, Copy, Hammer, Plus, Settings as SettingsIcon } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { EmptyHint } from '@/components/ui/result-list'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -159,178 +159,180 @@ export function ScoreBuilderSidebar({
     'inline-flex min-h-10 items-center justify-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted'
 
   return (
-    <div
-      className={cn('z-10 flex h-full min-h-0 w-full flex-col overflow-hidden bg-background', className)}
+    <MapSidebarShell
+      className={cn('bg-background backdrop-blur-none', className)}
       data-score-builder-mobile-sheet="true"
+      title={activeRecipeLabel}
+      hideTitleOnMobile
+      // The recipe block below is the sheet's visible head, so this strip takes no room.
+      headerClassName="!border-0 !p-0"
     >
-      <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
-        {/* Recipe + actions. The navbar already says "Index Lab", so the sheet leads with the recipe. */}
-        <div className="border-b border-border px-4 pb-3 pt-1">
-          <div className="text-base font-semibold leading-tight text-foreground">{activeRecipeLabel}</div>
-          <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{activeRecipeDescription}</p>
-          <div className="mt-2 text-xs text-muted-foreground">
-            {formatRegionCount(regions.length)} · avg {formatScore(scoreSpread.average)} · {enabledDataSources.length}{' '}
-            source{enabledDataSources.length === 1 ? '' : 's'}
-          </div>
-          <div className="mt-3 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
-            <button type="button" onClick={onOpenRecipes} className={actionClass} aria-label="Browse recipes">
-              <BookOpen className="h-4 w-4" />
-              Recipes
-            </button>
-            <button type="button" onClick={onOpenBuild} className={actionClass} aria-label="Open build view">
-              <Hammer className="h-4 w-4" />
-              Build
-            </button>
-            {onShareUrl && (
-              <button
-                type="button"
-                data-score-builder-share="true"
-                disabled={shareStatus === 'pending'}
-                onClick={handleShare}
-                className={cn(actionClass, 'min-w-10')}
-                aria-label="Copy share link"
-                title="Copy share link"
-              >
-                {shareStatus === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                <span className="sr-only">
-                  {shareStatus === 'pending' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : 'Share'}
-                </span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              className={cn(actionClass, 'min-w-10 px-0')}
-              aria-label="Open index settings"
-              title="Index settings"
-            >
-              <SettingsIcon className="h-4 w-4" />
-            </button>
-          </div>
+      {/* Recipe + actions. The navbar already says "Index Lab", so the sheet leads with the recipe. */}
+      <div className="border-b border-border px-4 pb-3 pt-1">
+        <div aria-hidden="true" className="text-base font-semibold leading-tight text-foreground">
+          {activeRecipeLabel}
         </div>
-
-        {dataErrors.length > 0 && (
-          <InlineAlert tone="error" title="Unable to build scores" className="m-4 p-3">
-            {dataErrors.map((err, i) => (
-              <p key={i}>{err}</p>
-            ))}
-          </InlineAlert>
-        )}
-
-        <section className="border-b border-border px-4 py-3" data-score-builder-section="equation">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-sm font-semibold text-foreground">Equation</h2>
-              <div className="text-xs text-muted-foreground">
-                {activeTerms.length} active · {totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE)} total influence
-              </div>
-            </div>
+        <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{activeRecipeDescription}</p>
+        <div className="mt-2 text-xs text-muted-foreground">
+          {formatRegionCount(regions.length)} · avg {formatScore(scoreSpread.average)} ·{' '}
+          {enabledDataSources.length} source{enabledDataSources.length === 1 ? '' : 's'}
+        </div>
+        <div className="mt-3 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
+          <button type="button" onClick={onOpenRecipes} className={actionClass} aria-label="Browse recipes">
+            <BookOpen className="h-4 w-4" />
+            Recipes
+          </button>
+          <button type="button" onClick={onOpenBuild} className={actionClass} aria-label="Open build view">
+            <Hammer className="h-4 w-4" />
+            Build
+          </button>
+          {onShareUrl && (
             <button
               type="button"
-              onClick={() => setPickerOpen(true)}
-              className="inline-flex min-h-10 items-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:border-cyan-400"
+              data-score-builder-share="true"
+              disabled={shareStatus === 'pending'}
+              onClick={handleShare}
+              className={cn(actionClass, 'min-w-10')}
+              aria-label="Copy share link"
+              title="Copy share link"
             >
-              <Plus className="h-4 w-4" />
-              Add metric
+              {shareStatus === 'copied' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              <span className="sr-only">
+                {shareStatus === 'pending' ? 'Copying' : shareStatus === 'copied' ? 'Copied' : 'Share'}
+              </span>
             </button>
-          </div>
-          <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
-          {activeTerms.length === 0 ? (
-            <EmptyHint className="mt-3 rounded-md p-3">No active terms yet. Add a metric or pick a recipe.</EmptyHint>
-          ) : (
-            <div className="mt-3 space-y-2">
-              {activeTerms.map((metric) => (
-                <CompactWeightRow
-                  key={metric.key}
-                  metric={metric}
-                  value={weights[metric.key]}
-                  totalAbsoluteWeight={totalAbsoluteWeight}
-                  unavailable={unavailableTerms.get(metric.key) ?? null}
-                  onEnableDataSource={onEnableDataSource}
-                  onChange={(value) => onWeightChange(metric.key, value)}
-                  onRemove={() => onWeightChange(metric.key, 0)}
-                />
-              ))}
-            </div>
           )}
-        </section>
-
-        <StudyAreaSelector<BoundarySource, RegionLevel>
-          source={displayedBoundarySource}
-          sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
-          level={selectedRegionLevel}
-          levelOptions={boundaryLevelOptions}
-          levelOptionsForSource={getLevelOptionsForSource}
-          onSourceChange={(source) => {
-            onBoundarySourceChange(source)
-            if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
-            onClearRegionSelection()
-          }}
-          onSelectedSourceClick={
-            canUseWalkabilitySourceSurface
-              ? () => {
-                  onMapSurfaceChange('source')
-                  onClearRegionSelection()
-                }
-              : undefined
-          }
-          onLevelChange={(level) => {
-            onRegionLevelChange(level)
-            onClearRegionSelection()
-          }}
-          title="Study area"
-          levelSelectId="score-builder-level"
-          dataPrefix="score-builder"
-        />
-
-        <div data-score-builder-section="dataSources">
-          <CollapsibleSection
-            open={sourcesOpen}
-            onOpenChange={setSourcesOpen}
-            label={<span className="text-sm font-semibold">Data sources</span>}
-            summary={`${enabledDataSources.length} on`}
-            className="bg-transparent px-1"
-            contentClassName="px-3 pb-4"
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className={cn(actionClass, 'min-w-10 px-0')}
+            aria-label="Open index settings"
+            title="Index settings"
           >
-            <DataSourceToggleList
-              enabledSources={enabledSourceSet}
-              onToggleDataSource={onToggleDataSource}
-              showPoints={showPoints}
-              onTogglePoints={onTogglePoints}
-              unavailableTerms={unavailableTerms}
-              rowClassName="min-h-11"
-            />
-          </CollapsibleSection>
+            <SettingsIcon className="h-4 w-4" />
+          </button>
         </div>
-
-        <section className="px-4 py-3 pb-6" data-score-builder-section-id="regions">
-          <h2 className="mb-2 text-sm font-semibold text-foreground">Regions</h2>
-          <RegionsTab
-            loading={loading}
-            regions={regions}
-            filteredRegions={filteredRegions}
-            selectedRegion={selectedRegion}
-            selectedRegionDrivers={selectedRegionDrivers}
-            comparisonRegions={comparisonRegions}
-            comparisonSet={comparisonSet}
-            weights={weights}
-            scoreSpread={scoreSpread}
-            populationEquitySummary={populationEquitySummary}
-            searchQuery={searchQuery}
-            onSearchQueryChange={onSearchQueryChange}
-            onRegionSelect={onRegionSelect}
-            onClearRegionSelection={onClearRegionSelection}
-            onOpenRegionInsight={onOpenRegionInsight}
-            onToggleComparison={onToggleComparison}
-            onClearComparison={onClearComparison}
-            onExport={onExport}
-            baseline={baseline}
-            baselineComparison={baselineComparison}
-            onPinBaseline={onPinBaseline}
-            onClearBaseline={onClearBaseline}
-          />
-        </section>
       </div>
+
+      {dataErrors.length > 0 && (
+        <InlineAlert tone="error" title="Unable to build scores" className="m-4 p-3">
+          {dataErrors.map((err, i) => (
+            <p key={i}>{err}</p>
+          ))}
+        </InlineAlert>
+      )}
+
+      <SidebarSection
+        className="px-4 py-3"
+        data-score-builder-section="equation"
+        title="Equation"
+        subtitle={`${activeTerms.length} active · ${totalAbsoluteWeight.toLocaleString(DEFAULT_LOCALE)} total influence`}
+        actions={
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="inline-flex min-h-10 items-center gap-1 rounded-md border border-input bg-background px-3 text-xs font-medium text-foreground transition-colors hover:border-cyan-400"
+          >
+            <Plus className="h-4 w-4" />
+            Add metric
+          </button>
+        }
+      >
+        <WeightDistribution weights={weights} totalAbsoluteWeight={totalAbsoluteWeight} metrics={metrics} />
+        {activeTerms.length === 0 ? (
+          <EmptyHint className="mt-3 rounded-md p-3">No active terms yet. Add a metric or pick a recipe.</EmptyHint>
+        ) : (
+          <div className="mt-3 space-y-2">
+            {activeTerms.map((metric) => (
+              <CompactWeightRow
+                key={metric.key}
+                metric={metric}
+                value={weights[metric.key]}
+                totalAbsoluteWeight={totalAbsoluteWeight}
+                unavailable={unavailableTerms.get(metric.key) ?? null}
+                onEnableDataSource={onEnableDataSource}
+                onChange={(value) => onWeightChange(metric.key, value)}
+                onRemove={() => onWeightChange(metric.key, 0)}
+              />
+            ))}
+          </div>
+        )}
+      </SidebarSection>
+
+      <StudyAreaSelector<BoundarySource, RegionLevel>
+        source={displayedBoundarySource}
+        sourceOptions={SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS}
+        level={selectedRegionLevel}
+        levelOptions={boundaryLevelOptions}
+        levelOptionsForSource={getLevelOptionsForSource}
+        onSourceChange={(source) => {
+          onBoundarySourceChange(source)
+          if (canUseWalkabilitySourceSurface) onMapSurfaceChange('boundary')
+          onClearRegionSelection()
+        }}
+        onSelectedSourceClick={
+          canUseWalkabilitySourceSurface
+            ? () => {
+                onMapSurfaceChange('source')
+                onClearRegionSelection()
+              }
+            : undefined
+        }
+        onLevelChange={(level) => {
+          onRegionLevelChange(level)
+          onClearRegionSelection()
+        }}
+        title="Study area"
+        levelSelectId="score-builder-level"
+        dataPrefix="score-builder"
+      />
+
+      <div data-score-builder-section="dataSources">
+        <CollapsibleSection
+          open={sourcesOpen}
+          onOpenChange={setSourcesOpen}
+          label={<span className="text-sm font-semibold">Data sources</span>}
+          summary={`${enabledDataSources.length} on`}
+          className="bg-transparent px-1"
+          contentClassName="px-3 pb-4"
+        >
+          <DataSourceToggleList
+            enabledSources={enabledSourceSet}
+            onToggleDataSource={onToggleDataSource}
+            showPoints={showPoints}
+            onTogglePoints={onTogglePoints}
+            unavailableTerms={unavailableTerms}
+            rowClassName="min-h-11"
+          />
+        </CollapsibleSection>
+      </div>
+
+      <SidebarSection className="border-b-0 px-4 py-3 pb-6" data-score-builder-section-id="regions" title="Regions">
+        <RegionsTab
+          loading={loading}
+          regions={regions}
+          filteredRegions={filteredRegions}
+          selectedRegion={selectedRegion}
+          selectedRegionDrivers={selectedRegionDrivers}
+          comparisonRegions={comparisonRegions}
+          comparisonSet={comparisonSet}
+          weights={weights}
+          scoreSpread={scoreSpread}
+          populationEquitySummary={populationEquitySummary}
+          searchQuery={searchQuery}
+          onSearchQueryChange={onSearchQueryChange}
+          onRegionSelect={onRegionSelect}
+          onClearRegionSelection={onClearRegionSelection}
+          onOpenRegionInsight={onOpenRegionInsight}
+          onToggleComparison={onToggleComparison}
+          onClearComparison={onClearComparison}
+          onExport={onExport}
+          baseline={baseline}
+          baselineComparison={baselineComparison}
+          onPinBaseline={onPinBaseline}
+          onClearBaseline={onClearBaseline}
+        />
+      </SidebarSection>
 
       <MetricPickerDialog
         open={pickerOpen}
@@ -340,6 +342,6 @@ export function ScoreBuilderSidebar({
         boundarySource={boundarySource}
         onPick={(metric) => onAddMetric(metric, getDefaultMetricWeight(metric))}
       />
-    </div>
+    </MapSidebarShell>
   )
 }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { DesignSidebar as SidebarBody, type SidebarProps as BodyProps } from './DesignSidebarBody'
 import {
@@ -154,21 +156,21 @@ export function DesignSidebar(props: SidebarProps) {
           }
         >
           {stale && (
-            <p role="alert" className="mb-3 font-medium text-destructive">
+            <InlineAlert tone="error" className="mb-3">
               The project changed. Discard this result and run again.
-            </p>
+            </InlineAlert>
           )}
           <CorridorPreview review={review} />
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
-              <caption className="pb-2 text-left">
+            <EngineeringTable rowHeaders>
+              <caption className="whitespace-normal pb-2 text-left text-sm">
                 Ground profile comparison with the input guide’s straight legs
               </caption>
               <thead>
                 <tr>
-                  <th className="p-2 text-left">Measure</th>
-                  <th className="p-2 text-right">Guide</th>
-                  <th className="p-2 text-right">Candidate</th>
+                  <ColumnHeader label="Measure" className="text-left" />
+                  <ColumnHeader label="Guide" />
+                  <ColumnHeader label="Candidate" />
                 </tr>
               </thead>
               <tbody>
@@ -181,16 +183,14 @@ export function DesignSidebar(props: SidebarProps) {
                     ['Excess rise/fall (m)', 'excessVerticalM'],
                   ] as const
                 ).map(([label, key]) => (
-                  <tr key={key} className="border-t">
-                    <th className="p-2 text-left font-normal">{label}</th>
-                    <td className="p-2 text-right">
-                      {review.result.baseline.complete ? value(review.result.baseline[key]) : 'Incomplete'}
-                    </td>
-                    <td className="p-2 text-right">{value(review.result[key])}</td>
+                  <tr key={key}>
+                    <th scope="row">{label}</th>
+                    <td>{review.result.baseline.complete ? value(review.result.baseline[key]) : 'Incomplete'}</td>
+                    <td>{value(review.result[key])}</td>
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <p className="mt-3 text-xs">
             Minimum fitted radius:{' '}

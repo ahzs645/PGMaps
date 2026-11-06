@@ -2,6 +2,7 @@ import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
 import { errorText, portalLayerAttributes, portalRead, PORTAL_CONNECTION_EVENT } from '@/lib/nechakoPortal'
 import { nativeId } from './data/monitoringRelations'
@@ -145,15 +146,13 @@ export function PortalLayerRecords({
         <>
           <p className="text-sm">{data.rows.length} returned source records · columns retain their native labels</p>
           <div className="max-h-80 overflow-auto">
-            <table className="w-full text-xs">
+            <EngineeringTable variant="text">
               <thead>
                 <tr>
                   {data.attributes.map((field) => (
-                    <th key={field} className="border p-2 text-left">
-                      {field}
-                    </th>
+                    <ColumnHeader key={field} label={field} />
                   ))}
-                  {onMonitoring && idColumn >= 0 && statusColumn >= 0 && <th className="border p-2">Monitoring</th>}
+                  {onMonitoring && idColumn >= 0 && statusColumn >= 0 && <ColumnHeader label="Monitoring" />}
                 </tr>
               </thead>
               <tbody>
@@ -169,14 +168,14 @@ export function PortalLayerRecords({
                   return (
                     <tr key={page * 50 + index}>
                       {row.map((value, column) => (
-                        <td key={column} className="border p-2">
+                        <td key={column}>
                           <span title={cell(value)} className="block max-w-80 truncate">
                             {cell(value)}
                           </span>
                         </td>
                       ))}
                       {onMonitoring && idColumn >= 0 && statusColumn >= 0 && (
-                        <td className="border p-2">
+                        <td>
                           {recId ? (
                             <Button
                               size="sm"
@@ -206,7 +205,7 @@ export function PortalLayerRecords({
                   )
                 })}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>

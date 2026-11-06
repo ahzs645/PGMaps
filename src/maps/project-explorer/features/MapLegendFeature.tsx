@@ -4,17 +4,16 @@ import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import type { ProjectMapExplorerWorkspaceDef } from '@/lib/projectPackages'
 
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function MapLegendFeature({
   config,
   feature,
   counts,
-  elevated = false,
 }: {
   config: ProjectMapExplorerWorkspaceDef
   feature: ExplorerFeature<'map-legend'>
   counts: Array<[string, number]>
-  elevated?: boolean
 }) {
   const countMap = new globalThis.Map(counts)
   return (
@@ -24,7 +23,6 @@ export function MapLegendFeature({
       icon={<Layers className="size-3.5" />}
       collapsible
       defaultCollapsed="mobile"
-      elevated={elevated}
       width="sm"
       contentClassName="space-y-1"
     >
@@ -33,7 +31,7 @@ export function MapLegendFeature({
           key={type.id}
           color={type.color}
           label={type.label}
-          value={(countMap.get(type.id) ?? 0).toLocaleString()}
+          value={(countMap.get(type.id) ?? 0).toLocaleString(DEFAULT_LOCALE)}
         />
       ))}
     </MapLegendPanel>

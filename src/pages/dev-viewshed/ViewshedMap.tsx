@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Map as MapLibreMap, MapMouseEvent } from 'maplibre-gl'
 import { Map, MapControls, MapMarker, MarkerContent, MapScaleBar, useMap } from '@/components/ui/map'
+import { MapImageLayer, boundsToQuad } from '@/components/ui/map-layers'
 import { TerrainSupport } from '../dev-forestry/TerrainSupport'
 import { metersPerDegree, type GeoPoint } from '../dev-forestry/visibility'
 import type { ViewshedResult } from './analysis'
@@ -12,6 +13,18 @@ type Props = {
   terrain: boolean
   onReady: (map: MapLibreMap | null) => void
   recenter: number
+}
+function coverageImage(result: ViewshedResult | null) {
+  if (!result) return null
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = result.layout.size
+  const context = canvas.getContext('2d')
+  if (!context) return null
+  const data = context.createImageData(canvas.width, canvas.height)
+  data.data.set(result.pixels)
+  context.putImageData(data, 0, 0)
+  const [west, south, east, north] = result.layout.bounds
+  return { url: canvas.toDataURL('image/png'), coordinates: boundsToQuad({ west, south, east, north }) }
 }
 function Scene({ observer, onObserver, result, terrain, onReady, recenter }: Props) {
   const { map, isLoaded } = useMap()
@@ -45,43 +58,25 @@ function Scene({ observer, onObserver, result, terrain, onReady, recenter }: Pro
     // Preset changes recenter the map; dragging must not fight the camera.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, isLoaded, recenter])
-  useEffect(() => {
-    if (!map || !isLoaded || !result) return
-    const canvas = document.createElement('canvas')
-    canvas.width = canvas.height = result.layout.size
-    const context = canvas.getContext('2d')
-    if (!context) return
-    const data = context.createImageData(canvas.width, canvas.height)
-    data.data.set(result.pixels)
-    context.putImageData(data, 0, 0)
-    const [west, south, east, north] = result.layout.bounds
-    map.addSource('viewshed-coverage', {
-      type: 'image',
-      url: canvas.toDataURL('image/png'),
-      coordinates: [
-        [west, north],
-        [east, north],
-        [east, south],
-        [west, south],
-      ],
-    })
-    map.addLayer(
-      {
-        id: 'viewshed-coverage',
-        type: 'raster',
-        source: 'viewshed-coverage',
-        paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest', 'raster-fade-duration': 0 },
-      },
-      map.getStyle().layers.find((layer) => layer.type === 'symbol')?.id,
-    )
-    return () => {
-      if (map.getLayer('viewshed-coverage')) map.removeLayer('viewshed-coverage')
-      if (map.getSource('viewshed-coverage')) map.removeSource('viewshed-coverage')
-    }
-  }, [map, isLoaded, result])
+  const coverage = useMemo(() => coverageImage(result), [result])
+  // Coverage sits under the labels. A style swap resets isLoaded, which finds the new style's first symbol.
+  const firstSymbol = useMemo(
+    () => (isLoaded ? map?.getStyle()?.layers?.find((layer) => layer.type === 'symbol')?.id : undefined),
+    [map, isLoaded],
+  )
   return (
     <>
       <TerrainSupport terrain={terrain} />
+      {coverage && (
+        <MapImageLayer
+          id="viewshed-coverage"
+          url={coverage.url}
+          coordinates={coverage.coordinates}
+          opacity={0.85}
+          resampling="nearest"
+          beforeId={firstSymbol}
+        />
+      )}
       <MapMarker
         longitude={observer.lng}
         latitude={observer.lat}

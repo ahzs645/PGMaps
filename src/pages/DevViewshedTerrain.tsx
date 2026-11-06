@@ -1,5 +1,5 @@
 import { NumericRangeField, type NumericRangeControlProps } from '@/components/ui/numeric-range-field'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { Eye, RotateCw } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -9,6 +9,8 @@ import { Slider } from '@/components/ui/slider'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useWebMCPTools, type WebMCPTool } from '@/lib/webmcp'
 import { importLocalRaster } from './dev-forestry/toolImports'
 import type { LocalRaster } from './dev-forestry/types'
@@ -64,13 +66,7 @@ export default function DevViewshedTerrain() {
     [observer, radius, observerHeight, targetHeight, demZoom, localTerrain],
   )
   const { result, error, progress, loading } = useViewshed(input, revision)
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Viewshed · PGMaps Dev'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('Viewshed · PGMaps Dev')
   const tools: WebMCPTool[] = [
     {
       name: 'read_viewshed',
@@ -254,18 +250,17 @@ export default function DevViewshedTerrain() {
         <p className="text-sm leading-6 text-muted-foreground">
           The default is a key-free terrain overview. A finer tile grid does not guarantee finer survey detail. For
           local detail, download a bare-earth DEM from{' '}
-          <a className="underline" href="https://lidar.gov.bc.ca/" target="_blank" rel="noreferrer">
+          <ExternalLink className="text-sm underline" hideIcon href="https://lidar.gov.bc.ca/">
             LidarBC
-          </a>{' '}
+          </ExternalLink>{' '}
           or{' '}
-          <a
-            className="underline"
+          <ExternalLink
+            className="text-sm underline"
+            hideIcon
             href="https://open.canada.ca/data/en/dataset/957782bf-847c-4644-a757-e383c0057995"
-            target="_blank"
-            rel="noreferrer"
           >
             NRCan HRDEM
-          </a>
+          </ExternalLink>
           , then import a cropped GeoTIFF.
         </p>
         <label className="block space-y-1 text-sm">
@@ -324,14 +319,9 @@ export default function DevViewshedTerrain() {
             </Button>
           </>
         )}
-        <a
-          className="block text-xs underline"
-          href="https://registry.opendata.aws/terrain-tiles/"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <ExternalLink className="underline" hideIcon href="https://registry.opendata.aws/terrain-tiles/">
           Default terrain data and attribution
-        </a>
+        </ExternalLink>
       </SidebarSection>
     </MapSidebarShell>
   )

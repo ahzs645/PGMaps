@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Flame } from 'lucide-react'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapClusterLayer, MapPopup } from '@/components/ui/map'
 import { MapHeatmapLayer } from '@/components/ui/map-layers'
 import {
@@ -83,6 +85,8 @@ interface BcerWellProperties {
   spud: string
   rigRelease: string
   firstProd: string
+  // Source YYYYMM, so the table sorts first production by date rather than by month name.
+  firstProdMon: number | null
   weight: number
 }
 
@@ -98,9 +102,12 @@ function formatYearMonth(value: number | null | undefined): string {
   return `${MONTH_SHORT_NAMES[month - 1]} ${year}`
 }
 
+// One shared formatter: the table's search index formats every well's gas values.
+const GAS_FORMAT = new Intl.NumberFormat(DEFAULT_LOCALE, { maximumFractionDigits: 0 })
+
 function formatGas(value: number): string {
   if (!Number.isFinite(value) || value <= 0) return '0'
-  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 0 })
+  return GAS_FORMAT.format(value)
 }
 
 function toFeature(well: BcerWellRecord): BcerWellFeature {
@@ -127,11 +134,33 @@ function toFeature(well: BcerWellRecord): BcerWellFeature {
       spud: formatYearMonth(well.spudMon),
       rigRelease: formatYearMonth(well.rigRelMon),
       firstProd: formatYearMonth(well.firstProdMon),
+      firstProdMon: well.firstProdMon,
       // Log scale keeps a handful of very high producers from washing out the heatmap.
       weight: gas5Yr > 0 ? Math.log10(gas5Yr + 1) : 0,
     },
   }
 }
+
+const BCER_WELL_COLUMNS = [
+  textColumn<BcerWellFeature>('name', 'Well', (well) => well.properties.name, { width: 240 }),
+  numberColumn<BcerWellFeature>('waNum', 'WA number', (well) => well.properties.waNum, { format: String, width: 110 }),
+  textColumn<BcerWellFeature>('operator', 'Operator', (well) => well.properties.operator, { width: 220 }),
+  textColumn<BcerWellFeature>(
+    'orientation',
+    'Orientation',
+    (well) => (well.properties.orientation === 'horizontal' ? 'Horizontal' : 'Vertical'),
+    { width: 110 },
+  ),
+  textColumn<BcerWellFeature>('area', 'Area', (well) => well.properties.area),
+  textColumn<BcerWellFeature>('formation', 'Formation', (well) => well.properties.formation),
+  numberColumn<BcerWellFeature>('gas3Yr', '3-yr gas', (well) => well.properties.gas3Yr, { format: formatGas }),
+  numberColumn<BcerWellFeature>('gas5Yr', '5-yr gas', (well) => well.properties.gas5Yr, { format: formatGas }),
+  textColumn<BcerWellFeature>('firstProd', 'First production', (well) => well.properties.firstProd, {
+    width: 130,
+    getSortValue: (well) => (well.properties.firstProd === 'Unknown' ? null : well.properties.firstProdMon),
+  }),
+  textColumn<BcerWellFeature>('uwi', 'UWI', (well) => well.properties.uwi, { defaultHidden: true, width: 220 }),
+]
 
 export const BCER_ORIENTATION_OPTIONS: Array<{ value: BcerOrientationFilter; label: string }> = [
   { value: 'all', label: 'All wells' },
@@ -244,6 +273,25 @@ export function useBcerData(active: boolean) {
     [filteredWells],
   )
 
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<BcerWellFeature>({
+        id: 'bcer-wells',
+        label: 'Oil and gas wells',
+        color: BCER_ORIENTATION_BUCKETS[0].color,
+        shape: 'point',
+        rows: filteredWells,
+        columns: BCER_WELL_COLUMNS,
+        getRowId: (well) => String(well.properties.waNum),
+        getRowCenter: (well) => [well.geometry.coordinates[0], well.geometry.coordinates[1]],
+        status: error ? 'error' : loading ? 'loading' : 'ready',
+        emptyMessage: error ?? undefined,
+      }),
+    ],
+    [error, filteredWells, loading],
+  )
+  const selectTableRow = useCallback((well: BcerWellFeature) => setSelectedWaNum(well.properties.waNum), [])
+
   return {
     orientationFilter,
     setOrientationFilter,
@@ -264,6 +312,9 @@ export function useBcerData(active: boolean) {
     selectedWell,
     selectedWaNum,
     setSelectedWaNum,
+    tableSources,
+    selectedTableRowId: selectedWaNum == null ? null : String(selectedWaNum),
+    selectTableRow,
     horizontalCount,
     producingCount,
     loading,
@@ -332,7 +383,7 @@ export function BcerSidebar({ bcer }: { bcer: BcerState }) {
           ]}
         />
         {bcer.loading && <InlineAlert loading>Loading BCER well data...</InlineAlert>}
-        {bcer.error && <InlineAlert tone="warning">{bcer.error}</InlineAlert>}
+        {bcer.error && <InlineAlert tone="error">{bcer.error}</InlineAlert>}
         {bcer.selectedWell && (
           <SelectedItemCard title={bcer.selectedWell.properties.name} subtitle={bcer.selectedWell.properties.operator}>
             <BcerWellDetailRows well={bcer.selectedWell} className="mt-3" />

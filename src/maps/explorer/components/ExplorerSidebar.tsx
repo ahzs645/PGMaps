@@ -101,6 +101,9 @@ export function ExplorerSidebar({
   // if the list was scrolled. Bring it in under the toolbar.
   useRevealBelowSticky(toolbarRef, selectedCardRef, selectedItem?.id)
 
+  // A dataset that failed beside others that loaded must not hide their rows.
+  const listError = !loading && items.length === 0 && errors.length > 0 ? errors.join(' ') : null
+
   const exportButtonClass =
     'inline-flex items-center justify-center rounded border border-input text-muted-foreground transition-colors hover:text-foreground touch:min-h-10 touch:min-w-10'
 
@@ -289,8 +292,8 @@ export function ExplorerSidebar({
         </div>
       )}
 
-      {errors.length > 0 && (
-        <InlineAlert tone="warning" className="m-3">
+      {errors.length > 0 && !listError && (
+        <InlineAlert tone="error" className="m-3">
           {errors.map((error, index) => (
             <div key={`${error}-${index}`}>{error}</div>
           ))}
@@ -301,6 +304,8 @@ export function ExplorerSidebar({
       <ListState
         loading={loading}
         loadingLabel="Loading explorer datasets..."
+        error={listError}
+        errorTitle="Could not load explorer datasets"
         empty={items.length === 0}
         emptyLabel="No items match these filters."
         onReset={searchQuery ? () => onSearchQueryChange('') : undefined}

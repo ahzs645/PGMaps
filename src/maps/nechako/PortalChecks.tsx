@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { ExternalLink } from '@/components/ui/text-button'
 import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { PaginationControls } from '@/components/ui/pagination-controls'
@@ -15,6 +16,7 @@ import { SHOWCASE_BASE, type CatalogueSource } from './data/showcase'
 import { PortalExpressionBuilder } from './PortalExpressionBuilder'
 import { checkedSavedSearches, QUERY_STORAGE_KEY, type SavedSearch } from './data/searchBuilder'
 import { RecordDialog } from '@/components/ui/record-dialog'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 
 export function useReadCheck(read = portalRead) {
   const [state, setState] = useState<{ loading: boolean; data?: unknown; error?: string }>({ loading: false })
@@ -349,11 +351,9 @@ export function PortalSearch({
           <Button type="submit" disabled={results.loading || !available.length}>
             Search portal
           </Button>
-          <Button type="button" asChild variant="outline">
-            <a href="https://nechakowatershed-portal.ca/" target="_blank" rel="noreferrer">
-              Search in original portal
-            </a>
-          </Button>
+          <ExternalLink href="https://nechakowatershed-portal.ca/" variant="button" className="text-sm">
+            Search in original portal
+          </ExternalLink>
         </div>
       </form>
       <details className="space-y-3 rounded-lg border p-3">
@@ -575,21 +575,19 @@ function SubmissionResults({ data, onSelect }: { data: unknown; onSelect: (id: s
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px] text-left text-sm">
+        <EngineeringTable variant="text" className="min-w-[600px] text-sm">
           <thead>
             <tr>
               {columns.map((key) => (
-                <th key={key} className="p-2">
-                  {key.replace(/_/g, ' ')}
-                </th>
+                <ColumnHeader key={key} label={key.replace(/_/g, ' ')} />
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.slice(current * 25, (current + 1) * 25).map((row, index) => (
-              <tr key={index} className="border-t">
+              <tr key={index}>
                 {columns.map((key) => (
-                  <td key={key} className="p-2">
+                  <td key={key}>
                     {key === 'submission_id' && /^[1-9]\d*$/.test(String(row[key])) ? (
                       <button className="text-primary underline" onClick={() => onSelect(String(row[key]))}>
                         {String(row[key])}
@@ -602,7 +600,7 @@ function SubmissionResults({ data, onSelect }: { data: unknown; onSelect: (id: s
               </tr>
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
     </div>
   )

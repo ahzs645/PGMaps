@@ -24,6 +24,7 @@ import type {
   SoilSummary,
   SummaryPolicy,
 } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 function sum(values: readonly number[]): number {
   return values.reduce((total, value) => total + value, 0)
@@ -197,7 +198,7 @@ export function runSimulation(
   const evaluations = input.climate.length * 5 * (scenarios.length + 1)
   if (evaluations > MAX_SOIL_DAY_EVALUATIONS)
     throw new Error(
-      `Run exceeds the ${MAX_SOIL_DAY_EVALUATIONS.toLocaleString()} soil-day budget; shorten the continuous year range or run fewer scenarios.`,
+      `Run exceeds the ${MAX_SOIL_DAY_EVALUATIONS.toLocaleString(DEFAULT_LOCALE)} soil-day budget; shorten the continuous year range or run fewer scenarios.`,
     )
   // Validate every adjusted scenario before spending time on the baseline.
   const scenarioClimates = scenarios.map((scenario) => applyMonthlyAnomalies(input.climate, scenario))

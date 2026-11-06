@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
 import { Map as PgMap, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { isMobileViewport } from '@/hooks/useIsMobile'
@@ -10,13 +11,14 @@ interface DroughtMapProps {
   selectedId: string | null
   onFeatureClick: (id: string) => void
   loading?: boolean
+  table: MapTableController
 }
 
 const DROUGHT_FILL_COLOR = ['coalesce', ['get', 'droughtColor'], '#8a8f98']
 const DROUGHT_LINE_COLOR = ['case', ['==', ['get', 'droughtLevel'], null], '#4b5563', '#263238']
 const DROUGHT_MOBILE_CENTER: [number, number] = [-125.4, 53.8]
 
-export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }: DroughtMapProps) {
+export function DroughtMap({ data, selectedId, onFeatureClick, loading = false, table }: DroughtMapProps) {
   const mapRef = useRef<MapRef>(null)
   const featureCount = data.features.length
 
@@ -51,7 +53,8 @@ export function DroughtMap({ data, selectedId, onFeatureClick, loading = false }
   )
 
   return (
-    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} loading={loading}>
+    <PgMap ref={mapRef} center={DROUGHT_BC_CENTER} zoom={4.3} loading={loading} deferResize={table.deferResize}>
+      <MapTableBridge table={table} />
       <MapFillLayer
         data={mapData}
         fillColor={DROUGHT_FILL_COLOR}
