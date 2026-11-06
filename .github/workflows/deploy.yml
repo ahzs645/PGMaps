@@ -112,13 +112,6 @@ jobs:
       # Restore and save are separate steps: products are saved as soon as they
       # are built, so a later verification failure no longer forces every run
       # to rebuild them (actions/cache only saves when the whole job succeeds).
-      - name: Restore prepared LiDAR tiles
-        id: lidar-cache
-        uses: actions/cache/restore@v4
-        with:
-          path: dist/data/lidar/bc-093g086
-          key: pgmaps-lidar-ept-v1-${{ hashFiles('scripts/prepare-lidar.py', 'scripts/lidar-environment.yml') }}
-
       # Keyed on the scripts that produce the products only. Editing a test,
       # validator or browser check must not throw away a known-good build.
       - name: Restore processed forestry and building analysis
@@ -132,24 +125,13 @@ jobs:
             .lidar-work/analysis-grids.npz
           key: pgmaps-lidar-analysis-v2-${{ hashFiles('scripts/lidar/run.py', 'scripts/lidar/process.py', 'scripts/lidar/geolibre_tools.py', 'scripts/lidar/reference_tools.py', 'scripts/lidar/publish.py', 'scripts/lidar/requirements.txt', 'scripts/lidar-environment.yml') }}
 
-      - name: Install LiDAR indexing tools
+      - name: Install LiDAR analysis tools
         id: lidar-env
-        if: steps.lidar-cache.outputs.cache-hit != 'true' || steps.lidar-analysis-cache.outputs.cache-hit != 'true'
+        if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
         uses: mamba-org/setup-micromamba@v2
         with:
           environment-file: scripts/lidar-environment.yml
           cache-environment: true
-
-      - name: Prepare full LiDAR cloud for streaming
-        if: steps.lidar-cache.outputs.cache-hit != 'true'
-        run: micromamba run -n pgmaps-lidar python scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
-
-      - name: Save prepared LiDAR tiles
-        if: steps.lidar-cache.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v4
-        with:
-          path: dist/data/lidar/bc-093g086
-          key: ${{ steps.lidar-cache.outputs.cache-primary-key }}
 
       - name: Install analysis dependencies
         if: steps.lidar-analysis-cache.outputs.cache-hit != 'true'
@@ -244,11 +226,18 @@ jobs:
           path: src/pages/dev-lidar/**/*.generated.json
           retention-days: 14
 
-      - name: Verify complete LiDAR tiles
-        run: python3 scripts/prepare-lidar.py --output dist/data/lidar/bc-093g086
-
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html
+
+      # GitHub Pages sites may be no larger than 1 GB. Warn while there is still room to move
+      # data out; docs/lidar-viewer.md shows how the LiDAR tiles were moved.
+      - name: Check the site size
+        run: |
+          bytes=$(tar -C dist -cf - . | gzip -1 | wc -c)
+          echo "Compressed site size: $((bytes / 1000000)) MB"
+          if [ "$bytes" -gt 900000000 ]; then
+            echo "::warning::The site is $((bytes / 1000000)) MB compressed, close to the 1 GB Pages limit."
+          fi
 
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
@@ -265,3 +254,5 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          timeout: 1800000
