@@ -20,6 +20,12 @@ export function getDefaultCanueBoundaryLevel(source: CanueBoundarySource): Canue
   return 'da'
 }
 
+/** `Number(null)` is 0, which would present an area with no value as a measured zero. */
+export function canueBoundaryMetric(feature: GeoJSON.Feature, property: string) {
+  const value = feature.properties?.[property]
+  return value == null ? null : Number(value)
+}
+
 export function buildBoundaryIndex(
   boundaries: BoundaryFeatureCollection,
   config: BoundaryLevelConfig,

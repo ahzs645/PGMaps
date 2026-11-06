@@ -146,6 +146,7 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     handleCanueTimelineDateChange,
     handleCanueTimelineDisable,
     canueTimelinePrefetch,
+    canueTimelineGridScale,
   } = useCanueTimeline({
     activeTab,
     canueBoundaryLevel,
@@ -167,13 +168,6 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     canueYearMode,
     selectedCanueMonth,
   )
-  const canuePmtilesBoundaryData = useCanuePmtilesBoundaryData({
-    selection: selectedCanueV2Selection,
-    boundaries: canueBoundaries.data,
-    idField: canueBoundaryConfig.idField,
-    nameField: canueBoundaryConfig.nameField,
-    enabled: activeTab === 'canue' && showCanueBoundaries && CANUE_V2_ENABLED,
-  })
   const canueV2AggregateData = useCanueV2AggregateData({
     source: canueBoundarySource,
     level: canueBoundaryLevel,
@@ -182,6 +176,15 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     idField: canueBoundaryConfig.idField,
     nameField: canueBoundaryConfig.nameField,
     enabled: activeTab === 'canue' && showCanueBoundaries && CANUE_V2_ENABLED,
+  })
+  // A fallback only: it downloads and decodes tiles on the main thread, so it
+  // stays off while the precomputed aggregate can answer.
+  const canuePmtilesBoundaryData = useCanuePmtilesBoundaryData({
+    selection: selectedCanueV2Selection,
+    boundaries: canueBoundaries.data,
+    idField: canueBoundaryConfig.idField,
+    nameField: canueBoundaryConfig.nameField,
+    enabled: activeTab === 'canue' && showCanueBoundaries && CANUE_V2_ENABLED && canueV2AggregateData.error != null,
   })
   const activeCanueBoundaryData =
     CANUE_V2_ENABLED && selectedCanueV2Selection
@@ -210,11 +213,16 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     canueBoundaryLayerReady,
     stableCanueBoundaryLayer,
     renderedCanueBoundaryLayer,
+    canueBoundaryShapes,
+    renderedCanueFeatureState,
     renderedCanueFillColor,
   } = useCanueBoundaryLayer({
     activeCanueBoundaryData,
     activeCanueBoundaryProperty,
+    canueBoundaries: canueBoundaries.data,
+    canueBoundaryConfig,
     canueBoundaryLevel,
+    canueTimelineScale: canueTimelinePrefetch.scale,
     selectedCanueBoundaryId,
     selectedCanueFile,
     selectedCanueV2Selection,
@@ -352,6 +360,7 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     handleCanueTimelineDateChange,
     handleCanueTimelineDisable,
     canueTimelinePrefetch,
+    canueTimelineGridScale,
     canuePeriodLabel,
     canueBoundaryData,
     canuePmtilesBoundaryData,
@@ -366,6 +375,8 @@ export function useCanueController({ activeTab, searchParams }: UseCanueControll
     canueBoundaryLayerReady,
     stableCanueBoundaryLayer,
     renderedCanueBoundaryLayer,
+    canueBoundaryShapes,
+    renderedCanueFeatureState,
     renderedCanueFillColor,
     canueMapCenter,
     canueMapZoom,
