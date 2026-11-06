@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { RasterRecord } from './catalogue'
+import { OrganizationSummary } from './OrganizationSummary'
+import type { CatalogueFacets, RasterRecord } from './catalogue'
 
 export function MapImagePreview({
   item,
@@ -12,12 +13,14 @@ export function MapImagePreview({
   onMap,
   onSheet,
   onDetails,
+  facets,
 }: {
   item: RasterRecord | null
   onClose: () => void
   onMap: (item: RasterRecord) => void
   onSheet: () => void
   onDetails: () => void
+  facets?: CatalogueFacets
 }) {
   const [image, setImage] = useState<{ id: string; url?: string; error?: string }>({ id: '' })
   useEffect(() => {
@@ -67,6 +70,7 @@ export function MapImagePreview({
             </span>
           )}
         </div>
+        <OrganizationSummary value={item?.organization} facets={facets} detail />
         <div className="flex min-h-40 items-center justify-center rounded-lg border bg-stone-100 dark:bg-zinc-900">
           {current?.url || item?.thumbnail ? (
             <img
