@@ -244,7 +244,7 @@ export function ProfileCanvas({
         }}
       />
       {interaction === 'polygon' && (
-        <div className="absolute bottom-6 left-12 flex gap-2 bg-white/95 p-1 text-[10px] text-slate-700">
+        <div className="absolute bottom-6 left-12 flex gap-2 bg-white/95 p-1 text-3xs text-slate-700">
           <button
             className="underline"
             disabled={polygon.length < 3}

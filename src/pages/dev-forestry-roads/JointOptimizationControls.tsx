@@ -172,7 +172,7 @@ export function JointOptimizationControls({
           Cancel refinement
         </Button>
       )}
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         At most 20 trials and 12 interior plan controls. Every trial is checked; search limits can leave a better route
         unexplored.
       </p>

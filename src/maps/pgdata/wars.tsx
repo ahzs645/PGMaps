@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { LoaderCircle, PawPrint } from 'lucide-react'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
 import { MapFillLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import {
   InlineAlert,
+  KeyValueRows,
   LegendItem,
   MapLegendNote,
   MapSizeLegend,
@@ -17,6 +20,7 @@ import {
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
+import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { formatDate, useJsonManifest } from './shared'
 import { parseWarsHeatmapSettings, WarsHeatmapControls, WarsHeatmapGradient } from './WarsHeatmapControls'
@@ -83,6 +87,7 @@ interface WarsCrashProperties {
   sourceFile: string
 }
 
+type WarsCrashFeature = GeoJSON.Feature<GeoJSON.Point, WarsCrashProperties>
 type WarsFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, WarsCrashProperties>
 
 const ALL_SPECIES = 'all'
@@ -194,8 +199,9 @@ function getWarsMarkerSize(quantity: number): number {
   return Math.max(8, Math.min(24, 7 + Math.sqrt(quantity) * 6))
 }
 
-function getWarsFeatureKey(feature: GeoJSON.Feature<GeoJSON.Point, WarsCrashProperties>, index: number): string {
-  return `${feature.properties.sourceFile}-${feature.properties.id}-${feature.properties.accidentDate}-${index}`
+/** Unique across the 43,801 records on its own, so a selection and a `?row=` link survive any filter. */
+function getWarsFeatureKey(feature: WarsCrashFeature): string {
+  return `${feature.properties.sourceFile}-${feature.properties.id}-${feature.properties.accidentDate}`
 }
 
 function parseAccidentDate(properties: WarsCrashProperties): Date | null {
@@ -243,6 +249,25 @@ function normaliseTownName(rawTown: string | null | undefined): string {
     .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
     .join(' ')
 }
+
+// Every getter here runs for each of up to 43,801 rows when the table builds its
+// search index, so dates stay ISO text and numbers skip locale formatting.
+const WARS_RECORD_COLUMNS = [
+  textColumn<WarsCrashFeature>('species', 'Species', (feature) => feature.properties.species || 'Unknown'),
+  textColumn<WarsCrashFeature>('date', 'Date', (feature) => feature.properties.accidentDate, { width: 110 }),
+  textColumn<WarsCrashFeature>('town', 'Nearest town', (feature) => normaliseTownName(feature.properties.nearestTown)),
+  numberColumn<WarsCrashFeature>('quantity', 'Animals', (feature) => feature.properties.quantity, {
+    format: String,
+    width: 100,
+  }),
+  textColumn<WarsCrashFeature>('sex', 'Sex', (feature) => feature.properties.sex, { width: 100 }),
+  textColumn<WarsCrashFeature>('age', 'Age', (feature) => feature.properties.age, { width: 100 }),
+  textColumn<WarsCrashFeature>('time', 'Time of kill', (feature) => feature.properties.timeOfKill, { width: 120 }),
+  numberColumn<WarsCrashFeature>('serviceArea', 'Service area', (feature) => feature.properties.serviceArea, {
+    format: String,
+  }),
+  textColumn<WarsCrashFeature>('dataSet', 'Data set', (feature) => feature.properties.dataSet, { defaultHidden: true }),
+]
 
 /** Highest-count key in a tally, ties broken alphabetically for stable output. */
 function pickTopEntry(counts: Map<string, number>): string | null {
@@ -490,7 +515,7 @@ export function useWarsData(
 
   const selectedCrash = useMemo(() => {
     if (!selectedId) return null
-    return filteredFeatures.find((feature, index) => getWarsFeatureKey(feature, index) === selectedId) ?? null
+    return filteredFeatures.find((feature) => getWarsFeatureKey(feature) === selectedId) ?? null
   }, [filteredFeatures, selectedId])
 
   const totalQuantity = useMemo(
@@ -651,6 +676,24 @@ export function useWarsData(
     setFocusTarget({ longitude: cell.longitude, latitude: cell.latitude, key: cell.key })
   }, [])
 
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<WarsCrashFeature>({
+        id: 'wars-records',
+        label: 'Wildlife accidents',
+        color: SPECIES_FALLBACK_COLORS[0],
+        shape: 'point',
+        rows: filteredFeatures,
+        columns: WARS_RECORD_COLUMNS,
+        getRowId: getWarsFeatureKey,
+        getRowCenter: (feature) => [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+        status: crashes.error || manifest.error ? 'error' : crashes.data ? 'ready' : 'loading',
+      }),
+    ],
+    [crashes.data, crashes.error, filteredFeatures, manifest.error],
+  )
+  const selectTableRow = useCallback((feature: WarsCrashFeature) => setSelectedId(getWarsFeatureKey(feature)), [])
+
   return {
     manifest,
     crashes,
@@ -689,6 +732,9 @@ export function useWarsData(
     setYearMode,
     selectedId,
     setSelectedId,
+    tableSources,
+    selectedTableRowId: selectedId,
+    selectTableRow,
     features,
     baseFilteredFeatures,
     filteredFeatures,
@@ -749,7 +795,7 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
           <button
             type="button"
             onClick={wars.clearMonths}
-            className="text-[11px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+            className="text-2xs font-medium text-sky-600 hover:underline dark:text-sky-400"
           >
             Clear
           </button>
@@ -765,7 +811,7 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
               type="button"
               onClick={() => wars.toggleMonth(month)}
               aria-pressed={wars.selectedMonths.includes(month)}
-              title={`${MONTH_NAMES[month]}: ${count.toLocaleString()} record${count === 1 ? '' : 's'}`}
+              title={`${MONTH_NAMES[month]}: ${formatNumber(count)} record${count === 1 ? '' : 's'}`}
               className="flex h-full flex-1 items-end"
             >
               <span
@@ -779,14 +825,14 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
           )
         })}
       </div>
-      <div className="mt-1 flex gap-[3px] text-center text-[10px] text-muted-foreground">
+      <div className="mt-1 flex gap-[3px] text-center text-3xs text-muted-foreground">
         {MONTH_INITIALS.map((initial, month) => (
           <span key={month} className="flex-1">
             {initial}
           </span>
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">Click months to filter the map.</p>
+      <p className="mt-1 text-2xs text-muted-foreground">Click months to filter the map.</p>
     </div>
   )
 }
@@ -818,7 +864,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
     <div>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-foreground">Records by year{monthNote}</span>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {firstYear}-{lastYear}
         </span>
       </div>
@@ -829,7 +875,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
           return (
             <span
               key={entry.year}
-              title={`${entry.year}: ${entry.count.toLocaleString()} record${entry.count === 1 ? '' : 's'}`}
+              title={`${entry.year}: ${formatNumber(entry.count)} record${entry.count === 1 ? '' : 's'}`}
               className="flex h-full flex-1 items-end"
             >
               <span
@@ -840,7 +886,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
           )
         })}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         Counts follow reporting effort as well as collision rates, so read year-to-year changes as trends in what was
         recorded.
       </p>
@@ -856,7 +902,7 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
     <div>
       <span className="text-xs font-medium text-foreground">Most recurrent sites</span>
       {sites.length === 0 ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-2xs text-muted-foreground">
           No ~1 km site has strikes in {HOTSPOT_MIN_YEARS}+ separate years under the current filters.
         </p>
       ) : (
@@ -870,24 +916,24 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
                   className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left transition-colors hover:border-sky-500"
                 >
                   <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-3xs font-bold text-white"
                     style={{ backgroundColor: getHotspotColor(cell.yearCount) }}
                   >
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[11px] font-medium text-foreground">{cell.nearestTown}</span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
-                      {cell.topSpecies} · {cell.recordCount.toLocaleString()} records
+                    <span className="block truncate text-2xs font-medium text-foreground">{cell.nearestTown}</span>
+                    <span className="block truncate text-3xs text-muted-foreground">
+                      {cell.topSpecies} · {formatNumber(cell.recordCount)} records
                       {cell.firstYear != null && cell.lastYear != null ? ` · ${cell.firstYear}-${cell.lastYear}` : ''}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[10px] font-medium text-muted-foreground">{cell.yearCount} yr</span>
+                  <span className="shrink-0 text-3xs font-medium text-muted-foreground">{cell.yearCount} yr</span>
                 </button>
               </li>
             ))}
           </ol>
-          <p className="mt-1 text-[11px] text-muted-foreground">Click a site to zoom the map to it.</p>
+          <p className="mt-1 text-2xs text-muted-foreground">Click a site to zoom the map to it.</p>
         </>
       )}
     </div>
@@ -910,9 +956,9 @@ function WarsWinterRangeNotes({ wars }: { wars: WarsState }) {
     <>
       {overlap && (
         <p>
-          Of {overlap.withinExtent.toLocaleString()} filtered records inside the mapped moose winter-range extent,{' '}
-          {overlap.insideRange.toLocaleString()} ({share.toFixed(1)}%) fall within a designated polygon. Winter range is
-          a forestry designation that excludes highway corridors, so this measures overlap with the legal boundary, not
+          Of {formatNumber(overlap.withinExtent)} filtered records inside the mapped moose winter-range extent,{' '}
+          {formatNumber(overlap.insideRange)} ({share.toFixed(1)}%) fall within a designated polygon. Winter range is a
+          forestry designation that excludes highway corridors, so this measures overlap with the legal boundary, not
           habitat suitability.
         </p>
       )}
@@ -967,9 +1013,9 @@ export function WarsSidebar({ wars, showSelectedRecord = true }: { wars: WarsSta
               onValueChange={wars.setSelectedSpecies}
               options={[
                 { value: ALL_SPECIES, label: 'All species' },
-                ...(manifest?.species ?? []).slice(0, 40).map((species) => ({
+                ...(manifest?.species ?? []).map((species) => ({
                   value: species.name,
-                  label: `${species.name} (${species.count.toLocaleString()})`,
+                  label: `${species.name} (${formatNumber(species.count)})`,
                   selectedLabel: species.name,
                 })),
               ]}
@@ -994,8 +1040,8 @@ export function WarsSidebar({ wars, showSelectedRecord = true }: { wars: WarsSta
 
           <StatGrid
             stats={[
-              { label: 'records', value: wars.filteredFeatures.length.toLocaleString() },
-              { label: 'animals', value: wars.totalQuantity.toLocaleString() },
+              { label: 'records', value: formatNumber(wars.filteredFeatures.length) },
+              { label: 'animals', value: formatNumber(wars.totalQuantity) },
               { label: 'period', value: yearLabel },
             ]}
           />
@@ -1049,23 +1095,14 @@ export function WarsSidebar({ wars, showSelectedRecord = true }: { wars: WarsSta
             onClear={() => wars.setSelectedId(null)}
             rows={[
               { label: 'Date', value: wars.selectedCrash.properties.accidentDate || 'Unknown' },
-              { label: 'Quantity', value: wars.selectedCrash.properties.quantity.toLocaleString() },
+              { label: 'Quantity', value: formatNumber(wars.selectedCrash.properties.quantity) },
               { label: 'Nearest town', value: wars.selectedCrash.properties.nearestTown },
-              { label: 'Service area', value: wars.selectedCrash.properties.serviceArea.toLocaleString() },
+              { label: 'Service area', value: formatNumber(wars.selectedCrash.properties.serviceArea) },
             ]}
           />
         </SidebarSection>
       )}
     </>
-  )
-}
-
-function MobileWarsDetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-3">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="max-w-[12rem] text-right font-medium text-foreground">{value}</span>
-    </div>
   )
 }
 
@@ -1083,15 +1120,14 @@ export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
         subtitle={winterRange.properties.label}
         onClose={() => wars.setSelectedWinterRangeId(null)}
       >
-        <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-          <div className="space-y-1">
-            <MobileWarsDetailRow
-              label="Area"
-              value={formatWinterRangeHectares(winterRange.properties.hectares) || 'Unknown'}
-            />
-            <MobileWarsDetailRow label="Harvest zone" value={winterRange.properties.harvestCode || 'Not recorded'} />
-            <MobileWarsDetailRow label="Species code" value={winterRange.properties.speciesCode} />
-          </div>
+        <div className="rounded-md border border-border bg-background p-3 text-foreground">
+          <KeyValueRows
+            rows={[
+              { label: 'Area', value: formatWinterRangeHectares(winterRange.properties.hectares) || 'Unknown' },
+              { label: 'Harvest zone', value: winterRange.properties.harvestCode || 'Not recorded' },
+              { label: 'Species code', value: winterRange.properties.speciesCode },
+            ]}
+          />
         </div>
       </MobileFeatureCard>
     )
@@ -1106,13 +1142,15 @@ export function MobileWarsFeatureCard({ wars }: { wars: WarsState }) {
       subtitle={crash.properties.accidentDate || String(crash.properties.year)}
       onClose={() => wars.setSelectedId(null)}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          <MobileWarsDetailRow label="Date" value={crash.properties.accidentDate || 'Unknown'} />
-          <MobileWarsDetailRow label="Quantity" value={crash.properties.quantity.toLocaleString()} />
-          <MobileWarsDetailRow label="Nearest town" value={crash.properties.nearestTown} />
-          <MobileWarsDetailRow label="Service area" value={crash.properties.serviceArea.toLocaleString()} />
-        </div>
+      <div className="rounded-md border border-border bg-background p-3 text-foreground">
+        <KeyValueRows
+          rows={[
+            { label: 'Date', value: crash.properties.accidentDate || 'Unknown' },
+            { label: 'Quantity', value: formatNumber(crash.properties.quantity) },
+            { label: 'Nearest town', value: crash.properties.nearestTown },
+            { label: 'Service area', value: formatNumber(crash.properties.serviceArea) },
+          ]}
+        />
       </div>
     </MobileFeatureCard>
   )
@@ -1175,7 +1213,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
     const bandIndexBySpecies = new Map(wars.speciesBreakdown.map((entry, index) => [entry.name, index]))
     return {
       type: 'FeatureCollection',
-      features: wars.filteredFeatures.map((feature, index) => {
+      features: wars.filteredFeatures.map((feature) => {
         const species = feature.properties.species || 'Unknown'
         return {
           type: 'Feature' as const,
@@ -1183,8 +1221,8 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
           properties: {
             color: getSpeciesColor(species),
             bandIndex: bandIndexBySpecies.get(species) ?? 0,
-            featureKey: getWarsFeatureKey(feature, index),
-            spiderTitle: `${species} · ${feature.properties.quantity.toLocaleString()} animal${feature.properties.quantity === 1 ? '' : 's'}`,
+            featureKey: getWarsFeatureKey(feature),
+            spiderTitle: `${species} · ${formatNumber(feature.properties.quantity)} animal${feature.properties.quantity === 1 ? '' : 's'}`,
             spiderSubtitle: [feature.properties.accidentDate, feature.properties.nearestTown]
               .filter(Boolean)
               .join(' · '),
@@ -1243,7 +1281,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
               <MarkerContent>
                 {/* pointer-events-none keeps cluster and point clicks working underneath */}
                 <div
-                  className="pointer-events-none flex items-center justify-center rounded-full border-2 text-[10px] font-bold"
+                  className="pointer-events-none flex items-center justify-center rounded-full border-2 text-3xs font-bold"
                   style={{
                     width: size,
                     height: size,

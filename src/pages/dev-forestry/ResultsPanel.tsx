@@ -37,7 +37,7 @@ function VerdictBadge({ met, label }: { met: boolean; label: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold',
+        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-2xs font-semibold',
         met
           ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
           : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
@@ -70,7 +70,7 @@ function ZoneBar({ target }: { target: TargetVisibility }) {
           )
         })}
       </div>
-      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-muted-foreground">
         {VIEWING_ZONES.map((zone) => {
           const area = target.visibleAreaByZone[zone.id] ?? 0
           if (area <= 0) return null
@@ -178,7 +178,7 @@ export function ResultsPanel({
               {/* What is already on the ground versus what this proposal adds —
                   the objective is met or missed by the total, not the increment. */}
               {scale.breakdown.existingPercent > 0 && (
-                <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
+                <p className="mt-1 text-2xs tabular-nums text-muted-foreground">
                   {scale.breakdown.existingPercent.toFixed(1)}% already harvested +{' '}
                   {scale.breakdown.proposedPercent.toFixed(1)}% proposed
                 </p>
@@ -202,7 +202,7 @@ export function ResultsPanel({
               </p>
             </div>
           ))}
-          <p className="text-[11px] leading-4 text-muted-foreground">
+          <p className="text-2xs leading-4 text-muted-foreground">
             Numeric range only. The regulation also weighs scale, whether the alteration looks natural, and whether it
             is rectilinear or geometric — a visual design review still decides whether the objective is achieved.
           </p>
@@ -245,7 +245,7 @@ export function ResultsPanel({
                   {block.visiblePercent.toFixed(0)}
                   <span className="text-sm">%</span>
                 </span>
-                <span className="text-[11px] text-muted-foreground">visible</span>
+                <span className="text-2xs text-muted-foreground">visible</span>
               </span>
             </button>
 
@@ -360,7 +360,7 @@ export function ResultsPanel({
             { label: 'Run time', value: `${(result.elapsedMs / 1000).toFixed(1)} s` },
           ]}
         />
-        <p className="mt-2 flex items-start gap-1.5 text-[11px] leading-4 text-muted-foreground">
+        <p className="mt-2 flex items-start gap-1.5 text-2xs leading-4 text-muted-foreground">
           <TriangleAlert className="mt-px h-3 w-3 shrink-0" />
           {result.canopyCoverageFraction === null
             ? 'Bare-earth terrain only — standing timber is not modelled, so screened blocks read as visible.'

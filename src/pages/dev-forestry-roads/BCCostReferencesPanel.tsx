@@ -44,11 +44,11 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
         size="lg"
         portalContainer={portalContainer}
         // Opened from the cost dialog, so it sits one layer above it.
-        className="z-[1300]"
+        className="z-menu"
         contentProps={{ 'data-testid': 'road-bc-cost-references' }}
       >
         <div className="space-y-3 text-xs">
-          <p className="text-[11px] leading-4 text-muted-foreground">
+          <p className="text-2xs leading-4 text-muted-foreground">
             Appraisal allowances, supplier material lists and equipment rates have different scopes. Keep their units
             and inclusions when building an estimate.
           </p>
@@ -67,7 +67,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
           />
           {region && (
             <div className="space-y-3" data-testid="road-bc-region-reference">
-              <div className="space-y-1 text-[11px] leading-4 text-muted-foreground">
+              <div className="space-y-1 text-2xs leading-4 text-muted-foreground">
                 <p>{region.geography}</p>
                 <p>{region.review}</p>
                 {region.groups.length > 0 && (
@@ -82,7 +82,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
                 <h3 className="font-medium">Local material-price evidence</h3>
                 {region.suppliers.length ? (
                   region.suppliers.map((supplier) => (
-                    <div key={supplier.url} className="space-y-1 rounded border p-2 text-[11px] leading-4">
+                    <div key={supplier.url} className="space-y-1 rounded border p-2 text-2xs leading-4">
                       <p>
                         <ReferenceLink href={supplier.url}>{supplier.supplier}</ReferenceLink> · {supplier.location}
                       </p>
@@ -95,7 +95,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
                     </div>
                   ))
                 ) : (
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     No applicable public numeric list has been verified here. Use a dated local quote; a missing price
                     is not a zero-cost material or a reason to copy another region’s rate.
                   </p>
@@ -110,7 +110,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
                 ]}
                 onChange={(value) => setMethod(value as 'interior' | 'coast')}
               />
-              <p className="text-[11px] leading-4 text-muted-foreground">
+              <p className="text-2xs leading-4 text-muted-foreground">
                 Both 2026 manuals use a 2024 cost base. These are separate CAD/km comparisons, with no automatic
                 regional multiplier or escalation. They are not added to the covered estimate. Inputs are temporary;
                 download a comparison record to keep its assumptions and source.
@@ -125,7 +125,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
           <CostRateTools />
           <CollapsibleSection label="Equipment, fuel and engineering sources" contentClassName="space-y-2 px-2 pb-2">
             {BC_SUPPORTING_COST_SOURCES.map((source) => (
-              <p key={source.url} className="text-[11px] leading-4 text-muted-foreground">
+              <p key={source.url} className="text-2xs leading-4 text-muted-foreground">
                 <ReferenceLink href={source.url}>{source.title}</ReferenceLink>
                 {' — ' + source.detail}
               </p>

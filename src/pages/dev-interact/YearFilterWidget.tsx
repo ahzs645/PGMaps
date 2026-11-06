@@ -3,6 +3,7 @@ import { RotateCcw } from 'lucide-react'
 import { AppSelect } from '@/components/ui/select'
 import { YEAR_FILTER_DOMAIN, yearHistogramBins } from './data'
 import type { YearRange } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function YearFilterWidget({ value, onChange }: { value: YearRange; onChange: (value: YearRange) => void }) {
   const [minYear, maxYear] = YEAR_FILTER_DOMAIN
@@ -48,7 +49,7 @@ export function YearFilterWidget({ value, onChange }: { value: YearRange; onChan
         aria-label="Year issued filter"
         aria-valuemin={minYear}
         aria-valuemax={maxYear}
-        aria-valuetext={`${value[0]} to ${value[1]}, estimated ${selectedCount.toLocaleString()} matching records`}
+        aria-valuetext={`${value[0]} to ${value[1]}, estimated ${selectedCount.toLocaleString(DEFAULT_LOCALE)} matching records`}
         tabIndex={0}
         className="block cursor-pointer overflow-visible rounded-sm touch-none select-none outline-none"
         onPointerDown={(event) => {
@@ -129,7 +130,7 @@ export function YearFilterWidget({ value, onChange }: { value: YearRange; onChan
               textAnchor="middle"
               className="pointer-events-none fill-foreground text-xs font-semibold"
             >
-              {hoveredBin.count.toLocaleString()}
+              {hoveredBin.count.toLocaleString(DEFAULT_LOCALE)}
             </text>
           ) : (
             <text
@@ -138,7 +139,7 @@ export function YearFilterWidget({ value, onChange }: { value: YearRange; onChan
               textAnchor="middle"
               className="fill-foreground text-xs font-semibold"
             >
-              {selectedCount.toLocaleString()}
+              {selectedCount.toLocaleString(DEFAULT_LOCALE)}
             </text>
           )}
         </g>

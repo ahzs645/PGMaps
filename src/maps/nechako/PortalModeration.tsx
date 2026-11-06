@@ -2,6 +2,7 @@ import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { portalRead, errorText } from '@/lib/nechakoPortal'
 export function PortalModeration({
   write,
@@ -43,20 +44,20 @@ export function PortalModeration({
         Load original shared-layer queue
       </Button>
       <div className="max-h-80 overflow-auto rounded border">
-        <table className="w-full text-sm">
+        <EngineeringTable variant="text" className="text-sm">
           <thead>
             <tr>
-              <th>Select</th>
-              <th className="p-2 text-left">Layer / contributor</th>
-              <th>Active</th>
-              <th>Shared</th>
-              <th>Reviewed</th>
+              <ColumnHeader label="Select" />
+              <ColumnHeader label="Layer / contributor" />
+              <ColumnHeader label="Active" />
+              <ColumnHeader label="Shared" />
+              <ColumnHeader label="Reviewed" />
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={String(row.layer_id)} className="border-t">
-                <td className="p-2">
+              <tr key={String(row.layer_id)}>
+                <td>
                   <input
                     type="checkbox"
                     aria-label={`Review shared layer ${row.layer_id}`}
@@ -73,18 +74,16 @@ export function PortalModeration({
                     }}
                   />
                 </td>
-                <td className="p-2">
+                <td>
                   {String(row.layer_name)} · {String(row.uname)} · {String(row.layer_id)}
                 </td>
                 {['active', 'shared', 'vetted_by_admin'].map((key) => (
-                  <td key={key} className="p-2">
-                    {String(row[key] ?? 'Unknown')}
-                  </td>
+                  <td key={key}>{String(row[key] ?? 'Unknown')}</td>
                 ))}
               </tr>
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
       <label className="grid gap-1 text-sm">
         Review action

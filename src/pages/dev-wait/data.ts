@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE } from '@/lib/format'
 export type WaitStatus = 'quick' | 'moderate' | 'packed' | 'unknown' | 'closed'
 export type WaitSource = 'official' | 'crowd' | 'predicted' | 'none'
 
@@ -115,5 +116,5 @@ export function newestTimestamp(hospitals: WaitHospital[]): string | null {
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => b - a)[0]
 
-  return latest ? new Date(latest).toLocaleString() : null
+  return latest ? new Date(latest).toLocaleString(DEFAULT_LOCALE) : null
 }

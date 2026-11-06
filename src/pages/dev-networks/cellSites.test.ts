@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   CELL_SITE_BAND_COLORS,
+  cellSiteId,
   cellSitePieData,
   cellSiteTooltipRows,
   countSitesByGroup,
@@ -9,6 +10,7 @@ import {
   operatorGroupId,
   visibleGroupsAtSite,
   type CellSiteCollection,
+  type CellSiteFeature,
   type CellSiteProperties,
 } from './cellSites'
 
@@ -90,5 +92,24 @@ describe('ISED cell sites', () => {
     expect(rows.Structure).toBe('Rooftop / S · 12 m')
     expect(rows.Site).toBe('Indoor')
     expect(rows.Bell).toBe('LTE · PCS')
+  })
+})
+
+describe('cellSiteId', () => {
+  const feature = (coordinates: [number, number], properties: CellSiteProperties): CellSiteFeature => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates },
+    properties,
+  })
+
+  it('reads only the site, so it survives filtering and reordering', () => {
+    const first = feature([-122.75, 53.91], site(['Bell', 'TELUS'], { location: 'Tower Rd' }))
+    expect(cellSiteId(first)).toBe('-122.75,53.91|Bell+TELUS|Tower Rd')
+    expect(cellSiteId({ ...first })).toBe(cellSiteId(first))
+  })
+
+  it('tells apart two operators on separate sites at one position', () => {
+    const position: [number, number] = [-122.75, 53.91]
+    expect(cellSiteId(feature(position, site(['Bell'])))).not.toBe(cellSiteId(feature(position, site(['Rogers']))))
   })
 })

@@ -4,11 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Map, MapClusterLayer, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { InlineAlert, KeyValueRows, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader, ResultRow } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ToggleRow } from '@/components/ui/toggle-row'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { featuresBounds } from '@/lib/featureBounds'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
@@ -40,6 +45,15 @@ type FalloutCollection = GeoJSON.FeatureCollection<GeoJSON.Point | GeoJSON.LineS
 
 const DATA_PATH = '/data/fallout/fallout-reporting-posts-canada.geojson'
 const CANADA_CENTER: [number, number] = [-96.8, 56.1]
+const POINT_COLOR = '#dc2626'
+
+const FALLOUT_COLUMNS = [
+  textColumn<FalloutFeature>('name', 'Name', (feature) => feature.properties.name, { width: 240 }),
+  textColumn<FalloutFeature>('featureType', 'Type', (feature) => feature.properties.featureType),
+  textColumn<FalloutFeature>('province', 'Province or region', (feature) => feature.properties.province),
+  textColumn<FalloutFeature>('geometry', 'Geometry', (feature) => feature.geometry.type, { width: 120 }),
+  textColumn<FalloutFeature>('description', 'Notes', (feature) => feature.properties.description, { width: 320 }),
+]
 
 function featureCoordinate(feature: FalloutFeature): [number, number] {
   if (feature.geometry.type === 'Point') return feature.geometry.coordinates as [number, number]
@@ -151,6 +165,31 @@ function DevFallout() {
     [lineData, pointData, showLines, showPoints],
   )
 
+  // The point and line toggles hide features from the map, so they leave the table too.
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<FalloutFeature>({
+        id: 'fallout',
+        label: 'Fallout features',
+        color: POINT_COLOR,
+        shape: 'point',
+        rows: visibleFitData.features as FalloutFeature[],
+        columns: FALLOUT_COLUMNS,
+        getRowId: (feature) => feature.properties.id,
+        getRowCenter: featureCoordinate,
+        getRowBounds: (feature) => featuresBounds([feature]),
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? undefined,
+      }),
+    ],
+    [error, loading, visibleFitData],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selected?.properties.id ?? null,
+    onSelectRow: setSelected,
+  })
+
   const selectedCoordinate = selected ? featureCoordinate(selected) : null
   const selectedGeometryType = selected?.geometry.type ?? null
   const totalFeatures = collection?.metadata?.totalFeatures ?? collection?.features.length ?? 0
@@ -256,31 +295,23 @@ function DevFallout() {
       </SidebarSection>
 
       <SidebarSection title="Visible results">
-        <div className="max-h-80 space-y-1 overflow-y-auto pr-1">
-          {filteredFeatures.slice(0, 80).map((feature) => (
-            <button
-              key={feature.properties.id}
-              type="button"
-              onClick={() => setSelected(feature as FalloutFeature)}
-              className={cn(
-                'w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-muted',
-                selected?.properties.id === feature.properties.id
-                  ? 'border-sky-500 bg-sky-500/10'
-                  : 'border-border bg-background',
-              )}
-            >
-              <div className="truncate text-xs font-semibold">{feature.properties.name}</div>
-              <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                {feature.properties.province} · {feature.properties.featureType}
-              </div>
-            </button>
-          ))}
-          {filteredFeatures.length > 80 && (
-            <div className="px-1 pt-1 text-xs text-muted-foreground">
-              Showing first 80 of {formatNumber(filteredFeatures.length)} filtered features.
-            </div>
+        <ListHeader count={filteredFeatures.length} noun={['feature', 'features']} sticky={false} />
+        <VirtualResultList
+          items={filteredFeatures as FalloutFeature[]}
+          getKey={(feature) => feature.properties.id}
+          estimateSize={57}
+          label="Fallout features"
+        >
+          {(feature) => (
+            <ResultRow
+              onClick={() => setSelected(feature)}
+              selected={selected?.properties.id === feature.properties.id}
+              accent="sky"
+              title={feature.properties.name}
+              subtitle={`${feature.properties.province} · ${feature.properties.featureType}`}
+            />
           )}
-        </div>
+        </VirtualResultList>
       </SidebarSection>
     </MapSidebarShell>
   )
@@ -292,14 +323,17 @@ function DevFallout() {
       mobilePeekTitle={`${formatNumber(filteredFeatures.length)} fallout features`}
       mobilePeekSubtitle={province === 'All' ? 'Canada' : province}
       sidebar={sidebar}
+      table={table}
     >
       <div className="relative h-full">
         <Map
           center={CANADA_CENTER}
           zoom={3.3}
           loading={loading}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
+          <MapTableBridge table={table} />
           <FitBounds data={visibleFitData} />
 
           {showLines && (
@@ -323,7 +357,7 @@ function DevFallout() {
               clusterColors={['#f97316', '#dc2626', '#7f1d1d']}
               clusterThresholds={[25, 100]}
               clusterSizes={[16, 24, 34]}
-              pointColor="#dc2626"
+              pointColor={POINT_COLOR}
               circleOpacity={0.88}
               circleStrokeWidth={1.4}
               onPointClick={(feature) => setSelected(feature)}

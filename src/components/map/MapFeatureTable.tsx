@@ -6,6 +6,7 @@ import {
   CaseSensitive,
   Check,
   ChevronDown,
+  Download,
   Hash,
   Maximize2,
   Minimize2,
@@ -15,7 +16,7 @@ import {
   Table2,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, ReactNode, RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
@@ -26,13 +27,33 @@ import { SearchInput } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { downloadText } from '@/lib/download'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { MOTION_DURATION, MOTION_EASING, useReducedMotion } from '@pgmaps/geo-toolkit/ui/motion'
+import {
+  INDEX_COLUMN_WIDTH,
+  buildSearchIndex,
+  defaultHiddenColumns,
+  searchRows,
+  sortTableRows,
+  tableCsvFileName,
+  tableCsvText,
+  tableGridLayout,
+  type MapFeatureTableColumn,
+  type MapFeatureTableColumnType,
+  type MapFeatureTableSortDirection,
+} from './mapTableModel'
+
+export type { MapFeatureTableColumn, MapFeatureTableColumnType, MapFeatureTableSortDirection } from './mapTableModel'
 
 /** Row height in px. Fixed so the virtualizer can measure without a layout pass. */
 const ROW_HEIGHT = 32
-const INDEX_COLUMN_WIDTH = 56
-const DEFAULT_COLUMN_WIDTH = 150
+/** Sticky column header height, kept clear when a selected row scrolls into view. */
+const HEADER_HEIGHT = 36
+/** Opaque version of `bg-primary/10`: pinned cells must hide the columns sliding under them. */
+const PINNED_SELECTED_CLASS =
+  'bg-[color-mix(in_srgb,hsl(var(--primary))_10%,hsl(var(--background)))] group-hover/row:bg-[color-mix(in_srgb,hsl(var(--primary))_15%,hsl(var(--background)))]'
 /** Below this row count the grid renders every row, which keeps tests and small tables simple. */
 const VIRTUALIZE_THRESHOLD = 60
 
@@ -41,11 +62,61 @@ const VIRTUALIZE_THRESHOLD = 60
  * root's padding-bottom, and percentage padding resolves against *width* in CSS.
  */
 export const DEFAULT_TABLE_PANE_HEIGHT = 320
+
+/** Every word the table adds around a page's own data, for a page in another language. */
+export interface MapFeatureTableLabels {
+  all: string
+  visible: string
+  rows: (count: string) => string
+  shownOf: (shown: string, total: string) => string
+  search: string
+  searchPlaceholder: string
+  options: string
+  downloadCsv: (count: string) => string
+  columns: string
+  sortAscending: string
+  sortDescending: string
+  resetSort: string
+  columnStats: string
+  columnOptions: (column: string) => string
+  close: string
+  expand: string
+  collapse: string
+  loading: string
+  loadFailed: string
+  noRows: string
+  noRowsInView: string
+  /** Number format for the counts. Defaults to the application's locale. */
+  locale?: string
+}
+
+export const DEFAULT_TABLE_LABELS: MapFeatureTableLabels = {
+  all: 'All',
+  visible: 'Visible',
+  rows: (count) => `${count} ${count === '1' ? 'row' : 'rows'}`,
+  shownOf: (shown, total) => `${shown} of ${total}`,
+  search: 'Search table',
+  searchPlaceholder: 'Type to search…',
+  options: 'Table options',
+  downloadCsv: (count) => `Download CSV (${count} ${count === '1' ? 'row' : 'rows'})`,
+  columns: 'Columns',
+  sortAscending: 'Sort ascending',
+  sortDescending: 'Sort descending',
+  resetSort: 'Reset sort',
+  columnStats: 'Column stats',
+  columnOptions: (column) => `${column} column options`,
+  close: 'Close',
+  expand: 'Expand table pane',
+  collapse: 'Collapse table pane',
+  loading: 'Loading rows…',
+  loadFailed: 'Could not load these rows',
+  noRows: 'No rows',
+  noRowsInView: 'No rows in the current view',
+}
 const MIN_PANEL_HEIGHT = 160
 /** Map kept visible above the pane when it is dragged to the top. Full screen covers it all. */
 const MIN_MAP_HEIGHT = 120
 
-export type MapFeatureTableColumnType = 'text' | 'numeric' | 'datetime'
 export type MapFeatureTableViewMode = 'all' | 'visible'
 
 export interface MapFeatureTableLayer<TLayerId extends string = string> {
@@ -53,22 +124,6 @@ export interface MapFeatureTableLayer<TLayerId extends string = string> {
   label: string
   color: string
   shape?: LayerSwatchShape
-}
-
-export type MapFeatureTableSortDirection = 'asc' | 'desc'
-
-export interface MapFeatureTableColumn<TRow> {
-  id: string
-  header: string
-  /** Drives cell alignment and the header type glyph. Defaults to 'text'. */
-  type?: MapFeatureTableColumnType
-  /** Fixed px width for this column. Defaults to 150px, growing to fill spare width. */
-  width?: number
-  widthClassName?: string
-  getValue: (row: TRow) => ReactNode
-  getSearchValue?: (row: TRow) => string
-  /** Comparable value for `sortable` tables; null sorts last. Defaults to the search value. */
-  getSortValue?: (row: TRow) => number | string | null
 }
 
 interface MapFeatureTablePanelProps<TRow, TLayerId extends string> {
@@ -112,6 +167,14 @@ interface MapFeatureTablePanelProps<TRow, TLayerId extends string> {
    * (after search and filters); return null when a column has nothing to show.
    */
   renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
+  /** Adds "Download CSV" to the table's options menu. On by default. */
+  exportable?: boolean
+  /** File name for the CSV download. Defaults to the layer's label. */
+  exportFileName?: string
+  /** Adds column show/hide to the table's options menu. On by default. */
+  columnPicker?: boolean
+  /** Replaces the table's own words, for a page in another language. */
+  labels?: MapFeatureTableLabels
 }
 
 interface TableSort {
@@ -119,57 +182,34 @@ interface TableSort {
   direction: MapFeatureTableSortDirection
 }
 
-function compareSortValues(a: number | string | null, b: number | string | null): number {
-  if (a === b) return 0
-  if (a === null) return 1
-  if (b === null) return -1
-  if (typeof a === 'number' && typeof b === 'number') return a - b
-  return String(a).localeCompare(String(b), undefined, { numeric: true })
-}
-
+/** The map's "Table" button: labelled from tablet width up, an icon on phones. */
 export function MapTableButton({
   label = 'Open table',
+  text = 'Table',
   className,
-  iconOnly = false,
   onClick,
 }: {
+  /** Accessible name. */
   label?: string
+  /** What the button shows from tablet width up. */
+  text?: string
   className?: string
-  /** Renders a square icon button instead of the full-width labelled row. */
-  iconOnly?: boolean
   onClick: () => void
 }) {
-  if (iconOnly) {
-    return (
-      <button
-        type="button"
-        aria-label={label}
-        title={label}
-        className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-md border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted',
-          className,
-        )}
-        onClick={onClick}
-      >
-        <Table2 className="size-5" aria-hidden="true" />
-      </button>
-    )
-  }
-
   return (
-    <div className="relative">
-      <button
-        type="button"
-        className={cn(
-          'flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted',
-          className,
-        )}
-        onClick={onClick}
-      >
-        <Table2 className="size-4" aria-hidden="true" />
-        <span>{label}</span>
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      className={cn(
+        'flex h-9 min-w-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background text-sm font-medium text-foreground shadow-sm transition-colors hover:bg-muted md:px-2.5',
+        className,
+      )}
+      onClick={onClick}
+    >
+      <Table2 className="size-4" aria-hidden="true" />
+      <span className="hidden md:inline">{text}</span>
+    </button>
   )
 }
 
@@ -199,6 +239,10 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   onResizeEnd,
   sortable = false,
   renderColumnStats,
+  exportable = true,
+  exportFileName,
+  columnPicker = true,
+  labels = DEFAULT_TABLE_LABELS,
 }: MapFeatureTablePanelProps<TRow, TLayerId>) {
   const isMobile = useIsMobile()
   const [uncontrolledQuery, setUncontrolledQuery] = useState('')
@@ -217,32 +261,47 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
   const setQuery = onQueryChange ?? setUncontrolledQuery
   const activeLayer = layers.find((candidate) => candidate.id === selectedLayer) ?? layers[0]
 
-  const filteredRows = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-    if (!normalizedQuery) return rows
-    return rows.filter((row) => {
-      const searchable = columns
-        .map((column) => column.getSearchValue?.(row) ?? String(column.getValue(row) ?? ''))
-        .join(' ')
-        .toLowerCase()
-      return searchable.includes(normalizedQuery)
-    })
-  }, [columns, query, rows])
+  // Hidden columns are remembered per layer; a layer starts from its columns' defaults.
+  const [hiddenByLayer, setHiddenByLayer] = useState<Partial<Record<TLayerId, ReadonlySet<string>>>>({})
+  const hiddenColumns = useMemo(
+    () => hiddenByLayer[selectedLayer] ?? defaultHiddenColumns(columns),
+    [columns, hiddenByLayer, selectedLayer],
+  )
+  const shownColumns = useMemo(
+    () => columns.filter((column) => !hiddenColumns.has(column.id)),
+    [columns, hiddenColumns],
+  )
+  const toggleColumn = useCallback(
+    (columnId: string) => {
+      const next = new Set(hiddenColumns)
+      if (next.has(columnId)) next.delete(columnId)
+      else next.add(columnId)
+      setHiddenByLayer((current) => ({ ...current, [selectedLayer]: next }))
+    },
+    [hiddenColumns, selectedLayer],
+  )
+
+  // The field stays responsive while a long table catches up with the typing.
+  const deferredQuery = useDeferredValue(query)
+  const searching = deferredQuery.trim().length > 0
+  const searchIndex = useMemo(
+    () => (searching ? buildSearchIndex(rows, shownColumns) : []),
+    [rows, searching, shownColumns],
+  )
+  const filteredRows = useMemo(
+    () => (searching ? searchRows(rows, searchIndex, deferredQuery) : rows),
+    [deferredQuery, rows, searchIndex, searching],
+  )
 
   const sortedRows = useMemo(() => {
-    const column = sort ? columns.find((candidate) => candidate.id === sort.columnId) : undefined
-    if (!sort || !column) return filteredRows
-    const valueOf =
-      column.getSortValue ?? ((row: TRow) => column.getSearchValue?.(row) ?? String(column.getValue(row) ?? ''))
-    const keyed = filteredRows.map((row, index) => ({ row, index, value: valueOf(row) }))
-    keyed.sort((a, b) => {
-      // Empty cells stay at the bottom in both directions.
-      if (a.value === null || b.value === null) return compareSortValues(a.value, b.value) || a.index - b.index
-      const order = compareSortValues(a.value, b.value)
-      return (sort.direction === 'asc' ? order : -order) || a.index - b.index
-    })
-    return keyed.map((entry) => entry.row)
-  }, [columns, filteredRows, sort])
+    const column = sort ? shownColumns.find((candidate) => candidate.id === sort.columnId) : undefined
+    return sort && column ? sortTableRows(filteredRows, column, sort.direction) : filteredRows
+  }, [filteredRows, shownColumns, sort])
+
+  const exportCsv = useCallback(() => {
+    const fileName = tableCsvFileName(exportFileName ?? activeLayer?.label ?? title)
+    downloadText(tableCsvText(sortedRows, shownColumns), fileName, 'text/csv')
+  }, [activeLayer?.label, exportFileName, shownColumns, sortedRows, title])
 
   /**
    * `paneActions` puts expand/close on the toolbar row itself (Felt keeps the whole
@@ -253,7 +312,14 @@ export function MapFeatureTablePanel<TRow, TLayerId extends string>({
     <TableBody
       rows={sortedRows}
       totalRowCount={rows.length}
-      columns={columns}
+      columns={shownColumns}
+      allColumns={columns}
+      hiddenColumns={hiddenColumns}
+      columnPicker={columnPicker}
+      exportable={exportable}
+      labels={labels}
+      onToggleColumn={toggleColumn}
+      onExportCsv={exportCsv}
       layers={layers}
       activeLayer={activeLayer}
       selectedLayer={selectedLayer}
@@ -507,6 +573,13 @@ function TableBody<TRow, TLayerId extends string>({
   rows,
   totalRowCount,
   columns,
+  allColumns,
+  hiddenColumns,
+  columnPicker,
+  exportable,
+  labels,
+  onToggleColumn,
+  onExportCsv,
   layers,
   activeLayer,
   selectedLayer,
@@ -533,6 +606,13 @@ function TableBody<TRow, TLayerId extends string>({
   rows: TRow[]
   totalRowCount: number
   columns: Array<MapFeatureTableColumn<TRow>>
+  allColumns: Array<MapFeatureTableColumn<TRow>>
+  hiddenColumns: ReadonlySet<string>
+  columnPicker: boolean
+  exportable: boolean
+  labels: MapFeatureTableLabels
+  onToggleColumn: (columnId: string) => void
+  onExportCsv: () => void
   layers: Array<MapFeatureTableLayer<TLayerId>>
   activeLayer: MapFeatureTableLayer<TLayerId> | undefined
   selectedLayer: TLayerId
@@ -604,7 +684,11 @@ function TableBody<TRow, TLayerId extends string>({
           {showViewModeToggle && (
             <>
               <span className="h-5 w-px shrink-0 bg-border" aria-hidden="true" />
-              <ViewModeToggle showOnlyInView={showOnlyInView} onShowOnlyInViewChange={onShowOnlyInViewChange} />
+              <ViewModeToggle
+                labels={labels}
+                showOnlyInView={showOnlyInView}
+                onShowOnlyInViewChange={onShowOnlyInViewChange}
+              />
             </>
           )}
 
@@ -612,8 +696,11 @@ function TableBody<TRow, TLayerId extends string>({
 
           <span className="hidden shrink-0 whitespace-nowrap text-xs tabular-nums text-muted-foreground sm:inline">
             {rows.length === totalRowCount
-              ? `${totalRowCount.toLocaleString()} rows`
-              : `${rows.length.toLocaleString()} of ${totalRowCount.toLocaleString()}`}
+              ? labels.rows(totalRowCount.toLocaleString(labels.locale ?? DEFAULT_LOCALE))
+              : labels.shownOf(
+                  rows.length.toLocaleString(labels.locale ?? DEFAULT_LOCALE),
+                  totalRowCount.toLocaleString(labels.locale ?? DEFAULT_LOCALE),
+                )}
           </span>
 
           {showOnlyInViewEnabled && !showViewModeToggle && (
@@ -627,7 +714,39 @@ function TableBody<TRow, TLayerId extends string>({
             </button>
           )}
 
-          <TableSearch query={query} collapsible={collapsibleSearch} onQueryChange={onQueryChange} />
+          <TableSearch labels={labels} query={query} collapsible={collapsibleSearch} onQueryChange={onQueryChange} />
+
+          {(exportable || columnPicker) && (
+            <ActionMenu
+              label={labels.options}
+              width={260}
+              items={[
+                exportable && {
+                  id: 'export-csv',
+                  label: labels.downloadCsv(rows.length.toLocaleString(labels.locale ?? DEFAULT_LOCALE)),
+                  icon: <Download className="size-4" />,
+                  disabled: rows.length === 0,
+                  onSelect: onExportCsv,
+                },
+                exportable && columnPicker && { type: 'separator', id: 'columns-separator' },
+                columnPicker && { type: 'label', id: 'columns-label', label: labels.columns },
+                ...(columnPicker
+                  ? allColumns.map((column) => {
+                      const shown = !hiddenColumns.has(column.id)
+                      return {
+                        id: `column-${column.id}`,
+                        label: column.header,
+                        checked: shown,
+                        keepOpen: true,
+                        // A table always keeps one column.
+                        disabled: shown && columns.length === 1,
+                        onSelect: () => onToggleColumn(column.id),
+                      }
+                    })
+                  : []),
+              ]}
+            />
+          )}
 
           {paneActions && (
             <>
@@ -636,7 +755,7 @@ function TableBody<TRow, TLayerId extends string>({
                   type="button"
                   className="shrink-0 rounded-md p-2 hover:bg-muted"
                   onClick={paneActions.onToggleExpanded}
-                  aria-label={paneActions.expanded ? 'Collapse table pane' : 'Expand table pane'}
+                  aria-label={paneActions.expanded ? labels.collapse : labels.expand}
                   aria-pressed={paneActions.expanded}
                 >
                   {paneActions.expanded ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
@@ -646,7 +765,7 @@ function TableBody<TRow, TLayerId extends string>({
                 type="button"
                 className="shrink-0 rounded-md p-2 hover:bg-muted"
                 onClick={paneActions.onClose}
-                aria-label="Close"
+                aria-label={labels.close}
               >
                 <X className="size-4" />
               </button>
@@ -669,6 +788,8 @@ function TableBody<TRow, TLayerId extends string>({
         selectedRowId={selectedRowId}
         sortable={sortable}
         sort={sort}
+        labels={labels}
+        showIndex={Boolean(paneActions)}
         renderColumnStats={renderColumnStats}
         onSortChange={onSortChange}
         onSelect={onSelect}
@@ -677,16 +798,13 @@ function TableBody<TRow, TLayerId extends string>({
   )
 }
 
-const VIEW_MODE_OPTIONS = [
-  { value: 'all', label: 'All' },
-  { value: 'visible', label: 'Visible' },
-] as const satisfies ReadonlyArray<{ value: MapFeatureTableViewMode; label: string }>
-
 /** Felt-style All/Visible segmented control. Maps onto the showOnlyInView flag. */
 function ViewModeToggle({
+  labels,
   showOnlyInView,
   onShowOnlyInViewChange,
 }: {
+  labels: MapFeatureTableLabels
   showOnlyInView: boolean
   onShowOnlyInViewChange?: (enabled: boolean) => void
 }) {
@@ -697,7 +815,10 @@ function ViewModeToggle({
       fullWidth={false}
       className="shrink-0"
       value={showOnlyInView ? 'visible' : 'all'}
-      options={VIEW_MODE_OPTIONS}
+      options={[
+        { value: 'all', label: labels.all },
+        { value: 'visible', label: labels.visible },
+      ]}
       onChange={(mode) => onShowOnlyInViewChange?.(mode === 'visible')}
     />
   )
@@ -705,22 +826,22 @@ function ViewModeToggle({
 
 /** Search that starts as an icon and expands into an input, matching Felt's toolbar. */
 function TableSearch({
+  labels,
   query,
   collapsible,
   onQueryChange,
 }: {
+  labels: MapFeatureTableLabels
   query: string
   collapsible: boolean
   onQueryChange: (query: string) => void
 }) {
   const [open, setOpen] = useState(false)
-  // SearchInput does not forward a ref, so reach the field through its wrapper.
-  const wrapperRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const expanded = !collapsible || open || query.length > 0
-  const focusInput = () => wrapperRef.current?.querySelector('input')?.focus()
 
   useEffect(() => {
-    if (open) wrapperRef.current?.querySelector('input')?.focus()
+    if (open) inputRef.current?.focus()
   }, [open])
 
   if (!expanded) {
@@ -728,7 +849,7 @@ function TableSearch({
       <button
         type="button"
         className="shrink-0 rounded-md p-2 hover:bg-muted"
-        aria-label="Search table"
+        aria-label={labels.search}
         onClick={() => setOpen(true)}
       >
         <Search className="size-4" />
@@ -737,12 +858,13 @@ function TableSearch({
   }
 
   return (
-    <div ref={wrapperRef} className="w-[min(15rem,42vw)] max-w-52 shrink-0">
+    <div className="w-[min(15rem,42vw)] max-w-52 shrink-0">
       <SearchInput
+        ref={inputRef}
         icon
         onClear={() => {
           onQueryChange('')
-          focusInput()
+          inputRef.current?.focus()
         }}
         value={query}
         onChange={(event) => onQueryChange(event.target.value)}
@@ -754,8 +876,8 @@ function TableSearch({
           onQueryChange('')
           if (collapsible) setOpen(false)
         }}
-        placeholder="Type to search…"
-        aria-label="Search table"
+        placeholder={labels.searchPlaceholder}
+        aria-label={labels.search}
         className="h-9 rounded-md border-border py-0 focus:ring-1"
       />
     </div>
@@ -775,6 +897,8 @@ function TableGrid<TRow>({
   selectedRowId,
   sortable,
   sort,
+  labels,
+  showIndex,
   renderColumnStats,
   onSortChange,
   onSelect,
@@ -786,6 +910,9 @@ function TableGrid<TRow>({
   selectedRowId: string | null
   sortable: boolean
   sort: TableSort | null
+  labels: MapFeatureTableLabels
+  /** Row numbers. Phones drop them, so a pinned name and one more column fit. */
+  showIndex: boolean
   renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
   onSortChange: (sort: TableSort | null) => void
   onSelect: (row: TRow) => void
@@ -794,13 +921,16 @@ function TableGrid<TRow>({
   const scrollRef = useRef<HTMLDivElement>(null)
   const virtualize = rows.length > VIRTUALIZE_THRESHOLD
 
-  const gridStyle = useMemo<CSSProperties>(() => {
-    const template = columns.map((column) => `minmax(${column.width ?? DEFAULT_COLUMN_WIDTH}px, 1fr)`).join(' ')
-    return {
-      display: 'grid',
-      gridTemplateColumns: `${INDEX_COLUMN_WIDTH}px ${template}`,
-    }
-  }, [columns])
+  const layout = useMemo(() => tableGridLayout(columns, showIndex), [columns, showIndex])
+  const gridStyle = useMemo<CSSProperties>(
+    () => ({ display: 'grid', gridTemplateColumns: layout.template }),
+    [layout.template],
+  )
+  const pinnedLeft = showIndex ? INDEX_COLUMN_WIDTH : 0
+  const selectedIndex = useMemo(
+    () => (selectedRowId == null ? -1 : rows.findIndex((row) => getRowId(row) === selectedRowId)),
+    [getRowId, rows, selectedRowId],
+  )
 
   // TanStack's virtualizer is mutable and deliberately excluded from compiler memoization above.
   // eslint-disable-next-line react-hooks/incompatible-library -- Preserve live virtualizer reads; memoizing its methods can freeze scrolling.
@@ -809,13 +939,21 @@ function TableGrid<TRow>({
     getScrollElement: () => scrollRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 12,
+    scrollPaddingStart: HEADER_HEIGHT,
   })
 
   const virtualItems = virtualizer.getVirtualItems()
 
+  // A row picked on the map, or opened from a link, may be far down the table.
+  useEffect(() => {
+    if (selectedIndex < 0) return
+    if (virtualize) virtualizer.scrollToIndex(selectedIndex, { align: 'auto' })
+    else scrollRef.current?.querySelector('[role="row"][aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
+  }, [selectedIndex, virtualize, virtualizer])
+
   return (
-    <div ref={scrollRef} aria-label="Data table pane" className="min-h-0 flex-1 overflow-auto">
-      <div className="min-w-max">
+    <div ref={scrollRef} aria-label="Data table pane" className="min-h-0 flex-1 scroll-pt-9 overflow-auto">
+      <div style={{ minWidth: layout.minWidth }}>
         <div role="table" aria-rowcount={rows.length} className="text-sm">
           <div role="rowgroup" className="sticky top-0 z-10 bg-background">
             <div
@@ -823,19 +961,26 @@ function TableGrid<TRow>({
               style={gridStyle}
               className="border-b border-border text-left text-xs text-muted-foreground"
             >
-              <div role="columnheader" className="flex items-center px-3 py-2 font-medium">
-                #
-              </div>
-              {columns.map((column) => {
+              {showIndex && (
+                <div
+                  role="columnheader"
+                  className="sticky left-0 z-[2] flex items-center bg-background px-3 py-2 font-medium"
+                >
+                  #
+                </div>
+              )}
+              {columns.map((column, columnIndex) => {
                 const direction = sort?.columnId === column.id ? sort.direction : null
                 return (
                   <div
                     key={column.id}
                     role="columnheader"
                     aria-sort={direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : undefined}
+                    style={columnIndex === 0 ? { left: pinnedLeft } : undefined}
                     className={cn(
                       'flex min-w-0 items-center gap-1.5 px-3 py-2 font-medium',
                       (sortable || renderColumnStats) && 'px-1.5 py-1',
+                      columnIndex === 0 && 'sticky z-[2] border-r border-border/70 bg-background',
                       column.widthClassName,
                     )}
                   >
@@ -845,6 +990,7 @@ function TableGrid<TRow>({
                         rows={rows}
                         direction={direction}
                         sortable={sortable}
+                        labels={labels}
                         renderColumnStats={renderColumnStats}
                         onSortChange={onSortChange}
                       />
@@ -875,6 +1021,8 @@ function TableGrid<TRow>({
                     index={virtualRow.index}
                     columns={columns}
                     gridStyle={gridStyle}
+                    showIndex={showIndex}
+                    pinnedLeft={pinnedLeft}
                     selected={getRowId(row) === selectedRowId}
                     style={{
                       position: 'absolute',
@@ -898,6 +1046,8 @@ function TableGrid<TRow>({
                   index={index}
                   columns={columns}
                   gridStyle={gridStyle}
+                  showIndex={showIndex}
+                  pinnedLeft={pinnedLeft}
                   selected={getRowId(row) === selectedRowId}
                   onSelect={onSelect}
                 />
@@ -916,6 +1066,7 @@ function ColumnHeaderMenu<TRow>({
   rows,
   direction,
   sortable,
+  labels,
   renderColumnStats,
   onSortChange,
 }: {
@@ -923,6 +1074,7 @@ function ColumnHeaderMenu<TRow>({
   rows: TRow[]
   direction: MapFeatureTableSortDirection | null
   sortable: boolean
+  labels: MapFeatureTableLabels
   renderColumnStats?: (columnId: string, rows: TRow[]) => ReactNode
   onSortChange: (sort: TableSort | null) => void
 }) {
@@ -934,7 +1086,7 @@ function ColumnHeaderMenu<TRow>({
   return (
     <span ref={anchorRef} className="flex min-w-0 flex-1">
       <ActionMenu
-        label={`${column.header} column options`}
+        label={labels.columnOptions(column.header)}
         align="start"
         width={200}
         triggerClassName="flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -956,27 +1108,27 @@ function ColumnHeaderMenu<TRow>({
           sortable &&
             direction !== 'asc' && {
               id: 'asc',
-              label: 'Sort ascending',
+              label: labels.sortAscending,
               icon: <ArrowUp className="size-4" />,
               onSelect: () => onSortChange({ columnId: column.id, direction: 'asc' }),
             },
           sortable &&
             direction !== 'desc' && {
               id: 'desc',
-              label: 'Sort descending',
+              label: labels.sortDescending,
               icon: <ArrowDown className="size-4" />,
               onSelect: () => onSortChange({ columnId: column.id, direction: 'desc' }),
             },
           sortable &&
             direction && {
               id: 'reset',
-              label: 'Reset sort',
+              label: labels.resetSort,
               icon: <X className="size-4" />,
               onSelect: () => onSortChange(null),
             },
           renderColumnStats && {
             id: 'stats',
-            label: 'Column stats',
+            label: labels.columnStats,
             icon: <BarChart3 className="size-4" />,
             onSelect: () => setStatsOpen(true),
           },
@@ -1171,6 +1323,8 @@ function TableRow<TRow>({
   index,
   columns,
   gridStyle,
+  showIndex,
+  pinnedLeft,
   selected,
   style,
   onSelect,
@@ -1179,10 +1333,13 @@ function TableRow<TRow>({
   index: number
   columns: Array<MapFeatureTableColumn<TRow>>
   gridStyle: CSSProperties
+  showIndex: boolean
+  pinnedLeft: number
   selected: boolean
   style?: CSSProperties
   onSelect: (row: TRow) => void
 }) {
+  const pinnedBackground = selected ? PINNED_SELECTED_CLASS : 'bg-background group-hover/row:bg-muted'
   return (
     <div
       role="row"
@@ -1191,7 +1348,7 @@ function TableRow<TRow>({
       tabIndex={0}
       style={{ ...gridStyle, ...style }}
       className={cn(
-        'cursor-pointer border-b border-border/70 outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring',
+        'group/row cursor-pointer border-b border-border/70 outline-none hover:bg-muted focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring',
         selected && 'bg-primary/10 hover:bg-primary/15',
       )}
       onClick={() => onSelect(row)}
@@ -1201,10 +1358,18 @@ function TableRow<TRow>({
         onSelect(row)
       }}
     >
-      <div role="cell" className="flex items-center bg-muted/30 px-3 py-2 text-muted-foreground tabular-nums">
-        {index + 1}
-      </div>
-      {columns.map((column) => {
+      {showIndex && (
+        <div
+          role="cell"
+          className={cn(
+            'sticky left-0 z-[1] flex items-center px-3 py-2 text-muted-foreground tabular-nums',
+            pinnedBackground,
+          )}
+        >
+          {index + 1}
+        </div>
+      )}
+      {columns.map((column, columnIndex) => {
         const value = column.getValue(row)
         const isEmpty = value == null || value === ''
         const type = column.type ?? 'text'
@@ -1212,15 +1377,17 @@ function TableRow<TRow>({
           <div
             key={column.id}
             role="cell"
+            style={columnIndex === 0 ? { left: pinnedLeft } : undefined}
             className={cn(
               'flex min-w-0 items-center px-3 py-2',
               type === 'numeric' && 'justify-end tabular-nums',
+              columnIndex === 0 && cn('sticky z-[1] border-r border-border/70', pinnedBackground),
               column.widthClassName,
             )}
           >
             <span
               className={cn('block truncate', isEmpty && 'text-muted-foreground')}
-              title={isEmpty ? undefined : String(value)}
+              title={isEmpty || typeof value === 'object' ? undefined : String(value)}
             >
               {isEmpty ? '—' : value}
             </span>

@@ -56,9 +56,9 @@ type OnReviewChange = (patch: Partial<ViaReview>) => void
 function ChoiceField({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
+      <span className="mb-1 block text-2xs font-medium text-muted-foreground">{label}</span>
       {children}
-      {hint && <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{hint}</span>}
+      {hint && <span className="mt-1 block text-3xs leading-4 text-muted-foreground">{hint}</span>}
     </label>
   )
 }
@@ -117,7 +117,7 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
     <section className="border-b border-border bg-background/95 p-4" aria-label="VIA headline result">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">VIA rating</p>
+          <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">VIA rating</p>
           <p className="mt-0.5 text-xl font-bold text-foreground" data-via-rating={rating?.id ?? 'none'}>
             {rating ? rating.label : assessment ? 'Not rated yet' : 'No landform yet'}
           </p>
@@ -156,7 +156,7 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
         assessment.initialPercent === null &&
         !assessment.numericalProvisional &&
         !stale && (
-          <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-2 text-2xs leading-4 text-muted-foreground">
             Your step 4 review is saved. Runs are not kept between visits; run the simulation again to rate it.
           </p>
         )}
@@ -169,7 +169,7 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
       )}
 
       {rating && (
-        <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-2xs leading-4 text-muted-foreground">
           {rating.meaning}
           {rating.measuresDisagree &&
             ' The ocular and numerical measures disagree; the handbook makes the ocular class the deciding one, so explain why in the rationale.'}
@@ -265,7 +265,7 @@ export function OcularAssessmentFields({
   const result = assessment.ocular
   return (
     <div className="space-y-3" aria-label="Ocular assessment">
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         The primary measure. Look at the after-harvest road view at the scale a traveller sees it and describe the
         alteration — every existing opening not yet greened up included. The model does not fill these in.
       </p>
@@ -314,7 +314,7 @@ export function OcularAssessmentFields({
           ))}
         </NativeSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-[11px] leading-4 text-muted-foreground">
+      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
         <input
           type="checkbox"
           className="mt-0.5 h-3.5 w-3.5"
@@ -383,7 +383,7 @@ export function NumericalAssessmentSummary({
           },
         ]}
       />
-      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+      <p className="mt-2 text-3xs leading-4 text-muted-foreground">
         Share of the landform&apos;s visible green face, in perspective from the assessment station, read against
         handbook Table 2. Estimated from terrain sightlines, not measured on a photograph.
       </p>
@@ -404,7 +404,7 @@ export function AdjustmentFields({
     onChange({ design: { ...review.design, [id]: value } })
   return (
     <div className="space-y-3" aria-label="Adjustments">
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Table 3: Good −1, Moderate 0, Poor +1. Distance, and one or two openings, are measured from the run; override
         them if the view says otherwise.
       </p>
@@ -478,7 +478,7 @@ export function AdjustmentFields({
           ))}
         </NativeSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-[11px] leading-4 text-muted-foreground">
+      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
         <input
           type="checkbox"
           className="mt-0.5 h-3.5 w-3.5"
@@ -556,7 +556,7 @@ export function FinalRatingFields({
               },
             ]}
           />
-          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+          <p className="mt-2 text-3xs leading-4 text-muted-foreground">
             Table 7 gives no figure for &ldquo;well within&rdquo;; this tool treats the top{' '}
             {Math.round((1 - WELL_WITHIN_SHARE) * 100)}% of the objective&apos;s range as near the boundary.
           </p>

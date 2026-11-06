@@ -82,7 +82,7 @@ function RateCell({ rate }: { rate?: Rate }) {
           </span>
         )}
       </span>
-      <span className="w-14 text-left text-[10px] text-muted-foreground">{rate.unit}</span>
+      <span className="w-14 text-left text-3xs text-muted-foreground">{rate.unit}</span>
     </span>
   )
 }
@@ -307,7 +307,7 @@ export function CostBreakdown({
       title="Covered estimate"
       subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
       summary={
-        <p className="text-[11px] text-muted-foreground" data-testid="road-cost-status">
+        <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
           Calculation updated · section coverage {hasCompleteCoverage(analysis) ? 'complete' : 'partial'}
           {result?.complete === false ? ' · engineering inputs incomplete' : ''} · recalculated on every edit
           {processMs === undefined
@@ -342,7 +342,7 @@ export function CostBreakdown({
               ]}
               triggerAriaLabel="Rate preset"
               triggerClassName="h-8 text-xs"
-              contentClassName="z-[1500] text-xs"
+              contentClassName="z-workspace-menu text-xs"
             />
           </label>
           <BCCostReferences portalContainer={portalContainer} />
@@ -431,7 +431,7 @@ export function CostBreakdown({
           </div>
         )}
         {haul && onHaul && <HaulCostGraph haul={haul} />}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-2xs text-muted-foreground">
           <span>
             Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
             volumes by average end areas.
@@ -452,7 +452,7 @@ export function CostBreakdown({
           </span>
         </div>
         {!result && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Materials, structures, haul, mobilization and contingency join this table once Engineering inputs are added
             to the road.
           </p>
@@ -513,7 +513,7 @@ function HaulCostGraph({ haul }: { haul: HaulSettings }) {
         </text>
         <path d={path} fill="none" stroke="#7c3aed" strokeWidth={2} />
       </svg>
-      <figcaption className="text-[11px] text-muted-foreground">
+      <figcaption className="text-2xs text-muted-foreground">
         $ per m³ hauled: free haul over its whole distance, overhaul and endhaul beyond the free-haul distance, each
         class adding its loading rate.
       </figcaption>

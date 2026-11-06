@@ -18,6 +18,9 @@ export const TRAIL_USER_CLASS_COLORS: Record<TrailUserClass, string> = {
   Equine: '#a855f7',
 }
 
+/** DOM markers are costly, so the amenities layer draws only this many. The sidebar says so. */
+export const AMENITY_MARKER_CAP = 300
+
 export const TRAIL_SURFACE_ICONS: Record<TrailSurfaceClass, string> = {
   'Hard Surface': 'Paved',
   'Soft Surface': 'Natural',

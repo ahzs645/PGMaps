@@ -2,7 +2,6 @@ import { Layers } from 'lucide-react'
 import {
   InlineAlert,
   MapSidebarShell,
-  MapSteppedLegend,
   SelectedItemCard,
   SidebarSection,
   StatGrid,
@@ -10,10 +9,8 @@ import {
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { ExternalLink } from '@/components/ui/text-button'
-import { readableTextColor } from '@/lib/color'
 import { DATASETS } from '@/lib/dataCatalog'
 import { formatNumber } from '@/lib/format'
-import { DROUGHT_LEVELS } from '../constants'
 import type { DroughtFeature, DroughtManifest } from '../types'
 import { DroughtBasinDetails } from './DroughtBasinDetails'
 
@@ -95,21 +92,6 @@ export function DroughtSidebar({
           {loading && <InlineAlert loading>Loading drought polygons...</InlineAlert>}
           {error && <InlineAlert tone="error">{error}</InlineAlert>}
         </div>
-      </SidebarSection>
-
-      <SidebarSection title="Legend">
-        <MapSteppedLegend
-          bands={[
-            ...DROUGHT_LEVELS.map((item) => ({
-              label: item.label,
-              color: item.color,
-              textColor: readableTextColor(item.color, { threshold: 0.55, dark: '#000000', weights: '709' }),
-              swatchLabel: item.level,
-            })),
-            { label: 'Not updated / no numeric level', color: '#8a8f98', swatchLabel: '' },
-          ]}
-          variant="rows"
-        />
       </SidebarSection>
 
       {showSelectedFeature && selectedFeature && (

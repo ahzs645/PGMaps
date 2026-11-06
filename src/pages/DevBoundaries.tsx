@@ -19,16 +19,18 @@ import {
   Loader2,
   Plus,
   RotateCcw,
-  Search,
   SquareStack,
   X,
 } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Map, MapControls, MapPopup, useMap } from '@/components/ui/map'
+import { Map, MapControls, MapPopup, MapScaleBar, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { MapSidebarShell, SidebarSection, StatGrid } from '@/components/ui/map-panels'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
+import { MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
 import { StudyAreaSourcePickerDialog, StudyAreaSourcePickerPanel } from '@/components/StudyAreaSourcePicker'
 import {
   BOUNDARY_SOURCE_OPTIONS,
@@ -49,7 +51,7 @@ import {
   type StudyAreaRegion,
 } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
-import { formatNumber } from '@/lib/format'
+import { formatNumber, formatSquareKm } from '@/lib/format'
 import { useBoundaryDifference } from '@/maps/boundaries/useBoundaryDifference'
 import type { DifferenceLayer } from '@/maps/boundaries/boundaryDifference'
 import { PaginatedBoundaryList } from '@/maps/boundaries/PaginatedBoundaryList'
@@ -58,7 +60,6 @@ import { usePagination } from '@/hooks/usePagination'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
-import { DEFAULT_LOCALE } from '@/lib/format'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
@@ -486,21 +487,29 @@ function chooseBcDaLevel(manifest: BcDaChunkManifest | null, zoom: number): BcDa
 }
 
 function formatArea(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return '--'
-  if (value >= 1000) return `${Math.round(value).toLocaleString()} km²`
-  if (value >= 10) return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} km²`
-  return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} km²`
+  if (value <= 0) return '--'
+  return formatSquareKm(value, { digits: value >= 1000 ? 0 : value >= 10 ? 1 : 2 }) || '--'
 }
 
 function formatGzipMiB(bytes: number) {
   if (!Number.isFinite(bytes) || bytes <= 0) return null
   const mib = bytes / 1024 / 1024
-  return `${mib >= 10 ? Math.round(mib).toLocaleString() : mib.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} MiB gzip`
+  return `${formatNumber(mib, { maximumFractionDigits: mib >= 10 ? 0 : 1 })} MiB gzip`
 }
 
 function sourceLabel(source: BoundarySource) {
   return BOUNDARY_EXPLORER_SOURCE_OPTIONS.find((option) => option.value === source)?.label ?? source
 }
+
+const REGION_COLUMNS = [
+  textColumn<StudyAreaRegion>('name', 'Name', (region) => region.name, { width: 260 }),
+  textColumn<StudyAreaRegion>('code', 'Code', (region) => region.code, { width: 120 }),
+  textColumn<StudyAreaRegion>('source', 'Source', (region) => sourceLabel(region.source)),
+  textColumn<StudyAreaRegion>('level', 'Level', (region) => getStudyAreaLevelLabel(region.level)),
+  numberColumn<StudyAreaRegion>('areaKm2', 'Area (km²)', (region) => region.areaKm2, {
+    format: (value) => formatNumber(value, { maximumFractionDigits: value >= 1000 ? 0 : value >= 10 ? 1 : 2 }),
+  }),
+]
 
 // Region objects are stable once loaded, so their search text only needs to be
 // assembled once instead of on every keystroke for every region.
@@ -909,6 +918,48 @@ function mapBcDaChunkFeatureToRegion(
     bounds,
     areaKm2: Number.isFinite(areaKm2) && areaKm2 > 0 ? areaKm2 : 0,
   } satisfies StudyAreaRegion
+}
+
+/**
+ * One table per layer. Tile-only layers hold no rows, and census chunks hidden for
+ * their parent outlines are off the map, so neither is offered.
+ */
+function useBoundaryTableSources(
+  layers: ActiveLayerView[],
+  regionsByLayer: Record<string, StudyAreaRegion[]>,
+  hideBcDaChunks: boolean,
+  isolatedFocuses: PolygonFocus[],
+) {
+  return useMemo(
+    () =>
+      layers
+        .filter(
+          (layer) =>
+            !isDbPmtilesLayer(layer) &&
+            (!hideBcDaChunks ||
+              !isBcDaSimplifiedLayer(layer) ||
+              isolatedFocuses.some((focus) => focus.scope === layer.key)),
+        )
+        .map((layer) =>
+          defineTableSource<StudyAreaRegion>({
+            id: layer.key,
+            label: `${layer.label} · ${layer.optionLabel}`,
+            color: layer.colors.line,
+            shape: 'fill',
+            rows: regionsByLayer[layer.key] ?? layer.filteredRegions,
+            columns: REGION_COLUMNS,
+            getRowId: (region) => polygonFocusKey({ id: region.id, scope: layer.key }),
+            getRowCenter: (region) => [
+              (region.bounds[0] + region.bounds[2]) / 2,
+              (region.bounds[1] + region.bounds[3]) / 2,
+            ],
+            getRowBounds: (region) => region.bounds,
+            status: layer.loading ? 'loading' : layer.error ? 'error' : 'ready',
+            emptyMessage: layer.error,
+          }),
+        ),
+    [hideBcDaChunks, isolatedFocuses, layers, regionsByLayer],
+  )
 }
 
 function FitToRegions({
@@ -1675,10 +1726,17 @@ function DevBoundaries() {
   const hideBcDaChunksForParents = bcDaActive && enabledCensusParentLevels.length > 0
 
   const allRegions = useMemo(() => activeLayerViews.flatMap((layer) => layer.regions), [activeLayerViews])
-  const selectedRegion = allRegions.find((region) => region.id === selectedId) ?? null
-  const selectedRegionLayerScope =
-    activeLayerViews.find((layer) => selectedRegion && layer.regions.some((region) => region.id === selectedRegion.id))
-      ?.key ?? null
+  const selectedRegion = useMemo(
+    () => allRegions.find((region) => region.id === selectedId) ?? null,
+    [allRegions, selectedId],
+  )
+  const selectedRegionLayerScope = useMemo(
+    () =>
+      activeLayerViews.find(
+        (layer) => selectedRegion && layer.regions.some((region) => region.id === selectedRegion.id),
+      )?.key ?? null,
+    [activeLayerViews, selectedRegion],
+  )
   const regionByFocusKey = useMemo(
     () =>
       new globalThis.Map(
@@ -1693,7 +1751,10 @@ function DevBoundaries() {
   const selectedRegionLayerFocuses = selectedRegionLayerScope
     ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedRegionLayerScope)
     : EMPTY_POLYGON_FOCUSES
-  const selectedParentBoundary = findSelectedParentBoundary(enabledParentBoundaryViews, selectedParentId)
+  const selectedParentBoundary = useMemo(
+    () => findSelectedParentBoundary(enabledParentBoundaryViews, selectedParentId),
+    [enabledParentBoundaryViews, selectedParentId],
+  )
   const selectedParentBoundaryFocuses = selectedParentBoundary
     ? selectedPolygonFocuses.filter((focus) => focus.scope === selectedParentBoundary.scope)
     : EMPTY_POLYGON_FOCUSES
@@ -1785,7 +1846,7 @@ function DevBoundaries() {
       ? 'No study areas selected'
       : activeLayerViews.length === 1
         ? `${activeLayerViews[0].label} - ${activeLayerViews[0].optionLabel}`
-        : `${activeLayerViews.length} study areas - ${allMapVisibleRegions.length.toLocaleString()} visible boundaries${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
+        : `${activeLayerViews.length} study areas - ${formatNumber(allMapVisibleRegions.length)} visible boundaries${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
 
   const boundariesShareState = useMemo<BoundariesShareState>(() => {
     const sharedSourceLevels = activeSources.reduce<Partial<Record<BoundarySource, RegionLevel>>>((levels, source) => {
@@ -2537,20 +2598,18 @@ function DevBoundaries() {
     >
       {isMobile && details}
       <SidebarSection title="Find any boundary">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="search"
-            value={boundarySearchQuery}
-            onFocus={() => setBoundarySearchRequested(true)}
-            onChange={(event) => {
-              setBoundarySearchRequested(true)
-              setBoundarySearchQuery(event.target.value)
-            }}
-            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="Search all names, codes, and properties"
-          />
-        </div>
+        <SearchInput
+          icon
+          type="search"
+          value={boundarySearchQuery}
+          onFocus={() => setBoundarySearchRequested(true)}
+          onChange={(event) => {
+            setBoundarySearchRequested(true)
+            setBoundarySearchQuery(event.target.value)
+          }}
+          placeholder="Search all names, codes, and properties"
+          aria-label="Search all boundaries"
+        />
         <div className="mt-2 flex items-center gap-2">
           <span className="shrink-0 text-xs font-medium text-muted-foreground">Match</span>
           <NativeSelect
@@ -2652,7 +2711,7 @@ function DevBoundaries() {
               type="button"
               onClick={selectAllBoundarySearchMatches}
               className="inline-flex h-11 md:h-7 shrink-0 items-center gap-1.5 rounded-md border bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-              title={`Select all ${boundarySearchMatches.length.toLocaleString()} matching boundaries on the map`}
+              title={`Select all ${formatNumber(boundarySearchMatches.length)} matching boundaries on the map`}
             >
               <SquareStack className="size-3.5" />
               Select all
@@ -3041,9 +3100,11 @@ function DevBoundaries() {
       </SidebarSection>
 
       <SidebarSection title="Area summary">
-        <StatGrid
+        <StatGroup
+          variant="tiles"
+          size="sm"
           columns={2}
-          stats={[
+          items={[
             { label: 'Study areas', value: formatNumber(activeLayerViews.length) },
             {
               label: 'Shown on map',
@@ -3077,16 +3138,14 @@ function DevBoundaries() {
       </SidebarSection>
 
       <SidebarSection title="Filter boundaries on map">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input
-            type="text"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            className="h-10 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-sky-500"
-            placeholder="Filter selected layers"
-          />
-        </div>
+        <SearchInput
+          icon
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onClear={() => setQuery('')}
+          placeholder="Filter selected layers"
+          aria-label="Filter selected layers"
+        />
       </SidebarSection>
 
       <div className="pb-6">
@@ -3095,8 +3154,8 @@ function DevBoundaries() {
             {activeLoading
               ? 'Loading boundaries'
               : polygonFocusActive
-                ? `${allMapVisibleRegions.length.toLocaleString()} shown after filters${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
-                : `${allMapVisibleRegions.length.toLocaleString()} shown on map${hasDbPmtilesLayer ? ' + PMTiles' : ''}`}
+                ? `${formatNumber(allMapVisibleRegions.length)} shown after filters${hasDbPmtilesLayer ? ' + PMTiles' : ''}`
+                : `${formatNumber(allMapVisibleRegions.length)} shown on map${hasDbPmtilesLayer ? ' + PMTiles' : ''}`}
           </span>
           {(compareIds.length > 0 || polygonFocusActive) && (
             <button
@@ -3169,10 +3228,10 @@ function DevBoundaries() {
                   <div className="sticky top-[33px] z-10 border-b border-border bg-muted/80 px-4 py-2 text-xs font-semibold text-foreground backdrop-blur">
                     {isDbPmtilesLayer(layer)
                       ? `${layer.label} · ${layer.optionLabel} · PMTiles`
-                      : `${layer.label} · ${layer.optionLabel} · ${layerVisibleCount(layer, renderedLayerRegionsByKey).toLocaleString()}`}
+                      : `${layer.label} · ${layer.optionLabel} · ${formatNumber(layerVisibleCount(layer, renderedLayerRegionsByKey))}`}
                     {!isDbPmtilesLayer(layer) &&
                       layerVisibleCount(layer, renderedLayerRegionsByKey) !== layerReferenceCount(layer) && (
-                        <span className="text-muted-foreground"> / {layerReferenceCount(layer).toLocaleString()}</span>
+                        <span className="text-muted-foreground"> / {formatNumber(layerReferenceCount(layer))}</span>
                       )}
                   </div>
                   {isDbPmtilesLayer(layer) && layer.filteredRegions.length === 0 && (
@@ -3283,11 +3342,38 @@ function DevBoundaries() {
       sidebar
     )
 
+  const tableSources = useBoundaryTableSources(
+    activeLayerViews,
+    renderedLayerRegionsByKey,
+    hideBcDaChunksForParents,
+    isolatedPolygonFocuses,
+  )
+  // `FitToRegions` moves the camera; a row picks a region the way the sidebar list does.
+  // This page writes its share token past the router, so a table write here would put
+  // an older token back in the URL.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId:
+      selectedRegion && selectedRegionLayerScope
+        ? polygonFocusKey({ id: selectedRegion.id, scope: selectedRegionLayerScope })
+        : null,
+    onSelectRow: (region: StudyAreaRegion, source) => {
+      setFitSelectedRegion(true)
+      setSelectedId(region.id)
+      setSelectedParentId(null)
+      setSelectedPmtilesFeature(null)
+      selectPolygonFocus({ id: region.id, scope: source.id }, false)
+    },
+    url: false,
+    flyOnSelect: false,
+  })
+
   return (
     <MapSectionLayout
       sidebar={sidebarContent}
       desktopSidebarWidth={410}
       mobileInitialSheetState="half"
+      table={table}
       selectedFeatureMobilePeek={{
         title: 'Boundaries',
         subtitle: activeSubtitle,
@@ -3299,8 +3385,11 @@ function DevBoundaries() {
         loading={activeLoading}
         boxZoom={false}
         doubleClickZoom={false}
+        deferResize={table.deferResize}
         controls={<MapControls position="top-right" />}
       >
+        <MapTableBridge table={table} />
+        <MapScaleBar position="bottom-left" />
         <TrackMapBounds onBoundsChange={setMapBounds} onZoomChange={setMapZoom} />
         <FitToBoundarySearchTarget target={boundarySearchTarget} />
         <FitToBoundarySearchBatchTarget target={boundarySearchBatchTarget} />

@@ -145,7 +145,7 @@ export function FullCostSourcesEditor({
           </Field>
           <fieldset className="space-y-2 rounded border p-2">
             <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               A general suitability confirmation does not identify an exact material or quality class. Select the
               materials this source can supply or accept; changing these fields requires review again.
             </p>
@@ -236,13 +236,13 @@ export function FullCostSourcesEditor({
               Material suitability or disposal acceptance confirmed
             </label>
           </div>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {selected.uses.includes('waste')
               ? 'Waste prices and capacity use bank cubic metres.'
               : 'Aggregate prices and shared capacity use compacted cubic metres.'}{' '}
             These confirmations record your supplied evidence, not a catalogue inference.
           </p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Changing the entrance requires a new access and material review. Switching between bank waste and compacted
             aggregate also clears quantities and price assumptions.
           </p>

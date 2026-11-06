@@ -211,7 +211,7 @@ const NeighbourhoodLabels = memo(function NeighbourhoodLabels({ city }: { city: 
       {city.data.labels.map((label) => (
         <MapMarker key={label.n} longitude={label.lon} latitude={label.lat} className="pointer-events-none">
           <MarkerContent className="pointer-events-none">
-            <span className="whitespace-nowrap rounded-sm bg-background/55 px-1 text-[11px] text-muted-foreground">
+            <span className="whitespace-nowrap rounded-sm bg-background/55 px-1 text-2xs text-muted-foreground">
               {label.n}
             </span>
           </MarkerContent>

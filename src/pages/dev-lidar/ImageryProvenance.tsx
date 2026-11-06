@@ -37,7 +37,7 @@ export function ImageryProvenance({ bounds }: { bounds: [number, number, number,
       ) === index,
   )
   return (
-    <div className="mt-3 space-y-2 text-[10px] leading-4 text-muted-foreground">
+    <div className="mt-3 space-y-2 text-3xs leading-4 text-muted-foreground">
       <p className="font-medium text-foreground">Imagery metadata · LiDAR tile centre</p>
       {status && <p role="status">{status}</p>}
       {unique.map((row) => (

@@ -90,7 +90,7 @@ export function RoadNetworkEditor({
       contentClassName="space-y-2 pt-2"
     >
       <div data-testid="road-network-evidence" className="space-y-2">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           These are entered planning inputs. A BC tenure record does not verify access, junctions, bridge capacity or
           current road condition.
         </p>
@@ -165,7 +165,7 @@ export function RoadNetworkEditor({
                   patch({ bridgeLoadTonnes, ...(rating ? { bridgeRating: { ...rating, reviewer: '' } } : {}) })
               }}
             />
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               A dated load-rating reference, reviewed applicability and explicit validity are separate from road
               condition or imagery. Editing the entered limit clears the rating review; both known limits remain
               enforced.
@@ -225,7 +225,7 @@ export function RoadNetworkEditor({
                     onChange={(event) => patchRating({ reviewer: event.target.value }, true)}
                   />
                 </Field>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   The reviewer is your recorded assertion, not authenticated credentials. Unknown expiry or
                   applicability cannot establish a current load rating. An explicitly permissive unknown-restriction
                   policy is recorded as an assumption; known closures, overloads and inapplicable vehicle classes remain
@@ -274,7 +274,7 @@ export function RoadNetworkEditor({
             onChange={(forwardDownhillGradePercent) => patch({ forwardDownhillGradePercent })}
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Forward follows the stored line coordinates. Use reviewed maximum grades, rather than an end-to-end average.
           Reverse travel swaps uphill and downhill checks.
         </p>
@@ -316,7 +316,7 @@ export function RoadNetworkEditor({
             onChange={(fixedCost) => patch({ fixedCost })}
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Blank rates remain unpriced. Enter 0 explicitly when no allowance is needed. Access, structure and setup
           allowances apply once when any part of this road feature is used; rehabilitation applies to the actual
           traversed portions. Split a road into separate features when a structure allowance only applies to one
@@ -324,7 +324,7 @@ export function RoadNetworkEditor({
         </p>
         <div className="space-y-2 rounded border p-2">
           <p className="text-xs font-medium">Declared at-grade junctions</p>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Use the same ID and location on each connecting road. Crossing lines remain disconnected without this
             evidence. Different known levels cannot be joined.
           </p>

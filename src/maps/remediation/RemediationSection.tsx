@@ -1,10 +1,25 @@
-import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Map, MapClusterLayer, MapPopup, useMap } from '@/components/ui/map'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { Map, MapClusterLayer, MapPopup, MapScaleBar, useMap } from '@/components/ui/map'
 import { MapSectionLayout, MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
-import { MapSidebarShell, LegendItem, MapOverlay } from '@/components/ui/map-panels'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { useIsMobile } from '@/hooks/useIsMobile'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable, type MapTableController } from '@/components/map/useMapTable'
+import { Button } from '@/components/ui/button'
+import {
+  KeyValueRows,
+  LegendItem,
+  MapLegendPanel,
+  MapOverlay,
+  MapSidebarShell,
+  SearchInput,
+} from '@/components/ui/map-panels'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
+import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { useFlyToSelection } from '@/components/ui/map-fly-to'
+import { DATASETS } from '@/lib/dataCatalog'
+import { formatDate, formatNumber } from '@/lib/format'
 import {
   filterSites,
   loadRemediation,
@@ -15,32 +30,37 @@ import {
 } from './data'
 
 const EMPTY: SiteCollection = { type: 'FeatureCollection', features: [] }
-const BUTTON =
-  'rounded border border-border px-3 py-2 text-xs font-medium hover:bg-accent focus-visible:ring-2 focus-visible:ring-primary'
+const SITE_COLOR = '#d97706'
+const SITE_RECORDS_URL =
+  'https://www2.gov.bc.ca/gov/content/environment/air-land-water/site-remediation/site-information'
+
+const siteTitle = (site: Site) => site.properties.name || `Site ${site.properties.siteId}`
+const siteRowId = (site: Site) => String(site.properties.siteId)
+
+const SITE_COLUMNS = [
+  textColumn<Site>('name', 'Name', siteTitle, { width: 240 }),
+  textColumn<Site>('address', 'Address', (site) => site.properties.address, { width: 220 }),
+  numberColumn<Site>('siteId', 'Site ID', (site) => site.properties.siteId, { format: String, width: 100 }),
+  textColumn<Site>('victoriaFile', 'Victoria file', (site) => site.properties.victoriaFile),
+  textColumn<Site>('regionalFile', 'Regional file', (site) => site.properties.regionalFile),
+  textColumn<Site>('description', 'Location notes', (site) => site.properties.description, { width: 320 }),
+]
 
 function SiteDetails({ site }: { site: Site }) {
   const p = site.properties
   return (
     <div className="space-y-2 text-xs">
-      <p className="font-semibold">{p.name || `Site ${p.siteId}`}</p>
+      <p className="font-semibold">{siteTitle(site)}</p>
       <p>{p.address || 'No address provided'}</p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 break-words">
-        <dt className="text-muted-foreground">Registry site ID</dt>
-        <dd>{p.siteId}</dd>
-        <dt className="text-muted-foreground">Victoria file</dt>
-        <dd>{p.victoriaFile || 'Not provided'}</dd>
-        <dt className="text-muted-foreground">Regional file</dt>
-        <dd>{p.regionalFile || 'Not provided'}</dd>
-      </dl>
+      <KeyValueRows
+        rows={[
+          { label: 'Registry site ID', value: p.siteId },
+          { label: 'Victoria file', value: p.victoriaFile || 'Not provided' },
+          { label: 'Regional file', value: p.regionalFile || 'Not provided' },
+        ]}
+      />
       <p className="text-muted-foreground">{p.description || 'No location notes provided.'}</p>
-      <a
-        className="block underline"
-        href="https://www2.gov.bc.ca/gov/content/environment/air-land-water/site-remediation/site-information"
-        target="_blank"
-        rel="noreferrer"
-      >
-        How to obtain site records
-      </a>
+      <ExternalLink href={SITE_RECORDS_URL}>How to obtain site records</ExternalLink>
     </div>
   )
 }
@@ -48,30 +68,34 @@ function SiteDetails({ site }: { site: Site }) {
 function SiteMap({
   collection,
   selected,
+  table,
   onSelect,
 }: {
   collection: SiteCollection
   selected: Site | null
+  table: MapTableController
   onSelect: (site: Site | null) => void
 }) {
   const { map } = useMap()
-  const mobile = useIsMobile()
   useFlyToSelection(
     selected ? { longitude: selected.geometry.coordinates[0], latitude: selected.geometry.coordinates[1] } : null,
     { zoom: 15 },
   )
   return (
     <>
+      <MapTableBridge table={table} />
       <MapClusterLayer
         data={collection}
-        pointColor="#d97706"
+        pointColor={SITE_COLOR}
         clusterColors={['#b45309', '#92400e', '#78350f']}
         clusterThresholds={[50, 500]}
         onPointClick={onSelect}
       />
       <MapOverlay position="top-left" className="top-16 flex gap-2 p-2 md:top-3">
-        <button
-          className={BUTTON}
+        {table.button}
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => {
             onSelect(null)
             map?.fitBounds(
@@ -84,38 +108,52 @@ function SiteMap({
           }}
         >
           All BC
-        </button>
-        <button
-          className={BUTTON}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
           onClick={() => {
             onSelect(null)
             map?.flyTo({ center: [-122.75, 53.915], zoom: 11 })
           }}
         >
           Prince George
-        </button>
+        </Button>
       </MapOverlay>
-      {selected &&
-        (mobile ? (
-          <MobileFeatureCard
-            cardKey={selected.properties.siteId}
-            title={selected.properties.name || `Site ${selected.properties.siteId}`}
-            subtitle="Remediation registry site"
-            onClose={() => onSelect(null)}
-          >
-            <SiteDetails site={selected} />
-          </MobileFeatureCard>
-        ) : (
-          <MapPopup
-            longitude={selected.geometry.coordinates[0]}
-            latitude={selected.geometry.coordinates[1]}
-            closeButton
-            onClose={() => onSelect(null)}
-            className="max-w-xs"
-          >
-            <SiteDetails site={selected} />
-          </MapPopup>
-        ))}
+      <MapScaleBar position="bottom-left" />
+      <MapLegendPanel title="Legend" width="sm" defaultCollapsed="mobile" collapsible>
+        <div className="space-y-1 text-xs">
+          <LegendItem color={SITE_COLOR} label="Registry site location" active />
+          <p className="text-muted-foreground">
+            Numbered circles group nearby sites. Click a cluster to zoom or a site for details.
+          </p>
+        </div>
+      </MapLegendPanel>
+      {selected && (
+        <ResponsiveFeatureDetail
+          card={
+            <MobileFeatureCard
+              cardKey={selected.properties.siteId}
+              title={siteTitle(selected)}
+              subtitle="Remediation registry site"
+              onClose={() => onSelect(null)}
+            >
+              <SiteDetails site={selected} />
+            </MobileFeatureCard>
+          }
+          popup={
+            <MapPopup
+              longitude={selected.geometry.coordinates[0]}
+              latitude={selected.geometry.coordinates[1]}
+              closeButton
+              onClose={() => onSelect(null)}
+              className="max-w-xs"
+            >
+              <SiteDetails site={selected} />
+            </MapPopup>
+          }
+        />
+      )}
     </>
   )
 }
@@ -141,125 +179,122 @@ export function RemediationSection() {
   }, [attempt])
   const collection = useMemo(() => filterSites(data?.collection ?? EMPTY, deferredSearch), [data, deferredSearch])
   const loading = !data && !error
+  const selectSite = useCallback((site: Site) => setSelected(site), [])
+  const tableSources = useMemo(
+    () =>
+      data
+        ? [
+            defineTableSource<Site>({
+              id: 'remediation-sites',
+              label: 'Remediation sites',
+              color: SITE_COLOR,
+              shape: 'point',
+              rows: collection.features,
+              columns: SITE_COLUMNS,
+              getRowId: siteRowId,
+              getRowCenter: (site) => site.geometry.coordinates as [number, number],
+            }),
+          ]
+        : [],
+    [collection, data],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selected ? siteRowId(selected) : null,
+    onSelectRow: selectSite,
+    // SiteMap flies to the selection, which also covers a click on a point.
+    flyOnSelect: false,
+    inlineButton: true,
+  })
+  const searching = deferredSearch.trim().length > 0
   const sidebar = (
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="Environmental Remediation Sites"
       subtitle="BC registry locations · provincial snapshot"
+      dataset={data ? { ...DATASETS.remediation, license: data.manifest.license } : DATASETS.remediation}
     >
       <div className="space-y-4 p-4">
         <p className="text-xs text-muted-foreground">
           Known and potentially contaminated properties. A registry listing does not establish current contamination;
           points are locations, not contamination boundaries.
         </p>
-        {loading && (
-          <p role="status" className="text-sm">
-            Loading provincial sites…
-          </p>
-        )}
+        {(loading || error) && <ListState loading={loading} loadingLabel="Loading provincial sites…" error={error} />}
         {error && (
-          <div role="alert" className="space-y-2 text-sm">
-            <p>{error}</p>
-            <button
-              className={BUTTON}
-              onClick={() => {
-                setError(null)
-                setAttempt((value) => value + 1)
-              }}
-            >
-              Retry
-            </button>
-          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setError(null)
+              setAttempt((value) => value + 1)
+            }}
+          >
+            Retry
+          </Button>
         )}
         {data && (
           <>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded border border-border p-3">
-                <p className="text-xs text-muted-foreground">BC sites</p>
-                <strong>{data.manifest.featureCount.toLocaleString()}</strong>
-              </div>
-              <div className="rounded border border-border p-3">
-                <p className="text-xs text-muted-foreground">Search matches</p>
-                <strong aria-live="polite">{collection.features.length.toLocaleString()}</strong>
-              </div>
-            </div>
-            <label className="block space-y-1 text-xs font-medium">
-              Find a site
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
-                  setSelected(null)
-                }}
-                placeholder="Name, address, site ID or file number"
-                className="w-full rounded border border-border bg-background px-3 py-2 text-sm"
-              />
-            </label>
-            {search && (
-              <button
-                className={BUTTON}
-                onClick={() => {
-                  setSearch('')
-                  setSelected(null)
-                }}
-              >
-                Clear search
-              </button>
-            )}
-            <div className="space-y-1 text-xs">
-              <LegendItem color="#d97706" label="Registry site location" active />
-              <p className="text-muted-foreground">
-                Numbered circles group nearby sites. Click a cluster to zoom or a site for details. Search covers all
-                BC; the location buttons move the map.
-              </p>
-            </div>
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={2}
+              items={[
+                { label: 'BC sites', value: formatNumber(data.manifest.featureCount) },
+                { label: 'Search matches', value: formatNumber(collection.features.length) },
+              ]}
+            />
+            <SearchInput
+              icon
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setSelected(null)
+              }}
+              onClear={() => {
+                setSearch('')
+                setSelected(null)
+              }}
+              placeholder="Name, address, site ID or file number"
+              aria-label="Find a site"
+            />
             {selected && (
               <section className="rounded border border-border p-3" aria-label="Selected site">
                 <SiteDetails site={selected} />
-                <button className={`${BUTTON} mt-3`} onClick={() => setSelected(null)}>
+                <Button className="mt-3" size="sm" variant="outline" onClick={() => setSelected(null)}>
                   Clear selection
-                </button>
+                </Button>
               </section>
             )}
-            {deferredSearch.trim() && (
-              <section aria-label="Search results" className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  {collection.features.length === 0
-                    ? 'No sites match this search.'
-                    : `Showing ${Math.min(30, collection.features.length)} of ${collection.features.length.toLocaleString()} matches. Refine your search to narrow the list.`}
-                </p>
-                {collection.features.slice(0, 30).map((site) => (
-                  <button
-                    key={site.properties.siteId}
-                    onClick={() => setSelected(site)}
-                    className="block w-full rounded border border-border p-3 text-left text-xs hover:bg-accent"
+            {searching && (
+              <section aria-label="Search results">
+                <ListState empty={collection.features.length === 0} emptyLabel="No sites match this search.">
+                  <ListHeader sticky={false} count={collection.features.length} noun={['match', 'matches']} />
+                  <VirtualResultList
+                    items={collection.features}
+                    getKey={siteRowId}
+                    estimateSize={68}
+                    label="Search results"
                   >
-                    <span className="block font-medium">
-                      {site.properties.name || `Site ${site.properties.siteId}`}
-                    </span>
-                    <span className="block text-muted-foreground">
-                      Site {site.properties.siteId} · {site.properties.address || 'No address'}
-                    </span>
-                  </button>
-                ))}
+                    {(site) => (
+                      <ResultRow
+                        title={siteTitle(site)}
+                        subtitle={`Site ${site.properties.siteId} · ${site.properties.address || 'No address'}`}
+                        selected={selected?.properties.siteId === site.properties.siteId}
+                        onClick={() => setSelected(site)}
+                      />
+                    )}
+                  </VirtualResultList>
+                </ListState>
               </section>
             )}
-            <details className="text-xs" open>
-              <summary className="cursor-pointer font-medium">Source and snapshot</summary>
-              <div className="mt-2 space-y-2 text-muted-foreground">
-                <p>
-                  Retrieved {new Date(data.manifest.downloadedAt).toLocaleDateString('en-CA')} · {data.manifest.license}
-                </p>
-                <p>Province of British Columbia · Site Registry. No parcel join has been applied.</p>
-                <a className="block underline" href={REMEDIATION_CATALOGUE} target="_blank" rel="noreferrer">
-                  Official catalogue
-                </a>
-                <a className="block underline" href={REMEDIATION_ARCGIS} target="_blank" rel="noreferrer">
-                  Source layer and fields
-                </a>
-              </div>
-            </details>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <p>
+                Retrieved {formatDate(data.manifest.downloadedAt)} · {data.manifest.license}. Province of British
+                Columbia · Site Registry. No parcel join has been applied.
+              </p>
+              <ExternalLink href={REMEDIATION_CATALOGUE}>Official catalogue</ExternalLink>{' '}
+              <ExternalLink href={REMEDIATION_ARCGIS}>Source layer and fields</ExternalLink>
+            </div>
           </>
         )}
       </div>
@@ -268,13 +303,14 @@ export function RemediationSection() {
   return (
     <MapSectionLayout
       sidebar={sidebar}
+      table={table}
       mobilePeekTitle="Remediation sites"
       mobilePeekSubtitle={
-        data ? `${collection.features.length.toLocaleString()} BC search matches` : 'Provincial snapshot'
+        data ? `${formatNumber(collection.features.length)} BC search matches` : 'Provincial snapshot'
       }
     >
-      <Map center={[-124.5, 54.5]} zoom={4.6} loading={loading}>
-        <SiteMap collection={collection} selected={selected} onSelect={setSelected} />
+      <Map center={[-124.5, 54.5]} zoom={4.6} loading={loading} deferResize={table.deferResize}>
+        <SiteMap collection={collection} selected={selected} table={table} onSelect={setSelected} />
       </Map>
     </MapSectionLayout>
   )

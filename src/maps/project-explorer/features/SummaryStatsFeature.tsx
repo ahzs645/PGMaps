@@ -5,6 +5,7 @@ import type { ProjectExplorerSummaryIcon } from '@/lib/projectPackages'
 
 import type { ResearchRecordsAdapterData } from '../adapters/useResearchRecordsAdapter'
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 function summaryIcon(icon: ProjectExplorerSummaryIcon) {
   if (icon === 'map-pin') return <MapPin className="size-3" />
@@ -42,7 +43,7 @@ export function SummaryStatsFeature({
         columns={feature.items.length === 2 ? 2 : 3}
         stats={feature.items.map((item) => {
           const value = summaryMetricValue(item.metric, overview, filteredStats)
-          const displayValue = typeof value === 'number' ? value.toLocaleString() : value
+          const displayValue = typeof value === 'number' ? value.toLocaleString(DEFAULT_LOCALE) : value
           return {
             label: item.label,
             value: displayValue,

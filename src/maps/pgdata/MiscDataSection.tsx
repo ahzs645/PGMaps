@@ -4,12 +4,22 @@ import { useSearchParams } from 'react-router-dom'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { Layers, Satellite, Trees } from 'lucide-react'
-import { Map as PgMap, MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import {
+  MapTableBridge,
+  defineTableSource,
+  useMapTable,
+  useMapTableState,
+  type MapTableOptions,
+  type MapTableSource,
+} from '@/components/map/useMapTable'
+import { Map as PgMap, MapClusterLayer, MapMarker, MapPopup, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { SectionTabsBar } from '@/components/layout/SectionTabsBar'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
+import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { PG_CENTER } from '@/components/ui/map-styles'
-import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { DatasetInfo } from '@/components/DatasetInfo'
 import {
   getDefaultLevelForSource,
@@ -20,9 +30,27 @@ import {
   type RegionLevel,
   type StudyAreaRegion,
 } from '@/lib/studyArea'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapSwatch, ToggleChip } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  KeyValueRows,
+  LegendItem,
+  MapGradientLegendItem,
+  MapLegendPanel,
+  MapSidebarShell,
+  MapSwatch,
+  SidebarSection,
+  ToggleChip,
+} from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ToggleRow } from '@/components/ui/toggle-row'
 import { DATASETS } from '@/lib/dataCatalog'
-import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
+import { featureCenter, featuresBounds } from '@/lib/featureBounds'
+import { DEFAULT_LOCALE, formatNumber } from '@/lib/format'
+import {
+  useHeatShadeData,
+  type HeatShadeFacility,
+  type HeatShadeTree,
+} from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 import {
   NetworkAvailabilitySidebar,
@@ -31,7 +59,9 @@ import {
   type NetworkAvailabilityManifest,
 } from './networkAvailability'
 import {
+  EV_STATION_COLUMNS,
   EvChargingSidebar,
+  evStationRowId,
   type EvChargingBoundarySummary,
   type EvChargingFeature,
   type EvChargingFeatureCollection,
@@ -138,43 +168,62 @@ interface HeatShadeManifest {
   caveats?: string[]
 }
 
-function MobileEvStationFeatureCard({ station, onClose }: { station: EvChargingFeature; onClose: () => void }) {
-  const location = [station.properties?.city, station.properties?.province].filter(Boolean).join(', ')
+/** What a tab gives the one table this section shares. Empty `tableSources` means no table. */
+interface MiscTabTable {
+  tableSources: readonly MapTableSource[]
+  selectedTableRowId?: string | null
+  selectTableRow?: MapTableOptions['onSelectRow']
+}
 
+type CanueBoundaryRow = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
+
+const NO_TAB_TABLE: MiscTabTable = { tableSources: [] }
+
+// Some tabs' chips are too wide to sit beside the title, so the header row wraps them under it.
+const MISC_HEADER_CLASS = '[&>div]:flex-wrap [&>div]:items-center [&>div>div:last-child]:shrink'
+
+// Each one is a DOM marker, so these keep the map responsive. The table lists every row.
+const MAX_DRAWN_TREES = 900
+const MAX_DRAWN_FACILITIES = 350
+
+const HEAT_TREE_COLUMNS = [
+  textColumn<HeatShadeTree>('name', 'Species', (tree) => tree.commonName, { width: 220 }),
+  numberColumn<HeatShadeTree>('dbh', 'Trunk diameter', (tree) => tree.dbh, { format: String }),
+  numberColumn<HeatShadeTree>('age', 'Tree age', (tree) => tree.treeAge, { format: String }),
+  textColumn<HeatShadeTree>('id', 'Tree ID', (tree) => tree.id, { defaultHidden: true }),
+]
+
+const HEAT_FACILITY_COLUMNS = [
+  textColumn<HeatShadeFacility>('name', 'Facility', (facility) => facility.name, { width: 260 }),
+  textColumn<HeatShadeFacility>('kind', 'Kind', (facility) =>
+    facility.kind === 'responseFacility' ? 'Response facility' : 'Community facility',
+  ),
+  textColumn<HeatShadeFacility>('status', 'Status', (facility) => facility.status),
+]
+
+function evStationRows(station: EvChargingFeature) {
+  return [
+    { label: 'Network', value: station.properties?.network || 'Unknown' },
+    { label: 'Connectors', value: station.properties?.connectors || 'Unknown' },
+    { label: 'Level 2', value: station.properties?.level2 ?? 0 },
+    { label: 'DC fast', value: station.properties?.dcFast ?? 0 },
+  ]
+}
+
+function evStationLocation(station: EvChargingFeature) {
+  return [station.properties?.city, station.properties?.province].filter(Boolean).join(', ')
+}
+
+function MobileEvStationFeatureCard({ station, onClose }: { station: EvChargingFeature; onClose: () => void }) {
   return (
     <MobileFeatureCard
       cardKey={station.properties?.id ?? station.properties?.name}
       title={station.properties?.name || 'EV charging station'}
-      subtitle={location || station.properties?.network || 'EV charging'}
+      subtitle={evStationLocation(station) || station.properties?.network || 'EV charging'}
       onClose={onClose}
     >
-      <div className="rounded-md border border-border bg-background p-3 text-xs text-foreground">
-        <div className="space-y-1">
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Network</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {station.properties?.network || 'Unknown'}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Connectors</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {station.properties?.connectors || 'Unknown'}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">Level 2</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {station.properties?.level2 ?? 0}
-            </span>
-          </div>
-          <div className="flex items-start justify-between gap-3">
-            <span className="text-muted-foreground">DC fast</span>
-            <span className="max-w-[12rem] text-right font-medium text-foreground">
-              {station.properties?.dcFast ?? 0}
-            </span>
-          </div>
-        </div>
+      <div className="rounded-md border border-border bg-background p-3 text-foreground">
+        <KeyValueRows rows={evStationRows(station)} />
       </div>
     </MobileFeatureCard>
   )
@@ -317,12 +366,14 @@ export default function MiscDataSection() {
       const params = new URLSearchParams(searchParams)
       if (tab === 'canue') params.delete('tab')
       else params.set('tab', tab)
+      // An open table belongs to the tab it was opened on.
+      params.delete('table')
+      params.delete('row')
       setSearchParams(params)
     },
     [searchParams, setSearchParams],
   )
   const [activeLayers, setActiveLayers] = useState<MiscLayerId[]>(['trees', 'forests', 'facilities'])
-  const [showMobileLegend, setShowMobileLegend] = useState(false)
   const [evShowPoints, setEvShowPoints] = useState(() => searchParams.get('evPoints') !== '0')
   const [evShowHeatmap, setEvShowHeatmap] = useState(() => searchParams.get('evHeatmap') === '1')
   const [evShowBoundaries, setEvShowBoundaries] = useState(
@@ -671,8 +722,8 @@ export default function MiscDataSection() {
     [forests],
   )
 
-  const visibleTrees = useMemo(() => trees.slice(0, 900), [trees])
-  const visibleFacilities = useMemo(() => facilities.slice(0, 350), [facilities])
+  const visibleTrees = useMemo(() => trees.slice(0, MAX_DRAWN_TREES), [trees])
+  const visibleFacilities = useMemo(() => facilities.slice(0, MAX_DRAWN_FACILITIES), [facilities])
   const evRegionLevelOptions = useMemo(
     () =>
       getLevelOptionsForSource(evBoundarySource).map((option) => ({
@@ -801,6 +852,137 @@ export default function MiscDataSection() {
     setSelectedEvBoundaryId(null)
   }, [])
 
+  const evTable = useMemo<MiscTabTable>(
+    () => ({
+      tableSources: [
+        defineTableSource<EvChargingFeature>({
+          id: 'ev-stations',
+          label: 'Charging stations',
+          color: '#0ea5e9',
+          shape: 'point',
+          rows: filteredEvStations.features as EvChargingFeature[],
+          columns: EV_STATION_COLUMNS,
+          getRowId: evStationRowId,
+          getRowCenter: (station) => [station.geometry.coordinates[0], station.geometry.coordinates[1]],
+          status: evChargingStations.error ? 'error' : evChargingStations.data ? 'ready' : 'loading',
+        }),
+      ],
+      selectedTableRowId: selectedEvStation ? evStationRowId(selectedEvStation) : null,
+      selectTableRow: (station: EvChargingFeature) => setSelectedEvStation(station),
+    }),
+    [evChargingStations.data, evChargingStations.error, filteredEvStations.features, selectedEvStation],
+  )
+  // No selection on this tab, so a row only flies to its tree or facility.
+  const heatTable = useMemo<MiscTabTable>(() => {
+    const status = error ? 'error' : loading ? 'loading' : 'ready'
+    return {
+      tableSources: [
+        ...(activeLayers.includes('trees')
+          ? [
+              defineTableSource<HeatShadeTree>({
+                id: 'heat-trees',
+                label: 'Trees',
+                color: MISC_LAYERS[0].color,
+                shape: 'point',
+                rows: trees,
+                columns: HEAT_TREE_COLUMNS,
+                getRowId: (tree) => tree.id,
+                getRowCenter: (tree) => [tree.longitude, tree.latitude],
+                status,
+              }),
+            ]
+          : []),
+        ...(activeLayers.includes('facilities')
+          ? [
+              defineTableSource<HeatShadeFacility>({
+                id: 'heat-facilities',
+                label: 'Cooling facilities',
+                color: MISC_LAYERS[2].color,
+                shape: 'point',
+                rows: facilities,
+                columns: HEAT_FACILITY_COLUMNS,
+                getRowId: (facility) => `${facility.kind}:${facility.id}`,
+                getRowCenter: (facility) => [facility.longitude, facility.latitude],
+                status,
+              }),
+            ]
+          : []),
+      ],
+    }
+  }, [activeLayers, error, facilities, loading, trees])
+  const canueTable = useMemo<MiscTabTable>(() => {
+    if (!showCanueBoundaries || !renderedCanueBoundaryLayer) return NO_TAB_TABLE
+    const { data, property } = renderedCanueBoundaryLayer
+    const rowId = (boundary: CanueBoundaryRow) => String(boundary.properties?.boundaryId ?? boundary.id)
+    const value = (boundary: CanueBoundaryRow) => {
+      const raw = boundary.properties?.[property]
+      return raw == null ? null : Number(raw)
+    }
+    return {
+      tableSources: [
+        defineTableSource<CanueBoundaryRow>({
+          id: 'canue-boundaries',
+          label: 'CANUE boundaries',
+          color: '#0e7490',
+          shape: 'fill',
+          rows: data.features,
+          columns: [
+            textColumn<CanueBoundaryRow>('boundary', 'Boundary', (boundary) => boundary.properties?.boundaryName, {
+              width: 240,
+            }),
+            numberColumn<CanueBoundaryRow>(
+              'value',
+              selectedCanueV2Selection
+                ? getCanueV2VariableLabel(selectedCanueV2Selection)
+                : selectedCanueFile
+                  ? getCanueVariableLabel(selectedCanueFile, selectedCanueVariable ?? '')
+                  : 'Value',
+              value,
+              { width: 180 },
+            ),
+            numberColumn<CanueBoundaryRow>('records', 'Records', (boundary) => boundary.properties?.rowCount),
+          ],
+          getRowId: rowId,
+          getRowCenter: featureCenter,
+          getRowBounds: (boundary) => featuresBounds([boundary]),
+          flyZoom: 9,
+        }),
+      ],
+      selectedTableRowId: selectedCanueBoundaryId,
+      selectTableRow: (boundary: CanueBoundaryRow) => setSelectedCanueBoundaryId(rowId(boundary)),
+    }
+  }, [
+    renderedCanueBoundaryLayer,
+    selectedCanueBoundaryId,
+    selectedCanueFile,
+    selectedCanueV2Selection,
+    selectedCanueVariable,
+    setSelectedCanueBoundaryId,
+    showCanueBoundaries,
+  ])
+  // Network has only dissolved polygons, and the tabs with their own layout set up their own table.
+  const tabTables: Partial<Record<MiscDataTab, MiscTabTable>> = {
+    heatShade: heatTable,
+    canue: canueTable,
+    ev: evTable,
+    icbc,
+    wars,
+    openLitterMap,
+    walkability,
+    water,
+    flood,
+    bcer,
+  }
+  const tabTable = tabTables[activeTab] ?? NO_TAB_TABLE
+  const tableState = useMapTableState()
+  const table = useMapTable({
+    sources: tabTable.tableSources,
+    state: tableState,
+    // A tab's selection is a row of its first source; Water's other sources point at facilities.
+    selectedRowId: tableState.activeId === tabTable.tableSources[0]?.id ? tabTable.selectedTableRowId : undefined,
+    onSelectRow: tabTable.selectTableRow,
+  })
+
   const toggleLayer = (layer: MiscLayerId) => {
     setActiveLayers((current) =>
       current.includes(layer) ? current.filter((item) => item !== layer) : [...current, layer],
@@ -917,254 +1099,263 @@ export default function MiscDataSection() {
             ? openLitterMap.showPoints || openLitterMap.showHeatmap || openLitterMap.showHexes
             : true
 
+  const sidebarActions =
+    activeTab === 'ev' ? (
+      <div className="flex flex-wrap gap-2">
+        <ToggleChip active={evShowPoints} onClick={() => setEvShowPoints((current) => !current)} tone="sky">
+          {evShowPoints ? 'Hide points' : 'Show points'}
+        </ToggleChip>
+        <ToggleChip active={evShowHeatmap} onClick={() => setEvShowHeatmap((current) => !current)} tone="orange">
+          Heatmap
+        </ToggleChip>
+      </div>
+    ) : activeTab === 'icbc' ? (
+      <IcbcLayerControls icbc={icbc} />
+    ) : activeTab === 'wars' ? (
+      <WarsLayerControls wars={wars} />
+    ) : activeTab === 'openLitterMap' ? (
+      <OpenLitterMapLayerControls litter={openLitterMap} />
+    ) : activeTab === 'water' ? (
+      <WaterLayerControls water={water} />
+    ) : activeTab === 'flood' ? (
+      <FloodLayerControls flood={flood} />
+    ) : activeTab === 'bcer' ? (
+      <BcerLayerControls bcer={bcer} />
+    ) : undefined
+
   const sidebar = (
-    <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-background/95 p-4">
-        <h1 className="text-xl font-bold text-foreground">{activeMapTitle}</h1>
-        {activeTab === 'ev' && (
-          <div className="flex flex-wrap gap-2">
-            <ToggleChip active={evShowPoints} onClick={() => setEvShowPoints((current) => !current)} tone="sky">
-              {evShowPoints ? 'Hide points' : 'Show points'}
-            </ToggleChip>
-            <ToggleChip active={evShowHeatmap} onClick={() => setEvShowHeatmap((current) => !current)} tone="orange">
-              Heatmap
-            </ToggleChip>
-          </div>
-        )}
-        {activeTab === 'icbc' && <IcbcLayerControls icbc={icbc} />}
-        {activeTab === 'wars' && <WarsLayerControls wars={wars} />}
-        {activeTab === 'openLitterMap' && <OpenLitterMapLayerControls litter={openLitterMap} />}
-        {activeTab === 'water' && <WaterLayerControls water={water} />}
-        {activeTab === 'flood' && <FloodLayerControls flood={flood} />}
-        {activeTab === 'bcer' && <BcerLayerControls bcer={bcer} />}
-      </div>
-
-      <DatasetInfo
-        dataset={{
-          ...(activeTab === 'heatShade'
-            ? DATASETS.heatShade
-            : activeTab === 'network'
-              ? DATASETS.networkAvailability
-              : activeTab === 'ev'
-                ? DATASETS.evCharging
-                : activeTab === 'icbc'
-                  ? DATASETS.icbc
-                  : activeTab === 'wars'
-                    ? DATASETS.wars
-                    : activeTab === 'openLitterMap'
-                      ? DATASETS.openLitterMap
-                      : activeTab === 'walkability'
-                        ? DATASETS.walkability
-                        : activeTab === 'water'
-                          ? DATASETS.water
-                          : activeTab === 'flood'
-                            ? DATASETS.flood
-                            : activeTab === 'bcer'
-                              ? DATASETS.bcer
-                              : DATASETS.canue),
-          updated:
-            activeTab === 'heatShade'
-              ? heatShadeManifest.data?.generatedAt
+    <MapSidebarShell
+      className={MAP_SIDEBAR_CLASS}
+      title={activeMapTitle}
+      actions={sidebarActions}
+      headerClassName={MISC_HEADER_CLASS}
+      metadata={
+        <DatasetInfo
+          dataset={{
+            ...(activeTab === 'heatShade'
+              ? DATASETS.heatShade
               : activeTab === 'network'
-                ? networkAvailabilityManifest.data?.generatedAt
+                ? DATASETS.networkAvailability
                 : activeTab === 'ev'
-                  ? evChargingManifest.data?.generatedAt
+                  ? DATASETS.evCharging
                   : activeTab === 'icbc'
-                    ? icbc.manifest.data?.generatedAt
+                    ? DATASETS.icbc
                     : activeTab === 'wars'
-                      ? wars.manifest.data?.generatedAt
+                      ? DATASETS.wars
                       : activeTab === 'openLitterMap'
-                        ? openLitterMap.manifest.data?.generatedAt
+                        ? DATASETS.openLitterMap
                         : activeTab === 'walkability'
-                          ? walkability.manifest.data?.generatedAt
+                          ? DATASETS.walkability
                           : activeTab === 'water'
-                            ? water.manifest.data?.generatedAt
+                            ? DATASETS.water
                             : activeTab === 'flood'
-                              ? undefined
+                              ? DATASETS.flood
                               : activeTab === 'bcer'
-                                ? bcer.meta?.importTimestamp
-                                : canueManifest.data?.generatedAt,
-        }}
-        sourceNotes={sourceNotes}
-      />
-
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {activeTab === 'heatShade' && (
-          <>
-            <div className="border-b border-border p-4">
-              <h2 className="mb-3 text-sm font-semibold text-foreground">Map Layers</h2>
-              <div className="space-y-2">
-                {MISC_LAYERS.map((layer) => (
-                  <label key={layer.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={activeLayers.includes(layer.id)}
-                        onChange={() => toggleLayer(layer.id)}
-                        className="h-3.5 w-3.5 rounded border-input"
-                        style={{ accentColor: layer.color }}
-                      />
-                      <span className="text-sm text-foreground">{layer.label}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      {layer.id === 'trees'
-                        ? trees.length.toLocaleString()
-                        : layer.id === 'forests'
-                          ? forests.length.toLocaleString()
-                          : facilities.length.toLocaleString()}
+                                ? DATASETS.bcer
+                                : DATASETS.canue),
+            updated:
+              activeTab === 'heatShade'
+                ? heatShadeManifest.data?.generatedAt
+                : activeTab === 'network'
+                  ? networkAvailabilityManifest.data?.generatedAt
+                  : activeTab === 'ev'
+                    ? evChargingManifest.data?.generatedAt
+                    : activeTab === 'icbc'
+                      ? icbc.manifest.data?.generatedAt
+                      : activeTab === 'wars'
+                        ? wars.manifest.data?.generatedAt
+                        : activeTab === 'openLitterMap'
+                          ? openLitterMap.manifest.data?.generatedAt
+                          : activeTab === 'walkability'
+                            ? walkability.manifest.data?.generatedAt
+                            : activeTab === 'water'
+                              ? water.manifest.data?.generatedAt
+                              : activeTab === 'flood'
+                                ? undefined
+                                : activeTab === 'bcer'
+                                  ? bcer.meta?.importTimestamp
+                                  : canueManifest.data?.generatedAt,
+          }}
+          sourceNotes={sourceNotes}
+        />
+      }
+    >
+      {activeTab === 'heatShade' && (
+        <>
+          <SidebarSection title="Map Layers">
+            <div className="space-y-2">
+              {MISC_LAYERS.map((layer) => (
+                <ToggleRow
+                  key={layer.id}
+                  tone="primary"
+                  active={activeLayers.includes(layer.id)}
+                  onClick={() => toggleLayer(layer.id)}
+                  leading={<MapSwatch color={layer.color} active={activeLayers.includes(layer.id)} />}
+                  label={layer.label}
+                  trailing={
+                    <span className="tabular-nums">
+                      {formatNumber(
+                        layer.id === 'trees'
+                          ? trees.length
+                          : layer.id === 'forests'
+                            ? forests.length
+                            : facilities.length,
+                      )}
                     </span>
-                  </label>
-                ))}
-              </div>
-              {loading && <div className="mt-3 text-xs text-muted-foreground">Loading heat and shade data...</div>}
-              {error && <div className="mt-3 text-xs text-red-500">{error}</div>}
+                  }
+                />
+              ))}
             </div>
+            {loading && (
+              <InlineAlert loading className="mt-3">
+                Loading heat and shade data...
+              </InlineAlert>
+            )}
+            {error && (
+              <InlineAlert tone="error" className="mt-3">
+                {error}
+              </InlineAlert>
+            )}
+          </SidebarSection>
 
-            <div className="border-b border-border p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Trees className="h-4 w-4 text-green-600" />
-                <h2 className="text-sm font-semibold text-foreground">Heat, Shade, and Canopy</h2>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-md border border-border p-2">
-                  <div className="text-lg font-bold text-foreground">{trees.length.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">tree points</div>
-                </div>
-                <div className="rounded-md border border-border p-2">
-                  <div className="text-lg font-bold text-foreground">{forests.length.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">forest areas</div>
-                </div>
-                <div className="rounded-md border border-border p-2">
-                  <div className="text-lg font-bold text-foreground">{facilities.length.toLocaleString()}</div>
-                  <div className="text-xs text-muted-foreground">facilities</div>
-                </div>
-              </div>
-              <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                Tree points are shown as a canopy and shade proxy until a full canopy raster or canopy polygon layer is
-                available.
+          <SidebarSection title="Heat, Shade, and Canopy" icon={Trees} iconClassName="text-green-600">
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              columns={3}
+              items={[
+                { label: 'tree points', value: formatNumber(trees.length) },
+                { label: 'forest areas', value: formatNumber(forests.length) },
+                { label: 'facilities', value: formatNumber(facilities.length) },
+              ]}
+            />
+            <p className="mt-3 text-xs leading-5 text-muted-foreground">
+              Tree points are shown as a canopy and shade proxy until a full canopy raster or canopy polygon layer is
+              available.
+            </p>
+            {(trees.length > MAX_DRAWN_TREES || facilities.length > MAX_DRAWN_FACILITIES) && (
+              <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                The map draws the first {formatNumber(visibleTrees.length)} trees and{' '}
+                {formatNumber(visibleFacilities.length)} facilities. The table lists all of them.
               </p>
-            </div>
+            )}
+          </SidebarSection>
 
-            <div className="border-b border-border p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <Satellite className="h-4 w-4 text-violet-600" />
-                <h2 className="text-sm font-semibold text-foreground">Remote Sensing Queue</h2>
-              </div>
-              <div className="rounded-md border border-border p-3 text-sm">
-                <div className="font-medium text-foreground">{landsatSource?.name ?? 'Landsat warm-season scenes'}</div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  {landsatSource?.sceneCount ?? 0} scenes
-                  {landsatSource?.years?.length ? ` across ${landsatSource.years.join(', ')}` : ''}
-                </div>
+          <SidebarSection title="Remote Sensing Queue" icon={Satellite} iconClassName="text-violet-600">
+            <div className="rounded-md border border-border p-3 text-sm">
+              <div className="font-medium text-foreground">{landsatSource?.name ?? 'Landsat warm-season scenes'}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                {landsatSource?.sceneCount ?? 0} scenes
+                {landsatSource?.years?.length ? ` across ${landsatSource.years.join(', ')}` : ''}
               </div>
             </div>
-          </>
-        )}
+          </SidebarSection>
+        </>
+      )}
 
-        {activeTab === 'canue' && (
-          <CanueSidebar
-            showCanueBoundaries={showCanueBoundaries}
-            canueBoundarySource={canueBoundarySource}
-            canueBoundaryLevel={canueBoundaryLevel}
-            canueBoundaryLevelOptions={canueBoundaryLevelOptions}
-            canueBoundaryConfig={canueBoundaryConfig}
-            canueTimelineAvailable={canueTimelineAvailable}
-            canueTimelineActive={canueTimelineActive}
-            canueGraphsAvailable={canueGraphsAvailable}
-            showCanueGraphs={showCanueGraphs}
-            canueV2Catalog={canueV2Catalog}
-            canueV2Metadata={canueV2Metadata}
-            canueV2Families={canueV2Families}
-            selectedCanueV2FamilyEntry={selectedCanueV2FamilyEntry}
-            selectedCanueV2FamilySelections={selectedCanueV2FamilySelections}
-            selectedCanueV2GridVariableKey={selectedCanueV2GridVariableKey}
-            selectedCanueV2GridVariableSelections={selectedCanueV2GridVariableSelections}
-            selectedCanueV2ResolvedCadence={selectedCanueV2ResolvedCadence}
-            selectedCanueV2CadenceSelections={selectedCanueV2CadenceSelections}
-            selectedCanueV2MeasureKey={selectedCanueV2MeasureKey}
-            selectedCanueV2ResolvedYear={selectedCanueV2ResolvedYear}
-            selectedCanueV2ResolvedMonth={selectedCanueV2ResolvedMonth}
-            selectedCanueV2Layer={selectedCanueV2Layer}
-            selectedCanueV2Selection={selectedCanueV2Selection}
-            selectedCanueV2DatasetHelp={selectedCanueV2DatasetHelp}
-            canueV2GridVariableOptions={canueV2GridVariableOptions}
-            canueV2CadenceOptions={canueV2CadenceOptions}
-            canueV2MeasureOptions={canueV2MeasureOptions}
-            canueV2YearOptions={canueV2YearOptions}
-            canueV2MonthOptions={canueV2MonthOptions}
-            activeCanueBoundaryData={activeCanueBoundaryData}
-            canueV2AggregateData={canueV2AggregateData}
-            canuePmtilesBoundaryData={canuePmtilesBoundaryData}
-            selectedCanueBoundary={selectedCanueBoundary}
-            selectedCanueDataset={selectedCanueDataset}
-            selectedCanueFile={selectedCanueFile}
-            selectedCanueVariable={selectedCanueVariable}
-            canueDatasetGroups={canueDatasetGroups}
-            canueYearMode={canueYearMode}
-            selectedCanueMonth={selectedCanueMonth}
-            canueRangeStartYear={canueRangeStartYear}
-            canueRangeEndYear={canueRangeEndYear}
-            canuePeriodLabel={canuePeriodLabel}
-            activeCanueBoundaryProperty={activeCanueBoundaryProperty}
-            canueManifest={canueManifest}
-            canueMembership={canueMembership}
-            canueBoundaries={canueBoundaries}
-            setShowCanueBoundaries={setShowCanueBoundaries}
-            handleCanueBoundarySourceChange={handleCanueBoundarySourceChange}
-            setCanueBoundaryLevel={setCanueBoundaryLevel}
-            setCanueTimelineEnabled={setCanueTimelineEnabled}
-            setShowCanueGraphs={setShowCanueGraphs}
-            setSelectedCanueV2Family={setSelectedCanueV2Family}
-            setSelectedCanueV2Cadence={setSelectedCanueV2Cadence}
-            setSelectedCanueV2Measure={setSelectedCanueV2Measure}
-            setSelectedCanueV2Year={setSelectedCanueV2Year}
-            setSelectedCanueV2Month={setSelectedCanueV2Month}
-            setSelectedCanueV2Property={setSelectedCanueV2Property}
-            setSelectedCanueDatasetId={setSelectedCanueDatasetId}
-            setSelectedCanueYear={setSelectedCanueYear}
-            setCanueYearMode={setCanueYearMode}
-            setCanueRangeStartYear={setCanueRangeStartYear}
-            setCanueRangeEndYear={setCanueRangeEndYear}
-            setSelectedCanueVariable={setSelectedCanueVariable}
-            setSelectedCanueMonth={setSelectedCanueMonth}
-          />
-        )}
+      {activeTab === 'canue' && (
+        <CanueSidebar
+          showCanueBoundaries={showCanueBoundaries}
+          canueBoundarySource={canueBoundarySource}
+          canueBoundaryLevel={canueBoundaryLevel}
+          canueBoundaryLevelOptions={canueBoundaryLevelOptions}
+          canueBoundaryConfig={canueBoundaryConfig}
+          canueTimelineAvailable={canueTimelineAvailable}
+          canueTimelineActive={canueTimelineActive}
+          canueGraphsAvailable={canueGraphsAvailable}
+          showCanueGraphs={showCanueGraphs}
+          canueV2Catalog={canueV2Catalog}
+          canueV2Metadata={canueV2Metadata}
+          canueV2Families={canueV2Families}
+          selectedCanueV2FamilyEntry={selectedCanueV2FamilyEntry}
+          selectedCanueV2FamilySelections={selectedCanueV2FamilySelections}
+          selectedCanueV2GridVariableKey={selectedCanueV2GridVariableKey}
+          selectedCanueV2GridVariableSelections={selectedCanueV2GridVariableSelections}
+          selectedCanueV2ResolvedCadence={selectedCanueV2ResolvedCadence}
+          selectedCanueV2CadenceSelections={selectedCanueV2CadenceSelections}
+          selectedCanueV2MeasureKey={selectedCanueV2MeasureKey}
+          selectedCanueV2ResolvedYear={selectedCanueV2ResolvedYear}
+          selectedCanueV2ResolvedMonth={selectedCanueV2ResolvedMonth}
+          selectedCanueV2Layer={selectedCanueV2Layer}
+          selectedCanueV2Selection={selectedCanueV2Selection}
+          selectedCanueV2DatasetHelp={selectedCanueV2DatasetHelp}
+          canueV2GridVariableOptions={canueV2GridVariableOptions}
+          canueV2CadenceOptions={canueV2CadenceOptions}
+          canueV2MeasureOptions={canueV2MeasureOptions}
+          canueV2YearOptions={canueV2YearOptions}
+          canueV2MonthOptions={canueV2MonthOptions}
+          activeCanueBoundaryData={activeCanueBoundaryData}
+          canueV2AggregateData={canueV2AggregateData}
+          canuePmtilesBoundaryData={canuePmtilesBoundaryData}
+          selectedCanueBoundary={selectedCanueBoundary}
+          selectedCanueDataset={selectedCanueDataset}
+          selectedCanueFile={selectedCanueFile}
+          selectedCanueVariable={selectedCanueVariable}
+          canueDatasetGroups={canueDatasetGroups}
+          canueYearMode={canueYearMode}
+          selectedCanueMonth={selectedCanueMonth}
+          canueRangeStartYear={canueRangeStartYear}
+          canueRangeEndYear={canueRangeEndYear}
+          canuePeriodLabel={canuePeriodLabel}
+          activeCanueBoundaryProperty={activeCanueBoundaryProperty}
+          canueManifest={canueManifest}
+          canueMembership={canueMembership}
+          canueBoundaries={canueBoundaries}
+          setShowCanueBoundaries={setShowCanueBoundaries}
+          handleCanueBoundarySourceChange={handleCanueBoundarySourceChange}
+          setCanueBoundaryLevel={setCanueBoundaryLevel}
+          setCanueTimelineEnabled={setCanueTimelineEnabled}
+          setShowCanueGraphs={setShowCanueGraphs}
+          setSelectedCanueV2Family={setSelectedCanueV2Family}
+          setSelectedCanueV2Cadence={setSelectedCanueV2Cadence}
+          setSelectedCanueV2Measure={setSelectedCanueV2Measure}
+          setSelectedCanueV2Year={setSelectedCanueV2Year}
+          setSelectedCanueV2Month={setSelectedCanueV2Month}
+          setSelectedCanueV2Property={setSelectedCanueV2Property}
+          setSelectedCanueDatasetId={setSelectedCanueDatasetId}
+          setSelectedCanueYear={setSelectedCanueYear}
+          setCanueYearMode={setCanueYearMode}
+          setCanueRangeStartYear={setCanueRangeStartYear}
+          setCanueRangeEndYear={setCanueRangeEndYear}
+          setSelectedCanueVariable={setSelectedCanueVariable}
+          setSelectedCanueMonth={setSelectedCanueMonth}
+        />
+      )}
 
-        {activeTab === 'network' && (
-          <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} layer={networkAvailabilityLayer} />
-        )}
+      {activeTab === 'network' && (
+        <NetworkAvailabilitySidebar manifest={networkAvailabilityManifest} layer={networkAvailabilityLayer} />
+      )}
 
-        {activeTab === 'ev' && (
-          <EvChargingSidebar
-            manifest={evChargingManifest}
-            summaryStats={evSummaryStats}
-            selectedBoundary={selectedEvBoundary}
-            boundariesVisible={evShowBoundaries}
-            boundarySource={evBoundarySource}
-            selectedRegionLevel={evRegionLevel}
-            regionLevelOptions={evRegionLevelOptions}
-            boundaryLoading={evShowBoundaries && evBoundaryLoading}
-            boundaryError={evShowBoundaries ? evBoundaryError : null}
-            onBoundarySourceChange={handleEvBoundarySourceChange}
-            onClearBoundaries={handleEvClearBoundaries}
-            onClearSelectedBoundary={() => setSelectedEvBoundaryId(null)}
-            onRegionLevelChange={handleEvBoundaryLevelChange}
-          />
-        )}
+      {activeTab === 'ev' && (
+        <EvChargingSidebar
+          manifest={evChargingManifest}
+          summaryStats={evSummaryStats}
+          selectedBoundary={selectedEvBoundary}
+          boundariesVisible={evShowBoundaries}
+          boundarySource={evBoundarySource}
+          selectedRegionLevel={evRegionLevel}
+          regionLevelOptions={evRegionLevelOptions}
+          boundaryLoading={evShowBoundaries && evBoundaryLoading}
+          boundaryError={evShowBoundaries ? evBoundaryError : null}
+          onBoundarySourceChange={handleEvBoundarySourceChange}
+          onClearBoundaries={handleEvClearBoundaries}
+          onClearSelectedBoundary={() => setSelectedEvBoundaryId(null)}
+          onRegionLevelChange={handleEvBoundaryLevelChange}
+        />
+      )}
 
-        {activeTab === 'icbc' && <IcbcSidebar icbc={icbc} />}
+      {activeTab === 'icbc' && <IcbcSidebar icbc={icbc} />}
 
-        {activeTab === 'wars' && <WarsSidebar wars={wars} />}
+      {activeTab === 'wars' && <WarsSidebar wars={wars} />}
 
-        {activeTab === 'openLitterMap' && <OpenLitterMapSidebar litter={openLitterMap} />}
+      {activeTab === 'openLitterMap' && <OpenLitterMapSidebar litter={openLitterMap} />}
 
-        {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
+      {activeTab === 'walkability' && <WalkabilitySidebar walkability={walkability} />}
 
-        {activeTab === 'water' && <WaterSidebar water={water} />}
-        {activeTab === 'flood' && <FloodSidebar flood={flood} />}
-        {activeTab === 'bcer' && <BcerSidebar bcer={bcer} />}
-      </div>
-    </div>
+      {activeTab === 'water' && <WaterSidebar water={water} />}
+      {activeTab === 'flood' && <FloodSidebar flood={flood} />}
+      {activeTab === 'bcer' && <BcerSidebar bcer={bcer} />}
+    </MapSidebarShell>
   )
 
   const tabsBar = <SectionTabsBar tabs={MISC_TABS} activeTab={activeTab} onTabChange={setActiveTab} />
@@ -1193,6 +1384,7 @@ export default function MiscDataSection() {
       {tabsBar}
       <div className="min-h-0 flex-1">
         <MapSectionLayout
+          table={table}
           mobilePeek={
             <div className="min-w-0 text-left">
               <div className="truncate text-xs font-semibold text-foreground">
@@ -1225,24 +1417,24 @@ export default function MiscDataSection() {
                   : activeTab === 'network'
                     ? `${networkAvailabilityLayer.data?.features.length ?? 0} coverage features | ${networkAvailabilityManifest.data?.datasets.length ?? 0} sources`
                     : activeTab === 'ev'
-                      ? `${filteredEvStations.features.length.toLocaleString()} stations | ${evShowPoints ? 'points' : 'points off'}${evShowHeatmap ? ' + heatmap' : ''}`
+                      ? `${filteredEvStations.features.length.toLocaleString(DEFAULT_LOCALE)} stations | ${evShowPoints ? 'points' : 'points off'}${evShowHeatmap ? ' + heatmap' : ''}`
                       : activeTab === 'icbc'
-                        ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString()} mapped`
+                        ? `${icbc.selectedDataset?.title || 'Crash locations'} | ${icbc.crashFeatures.length.toLocaleString(DEFAULT_LOCALE)} mapped`
                         : activeTab === 'wars'
-                          ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString()} records`
+                          ? `${wars.selectedSpecies === 'all' ? 'All species' : wars.selectedSpecies} | ${wars.filteredFeatures.length.toLocaleString(DEFAULT_LOCALE)} records`
                           : activeTab === 'openLitterMap'
-                            ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString()} records`
+                            ? `${openLitterMap.selectedCategory === 'all' ? 'All categories' : formatLitterName(openLitterMap.selectedCategory)}${openLitterMap.selectedObject === 'all' ? '' : ` › ${formatLitterName(openLitterMap.selectedObject)}`} | ${openLitterMap.filteredFeatures.length.toLocaleString(DEFAULT_LOCALE)} records`
                             : activeTab === 'walkability'
                               ? walkability.displayMode === 'heatmap'
                                 ? `${walkability.selectedHeatmapVariant?.label || 'Citywide MI grid'}`
-                                : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString()} communities`
+                                : `${walkability.selectedVariant?.label || 'Variant'} | ${walkability.features.length.toLocaleString(DEFAULT_LOCALE)} communities`
                               : activeTab === 'water'
-                                ? `${water.facilities.length.toLocaleString()} facilities | ${water.filteredSamples.length.toLocaleString()} sample rows`
+                                ? `${water.facilities.length.toLocaleString(DEFAULT_LOCALE)} facilities | ${water.filteredSamples.length.toLocaleString(DEFAULT_LOCALE)} sample rows`
                                 : activeTab === 'flood'
-                                  ? `${flood.filteredStations.length.toLocaleString()} stations | ${flood.highRiskCount.toLocaleString()} above 2 year`
+                                  ? `${flood.filteredStations.length.toLocaleString(DEFAULT_LOCALE)} stations | ${flood.highRiskCount.toLocaleString(DEFAULT_LOCALE)} above 2 year`
                                   : activeTab === 'bcer'
-                                    ? `${bcer.filteredWells.length.toLocaleString()} wells | ${bcer.horizontalCount.toLocaleString()} horizontal`
-                                    : `${trees.length.toLocaleString()} trees | ${forests.length.toLocaleString()} forests`}
+                                    ? `${bcer.filteredWells.length.toLocaleString(DEFAULT_LOCALE)} wells | ${bcer.horizontalCount.toLocaleString(DEFAULT_LOCALE)} horizontal`
+                                    : `${trees.length.toLocaleString(DEFAULT_LOCALE)} trees | ${forests.length.toLocaleString(DEFAULT_LOCALE)} forests`}
               </div>
             </div>
           }
@@ -1260,7 +1452,9 @@ export default function MiscDataSection() {
           sidebar={sidebar}
         >
           <div className="relative h-full">
-            <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} loading={mapLoading}>
+            <PgMap key={mapKey} center={mapCenter} zoom={mapZoom} loading={mapLoading} deferResize={table.deferResize}>
+              <MapTableBridge table={table} />
+              <MapScaleBar position="bottom-left" className="max-md:hidden" />
               <MapFillLayer
                 data={forestGeojson}
                 fillColor="#15803d"
@@ -1408,41 +1602,31 @@ export default function MiscDataSection() {
                 />
               )}
 
-              {activeTab === 'ev' && selectedEvStation && !isMobileViewport && (
-                <MapPopup
-                  longitude={selectedEvStation.geometry.coordinates[0]}
-                  latitude={selectedEvStation.geometry.coordinates[1]}
-                  onClose={() => setSelectedEvStation(null)}
-                >
-                  <div className="min-w-48 text-xs">
-                    <div className="pr-5 text-sm font-semibold text-foreground">
-                      {selectedEvStation.properties?.name || 'EV charging station'}
-                    </div>
-                    <div className="text-muted-foreground">
-                      {[selectedEvStation.properties?.city, selectedEvStation.properties?.province]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </div>
-                    <div className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
-                      <span className="text-muted-foreground">Network</span>
-                      <span className="font-medium text-foreground">
-                        {selectedEvStation.properties?.network || 'Unknown'}
-                      </span>
-                      <span className="text-muted-foreground">Connectors</span>
-                      <span className="font-medium text-foreground">
-                        {selectedEvStation.properties?.connectors || 'Unknown'}
-                      </span>
-                      <span className="text-muted-foreground">Level 2</span>
-                      <span className="font-medium text-foreground">{selectedEvStation.properties?.level2 ?? 0}</span>
-                      <span className="text-muted-foreground">DC fast</span>
-                      <span className="font-medium text-foreground">{selectedEvStation.properties?.dcFast ?? 0}</span>
-                    </div>
-                  </div>
-                </MapPopup>
-              )}
-
-              {activeTab === 'ev' && selectedEvStation && isMobileViewport && (
-                <MobileEvStationFeatureCard station={selectedEvStation} onClose={() => setSelectedEvStation(null)} />
+              {activeTab === 'ev' && selectedEvStation && (
+                <ResponsiveFeatureDetail
+                  popup={
+                    <MapPopup
+                      longitude={selectedEvStation.geometry.coordinates[0]}
+                      latitude={selectedEvStation.geometry.coordinates[1]}
+                      onClose={() => setSelectedEvStation(null)}
+                    >
+                      <MapPopupCard
+                        className="min-w-48"
+                        title={selectedEvStation.properties?.name || 'EV charging station'}
+                        subtitle={evStationLocation(selectedEvStation)}
+                        onClose={() => setSelectedEvStation(null)}
+                      >
+                        <KeyValueRows variant="grid" rows={evStationRows(selectedEvStation)} />
+                      </MapPopupCard>
+                    </MapPopup>
+                  }
+                  card={
+                    <MobileEvStationFeatureCard
+                      station={selectedEvStation}
+                      onClose={() => setSelectedEvStation(null)}
+                    />
+                  }
+                />
               )}
 
               {activeTab === 'walkability' && <WalkabilityLayer walkability={walkability} />}
@@ -1509,7 +1693,7 @@ export default function MiscDataSection() {
                   onSizeChange: openLitterMap.setTimelineWindowSize,
                   options: OPEN_LITTER_TIMELINE_WINDOW_OPTIONS,
                 }}
-                statsLabel={`${openLitterMap.filteredFeatures.length.toLocaleString()} records`}
+                statsLabel={`${openLitterMap.filteredFeatures.length.toLocaleString(DEFAULT_LOCALE)} records`}
               />
             )}
 
@@ -1549,7 +1733,7 @@ export default function MiscDataSection() {
                   onSizeChange: water.setTimelineWindowSize,
                   options: WATER_TIMELINE_WINDOW_OPTIONS,
                 }}
-                statsLabel={`${water.filteredSamples.length.toLocaleString()} sample rows`}
+                statsLabel={`${water.filteredSamples.length.toLocaleString(DEFAULT_LOCALE)} sample rows`}
               />
             )}
 
@@ -1576,7 +1760,7 @@ export default function MiscDataSection() {
                 }}
                 statsLabel={
                   !showCanueBoundaries
-                    ? `${(selectedCanueV2Layer?.features ?? 0).toLocaleString()} grid cells`
+                    ? `${(selectedCanueV2Layer?.features ?? 0).toLocaleString(DEFAULT_LOCALE)} grid cells`
                     : canueTimelinePrefetch.loading
                       ? `Loading timeline ${canueTimelinePrefetch.loaded}/${canueTimelinePrefetch.total} | ${canueAreasWithValuesLabel}`
                       : `${canueAreasWithValuesLabel} with values`
@@ -1603,16 +1787,8 @@ export default function MiscDataSection() {
                 title={activeTab === 'ev' ? 'EV Map Layers' : MISC_LEGEND_TITLES[activeTab]}
                 icon={<Layers className="h-3.5 w-3.5" />}
                 collapsible
-                collapsed={!showMobileLegend}
-                onCollapsedChange={(collapsed) => setShowMobileLegend(!collapsed)}
+                defaultCollapsed="mobile"
                 contentClassName="space-y-1"
-                elevated={
-                  (activeTab === 'wars' && wars.timelineEnabled) ||
-                  (activeTab === 'openLitterMap' && openLitterMap.timelineEnabled) ||
-                  (activeTab === 'icbc' && icbc.timelineEnabled) ||
-                  (activeTab === 'water' && water.timelineEnabled) ||
-                  (activeTab === 'canue' && canueTimelineActive)
-                }
                 width="sm"
               >
                 {activeTab === 'heatShade' && (
@@ -1661,9 +1837,7 @@ export default function MiscDataSection() {
                         }
                       />
                       {canueSharedScale && (
-                        <p className="mt-1 px-1 text-[11px] leading-tight">
-                          One scale for every period on the timeline
-                        </p>
+                        <p className="mt-1 px-1 text-2xs leading-tight">One scale for every period on the timeline</p>
                       )}
                     </div>
                     {canueNoValueAreaCount > 0 && (
@@ -1682,7 +1856,7 @@ export default function MiscDataSection() {
                     <div className="flex items-center justify-between gap-2 px-1 py-0.5 text-xs">
                       <span className="truncate text-foreground">
                         {networkAvailabilityLayer.data
-                          ? `${networkAvailabilityLayer.data.features.length.toLocaleString()} coverage features loaded`
+                          ? `${networkAvailabilityLayer.data.features.length.toLocaleString(DEFAULT_LOCALE)} coverage features loaded`
                           : networkAvailabilityLayer.error
                             ? 'Coverage failed to load'
                             : 'Loading coverage'}

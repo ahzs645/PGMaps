@@ -1,18 +1,32 @@
-import { memo, useEffect } from 'react'
-import type { CanvasSource } from 'maplibre-gl'
+import { memo, useEffect, useMemo, useState } from 'react'
+import type { CanvasSource, Map as MapLibreMap } from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
+import { MapCanvasLayer, type MapQuadCoordinates } from '@/components/ui/map-layers'
 import type { Geometry } from './engine.js'
+
+/** Where the source starts; `draw` moves it onto the viewport before anything is painted. */
+const UNPLACED: MapQuadCoordinates = [
+  [-0.01, 0.01],
+  [0.01, 0.01],
+  [0.01, -0.01],
+  [-0.01, -0.01],
+]
+
+const firstRouteLayer = (map: MapLibreMap) =>
+  map.getStyle().layers.find((layer) => layer.id.startsWith('line-layer-') || layer.id.startsWith('route-layer-'))?.id
 
 /** Cache the faint streets between camera moves, as the original source does. */
 export const StreetCanvas = memo(function StreetCanvas({ geometry }: { geometry: Geometry }) {
   const { map, isLoaded } = useMap()
+  const [source, setSource] = useState<CanvasSource | null>(null)
+  // Each road network gets its own canvas, so the layer is placed afresh for it.
+  const surface = useMemo(() => ({ canvas: document.createElement('canvas'), geometry }), [geometry])
   useEffect(() => {
-    if (!map || !isLoaded) return
-    const canvas = document.createElement('canvas')
+    if (!map || !isLoaded || !source || source.getCanvas() !== surface.canvas) return
+    const { geometry } = surface
+    const canvas = source.getCanvas()
     const context = canvas.getContext('2d')
     if (!context) return
-    const sourceId = 'flatten-street-canvas'
-    const layerId = 'flatten-street-canvas-layer'
     let disposed = false
     const draw = () => {
       if (disposed) return
@@ -61,29 +75,12 @@ export const StreetCanvas = memo(function StreetCanvas({ geometry }: { geometry:
         [number, number],
         [number, number],
       ]
-      const source = map.getSource(sourceId) as CanvasSource | undefined
-      if (source) {
-        source.setCoordinates(coordinates)
-        source.play()
-        // Upload once. Live route updates then reuse this texture.
-        map.once('render', () => {
-          if (!disposed) source.pause()
-        })
-      } else {
-        map.addSource(sourceId, { type: 'canvas', canvas, coordinates, animate: false })
-        const before = map
-          .getStyle()
-          .layers.find((layer) => layer.id.startsWith('line-layer-') || layer.id.startsWith('route-layer-'))?.id
-        map.addLayer(
-          {
-            id: layerId,
-            type: 'raster',
-            source: sourceId,
-            paint: { 'raster-opacity': 0.52, 'raster-fade-duration': 0 },
-          },
-          before,
-        )
-      }
+      source.setCoordinates(coordinates)
+      source.play()
+      // Upload once. Live route updates then reuse this texture.
+      map.once('render', () => {
+        if (!disposed) source.pause()
+      })
     }
     map.on('moveend', draw)
     map.on('resize', draw)
@@ -92,11 +89,16 @@ export const StreetCanvas = memo(function StreetCanvas({ geometry }: { geometry:
       disposed = true
       map.off('moveend', draw)
       map.off('resize', draw)
-      // The shared map may already have removed its style before child cleanup.
-      if (!map.getStyle()) return
-      if (map.getLayer(layerId)) map.removeLayer(layerId)
-      if (map.getSource(sourceId)) map.removeSource(sourceId)
     }
-  }, [map, isLoaded, geometry])
-  return null
+  }, [map, isLoaded, source, surface])
+  return (
+    <MapCanvasLayer
+      id="flatten-street-canvas"
+      canvas={surface.canvas}
+      coordinates={UNPLACED}
+      onSource={setSource}
+      opacity={0.52}
+      beforeId={firstRouteLayer}
+    />
+  )
 })

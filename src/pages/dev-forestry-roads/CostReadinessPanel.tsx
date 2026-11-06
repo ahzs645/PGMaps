@@ -34,7 +34,7 @@ export function CostReadiness({
         data-testid="road-cost-review-bar"
       >
         <ClipboardList className="size-3.5 shrink-0" aria-hidden="true" />
-        <p className="min-w-0 flex-1 text-[11px] leading-4">
+        <p className="min-w-0 flex-1 text-2xs leading-4">
           <strong>
             Scope to review · {count} item{count === 1 ? '' : 's'}
           </strong>
@@ -58,7 +58,7 @@ export function CostReadiness({
         size="md"
         portalContainer={portalContainer}
         // Opened from the cost dialog, so it sits one layer above it.
-        className="z-[1300]"
+        className="z-menu"
         contentProps={{ 'data-testid': 'road-cost-readiness' }}
       >
         <div className="space-y-3 text-xs">
@@ -73,7 +73,7 @@ export function CostReadiness({
                 data-cost-review={flag.id}
                 data-testid={flag.id === 'borrow-screening' ? 'road-borrow-screening' : undefined}
               >
-                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-[10px] font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-amber-100 text-3xs font-semibold text-amber-900 dark:bg-amber-950 dark:text-amber-100">
                   {index + 1}
                 </span>
                 <span className="min-w-0 leading-5">
@@ -84,7 +84,7 @@ export function CostReadiness({
             ))}
           </ol>
           <a
-            className="inline-block text-[11px] text-primary underline underline-offset-2"
+            className="inline-block text-2xs text-primary underline underline-offset-2"
             href={GUIDE}
             target="_blank"
             rel="noopener noreferrer"

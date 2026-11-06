@@ -325,7 +325,7 @@ export function StationTable({
           )}
         </EngineeringTable>
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         {rows.length} rows
         {every ? ` every ${every} m; volumes are summed since the previous row` : ''}
         {terrainOnly

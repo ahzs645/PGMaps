@@ -23,6 +23,7 @@ import {
   type NeuralModel,
   type NeuralSnapshot,
 } from './neuralData'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const percent = (n: number) => `${(n * 100).toFixed(1)}%`
 export function NeuralComparison({ basemap, sourceSha }: { basemap: Basemap; sourceSha?: string }) {
@@ -129,12 +130,12 @@ export function NeuralViews({
     <div className="flex h-full min-h-0 flex-col overflow-hidden" aria-label="Preliminary neural comparison">
       <div className="shrink-0 border-b bg-amber-50 px-3 py-2 text-xs leading-5 dark:bg-amber-950">
         <strong>
-          Preliminary · {data.common_returns.toLocaleString()} matched returns (
+          Preliminary · {data.common_returns.toLocaleString(DEFAULT_LOCALE)} matched returns (
           {percent(data.common_returns / data.total_returns)} of the tile)
         </strong>
         <span className="ml-2">
           {data.common_chunks}/{data.total_chunks} chunks completed by both models · snapshot{' '}
-          {new Date(data.snapshot_utc).toLocaleString()}
+          {new Date(data.snapshot_utc).toLocaleString(DEFAULT_LOCALE)}
         </span>
         <p>
           Full processing continues. This is a saved snapshot of the shared processed area. Tree IDs are local to each
@@ -177,7 +178,7 @@ export function NeuralViews({
                 >
                   {data.samples.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.id} · {s.original_returns.toLocaleString()} returns
+                      {s.id} · {s.original_returns.toLocaleString(DEFAULT_LOCALE)} returns
                     </option>
                   ))}
                 </NativeSelect>
@@ -302,18 +303,18 @@ export function NeuralViews({
                 </p>
                 {selectedCell && (
                   <p>
-                    Chunk {selectedCell.id}: {selectedCell.returns.toLocaleString()} returns · SegmentAnyTree{' '}
-                    {percent(selectedCell.sat_share)} assigned · ForAINet {percent(selectedCell.forainet_share)}{' '}
-                    assigned · disagreement {percent(selectedCell.disagreement)}.
+                    Chunk {selectedCell.id}: {selectedCell.returns.toLocaleString(DEFAULT_LOCALE)} returns ·
+                    SegmentAnyTree {percent(selectedCell.sat_share)} assigned · ForAINet{' '}
+                    {percent(selectedCell.forainet_share)} assigned · disagreement {percent(selectedCell.disagreement)}.
                   </p>
                 )}
               </>
             ) : (
               <>
                 <p>
-                  Display: {sample.points.length.toLocaleString()} of {sample.original_returns.toLocaleString()}{' '}
-                  original returns in chunk {sample.id}. The chunk was processed at 0.2 m voxel spacing, then labels
-                  were transferred to every original return.{' '}
+                  Display: {sample.points.length.toLocaleString(DEFAULT_LOCALE)} of{' '}
+                  {sample.original_returns.toLocaleString(DEFAULT_LOCALE)} original returns in chunk {sample.id}. The
+                  chunk was processed at 0.2 m voxel spacing, then labels were transferred to every original return.{' '}
                   {colour === 'instance'
                     ? 'Grey = unassigned. Colours distinguish local candidates within each model; they do not match trees across models.'
                     : 'Predicted point classes; original LAS classification is separate.'}

@@ -120,7 +120,7 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
             />
           ))}
         </div>
-        <p className="mt-2 text-[11px] text-muted-foreground" data-testid="road-review-aggregate-summary">
+        <p className="mt-2 text-2xs text-muted-foreground" data-testid="road-review-aggregate-summary">
           {aggregateSource?.enabled ? (
             <>
               Active aggregate source: <span className="font-medium">{aggregateSource.name}</span> ·{' '}

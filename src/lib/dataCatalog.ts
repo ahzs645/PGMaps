@@ -199,6 +199,29 @@ export const DATASETS = {
       'Return_Period_FOR',
     ],
   },
+  remediation: {
+    title: 'Environmental remediation sites',
+    description:
+      'Province-wide Site Registry locations of known and potentially contaminated properties. A listing does not establish current contamination, and points are not contamination boundaries.',
+    source: 'Province of British Columbia, Site Registry',
+    coverage: 'British Columbia',
+    // The page shows the licence recorded in the snapshot's own manifest once it loads.
+    license: 'See the catalogue record',
+    formats: ['GeoJSON', 'ArcGIS REST'],
+    apiUrl: 'https://catalogue.data.gov.bc.ca/dataset/environmental-remediation-sites',
+    fields: ['siteId', 'name', 'address', 'description', 'victoriaFile', 'regionalFile'],
+  },
+  parcelMap: {
+    title: 'ParcelMap public-land screen',
+    description:
+      'Parcel boundaries passing the first public ownership and reserve/park exclusion stage. These are research candidates, not verified available land or housing-suitable sites.',
+    source: 'ParcelMap BC / Land Title and Survey Authority of British Columbia, distributed by DataBC',
+    coverage: 'British Columbia',
+    license: 'Open Government Licence - British Columbia (ParcelMap BC base data)',
+    formats: ['PMTiles'],
+    apiUrl: 'https://catalogue.data.gov.bc.ca/dataset/2f4117d9-41fc-44db-87d4-dbdb77f14086',
+    fields: ['PID', 'OWNER_TYPE', 'REGIONAL_DISTRICT', 'PARCEL_CLASS', 'PARCEL_STATUS'],
+  },
   bcAssessment: {
     title: 'BC Assessment properties',
     description: 'Parcel/property assessment extracts with value, year built, category, and location attributes.',

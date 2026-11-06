@@ -4,6 +4,8 @@ import { Map, MapControls, MapMarker, MarkerContent, useMap } from '@/components
 import { AppSelect } from '@/components/ui/select'
 import { Timeline } from '@/components/ui/timeline'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import {
   FilterChipGroup,
   KeyValueRows,
@@ -12,10 +14,10 @@ import {
   MapSidebarShell,
   SearchInput,
   SidebarSection,
-  StatGrid,
 } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { StatGroup } from '@/components/ui/stat-group'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { useFetchData } from '@/hooks/useFetchData'
 import { cn } from '@/lib/utils'
@@ -104,6 +106,35 @@ const TYPE_META: Record<
 function formatFiscalYearBucket(bucket: { start: Date }): string {
   const year = bucket.start.getFullYear()
   return `${year}/${String((year + 1) % 100).padStart(2, '0')}`
+}
+
+/** `Payments` is the period the markers and list show, so its column follows the timeline. */
+function facilityColumns(selectedYears: Set<number>) {
+  return [
+    textColumn<MspFacility>('payee', 'Payee', (feature) => feature.properties.payeeName, { width: 260 }),
+    textColumn<MspFacility>('type', 'Type', (feature) => TYPE_META[feature.properties.payeeType].label, {
+      width: 120,
+    }),
+    numberColumn<MspFacility>('payments', 'Payments', (feature) => periodAmount(feature, selectedYears), {
+      format: formatCurrency,
+    }),
+    numberColumn<MspFacility>('maxAnnual', 'Max annual', (feature) => feature.properties.maxAnnualAmount, {
+      format: formatCurrency,
+    }),
+    numberColumn<MspFacility>('averageAnnual', 'Average annual', (feature) => feature.properties.averageAnnualAmount, {
+      format: formatCurrency,
+    }),
+    textColumn<MspFacility>('locality', 'Locality', (feature) => feature.properties.matchedLocality),
+    textColumn<MspFacility>('address', 'Address', (feature) => feature.properties.matchedAddress, { width: 220 }),
+    textColumn<MspFacility>(
+      'healthAuthority',
+      'Health authority',
+      (feature) => feature.properties.matchedHealthAuthority,
+    ),
+    numberColumn<MspFacility>('years', 'Fiscal years', (feature) => feature.properties.fiscalYearCount, {
+      format: String,
+    }),
+  ]
 }
 
 function DevHealthMsp() {
@@ -215,6 +246,30 @@ function DevHealthMsp() {
     }
   }, [filteredFacilities, selectedFiscalYears])
 
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<MspFacility>({
+        id: 'facilities',
+        label: 'MSP facilities',
+        color: TYPE_META.hospital.color,
+        shape: 'point',
+        rows: filteredFacilities,
+        columns: facilityColumns(selectedFiscalYears),
+        getRowId: (feature) => feature.properties.id,
+        getRowCenter: (feature) => feature.geometry.coordinates as [number, number],
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+      }),
+    ],
+    [error, filteredFacilities, loading, selectedFiscalYears],
+  )
+  // `ZoomToSelected` already flies to a picked facility.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selected?.properties.id ?? null,
+    onSelectRow: setSelected,
+    flyOnSelect: false,
+  })
+
   const timelineStatsLabel = `${stats.visible} visible | ${formatCurrency(stats.visibleAmount)}`
   const timelinePeriodLabel = showTimeline
     ? `Fiscal year ${selectedFiscalStartYear}/${selectedFiscalStartYear + 1}`
@@ -261,9 +316,11 @@ function DevHealthMsp() {
       </SidebarSection>
 
       <SidebarSection>
-        <StatGrid
+        <StatGroup
+          variant="tiles"
+          size="sm"
           columns={2}
-          stats={[
+          items={[
             { label: 'Mapped payees', value: String(metadata?.matchedFacilities ?? facilities.length) },
             { label: 'Unmatched', value: String(metadata?.unmatchedFacilities ?? '--') },
             { label: 'Mapped amount', value: formatCurrency(metadata?.matchedAmount ?? stats.visibleAmount) },
@@ -376,6 +433,7 @@ function DevHealthMsp() {
       mobileSnapTo={selected ? 'collapsed' : undefined}
       mobileSnapKey={selected?.properties.id ?? 'msp-controls'}
       className="bg-background"
+      table={table}
     >
       <Map
         center={MAP_CENTER}
@@ -384,14 +442,15 @@ function DevHealthMsp() {
         maxZoom={16}
         loading={loading}
         className="h-full"
+        deferResize={table.deferResize}
         controls={<MapControls position="top-right" showFullscreen showLocate />}
       >
+        <MapTableBridge table={table} />
         <ZoomToSelected selected={selected} />
         <MapLegendPanel
           title="Legend"
           collapsible
           defaultCollapsed="mobile"
-          elevated
           width="fit"
           contentClassName="space-y-0.5 text-xs"
         >

@@ -221,7 +221,7 @@ export function VisibilityProfile({
         </text>
       </svg>
 
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         {hovered ? (
           <>
             <span className="font-medium text-foreground">{hovered.visiblePercent.toFixed(1)}%</span> visible at{' '}

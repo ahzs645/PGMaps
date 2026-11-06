@@ -2,10 +2,20 @@ import { Navigation, Redo, Undo, X } from 'lucide-react'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { useMap } from '@/components/ui/map'
+import {
+  MOBILE_MAP_SHEET_COLLAPSE_EVENT,
+  MobileFeatureCard,
+  ResponsiveFeatureDetail,
+} from '@/components/ui/mobile-feature-card'
 import { StatGroup } from '@/components/ui/stat-group'
+import { useWorkspaceInteractions } from '@pgmaps/geo-toolkit/workspace/workspace-context'
 import { cn } from '@/lib/utils'
 import { formatArea, formatDistance, measurementCanClose } from './geo'
 import type { MeasurementMode, MeasurementStats } from './types'
+
+// Each sheet opens at the height of its contents, so it has no taller detent to drag to.
+const CIRCLE_SHEET_HEIGHT = 190
+const AREA_SHEET_HEIGHT = 310
 
 export function MeasurementOverlay({
   measurementMode,
@@ -165,6 +175,58 @@ function DesktopMeasurementCard({
   )
 }
 
+/**
+ * A measurement keeps its sheet up while the map moves and on any map tap: the map is what the
+ * person is drawing on. Closing the card clears the measurement, the same as Cancel.
+ */
+function MeasurementCard({
+  title,
+  subtitle,
+  height,
+  contentClassName,
+  onClose,
+  children,
+}: {
+  title: string
+  subtitle?: string
+  height: number
+  contentClassName?: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  const interactions = useWorkspaceInteractions()
+  // Cancel and Done unmount the card without its close animation, which is what would otherwise
+  // settle the controls sheet stacked behind it.
+  useEffect(
+    () => () => {
+      interactions.dispatchEvent(new CustomEvent(MOBILE_MAP_SHEET_COLLAPSE_EVENT))
+    },
+    [interactions],
+  )
+  return (
+    <ResponsiveFeatureDetail
+      card={
+        <MobileFeatureCard
+          title={title}
+          subtitle={subtitle}
+          stackId="measurement"
+          cardKey={title}
+          height={height}
+          initialVisibleHeight={height}
+          contentClassName={contentClassName}
+          collapseOnMapInteraction={false}
+          closeOnBlankMapClick={false}
+          showDockAction={false}
+          closeLabel="Close measurement"
+          onClose={onClose}
+        >
+          {children}
+        </MobileFeatureCard>
+      }
+    />
+  )
+}
+
 function MobileMeasurementSheet({
   measurementMode,
   measurementShape,
@@ -200,151 +262,141 @@ function MobileMeasurementSheet({
 }) {
   if (measurementShape === 'circle') {
     return (
-      <div className="pointer-events-none absolute inset-0 z-40 md:hidden">
-        <MobileCircleCanvas
-          measurementMode={measurementMode}
-          measurementPoints={measurementPoints}
-          measurementCursor={measurementCursor}
-          measurementStats={measurementStats}
-          onPreviewPoint={onPreviewPoint}
-          onSetCircleRadiusPoint={onSetCircleRadiusPoint}
-        />
+      <>
+        <div className="pointer-events-none absolute inset-0 z-40 md:hidden">
+          <MobileCircleCanvas
+            measurementMode={measurementMode}
+            measurementPoints={measurementPoints}
+            measurementCursor={measurementCursor}
+            measurementStats={measurementStats}
+            onPreviewPoint={onPreviewPoint}
+            onSetCircleRadiusPoint={onSetCircleRadiusPoint}
+          />
 
-        {measurementMode === 'drawing' && (
-          <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4">
-            <Button
-              type="button"
-              variant="secondary"
-              className="pointer-events-auto border border-black/10 bg-white px-5 text-neutral-950 shadow-lg hover:bg-neutral-100"
-              onClick={onClearMeasurement}
-            >
-              Cancel
-            </Button>
-            <div className="flex gap-3">
-              <IconToolbarButton
-                label="Undo"
-                disabled={!canUndo}
-                onClick={onUndo}
-                className="border-black/10 bg-white text-neutral-950 backdrop-blur hover:bg-neutral-100"
+          {measurementMode === 'drawing' && (
+            <div className="absolute inset-x-0 top-0 z-20 flex items-start justify-between p-4">
+              <Button
+                type="button"
+                variant="secondary"
+                className="pointer-events-auto border border-black/10 bg-white px-5 text-neutral-950 shadow-lg hover:bg-neutral-100"
+                onClick={onClearMeasurement}
               >
-                <Undo className="size-4" />
-              </IconToolbarButton>
-              <IconToolbarButton
-                label="Redo"
-                disabled={!canRedo}
-                onClick={onRedo}
-                className="border-black/10 bg-white text-neutral-950 backdrop-blur hover:bg-neutral-100"
-              >
-                <Redo className="size-4" />
-              </IconToolbarButton>
+                Cancel
+              </Button>
+              <div className="flex gap-3">
+                <IconToolbarButton
+                  label="Undo"
+                  disabled={!canUndo}
+                  onClick={onUndo}
+                  className="border-black/10 bg-white text-neutral-950 backdrop-blur hover:bg-neutral-100"
+                >
+                  <Undo className="size-4" />
+                </IconToolbarButton>
+                <IconToolbarButton
+                  label="Redo"
+                  disabled={!canRedo}
+                  onClick={onRedo}
+                  className="border-black/10 bg-white text-neutral-950 backdrop-blur hover:bg-neutral-100"
+                >
+                  <Redo className="size-4" />
+                </IconToolbarButton>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="absolute bottom-4 right-4 z-20">
-          <button
-            type="button"
-            className="pointer-events-auto flex size-11 items-center justify-center rounded-md border border-white/15 bg-neutral-950/80 text-white shadow-lg backdrop-blur hover:bg-neutral-900"
-            aria-label="Center on measurement"
-          >
-            <Navigation className="size-5" />
-          </button>
-        </div>
-
-        <div className="absolute inset-x-0 bottom-0 z-30">
-          <div
-            role="dialog"
-            aria-labelledby="circle-measurement-title"
-            className="pointer-events-auto overflow-hidden rounded-t-lg bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5 text-neutral-950 shadow-[0_-2px_16px_rgba(0,0,0,0.18)]"
-          >
-            <div className="mx-auto mb-5 h-1 w-9 rounded-full bg-neutral-300" />
-            <p id="circle-measurement-title" className="text-lg font-semibold">
-              Circle measurement
-            </p>
-            <Button
-              className="mt-8 h-12 w-full rounded-md bg-pink-500 font-semibold text-white hover:bg-pink-600"
-              onClick={measurementMode === 'drawing' ? onAddPoint : onClearMeasurement}
+          <div className="absolute bottom-4 right-4 z-20">
+            <button
+              type="button"
+              className="pointer-events-auto flex size-11 items-center justify-center rounded-md border border-white/15 bg-neutral-950/80 text-white shadow-lg backdrop-blur hover:bg-neutral-900"
+              aria-label="Center on measurement"
             >
-              {measurementMode === 'drawing' ? 'Add point' : 'Done'}
-            </Button>
+              <Navigation className="size-5" />
+            </button>
           </div>
         </div>
-      </div>
+
+        <MeasurementCard title="Circle measurement" height={CIRCLE_SHEET_HEIGHT} onClose={onClearMeasurement}>
+          <Button
+            className="h-12 w-full rounded-md bg-pink-500 font-semibold text-white hover:bg-pink-600"
+            onClick={measurementMode === 'drawing' ? onAddPoint : onClearMeasurement}
+          >
+            {measurementMode === 'drawing' ? 'Add point' : 'Done'}
+          </Button>
+        </MeasurementCard>
+      </>
     )
   }
 
   return (
-    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 md:hidden">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-0 -translate-y-full">
-        <div className="flex items-center justify-center pb-2">
-          <button
-            type="button"
-            className="pointer-events-auto flex size-10 items-center justify-center rounded-md border border-border bg-background/90 text-foreground shadow-lg backdrop-blur"
-            aria-label="Center on measurement"
-          >
-            <Navigation className="size-5" />
-          </button>
-        </div>
-      </div>
-
+    <>
       <div
-        role="dialog"
-        aria-labelledby="area-measurement-title"
-        className="pointer-events-auto relative z-10 overflow-hidden rounded-t-lg border border-b-0 border-border bg-background shadow-[0_-2px_16px_rgba(0,0,0,0.3)]"
+        className="pointer-events-none absolute inset-x-0 z-40 flex items-center justify-center md:hidden"
+        style={{ bottom: AREA_SHEET_HEIGHT + 8 }}
       >
-        <header className="border-b border-border px-4 py-3">
-          <p id="area-measurement-title" className="text-base font-semibold">
-            Area measurement
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {measurementMode === 'drawing'
-              ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
-              : 'Measurement is visible only in this session.'}
-          </p>
-        </header>
-
-        <div className="px-4 py-3">
-          {measurementMode === 'drawing' ? (
-            <Button className="w-full" onClick={onAddPoint}>
-              Add point
-            </Button>
-          ) : null}
-          <StatGroup
-            variant="tiles"
-            size="sm"
-            align="start"
-            columns={2}
-            className={cn(measurementMode === 'drawing' && 'mt-3')}
-            items={[
-              { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
-              {
-                label: 'Area',
-                value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
-              },
-            ]}
-          />
-        </div>
-
-        <div
-          role="toolbar"
-          className="flex items-center gap-2 border-t border-border bg-muted/35 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+        <button
+          type="button"
+          className="pointer-events-auto flex size-10 items-center justify-center rounded-md border border-border bg-background/90 text-foreground shadow-lg backdrop-blur"
+          aria-label="Center on measurement"
         >
-          <Button variant="secondary" size="sm" onClick={onClearMeasurement}>
-            Cancel
-          </Button>
-          <div className="min-w-0 flex-1" />
-          <IconToolbarButton label="Undo" disabled={!canUndo || measurementMode !== 'drawing'} onClick={onUndo}>
-            <Undo className="size-4" />
-          </IconToolbarButton>
-          <IconToolbarButton label="Redo" disabled={!canRedo || measurementMode !== 'drawing'} onClick={onRedo}>
-            <Redo className="size-4" />
-          </IconToolbarButton>
-          <Button size="sm" disabled={!canClose || measurementMode !== 'drawing'} onClick={onFinishMeasurement}>
-            Next
-          </Button>
-        </div>
+          <Navigation className="size-5" />
+        </button>
       </div>
-    </div>
+
+      <MeasurementCard
+        title="Area measurement"
+        subtitle={
+          measurementMode === 'drawing'
+            ? `${measurementPoints.length} point${measurementPoints.length === 1 ? '' : 's'} placed`
+            : 'Measurement is visible only in this session.'
+        }
+        height={AREA_SHEET_HEIGHT}
+        contentClassName="p-0"
+        onClose={onClearMeasurement}
+      >
+        <div className="flex min-h-full flex-col">
+          <div className="flex-1 px-4 py-3">
+            {measurementMode === 'drawing' ? (
+              <Button className="w-full" onClick={onAddPoint}>
+                Add point
+              </Button>
+            ) : null}
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              align="start"
+              columns={2}
+              className={cn(measurementMode === 'drawing' && 'mt-3')}
+              items={[
+                { label: 'Perimeter', value: measurementStats ? formatDistance(measurementStats.perimeter) : '-' },
+                {
+                  label: 'Area',
+                  value: measurementStats && measurementStats.area > 0 ? formatArea(measurementStats.area) : '-',
+                },
+              ]}
+            />
+          </div>
+
+          <div
+            role="toolbar"
+            className="flex items-center gap-2 border-t border-border bg-muted/35 px-3 py-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)]"
+          >
+            <Button variant="secondary" size="sm" onClick={onClearMeasurement}>
+              Cancel
+            </Button>
+            <div className="min-w-0 flex-1" />
+            <IconToolbarButton label="Undo" disabled={!canUndo || measurementMode !== 'drawing'} onClick={onUndo}>
+              <Undo className="size-4" />
+            </IconToolbarButton>
+            <IconToolbarButton label="Redo" disabled={!canRedo || measurementMode !== 'drawing'} onClick={onRedo}>
+              <Redo className="size-4" />
+            </IconToolbarButton>
+            <Button size="sm" disabled={!canClose || measurementMode !== 'drawing'} onClick={onFinishMeasurement}>
+              Next
+            </Button>
+          </div>
+        </div>
+      </MeasurementCard>
+    </>
   )
 }
 

@@ -6,6 +6,8 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import convex from '@turf/convex'
 import { featureCollection, point } from '@turf/helpers'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { HEATMAP_COLOR_RAMPS } from '@/components/ui/map-styles'
 import { SelectAllActions } from '@/components/ui/text-button'
@@ -15,7 +17,8 @@ import { AirQualitySidebar } from './components/AirQualitySidebar'
 import { getBoundaryColorRamp, getNetworkColor } from './constants'
 import { useAirQualityData } from './hooks/useAirQualityData'
 import { REGION_LEVEL_LABELS, useAirQualityState } from './hooks/useAirQualityState'
-import { calculateCorrectedPm25, formatPm25 } from './lib/corrections'
+import { calculateCorrectedPm25, formatPm25, PM25_UNIT } from './lib/corrections'
+import { formatObservedDate, monitorEntryKey, parseObservedDate, uniqueParameters } from './lib/monitorPopup'
 import type {
   AirMonitor,
   AirQualityAreaStats,
@@ -252,6 +255,39 @@ function formatBoundaryMetricValue(value: number, metric: AirQualityBoundaryColo
     case 'rawPm25':
       return formatPm25(value)
   }
+}
+
+const pm25Format = (value: number) => formatNumber(value, { maximumFractionDigits: 1 })
+
+/** The corrected column follows the sidebar's correction model. */
+function monitorColumns(correctionModel: AirQualityCorrectionModel) {
+  return [
+    textColumn<AirMonitor>('name', 'Name', (monitor) => monitor.name, { width: 240 }),
+    textColumn<AirMonitor>('network', 'Network', (monitor) => monitor.network, { width: 110 }),
+    textColumn<AirMonitor>('city', 'City', (monitor) => monitor.city),
+    textColumn<AirMonitor>('province', 'Province', (monitor) => monitor.province, { width: 110 }),
+    textColumn<AirMonitor>('status', 'Status', (monitor) => monitor.status, { width: 110 }),
+    numberColumn<AirMonitor>(
+      'rawPm25',
+      `Raw PM2.5 (${PM25_UNIT})`,
+      (monitor) => calculateCorrectedPm25(monitor, correctionModel).rawPm25,
+      { format: pm25Format, width: 150 },
+    ),
+    numberColumn<AirMonitor>(
+      'correctedPm25',
+      `Corrected PM2.5 (${PM25_UNIT})`,
+      (monitor) => calculateCorrectedPm25(monitor, correctionModel).correctedPm25,
+      { format: pm25Format, width: 170 },
+    ),
+    numberColumn<AirMonitor>('aqhi', 'AQHI', (monitor) => monitor.aqhiValue, { width: 90 }),
+    {
+      ...dateColumn<AirMonitor>('observed', 'Observed', (monitor) => parseObservedDate(monitor.dateObserved), {
+        width: 190,
+      }),
+      getValue: (monitor: AirMonitor) => formatObservedDate(monitor.dateObserved),
+    },
+    textColumn<AirMonitor>('parameters', 'Parameters', (monitor) => uniqueParameters(monitor.parameters).join(', ')),
+  ]
 }
 
 export default function AirQualitySection() {
@@ -520,6 +556,36 @@ export default function AirQualitySection() {
     setMapBounds(bounds)
   }, [])
 
+  const tableColumns = useMemo(() => monitorColumns(correctionModel), [correctionModel])
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<AirMonitor>({
+        id: 'monitors',
+        label: 'Air quality monitors',
+        color: '#0284c7',
+        shape: 'point',
+        rows: filteredMonitors,
+        columns: tableColumns,
+        getRowId: monitorEntryKey,
+        getRowCenter: (monitor) => [monitor.longitude, monitor.latitude],
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? 'No monitors match the current filters.',
+        exportFileName: 'air-quality-monitors',
+      }),
+    ],
+    [error, filteredMonitors, loading, tableColumns],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedMonitor ? monitorEntryKey(selectedMonitor) : null,
+    // selectMonitor toggles, and a table row or a link only ever means "show this one".
+    onSelectRow: (monitor: AirMonitor) => {
+      if (monitor.id !== selectedMonitor?.id) actions.selectMonitor(monitor)
+    },
+    // AirQualityMap flies to the selected monitor, which also covers a click on a point.
+    flyOnSelect: false,
+  })
+
   const handleBrowseBoundaryClick = useCallback(
     (feature: { code: string }) => {
       actions.selectRegion(feature.code)
@@ -529,6 +595,7 @@ export default function AirQualitySection() {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={
         <>
           Air Quality | {sidebarMonitors.length.toLocaleString(DEFAULT_LOCALE)} {sidebarMonitorCountLabel}
@@ -570,6 +637,7 @@ export default function AirQualitySection() {
           basemap={basemap}
           correctionModel={correctionModel}
           loading={loading}
+          table={table}
           onBoundsChange={handleBoundsChange}
           onMonitorClick={actions.selectMonitor}
           onBrowseBoundaryClick={handleBrowseBoundaryClick}

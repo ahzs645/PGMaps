@@ -69,7 +69,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
   return (
     <div className="space-y-3 rounded border p-3">
       <h3 className="text-xs font-semibold">Interior subgrade comparison</h3>
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         <ReferenceLink href={BC_INTERIOR_COST_SOURCE.url}>2026 Interior Appraisal Manual</ReferenceLink>
         {' · effective ' + BC_INTERIOR_COST_SOURCE.effectiveDate}
         {' · ' + BC_INTERIOR_COST_SOURCE.costBaseYear + ' cost base. '}
@@ -81,7 +81,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
         options={[choose, ...INTERIOR_ROAD_GROUPS.map(({ id, label }) => ({ value: String(id), label }))]}
         onChange={(value) => update({ roadGroup: value === choose.value ? null : Number(value) })}
       />
-      {group && <p className="text-[11px] leading-4 text-muted-foreground">{group.boundaries}</p>}
+      {group && <p className="text-2xs leading-4 text-muted-foreground">{group.boundaries}</p>}
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <OptionalNumberField
           label="Uphill side slope (%)"
@@ -142,7 +142,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
           placeholder="Unit comparison only"
         />
       </div>
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Side slope is measured across the hillside, perpendicular to the centreline; it is not road grade. Soil moisture
         follows the manual’s Appendix III classification. Rock and BEC need supporting evidence.
       </p>
@@ -184,7 +184,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             onClick={() => update({ conditions: { ...inputs.conditions, [key]: !inputs.conditions?.[key] } })}
           />
         ))}
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           Confirm: {scopeStatement} Unknown conditions need review before confirming.
         </p>
         <ToggleRow
@@ -202,7 +202,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             ))}
           </InlineAlert>
         ) : result.status === 'needs-input' ? (
-          <p className="text-[11px] text-muted-foreground">{result.errors.join(' ')}</p>
+          <p className="text-2xs text-muted-foreground">{result.errors.join(' ')}</p>
         ) : !reviewed ? (
           <InlineAlert>Review applicability to show the comparison.</InlineAlert>
         ) : (
@@ -218,7 +218,7 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
       </div>
       <CollapsibleSection label="What this allowance includes" contentClassName="space-y-2 px-2 pb-2">
         {result.cautions.map((caution) => (
-          <p key={caution} className="text-[11px] leading-4 text-muted-foreground">
+          <p key={caution} className="text-2xs leading-4 text-muted-foreground">
             {caution}
           </p>
         ))}

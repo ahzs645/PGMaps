@@ -4,11 +4,14 @@ import { writeClipboardText, copyTextWithSelection } from '@/hooks/useClipboardT
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Layers } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { MapSidebarShell, InlineAlert } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { StepMarker, type StepStatus } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { downloadBlob } from '@/lib/download'
+import { formatNumber } from '@/lib/format'
 import { useWebMCPTools, type WebMCPTool } from '@/lib/webmcp'
 import { AvastMap, type MapView } from './dev-avast/AvastMap'
 import { InputsPanel } from './dev-avast/InputsPanel'
@@ -33,11 +36,44 @@ import { DEFAULT_SETTINGS, summarize } from './dev-avast/report'
 import { useAvastInputs, useCandidates } from './dev-avast/useAvastInputs'
 import { runSignature, useAvastRun } from './dev-avast/useAvastRun'
 import { blockRowsTsv, exportBlockRows } from './dev-avast/workbookRows'
-import type { AvastSettings, BBox, GeometrySettings, MultiPolygonCoords } from './dev-avast/types'
+import type { AvastSettings, BBox, CandidateSummary, GeometrySettings, MultiPolygonCoords } from './dev-avast/types'
 
 type Tab = 'inputs' | 'settings' | 'results' | 'vri'
 const SETTINGS_KEY = 'pgmaps:avast-volume:settings'
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+/** The fuchsia of the block outlines on the map. */
+const BLOCK_COLOR = '#d946ef'
+
+const wholeNumber = (value: number) => formatNumber(value, { maximumFractionDigits: 0 })
+const oneDecimal = (value: number) => formatNumber(value, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+
+/** Reads the run's results as computed. Duplicates and excluded areas stay on the map, so `Totals` says which count. */
+const BLOCK_COLUMNS = [
+  textColumn<CandidateSummary>('id', 'Block ID', (row) => row.id || '(no Block ID)'),
+  textColumn<CandidateSummary>('operatingArea', 'Operating area', (row) => row.operatingArea),
+  numberColumn<CandidateSummary>('grossHa', 'Merch area (ha)', (row) => row.grossHa, { format: oneDecimal }),
+  numberColumn<CandidateSummary>('coveredHa', 'AVAST area (ha)', (row) => row.avastCoveredHa, { format: oneDecimal }),
+  numberColumn<CandidateSummary>('coveragePct', 'AVAST coverage (%)', (row) => row.avastCoveragePct, {
+    format: oneDecimal,
+    width: 150,
+  }),
+  numberColumn<CandidateSummary>('avastDensity', 'AVAST density (m³/ha)', (row) => row.weightedAvastM3ha, {
+    format: oneDecimal,
+    width: 160,
+  }),
+  numberColumn<CandidateSummary>('preferredVph', 'Preferred (m³/ha)', (row) => row.preferredVph, {
+    format: oneDecimal,
+    width: 140,
+  }),
+  numberColumn<CandidateSummary>('volume', 'Volume (m³)', (row) => row.reportedVolume, { format: wholeNumber }),
+  textColumn<CandidateSummary>('volumeSource', 'Volume source', (row) => row.volumeSource),
+  textColumn<CandidateSummary>(
+    'totals',
+    'Totals',
+    (row) => (row.excluded ? 'Excluded' : row.duplicate ? 'Duplicate' : 'Counted'),
+    { width: 110 },
+  ),
+]
 
 function loadSettings(): AvastSettings {
   try {
@@ -342,6 +378,44 @@ export default function DevAvastVolume() {
     if (next) focusKeys(flaggedKeys)
   }
 
+  const candidateBoxes = useMemo(
+    () => new Map(candidates.map((candidate) => [candidate.key, albersBoxToLngLat(candidate.bbox)])),
+    [candidates],
+  )
+  const tableSources = useMemo(
+    () =>
+      summary
+        ? [
+            defineTableSource<CandidateSummary>({
+              id: 'blocks',
+              label: 'Computed blocks',
+              color: BLOCK_COLOR,
+              shape: 'fill',
+              rows: summary.candidates,
+              columns: BLOCK_COLUMNS,
+              getRowId: (row) => row.key,
+              getRowCenter: (row) => {
+                const box = candidateBoxes.get(row.key)
+                return box ? [(box[0] + box[2]) / 2, (box[1] + box[3]) / 2] : null
+              },
+              getRowBounds: (row) => candidateBoxes.get(row.key) ?? null,
+            }),
+          ]
+        : [],
+    [candidateBoxes, summary],
+  )
+  // Picking a row reads like picking from the results list: it zooms to the block.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedKey,
+    onSelectRow: (row: CandidateSummary) => {
+      setSelectedKey(row.key)
+      focusKeys([row.key])
+      setTab('results')
+    },
+    flyOnSelect: false,
+  })
+
   const canRun = !candidates.length
     ? candidateState.loading
       ? 'Reading candidate blocks…'
@@ -545,7 +619,7 @@ export default function DevAvastVolume() {
           ).map(([value, label, step]) => ({
             value,
             label,
-            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-[11px]" />,
+            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-2xs" />,
             ...(value === 'vri' && { ariaLabel: 'Step 4, optional: fill AVAST gaps with VRI' }),
           }))}
           getTabProps={(option) => ({ 'data-avast-tab': option.value })}
@@ -690,8 +764,10 @@ export default function DevAvastVolume() {
       mobilePeekSubtitle={
         run.status === 'running' ? `${run.done} of ${run.total} blocks` : `${candidates.length} candidate blocks`
       }
+      table={table}
     >
       <AvastMap
+        table={table}
         candidates={candidates.length ? candidateFc : EMPTY}
         pieces={pieceFc}
         slope={slopeFc}

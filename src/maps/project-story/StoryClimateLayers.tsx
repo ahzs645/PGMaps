@@ -21,6 +21,7 @@ import {
 } from './adapters/climateStore'
 import type { Map as MapInstance } from 'maplibre-gl'
 import { ClimatePreparation } from './adapters/climatePreparation'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type ClimateStatus = {
   status: 'loading' | 'ready' | 'error' | 'zoom' | 'empty'
@@ -184,7 +185,7 @@ export default function StoryClimateLayers({
             cells,
             preloaded: Boolean(warmed),
             message: cells
-              ? `${cells.toLocaleString()} native climate cells loaded. Click a cell for its value.`
+              ? `${cells.toLocaleString(DEFAULT_LOCALE)} native climate cells loaded. Click a cell for its value.`
               : 'No source values in this view. Pan back into BC; missing cells are not zero.',
           })
           ready = true

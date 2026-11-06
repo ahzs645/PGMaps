@@ -83,36 +83,36 @@ export function RoofInspectionPanel({
         <SidebarSection title={selected.properties.id}>
           <div className="grid grid-cols-2 gap-2 text-xs tabular-nums">
             <p>
-              <span className="block text-[10px] text-muted-foreground">Plan area</span>
+              <span className="block text-3xs text-muted-foreground">Plan area</span>
               {selected.properties.area_m2.toFixed(0)} m²
             </p>
             <p>
-              <span className="block text-[10px] text-muted-foreground">Candidate median height</span>
+              <span className="block text-3xs text-muted-foreground">Candidate median height</span>
               {selected.properties.height_m.toFixed(1)} m
             </p>
             {record && (
               <>
                 <p>
-                  <span className="block text-[10px] text-muted-foreground">Height P95 · sampled patch</span>
+                  <span className="block text-3xs text-muted-foreground">Height P95 · sampled patch</span>
                   {record.height_p95_m.toFixed(1)} m
                 </p>
                 <p>
-                  <span className="block text-[10px] text-muted-foreground">Ground-support P95</span>
+                  <span className="block text-3xs text-muted-foreground">Ground-support P95</span>
                   {record.ground_support_p95_m.toFixed(1)} m
                 </p>
                 <p>
-                  <span className="block text-[10px] text-muted-foreground">Whole-patch plane pitch</span>
+                  <span className="block text-3xs text-muted-foreground">Whole-patch plane pitch</span>
                   {record.plane?.pitch_deg.toFixed(1) ?? 'Unknown'}°
                 </p>
                 <p>
-                  <span className="block text-[10px] text-muted-foreground">Plane fit RMSE</span>
+                  <span className="block text-3xs text-muted-foreground">Plane fit RMSE</span>
                   {record.plane?.plane_rmse_m.toFixed(2) ?? 'Unknown'} m
                 </p>
               </>
             )}
           </div>
           {record?.plane && (
-            <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+            <p className="mt-2 text-3xs leading-4 text-muted-foreground">
               {record.plane.plane_rmse_m > 0.3
                 ? 'Single-plane fit is poor: this may span several roof facets, vegetation or mixed objects. Do not interpret the pitch as a measured roof facet.'
                 : 'This patch is consistent with one plane at this grid resolution. That does not confirm a roof or establish survey accuracy.'}{' '}
@@ -182,7 +182,7 @@ export function RoofInspectionPanel({
                   </LineChart>
                 </ResponsiveContainer>
               </div>
-              <p className="mt-1 text-[10px] leading-4 text-muted-foreground">
+              <p className="mt-1 text-3xs leading-4 text-muted-foreground">
                 Amber: surface; green: ground. Elevation in metres CGVD2013. Nearest 1 m grid samples along the patch's
                 long axis plus 6 m at each end; nearby trees may appear. Gaps stay missing.
               </p>
@@ -191,7 +191,7 @@ export function RoofInspectionPanel({
         </SidebarSection>
       )}
       <SidebarSection title="All patches · largest first" className="pb-0">
-        <p className="text-[10px] text-muted-foreground">Select a row to inspect its measurements and profile.</p>
+        <p className="text-3xs text-muted-foreground">Select a row to inspect its measurements and profile.</p>
       </SidebarSection>
       <VirtualResultList
         items={candidates}

@@ -106,7 +106,7 @@ export function buildWindowSparklinePoints(values: Array<number | null>): string
     .join(' ')
 }
 
-function parseObservedDate(value: string | null | undefined): Date | null {
+export function parseObservedDate(value: string | null | undefined): Date | null {
   if (!value) return null
   const normalized = /Z$|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value.replace(' ', 'T')}Z`
   const date = new Date(normalized)

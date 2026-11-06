@@ -288,7 +288,7 @@ export default function DevNechakoPortal() {
           />
         )}
       </div>
-      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 px-2 py-1 text-[11px] text-white/90">
+      <footer className="flex shrink-0 flex-wrap items-center justify-between gap-x-3 px-2 py-1 text-2xs text-white/90">
         <span>
           Map centre (EPSG:4326): {workspace.camera.center[1].toFixed(4)}, {workspace.camera.center[0].toFixed(4)}
         </span>

@@ -60,7 +60,7 @@ export function FullCostSetupEditor({
             ))}
         </NativeSelect>
       </Field>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         The connector's end must meet this section within the entered tie-in tolerance. This choice distinguishes
         overlapping roads and bridge levels; it does not add a missing driveway.
       </p>
@@ -111,7 +111,7 @@ export function FullCostSetupEditor({
           Review network roads and evidence
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         The outlet is a known gate, highway junction or other required access point. The model requires connected
         outward and return paths; an unconnected nearby road gives no reuse credit.
       </p>
@@ -194,7 +194,7 @@ export function FullCostSetupEditor({
           onChange={(attachmentToleranceM) => network({ attachmentToleranceM })}
         />
       </div>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Haul uses actual directed loaded and empty-return paths plus distributed distances along the new road. Enter
         zero for empty return only when your loaded-leg quote already includes it. One design vehicle's conservative
         restrictions are used for all trips. Entered engineering mobilization remains in construction costs. Enter zero
@@ -221,7 +221,7 @@ export function FullCostSetupEditor({
             {label}
           </label>
         ))}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Explicit closure, known grade separation, overload and disallowed vehicle/season restrictions remain blocked.
           Assumptions are recorded with the comparison.
         </p>
@@ -297,7 +297,7 @@ export function FullCostSetupEditor({
           />
           Allow only explicitly reviewed crossing windows
         </label>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Checks use the fitted curves and independent formation, sample the road prism at up to 1 m, and test
           continuous section strips against the supplied exclusions and streams. Inbound material and outward waste
           truck grades are also checked. Missing or coarse terrain cannot pass final checks.
@@ -393,7 +393,7 @@ export function FullCostSetupEditor({
           Add reviewed crossing window
         </Button>
         {!structures.length && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Enter culvert geometry in Engineering → Drainage before reviewing a crossing window. Stationed structures
             are never copied onto a different generated road.
           </p>

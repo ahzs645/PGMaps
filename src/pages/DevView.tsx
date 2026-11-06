@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ExternalLink, FileImage, Library, Link2, MapPinned, Search, X } from 'lucide-react'
+import { FileImage, Library, Link2, MapPinned, X } from 'lucide-react'
 import type { StyleSpecification } from 'maplibre-gl'
 import { Map as AppMap } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { InlineAlert, MapOverlay, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
+import { InlineAlert, MapOverlay, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { ResultRow, ListHeader } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { Button } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { formatBytes } from '@/lib/format'
+import { ExternalLink } from '@/components/ui/text-button'
+import { formatBytes, formatNumber } from '@/lib/format'
 import {
   loadCatalogue,
   shareLink,
+  type CatalogueFacets,
   type RasterCatalogue,
   type RasterRecord,
   type SourceImageRecord,
@@ -61,6 +65,27 @@ const SATELLITE: StyleSpecification = {
 }
 function params() {
   return new URLSearchParams(window.location.hash.slice(1))
+}
+
+/** The teal the catalogue list marks its selected row with. */
+const RASTER_COLOR = '#14b8a6'
+
+function rasterColumns(facets: CatalogueFacets) {
+  const labels = new Map(
+    [...facets.subjects, ...facets.regions, ...facets.eras].map((facet) => [facet.id, facet.label]),
+  )
+  const label = (id: string | undefined) => (id ? (labels.get(id) ?? id.replace(/[-_]+/g, ' ')) : null)
+  return [
+    textColumn<RasterRecord>('title', 'Title', (item) => item.title, { width: 300 }),
+    textColumn<RasterRecord>('date', 'Date', (item) => item.dateLabel, { width: 120 }),
+    textColumn<RasterRecord>('subject', 'Subject', (item) => label(item.organization?.primarySubject)),
+    textColumn<RasterRecord>('region', 'Region', (item) => label(item.organization?.region)),
+    textColumn<RasterRecord>('era', 'Era', (item) => label(item.organization?.era)),
+    textColumn<RasterRecord>('placement', 'Placement', (item) => item.alignmentReview?.label ?? item.confidence),
+    textColumn<RasterRecord>('source', 'Source document', (item) => item.organization?.sourceGroupTitle, {
+      width: 240,
+    }),
+  ]
 }
 
 export default function DevView() {
@@ -132,7 +157,7 @@ export default function DevView() {
     />
   )
   const coverageSummary = catalogue
-    ? `${catalogue.representationCount.toLocaleString()} raster representations${catalogue.coverage?.sourceDocuments ? ` · ${catalogue.coverage.sourceDocuments.toLocaleString()} source documents` : ''}${catalogue.unplacedSources.length ? ` · ${catalogue.unplacedSources.length.toLocaleString()} source-image records` : ''}`
+    ? `${formatNumber(catalogue.representationCount)} raster representations${catalogue.coverage?.sourceDocuments ? ` · ${formatNumber(catalogue.coverage.sourceDocuments)} source documents` : ''}${catalogue.unplacedSources.length ? ` · ${formatNumber(catalogue.unplacedSources.length)} source-image records` : ''}`
     : undefined
   const style = base === 'satellite' ? SATELLITE : STREET
   const styles = useMemo(() => ({ light: style, dark: style }), [style])
@@ -223,6 +248,38 @@ export default function DevView() {
     setSheetPage(0)
     setLegend(false)
   }, [])
+  const tableSources = useMemo(
+    () =>
+      view === 'map' && catalogue
+        ? [
+            defineTableSource<RasterRecord>({
+              id: 'rasters',
+              label: 'Map catalogue',
+              color: RASTER_COLOR,
+              shape: 'fill',
+              rows: filtered,
+              columns: rasterColumns(catalogue.facets),
+              getRowId: (item) => item.id,
+              getRowCenter: (item) => [(item.bounds[0] + item.bounds[2]) / 2, (item.bounds[1] + item.bounds[3]) / 2],
+              getRowBounds: (item) => item.bounds,
+            }),
+          ]
+        : [],
+    [catalogue, filtered, view],
+  )
+  // This page keeps its state in the hash, and a query-string write would drop it.
+  // `RasterMapLayer` fits the map to the raster a row swaps in.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedId,
+    onSelectRow: (item: RasterRecord) => {
+      choose(item)
+      navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
+    },
+    url: false,
+    flyOnSelect: false,
+    inlineButton: true,
+  })
   const openMap = (item: RasterRecord) => {
     choose(item)
     setPreview(null)
@@ -319,22 +376,24 @@ export default function DevView() {
           ]}
         />
       )}
-      <div className="relative mt-3">
-        <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-        <label htmlFor="shared-map-search" className="sr-only">
-          Search maps
-        </label>
-        <input
-          id="shared-map-search"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            libraryScroll.current = 0
-          }}
-          placeholder="Find a map or source…"
-          className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm"
-        />
-      </div>
+      <label htmlFor="shared-map-search" className="sr-only">
+        Search maps
+      </label>
+      <SearchInput
+        id="shared-map-search"
+        icon
+        wrapperClassName="mt-3"
+        value={query}
+        onChange={(event) => {
+          setQuery(event.target.value)
+          libraryScroll.current = 0
+        }}
+        onClear={() => {
+          setQuery('')
+          libraryScroll.current = 0
+        }}
+        placeholder="Find a map or source…"
+      />
       <CopyButton
         text={() => shareLink(source, view === 'map' ? selectedId : undefined, view)}
         className="mt-3 text-xs underline underline-offset-4"
@@ -362,7 +421,7 @@ export default function DevView() {
       title={catalogue?.title || 'Open a shared map'}
       subtitle={
         catalogue
-          ? `${catalogue.representationCount.toLocaleString()} raster representations`
+          ? `${formatNumber(catalogue.representationCount)} raster representations`
           : 'Browse maps from a share link or data URL'
       }
       icon={MapPinned}
@@ -471,6 +530,7 @@ export default function DevView() {
           mobileInitialSheetState="half"
           mobilePeekTitle={catalogue?.title || 'Shared map viewer'}
           mobilePeekSubtitle={selected?.title || 'Open a map URL'}
+          table={table}
         >
           <AppMap
             className="h-full w-full"
@@ -481,7 +541,9 @@ export default function DevView() {
             showStyleLoadingOverlay={false}
             showLoadingOverlay={false}
             loading={loading}
+            deferResize={table.deferResize}
           >
+            <MapTableBridge table={table} />
             <RasterMapLayer item={selected} opacity={opacity} onError={setTileError} />
             <MapOverlay
               position="top-left"
@@ -489,10 +551,13 @@ export default function DevView() {
               data-testid="shared-map-title"
             >
               <div className="flex items-center justify-between gap-2">
-                <Button size="sm" variant="ghost" onClick={openLibrary}>
-                  <Library />
-                  Library
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button size="sm" variant="ghost" onClick={openLibrary}>
+                    <Library />
+                    Library
+                  </Button>
+                  {table.button}
+                </div>
                 {showMapTitle ? (
                   <Button
                     size="icon"
@@ -534,7 +599,7 @@ export default function DevView() {
               </div>
               {categoryControls}
               <p className="mt-2 text-xs text-muted-foreground">
-                {libraryItems.length.toLocaleString()}{' '}
+                {formatNumber(libraryItems.length)}{' '}
                 {scope === 'sources'
                   ? libraryItems.length === 1
                     ? 'source record'
@@ -599,24 +664,16 @@ export default function DevView() {
           <p className="text-sm leading-relaxed">{selected?.caveat}</p>
           <h3 className="mt-2 font-semibold">Original-resolution GeoTIFFs</h3>
           {selected?.downloads.map((d, i) => (
-            <a
-              key={d.url}
-              href={d.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="block break-all text-sm underline"
-            >
+            <ExternalLink key={d.url} href={d.url} className="flex break-all text-sm">
               Download panel {i + 1}
               {d.bytes ? ` · ${formatBytes(d.bytes)}` : ''}
-              <ExternalLink className="ml-1 inline size-3" />
-            </a>
+            </ExternalLink>
           ))}
           <h3 className="mt-2 font-semibold">Source documents</h3>
           {selected?.sources.map((s) => (
-            <a key={s.url} href={s.url} target="_blank" rel="noreferrer noopener" className="block text-sm underline">
+            <ExternalLink key={s.url} href={s.url} className="flex text-sm">
               {s.title}
-              <ExternalLink className="ml-1 inline size-3" />
-            </a>
+            </ExternalLink>
           ))}
           <p className="text-xs text-muted-foreground">
             Tiles preserve the recorded placement and available source detail. They do not establish geographic or
@@ -669,14 +726,9 @@ export default function DevView() {
                 referrerPolicy="no-referrer"
                 className="max-h-[65dvh] w-full bg-stone-50 object-contain"
               />
-              <a
-                href={legend && sheet.legend ? sheet.legend.image : sheet.image}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="text-sm underline"
-              >
-                Open image at full available resolution ↗
-              </a>
+              <ExternalLink href={legend && sheet.legend ? sheet.legend.image : sheet.image} className="text-sm">
+                Open image at full available resolution
+              </ExternalLink>
               <p className="text-xs text-muted-foreground">{sheet.sourceNote}</p>
             </>
           )}

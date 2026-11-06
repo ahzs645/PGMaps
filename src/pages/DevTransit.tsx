@@ -5,6 +5,8 @@ import { useTheme } from 'next-themes'
 import { Bus, Clock3, Footprints, MapPin, RotateCcw, Share2 } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import {
   InlineAlert,
   MapLegendPanel,
@@ -17,6 +19,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ExternalLink } from '@/components/ui/text-button'
+import { DATASETS } from '@/lib/dataCatalog'
 import { fetchJson } from '@/lib/fetchJson'
 import { PlaceSearch } from './dev-transit/PlaceSearch'
 import { MapHeatViewport, MapPicking, TravelLayers } from './dev-transit/TravelLayers'
@@ -32,6 +35,30 @@ function placeName(data: TransitData | null, point: Point) {
     return distance < (best?.distance ?? 100) ? { ...s, distance } : best
   }, null)
   return stop?.name ?? `${point[1].toFixed(5)}, ${point[0].toFixed(5)}`
+}
+
+/** A stop with its time from the current heat result. */
+interface StopRow {
+  id: string
+  name: string
+  point: Point
+  minutes: number | null
+}
+
+/** The map's stops, in the shade of its stop markers. */
+const STOP_COLOR = '#94a3b8'
+/** A stop chosen as the destination sits within this of it, once the URL has rounded the point. */
+const SAME_STOP_METERS = 2
+
+function stopColumns(origin: string) {
+  return [
+    textColumn<StopRow>('name', 'Stop', (stop) => stop.name, { width: 280 }),
+    numberColumn<StopRow>('minutes', `Minutes from ${origin}`, (stop) => stop.minutes, {
+      format: (value) => String(Math.ceil(value)),
+      width: 150,
+    }),
+    textColumn<StopRow>('id', 'Stop ID', (stop) => stop.id, { width: 110 }),
+  ]
 }
 
 interface CalculationInput {
@@ -253,6 +280,47 @@ export default function DevTransit() {
     setNotice((await clipboard.copy(url.href)) ? 'Map link copied.' : 'Copy the map link below.')
   }
 
+  const heatOrigin = options.heatFrom === 'to' && options.to ? 'B' : 'A'
+  const tableSources = useMemo(
+    () =>
+      data && result && showStops
+        ? [
+            defineTableSource<StopRow>({
+              id: 'stops',
+              label: 'Bus stops',
+              color: STOP_COLOR,
+              shape: 'point',
+              rows: () =>
+                data.stops.map((stop, index) => ({
+                  id: stop.id,
+                  name: stop.name,
+                  point: stop.point,
+                  minutes: result.stopMinutes[index] ?? null,
+                })),
+              columns: stopColumns(heatOrigin),
+              getRowId: (stop) => stop.id,
+              getRowCenter: (stop) => stop.point,
+              flyZoom: 14,
+            }),
+          ]
+        : [],
+    [data, heatOrigin, result, showStops],
+  )
+  const destination = options.to
+  const destinationStopId = useMemo(
+    () =>
+      destination ? (data?.stops.find((stop) => meters(stop.point, destination) < SAME_STOP_METERS)?.id ?? null) : null,
+    [data, destination],
+  )
+  // `update` rebuilds the whole URL from one render's parameters, so a row in the
+  // URL would be overwritten by the destination it just set. Sharing is its own link.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: destinationStopId,
+    onSelectRow: (stop: StopRow) => pick(stop.point, pickMode === 'from'),
+    url: false,
+  })
+
   const journey = previewOffNetwork ? null : result?.journey
   const sidebar = (
     <MapSidebarShell
@@ -260,6 +328,7 @@ export default function DevTransit() {
       title="Prince George travel times"
       subtitle="Where can you get in 30 minutes?"
       icon={Bus}
+      dataset={DATASETS.transit}
     >
       <SidebarSection>
         <p className="text-sm leading-6 text-muted-foreground">
@@ -565,6 +634,7 @@ export default function DevTransit() {
       mobilePeekSubtitle={
         busy ? 'Calculating…' : `${options.bus ? 'Bus + walk' : 'Walking'} · depart ${clockTime(options.departure)}`
       }
+      table={table}
     >
       <div className="relative h-full" data-testid="transit-map">
         <Map
@@ -573,8 +643,10 @@ export default function DevTransit() {
           zoom={hasView && initialZoom >= 9 && initialZoom <= 18 ? initialZoom : 11.1}
           minZoom={9}
           maxZoom={18}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" showZoom showCompass showFullscreen />}
         >
+          <MapTableBridge table={table} />
           <MapPicking onPick={pick} originMode={pickMode === 'from'} />
           {data && <MapHeatViewport study={data.meta.bbox} onChange={setViewportGrid} />}
           {data && (
@@ -630,12 +702,7 @@ export default function DevTransit() {
             </MapMarker>
           )}
         </Map>
-        <MapLegendPanel
-          title={`Travel time from ${options.heatFrom === 'to' && options.to ? 'B' : 'A'}`}
-          defaultCollapsed="mobile"
-          collapsible
-          width="lg"
-        >
+        <MapLegendPanel title={`Travel time from ${heatOrigin}`} defaultCollapsed="mobile" collapsible width="lg">
           <MapSteppedLegend
             bands={palette.map((color, i) => ({ color, label: `${Math.round((i * options.max) / 4)} min` }))}
           />

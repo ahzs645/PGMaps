@@ -10,6 +10,7 @@ import { useResearchRecordsAdapter } from './adapters/useResearchRecordsAdapter'
 import { ProjectExplorerMap } from './ProjectExplorerMap'
 import { ProjectExplorerSidebar } from './ProjectExplorerSidebar'
 import { useAggregateBoundary } from './features/AggregateBoundaryFeature'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function ProjectMapExplorer({
   title,
@@ -81,7 +82,7 @@ export function ProjectMapExplorer({
         <div className="min-w-0 text-left">
           <div className="truncate text-xs font-semibold text-foreground">{title}</div>
           <div className="truncate text-xs text-muted-foreground">
-            {data.filteredStats.totalPublications.toLocaleString()} {config.labels.recordPlural}
+            {data.filteredStats.totalPublications.toLocaleString(DEFAULT_LOCALE)} {config.labels.recordPlural}
           </div>
         </div>
       }

@@ -279,7 +279,7 @@ export default function DevLibrary() {
               <Beaker className="h-4 w-4" />
               Dev library
             </div>
-            <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Development Pages</h1>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">Development Pages</h1>
             <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
               Choose a development tool or prototype to open its dedicated subpage.
             </p>

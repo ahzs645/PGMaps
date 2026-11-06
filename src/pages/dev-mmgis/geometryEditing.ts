@@ -1,5 +1,6 @@
 import type { Geometry, Position } from 'geojson'
 import type { Coordinate } from './model'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export interface VertexAddress {
   collections: number[]
@@ -61,7 +62,7 @@ export function vertexCount(geometry: Geometry): number {
   }
 }
 export const tooManyVerticesMessage = (count: number) =>
-  `This geometry has ${count.toLocaleString()} vertices. Vertex editing is limited to ${MAX_EDITABLE_VERTICES.toLocaleString()} so the map stays responsive; simplify or split it in a desktop GIS, then import it again. Its properties can still be edited here.`
+  `This geometry has ${count.toLocaleString(DEFAULT_LOCALE)} vertices. Vertex editing is limited to ${MAX_EDITABLE_VERTICES.toLocaleString(DEFAULT_LOCALE)} so the map stays responsive; simplify or split it in a desktop GIS, then import it again. Its properties can still be edited here.`
 export function geometryHandles(geometry: Geometry): { vertices: GeometryVertex[]; edges: GeometryEdge[] } {
   const vertices: GeometryVertex[] = [],
     edges: GeometryEdge[] = []

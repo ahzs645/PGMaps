@@ -25,6 +25,11 @@ vi.mock('@/components/ui/map', () => ({
   MapMarker: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   MarkerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   MapScaleBar: () => null,
+  useMap: () => ({ map: null, isLoaded: false }),
+}))
+vi.mock('@/components/map/useMapTable', async (importActual) => ({
+  ...(await importActual<typeof import('@/components/map/useMapTable')>()),
+  MapTableBridge: () => null,
 }))
 vi.mock('@/components/ui/map-panels', () => ({
   MapSidebarShell: ({ children }: { children: ReactNode }) => <div>{children}</div>,

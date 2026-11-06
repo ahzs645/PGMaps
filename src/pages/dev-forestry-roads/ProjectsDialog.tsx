@@ -162,7 +162,7 @@ export function ProjectsDialog({
                       <p className="truncate text-sm font-medium">
                         {entry.name}
                         {current && (
-                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                          <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary">
                             Open now
                           </span>
                         )}

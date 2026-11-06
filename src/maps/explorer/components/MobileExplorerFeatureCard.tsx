@@ -9,7 +9,7 @@ interface MobileExplorerFeatureCardProps {
 
 export function MobileExplorerFeatureCard({ item, onClose }: MobileExplorerFeatureCardProps) {
   return (
-    <MobileFeatureCard title={item.name} subtitle={item.subtitle} onClose={onClose}>
+    <MobileFeatureCard cardKey={item.id} title={item.name} subtitle={item.subtitle} onClose={onClose}>
       <ExplorerItemDetails item={item} />
     </MobileFeatureCard>
   )

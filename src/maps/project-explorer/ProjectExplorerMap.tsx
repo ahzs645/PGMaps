@@ -9,6 +9,7 @@ import type { ResearchRecordsAdapterData } from './adapters/useResearchRecordsAd
 import { LocationPopupFeature, LocationCameraFocus } from './features/LocationPopupFeature'
 import { AggregateBoundaryMapFeature, type AggregateBoundaryState } from './features/AggregateBoundaryFeature'
 import { MapLegendFeature } from './features/MapLegendFeature'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function ProjectExplorerMap({
   config,
@@ -79,7 +80,7 @@ export function ProjectExplorerMap({
         onPointClick={(properties) => data.focusLocation(String(properties.id))}
       />
       {legendFeature?.type === 'map-legend' ? (
-        <MapLegendFeature config={config} feature={legendFeature} counts={legendCounts} elevated={timelineMode} />
+        <MapLegendFeature config={config} feature={legendFeature} counts={legendCounts} />
       ) : null}
       {!timelineMode && popupFeature?.type === 'location-popup' && selectedLocation?.coordinates ? (
         <MapPopup
@@ -111,8 +112,8 @@ export function ProjectExplorerMap({
           <div>
             <h3 className="text-sm font-semibold">{selectedTimelineFeature.properties.name}</h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              {selectedTimelineFeature.properties.count.toLocaleString()} {config.labels.recordPlural} in the{' '}
-              {currentDecade}s
+              {selectedTimelineFeature.properties.count.toLocaleString(DEFAULT_LOCALE)} {config.labels.recordPlural} in
+              the {currentDecade}s
             </p>
           </div>
         </MapPopup>
@@ -129,7 +130,7 @@ export function ProjectExplorerMap({
           onClose={onExitTimeline}
           bucketCounts={bucketCounts}
           bucketValueLabel={config.labels.recordPlural}
-          statsLabel={`${decadeSummary?.total.toLocaleString() ?? 0} ${config.labels.recordPlural}`}
+          statsLabel={`${decadeSummary?.total.toLocaleString(DEFAULT_LOCALE) ?? 0} ${config.labels.recordPlural}`}
           granularity={timelineFeature.granularity}
         />
       ) : null}

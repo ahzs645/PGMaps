@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { MVTLayer, TileLayer } from '@deck.gl/geo-layers'
 import { BitmapLayer, GeoJsonLayer } from '@deck.gl/layers'
 import type { Layer } from '@deck.gl/core'
 import maplibregl from 'maplibre-gl'
 import { Eye, EyeOff, Grid2X2, Image, Layers, RadioTower, Shapes } from 'lucide-react'
 
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { Map as AppMap, useMap } from '@/components/ui/map'
 import { useDeckOverlay } from '@/components/ui/map-deck'
 import { Button } from '@/components/ui/button'
@@ -18,6 +20,7 @@ import { GRID_NO_DATA, GRID_UNCERTAIN } from '@/lib/rasterClassGrid'
 import { networkGridPalette } from '@/maps/pgdata/networkGridPalette'
 import { networkSourceLevels } from '@/maps/pgdata/networkSourceLevels'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { DATASETS } from '@/lib/dataCatalog'
 import { fetchJson } from '@/lib/fetchJson'
 import { formatBytes, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -27,8 +30,11 @@ import {
   CELL_SITE_OPERATOR_GROUPS,
   CELL_SITES_MANIFEST_URL,
   CELL_SITES_URL,
+  cellSiteId,
   cellSitePieData,
+  cellSiteStructureText,
   cellSiteTooltipRows,
+  cellSiteTypeText,
   countSitesByGroup,
   filterCellSites,
   type CellSiteCollection,
@@ -37,6 +43,21 @@ import {
 } from './dev-networks/cellSites'
 
 const DEV_NETWORK_DATA_BASE = '/__dev_network_data'
+
+const CELL_SITE_COLUMNS = [
+  textColumn<CellSiteFeature>('operators', 'Operators', (site) => site.properties.operators.join(', '), { width: 220 }),
+  textColumn<CellSiteFeature>('location', 'Location', (site) => site.properties.location, { width: 240 }),
+  textColumn<CellSiteFeature>('province', 'Province', (site) => site.properties.province, { width: 100 }),
+  textColumn<CellSiteFeature>('technologies', 'Technologies', (site) => site.properties.technologies.join(', ')),
+  textColumn<CellSiteFeature>('bands', 'Bands', (site) => site.properties.bands.join(', ')),
+  textColumn<CellSiteFeature>('structure', 'Structure', (site) => cellSiteStructureText(site.properties), {
+    width: 120,
+  }),
+  textColumn<CellSiteFeature>('site', 'Site', (site) => cellSiteTypeText(site.properties), { width: 110 }),
+  numberColumn<CellSiteFeature>('heightM', 'Height (m)', (site) => site.properties.heightM),
+  numberColumn<CellSiteFeature>('records', 'ISED records', (site) => site.properties.records, { format: String }),
+  textColumn<CellSiteFeature>('lastChanged', 'Last changed', (site) => site.properties.lastChanged),
+]
 
 type RgbColor = [number, number, number, number]
 
@@ -590,10 +611,25 @@ function DevNetworkDeckOverlay({
  * count the operators on them, so a shared mast adds to each of its operators.
  * Clicking a single site opens its detail card.
  */
-function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; visibleGroups: ReadonlySet<string> }) {
+function CellSitePieLayer({
+  sites,
+  visibleGroups,
+  selected,
+  onSelect,
+}: {
+  sites: CellSiteFeature[]
+  visibleGroups: ReadonlySet<string>
+  selected: CellSiteFeature | null
+  onSelect: (site: CellSiteFeature | null) => void
+}) {
   const { map } = useMap()
   const popupRef = useRef<maplibregl.Popup | null>(null)
+  const openSiteRef = useRef<CellSiteFeature | null>(null)
   const data = useMemo(() => cellSitePieData(sites, visibleGroups), [sites, visibleGroups])
+  const onSelectRef = useRef(onSelect)
+  useEffect(() => {
+    onSelectRef.current = onSelect
+  })
 
   useEffect(
     () => () => {
@@ -605,6 +641,43 @@ function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; 
     popupRef.current?.remove()
   }, [sites])
 
+  const openPopup = useCallback(
+    (site: CellSiteFeature) => {
+      if (!map) return
+      const { properties: details } = site
+      const popup = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
+        .setLngLat(site.geometry.coordinates as [number, number])
+        .setHTML(
+          mapTooltipHtml({
+            title:
+              details.operators.length > 1
+                ? `Shared site · ${details.operators.length} operators`
+                : `${details.operators[0]} site`,
+            subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
+            rows: cellSiteTooltipRows(details),
+          }),
+        )
+      // Closing clears the selection, unless this popup is being replaced by another.
+      popup.on('close', () => {
+        if (popupRef.current !== popup) return
+        popupRef.current = null
+        openSiteRef.current = null
+        onSelectRef.current(null)
+      })
+      const previous = popupRef.current
+      popupRef.current = popup
+      openSiteRef.current = site
+      previous?.remove()
+      popup.addTo(map)
+    },
+    [map],
+  )
+
+  // A table row selects a site from outside this layer.
+  useEffect(() => {
+    if (selected && selected !== openSiteRef.current) openPopup(selected)
+  }, [openPopup, selected])
+
   return (
     <MapPieClusterLayer
       data={data}
@@ -614,31 +687,19 @@ function CellSitePieLayer({ sites, visibleGroups }: { sites: CellSiteFeature[]; 
       clusterRadius={52}
       onPointClick={(properties) => {
         const site = sites[Number(properties.siteIndex)]
-        if (!site || !map) return
-        popupRef.current?.remove()
-        const { properties: details } = site
-        popupRef.current = new maplibregl.Popup({ className: 'mapcn-popup', offset: 14, maxWidth: '320px' })
-          .setLngLat(site.geometry.coordinates as [number, number])
-          .setHTML(
-            mapTooltipHtml({
-              title:
-                details.operators.length > 1
-                  ? `Shared site · ${details.operators.length} operators`
-                  : `${details.operators[0]} site`,
-              subtitle: `ISED spectrum licence site${details.province ? ` · ${details.province}` : ''}`,
-              rows: cellSiteTooltipRows(details),
-            }),
-          )
-          .addTo(map)
+        if (!site) return
+        openPopup(site)
+        onSelectRef.current(site)
       }}
     />
   )
 }
 
-function NetworkGridNavigation({ sourceLevel }: { sourceLevel: string }) {
+function NetworkGridNavigation({ sourceLevel, tableButton }: { sourceLevel: string; tableButton: ReactNode }) {
   const { map } = useMap()
   return (
     <MapOverlay position="top-left" className="p-2 text-xs">
+      {tableButton && <div className="mb-2">{tableButton}</div>}
       <p className="mb-2">
         {sourceLevel === 'auto' ? 'Grid follows each saved source level.' : `Comparing saved level z${sourceLevel}.`}
       </p>
@@ -686,6 +747,25 @@ export default function DevNetworks() {
   const visibleSiteGroups = useMemo(() => new Set(visibleSiteGroupIds), [visibleSiteGroupIds])
   const cellSites = useMemo(() => filterCellSites(cellSiteData, visibleSiteGroups), [cellSiteData, visibleSiteGroups])
   const siteCountsByGroup = useMemo(() => countSitesByGroup(cellSitesManifest), [cellSitesManifest])
+  const [selectedSite, setSelectedSite] = useState<CellSiteFeature | null>(null)
+  const tableSources = useMemo(
+    () =>
+      cellSites.length
+        ? [
+            defineTableSource<CellSiteFeature>({
+              id: 'cell-sites',
+              label: 'Cell sites',
+              color: CELL_SITE_BAND_COLORS[0],
+              shape: 'point',
+              rows: cellSites,
+              columns: CELL_SITE_COLUMNS,
+              getRowId: cellSiteId,
+              getRowCenter: (site) => site.geometry.coordinates as [number, number],
+            }),
+          ]
+        : [],
+    [cellSites],
+  )
   const visibleBellKey = visibleBellLayerIds.join('|')
   const visibleCrtcKey = visibleCrtcIds.join('|')
   const crtcLayers = useMemo(
@@ -847,11 +927,20 @@ export default function DevNetworks() {
     )
   }
 
+  // The grid view keeps a note in the top-left corner; the button joins it there.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedSite ? cellSiteId(selectedSite) : null,
+    onSelectRow: setSelectedSite,
+    inlineButton: rasterView === 'grid',
+  })
+
   const sidebar = (
     <MapSidebarShell
       className={MAP_SIDEBAR_CLASS}
       title="Network Coverage Dev Map"
       subtitle="ISED cell sites with TELUS MVT, Bell PNG, and Rogers SpatialBuzz PNG coverage"
+      dataset={DATASETS.networkAvailability}
       icon={RadioTower}
       iconClassName="bg-primary text-primary-foreground"
       titleClassName="text-base"
@@ -1252,6 +1341,7 @@ export default function DevNetworks() {
       desktopSidebarWidth={384}
       mobileInitialSheetState="half"
       mobilePeek={<div className="text-sm font-semibold text-foreground">Network Coverage</div>}
+      table={table}
     >
       <AppMap
         className="h-full w-full"
@@ -1260,7 +1350,9 @@ export default function DevNetworks() {
         minZoom={2}
         maxZoom={18}
         showStyleLoadingOverlay={false}
+        deferResize={table.deferResize}
       >
+        <MapTableBridge table={table} />
         <DevNetworkDeckOverlay
           visibleTelusLayerIds={visibleTelusLayerIds}
           visibleBellLayerIds={visibleBellLayerIds}
@@ -1274,7 +1366,14 @@ export default function DevNetworks() {
           sourceLevel={sourceLevel}
           crtcLayers={crtcLayers}
         />
-        {cellSites.length > 0 && <CellSitePieLayer sites={cellSites} visibleGroups={visibleSiteGroups} />}
+        {cellSites.length > 0 && (
+          <CellSitePieLayer
+            sites={cellSites}
+            visibleGroups={visibleSiteGroups}
+            selected={selectedSite}
+            onSelect={setSelectedSite}
+          />
+        )}
         {crtcLayers
           .filter(({ resource }) => resource.id.includes('major-roads'))
           .map(({ resource, data }) => (
@@ -1289,7 +1388,7 @@ export default function DevNetworks() {
               hoverHtml={() => mapTooltipHtml({ title: resource.title, subtitle: 'Original saved CRTC road geometry' })}
             />
           ))}
-        {rasterView === 'grid' && <NetworkGridNavigation sourceLevel={sourceLevel} />}
+        {rasterView === 'grid' && <NetworkGridNavigation sourceLevel={sourceLevel} tableButton={table.button} />}
       </AppMap>
     </MapSectionLayout>
   )

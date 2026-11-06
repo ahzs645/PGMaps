@@ -98,7 +98,7 @@ export function WarsHeatmapControls({
         <span className="text-xs font-semibold text-foreground">Heatmap options</span>
         <button
           type="button"
-          className="text-[11px] text-sky-600 hover:underline dark:text-sky-400"
+          className="text-2xs text-sky-600 hover:underline dark:text-sky-400"
           onClick={() => onChange({ ...DEFAULT_WARS_HEATMAP })}
         >
           Reset heatmap
@@ -119,7 +119,7 @@ export function WarsHeatmapControls({
         />
       </label>
       {settings.scale === 'fixed' && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-2xs leading-relaxed text-muted-foreground">
           Colors keep the same scale when panning or filtering at the same zoom. Lower intensity if the map becomes too
           red.
         </p>

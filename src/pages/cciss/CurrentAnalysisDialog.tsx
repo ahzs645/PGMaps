@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { FORM_INPUT_CLASS, FormField, NumberField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -120,16 +121,12 @@ export function CurrentAnalysisDialog({
             }}
           />
         </FormField>
-        {loading && (
-          <p role="status" className="text-sm">
-            Validating imported data…
-          </p>
-        )}
+        {loading && <InlineAlert loading>Validating imported data…</InlineAlert>}
         {error && (
-          <div role="alert" className="text-sm text-destructive">
+          <InlineAlert tone="error">
             <p>{error}</p>
             {loaded && <p>The previous dataset remains loaded: {loaded.sourceFile}.</p>}
-          </div>
+          </InlineAlert>
         )}
         {!loaded ? (
           <SidebarSection title="Data needed for a current assessment">
@@ -408,11 +405,7 @@ function CurrentWorkspace({
           />
         </div>
       </details>
-      {calculation.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {calculation.error}
-        </p>
-      )}
+      {calculation.error && <InlineAlert tone="error">{calculation.error}</InlineAlert>}
       {!site && <InlineAlert tone="warning">Choose a covered imported site to calculate an assessment.</InlineAlert>}
       {assessment && (
         <>
@@ -469,6 +462,7 @@ function CurrentWorkspace({
                 are retained.
               </p>
               <DataTable
+                textColumns={2}
                 table={{
                   title: 'Current BGC probabilities',
                   columns: ['Period', 'Predicted BGC', 'Probability', 'Contributing members'],
@@ -489,6 +483,7 @@ function CurrentWorkspace({
             <SidebarSection title="Predicted site-series overlap">
               {assessment.capabilities.siteSeries ? (
                 <DataTable
+                  textColumns={3}
                   table={{
                     title: 'Current site-series overlap',
                     columns: ['Period', 'Predicted BGC', 'Predicted site series', 'Probability'],
@@ -772,7 +767,7 @@ function SpeciesView({
   return (
     <div className="space-y-4">
       <SidebarSection title="Species suitability">
-        <DataTable table={speciesSummaryTable(assessment, summaries)} />
+        <DataTable textColumns={4} table={speciesSummaryTable(assessment, summaries)} />
       </SidebarSection>
       {selected && (
         <SidebarSection title="Period-by-period suitability">
@@ -787,6 +782,7 @@ function SpeciesView({
           </SelectField>
           <div className="mt-3">
             <DataTable
+              textColumns={1}
               table={{
                 title: 'Current species vote proportions',
                 columns: ['Period', 'High', 'Moderate', 'Low', 'Unsuitable', 'Novel climate'],
@@ -885,33 +881,33 @@ function assessmentTables(
   ]
 }
 
-function DataTable({ table }: { table: CurrentAnalysisTable }) {
+/** `textColumns` is how many leading columns hold labels; the columns after them are numeric. */
+function DataTable({ table, textColumns }: { table: CurrentAnalysisTable; textColumns: number }) {
   if (!table.rows.length) return <p className="text-sm">No rows are available for this selection.</p>
+  const align = (position: number) => (position < textColumns ? 'text-left' : '')
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm">
+      <EngineeringTable className="whitespace-normal text-xs [&_td]:py-2">
         <caption className="sr-only">{table.title}</caption>
         <thead>
           <tr>
-            {table.columns.map((column) => (
-              <th key={column} scope="col" className="px-2 py-2">
-                {column}
-              </th>
+            {table.columns.map((column, position) => (
+              <ColumnHeader key={column} label={column} className={align(position)} />
             ))}
           </tr>
         </thead>
         <tbody>
           {table.rows.map((row, index) => (
-            <tr key={index} className="border-t border-border">
+            <tr key={index}>
               {row.map((value, position) => (
-                <td key={position} className="px-2 py-2">
+                <td key={position} className={align(position)}>
                   {value === null ? 'No data' : value}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
-      </table>
+      </EngineeringTable>
     </div>
   )
 }

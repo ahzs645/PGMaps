@@ -4,7 +4,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { fetchJson } from '@/lib/fetchJson'
 import { withBase } from '@/lib/dataUrl'
-import { formatBytes } from '@/lib/format'
+import { formatBytes, DEFAULT_LOCALE } from '@/lib/format'
 import { errorText } from '@/lib/nechakoPortal'
 import { importWorkspace, type Workspace } from './data/workspace'
 import { SHOWCASE_BASE, type ShowcaseAttachment, type ShowcaseManifest } from './data/showcase'
@@ -76,7 +76,10 @@ export function PortalShowcase({
             variant="tiles"
             columns={4}
             items={[
-              { label: 'Research records', value: data.manifest.counts.research_records.toLocaleString() },
+              {
+                label: 'Research records',
+                value: data.manifest.counts.research_records.toLocaleString(DEFAULT_LOCALE),
+              },
               { label: 'Location IDs', value: data.manifest.counts.location_ids },
               { label: 'WMS services', value: data.manifest.counts.wms_services },
               { label: 'Named layers / groups', value: data.manifest.counts.named_layers },

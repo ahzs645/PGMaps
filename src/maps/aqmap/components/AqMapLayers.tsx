@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useMap } from '@/components/ui/map'
 import { dispatchMobileMapFeatureClick } from '@/components/ui/map-context'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { observeMarkerSource, sameMarkerPosition } from '@/components/ui/map-marker-reconciliation'
 import type { AirMonitor } from '@/maps/airquality'
 import { getMonitorAqhiPm25 } from '@/maps/airquality/lib/monitorPopup'
@@ -11,7 +12,7 @@ import type { WmsLayerDefinition } from '../lib/wmsLayers'
 import { fetchJson } from '@/lib/fetchJson'
 import { PM25_NATIVE_VECTOR_URL } from '../lib/pm25Grid'
 import type { AqMonitorGroup, AqNetworkSlug } from '../lib/monitorPresentation'
-import { getAqmapNetworkSlug, getMonitorGroup, monitorKey } from '../lib/monitorPresentation'
+import { getMonitorGroup, isMonitorVisible, monitorKey } from '../lib/monitorPresentation'
 import { formatGroupLabel } from '../lib/i18n'
 import { getAqmapMarkerIcon, getAqmapMarkerSortKey } from '../lib/markerIcons'
 import { AQHI_LEVELS, AQHI_NO_DATA_COLOR, getAqhiLevel, getAqhiPlusColor } from '../lib/aqhiScale'
@@ -61,16 +62,6 @@ interface AqMapFeatureProperties {
   online: boolean
   /** AQHI+ band index (0–10 levels, or the no-data band) for ring-mode clustering. */
   bandIndex: number
-}
-
-function formatForecastZoneTooltip(properties: ForecastZoneFeatureProperties): string {
-  const name = escapeHtml(String(properties.NAME ?? properties.NOM ?? 'Forecast zone'))
-
-  return `
-    <div class="text-xs">
-      <div class="tooltip_title font-semibold text-foreground">${name}</div>
-    </div>
-  `
 }
 
 function getForecastZoneName(properties: ForecastZoneFeatureProperties): string {
@@ -644,7 +635,7 @@ export function ForecastZonesVectorLayer({
     const popup = new maplibregl.Popup({
       closeButton: false,
       closeOnClick: false,
-      className: 'aqmap-tooltip pointer-events-none',
+      className: 'mapcn-tooltip aqmap-tooltip pointer-events-none',
       maxWidth: '280px',
       offset: 12,
     })
@@ -700,7 +691,7 @@ export function ForecastZonesVectorLayer({
 
       popup
         .setLngLat(event.lngLat)
-        .setHTML(formatForecastZoneTooltip(feature.properties as ForecastZoneFeatureProperties))
+        .setHTML(mapTooltipHtml({ title: getForecastZoneName(feature.properties as ForecastZoneFeatureProperties) }))
         .addTo(map)
     }
 
@@ -1004,11 +995,7 @@ export function AqMonitorLayer({
     return {
       type: 'FeatureCollection',
       features: monitors
-        .filter((monitor) =>
-          visibleNetworks
-            ? visibleNetworks.has(getAqmapNetworkSlug(monitor))
-            : visibleGroups.has(getMonitorGroup(monitor.network)),
-        )
+        .filter((monitor) => isMonitorVisible(monitor, visibleGroups, visibleNetworks))
         .map((monitor) => {
           const group = getMonitorGroup(monitor.network)
           const pm25 = getMonitorAqhiPm25(monitor)

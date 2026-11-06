@@ -250,6 +250,7 @@ export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; local
     return map
   }, [locale])
   const rows = getObservationValues(monitor)
+  const unit = translate('aqhi.unit', locale)
 
   return (
     <MapPopup
@@ -277,19 +278,16 @@ export function MonitorTooltip({ monitor, locale }: { monitor: AirMonitor; local
           <span dangerouslySetInnerHTML={{ __html: translate('popup.observedAsOf', locale) }} />{' '}
           {formatLocalizedDate(monitor.dateObserved, locale)}
         </div>
-        <table className="mt-1 w-full text-xs">
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.key}>
-                <td className="pr-3 text-muted-foreground">{labelMap.get(row.key)}:</td>
-                <td className="popup_value text-right font-medium text-foreground">
-                  {formatAqmapPm25Localized(row.value, locale)}{' '}
-                  <span dangerouslySetInnerHTML={{ __html: '&mu;g m<sup>-3</sup>' }} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <KeyValueRows
+          className="mt-1"
+          valueMaxWidth={null}
+          valueClassName="popup_value font-medium"
+          rows={rows.map((row) => ({
+            key: row.key,
+            label: `${labelMap.get(row.key)}:`,
+            value: `${formatAqmapPm25Localized(row.value, locale)} ${unit}`,
+          }))}
+        />
       </div>
     </MapPopup>
   )

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Droplets } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import {
   KeyValueRows,
   MapLegendNote,
@@ -24,6 +26,14 @@ import {
 import type { SewageAttributeId, SewageSite } from './dev-interact-sewage/data'
 import { SewageLegend } from './dev-interact-sewage/SewageLegend'
 
+const SITE_COLUMNS = [
+  textColumn<SewageSite>('name', 'Site', (site) => site.properties.name, { width: 220 }),
+  numberColumn<SewageSite>('pfas', 'Total PFAS (ng/l)', (site) => site.properties.pfas, { width: 150 }),
+  numberColumn<SewageSite>('spillHours', 'Spill hours', (site) => site.properties.spillHours),
+  textColumn<SewageSite>('dischargeType', 'Discharge type', (site) => site.properties.dischargeType),
+  textColumn<SewageSite>('receivingWater', 'Receiving water', (site) => site.properties.receivingWater),
+]
+
 function DevInteractSewage() {
   const [attribute, setAttribute] = useState<SewageAttributeId>('pfas')
   const [visible, setVisible] = useState(true)
@@ -31,6 +41,31 @@ function DevInteractSewage() {
 
   const activeAttribute = SEWAGE_ATTRIBUTES.find((item) => item.id === attribute) ?? SEWAGE_ATTRIBUTES[0]
   const domain = useMemo(() => attributeDomain(attribute), [attribute])
+
+  // The legend's eye turns the whole layer off, and then the table has nothing to show.
+  const tableSources = useMemo(
+    () =>
+      visible
+        ? [
+            defineTableSource<SewageSite>({
+              id: 'sites',
+              label: 'Monitoring sites',
+              color: activeAttribute.color,
+              shape: 'point',
+              rows: siteFeatures.features,
+              columns: SITE_COLUMNS,
+              getRowId: (site) => site.properties.id,
+              getRowCenter: (site) => site.geometry.coordinates as [number, number],
+            }),
+          ]
+        : [],
+    [activeAttribute.color, visible],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selected?.properties.id ?? null,
+    onSelectRow: setSelected,
+  })
 
   const sidebar = (
     <MapSidebarShell
@@ -69,13 +104,16 @@ function DevInteractSewage() {
       mobilePeekTitle={`${siteFeatures.features.length} monitoring sites`}
       mobilePeekSubtitle={activeAttribute.caption}
       sidebar={sidebar}
+      table={table}
     >
       <div className="relative h-full">
         <Map
           center={SEWAGE_CENTER}
           zoom={SEWAGE_DEFAULT_ZOOM}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
+          <MapTableBridge table={table} />
           {visible &&
             siteFeatures.features.map((site) => {
               const value = site.properties[attribute]

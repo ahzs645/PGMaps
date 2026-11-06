@@ -1233,7 +1233,7 @@ function PointerCoordinates() {
     <output
       aria-label="Map pointer coordinates"
       aria-live="off"
-      className="pointer-events-none absolute bottom-12 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-background/85 px-2 py-1 text-[11px] leading-tight text-foreground shadow-sm"
+      className="pointer-events-none absolute bottom-12 left-3 z-10 max-w-[calc(100%-1.5rem)] rounded bg-background/85 px-2 py-1 text-2xs leading-tight text-foreground shadow-sm"
     >
       Pointer (EPSG:4326):{' '}
       {position ? (

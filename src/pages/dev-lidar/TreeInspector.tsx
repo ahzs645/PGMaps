@@ -22,6 +22,7 @@ import {
 import type { TreeInspectionController } from './useTreeInspection'
 import { ProfileCanvas, type ProfileInteraction } from './ProfileCanvas'
 import { downloadProfilePNG } from './profileExport'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function TreeInspector({
   controller,
@@ -159,7 +160,7 @@ export function TreeInspector({
       <div className="shrink-0 border-b p-2">
         <div className="flex items-center justify-between gap-2">
           <strong className="text-sm">{id ?? 'Select a crown'}</strong>
-          <span className="text-[10px] text-muted-foreground">Linked inspector</span>
+          <span className="text-3xs text-muted-foreground">Linked inspector</span>
         </div>
         <div className="mt-2 flex items-center gap-1">
           <Button size="sm" variant="outline" disabled={index <= 0} onClick={() => onSelect(filtered[index - 1])}>
@@ -186,7 +187,7 @@ export function TreeInspector({
           />
         </div>
         {query && (
-          <div className="mt-1 flex gap-2 text-[10px]">
+          <div className="mt-1 flex gap-2 text-3xs">
             {filtered.length} matching IDs{' '}
             <button className="underline" disabled={!filtered[0]} onClick={() => onSelect(filtered[0])}>
               Select first match
@@ -370,11 +371,12 @@ export function TreeInspector({
                     />
                   </label>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-3xs text-muted-foreground">
                   {settings.lockScale
                     ? 'Shared metre scale · equal axes'
                     : 'Independent zoom / pan · shared-scale lock off'}{' '}
-                  · {visible.length.toLocaleString()} / {crop?.points.length.toLocaleString() ?? 0} crop returns shown.
+                  · {visible.length.toLocaleString(DEFAULT_LOCALE)} /{' '}
+                  {crop?.points.length.toLocaleString(DEFAULT_LOCALE) ?? 0} crop returns shown.
                 </p>
               </div>
             </CollapsibleSection>
@@ -451,7 +453,7 @@ export function TreeInspector({
                   Export visible CSV
                 </Button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 0–2 m excluded. Missing trunk returns cannot establish DBH or a bare stem. Colours show height (blue 0 →
                 red 40+ m) or manual candidate groups.
               </p>
@@ -572,7 +574,9 @@ export function TreeInspector({
                 ))}
               </NativeSelect>
             </label>
-            <p>{filtered.length.toLocaleString()} candidates in queue. Previous/Next follows this filter.</p>
+            <p>
+              {filtered.length.toLocaleString(DEFAULT_LOCALE)} candidates in queue. Previous/Next follows this filter.
+            </p>
             <details>
               <summary>Point-group editing · bounded loaded returns</summary>
               <p className="my-2 text-muted-foreground">
@@ -604,7 +608,7 @@ export function TreeInspector({
                   Clear selection
                 </Button>
               </div>
-              <p className="my-2">{selected.size.toLocaleString()} selected returns</p>
+              <p className="my-2">{selected.size.toLocaleString(DEFAULT_LOCALE)} selected returns</p>
               <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
@@ -769,7 +773,7 @@ export function TreeInspector({
         )}
         {tab === 'transect' && transect}
         {tab === 'methods' && benchmark}
-        <div className="border-t p-2 text-[10px] text-muted-foreground" role="status">
+        <div className="border-t p-2 text-3xs text-muted-foreground" role="status">
           {localMessage && <p>{localMessage}</p>}
           <p>{controller.message}</p>
         </div>
@@ -820,7 +824,7 @@ function ReturnHistogram({ points }: { points: IsolatedPoint[] }) {
   return (
     <div className="my-2 space-y-1" aria-label="Observed return counts by height">
       {bins.map((count, i) => (
-        <div key={i} className="flex items-center gap-2 text-[10px]">
+        <div key={i} className="flex items-center gap-2 text-3xs">
           <span className="w-12">
             {i * 10}–{(i + 1) * 10} m
           </span>
@@ -828,7 +832,7 @@ function ReturnHistogram({ points }: { points: IsolatedPoint[] }) {
           <span>{count}</span>
         </div>
       ))}
-      <p className="text-[10px] text-muted-foreground">Sampling counts; not foliage density or leaf area.</p>
+      <p className="text-3xs text-muted-foreground">Sampling counts; not foliage density or leaf area.</p>
     </div>
   )
 }

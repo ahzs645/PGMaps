@@ -75,7 +75,7 @@ export function DesignSchedules({
                     ? `Swept path, ${failingTurns} turn${failingTurns === 1 ? ' needs' : 's need'} widening`
                     : 'Swept path',
                   badge: failingTurns ? (
-                    <span className="rounded-full bg-red-600 px-1.5 text-[10px] text-white">{failingTurns}</span>
+                    <span className="rounded-full bg-red-600 px-1.5 text-3xs text-white">{failingTurns}</span>
                   ) : undefined,
                   disabled: terrainOnly,
                 },

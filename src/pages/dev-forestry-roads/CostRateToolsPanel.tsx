@@ -21,7 +21,7 @@ function RateResult({ result, testId }: { result: CostUnitRateResult; testId: st
           {result.unit}
         </p>
       ) : (
-        <p className="text-[11px] leading-4 text-muted-foreground">{result.errors.join(' ')}</p>
+        <p className="text-2xs leading-4 text-muted-foreground">{result.errors.join(' ')}</p>
       )}
     </div>
   )
@@ -102,7 +102,7 @@ export function CostRateTools() {
             onChange={(looseM3PerCompactedM3) => setMaterial({ ...material, looseM3PerCompactedM3 })}
           />
         )}
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           {material.quoteUnit === 'loose-yd3'
             ? 'Rate = quote ÷ 0.764554857984 m³/yd³ × loose-to-compacted factor. The factor is project-specific.'
             : 'Rate = CAD/tonne × tonnes per compacted m³. Use the required compacted mass, not loose bulk density.'}{' '}
@@ -137,13 +137,13 @@ export function CostRateTools() {
           placeholder="Convert loose box volume first"
           onChange={(compactedPayloadM3) => setTruck({ ...truck, compactedPayloadM3 })}
         />
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           Rate = truck CAD/hour × total cycle minutes ÷ 60 ÷ compacted payload. Include loading time, loaded travel,
           unloading, empty return and queues once. Respect weight and volume limits. The hourly rate should state
           operator and fuel inclusions. Loader equipment, material supply and placement remain separate unless already
           included.
         </p>
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           This is a complete-cycle cost for the entered route. Engineering’s distance rates use CAD/(m³·km), with
           loading entered separately; this CAD/m³ result cannot be pasted directly into a distance-rate field.
         </p>
@@ -167,7 +167,7 @@ export function CostRateTools() {
           placeholder="Site-specific net production"
           onChange={(netBankM3PerHour) => setEquipment({ ...equipment, netBankM3PerHour })}
         />
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           Rate = crew CAD/hour ÷ net bank m³ per charged hour. Use output after expected delays and efficiency losses,
           on the same hourly basis as the crew rate. Avoid adding operator or fuel costs already included in an
           all-found equipment rate.

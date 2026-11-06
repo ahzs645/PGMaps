@@ -1,3 +1,4 @@
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
 import { PortalLiveMonitoring, type PortalMonitoringProps } from './PortalLiveMonitoring'
 import { PortalCachedMonitoring } from './PortalCachedMonitoring'
@@ -443,27 +444,28 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                 </label>
               </div>
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full text-left text-sm">
-                  <caption className="p-2 text-left">
+                <EngineeringTable className="text-xs [&_td]:py-2">
+                  <caption className="whitespace-normal p-2 text-left text-sm">
                     Statistics for {filtered.length} filtered observations; each variable excludes missing values.
                   </caption>
                   <thead>
                     <tr>
-                      {['Variable', 'Unit', 'Count', 'Minimum', 'Maximum', 'Mean'].map((label) => (
-                        <th key={label} className="p-2">
-                          {label}
-                        </th>
-                      ))}
+                      <ColumnHeader label="Variable" className="text-left" />
+                      <ColumnHeader label="Unit" className="text-left" />
+                      <ColumnHeader label="Count" />
+                      <ColumnHeader label="Minimum" />
+                      <ColumnHeader label="Maximum" />
+                      <ColumnHeader label="Mean" />
                     </tr>
                   </thead>
                   <tbody>
                     {summary.map((item, index) =>
                       index === 0 || mapping.secondary ? (
-                        <tr key={index} className="border-t">
-                          <td className="p-2">{index === 0 ? mapping.primary : mapping.secondary}</td>
-                          <td className="p-2">{index === 0 ? mapping.primaryUnit : mapping.secondaryUnit}</td>
+                        <tr key={index}>
+                          <td className="text-left">{index === 0 ? mapping.primary : mapping.secondary}</td>
+                          <td className="text-left">{index === 0 ? mapping.primaryUnit : mapping.secondaryUnit}</td>
                           {[item.count, item.min, item.max, item.mean].map((value, i) => (
-                            <td key={i} className="p-2">
+                            <td key={i}>
                               {value === null ? '—' : Number.isInteger(value) ? value : value.toPrecision(6)}
                             </td>
                           ))}
@@ -471,7 +473,7 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                       ) : null,
                     )}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
               {canChart ? (
                 <div className="h-80 min-w-0" aria-label={`${chart} monitoring chart`}>
@@ -533,34 +535,28 @@ export function PortalMonitoring(props: PortalMonitoringProps = {}) {
                 </Button>
               </div>
               <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full min-w-[600px] text-left text-sm">
+                <EngineeringTable className="min-w-[600px] text-xs [&_td]:py-2">
                   <thead>
                     <tr>
-                      {[
-                        'Timestamp (UTC)',
-                        'Station',
-                        mapping.primary,
-                        ...(mapping.secondary ? [mapping.secondary] : []),
-                        'Source row',
-                      ].map((label, i) => (
-                        <th key={i} className="p-2">
-                          {label}
-                        </th>
-                      ))}
+                      <ColumnHeader label="Timestamp (UTC)" className="text-left" />
+                      <ColumnHeader label="Station" className="text-left" />
+                      <ColumnHeader label={mapping.primary} />
+                      {mapping.secondary && <ColumnHeader label={mapping.secondary} />}
+                      <ColumnHeader label="Source row" />
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.slice(current * 50, (current + 1) * 50).map((item) => (
-                      <tr key={item.row} className="border-t">
-                        <td className="p-2">{item.timestamp}</td>
-                        <td className="p-2">{item.station}</td>
-                        <td className="p-2">{item.primary ?? '—'}</td>
-                        {mapping.secondary && <td className="p-2">{item.secondary ?? '—'}</td>}
-                        <td className="p-2">{item.row}</td>
+                      <tr key={item.row}>
+                        <td className="text-left">{item.timestamp}</td>
+                        <td className="text-left">{item.station}</td>
+                        <td>{item.primary ?? '—'}</td>
+                        {mapping.secondary && <td>{item.secondary ?? '—'}</td>}
+                        <td>{item.row}</td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
             </>
           )}

@@ -1,4 +1,5 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { ArrowDownUp, Bike, Copy, Download, Footprints, MapPinned, Repeat2 } from 'lucide-react'
@@ -11,6 +12,7 @@ import { Slider } from '@/components/ui/slider'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { downloadText } from '@/lib/download'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { requiredString, useWebMCPTools, type WebMCPTool } from '@/lib/webmcp'
 import { climbText, distanceText, MILE, routeGpx, routeStreets, tripHash } from './dev-flatten/routing'
 import { ElevationProfile } from './dev-flatten/ElevationProfile'
@@ -46,13 +48,7 @@ export default function DevFlatten({ cityId = 'sf' }: { cityId?: CityId }) {
   const onMapReady = useCallback((map: MapLibreMap | null) => {
     mapRef.current = map
   }, [])
-  useEffect(() => {
-    const previous = document.title
-    document.title = `${city.title} · PGMaps Dev`
-    return () => {
-      document.title = previous
-    }
-  }, [city])
+  useDocumentTitle(`${city.title} · PGMaps Dev`)
   useEffect(() => {
     setHoverIndex(null)
   }, [selected])
@@ -410,8 +406,8 @@ export default function DevFlatten({ cityId = 'sf' }: { cityId?: CityId }) {
       )}
       <SidebarSection title="How this works" className="space-y-2 text-sm text-muted-foreground">
         <p>
-          Routes run in your browser over {(model?.graph.m ?? city.data.meta.n_arcs).toLocaleString()} directed street
-          segments, using {city.dataDescription}
+          Routes run in your browser over {(model?.graph.m ?? city.data.meta.n_arcs).toLocaleString(DEFAULT_LOCALE)}{' '}
+          directed street segments, using {city.dataDescription}
         </p>
         {city.note && <p>{city.note}</p>}
         <p>

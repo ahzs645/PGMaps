@@ -22,6 +22,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { Map, MapControls, useMap, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
@@ -163,7 +165,7 @@ const INPUT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const KIND_SELECT_CLASS =
-  'h-7 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'h-7 rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const ICON_BUTTON_CLASS =
   'rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
@@ -202,6 +204,40 @@ function coordinateBounds(coordinates: Array<[number, number]>): [[number, numbe
     [Math.max(...lngs), Math.max(...lats)],
   ]
 }
+
+function boundsCenter([[west, south], [east, north]]: [[number, number], [number, number]]): [number, number] {
+  return [(west + east) / 2, (south + north) / 2]
+}
+
+const coordinatesBox = (coordinates: Array<[number, number]>): [number, number, number, number] => {
+  const [[west, south], [east, north]] = coordinateBounds(coordinates)
+  return [west, south, east, north]
+}
+
+const NOTES_WIDTH = { width: 320 }
+const coordinate = (value: number) => value.toFixed(5)
+
+const WAYPOINT_COLUMNS = [
+  textColumn<PlanWaypoint>('name', 'Name', (waypoint) => waypoint.name, { width: 220 }),
+  textColumn<PlanWaypoint>('kind', 'Kind', (waypoint) => WAYPOINT_KIND_LABELS[waypoint.kind]),
+  numberColumn<PlanWaypoint>('lat', 'Latitude', (waypoint) => waypoint.lat, { format: coordinate }),
+  numberColumn<PlanWaypoint>('lng', 'Longitude', (waypoint) => waypoint.lng, { format: coordinate }),
+  textColumn<PlanWaypoint>('notes', 'Notes', (waypoint) => waypoint.notes, NOTES_WIDTH),
+]
+
+const ROUTE_COLUMNS = [
+  textColumn<PlanRoute>('name', 'Name', (route) => route.name, { width: 220 }),
+  textColumn<PlanRoute>('kind', 'Kind', (route) => ROUTE_KIND_LABELS[route.kind]),
+  numberColumn<PlanRoute>('vertices', 'Vertices', (route) => route.coordinates.length, { format: String }),
+  textColumn<PlanRoute>('notes', 'Notes', (route) => route.notes, NOTES_WIDTH),
+]
+
+const AREA_COLUMNS = [
+  textColumn<PlanArea>('name', 'Name', (area) => area.name, { width: 220 }),
+  textColumn<PlanArea>('kind', 'Kind', (area) => AREA_KIND_LABELS[area.kind]),
+  numberColumn<PlanArea>('vertices', 'Vertices', (area) => area.rings.flat().length, { format: String }),
+  textColumn<PlanArea>('notes', 'Notes', (area) => area.notes, NOTES_WIDTH),
+]
 
 function importSummary(fileName: string, plan: OutdoorsPlan, skippedCount: number): string {
   const parts = [
@@ -319,11 +355,11 @@ function FeatureRow({
             </option>
           ))}
         </NativeSelect>
-        <span className="text-[11px] tabular-nums text-muted-foreground">{detail}</span>
+        <span className="text-2xs tabular-nums text-muted-foreground">{detail}</span>
       </div>
       {selected && (
         <textarea
-          className="mt-2 min-h-14 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] leading-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="mt-2 min-h-14 w-full rounded-md border border-border bg-background px-2 py-1.5 text-2xs leading-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           placeholder="Verification, access, or field notes…"
           value={notes ?? ''}
           onChange={(event) => onNotesChange(event.target.value)}
@@ -713,6 +749,67 @@ function DevOutdoors() {
     [activeStage, plan.areas],
   )
 
+  // Only what this stage draws. A plan with nothing in it has no table to offer.
+  const tableSources = useMemo(
+    () =>
+      visibleWaypoints.length + visibleRoutes.length + visibleAreas.length === 0
+        ? []
+        : [
+            defineTableSource<PlanWaypoint>({
+              id: 'waypoints',
+              label: 'Waypoints',
+              color: WAYPOINT_COLORS.site,
+              shape: 'point',
+              rows: visibleWaypoints,
+              columns: WAYPOINT_COLUMNS,
+              getRowId: (waypoint) => waypoint.id,
+              getRowCenter: (waypoint) => [waypoint.lng, waypoint.lat],
+            }),
+            defineTableSource<PlanRoute>({
+              id: 'routes',
+              label: 'Routes',
+              color: ROUTE_COLORS.corridor,
+              shape: 'line',
+              rows: visibleRoutes,
+              columns: ROUTE_COLUMNS,
+              getRowId: (route) => route.id,
+              getRowCenter: (route) => boundsCenter(coordinateBounds(route.coordinates)),
+              getRowBounds: (route) => coordinatesBox(route.coordinates),
+            }),
+            defineTableSource<PlanArea>({
+              id: 'areas',
+              label: 'Areas',
+              color: AREA_COLORS['hunt-area'],
+              shape: 'fill',
+              rows: visibleAreas,
+              columns: AREA_COLUMNS,
+              getRowId: (area) => area.id,
+              getRowCenter: (area) => boundsCenter(coordinateBounds(area.rings.flat())),
+              getRowBounds: (area) => coordinatesBox(area.rings.flat()),
+            }),
+          ],
+    [visibleAreas, visibleRoutes, visibleWaypoints],
+  )
+  // Rows select and zoom the way the sidebar's rows do. This page writes its share
+  // token past the router, so a table write here would put an older token back.
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedFeature?.id ?? null,
+    onSelectRow: (row: PlanWaypoint | PlanRoute | PlanArea, source) => {
+      if (source.id === 'waypoints') {
+        zoomToWaypoint(row as PlanWaypoint)
+      } else if (source.id === 'routes') {
+        setSelectedFeature({ type: 'route', id: row.id })
+        zoomToBounds(coordinateBounds((row as PlanRoute).coordinates))
+      } else {
+        setSelectedFeature({ type: 'area', id: row.id })
+        zoomToBounds(coordinateBounds((row as PlanArea).rings.flat()))
+      }
+    },
+    url: false,
+    flyOnSelect: false,
+  })
+
   const wmuFillColor = useMemo(
     () =>
       wmuIds.length > 0
@@ -833,7 +930,7 @@ function DevOutdoors() {
           <Button
             type="button"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-2xs"
             disabled={drawMode === 'route' ? draftVertices.length < 2 : draftVertices.length < 3}
             onClick={finishDraft}
           >
@@ -842,7 +939,7 @@ function DevOutdoors() {
           </Button>
         </>
       )}
-      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={cancelDraw}>
+      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-2xs" onClick={cancelDraw}>
         <X className="size-3" />
         Cancel
       </Button>
@@ -868,9 +965,9 @@ function DevOutdoors() {
           }}
         />
         <p className="mt-2 text-xs font-semibold text-foreground">{activeStageInfo.title}</p>
-        <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{activeStageInfo.description}</p>
+        <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">{activeStageInfo.description}</p>
         {activeStage !== 'field-plan' && (
-          <InlineAlert tone="warning" className="mt-2 text-[11px] leading-4">
+          <InlineAlert tone="warning" className="mt-2 text-2xs leading-4">
             The blue WMU layer is authoritative. Imported and hand-drawn hunt areas, closures, routes, and access points
             remain planning references until checked against their official source.
           </InlineAlert>
@@ -963,7 +1060,7 @@ function DevOutdoors() {
               </ul>
             )}
             {wmuLayer && (
-              <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+              <p className="mt-3 text-2xs leading-4 text-muted-foreground">
                 WMU boundaries: BC Data Catalogue snapshot
                 {wmuLayer.sourceUpdated ? ` updated ${wmuLayer.sourceUpdated}` : ''}
                 {wmuLayer.version ? ` (${wmuLayer.version})` : ''}. Always confirm season dates in the official BC
@@ -1182,11 +1279,11 @@ function DevOutdoors() {
           </Button>
         </div>
         {statusMessage && (
-          <p className="mt-2 rounded-md border border-border bg-muted/40 p-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-2 rounded-md border border-border bg-muted/40 p-2 text-2xs leading-4 text-muted-foreground">
             {statusMessage}
           </p>
         )}
-        <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+        <p className="mt-3 text-2xs leading-4 text-muted-foreground">
           The link in the address bar carries waypoint-scale plans; geometry-heavy plans share via Export instead.
           Exported plan files reopen here via Import, and GeoJSON drops into QGIS, Caltopo, or Avenza. The sample is a
           real MU 7-42 planning map converted from KML.
@@ -1208,14 +1305,17 @@ function DevOutdoors() {
         title: 'Outdoors planner',
         subtitle: plan.name || 'Untitled trip',
       }}
+      table={table}
     >
       <Map
         ref={mapRef}
         center={plan.viewport?.center ?? BC_CENTER}
         zoom={plan.viewport?.zoom ?? 5}
         onViewportChange={handleViewportChange}
+        deferResize={table.deferResize}
         controls={<MapControls position="top-right" />}
       >
+        <MapTableBridge table={table} />
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
         {wmuLayer && (
           <MapPmtilesFillLayer

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { evaluateCurveCriteria, parseWideningTableCsv } from './roadCriteria'
 import { curveDesignAt, horizontalCurveSummary } from './engine'
@@ -248,21 +250,17 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                 Use vehicle formula
               </Button>
             </div>
-            {tableError && (
-              <p role="alert" className="text-destructive">
-                {tableError}
-              </p>
-            )}
+            {tableError && <InlineAlert tone="error">{tableError}</InlineAlert>}
           </details>
           {curveRows.length > 0 && (
-            <div className="overflow-x-auto text-[11px]" data-testid="road-speed-criteria-review">
-              <table className="w-full">
+            <div className="overflow-x-auto text-2xs" data-testid="road-speed-criteria-review">
+              <EngineeringTable>
                 <thead>
                   <tr>
-                    <th className="text-left">Radius</th>
-                    <th>Required e</th>
-                    <th>Capped target</th>
-                    <th>Actual I / O</th>
+                    <ColumnHeader label="Radius" />
+                    <ColumnHeader label="Required e" />
+                    <ColumnHeader label="Capped target" />
+                    <ColumnHeader label="Actual I / O" />
                   </tr>
                 </thead>
                 <tbody>
@@ -278,16 +276,16 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                         <td title={`Full deflection ${r.deflectionDegrees.toFixed(1)}° including spirals`}>
                           {r.radius.toFixed(1)} m
                         </td>
-                        <td className="text-center">{c.requiredSuperelevationPercent.toFixed(2)}%</td>
-                        <td className="text-center">{c.appliedSuperelevationPercent.toFixed(2)}%</td>
-                        <td className="text-center">
+                        <td>{c.requiredSuperelevationPercent.toFixed(2)}%</td>
+                        <td>{c.appliedSuperelevationPercent.toFixed(2)}%</td>
+                        <td>
                           {inside.toFixed(2)} / {outside.toFixed(2)}%
                         </td>
                       </tr>
                     )
                   })}
                 </tbody>
-              </table>
+              </EngineeringTable>
               <p className="mt-1 text-muted-foreground">
                 Speed requires radius ≥ {evaluateCurveCriteria(design, 100).minimumSpeedRadiusM.toFixed(1)} m. Criteria
                 are entered assumptions until supported by the recorded source.

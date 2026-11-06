@@ -5,8 +5,12 @@ import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
 import { Timeline } from '@/components/ui/timeline'
 import { LegendItem, MapLegendPanel, MapSizeLegend } from '@/components/ui/map-panels'
+import { SelectAllActions } from '@/components/ui/text-button'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { RouletteModal } from './components/roulette'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
+import { MapScaleBar } from '@/components/ui/map'
 import { useRestaurantData } from './hooks/useRestaurantData'
 import { FACILITY_TYPE_OPTIONS, HAZARD_RATING_OPTIONS, useFoodMapFilters } from './hooks/useFoodMapFilters'
 import { stringCodec, useUrlState } from '@/hooks/useUrlState'
@@ -22,6 +26,7 @@ import {
   hazardRatingAt,
   inspectionDate,
   inspectionMonthRange,
+  parseInspectionDate,
   ratingChangesByMonth,
   resolveTimelineMonth,
   sameMonth,
@@ -30,6 +35,7 @@ import {
   type RatingChange,
 } from './inspectionTimeline'
 import { formatFullAddress } from './address'
+import { foodTableColumns } from './foodTable'
 import { useFoodMapWebMCP } from './foodWebMCP'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
 import {
@@ -401,6 +407,36 @@ export default function FoodMap() {
   )
 
   const inspectionsThroughLabel = formatMonthYear(inspectionDateRange.end)
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<RestaurantWithStats>({
+        id: 'restaurants',
+        label: 'Restaurants',
+        color: '#f59e0b',
+        shape: 'point',
+        // Includes places without coordinates, which the sidebar lists and the map cannot draw.
+        rows: filteredRestaurants,
+        columns: foodTableColumns(visualizationMode, parseInspectionDate),
+        getRowId: (restaurant) => restaurant.details_url,
+        getRowCenter: (restaurant) =>
+          restaurant.latitude && restaurant.longitude ? [restaurant.longitude, restaurant.latitude] : null,
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? 'No restaurants match these filters.',
+        exportFileName: 'food-safety-restaurants',
+      }),
+    ],
+    [error, filteredRestaurants, loading, visualizationMode],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedRestaurant?.details_url ?? null,
+    onSelectRow: (restaurant: RestaurantWithStats) => {
+      selectRestaurant(restaurant)
+      setShowSidebar(true)
+    },
+    // RestaurantMap flies to the selected restaurant, which also covers a click on a marker.
+    flyOnSelect: false,
+  })
 
   useFoodMapWebMCP({
     loading,
@@ -429,13 +465,14 @@ export default function FoodMap() {
   return (
     <>
       <MapSectionLayout
+        table={table}
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
         mobilePeek={
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 text-left">
               <div className="truncate text-xs font-semibold text-foreground">
-                Food Safety · {geocodedRestaurants.length.toLocaleString()} on map
+                Food Safety · {geocodedRestaurants.length.toLocaleString(DEFAULT_LOCALE)} on map
               </div>
               <div className="truncate text-xs text-muted-foreground">
                 {selectedRestaurant?.name ||
@@ -505,6 +542,8 @@ export default function FoodMap() {
         }
       >
         <div className="relative h-full">
+          <MapTableBridge table={table} />
+          <MapScaleBar position="bottom-left" className="max-md:hidden" />
           <RestaurantMap
             restaurants={geocodedRestaurants}
             selectedRestaurant={selectedRestaurant}
@@ -547,43 +586,18 @@ export default function FoodMap() {
               collapsible
               collapsed={legendCollapsed}
               onCollapsedChange={setLegendCollapsed}
-              elevated={showTimeline}
               contentClassName="space-y-1 text-xs text-muted-foreground"
               actions={
                 legendCollapsed ? null : visualizationMode === 'violations' ? (
-                  <span className="inline-flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedViolationBuckets([...FOOD_VIOLATION_BUCKETS])}
-                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedViolationBuckets([])}
-                      className="font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      None
-                    </button>
-                  </span>
+                  <SelectAllActions
+                    onAll={() => setSelectedViolationBuckets([...FOOD_VIOLATION_BUCKETS])}
+                    onNone={() => setSelectedViolationBuckets([])}
+                  />
                 ) : (
-                  <span className="inline-flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => actions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
-                      className="font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300"
-                    >
-                      All
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => actions.setHazardRatings([])}
-                      className="font-medium text-muted-foreground hover:text-foreground"
-                    >
-                      None
-                    </button>
-                  </span>
+                  <SelectAllActions
+                    onAll={() => actions.setHazardRatings([...HAZARD_RATING_OPTIONS])}
+                    onNone={() => actions.setHazardRatings([])}
+                  />
                 )
               }
             >
@@ -602,7 +616,7 @@ export default function FoodMap() {
                       key={bucket.key}
                       color={bucket.color}
                       label={bucket.label}
-                      value={bucket.count.toLocaleString()}
+                      value={bucket.count.toLocaleString(DEFAULT_LOCALE)}
                       active={bucket.active}
                       onClick={() => toggleViolationBucket(bucket.key)}
                     />

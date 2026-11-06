@@ -3,6 +3,7 @@ import { AppSelect } from '@/components/ui/select'
 
 import type { ResearchRecordsAdapterData } from '../adapters/useResearchRecordsAdapter'
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function TimelineFeature({
   feature,
@@ -36,7 +37,7 @@ export function TimelineFeature({
           ...(!timelineMode ? [{ value: 'all', label: 'All decades' }] : []),
           ...decades.map((item) => ({
             value: String(item.decade),
-            label: `${item.decade}s (${item.total.toLocaleString()})`,
+            label: `${item.decade}s (${item.total.toLocaleString(DEFAULT_LOCALE)})`,
           })),
         ]}
         triggerAriaLabel="Filter by decade"

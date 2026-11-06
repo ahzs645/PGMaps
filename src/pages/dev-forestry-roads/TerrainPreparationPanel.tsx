@@ -244,14 +244,14 @@ export function TerrainPreparationPanel({
             Combine LAS / LAZ sources
           </Button>
           {metadata.preparation && (
-            <p className="break-words text-[11px] text-muted-foreground">
+            <p className="break-words text-2xs text-muted-foreground">
               {metadata.preparation.method} · {metadata.preparation.sources.length} source records
             </p>
           )}
           {raster && metadata.preparation?.tin && (
             <details className="rounded border p-2">
               <summary className="cursor-pointer text-xs font-medium">Edit retained source TIN</summary>
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              <p className="mt-2 text-2xs text-muted-foreground">
                 Edit a vertex elevation while retaining breakline topology. The grid is rebuilt from the edited
                 triangles; source holes stay unknown.
               </p>
@@ -326,7 +326,7 @@ export function TerrainPreparationPanel({
           {!!metadata.referenceSurfaces?.length && (
             <details className="rounded border p-2">
               <summary className="cursor-pointer text-xs font-medium">Named analytical reference surfaces</summary>
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              <p className="mt-2 text-2xs text-muted-foreground">
                 Section components can target these earlier ground surfaces. Remove a snapshot only after changing
                 components that reference it.
               </p>
@@ -461,7 +461,7 @@ export function TerrainPreparationPanel({
           >
             Merge this road into ground for a junction
           </Button>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Pad and road-surface actions change analytical ground. Undo restores the previous terrain; use a separate
             road for the connecting design.
           </p>
@@ -573,7 +573,7 @@ export function TerrainPreparationPanel({
         help="Projected grid metres and grid bearings. A closed traverse can use Bowditch corrections proportional to horizontal leg length, including vertical closure. Signed side-shot offsets are negative left. This reduces entered observations; it does not establish survey accuracy."
       >
         <fieldset disabled={working || !!w.busy} className="min-w-0 space-y-2" data-testid="road-survey-field-book">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             EPSG:{exportGrid(metadata, alignment.points[0].coordinate).epsg} · {metadata.verticalReference}
           </p>
           <div className="grid grid-cols-2 gap-2">
@@ -609,7 +609,7 @@ export function TerrainPreparationPanel({
           </Button>
           <Field label="Traverse CSV (station, bearing°, horizontal m, grade %)">
             <textarea
-              className={`${roadFieldClass} min-h-28 font-mono text-[11px]`}
+              className={`${roadFieldClass} min-h-28 font-mono text-2xs`}
               value={notes}
               onChange={(e) => {
                 setNotes(e.target.value)
@@ -647,7 +647,7 @@ export function TerrainPreparationPanel({
           )}
           <Field label="Side shots (id, station index, signed offset m, height difference m)">
             <textarea
-              className={`${roadFieldClass} min-h-16 font-mono text-[11px]`}
+              className={`${roadFieldClass} min-h-16 font-mono text-2xs`}
               value={shotNotes}
               onChange={(e) => {
                 setShotNotes(e.target.value)

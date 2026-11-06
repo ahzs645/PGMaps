@@ -12,6 +12,7 @@ import {
   type LocalWorkbenchRecord,
 } from './data/localWorkbench'
 import { useLocalWorkbenchRecords } from './data/useLocalWorkbench'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function PortalLocalAttachments() {
   const cache = useLocalWorkbenchRecords('attachment')
@@ -137,7 +138,7 @@ export function PortalLocalAttachments() {
       {blob && (
         <div className="space-y-3 rounded border p-3">
           <p className="text-sm">
-            {filename} · {blob.size.toLocaleString()} bytes · {mime || 'Type not supplied'}
+            {filename} · {blob.size.toLocaleString(DEFAULT_LOCALE)} bytes · {mime || 'Type not supplied'}
           </p>
           <label className="block text-sm">
             Attachment description
@@ -203,7 +204,7 @@ export function PortalLocalAttachments() {
       {cache.records.slice(current * 25, (current + 1) * 25).map((record) => (
         <div key={record.id} className="flex flex-wrap items-center justify-between gap-2 rounded border p-3">
           <span className="min-w-0 break-words text-sm">
-            {record.name} · {(record.blob?.size ?? 0).toLocaleString()} bytes
+            {record.name} · {(record.blob?.size ?? 0).toLocaleString(DEFAULT_LOCALE)} bytes
           </span>
           <div className="flex flex-wrap gap-2">
             <Button

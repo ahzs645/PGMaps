@@ -61,10 +61,12 @@ export function ScoreBuilderWalkabilitySurfacePanel({
   return (
     <div
       className={cn(
-        'absolute z-20 flex max-h-[calc(100dvh-9rem)] w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur',
+        'absolute z-20 flex w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-lg border border-border bg-background/95 shadow-xl backdrop-blur',
         // On mobile, sit below the density/correlate/undo action buttons; on
-        // desktop, dock to the top-left corner the legend leaves free.
-        isDesktop ? 'left-6 top-4 rounded-xl' : 'left-2 top-[calc(env(safe-area-inset-top)+7rem)]',
+        // desktop, dock under the Table button in the corner the legend leaves free.
+        isDesktop
+          ? 'left-6 top-14 max-h-[calc(100dvh-11.5rem)] rounded-xl'
+          : 'left-2 top-[calc(env(safe-area-inset-top)+7rem)] max-h-[calc(100dvh-9rem)]',
       )}
       data-score-builder-walkability-surface-panel="true"
     >

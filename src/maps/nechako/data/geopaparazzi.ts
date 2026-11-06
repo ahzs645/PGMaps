@@ -1,6 +1,7 @@
 import type { Database, SqlJsStatic } from 'sql.js'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { parseImportJson, sha256Bytes, importFilename } from './importValues'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 /** Schema references are pinned to the official Geopaparazzi and SMASH models. */
 export const GPAP_SCHEMA_REFERENCES = [
@@ -111,7 +112,7 @@ function readRows(db: Database, table: string, columns?: string[]) {
       )
       if (rows.length > MAX_ROWS)
         throw new Error(
-          `${table} exceeds the ${MAX_ROWS.toLocaleString()}-row browser limit; no partial import was created.`,
+          `${table} exceeds the ${MAX_ROWS.toLocaleString(DEFAULT_LOCALE)}-row browser limit; no partial import was created.`,
         )
     }
   } finally {

@@ -6,7 +6,6 @@ import {
   SearchInput,
   SelectedItemCard,
   SidebarSection,
-  StatGrid,
 } from '@/components/ui/map-panels'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import {
@@ -16,11 +15,12 @@ import {
   useRevealBelowSticky,
   useStickyListToolbar,
 } from '@/components/ui/sticky-list-toolbar'
+import { StatGroup } from '@/components/ui/stat-group'
 import { ToggleRow, type ToggleRowTone } from '@/components/ui/toggle-row'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { DATASETS } from '@/lib/dataCatalog'
 import { formatArea, formatLength, formatNumber } from '@/lib/format'
-import { getClassificationColor, getTrailColor } from '../constants'
+import { AMENITY_MARKER_CAP, getClassificationColor, getTrailColor } from '../constants'
 import type {
   Park,
   Trail,
@@ -226,8 +226,11 @@ export function ParksSidebar({
     >
       {/* Stats */}
       <SidebarSection>
-        <StatGrid
-          stats={[
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={3}
+          items={[
             { label: 'Parks', value: formatNumber(filteredParks.length), valueClassName: 'text-xl' },
             { label: 'Trails', value: formatNumber(uniqueTrails.length), valueClassName: 'text-xl' },
             {
@@ -275,6 +278,11 @@ export function ParksSidebar({
             onClick={() => onToggleLayer('amenities')}
           />
         </div>
+        {showAmenities && amenities.length > AMENITY_MARKER_CAP && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            The map draws the first {formatNumber(AMENITY_MARKER_CAP)} of {formatNumber(amenities.length)} amenities.
+          </p>
+        )}
         <div className="mt-3 grid grid-cols-2 gap-2">
           {OVERLAY_TOGGLES.map((overlay) => {
             const active = activeLayers.includes(overlay.layer)

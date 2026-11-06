@@ -16,10 +16,18 @@ import {
   type MapRef,
 } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
-import { InlineAlert, MapOverlay, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import {
+  InlineAlert,
+  LegendItem,
+  MapLegendPanel,
+  MapLegendSection,
+  MapSidebarShell,
+  SidebarSection,
+} from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { MapDrawCapture } from './dev-forestry/MapDrawCapture'
 import { TerrainSupport } from './dev-forestry/TerrainSupport'
 import {
@@ -267,7 +275,7 @@ export default function DevViewshed() {
             Go to coordinates
           </Button>
         </form>
-        {coordinateError && <InlineAlert tone="warning">{coordinateError}</InlineAlert>}
+        {coordinateError && <InlineAlert tone="error">{coordinateError}</InlineAlert>}
         <NumericRangeField
           className="text-sm"
           inputClassName="h-auto accent-rose-600"
@@ -384,7 +392,7 @@ export default function DevViewshed() {
           onChange={setMinutes}
         />
         {!instant && (
-          <InlineAlert tone="warning">
+          <InlineAlert tone="error">
             Choose a valid date and time. This local time may be skipped by daylight saving.
           </InlineAlert>
         )}
@@ -512,9 +520,9 @@ export default function DevViewshed() {
         )}
         <p className="text-xs text-muted-foreground">
           Terrain-only estimate using{' '}
-          <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noreferrer" className="underline">
+          <ExternalLink className="font-normal underline" hideIcon href="https://registry.opendata.aws/terrain-tiles/">
             AWS Terrain Tiles
-          </a>
+          </ExternalLink>
           . Trees and buildings are excluded. DEM accuracy may not resolve the difference between seated and standing
           heights. 3D terrain is drawn at 1× elevation.
         </p>
@@ -586,24 +594,19 @@ export default function DevViewshed() {
           <MarkerTooltip>Observer · drag to update visibility</MarkerTooltip>
         </MapMarker>
         <MapScaleBar position="bottom-right" className="max-md:hidden" />
-        <MapOverlay
-          data-viewshed-legend
-          position="top-left"
-          className="max-w-[240px] p-3 text-xs pointer-events-none max-md:!top-16"
+        <MapLegendPanel
+          title={<span data-viewshed-legend>{placing ? 'Click to place the observer' : 'Terrain visibility'}</span>}
+          description={result ? `${(radius / 1000).toFixed(1)} km radius · ${mode}` : analysis.message}
+          collapsible
+          defaultCollapsed="mobile"
+          width="sm"
         >
-          <p className="font-semibold">{placing ? 'Click to place the observer' : 'Terrain visibility'}</p>
-          <p className="mt-1 text-muted-foreground">
-            {result ? `${(radius / 1000).toFixed(1)} km radius · ${mode}` : analysis.message}
-          </p>
-          <div className="mt-2 space-y-1">
+          <MapLegendSection>
             {legend.map(([color, label]) => (
-              <div key={label} className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: color }} />
-                {label}
-              </div>
+              <LegendItem key={label} color={color} label={label} />
             ))}
-          </div>
-        </MapOverlay>
+          </MapLegendSection>
+        </MapLegendPanel>
       </Map>
     </MapSectionLayout>
   )

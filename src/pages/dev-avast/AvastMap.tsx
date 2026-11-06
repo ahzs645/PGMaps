@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { MapTableBridge, type MapTableController } from '@/components/map/useMapTable'
 import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
@@ -41,6 +42,7 @@ const densityColor: unknown[] = [
 ]
 
 export type AvastMapProps = {
+  table: MapTableController
   candidates: GeoJSON.FeatureCollection
   pieces: GeoJSON.FeatureCollection
   slope: GeoJSON.FeatureCollection
@@ -177,7 +179,8 @@ export function AvastMap(props: AvastMapProps) {
           ))
 
   return (
-    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS}>
+    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS} deferResize={props.table.deferResize}>
+      <MapTableBridge table={props.table} />
       <CameraFit bounds={props.bounds} focus={props.focus} />
       {/* Only the block layer has a hover card: every layer under the pointer would otherwise open its own. */}
       <MapFillLayer

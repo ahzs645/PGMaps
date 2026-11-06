@@ -77,6 +77,7 @@ import {
   type VisualQualityClassId,
   type VisualQualityThresholds,
 } from './vqo'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape'
 
@@ -146,7 +147,7 @@ const INPUT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const SELECT_CLASS =
-  'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 function Field({
   label,
@@ -165,8 +166,8 @@ function Field({
       hint={hint}
       group={group}
       contentClassName="block"
-      labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
-      descriptionClassName="text-[10px] leading-4"
+      labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
+      descriptionClassName="text-3xs leading-4"
     >
       {children}
     </FormField>
@@ -206,9 +207,9 @@ function NumberField({
       blankValue="zero"
       inputClassName={INPUT_CLASS}
       contentClassName="block"
-      labelClassName="mb-1 block text-[11px] font-medium text-muted-foreground"
-      descriptionClassName="text-[10px] leading-4"
-      unitClassName="text-[11px]"
+      labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
+      descriptionClassName="text-3xs leading-4"
+      unitClassName="text-2xs"
     />
   )
 }
@@ -240,9 +241,9 @@ function OptionalNumber({
       suffix={suffix}
       clampOn="change"
       hideLabel
-      contentClassName="flex flex-row items-center gap-1 text-[11px] text-muted-foreground"
+      contentClassName="flex flex-row items-center gap-1 text-2xs text-muted-foreground"
       inputClassName={`${SELECT_CLASS} w-16`}
-      unitClassName="text-[11px]"
+      unitClassName="text-2xs"
     />
   )
 }
@@ -605,12 +606,12 @@ export function Sidebar({
           <span className="flex items-center gap-1.5">
             <span className="min-w-0 truncate text-xs font-medium text-foreground">{target.name}</span>
             {target.role === 'landscape' && target.id === activeLandformId && (
-              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-[10px] font-medium leading-4 text-primary">
+              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-3xs font-medium leading-4 text-primary">
                 Active
               </span>
             )}
           </span>
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {targetAreaHectares(target).toLocaleString('en-CA', {
               maximumFractionDigits: 1,
             })}{' '}
@@ -688,7 +689,7 @@ export function Sidebar({
             type="button"
             variant="outline"
             size="sm"
-            className="h-7 px-2 text-[11px]"
+            className="h-7 px-2 text-2xs"
             onClick={() => onActivateLandform(target.id)}
           >
             Assess against this landform
@@ -734,7 +735,7 @@ export function Sidebar({
             value: step.id,
             label: STEP_TAB_LABELS[step.id],
             ariaLabel: `Step ${step.number}: ${step.title} (${stepStatusText(via.statuses[step.id])})`,
-            marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-5 w-5 text-[11px]" />,
+            marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-5 w-5 text-2xs" />,
           }))}
           getTabProps={(option) => ({ 'data-via-step': option.value })}
         />
@@ -811,7 +812,7 @@ export function Sidebar({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="-mt-2 mb-3 w-full text-[11px]"
+                className="-mt-2 mb-3 w-full text-2xs"
                 onClick={() => roadFileRef.current?.click()}
               >
                 <FileUp className="h-3.5 w-3.5" />
@@ -843,7 +844,7 @@ export function Sidebar({
                   <Magnet className="h-4 w-4" />
                   Snap to the nearest road
                 </Button>
-                {snapMessage && <p className="mt-1 text-[10px] leading-4 text-muted-foreground">{snapMessage}</p>}
+                {snapMessage && <p className="mt-1 text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
               </div>
             )}
             {/* The same question the other way round: rather than picking a road and
@@ -866,13 +867,13 @@ export function Sidebar({
                 {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
                 {reverseRunning ? 'Searching…' : 'Find them on screen'}
               </Button>
-              <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+              <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
                 Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first —
                 roads off screen are not searched.
               </p>
 
               {reverseRunning && reverse.progress && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-2 text-2xs text-muted-foreground">
                   {reverse.progress.phase === 'terrain'
                     ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
                     : 'Tracing sightlines…'}
@@ -886,7 +887,7 @@ export function Sidebar({
               )}
 
               {reverse.result && reverse.result.roads.length === 0 && (
-                <p className="mt-2 text-[11px] text-muted-foreground">
+                <p className="mt-2 text-2xs text-muted-foreground">
                   No road on screen can see it
                   {reverse.result.outOfRangeRoadCount > 0
                     ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
@@ -914,7 +915,7 @@ export function Sidebar({
                             {road.maxVisiblePercent.toFixed(0)}%
                           </span>
                         </div>
-                        <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
+                        <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">
                           {road.seeingStationCount === 0
                             ? 'Hidden from every point on it'
                             : `Seen from ${(road.exposedLengthFraction * 100).toFixed(0)}% of its length · ` +
@@ -927,7 +928,7 @@ export function Sidebar({
               )}
 
               {reverse.result && reverse.result.roads.length > 0 && (
-                <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                <p className="mt-2 text-3xs leading-4 text-muted-foreground">
                   Percentages are the share of the block&rsquo;s ground area in view from one point. Pick a road to make
                   it the corridor, then run the full assessment for the figures an objective is judged on.
                 </p>
@@ -945,7 +946,7 @@ export function Sidebar({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-7 px-2 text-[11px]"
+                className="h-7 px-2 text-2xs"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <FileUp className="h-3.5 w-3.5" />
@@ -1034,7 +1035,7 @@ export function Sidebar({
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-[11px]"
+                    className="h-7 px-2 text-2xs"
                     onClick={onToggleInventory}
                   >
                     {showInventory ? 'Hide' : 'Show'}
@@ -1057,7 +1058,7 @@ export function Sidebar({
                   )}
                   {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
                 </Button>
-                <p className="mt-2 text-[11px] leading-4 text-muted-foreground">
+                <p className="mt-2 text-2xs leading-4 text-muted-foreground">
                   Downloaded provincial sensitivity units, plus live harvest and forest-cover context. Boundaries are
                   candidates: review the visible landform before adopting one.
                 </p>
@@ -1076,7 +1077,7 @@ export function Sidebar({
                     </InlineAlert>
                   ) : (
                     <div className="mt-2">
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-2xs text-muted-foreground">
                         {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective
                         · {inventorySummary.withVac} with a VAC rating
                         {inventory.truncated ? ' · more exist than were returned' : ''}
@@ -1101,7 +1102,7 @@ export function Sidebar({
                               />
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-xs font-medium text-foreground">{unit.name}</span>
-                                <span className="text-[11px] text-muted-foreground">
+                                <span className="text-2xs text-muted-foreground">
                                   {unit.objectiveId
                                     ? visualQualityClass(unit.objectiveId).label
                                     : 'No established objective'}
@@ -1114,7 +1115,7 @@ export function Sidebar({
                         ))}
                       </ul>
                       {ratedUnits.length < inventory.units.length && (
-                        <p className="mt-1 text-[10px] text-muted-foreground">
+                        <p className="mt-1 text-3xs text-muted-foreground">
                           {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
                         </p>
                       )}
@@ -1141,7 +1142,7 @@ export function Sidebar({
             what the analysis sees from here, and how the timber is drawn. */}
           {result && drive.active && (
             <SidebarSection title="Road view" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
-              <p className="mb-3 text-[11px] leading-4 text-muted-foreground">
+              <p className="mb-3 text-2xs leading-4 text-muted-foreground">
                 Play, speed, position and the way back to the map are on the road-view panel over the map.
               </p>
               {
@@ -1164,12 +1165,12 @@ export function Sidebar({
 
                   {driveVisiblePercent !== null && (
                     <div className="rounded-md border border-border bg-muted/20 p-2">
-                      <p className="text-[11px] text-muted-foreground">Ground visible at nearest station</p>
+                      <p className="text-2xs text-muted-foreground">Ground visible at nearest station</p>
                       <p className="text-2xl font-bold tabular-nums text-foreground">
                         {driveVisiblePercent.toFixed(0)}
                         <span className="text-sm">%</span>
                       </p>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-2xs text-muted-foreground">
                         {driveTarget?.name}: share of cutblock ground visible in the analysis. This is not the share of
                         your screen, and illustrated trees do not change this number.
                       </p>
@@ -1258,9 +1259,9 @@ export function Sidebar({
                           </InlineAlert>
                         ) : (
                           forestStatus !== null && (
-                            <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
-                              {forestStatus.treeCount.toLocaleString()} stems standing around the camera · Distant
-                              instances represent canopy groups. Detail reduces with distance.
+                            <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
+                              {forestStatus.treeCount.toLocaleString(DEFAULT_LOCALE)} stems standing around the camera ·
+                              Distant instances represent canopy groups. Detail reduces with distance.
                               {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
                                 ? ` Species and height come from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
                                 : ' Species and height are a regional mix — run the BC inventory lookup to draw what the province recorded here.'}
@@ -1269,13 +1270,13 @@ export function Sidebar({
                         )}
                       </div>
                     ) : (
-                      <p className="mt-1.5 text-[10px] leading-4 text-muted-foreground">
+                      <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
                         Bare ground — the hillside as the terrain model has it.
                       </p>
                     )}
                   </div>
 
-                  <p className="mt-3 text-[10px] text-muted-foreground">
+                  <p className="mt-3 text-3xs text-muted-foreground">
                     Terrain is shown at true scale (1×). The road surface and forest are illustrative; changing them
                     does not change the assessment.
                   </p>
@@ -1340,7 +1341,7 @@ export function Sidebar({
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-2xs text-muted-foreground">
                   {analysis.progress.phase === 'terrain'
                     ? `Fetching terrain — ${analysis.progress.completed} of ${analysis.progress.total} tiles`
                     : `Tracing sightlines — ${progressPercent.toFixed(0)}%`}
@@ -1348,9 +1349,9 @@ export function Sidebar({
               </div>
             )}
 
-            {!hasViewpoint && <p className="mt-2 text-[11px] text-muted-foreground">Place a viewpoint to run.</p>}
+            {!hasViewpoint && <p className="mt-2 text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
             {hasViewpoint && blocks.length === 0 && (
-              <p className="mt-2 text-[11px] text-muted-foreground">Add at least one block to assess.</p>
+              <p className="mt-2 text-2xs text-muted-foreground">Add at least one block to assess.</p>
             )}
             {analysis.error && (
               <InlineAlert className="mt-2" tone="error">
@@ -1480,7 +1481,7 @@ export function Sidebar({
                     checked={settings.screeningEnabled}
                     onChange={(event) => onSettingsChange({ ...settings, screeningEnabled: event.target.checked })}
                   />
-                  <span className="text-[11px] leading-4 text-muted-foreground">
+                  <span className="text-2xs leading-4 text-muted-foreground">
                     <span className="font-medium text-foreground">Screen with standing timber.</span> Adds VRI
                     rank-1&apos;s projected stand height to the ground along each sightline, so a block behind mature
                     timber reads as hidden. Openings and the proposal itself are treated as cleared. Full-landscape
@@ -1521,7 +1522,7 @@ export function Sidebar({
                   </ToggleChip>
                 ))}
               </div>
-              <p className="mb-2 text-[11px] leading-4 text-muted-foreground">
+              <p className="mb-2 text-2xs leading-4 text-muted-foreground">
                 {ALTERATION_BASIS_NOTES[thresholdBasis]} Defaults come from{' '}
                 {thresholdBasis === 'perspective'
                   ? 'A Guide to Visual Quality Objectives (2013)'
@@ -1537,7 +1538,7 @@ export function Sidebar({
                     </span>
                     <input
                       type="number"
-                      className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-right text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                      className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-right text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       value={thresholds[thresholdBasis][entry.id]}
                       min={0}
                       max={100}
@@ -1555,12 +1556,12 @@ export function Sidebar({
                         })
                       }}
                     />
-                    <span className="w-3 shrink-0 text-[11px] text-muted-foreground">%</span>
+                    <span className="w-3 shrink-0 text-2xs text-muted-foreground">%</span>
                   </div>
                 ))}
               </div>
               {thresholdBasis === 'planimetric' && (
-                <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                <p className="mt-2 text-3xs leading-4 text-muted-foreground">
                   Table 4 narrows these to one figure per visual absorption capability. Rate a landform&apos;s VAC in
                   the polygon list above and the results use that figure instead of the class maximum.
                 </p>
@@ -1569,7 +1570,7 @@ export function Sidebar({
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="mt-2 h-7 px-2 text-[11px] text-muted-foreground"
+                className="mt-2 h-7 px-2 text-2xs text-muted-foreground"
                 onClick={() => onThresholdsChange({ ...DEFAULT_VISUAL_QUALITY_THRESHOLDS })}
               >
                 Reset to guidebook defaults
@@ -1664,7 +1665,7 @@ export function Sidebar({
             {report}
             {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
             <div className="mt-3 border-t border-border/60 pt-3">
-              <p className="mb-2 text-[11px] font-medium text-muted-foreground">Also download</p>
+              <p className="mb-2 text-2xs font-medium text-muted-foreground">Also download</p>
               <div className="flex flex-wrap gap-2">
                 {onExportReport && (
                   <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onExportReport}>

@@ -3,6 +3,9 @@ import { lazy, Suspense, useState } from 'react'
 import { TabBar, type TabOption } from '@/components/ui/tab-bar'
 import { NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NECHAKO_PORTAL } from '@/lib/nechakoPortal'
 import { PortalLayers } from '@/maps/nechako/PortalLayers'
 import { PortalFormats } from '@/maps/nechako/PortalChecks'
@@ -96,58 +99,58 @@ function Comparison() {
         existing reviewed development adapters or the original portal.
       </InlineAlert>
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[1000px] text-left text-sm">
+        <EngineeringTable
+          variant="text"
+          rowHeaders
+          className="min-w-[1000px] text-sm [&_td]:p-3 [&_tbody_th]:p-3 [&_tbody_th]:font-medium"
+        >
           <caption className="sr-only">Full feature comparison</caption>
-          <thead className="bg-muted">
+          <thead>
             <tr>
               {['Capability', 'Portal evidence', 'Existing PGMaps', 'This dev view', 'Remaining work'].map((label) => (
-                <th key={label} scope="col" className="p-3">
-                  {label}
-                </th>
+                <ColumnHeader key={label} label={label} className="p-3" />
               ))}
             </tr>
           </thead>
           <tbody>
             {FEATURE_COMPARISON.map((row) => (
-              <tr key={row.feature} className="border-t align-top">
-                <th scope="row" className="p-3 font-medium">
-                  {row.feature}
-                </th>
-                <td className="p-3">{row.portal}</td>
-                <td className="p-3">{row.pgmaps}</td>
-                <td className="p-3">{row.devView}</td>
-                <td className="p-3">{row.next}</td>
+              <tr key={row.feature} className="align-top">
+                <th scope="row">{row.feature}</th>
+                <td>{row.portal}</td>
+                <td>{row.pgmaps}</td>
+                <td>{row.devView}</td>
+                <td>{row.next}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
       <h3 className="text-lg font-semibold">Data types and conversion</h3>
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[850px] text-left text-sm">
+        <EngineeringTable
+          variant="text"
+          rowHeaders
+          className="min-w-[850px] text-sm [&_td]:p-3 [&_tbody_th]:p-3 [&_tbody_th]:font-medium"
+        >
           <caption className="sr-only">Data format comparison</caption>
-          <thead className="bg-muted">
+          <thead>
             <tr>
               {['Format / source', 'Portal evidence', 'Existing PGMaps', 'Handling still needed'].map((label) => (
-                <th key={label} scope="col" className="p-3">
-                  {label}
-                </th>
+                <ColumnHeader key={label} label={label} className="p-3" />
               ))}
             </tr>
           </thead>
           <tbody>
             {FORMAT_COMPARISON.map((row) => (
-              <tr key={row.format} className="border-t align-top">
-                <th scope="row" className="p-3 font-medium">
-                  {row.format}
-                </th>
-                <td className="p-3">{row.evidence}</td>
-                <td className="p-3">{row.pgmaps}</td>
-                <td className="p-3">{row.next}</td>
+              <tr key={row.format} className="align-top">
+                <th scope="row">{row.format}</th>
+                <td>{row.evidence}</td>
+                <td>{row.pgmaps}</td>
+                <td>{row.next}</td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </EngineeringTable>
       </div>
       <h3 className="text-lg font-semibold">CORS and maintenance</h3>
       <ul className="list-disc space-y-2 pl-5 text-sm">
@@ -245,26 +248,30 @@ export default function DevNechako() {
   }
   return (
     <div className="container mx-auto space-y-6 px-4 pb-10 pt-24 sm:px-6 md:pt-10">
-      <div className="space-y-3">
-        <Link to="/dev" className="text-sm text-primary underline">
-          Dev library
-        </Link>
-        <h1 className="text-3xl font-bold tracking-tight">Nechako portal workbench</h1>
-        <Link to="/dev/nechako/portal" className="inline-block text-sm text-primary underline">
-          Open portal interface
-        </Link>
-        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">
-          Explore public portal content from PGMaps and compare what each site supports.
-        </p>
-        <a
-          href={NECHAKO_PORTAL}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-block text-sm text-primary underline"
-        >
-          Open Stewardship Portal
-        </a>
-      </div>
+      <ToolPageHeader
+        className="mb-0"
+        back={
+          <Link to="/dev" className="mb-3 inline-block text-sm text-primary underline">
+            Dev library
+          </Link>
+        }
+        title="Nechako portal workbench"
+        description="Explore public portal content from PGMaps and compare what each site supports."
+        aside={
+          <div className="flex flex-col gap-1 sm:items-end">
+            <Link to="/dev/nechako/portal" className="text-sm text-primary underline">
+              Open portal interface
+            </Link>
+            <ExternalLink
+              href={NECHAKO_PORTAL}
+              hideIcon
+              className="text-sm font-normal text-primary underline dark:text-primary"
+            >
+              Open Stewardship Portal
+            </ExternalLink>
+          </div>
+        }
+      />
       <TabBar
         label="Nechako portal views"
         idPrefix="nechako"

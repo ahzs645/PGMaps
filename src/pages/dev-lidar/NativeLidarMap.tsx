@@ -12,7 +12,7 @@ import type { ElevationProfile } from 'maplibre-gl-lidar'
 import type { TransectControl } from './NativeTransect'
 import { startNativeTransect, refreshNativeTransect } from './NativeTransect'
 import { applyTreeInspectionMap, inspectionPitch } from './treeInspectionMap'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import maplibregl, { type LayerSpecification, type Map as MapLibreMap, type StyleSpecification } from 'maplibre-gl'
 import { hideNativeLoadSection } from './imports/las'
 import { LidarControl, type ColorSchemeType } from 'maplibre-gl-lidar'
@@ -44,6 +44,7 @@ import {
 } from './basemaps'
 import { LidarMap, pointCloudFrame, RegionalHillshade } from './LidarMap'
 import { CAMERA_PARAM, formatCamera, parseCamera } from './mapCamera'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 /** Keeps the address bar on the current view, so a copied link opens the same place. */
 function shareCamera(map: MapLibreMap) {
@@ -78,6 +79,8 @@ interface Props {
   raster: RasterKey
   trees: boolean
   buildings: boolean
+  /** Rendered inside the map, for pieces that read it through `useMap`. */
+  children?: ReactNode
   reference: boolean
   cloud: boolean
   minTreeHeight: number
@@ -149,7 +152,7 @@ export function NativeLidarMap(props: Props) {
       setStatus(
         props.treeCrop
           ? (props.pointStatus ??
-              `${props.treeCrop.points.length.toLocaleString()} isolated original returns · crown-column crop · candidates unvalidated`)
+              `${props.treeCrop.points.length.toLocaleString(DEFAULT_LOCALE)} isolated original returns · crown-column crop · candidates unvalidated`)
           : props.cloud
             ? `Original points · ${props.sceneGround === null ? 'whole-tile' : `local ground ${props.sceneGround.toFixed(1)} m`} viewing origin · budget 750,000`
             : props.modelActive
@@ -683,9 +686,10 @@ export function NativeLidarMap(props: Props) {
         onCreateError={(e) => setError(e instanceof Error ? e.message : 'WebGL map could not start')}
       >
         {props.hillshade && <RegionalHillshade beforeId={`analysis-${Object.keys(props.summary.rasters)[0]}`} />}
+        {props.children}
       </LidarMap>
       <div
-        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-[10px] text-foreground shadow"
+        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-3xs text-foreground shadow"
         role="status"
         title={height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       >
@@ -703,7 +707,7 @@ export function NativeLidarMap(props: Props) {
         </div>
       )}
       {contextError && props.basemap === 'vector' && (
-        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-[10px]">
+        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-3xs">
           {contextError}
         </div>
       )}

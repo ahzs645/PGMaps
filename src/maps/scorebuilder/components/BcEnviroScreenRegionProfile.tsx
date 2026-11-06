@@ -73,7 +73,7 @@ export function BcEnviroScreenRegionProfile({ region }: BcEnviroScreenRegionProf
                   {formatNullable(profile.components[component.key], 2, 1)}
                 </span>
               </div>
-              <div className="mb-1 flex justify-between text-[10px] font-medium">
+              <div className="mb-1 flex justify-between text-3xs font-medium">
                 <span className="text-[#008837]">Better</span>
                 <span className="text-[#7b3294]">Worse</span>
               </div>
@@ -85,7 +85,7 @@ export function BcEnviroScreenRegionProfile({ region }: BcEnviroScreenRegionProf
                   const bounded = percentile == null ? null : Math.min(1, Math.max(0, percentile))
                   return (
                     <div key={metric.key}>
-                      <div className="mb-0.5 flex items-start justify-between gap-2 text-[10px] leading-tight">
+                      <div className="mb-0.5 flex items-start justify-between gap-2 text-3xs leading-tight">
                         <span className="min-w-0 text-foreground">{metric.shortLabel}</span>
                         <span className="shrink-0 text-muted-foreground">
                           {missing ? 'Missing' : formatMetricValue(metric.key, rawValue, true)}

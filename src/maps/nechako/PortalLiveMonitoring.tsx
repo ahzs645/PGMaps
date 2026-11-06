@@ -1,7 +1,9 @@
+import { DEFAULT_LOCALE } from '@/lib/format'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
 import { errorText, portalRead, portalLayerAttributes, PORTAL_CONNECTION_EVENT } from '@/lib/nechakoPortal'
 import { csvExport } from './data/monitoring'
@@ -418,7 +420,7 @@ export function PortalLiveMonitoring({
           <p className="text-sm">
             {data.noData
               ? 'No accessible observations.'
-              : `Rows ${data.data.length ? page * 500 + 1 : 0}–${page * 500 + data.data.length} of ${data.recordCount.toLocaleString()} · page ${page + 1} of ${Math.max(1, Math.ceil(data.recordCount / 500))}`}
+              : `Rows ${data.data.length ? page * 500 + 1 : 0}–${page * 500 + data.data.length} of ${data.recordCount.toLocaleString(DEFAULT_LOCALE)} · page ${page + 1} of ${Math.max(1, Math.ceil(data.recordCount / 500))}`}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={busy || page === 0} onClick={() => load(page - 1)}>
@@ -472,13 +474,11 @@ export function PortalLiveMonitoring({
             </Button>
           </div>
           <div className="max-h-80 overflow-auto">
-            <table className="w-full text-xs">
+            <EngineeringTable variant="text">
               <thead>
                 <tr>
                   {data.fields.map((field) => (
-                    <th key={field} className="border p-2 text-left">
-                      {field}
-                    </th>
+                    <ColumnHeader key={field} label={field} />
                   ))}
                 </tr>
               </thead>
@@ -486,14 +486,12 @@ export function PortalLiveMonitoring({
                 {data.data.map((row, index) => (
                   <tr key={index}>
                     {data.fields.map((field) => (
-                      <td key={field} className="border p-2">
-                        {row[field] === null || row[field] === undefined ? '—' : String(row[field])}
-                      </td>
+                      <td key={field}>{row[field] === null || row[field] === undefined ? '—' : String(row[field])}</td>
                     ))}
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
         </>
       )}

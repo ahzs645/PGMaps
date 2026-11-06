@@ -71,7 +71,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
             className="mt-2 w-full"
           />
         </label>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           {basemap === 'vector'
             ? 'OpenFreeMap vector roads, buildings and labels. OSM footprints are context, not verified building truth.'
             : basemap === 'satellite'
@@ -127,7 +127,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
                 onChange={(e) => setMinTreeHeight(Number(e.target.value))}
               />
             </label>
-            <p className="text-[10px] leading-4 text-muted-foreground">
+            <p className="text-3xs leading-4 text-muted-foreground">
               Filters displayed candidates; detection is not rerun. Green markers are crowns; amber outlines are
               roof-like patches.
             </p>
@@ -150,7 +150,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
         <Button className="mt-2 h-8 w-full text-xs" variant="outline" onClick={openTools}>
           Open native LiDAR tools
         </Button>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           84.6 million source points; display budget 750,000. Drag to pan; right-drag to orbit. Native point size,
           colour and inspection tools open on demand.
         </p>

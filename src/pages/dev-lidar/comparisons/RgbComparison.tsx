@@ -231,7 +231,7 @@ export function RgbComparison({
                 )
               }
             />
-            <p className="mt-2 break-all text-[10px]">
+            <p className="mt-2 break-all text-3xs">
               Image SHA-256: {sample.image_sha256}
               <br />A weights: {sample.models[a].weights_sha256}
               <br />B weights: {sample.models[b].weights_sha256}

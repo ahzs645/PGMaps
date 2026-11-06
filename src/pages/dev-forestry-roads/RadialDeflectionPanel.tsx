@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { CableChart } from './Charts'
 import { NumberField } from './Controls'
@@ -117,7 +118,7 @@ export function RadialDeflectionPanel({
     <section className="h-full min-h-0 overflow-y-auto overscroll-contain p-1" data-testid="radial-deflection-panel">
       <div className="mb-2 text-xs">
         <p className="font-medium">Landing-centered D-line exploration</p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {center ? (
             <>
               {centerLabel ? `${centerLabel} · ` : ''}
@@ -127,7 +128,7 @@ export function RadialDeflectionPanel({
             'Select a covered road station as the proposed landing.'
           )}
         </p>
-        {sourceLabel && <p className="truncate text-[10px] text-muted-foreground">{sourceLabel}</p>}
+        {sourceLabel && <p className="truncate text-3xs text-muted-foreground">{sourceLabel}</p>}
       </div>
       <details
         open={settingsOpen}
@@ -161,7 +162,7 @@ export function RadialDeflectionPanel({
             />
           ))}
         </div>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           Bearings run clockwise from north. Up to {MAX_RADIAL_SPOKES} candidate tailholds at the chosen radius; spacing
           increases if needed. Test another radius to explore nearer supports.
         </p>
@@ -195,7 +196,7 @@ export function RadialDeflectionPanel({
       )}
       {result && (
         <>
-          <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]" role="status">
+          <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-2xs" role="status">
             {(['clear', 'conflict', 'unknown'] as const).map((status) => (
               <span key={status}>
                 <span
@@ -208,28 +209,24 @@ export function RadialDeflectionPanel({
             ))}
           </div>
           {result.warnings.map((warning) => (
-            <p key={warning} className="mb-2 text-[10px] text-amber-700 dark:text-amber-400">
+            <p key={warning} className="mb-2 text-3xs text-amber-700 dark:text-amber-400">
               {warning}
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(130px,0.65fr)_minmax(0,1fr)]">
             <div className="max-h-64 overflow-auto rounded border">
-              <table className="w-full text-right text-[11px]" data-testid="radial-spoke-table">
-                <thead className="sticky top-0 bg-card">
+              <EngineeringTable className="whitespace-normal" data-testid="radial-spoke-table">
+                <thead className="sticky top-0">
                   <tr>
-                    <th className="p-1.5 text-left">Bearing</th>
-                    <th className="p-1.5">Min. clearance</th>
-                    <th className="p-1.5">Terrain</th>
+                    <ColumnHeader label="Bearing" className="text-left" />
+                    <ColumnHeader label="Min. clearance" />
+                    <ColumnHeader label="Terrain" />
                   </tr>
                 </thead>
                 <tbody>
                   {result.spokes.map((spoke) => (
-                    <tr
-                      key={spoke.id}
-                      aria-selected={selected?.id === spoke.id}
-                      className={selected?.id === spoke.id ? 'bg-rose-500/10' : 'hover:bg-muted/50'}
-                    >
-                      <td className="border-t p-1.5 text-left">
+                    <tr key={spoke.id} aria-selected={selected?.id === spoke.id}>
+                      <td className="text-left">
                         <button
                           className="underline decoration-dotted"
                           onClick={() => choose(spoke.id)}
@@ -242,18 +239,18 @@ export function RadialDeflectionPanel({
                           {number(spoke.bearingDeg)}°
                         </button>
                       </td>
-                      <td className="border-t p-1.5" title={statusText(spoke)}>
+                      <td title={statusText(spoke)}>
                         {spoke.analysis.minClearance === null ? 'Unknown' : `${number(spoke.analysis.minClearance)} m`}
                       </td>
-                      <td className="border-t p-1.5">{number(spoke.knownCoveragePercent, 0)}%</td>
+                      <td>{number(spoke.knownCoveragePercent, 0)}%</td>
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </EngineeringTable>
             </div>
             {selected && (
               <div className="min-w-0">
-                <p className="mb-1 text-[11px] font-medium">
+                <p className="mb-1 text-2xs font-medium">
                   {number(selected.bearingDeg)}° · {statusText(selected)}
                 </p>
                 <div className="h-60 min-w-0" data-testid="radial-selected-profile">
@@ -268,7 +265,7 @@ export function RadialDeflectionPanel({
           </div>
         </>
       )}
-      <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+      <p className="mt-2 text-3xs leading-4 text-muted-foreground">
         Geometric screen using the active terrain and an assumed parabolic sag. Green means sampled clearance meets the
         entered threshold. It does not establish cable tension, payload, anchors or operating safety. Unknown terrain is
         never treated as clear. The fan is temporary until a D-line is adopted.

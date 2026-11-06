@@ -305,7 +305,7 @@ export function ComparisonMap(props: Props) {
         onCreateError={(e) => setError(`Map unavailable: ${String(e)}`)}
       />
       {error && (
-        <p className="absolute bottom-8 left-2 right-12 rounded bg-background/95 p-2 text-[10px]" role="status">
+        <p className="absolute bottom-8 left-2 right-12 rounded bg-background/95 p-2 text-3xs" role="status">
           {error}
         </p>
       )}

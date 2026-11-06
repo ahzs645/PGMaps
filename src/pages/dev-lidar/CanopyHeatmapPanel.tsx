@@ -47,7 +47,7 @@ export function CanopyHeatmapPanel({
           </label>
         )}
         {height && (
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-3xs text-muted-foreground">
             At zoom 16+, load the original 1 m grid. The map status confirms the active resolution. Zooming farther
             cannot reveal features smaller than the source cells.
           </p>
@@ -81,7 +81,7 @@ export function CanopyHeatmapPanel({
         </label>
         <div className="mt-3" aria-label="Canopy heatmap colour legend">
           <div className="h-3 rounded" style={{ background: `linear-gradient(to right,${legend.colors.join(',')})` }} />
-          <div className="mt-1 flex justify-between text-[10px] tabular-nums">
+          <div className="mt-1 flex justify-between text-3xs tabular-nums">
             {[0, 0.25, 0.5, 0.75, 1].map((f) => (
               <span key={f}>
                 {f * legend.max}
@@ -90,7 +90,7 @@ export function CanopyHeatmapPanel({
             ))}
           </div>
         </div>
-        <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-3 text-3xs leading-4 text-muted-foreground">
           Click the map for an approximate heatmap value. Change Vector / Satellite above to compare context. The legend
           remains below the map when this panel is closed.
         </p>
@@ -110,7 +110,7 @@ export function CanopyHeatmapPanel({
         >
           Download coloured PNG
         </a>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           This download is the overview PNG (about 3.5 m display cells). The height map switches to 1 m source detail
           when zoomed in; its click values come from the source grid. Density remains the 21 m neighbourhood product.
         </p>

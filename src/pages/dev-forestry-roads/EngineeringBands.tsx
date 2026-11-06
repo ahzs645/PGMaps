@@ -278,7 +278,7 @@ export function EngineeringBands({
   return (
     <div className="-mx-3 border-t" data-testid="road-engineering-bands" data-range-start={start} data-range-end={end}>
       <button
-        className="flex w-full items-center justify-between px-3 py-1 text-[10px] text-muted-foreground hover:bg-muted touch:py-2.5"
+        className="flex w-full items-center justify-between px-3 py-1 text-3xs text-muted-foreground hover:bg-muted touch:py-2.5"
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
       >

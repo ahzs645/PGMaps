@@ -7,9 +7,10 @@ import { RecordDialog } from '@/components/ui/record-dialog'
 
 import type { ResearchRecord } from '../adapters/researchRecordsTypes'
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 function applyCountTemplate(template: string, count: number) {
-  return template.split('{count}').join(count.toLocaleString())
+  return template.split('{count}').join(count.toLocaleString(DEFAULT_LOCALE))
 }
 
 export function AggregateRecordsFeature({

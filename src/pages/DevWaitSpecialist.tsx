@@ -6,6 +6,8 @@ import { Activity, MapPin, Stethoscope } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Map, MapControls, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { FilterChipGroup, InlineAlert, MapSidebarShell, SearchInput, SidebarSection } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { ListHeader, ListState } from '@/components/ui/result-list'
@@ -75,6 +77,36 @@ const facilityCoordinates = (facility: SpecialistFacility): [number, number] => 
 
 const CLUSTER_RADIUS_PX = 54
 const REVEAL_LIMIT = 14
+
+/** The wait columns follow the procedure and patient filters, as the markers and list do. */
+function facilityColumns(filter: SpecialistFilter) {
+  return [
+    textColumn<SpecialistFacility>('name', 'Facility', (facility) => facility.facility_name, { width: 260 }),
+    textColumn<SpecialistFacility>('locality', 'Locality', (facility) => facility.locality),
+    textColumn<SpecialistFacility>('authority', 'Health authority', (facility) => facility.health_authority, {
+      width: 200,
+    }),
+    numberColumn<SpecialistFacility>(
+      'p90',
+      'Median P90 (weeks)',
+      (facility) => facilityWaitMetrics(facility, filter).p90MedianWeeks,
+      { format: (value) => value.toFixed(1), width: 150 },
+    ),
+    numberColumn<SpecialistFacility>(
+      'p50',
+      'Median P50 (weeks)',
+      (facility) => facilityWaitMetrics(facility, filter).p50MedianWeeks,
+      { format: (value) => value.toFixed(1), width: 150 },
+    ),
+    numberColumn<SpecialistFacility>(
+      'cases',
+      'Known cases',
+      (facility) => facilityWaitMetrics(facility, filter).knownCases,
+    ),
+    numberColumn<SpecialistFacility>('specialists', 'Specialists', (facility) => facility.specialist_count),
+    numberColumn<SpecialistFacility>('procedures', 'Procedures', (facility) => facility.procedure_count),
+  ]
+}
 
 function DevWaitSpecialist() {
   const {
@@ -152,6 +184,25 @@ function DevWaitSpecialist() {
       medianP90: medianNumber(p90Values),
     }
   }, [facilities.length, filteredFacilities, filter])
+
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<SpecialistFacility>({
+        id: 'facilities',
+        label: 'Specialist facilities',
+        color: BAND_COLORS.short,
+        shape: 'point',
+        rows: filteredFacilities,
+        columns: facilityColumns(filter),
+        getRowId: facilityId,
+        getRowCenter: facilityCoordinates,
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? undefined,
+      }),
+    ],
+    [error, filter, filteredFacilities, loading],
+  )
+  const table = useMapTable({ sources: tableSources, selectedRowId: selected?.id ?? null, onSelectRow: setSelected })
 
   const sidebar = (
     <MapSidebarShell
@@ -330,14 +381,17 @@ function DevWaitSpecialist() {
       mobilePeekTitle={`${stats.visible} specialist facilities`}
       mobilePeekSubtitle="BC surgery wait-time source"
       sidebar={sidebar}
+      table={table}
     >
       <div className="relative h-full">
         <Map
           center={SPECIALIST_WAIT_MAP_CENTER}
           zoom={SPECIALIST_WAIT_MAP_ZOOM}
           loading={loading}
+          deferResize={table.deferResize}
           controls={<MapControls position="top-right" className="top-16 md:top-2" />}
         >
+          <MapTableBridge table={table} />
           <SpecialistFacilityMarkers
             facilities={filteredFacilities}
             filter={filter}

@@ -45,7 +45,7 @@ export function FieldPhotoPanel({
   const { image, fov, onRoad, search } = photo
   return (
     <div className="space-y-3 text-xs" aria-label="Field photo">
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. A street-level photo
         from Mapillary can stand in for a first visit: line the road view up with it and see whether the terrain and
         timber match.
@@ -83,7 +83,7 @@ export function FieldPhotoPanel({
       {search.status === 'error' && <InlineAlert tone="error">{search.error}</InlineAlert>}
       {search.status === 'ready' && (
         <div>
-          <p className="mb-1 text-[11px] text-muted-foreground">
+          <p className="mb-1 text-2xs text-muted-foreground">
             {search.photos.length
               ? `${search.photos.length} of ${search.searched} photos along the road look toward the cutblock. Nearest first.`
               : `None of the ${search.searched} photos along the road look toward the cutblock.`}
@@ -105,7 +105,7 @@ export function FieldPhotoPanel({
                       <ImageOff className="h-4 w-4" />
                     </span>
                   )}
-                  <span className="block truncate px-1 py-0.5 text-[10px] text-muted-foreground">
+                  <span className="block truncate px-1 py-0.5 text-3xs text-muted-foreground">
                     {candidate.capturedAt ? formatDate(candidate.capturedAt) : 'Undated'} ·{' '}
                     {(candidate.targetMeters / 1000).toFixed(1)} km
                   </span>
@@ -115,7 +115,7 @@ export function FieldPhotoPanel({
           </ul>
         </div>
       )}
-      <label className="flex items-start gap-2 text-[11px] leading-4 text-muted-foreground">
+      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
         <input
           type="checkbox"
           className="mt-0.5 h-3.5 w-3.5"
@@ -136,7 +136,7 @@ export function FieldPhotoPanel({
           {image.thumbUrl && (
             <img src={image.thumbUrl} alt="Street-level photo from Mapillary" className="w-full rounded" />
           )}
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-3xs text-muted-foreground">
             Photo: <Credit photo={image} />
           </p>
           <KeyValueRows
@@ -159,7 +159,7 @@ export function FieldPhotoPanel({
             ]}
           />
           {image.isPano && (
-            <p className="text-[10px] leading-4 text-muted-foreground">
+            <p className="text-3xs leading-4 text-muted-foreground">
               A 360° photo: lining up cuts a 60° view from it, turned toward the cutblock. The arrows turn it.
             </p>
           )}
@@ -185,7 +185,7 @@ export function FieldPhotoPanel({
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <p className="text-[10px] leading-4 text-muted-foreground">
+          <p className="text-3xs leading-4 text-muted-foreground">
             The eye stands on the road line nearest the photo. Recorded positions are often a few metres out and
             headings a few degrees; nudge the view until the drawn skyline sits on the photographed one.
           </p>
@@ -289,7 +289,7 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           </Button>
         </div>
         <label className="block">
-          <span className="text-[11px] text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             Photo {Math.round(match.opacity * 100)}% · road view behind
           </span>
           <Slider
@@ -364,7 +364,7 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
             type="button"
             variant="ghost"
             size="sm"
-            className="h-7 px-2 text-[11px] touch:h-10"
+            className="h-7 px-2 text-2xs touch:h-10"
             onClick={() => set({ nudge: { bearing: 0, pitch: 0 } })}
           >
             Reset
@@ -374,7 +374,7 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           type="button"
           variant="outline"
           size="sm"
-          className="h-7 w-full text-[11px] touch:h-10"
+          className="h-7 w-full text-2xs touch:h-10"
           disabled={!photo.skylineReady || photo.alignment.status === 'working'}
           onClick={() => void photo.autoAlign()}
         >
@@ -382,25 +382,25 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
           Auto-align to the skyline
         </Button>
         {photo.alignment.status === 'done' && photo.alignment.fit && (
-          <p className="text-[10px] leading-4 text-foreground" role="status">
+          <p className="text-3xs leading-4 text-foreground" role="status">
             Aligned on {photo.alignment.fit.agreeing} sky columns across {Math.round(photo.alignment.fit.span * 100)}%
             of the frame; {Math.round(photo.alignment.fit.agreement * 100)}% of the columns that can be judged agree,
             median {photo.alignment.fit.medianErrorPx.toFixed(1)} px.
           </p>
         )}
         {photo.alignment.status === 'failed' && (
-          <p className="text-[10px] leading-4 text-foreground" role="status">
+          <p className="text-3xs leading-4 text-foreground" role="status">
             {photo.alignment.message}
           </p>
         )}
-        <p className="text-[10px] leading-4 text-muted-foreground">
+        <p className="text-3xs leading-4 text-muted-foreground">
           {match.nudge.bearing || match.nudge.pitch
             ? `Nudged ${match.nudge.bearing >= 0 ? '+' : ''}${match.nudge.bearing.toFixed(1)}° heading, ${match.nudge.pitch >= 0 ? '+' : ''}${match.nudge.pitch.toFixed(2)}° pitch. `
             : ''}
           Yellow: terrain skyline{photo.skylineReady ? ' to 25 km' : ' (loading terrain…)'}. Orange: cutblock outline,
           hidden parts included. Red: block ground this station sees.
         </p>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-3xs text-muted-foreground">
           Photo: <Credit photo={image} />
         </p>
       </div>
@@ -429,7 +429,7 @@ export function StreetPhotoInset({
   const src = near.largeUrl ?? near.thumbUrl
   return (
     <div
-      className={`absolute right-2 bottom-16 ${MAP_OVERLAY_Z.controls} hidden w-64 overflow-hidden rounded-lg border bg-background/95 text-[11px] shadow md:block`}
+      className={`absolute right-2 bottom-16 ${MAP_OVERLAY_Z.controls} hidden w-64 overflow-hidden rounded-lg border bg-background/95 text-2xs shadow md:block`}
       role="region"
       aria-label="Street photo here"
     >
@@ -451,13 +451,13 @@ export function StreetPhotoInset({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 shrink-0 px-2 text-[11px]"
+          className="h-6 shrink-0 px-2 text-2xs"
           onClick={() => onLineUp(near.id)}
         >
           Line up
         </Button>
       </div>
-      <p className="px-1.5 pb-1.5 text-[10px] text-muted-foreground">
+      <p className="px-1.5 pb-1.5 text-3xs text-muted-foreground">
         <a
           className="underline"
           href={`https://www.mapillary.com/app/?pKey=${near.id}&focus=photo`}

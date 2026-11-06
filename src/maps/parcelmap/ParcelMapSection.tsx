@@ -2,11 +2,21 @@ import { useEffect, useState } from 'react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Map, MapPopup, useMap } from '@/components/ui/map'
 import { MapPmtilesFillLayer } from '@/components/ui/map-layers'
-import { LegendItem, MapOverlay, MapSidebarShell } from '@/components/ui/map-panels'
-import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
-import { useIsMobile } from '@/hooks/useIsMobile'
+import {
+  InlineAlert,
+  KeyValueRows,
+  LegendItem,
+  MapLegendPanel,
+  MapOverlay,
+  MapSidebarShell,
+} from '@/components/ui/map-panels'
+import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import { DATASETS } from '@/lib/dataCatalog'
 import { fetchJson } from '@/lib/fetchJson'
+import { formatDate, formatNumber } from '@/lib/format'
 
 const BASE = 'https://data.map.ahmad.sh/bc/parcelmap/v1/'
 const BUTTON =
@@ -38,18 +48,15 @@ function ParcelDetails({ parcel }: { parcel: SelectedParcel }) {
   return (
     <div className="space-y-2 text-xs">
       <p className="font-semibold">Parcel {parcel.id}</p>
-      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 break-words">
-        <dt className="text-muted-foreground">PID</dt>
-        <dd>{property(parcel.properties, 'PID')}</dd>
-        <dt className="text-muted-foreground">Owner category</dt>
-        <dd>{property(parcel.properties, 'OWNER_TYPE')}</dd>
-        <dt className="text-muted-foreground">Regional district</dt>
-        <dd>{property(parcel.properties, 'REGIONAL_DISTRICT')}</dd>
-        <dt className="text-muted-foreground">Class</dt>
-        <dd>{property(parcel.properties, 'PARCEL_CLASS')}</dd>
-        <dt className="text-muted-foreground">Status</dt>
-        <dd>{property(parcel.properties, 'PARCEL_STATUS')}</dd>
-      </dl>
+      <KeyValueRows
+        rows={[
+          { label: 'PID', value: property(parcel.properties, 'PID') },
+          { label: 'Owner category', value: property(parcel.properties, 'OWNER_TYPE') },
+          { label: 'Regional district', value: property(parcel.properties, 'REGIONAL_DISTRICT') },
+          { label: 'Class', value: property(parcel.properties, 'PARCEL_CLASS') },
+          { label: 'Status', value: property(parcel.properties, 'PARCEL_STATUS') },
+        ]}
+      />
     </div>
   )
 }
@@ -64,7 +71,6 @@ function ParcelMap({
   onSelect: (parcel: SelectedParcel | null) => void
 }) {
   const { map } = useMap()
-  const mobile = useIsMobile()
   return (
     <>
       <MapPmtilesFillLayer
@@ -111,27 +117,37 @@ function ParcelMap({
           Vancouver
         </button>
       </MapOverlay>
-      {selected &&
-        (mobile ? (
-          <MobileFeatureCard
-            cardKey={selected.id}
-            title={`Parcel ${selected.id}`}
-            subtitle="Initial public-land screen"
-            onClose={() => onSelect(null)}
-          >
-            <ParcelDetails parcel={selected} />
-          </MobileFeatureCard>
-        ) : (
-          <MapPopup
-            longitude={selected.lng}
-            latitude={selected.lat}
-            closeButton
-            onClose={() => onSelect(null)}
-            className="max-w-xs"
-          >
-            <ParcelDetails parcel={selected} />
-          </MapPopup>
-        ))}
+      <MapLegendPanel title="Legend" width="sm" defaultCollapsed="mobile" collapsible>
+        <div className="space-y-1 text-xs">
+          <LegendItem color="#0f766e" label="Initial candidate parcel" active />
+          <LegendItem color="#f97316" label="Selected parcel" active />
+        </div>
+      </MapLegendPanel>
+      {selected && (
+        <ResponsiveFeatureDetail
+          card={
+            <MobileFeatureCard
+              cardKey={selected.id}
+              title={`Parcel ${selected.id}`}
+              subtitle="Initial public-land screen"
+              onClose={() => onSelect(null)}
+            >
+              <ParcelDetails parcel={selected} />
+            </MobileFeatureCard>
+          }
+          popup={
+            <MapPopup
+              longitude={selected.lng}
+              latitude={selected.lat}
+              closeButton
+              onClose={() => onSelect(null)}
+              className="max-w-xs"
+            >
+              <ParcelDetails parcel={selected} />
+            </MapPopup>
+          }
+        />
+      )}
     </>
   )
 }
@@ -170,16 +186,17 @@ export function ParcelMapSection() {
       className={MAP_SIDEBAR_CLASS}
       title="ParcelMap public-land screen"
       subtitle="ParcelMap BC · initial research screen"
+      dataset={{ ...DATASETS.parcelMap, updated: manifest?.sourceLastModified }}
     >
       <div className="space-y-4 p-4 text-xs">
         <p>
           Parcel boundaries passing the first public ownership and reserve/park exclusion stage. These are research
           candidates, not verified available land or housing-suitable sites.
         </p>
-        {!manifest && !error && <p role="status">Loading ParcelMap release…</p>}
+        {!manifest && !error && <InlineAlert loading>Loading ParcelMap release…</InlineAlert>}
         {error && (
-          <div role="alert" className="space-y-2">
-            <p>{error}</p>
+          <div className="space-y-2">
+            <InlineAlert tone="error">{error}</InlineAlert>
             <button
               className={BUTTON}
               onClick={() => {
@@ -193,11 +210,11 @@ export function ParcelMapSection() {
         )}
         {manifest && (
           <>
-            <div className="rounded border border-border p-3">
-              <p className="text-muted-foreground">Screened parcels</p>
-              <strong className="text-base">{manifest.featureCount.toLocaleString()}</strong>
-            </div>
-            <LegendItem color="#0f766e" label="Initial candidate parcel" active />
+            <StatGroup
+              variant="tiles"
+              size="sm"
+              items={[{ label: 'screened parcels', value: formatNumber(manifest.featureCount) }]}
+            />
             <p className="text-muted-foreground">
               Zoom in to see parcel outlines, then select one for its PID, owner category and region. National parks and
               other masks were used in the screen; this layer does not establish current ownership or development
@@ -216,18 +233,12 @@ export function ParcelMapSection() {
               <div className="mt-2 space-y-2 text-muted-foreground">
                 <p>{manifest.scope}</p>
                 <p>
-                  ParcelMap BC polygons, source archive last modified{' '}
-                  {new Date(manifest.sourceLastModified).toLocaleDateString('en-CA')}. Uses the source regional-district
-                  attribute; no spatial join to shared administrative boundaries.
+                  ParcelMap BC polygons, source archive last modified {formatDate(manifest.sourceLastModified)}. Uses
+                  the source regional-district attribute; no spatial join to shared administrative boundaries.
                 </p>
-                <a
-                  className="block underline"
-                  href="https://catalogue.data.gov.bc.ca/dataset/2f4117d9-41fc-44db-87d4-dbdb77f14086"
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <ExternalLink href="https://catalogue.data.gov.bc.ca/dataset/2f4117d9-41fc-44db-87d4-dbdb77f14086">
                   Official ParcelMap catalogue
-                </a>
+                </ExternalLink>
               </div>
             </details>
           </>
@@ -241,7 +252,7 @@ export function ParcelMapSection() {
       sidebar={sidebar}
       mobilePeekTitle="ParcelMap candidates"
       mobilePeekSubtitle={
-        manifest ? `${manifest.featureCount.toLocaleString()} screened parcels` : 'Initial public-land screen'
+        manifest ? `${formatNumber(manifest.featureCount)} screened parcels` : 'Initial public-land screen'
       }
     >
       <Map center={[-122.75, 53.915]} zoom={10} loading={!manifest && !error}>

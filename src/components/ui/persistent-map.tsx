@@ -3,10 +3,18 @@ import { useWorkspace, WorkspaceProvider } from '@pgmaps/geo-toolkit/workspace/w
 import { useTheme } from 'next-themes'
 import {
   PersistentMapProvider as ToolkitPersistentMapProvider,
+  SharedMap as ToolkitSharedMap,
   type PersistentMapProviderProps,
+  type SharedMapProps,
 } from '@pgmaps/geo-toolkit/map/persistent-map'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from './map-styles'
+import { usePaneResizing } from './pane-resize'
 export * from '@pgmaps/geo-toolkit/map/persistent-map'
+/** Follows the application's shared pane drag, as the application's `Map` does. */
+export function SharedMap(props: SharedMapProps) {
+  const resizing = usePaneResizing()
+  return <ToolkitSharedMap {...props} deferResize={props.deferResize ?? resizing} />
+}
 export function PersistentMapProvider(props: PersistentMapProviderProps) {
   const { resolvedTheme } = useTheme()
   const workspace = useWorkspace()

@@ -1,8 +1,17 @@
 import { useEffect, useRef } from 'react'
 import type * as MapLibreGL from 'maplibre-gl'
 import { useMap } from '@/components/ui/map'
+import { MapTerrain, type MapTerrainProps } from '@/components/ui/map-layers'
 import { TERRAIN_ATTRIBUTION, TERRARIUM_TILE_URL } from '../dev-forestry/terrain'
 import type { Camera, Coordinate, Tool } from './model'
+
+const TERRAIN_DEM: MapTerrainProps['dem'] = {
+  tiles: [TERRARIUM_TILE_URL],
+  encoding: 'terrarium',
+  tileSize: 256,
+  maxZoom: 14,
+  attribution: TERRAIN_ATTRIBUTION,
+}
 
 export function WorkbenchMapEvents({
   onReady,
@@ -91,27 +100,7 @@ export function WorkbenchMapEvents({
       map.getCanvas().style.cursor = ''
     }
   }, [map, tool])
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const id = 'mmgis-terrain'
-    if (terrain) {
-      if (!map.getSource(id))
-        map.addSource(id, {
-          type: 'raster-dem',
-          tiles: [TERRARIUM_TILE_URL],
-          encoding: 'terrarium',
-          tileSize: 256,
-          maxzoom: 14,
-          attribution: TERRAIN_ATTRIBUTION,
-        })
-      map.setTerrain({ source: id, exaggeration: 1 })
-    } else if (map.getTerrain()?.source === id) map.setTerrain(null)
-    return () => {
-      if (map.getTerrain()?.source === id) map.setTerrain(null)
-      if (map.getSource(id)) map.removeSource(id)
-    }
-  }, [terrain, map, isLoaded])
-  return null
+  return terrain ? <MapTerrain id="mmgis" dem={TERRAIN_DEM} terrainOnly terrain /> : null
 }
 /** Keep the alternate scene centered on the plan without copying its projection/pitch. */
 export function SyncScene({ source }: { source: MapLibreGL.Map | null }) {

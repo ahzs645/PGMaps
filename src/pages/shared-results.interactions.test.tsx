@@ -19,6 +19,10 @@ vi.mock('@/components/ui/map', () => ({
   MapControls: () => null,
   useMap: () => ({ map: null, isLoaded: false }),
 }))
+vi.mock('@/components/map/useMapTable', async (importActual) => ({
+  ...(await importActual<typeof import('@/components/map/useMapTable')>()),
+  MapTableBridge: () => null,
+}))
 vi.mock('@/components/ui/map-layers', () => ({
   MapFillLayer: ({ data, selectedId }: { data: unknown; selectedId: string }) => (
     <div data-map-features={data} data-map-selected={selectedId} />
@@ -57,10 +61,10 @@ vi.mock('@/components/ui/map-panels', () => ({
     <div data-legend-bands={bands} data-legend-variant={variant} />
   ),
   MapLegendNote: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  MapGradientLegendItem: () => null,
   FilterChipGroup: () => null,
   KeyValueRows: () => null,
   LegendItem: () => null,
-  StatGrid: () => null,
   InlineAlert: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }))
 vi.mock('@/components/ui/virtual-result-list', () => ({
@@ -126,7 +130,11 @@ describe('shared searchable result integrations', () => {
     )
     let renderer: ReturnType<typeof create>
     await act(async () => {
-      renderer = create(<DevHealthMsp />)
+      renderer = create(
+        <MemoryRouter>
+          <DevHealthMsp />
+        </MemoryRouter>,
+      )
     })
     expect(renderer!.root.findByProps({ 'aria-label': 'MSP facilities' }).props['data-result-count']).toBe(105)
     const last = renderer!.root.findAllByType(ResultRow).find((row) => row.props.title === 'Facility 104')!

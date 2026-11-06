@@ -4,6 +4,7 @@
  * DOM or network access. This is an independent browser implementation.
  */
 import { indexAt, MAX_GRID_CELLS, type Grid, type Raster } from './model'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const PEM_SOURCE = 'https://github.com/bcgov/PEMlidr/tree/946738c4212466d8e99274f45723c6e09eb508a6'
 export const PEM_STRUCTURE_CELL_M = 5
@@ -86,7 +87,7 @@ export const PEM_STRUCTURE_METHOD = {
 export function pemStructureAccumulator(grid: Grid) {
   const cells = grid.width * grid.height
   if (!Number.isSafeInteger(cells) || cells < 1 || cells > MAX_GRID_CELLS)
-    throw Error(`PEM structure grid must contain 1–${MAX_GRID_CELLS.toLocaleString()} cells.`)
+    throw Error(`PEM structure grid must contain 1–${MAX_GRID_CELLS.toLocaleString(DEFAULT_LOCALE)} cells.`)
   const all = new Uint32Array(cells)
   const above = new Uint32Array(cells)
   const unsupported = new Uint32Array(cells)

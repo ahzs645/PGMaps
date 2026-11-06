@@ -1,4 +1,5 @@
 import { NativeSelect } from '@/components/ui/form-field'
+import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
@@ -16,6 +17,23 @@ import {
   type ForestMode,
   type ForestProperties,
 } from './forestry'
+import { DEFAULT_LOCALE } from '@/lib/format'
+
+const FIELD_CHECK_CSV_COLUMNS = [
+  'id',
+  'longitude',
+  'latitude',
+  'metric',
+  'metric_value',
+  'eligible_m2',
+  'canopy_percent',
+  'ground_support_p95_m',
+  'return_selection',
+  'edge_distance_m',
+  'eligible_min_percent',
+  'canopy_min_percent',
+  'source_sha256',
+]
 
 interface Props {
   data: ForestData
@@ -67,31 +85,27 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
       'application/geo+json',
     )
   const exportVisits = () => {
-    const csv = [
-      'id,longitude,latitude,metric,metric_value,eligible_m2,canopy_percent,ground_support_p95_m,return_selection,edge_distance_m,eligible_min_percent,canopy_min_percent,source_sha256',
-    ]
-    for (const f of shortlist) {
+    const rows = shortlist.map((f) => {
       const p = byId.get(f.properties.id)!.properties,
         [lon, lat] = featureCentre(f)
-      csv.push(
-        [
-          p.id,
-          lon.toFixed(7),
-          lat.toFixed(7),
-          mode,
-          value(p),
-          p.sampled_m2,
-          p.canopy_percent,
-          p.ground_support_p95_m,
-          options.returnMode,
-          options.edgeDistance,
-          options.support,
-          options.canopyMinimum,
-          data.source_sha256,
-        ].join(','),
-      )
-    }
-    downloadText(csv.join('\n') + '\n', `forestry-${mode}-field-checks.csv`, 'text/csv')
+      return [
+        p.id,
+        lon.toFixed(7),
+        lat.toFixed(7),
+        mode,
+        value(p),
+        p.sampled_m2,
+        p.canopy_percent,
+        p.ground_support_p95_m,
+        options.returnMode,
+        options.edgeDistance,
+        options.support,
+        options.canopyMinimum,
+        data.source_sha256,
+      ]
+    })
+    const csv = toCsv(FIELD_CHECK_CSV_COLUMNS, rows, { quote: 'needed', newline: '\n' })
+    downloadText(`${csv}\n`, `forestry-${mode}-field-checks.csv`, 'text/csv')
   }
   return (
     <>
@@ -168,9 +182,9 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
             className="h-2 rounded"
             style={{ background: `linear-gradient(to right,${palette.colors.join(',')})` }}
           />
-          <p className="mt-1 text-[10px]">{palette.label}</p>
+          <p className="mt-1 text-3xs">{palette.label}</p>
         </div>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           Eligible coverage excludes unsupported terrain and roof buffers. Canopy proxy is the share of eligible surface
           cells above 5 m. It is not an authoritative forest mask.
         </p>
@@ -219,7 +233,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 value: `${selected.properties.surface_p95_m} / ${selected.properties.surface_sd_m} m`,
               },
               { label: 'Ground-support P95', value: `${selected.properties.ground_support_p95_m} m` },
-              { label: 'Accepted returns', value: profile.returns.toLocaleString() },
+              { label: 'Accepted returns', value: profile.returns.toLocaleString(DEFAULT_LOCALE) },
               {
                 label: '2–5 m share of ≥2 m returns',
                 value:
@@ -240,11 +254,11 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
               Pin as comparison B
             </Button>
           </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-3xs text-muted-foreground">
             Original 3D points include all source classes and nearby roofs; analytical exclusions apply to metrics only.
           </p>
           <h3 className="mt-4 text-xs font-medium">Vertical return fingerprint</h3>
-          <p className="mt-1 text-[10px] text-muted-foreground">
+          <p className="mt-1 text-3xs text-muted-foreground">
             Share of {options.returnMode === 'all' ? 'all accepted' : 'first'} returns, including ground. A: green
             {pinned ? ' · B: blue' : ''}. Not vegetation volume or stem counts.
           </p>
@@ -254,7 +268,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
             aria-label="Vertical return profile of selected and comparison plots"
           >
             {data.bands.map((label, i) => (
-              <div key={label} className="text-[10px]">
+              <div key={label} className="text-3xs">
                 <div className="flex justify-between">
                   <span>{label}</span>
                   <span className="tabular-nums">
@@ -272,7 +286,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
               </div>
             ))}
           </div>
-          <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+          <p className="mt-2 text-3xs leading-4 text-muted-foreground">
             0–2 m mixes terrain and low objects. Multiple returns and canopy occlusion affect the profile. First-return
             mode shows a different sampling view, not another survey or an accuracy check.
           </p>
@@ -290,7 +304,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                       : `${selected.properties[`edge_${options.edgeDistance}`].percent[i]!.toFixed(1)}%`,
                 }))}
               />
-              <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+              <p className="mt-2 text-3xs leading-4 text-muted-foreground">
                 Censored means the tile, roof buffer or missing terrain prevents an interior claim. Low openings may be
                 roads, fields or gaps.
               </p>
@@ -310,7 +324,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                   ? `${compareForestPlots(selected.properties, pinned.properties, mode, options)?.toFixed(1) ?? 'No data'} percentage points`
                   : format(compareForestPlots(selected.properties, pinned.properties, mode, options))}
               </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-3xs text-muted-foreground">
                 Comparison B stays pinned if a filter hides it. These are structural differences, not evidence that one
                 plot is healthier or older.
               </p>
@@ -330,7 +344,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
         <Button size="sm" variant="outline" className="mt-2" disabled={!shortlist.length} onClick={exportVisits}>
           Download field-check CSV
         </Button>
-        <p className="mt-2 text-[10px] text-muted-foreground">
+        <p className="mt-2 text-3xs text-muted-foreground">
           The map keeps every matching plot visible; the shortlist changes the list and exports. Site access and hazards
           need separate planning.
         </p>
@@ -345,10 +359,10 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
         </p>
       </SidebarSection>
       <SidebarSection title="Method & evidence">
-        <p className="text-[10px] leading-4 text-muted-foreground">{data.methods[mode]}</p>
+        <p className="text-3xs leading-4 text-muted-foreground">{data.methods[mode]}</p>
         <details className="mt-3 text-xs">
           <summary className="cursor-pointer">Data limits and research</summary>
-          <ul className="mt-2 list-disc space-y-2 pl-4 text-[10px] leading-4 text-muted-foreground">
+          <ul className="mt-2 list-disc space-y-2 pl-4 text-3xs leading-4 text-muted-foreground">
             {data.limitations.map((note) => (
               <li key={note}>{note}</li>
             ))}
@@ -372,7 +386,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
         </details>
       </SidebarSection>
       <SidebarSection title={shortlistOnly ? 'Field-check shortlist' : 'Matching plots · highest metric first'}>
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-3xs text-muted-foreground">
           Select on the map or below. Pin one plot, then choose another to compare profiles.
         </p>
       </SidebarSection>

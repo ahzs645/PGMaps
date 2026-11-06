@@ -5,6 +5,8 @@
 // (total PFAS ng/l)"), where circle SIZE encodes a numeric attribute and the
 // legend shows graduated circles with max / mid / min value labels.
 
+import { formatNumber } from '@/lib/format'
+
 export const SEWAGE_CENTER: [number, number] = [-122.7497, 53.9171]
 export const SEWAGE_DEFAULT_ZOOM = 11.2
 
@@ -85,8 +87,8 @@ function makeSite(i: number): SewageSite {
       dischargeType,
       receivingWater,
       properties: [
-        { label: 'Total PFAS', value: `${pfas.toLocaleString()} ng/l` },
-        { label: 'Annual spill hours', value: `${spillHours.toLocaleString()} hrs` },
+        { label: 'Total PFAS', value: `${formatNumber(pfas)} ng/l` },
+        { label: 'Annual spill hours', value: `${formatNumber(spillHours)} hrs` },
         { label: 'Discharge type', value: dischargeType },
         { label: 'Receiving water', value: receivingWater },
         { label: 'Monitoring', value: 'Active' },

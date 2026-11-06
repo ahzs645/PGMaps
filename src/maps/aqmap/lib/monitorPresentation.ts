@@ -25,6 +25,17 @@ export function getAqmapNetworkSlug(monitor: AirMonitor): AqNetworkSlug {
   return 'other'
 }
 
+/** The map's monitor filter: individual networks on the main view, groups elsewhere. */
+export function isMonitorVisible(
+  monitor: AirMonitor,
+  visibleGroups: ReadonlySet<AqMonitorGroup>,
+  visibleNetworks?: ReadonlySet<AqNetworkSlug>,
+): boolean {
+  return visibleNetworks
+    ? visibleNetworks.has(getAqmapNetworkSlug(monitor))
+    : visibleGroups.has(getMonitorGroup(monitor.network))
+}
+
 export function getAqmapMarkerGroup(monitor: AirMonitor): 'agency' | 'purpleair' | 'aqegg' | 'lcm' {
   if (isFemMonitor(monitor)) return 'agency'
   if (monitor.network === 'PA') return 'purpleair'

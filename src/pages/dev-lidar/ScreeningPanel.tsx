@@ -11,6 +11,7 @@ import { isForestMode } from './forestry'
 import { isSpeciesMode } from './species'
 
 import type { WorkflowPanelProps } from './WorkflowPanel'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; choose: (id: string) => void }) {
   const { data, options, features, selected, model } = props
   const [ledger, setLedger] = useState<ReviewLedger>({})
@@ -111,7 +112,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                     />
                     Enclosed candidates only
                   </label>
-                  <p className="text-[10px] leading-4 text-muted-foreground">
+                  <p className="text-3xs leading-4 text-muted-foreground">
                     Enclosed: ≥80% of the boundary borders higher cells, with no tile/missing-data or roof contact. This
                     is a geometric screen. Roads, lawns and fields need review; no authoritative forest mask is
                     available. Turning it off includes clipped openings.
@@ -146,7 +147,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       <option value={100}>100%</option>
                     </NativeSelect>
                   </label>
-                  <p className="text-[10px] leading-4 text-muted-foreground">
+                  <p className="text-3xs leading-4 text-muted-foreground">
                     Colour: P95 surface height, 0–35 m, pale to dark purple. Percentiles use all supported 1 m surface
                     cells, including structures. These are not return-height percentiles or field inventory estimates.
                   </p>
@@ -166,12 +167,12 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       <option value={30}>30 m · entire search radius</option>
                     </NativeSelect>
                   </label>
-                  <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+                  <p className="mt-2 text-3xs leading-4 text-muted-foreground">
                     Pink lines connect roof polygons to nearest elevated cell centres. Roofs plus 2 m are excluded to
                     reduce edge contamination: vegetation within that buffer is not assessed. Distances are horizontal,
                     not branch/wire/3D clearance or fire-code compliance. Other unclassified objects may be included.
                   </p>
-                  <p className="mt-2 text-[10px]">
+                  <p className="mt-2 text-3xs">
                     {178 -
                       data.workflows.clearance[String(options.threshold)].features.filter(
                         (f) => f.properties.distance_m !== null,
@@ -183,9 +184,9 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
               {options.mode === 'models' && (
                 <div className="space-y-3 text-xs">
                   <p>
-                    {data.models.engine.version} · {data.models.engine.screened_points.toLocaleString()} original
-                    cropped points. {data.models.records.filter((r) => r.success).length}/{models.length} engine
-                    successes; {models.filter((r) => r.closed_edge_incidence).length} pass closed-edge incidence.
+                    {data.models.engine.version} · {data.models.engine.screened_points.toLocaleString(DEFAULT_LOCALE)}{' '}
+                    original cropped points. {data.models.records.filter((r) => r.success).length}/{models.length}{' '}
+                    engine successes; {models.filter((r) => r.closed_edge_incidence).length} pass closed-edge incidence.
                   </p>
                   <label className="flex gap-2">
                     <input
@@ -198,7 +199,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   <Button size="sm" variant="outline" onClick={props.onPoints}>
                     Compare original 3D points
                   </Button>
-                  <p className="text-[10px] leading-4 text-muted-foreground">
+                  <p className="text-3xs leading-4 text-muted-foreground">
                     Select a patch below. Its ground is shifted to zero for display; exports retain source elevations.
                     Amber roofs / blue walls. All inputs remain unverified roof patches. A successful model or a
                     retained review label does not establish a building.
@@ -228,7 +229,10 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   rows={
                     options.mode === 'gaps'
                       ? [
-                          { label: 'Source-cell area', value: `${properties.area_m2?.toLocaleString()} m²` },
+                          {
+                            label: 'Source-cell area',
+                            value: `${properties.area_m2?.toLocaleString(DEFAULT_LOCALE)} m²`,
+                          },
                           { label: 'High-cell boundary', value: `${properties.canopy_edge_percent}%` },
                           { label: 'Clipped boundary', value: properties.boundary_clipped ? 'Yes' : 'No' },
                           { label: 'Roof contact', value: properties.near_roof ? 'Yes' : 'No' },
@@ -312,7 +316,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   />
                 </label>
                 {reviewStatus && (
-                  <p className="mt-1 text-[10px]" role="status">
+                  <p className="mt-1 text-3xs" role="status">
                     {reviewStatus}
                   </p>
                 )}
@@ -368,7 +372,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
             )}
             {options.mode !== 'models' && (
               <SidebarSection title="Method">
-                <p className="text-[10px] leading-4 text-muted-foreground">{data.workflows.methods[options.mode]}</p>
+                <p className="text-3xs leading-4 text-muted-foreground">{data.workflows.methods[options.mode]}</p>
               </SidebarSection>
             )}
             <SidebarSection
@@ -382,7 +386,7 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                       : 'Patches · closest first'
               }
             >
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 Select on the map or below. Arrow keys move between rows. Downloads include all matching rows.
               </p>
             </SidebarSection>

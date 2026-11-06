@@ -67,7 +67,7 @@ export function BCCoastBenchmark() {
     <section aria-label="Coast road cost comparison" className="space-y-3 rounded border p-3">
       <div className="space-y-1">
         <h3 className="font-medium">Coast road construction comparison</h3>
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           <ReferenceLink href={COAST_COST_SOURCE.url}>CAM Table 5-1, page 5-16</ReferenceLink>
           {' · effective ' + COAST_COST_SOURCE.effectiveDate + ' · cost base ' + COAST_COST_SOURCE.costBaseYear}. CAD
           per kilometre of eligible new road, including the category’s ballast/surfacing.
@@ -85,7 +85,7 @@ export function BCCoastBenchmark() {
           setTabularEligibilityConfirmed(false)
         }}
       />
-      {selectedCategory && <p className="text-[11px] text-muted-foreground">{selectedCategory.description}</p>}
+      {selectedCategory && <p className="text-2xs text-muted-foreground">{selectedCategory.description}</p>}
       <ReferenceSelect
         label="Coast rock hardness"
         value={hardness}
@@ -99,7 +99,7 @@ export function BCCoastBenchmark() {
           setTabularEligibilityConfirmed(false)
         }}
       />
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Verify the category and rock mass classification in the field. A terrain model does not identify material or
         rock hardness.
       </p>
@@ -122,7 +122,7 @@ export function BCCoastBenchmark() {
         onChange={(value) => setOrigin(value as CoastPointOfOrigin | 'unselected' | 'none')}
       />
       {origin === 'unselected' && (
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-2xs leading-4 text-muted-foreground">
           Choose an area or confirm that no eligible addition applies before calculating or exporting. Natural resource
           regions do not determine these appraisal boundaries.
         </p>
@@ -138,7 +138,7 @@ export function BCCoastBenchmark() {
           setIsolationEligibilityConfirmed(false)
         }}
       />
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Eligible isolated cutblocks’ net cruise volume ÷ total net cruise volume; this is not the isolated share of road
         length. Review the CAM connection-to-community definition, including public-ferry-served communities.
       </p>
@@ -150,7 +150,7 @@ export function BCCoastBenchmark() {
           onClick={() => setIsolationEligibilityConfirmed((value) => !value)}
         />
       )}
-      <p className="text-[11px] leading-4 text-muted-foreground">
+      <p className="text-2xs leading-4 text-muted-foreground">
         Confirm new single-lane tabular-road conditions. Main access construction/upgrades, end haul, extensive imported
         fills, side slopes above 150%, repeated deep gullies, large switchbacks or rock faces above 7.50 m need
         engineering review.
@@ -173,7 +173,7 @@ export function BCCoastBenchmark() {
               <dt>Point-of-origin addition</dt>
               <dd className="text-right tabular-nums">{referenceMoney(result.pointOfOriginAddOnCadPerKm!)}/km</dd>
             </dl>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Rounded to whole CAD; the download retains the calculated amount.
             </p>
           </>
@@ -192,7 +192,7 @@ export function BCCoastBenchmark() {
       </InlineAlert>
       <CollapsibleSection label="Coast source scope and limits" contentClassName="space-y-2 pt-2">
         {COAST_BENCHMARK_NOTES.map((note) => (
-          <p key={note} className="text-[11px] leading-4 text-muted-foreground">
+          <p key={note} className="text-2xs leading-4 text-muted-foreground">
             {note}
           </p>
         ))}

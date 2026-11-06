@@ -21,6 +21,7 @@ import { RoadConditionEditor } from './RoadConditionEditor'
 import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function ExistingRoadsPanel({
   workspace: w,
@@ -136,7 +137,7 @@ export function ExistingRoadsPanel({
         >
           Load BC FSRs in this area
         </Button>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Province-wide FSR records are available through the BC catalogue. This loads active FSR sections for the
           current area; Find a route can search for the nearest mapped FSR.
         </p>
@@ -168,7 +169,7 @@ export function ExistingRoadsPanel({
           }}
         />
         {error && <InlineAlert tone="warning">{error}</InlineAlert>}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {roads.length} road lines ·{' '}
           {roads.filter((f) => f.roadEvidence?.reuseAllowed && f.roadEvidence.condition !== 'closed').length} enabled
           for route reuse.{' '}
@@ -199,7 +200,7 @@ export function ExistingRoadsPanel({
               </Button>
             )}
             <div
-              className="rounded border bg-muted/20 px-2 py-1.5 text-[11px] text-muted-foreground"
+              className="rounded border bg-muted/20 px-2 py-1.5 text-2xs text-muted-foreground"
               data-testid="road-existing-road-evidence"
             >
               <p>
@@ -226,7 +227,9 @@ export function ExistingRoadsPanel({
               <p className="break-all">
                 {evidence.sourceId ? `Source record: ${evidence.sourceId} · ` : ''}Section reference: {road.id}
               </p>
-              {evidence.retrievedAt && <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString()}</p>}
+              {evidence.retrievedAt && (
+                <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString(DEFAULT_LOCALE)}</p>
+              )}
               {evidence.awardDate && <p>Tenure awarded: {evidence.awardDate}</p>}
               {evidence.retirementDate && <p>Tenure retired: {evidence.retirementDate}</p>}
               <p>
@@ -296,7 +299,7 @@ export function ExistingRoadsPanel({
                 >
                   Confirm evidence scope for updated geometry
                 </Button>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   Confirm only when the retained observations and network restrictions cover this section, including its
                   direction and structures. Replace evidence where needed, then explicitly enable reuse.
                 </p>
@@ -313,7 +316,7 @@ export function ExistingRoadsPanel({
               <span>Allow this road in the reuse cost scenario</span>
             </label>
             {evidence.reuseAllowed && evidence.conditionBasis !== 'field-verified' && (
-              <p className="text-[11px] text-amber-700 dark:text-amber-300">
+              <p className="text-2xs text-amber-700 dark:text-amber-300">
                 Reuse is an unverified planning assumption. Rehabilitation, bridge capacity and legal access are not
                 established.
               </p>

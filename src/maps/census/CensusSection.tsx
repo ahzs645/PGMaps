@@ -1,19 +1,28 @@
 import { useEffect, useMemo } from 'react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import { MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
+import { InlineAlert, MapGradientLegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { formatNumber } from '@/lib/format'
+import { geometryBounds, type BBox } from '@/lib/geo'
 import { stringCodec, stringUnionCodec, useSetUrlParams, useUrlState, type UrlCodec } from '@/hooks/useUrlState'
 import { CensusMap } from './components/CensusMap'
 import { CensusSidebar } from './components/CensusSidebar'
 import { CensusUnitDetails } from './components/CensusUnitDetails'
-import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue, formatUnitLabel } from './constants'
+import { CENSUS_HIERARCHIES, CENSUS_METRICS, formatMetricValue, formatUnitLabel, formatValue } from './constants'
 import { useCensusCatalog } from './hooks/useCensusCatalog'
 import { useCensusData } from './hooks/useCensusData'
 import { getVariableValues, useCensusVariableData } from './hooks/useCensusVariableData'
-import type { CensusHierarchyLevel, CensusMetricKey, CensusUnit, CensusVariableSelection } from './types'
+import type {
+  CensusHierarchyLevel,
+  CensusMetricKey,
+  CensusMetricOption,
+  CensusUnit,
+  CensusVariableSelection,
+} from './types'
 
 const levelCodec = stringUnionCodec<CensusHierarchyLevel>(
   CENSUS_HIERARCHIES.map((option) => option.key),
@@ -28,6 +37,49 @@ const queryCodec = stringCodec('')
 const idCodec: UrlCodec<string | null> = {
   encode: (value) => value,
   decode: (raw) => raw,
+}
+
+/** "Visible" reads these on every map move, so each unit's vertices are walked once. */
+const unitBoundsCache = new WeakMap<CensusUnit, BBox | null>()
+function unitBounds(unit: CensusUnit): BBox | null {
+  let bounds = unitBoundsCache.get(unit)
+  if (bounds === undefined) {
+    bounds = geometryBounds(unit.geometry)
+    unitBoundsCache.set(unit, bounds)
+  }
+  return bounds
+}
+
+const FIXED_UNIT_COLUMNS: Array<{ key: CensusMetricKey; header: string }> = [
+  { key: 'population', header: 'Population' },
+  { key: 'populationDensity', header: 'Density (/km²)' },
+  { key: 'households', header: 'Households' },
+  { key: 'dwellings', header: 'Dwellings' },
+  { key: 'areaSqKm', header: 'Land area (km²)' },
+]
+
+/** The current metric or census variable comes first; a fixed column never repeats it. */
+function unitColumns(
+  metric: CensusMetricOption,
+  variable: { label: string; values: Map<string, number | null> } | null,
+) {
+  const metricColumn = variable
+    ? numberColumn<CensusUnit>('metric', variable.label, (unit) => variable.values.get(unit.id), {
+        format: formatValue,
+        width: 220,
+      })
+    : numberColumn<CensusUnit>('metric', metric.label, (unit) => unit[metric.key], {
+        format: (value) => formatMetricValue(value, metric.format),
+        width: 170,
+      })
+  return [
+    textColumn<CensusUnit>('unit', 'Unit', formatUnitLabel, { width: 220 }),
+    textColumn<CensusUnit>('id', 'GeoUID', (unit) => unit.id, { width: 130 }),
+    metricColumn,
+    ...FIXED_UNIT_COLUMNS.filter(({ key }) => variable || key !== metric.key).map(({ key, header }) =>
+      numberColumn<CensusUnit>(key, header, (unit) => unit[key]),
+    ),
+  ]
 }
 
 export default function CensusSection() {
@@ -125,6 +177,43 @@ export default function CensusSection() {
     }
   }, [availableMetrics, selectedMetric, setSelectedMetric])
 
+  const tableColumns = useMemo(
+    () =>
+      unitColumns(
+        selectedMetricDef,
+        variableValuesByGeoUid?.size && activeVariableLabel
+          ? { label: activeVariableLabel, values: variableValuesByGeoUid }
+          : null,
+      ),
+    [activeVariableLabel, selectedMetricDef, variableValuesByGeoUid],
+  )
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<CensusUnit>({
+        id: 'units',
+        label: 'Census units',
+        color: '#d97706',
+        shape: 'fill',
+        // The map draws every unit; the sidebar's search only narrows its own list.
+        rows: allUnits,
+        columns: tableColumns,
+        getRowId: (unit) => unit.id,
+        getRowBounds: unitBounds,
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? 'No census units to show.',
+        exportFileName: `census-${selectedHierarchy}`,
+      }),
+    ],
+    [allUnits, error, loading, selectedHierarchy, tableColumns],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedUnitId,
+    onSelectRow: (unit: CensusUnit) => setSelectedUnitId(unit.id),
+    // CensusMap fits the selected unit, which also covers a click on the map.
+    flyOnSelect: false,
+  })
+
   function handleHierarchyChange(level: CensusHierarchyLevel) {
     if (level === selectedHierarchy) return
     applyParams({
@@ -152,6 +241,7 @@ export default function CensusSection() {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={<>Census · {formatNumber(filteredUnits.length)} units</>}
       mobilePeekSubtitle={
         <>
@@ -195,6 +285,7 @@ export default function CensusSection() {
           onUnitClick={(id) => setSelectedUnitId(selectedUnitId === id ? null : id)}
           variableValuesByGeoUid={variableValuesByGeoUid}
           loading={loading || variableLoading}
+          table={table}
         />
 
         <MapLegendPanel
@@ -204,7 +295,11 @@ export default function CensusSection() {
           collapsible
           defaultCollapsed="mobile"
         >
-          {variableLoading && <div className="mb-2 text-xs text-amber-600">Loading variable data...</div>}
+          {variableLoading && (
+            <InlineAlert loading className="mb-2">
+              Loading variable data...
+            </InlineAlert>
+          )}
           <MapGradientLegendItem colors={COLOR_SCALES.amber} minLabel="Low" maxLabel="High" />
         </MapLegendPanel>
 
@@ -248,7 +343,7 @@ function MobileCensusFeatureCard({
   onClose: () => void
 }) {
   return (
-    <MobileFeatureCard title={formatUnitLabel(unit)} subtitle={hierarchyLabel} onClose={onClose}>
+    <MobileFeatureCard cardKey={unit.id} title={formatUnitLabel(unit)} subtitle={hierarchyLabel} onClose={onClose}>
       <CensusUnitDetails
         unit={unit}
         isVariableMode={isVariableMode}

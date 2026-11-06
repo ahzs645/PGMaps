@@ -2295,7 +2295,7 @@ function DevForestryVisuals() {
                           ))}
                         </NativeSelect>
                       </label>
-                      <p className="text-[11px] text-muted-foreground">
+                      <p className="text-2xs text-muted-foreground">
                         Candidates use terrain sightlines. Foreground trees can still hide the opening.
                       </p>
                       <div className="flex gap-2">
@@ -2360,14 +2360,14 @@ function DevForestryVisuals() {
                         </NativeSelect>
                       </label>
                       {lowFrameRate && drive.quality === 'auto' && (
-                        <p className="text-[11px]">
+                        <p className="text-2xs">
                           Frame rate is low. Pause to inspect, or choose Faster before replaying.
                         </p>
                       )}
                     </div>
                   </details>
                   {(previewTerrain.loading || previewTerrain.message || !currentForestStatus?.ready) && (
-                    <div className="text-[11px]" role="status">
+                    <div className="text-2xs" role="status">
                       {previewTerrain.loading
                         ? `Loading terrain · ${previewTerrain.progress}%`
                         : (previewTerrain.message ??
@@ -2381,7 +2381,7 @@ function DevForestryVisuals() {
                     </div>
                   )}
                   {previewMessage && (
-                    <p className="text-[11px]" role="status">
+                    <p className="text-2xs" role="status">
                       {previewMessage}
                     </p>
                   )}
@@ -2435,7 +2435,7 @@ function DevForestryVisuals() {
           className="bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] max-w-[15rem] md:bottom-3"
         >
           <p className="mb-1.5 text-xs font-semibold text-foreground">Seen from the road</p>
-          <div className="space-y-1 text-[11px] text-muted-foreground">
+          <div className="space-y-1 text-2xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: VISIBLE_COLOR }} />
               Visible ground
@@ -2471,7 +2471,7 @@ function DevForestryVisuals() {
             Standing on the road · {drive.harvestPhase === 'before' ? 'Before harvest' : 'After harvest'}
           </p>
           {currentExposure && (
-            <p className="mt-1 text-[11px] leading-4">
+            <p className="mt-1 text-2xs leading-4">
               {(currentExposure.unknownPercent ?? 0) > 0
                 ? 'Some terrain is missing; visibility is uncertain.'
                 : currentExposure.visiblePercent === 0
@@ -2479,9 +2479,9 @@ function DevForestryVisuals() {
                   : 'Ground sightlines reach the block. Foreground trees can still screen your view.'}
             </p>
           )}
-          <details className="mt-1 text-[11px]">
+          <details className="mt-1 text-2xs">
             <summary className="cursor-pointer">Data & assumptions</summary>
-            <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+            <p className="mt-1 text-2xs leading-4 text-muted-foreground">
               {drive.harvestPhase === 'before'
                 ? 'Before harvest: proposed openings are filled with the same illustrative forest.'
                 : 'After harvest: trees inside the proposed cutblock are removed, revealing the opening and its edges.'}{' '}
@@ -2492,11 +2492,11 @@ function DevForestryVisuals() {
             </p>
           </details>
           {scene.viewpoint.id === ROADSIDE_DEMO_ID && (
-            <p className="mt-2 text-[11px] leading-4 font-medium">
+            <p className="mt-2 text-2xs leading-4 font-medium">
               Roadside demo · hypothetical harvest on real terrain. {roadsideDriveCue(drive.positionMeters)}
             </p>
           )}
-          <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-1 text-2xs leading-4 text-muted-foreground">
             {drive.showAnalysis
               ? 'Red points show ground visibility at the nearest calculated station, not visibility through the illustrated trees.'
               : 'Terrain follows elevation data; road width and forest layout are assumptions.'}

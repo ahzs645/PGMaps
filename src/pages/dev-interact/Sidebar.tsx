@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { CalendarClock, Eye, EyeOff, Layers, MoreHorizontal, Ruler, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { MapTableButton } from '@/components/map/MapFeatureTable'
 import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -34,7 +33,6 @@ export function DevInteractSidebar({
   onOpenSearch,
   onStartMeasurement,
   onStartCircleMeasurement,
-  onOpenTable,
   onFinishMeasurement,
   onClearMeasurement,
   openInEnabled,
@@ -56,7 +54,6 @@ export function DevInteractSidebar({
   onOpenSearch: () => void
   onStartMeasurement: () => void
   onStartCircleMeasurement: () => void
-  onOpenTable: () => void
   onFinishMeasurement: () => void
   onClearMeasurement: () => void
   openInEnabled: boolean
@@ -112,26 +109,22 @@ export function DevInteractSidebar({
         <div className="mt-3 space-y-2">
           {actionRows.map(({ label, icon: Icon }) => (
             <div key={label} className="relative" ref={label === 'Measure areas' ? measurementMenuRef : undefined}>
-              {label === 'Open table' ? (
-                <MapTableButton onClick={onOpenTable} />
-              ) : (
-                <button
-                  type="button"
-                  onClick={
-                    label === 'Search locations'
-                      ? onOpenSearch
-                      : label === 'Measure areas'
-                        ? () => setMeasurementMenuOpen((open) => !open)
-                        : undefined
-                  }
-                  aria-haspopup={label === 'Measure areas' ? 'menu' : undefined}
-                  aria-expanded={label === 'Measure areas' ? measurementMenuOpen : undefined}
-                  className="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted"
-                >
-                  <Icon className="size-4" />
-                  <span>{label}</span>
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={
+                  label === 'Search locations'
+                    ? onOpenSearch
+                    : label === 'Measure areas'
+                      ? () => setMeasurementMenuOpen((open) => !open)
+                      : undefined
+                }
+                aria-haspopup={label === 'Measure areas' ? 'menu' : undefined}
+                aria-expanded={label === 'Measure areas' ? measurementMenuOpen : undefined}
+                className="flex w-full items-center gap-3 rounded-md border border-border bg-background px-3 py-2 text-left text-sm font-medium shadow-sm transition-colors hover:bg-muted"
+              >
+                <Icon className="size-4" />
+                <span>{label}</span>
+              </button>
               {label === 'Measure areas' && measurementMenuOpen && (
                 <MeasurementShapeMenu onPolygon={choosePolygonMeasurement} onCircle={chooseCircleMeasurement} />
               )}

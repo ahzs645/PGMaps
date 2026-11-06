@@ -1,3 +1,4 @@
+import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
 import { Layers3 } from 'lucide-react'
@@ -12,10 +13,11 @@ import { LidarLegend } from './LidarLegend'
 import { LidarMapToolbar } from './LidarMapToolbar'
 import { LidarSidebar } from './LidarSidebar'
 import { LidarToolLibrary } from './LidarToolLibrary'
+import { lidarTableSources } from './lidarTable'
 import { useLidarWorkspace } from './useLidarWorkspace'
 import { ModelComparisonWorkspace } from './comparisons/ModelComparisonWorkspace'
 import { InventoryWorkspace } from './inventory/InventoryWorkspace'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useMemo } from 'react'
 import { VolumeWorkspace } from './volume/VolumeWorkspace'
 
 const ImportWorkspace = lazy(() => import('./imports/ImportWorkspace').then((m) => ({ default: m.ImportWorkspace })))
@@ -76,6 +78,26 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     navigation,
     isLibrary,
   } = controller
+  // The map draws no crowns during a benchmark preview, so the table offers none either.
+  const mappedRows = useMemo(
+    () => (analysisOptions.mode === 'trees' && benchmarkPreview ? [] : workflowRows),
+    [analysisOptions.mode, benchmarkPreview, workflowRows],
+  )
+  const models = workflowProducts.data?.models.records
+  const tableSources = useMemo(
+    () => lidarTableSources(analysisOptions.mode, mappedRows, models ?? []),
+    [analysisOptions.mode, mappedRows, models],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId:
+      analysisOptions.mode === 'models' ? analysisOptions.selectedId : (selectedWorkflow?.properties.id ?? null),
+    onSelectRow: (row, source) => selectWorkflow(source.getRowId(row)),
+    // The camera URL is written outside the router, and `selectWorkflow` moves the camera.
+    url: false,
+    flyOnSelect: false,
+    inlineButton: true,
+  })
   if (tool?.id === 'data')
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
@@ -149,6 +171,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
             actions={
               <>
                 <LidarMapToolbar controller={controller} />
+                {table.button}
               </>
             }
           >
@@ -192,7 +215,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
                       onTransectProfile={setTransectProfile}
                       heatmaps={workflowProducts.data?.heatmaps ?? null}
                       workflowOptions={analysisOptions}
-                      workflowFeatures={analysisOptions.mode === 'trees' && benchmarkPreview ? [] : workflowRows}
+                      workflowFeatures={mappedRows}
                       selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
                       onWorkflowSelect={selectWorkflow}
                       buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
@@ -216,7 +239,10 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
                       labels={labels}
                       hillshade={hillshade}
                       sceneGround={sceneGround}
-                    />
+                    >
+                      <MapTableBridge table={table} />
+                    </NativeLidarMap>
+                    {table.layout.bottomPane}
                   </div>
                   {tool?.id === 'trees' && analysisOptions.mode === 'trees' && (
                     <div className="h-[52%] min-h-0 shrink-0 lg:h-full lg:w-[var(--tree-pane)]">

@@ -1,5 +1,6 @@
 /** SCRIP-inspired restoration metrics. Pure, bounded grids; every accepted return is counted. */
 import type { PemStructureRasters } from './pemStructure'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export const MAX_GRID_CELLS = 4_194_304
 export const MAX_INPUT_BYTES = 768 * 1024 * 1024
 export const MAX_SOURCE_POINTS = 150_000_000
@@ -105,7 +106,9 @@ export function makeGrid(bounds: [number, number, number, number], cellM: number
   const width = Math.floor((x1 - west) / cellM) + 1
   const height = Math.floor((north - y0) / cellM) + 1
   if (width * height > MAX_GRID_CELLS)
-    throw Error(`Grid exceeds ${MAX_GRID_CELLS.toLocaleString()} cells. Increase cell size or crop the source in GIS.`)
+    throw Error(
+      `Grid exceeds ${MAX_GRID_CELLS.toLocaleString(DEFAULT_LOCALE)} cells. Increase cell size or crop the source in GIS.`,
+    )
   return { west, north, cellM, width, height }
 }
 export function indexAt(g: Grid, x: number, y: number): number {

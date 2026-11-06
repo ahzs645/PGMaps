@@ -8,7 +8,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { MapSwipe } from '@/components/ui/map-swipe'
 import { ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
-import { DEFAULT_TABLE_PANE_HEIGHT, MapTableButton } from '@/components/map/MapFeatureTable'
+import { MapTableBridge, useMapTable, useMapTableState, type MapTableSource } from '@/components/map/useMapTable'
 import {
   GEO_FILE_FORMATS,
   GeoFileImportError,
@@ -19,7 +19,7 @@ import {
 import { AddDataDialog } from './dev-data/AddDataDialog'
 import type { CatalogEntry } from './dev-data/catalog'
 import { DataMapLayers } from './dev-data/DataMapLayers'
-import { DataTablePanel } from './dev-data/DataTablePanel'
+import { dataLayerTableSource } from './dev-data/layerTableSource'
 import { FeatureCard, FeaturePopup, type SelectedFeature } from './dev-data/FeaturePopup'
 import { layerFromCatalog, layerFromUpload, initialWorkspace } from './dev-data/layerFactory'
 import {
@@ -31,14 +31,7 @@ import {
   type DataFeature,
   type ViewportBounds,
 } from './dev-data/layerData'
-import {
-  FitToBounds,
-  FlyToCenter,
-  MapInstance,
-  MirrorCamera,
-  PointerTracker,
-  ViewportTracker,
-} from './dev-data/MapBehaviors'
+import { FitToBounds, MapInstance, MirrorCamera, PointerTracker, ViewportTracker } from './dev-data/MapBehaviors'
 import { swipePair, workspaceReducer, type DataLayer } from './dev-data/model'
 import { DevDataSidebar } from './dev-data/Sidebar'
 import { useLayerData } from './dev-data/useLayerData'
@@ -46,16 +39,17 @@ import { useLayerData } from './dev-data/useLayerData'
 const DEV_DATA_CENTER: [number, number] = [-122.7497, 53.9171]
 const DEV_DATA_ZOOM = 11.1
 
+function firstVisibleId(layers: readonly DataLayer[]): string | undefined {
+  return (layers.find((layer) => layer.visible) ?? layers[0])?.id
+}
+
 function DevData() {
   const [state, dispatch] = useReducer(workspaceReducer, undefined, initialWorkspace)
-  const [tableLayerId, setTableLayerId] = useState<string | null>(null)
+  const tableState = useMapTableState()
+  const tableLayerId = tableState.activeId
   const [activeLayerId, setActiveLayerId] = useState<string | null>(null)
-  const [showOnlyInView, setShowOnlyInView] = useState(false)
-  const [tableHeight, setTableHeight] = useState(DEFAULT_TABLE_PANE_HEIGHT)
-  const [tableResizing, setTableResizing] = useState(false)
   const [bounds, setBounds] = useState<ViewportBounds | null>(null)
   const [selected, setSelected] = useState<SelectedFeature | null>(null)
-  const [flyTo, setFlyTo] = useState<{ center: [number, number] | null; nonce: number }>({ center: null, nonce: 0 })
   const [fit, setFit] = useState<{ bounds: ViewportBounds | null; nonce: number }>({ bounds: null, nonce: 0 })
   const [libraryOpen, setLibraryOpen] = useState(false)
   const [importBusy, setImportBusy] = useState(false)
@@ -98,10 +92,34 @@ function DevData() {
     lastPointer.current = lngLat
   }, [])
 
-  const openTable = useCallback((layerId: string) => {
-    dispatch({ type: 'setVisible', id: layerId, visible: true })
-    setTableLayerId(layerId)
-  }, [])
+  const tableSources = useMemo<MapTableSource[]>(
+    () => state.layers.map((layer) => dataLayerTableSource(layer, getLayer(layer.id))),
+    [getLayer, state.layers],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    state: tableState,
+    defaultSourceId: firstVisibleId(state.layers),
+    selectedRowId: selectedId,
+    onSelectRow: (feature: DataFeature, source) => {
+      dispatch({ type: 'setVisible', id: source.id, visible: true })
+      setSelected((current) => ({
+        feature,
+        layerId: source.id,
+        anchor: featureCenter(feature) ?? DEV_DATA_CENTER,
+        nonce: (current?.nonce ?? 0) + 1,
+      }))
+    },
+  })
+  const { open: openTableSource, follow: followTable } = table
+
+  const openTable = useCallback(
+    (layerId: string) => {
+      dispatch({ type: 'setVisible', id: layerId, visible: true })
+      openTableSource(layerId)
+    },
+    [openTableSource],
+  )
 
   const handleFeatureClick = useCallback(
     (layerId: string, featureId: string) => {
@@ -114,24 +132,9 @@ function DevData() {
         anchor: lastPointer.current ?? featureCenter(feature) ?? DEV_DATA_CENTER,
         nonce: (current?.nonce ?? 0) + 1,
       }))
-      setTableLayerId((current) => (current ? layerId : current))
+      followTable(layerId)
     },
-    [getLayer],
-  )
-
-  const handleSelectRow = useCallback(
-    (feature: DataFeature) => {
-      if (!tableLayerId) return
-      const center = featureCenter(feature)
-      setSelected((current) => ({
-        feature,
-        layerId: tableLayerId,
-        anchor: center ?? DEV_DATA_CENTER,
-        nonce: (current?.nonce ?? 0) + 1,
-      }))
-      setFlyTo((current) => ({ center, nonce: current.nonce + 1 }))
-    },
-    [tableLayerId],
+    [followTable, getLayer],
   )
 
   const zoomToLayer = useCallback(
@@ -207,7 +210,6 @@ function DevData() {
 
   const addedIds = useMemo(() => new Set(state.layers.map((layer) => layer.id)), [state.layers])
   const pair = swipePair(state)
-  const firstVisible = state.layers.find((layer) => layer.visible) ?? state.layers[0]
 
   const selectedSummary = useMemo(() => {
     if (!shownSelection || !selectedLayer) return null
@@ -242,13 +244,13 @@ function DevData() {
       center={camera.current.center}
       zoom={camera.current.zoom}
       attributionControl={false}
-      deferResize={tableResizing}
+      deferResize={table.deferResize}
       controls={<MapControls position="top-right" className="top-16 md:top-2" />}
     >
       <ViewportTracker onChange={setBounds} />
       <PointerTracker onPointer={handlePointer} />
       <MapInstance onReady={handleMapReady} />
-      <FlyToCenter center={flyTo.center} nonce={flyTo.nonce} />
+      <MapTableBridge table={table} />
       <FitToBounds bounds={fit.bounds} nonce={fit.nonce} />
       <DataMapLayers
         layers={pair ? state.layers.filter((layer) => layer.id !== pair.right.id) : state.layers}
@@ -264,7 +266,7 @@ function DevData() {
               layer={selectedLayer}
               loaded={getLayer(selectedLayer.id)}
               onClose={() => setSelected(null)}
-              onShowInTable={() => setTableLayerId(selectedLayer.id)}
+              onShowInTable={() => openTable(selectedLayer.id)}
             />
           }
         />
@@ -286,29 +288,7 @@ function DevData() {
         ) : undefined
       }
       sidebar={sidebar}
-      bottomPaneHeight={tableLayer ? tableHeight : 0}
-      bottomPaneResizing={tableResizing}
-      bottomPane={
-        tableLayer ? (
-          <DataTablePanel
-            layer={tableLayer}
-            layers={state.layers}
-            loaded={getLayer(tableLayer.id)}
-            getLayer={getLayer}
-            bounds={bounds}
-            showOnlyInView={showOnlyInView}
-            selectedFeatureId={selectedId?.startsWith(`${tableLayer.id}:`) ? selectedId : null}
-            height={tableHeight}
-            onHeightChange={setTableHeight}
-            onResizeStart={() => setTableResizing(true)}
-            onResizeEnd={() => setTableResizing(false)}
-            onShowOnlyInViewChange={setShowOnlyInView}
-            onLayerChange={openTable}
-            onClose={() => setTableLayerId(null)}
-            onSelect={handleSelectRow}
-          />
-        ) : undefined
-      }
+      table={table}
     >
       <FileDropTarget className="h-full" onFiles={handleFiles} hint={GEO_FILE_FORMATS}>
         {pair ? (
@@ -338,12 +318,6 @@ function DevData() {
           />
         ) : (
           mainMap
-        )}
-
-        {!tableLayer && firstVisible && (
-          <div className="absolute left-2 top-16 z-20 md:top-2">
-            <MapTableButton iconOnly label="Open table" onClick={() => openTable(firstVisible.id)} />
-          </div>
         )}
 
         {pair && (

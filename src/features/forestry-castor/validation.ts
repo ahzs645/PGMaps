@@ -1,4 +1,5 @@
 import { CASTOR_NULL_FIELDS, DEFAULT_CASTOR_CONFIG, type CastorValidation, type CastorValidationIssue } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export const CASTOR_LIMITS = {
   pixels: 50_000,
@@ -545,7 +546,7 @@ export function validateCastorProject(project: unknown, config: unknown = DEFAUL
     if (pixels.length * config.periods > CASTOR_LIMITS.pixelPeriods)
       fail(
         'config.periods',
-        `This run exceeds ${CASTOR_LIMITS.pixelPeriods.toLocaleString()} pixel-periods; reduce the region or horizon.`,
+        `This run exceeds ${CASTOR_LIMITS.pixelPeriods.toLocaleString(DEFAULT_LOCALE)} pixel-periods; reduce the region or horizon.`,
       )
     if (
       pixels.length * config.periods * (project.constraints as unknown[]).length >

@@ -2,6 +2,7 @@
 
 import { MAX_CLIMATE_CSV_BYTES, MAX_CLIMATE_DAYS } from './constants'
 import type { ClimateDay, MonthlyAnomaly, ScenarioInput, Soil } from './types'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const DAY_MS = 86_400_000
 
@@ -81,7 +82,7 @@ function numeric(value: string, label: string): number {
 export function validateClimate(climate: readonly ClimateDay[]): void {
   if (!Array.isArray(climate) || climate.length === 0) throw new Error('Import at least one complete calendar year.')
   if (climate.length > MAX_CLIMATE_DAYS)
-    throw new Error(`Climate input exceeds ${MAX_CLIMATE_DAYS.toLocaleString()} days.`)
+    throw new Error(`Climate input exceeds ${MAX_CLIMATE_DAYS.toLocaleString(DEFAULT_LOCALE)} days.`)
   let previousTime: number | undefined
   for (let i = 0; i < climate.length; i++) {
     const day = climate[i]

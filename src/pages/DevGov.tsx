@@ -1,10 +1,11 @@
-import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, BookOpen, Database, Landmark, MapPinned } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { CopyButton } from '@/components/ui/copy-button'
 import { ExternalLink } from '@/components/ui/text-button'
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import {
   AIR_DATA_VIEWS,
   AIR_MAPS,
@@ -84,34 +85,29 @@ function AirSourceCard({ entry }: { entry: AirCatalogEntry }) {
 }
 
 export default function DevGov() {
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Government map catalog · PGMaps Dev'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('Government map catalog · PGMaps Dev')
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:py-12">
-        <Link
-          to="/dev"
-          className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          Dev library
-        </Link>
-        <div className="mb-3 flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Landmark className="size-4" aria-hidden="true" />
-          Government sources
-        </div>
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">Government map catalog</h1>
-        <p className="mt-4 max-w-3xl text-base leading-7 text-muted-foreground">
-          Explore every map in B.C.’s air-monitoring visualization project, its data streams and an option for
-          recreating it in PGMaps. This catalog contains plans and original-source links; native recreations and
-          refreshed feeds are proposed.
-        </p>
+        <ToolPageHeader
+          size="lg"
+          className="mb-0"
+          back={
+            <Link
+              to="/dev"
+              className="mb-5 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Dev library
+            </Link>
+          }
+          eyebrow="Government sources"
+          eyebrowIcon={Landmark}
+          eyebrowClassName="text-muted-foreground"
+          title="Government map catalog"
+          description="Explore every map in B.C.’s air-monitoring visualization project, its data streams and an option for recreating it in PGMaps. This catalog contains plans and original-source links; native recreations and refreshed feeds are proposed."
+        />
 
         <section aria-labelledby="integration-title" className="my-8 rounded-lg border bg-card p-5 sm:p-6">
           <h2 id="integration-title" className="flex items-center gap-2 text-xl font-semibold">

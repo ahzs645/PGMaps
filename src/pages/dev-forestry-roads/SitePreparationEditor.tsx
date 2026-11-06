@@ -20,7 +20,7 @@ export function SitePreparationEditor({
   return (
     <div className="space-y-2 p-3" data-testid="road-site-preparation">
       <p className="text-xs font-semibold">Stripping before construction</p>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Remove ground beneath cut and fill before building the section. Inside offsets leave an unstripped centre;
         outside offsets extend past the final catch line. Removed material is never reused.
       </p>

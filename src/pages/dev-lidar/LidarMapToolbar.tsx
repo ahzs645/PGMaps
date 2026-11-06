@@ -100,7 +100,7 @@ export function LidarMapToolbar({ controller }: { controller: LidarController })
         <Crosshair className="size-4" />
       </Button>
       {analysisOptions.mode === 'trees' && (
-        <label className="hidden items-center gap-1 text-[10px] lg:flex">
+        <label className="hidden items-center gap-1 text-3xs lg:flex">
           Inspector width
           <input
             aria-label="Inspector pane width"

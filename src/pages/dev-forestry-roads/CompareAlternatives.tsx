@@ -133,16 +133,16 @@ export function CompareAlternatives({
                     <td key={m.id} data-metric={m.id} title={reason ?? undefined}>
                       {m.id === 'cost' ? `$${number(value)}` : number(value, m.digits ?? 0)}
                       {(m.id === 'earthworks' || m.id === 'disturbance') && !hasCompleteCoverage(result) && (
-                        <span className="ml-1 text-[10px] text-amber-700 dark:text-amber-400">covered</span>
+                        <span className="ml-1 text-3xs text-amber-700 dark:text-amber-400">covered</span>
                       )}
                       {m.id === 'grade' && (
-                        <span className="ml-1 text-[10px] text-muted-foreground">
+                        <span className="ml-1 text-3xs text-muted-foreground">
                           {a.vertical.length ? 'design' : 'ground'}
                         </span>
                       )}
                       {result !== baseline && change !== null && (
                         <span
-                          className={`ml-1 text-[10px] ${better ? 'text-emerald-700 dark:text-emerald-400' : worse ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                          className={`ml-1 text-3xs ${better ? 'text-emerald-700 dark:text-emerald-400' : worse ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
                         >
                           {change > 0 ? '+' : ''}
                           {number(change, 0)}%
@@ -166,7 +166,7 @@ export function CompareAlternatives({
           })}
         </tbody>
       </EngineeringTable>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Changes are against the baseline on the same terrain and rates. Disturbance is the area between catch points.
         Partial earthwork and disturbance subtotals show no percentage ranking. Ground and design grades are labelled
         separately; percentages require the same basis and known grades. Base engineering estimates exclude the complete

@@ -20,7 +20,7 @@ export function ReferenceSelect({
         options={options}
         triggerAriaLabel={label}
         triggerClassName="h-auto min-h-9 text-xs"
-        contentClassName="z-[1500] text-xs"
+        contentClassName="z-workspace-menu text-xs"
       />
     </Field>
   )

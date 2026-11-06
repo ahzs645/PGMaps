@@ -1,5 +1,6 @@
 import { checkedMonitorPage, type MonitorPage } from './monitoringRelations'
 import type { ProjectRead } from './projectManager'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type MonitorExtraction = {
   schema: 'nechako-monitor-extract-v1'
@@ -188,7 +189,7 @@ export async function extractMonitoring({
       ...(complete
         ? []
         : [
-            `Stopped at the selected ${maxRows.toLocaleString()}-row limit; ${expectedRows.toLocaleString()} rows were advertised.`,
+            `Stopped at the selected ${maxRows.toLocaleString(DEFAULT_LOCALE)}-row limit; ${expectedRows.toLocaleString(DEFAULT_LOCALE)} rows were advertised.`,
           ]),
       'Rows retain source order, scalar types and IDs; no deduplication, interpolation or missing-value replacement was applied.',
       'Stable counts and boundary pages are checked. The source supplies no snapshot token; changes inside middle pages cannot be ruled out.',

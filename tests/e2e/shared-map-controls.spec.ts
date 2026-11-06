@@ -69,9 +69,11 @@ async function mapState(page: Page) {
         const value = hook.memoizedState as { current?: MapLike; getStyle?: unknown } | undefined
         const map = typeof value?.getStyle === 'function' ? (value as MapLike) : value?.current
         if (typeof map?.getStyle !== 'function' || typeof map.getZoom !== 'function') continue
-        const layers = map
-          .getStyle()
-          .layers.filter((layer) => layer.type === 'fill')
+        // No style yet while it loads, and a throw here would end the poll instead of retrying.
+        const style = map.getStyle()
+        if (!style) continue
+        const layers = style.layers
+          .filter((layer) => layer.type === 'fill')
           .map((layer) => {
             const data = layer.source && map.getSource(layer.source)?.serialize().data
             return {

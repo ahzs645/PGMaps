@@ -144,7 +144,7 @@ function ColorSwatches({
         </button>
       ))}
       <label
-        className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-border text-[10px] text-muted-foreground"
+        className="relative flex size-7 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-border text-3xs text-muted-foreground"
         title="Custom colour"
       >
         <span aria-hidden="true">+</span>

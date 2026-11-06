@@ -24,6 +24,7 @@ import { localLayerCacheId as cacheId, saveLayerAsset } from './data/layerCache'
 import { applyLocalDefaultStyle } from './data/styleLibrary'
 import { useLocalWorkbenchRecords } from './data/useLocalWorkbench'
 import type { VectorData, Workspace } from './data/workspace'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type Picker = Exclude<SourceLayerKind, 'local'> | 'cached'
 const OPTIONS = [
@@ -136,7 +137,7 @@ export function PortalSourceLayers({
     setSelectedCacheId(record.id)
     setAccess(record.source?.access ?? 'unknown')
     setMessage(
-      `Saved ${saved.name} on this browser. ${saved.data ? `${saved.data.features.length.toLocaleString()} features stored.` : 'Catalogue reference only; import or download features to use offline.'}`,
+      `Saved ${saved.name} on this browser. ${saved.data ? `${saved.data.features.length.toLocaleString(DEFAULT_LOCALE)} features stored.` : 'Catalogue reference only; import or download features to use offline.'}`,
     )
   }
   const select = (asset: LocalLayerAsset) => {
@@ -302,7 +303,9 @@ export function PortalSourceLayers({
                 {asset.sourceId && ` · source ${asset.sourceId}`}
                 {asset.schemaId && ` · schema ${asset.schemaId}`}
                 {asset.submissionId && ` · submission ${asset.submissionId}`} ·{' '}
-                {asset.data ? `${asset.data.features.length.toLocaleString()} cached features` : 'reference only'}
+                {asset.data
+                  ? `${asset.data.features.length.toLocaleString(DEFAULT_LOCALE)} cached features`
+                  : 'reference only'}
               </span>
             </button>
           </li>
@@ -324,7 +327,7 @@ export function PortalSourceLayers({
           <p className="text-sm">
             {selected.materialization.status === 'descriptor'
               ? 'Catalogue reference'
-              : `${selected.materialization.status === 'partial' ? 'Partial dataset' : 'Materialized features'}: ${selected.data?.features.length.toLocaleString()}${selected.materialization.expectedFeatures === undefined ? '' : ` / ${selected.materialization.expectedFeatures.toLocaleString()}`} features`}
+              : `${selected.materialization.status === 'partial' ? 'Partial dataset' : 'Materialized features'}: ${selected.data?.features.length.toLocaleString(DEFAULT_LOCALE)}${selected.materialization.expectedFeatures === undefined ? '' : ` / ${selected.materialization.expectedFeatures.toLocaleString(DEFAULT_LOCALE)}`} features`}
             {selected.materialization.countVerified ? ' · source count verified' : ''}
           </p>
           <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
@@ -448,7 +451,9 @@ export function PortalSourceLayers({
                 signal,
                 onProgress: (loaded, total) => {
                   if (!signal.aborted)
-                    setProgress(`${loaded.toLocaleString()} / ${total.toLocaleString()} WFS features`)
+                    setProgress(
+                      `${loaded.toLocaleString(DEFAULT_LOCALE)} / ${total.toLocaleString(DEFAULT_LOCALE)} WFS features`,
+                    )
                 },
               })
               if (signal.aborted) return

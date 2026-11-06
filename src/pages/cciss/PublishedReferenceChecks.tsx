@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { SelectField } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { PaginationControls } from '@/components/ui/pagination-controls'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { downloadText } from '@/lib/download'
 import { comparePublishedPeriodRatings, publishedConsistencyCsv } from './publishedConsistency'
 import { ratingLabel } from './legacyAnalysis'
@@ -81,7 +82,7 @@ export function PublishedReferenceChecks({ report, source }: { report: ShinyRepo
             </Button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <EngineeringTable variant="text" className="text-sm">
               <caption className="sr-only">Published period-class comparisons</caption>
               <thead>
                 <tr>
@@ -94,16 +95,14 @@ export function PublishedReferenceChecks({ report, source }: { report: ShinyRepo
                     'Calculated class',
                     'Status / reason',
                   ].map((label) => (
-                    <th key={label} scope="col">
-                      {label}
-                    </th>
+                    <ColumnHeader key={label} label={label} />
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {visible.map((row, index) => (
-                  <tr className="border-t" key={JSON.stringify([row.site, row.series, row.species, row.period, index])}>
-                    <td className="py-2">{row.site}</td>
+                  <tr key={JSON.stringify([row.site, row.series, row.species, row.period, index])}>
+                    <td>{row.site}</td>
                     <td>{row.series}</td>
                     <td>{row.species}</td>
                     <td>{row.period}</td>
@@ -113,7 +112,7 @@ export function PublishedReferenceChecks({ report, source }: { report: ShinyRepo
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </EngineeringTable>
           </div>
           {!rows.length && <p className="my-3 text-sm">No rows match this filter.</p>}
           <p className="mt-2 text-xs text-muted-foreground">

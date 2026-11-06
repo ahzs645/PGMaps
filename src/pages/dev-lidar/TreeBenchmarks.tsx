@@ -11,6 +11,7 @@ import { DEFAULT_PROFILE, pointKey } from './treeInspection'
 import { ProfileCanvas } from './ProfileCanvas'
 import snapshotUrl from './treeBenchmarks.generated.json?url'
 import { useKeyedState } from './useKeyedState'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export interface BenchmarkMethod {
   id: string
@@ -213,8 +214,8 @@ export function TreeBenchmarks({
     <div className="space-y-3 p-3 text-xs">
       <p>
         Saved benchmark results from three buffered source plots. All accepted returns were processed; the map and side
-        views display a deterministic sample of {plot.sample.sampled.toLocaleString()} /{' '}
-        {plot.sample.total.toLocaleString()} returns.
+        views display a deterministic sample of {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)} /{' '}
+        {plot.sample.total.toLocaleString(DEFAULT_LOCALE)} returns.
       </p>
       <label className="block">
         Benchmark plot
@@ -295,7 +296,8 @@ export function TreeBenchmarks({
                 />
               </div>
               <p>
-                {m.instances_core} core instances · {m.unassigned_points.toLocaleString()} unassigned core returns
+                {m.instances_core} core instances · {m.unassigned_points.toLocaleString(DEFAULT_LOCALE)} unassigned core
+                returns
               </p>
             </div>
           )
@@ -328,7 +330,10 @@ export function TreeBenchmarks({
             label: 'Adjusted Rand agreement',
             value: agreement?.adjusted_rand_index?.toFixed(3) ?? 'Unavailable · no shared assignments / same method',
           },
-          { label: 'Common assigned core returns', value: agreement?.common_assigned_points.toLocaleString() ?? '—' },
+          {
+            label: 'Common assigned core returns',
+            value: agreement?.common_assigned_points.toLocaleString(DEFAULT_LOCALE) ?? '—',
+          },
         ]}
       />
       <p className="text-muted-foreground">
@@ -340,7 +345,7 @@ export function TreeBenchmarks({
       </p>
       <details>
         <summary>Parameters, screening and limitations</summary>
-        <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-[10px]">
+        <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-3xs">
           {JSON.stringify(
             {
               a: { version: a.version, parameters: a.parameters },

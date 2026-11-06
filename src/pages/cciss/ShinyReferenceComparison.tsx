@@ -1,5 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { FORM_INPUT_CLASS, FormField, NumberField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { PaginationControls } from '@/components/ui/pagination-controls'
@@ -120,16 +121,12 @@ export function ShinyReferenceComparison({
           }}
         />
       </FormField>
-      {busy && (
-        <p role="status" className="text-sm">
-          Reading Shiny reference…
-        </p>
-      )}
+      {busy && <InlineAlert loading>Reading Shiny reference…</InlineAlert>}
       {error && (
-        <div role="alert" className="text-sm text-destructive">
+        <InlineAlert tone="error">
           <p>{error}</p>
           {loaded && <p>The previous valid reference remains loaded: {loaded.name}.</p>}
-        </div>
+        </InlineAlert>
       )}
       {archive && (
         <SidebarSection title={`Choose a CSV in ${archive.name}`}>
@@ -338,11 +335,7 @@ function ReferenceResults({
           ))}
         </div>
       </details>
-      {result.error && (
-        <p role="alert" className="text-sm text-destructive">
-          {result.error}
-        </p>
-      )}
+      {result.error && <InlineAlert tone="error">{result.error}</InlineAlert>}
       {!site || !series ? (
         <InlineAlert tone="info">Choose the imported site and site series to align reference fields.</InlineAlert>
       ) : null}
@@ -416,23 +409,23 @@ function ReferenceResults({
             </p>
             {visible.length ? (
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <EngineeringTable rowHeaders className="whitespace-normal text-xs [&_td]:py-2 [&_tbody_th]:py-2">
                   <caption className="sr-only">Shiny reference field differences</caption>
                   <thead>
                     <tr>
-                      {['Species / key', 'Period', 'Measure', 'Browser', 'Shiny reference', 'Difference', 'Status'].map(
-                        (heading) => (
-                          <th key={heading} scope="col" className="p-2">
-                            {heading}
-                          </th>
-                        ),
-                      )}
+                      <ColumnHeader label="Species / key" className="text-left" />
+                      <ColumnHeader label="Period" className="text-left" />
+                      <ColumnHeader label="Measure" className="text-left" />
+                      <ColumnHeader label="Browser" />
+                      <ColumnHeader label="Shiny reference" />
+                      <ColumnHeader label="Difference" />
+                      <ColumnHeader label="Status" className="text-left" />
                     </tr>
                   </thead>
                   <tbody>
                     {visible.map((row) => (
-                      <tr className="border-t border-border" key={row.key}>
-                        <th scope="row" className="p-2 font-normal">
+                      <tr key={row.key}>
+                        <th scope="row">
                           <span className="block">{row.species}</span>
                           <small className="block text-muted-foreground">
                             {row.site} · {row.series}
@@ -441,19 +434,19 @@ function ReferenceResults({
                               : ''}
                           </small>
                         </th>
-                        <td className="p-2">{row.period ?? 'Summary'}</td>
-                        <td className="p-2">
+                        <td className="text-left">{row.period ?? 'Summary'}</td>
+                        <td className="text-left">
                           {row.measure}
                           {row.class ? ` · ${row.class}` : ''}
                         </td>
-                        <td className="p-2 tabular-nums">{referenceValue(row.browser, row)}</td>
-                        <td className="p-2 tabular-nums">{referenceValue(row.reference, row)}</td>
-                        <td className="p-2 tabular-nums">{referenceDelta(row)}</td>
-                        <td className="p-2 text-xs">{row.status}</td>
+                        <td>{referenceValue(row.browser, row)}</td>
+                        <td>{referenceValue(row.reference, row)}</td>
+                        <td>{referenceDelta(row)}</td>
+                        <td className="text-left">{row.status}</td>
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </EngineeringTable>
               </div>
             ) : (
               <p role="status" className="text-sm">

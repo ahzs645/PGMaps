@@ -77,7 +77,7 @@ export function FsrConnectionControls({
           Find nearby FSRs
         </Button>
       )}
-      <p className="text-[11px] text-muted-foreground" role="status">
+      <p className="text-2xs text-muted-foreground" role="status">
         {choices.length} nearby mapped FSR section{choices.length === 1 ? '' : 's'} available (up to {MAX_FSR_CHOICES}).{' '}
         {discovery?.scope ?? 'Choices use the FSR network currently loaded in this project.'}
       </p>
@@ -161,7 +161,7 @@ export function FsrConnectionControls({
       >
         {automatic ? 'Find FSR connection' : 'Connect to selected FSR'}
       </Button>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Creates a preliminary alignment using the terrain-cost constraints above. Fit curves and design the formation,
         then run the final checks and complete route cost comparison before treating it as a feasible, priced access
         route. BC discovery expands through 2, 5 and 10 km; imported networks use their loaded extent.
@@ -172,7 +172,7 @@ export function FsrConnectionControls({
         </Button>
       )}
       {record && (
-        <div className="space-y-1 rounded border p-2 text-[11px]" data-testid="road-fsr-connection-record">
+        <div className="space-y-1 rounded border p-2 text-2xs" data-testid="road-fsr-connection-record">
           <p className="font-medium">Recorded FSR connection: {record.targetName}</p>
           <p className="text-muted-foreground">
             Original screening record; it does not establish passed final checks or complete access pricing.

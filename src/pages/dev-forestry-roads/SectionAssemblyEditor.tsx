@@ -47,7 +47,7 @@ export function SectionAssemblyEditor({
   return (
     <div className="space-y-3 border-t pt-3" data-testid="road-section-assembly">
       <p className="text-xs font-semibold">Section assembly</p>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Components follow the formation/ditch in list order. Keys excavate below ground and replace it with fill. Wall
         geometry does not assess structural capacity.
       </p>
@@ -201,7 +201,7 @@ export function SectionAssemblyEditor({
           {c.kind !== 'key' && (
             <details className="rounded border p-2">
               <summary className="cursor-pointer text-xs">Reference feature or surface</summary>
-              <p className="my-1 text-[11px] text-muted-foreground">
+              <p className="my-1 text-2xs text-muted-foreground">
                 A feature anchors the outward endpoint where it crosses this section. A surface supplies its elevation;
                 offsets remain editable. An unresolved reference makes the section incomplete.
               </p>
@@ -298,7 +298,7 @@ export function SectionAssemblyEditor({
         }
       />
       <p className="text-xs font-semibold">Surface course stack</p>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         An explicit stack replaces the legacy surface-depth quantity. Courses lie above the designed subgrade; material
         demand is kept per layer.
       </p>

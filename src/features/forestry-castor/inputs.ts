@@ -12,6 +12,7 @@ import type { CastorInputRow, CastorInputTables } from './inputTables'
 import { DEFAULT_CASTOR_CONFIG } from './types'
 import type { CastorConfig, CastorProject } from './types'
 import { validateCastorProject } from './validation'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 let browserSqlite: Promise<SqlJsStatic> | undefined
 function loadSqlite(): Promise<SqlJsStatic> {
@@ -88,7 +89,7 @@ export function castorCsvRows(text: string): CastorInputRow[] {
     if (row.some((cell) => cell !== '')) rows.push(row)
     row = []
     if (rows.length > CASTOR_IMPORT_MAX_ROWS + 1)
-      throw new Error(`CSV exceeds ${CASTOR_IMPORT_MAX_ROWS.toLocaleString()} data rows.`)
+      throw new Error(`CSV exceeds ${CASTOR_IMPORT_MAX_ROWS.toLocaleString(DEFAULT_LOCALE)} data rows.`)
   }
   for (let i = 0; i < source.length; i++) {
     const char = source[i]

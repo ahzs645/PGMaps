@@ -1,6 +1,7 @@
 import { LegendItem, SidebarSection } from '@/components/ui/map-panels'
 
 import type { ExplorerFeature } from './featureTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function CategoryFilterFeature({
   feature,
@@ -27,7 +28,7 @@ export function CategoryFilterFeature({
               key={category}
               color={colors[category] ?? colors.other}
               label={labels[category] ?? category}
-              value={count.toLocaleString()}
+              value={count.toLocaleString(DEFAULT_LOCALE)}
               active={active}
               onClick={() => onToggle(category)}
               className="rounded px-2 py-1.5 text-xs md:px-2"

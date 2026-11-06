@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { Map, MapControls, MapMarker, MarkerContent } from '@/components/ui/map'
 import { MapSectionLayout, MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
+import { MapTableBridge, useMapTable, useMapTableState, type MapTableSource } from '@/components/map/useMapTable'
 import { MapSidebarShell, InlineAlert } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { FileDropTarget } from '@/components/ui/file-drop-target'
@@ -32,7 +33,7 @@ import { featureCollectionBounds } from '@pgmaps/geo-toolkit/calculations'
 import { readGeoFile, parseGeoJsonText } from '@/lib/geoFileImport'
 import { AddDataDialog } from './dev-data/AddDataDialog'
 import type { CatalogEntry } from './dev-data/catalog'
-import { DataTablePanel } from './dev-data/DataTablePanel'
+import { dataLayerTableSource } from './dev-data/layerTableSource'
 import {
   effectiveStyle,
   featureCenter,
@@ -70,9 +71,11 @@ import {
 } from './dev-mmgis/model'
 import { httpUrl, validateCollection } from './dev-mmgis/missionCodec'
 import { useWebMCPTools } from '@/lib/webmcp'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { featureIndex, sourceFeatureKey, prepareMissionLayer } from './dev-mmgis/featureIdentity'
 import { snapCoordinate } from './dev-mmgis/geometryEditing'
+import { DEFAULT_LOCALE } from '@/lib/format'
 import './dev-mmgis/workbench.css'
 
 const PANELS = [
@@ -115,10 +118,11 @@ export default function DevMmgis() {
   }, [])
   const [snapping, setSnapping] = useState(false)
   const [detail, setDetail] = useState<string | null>(null),
-    [table, setTable] = useState<string | null>(null)
-  const [tableHeight, setTableHeight] = useState(260),
-    [inView, setInView] = useState(false),
     [bounds, setBounds] = useState<ViewportBounds | null>(null)
+  const tableState = useMapTableState({ url: false, initialHeight: 260 })
+  const table = tableState.activeId
+  const { open: openTable, close: closeTable } = tableState
+  const setTable = useCallback((id: string | null) => (id ? openTable(id) : closeTable()), [closeTable, openTable])
   const [query, setQuery] = useState(''),
     [filter, setFilter] = useState(false)
   const [library, setLibrary] = useState(false),
@@ -303,13 +307,7 @@ export default function DevMmgis() {
       },
     },
   ])
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Mission workbench · PGMaps'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('Mission workbench · PGMaps')
   useEffect(() => {
     if (!map) return
     camera.current = mission.camera
@@ -482,6 +480,21 @@ export default function DevMmgis() {
     },
     [tool, getLayer, map, showPanel, setCandidateList],
   )
+  const tableSources = useMemo<MapTableSource[]>(
+    () => mission.layers.map((layer) => dataLayerTableSource(layer, getLayer(layer.id))),
+    [getLayer, mission.layers],
+  )
+  const mapTable = useMapTable({
+    sources: tableSources,
+    state: tableState,
+    selectedRowId: selectedFeature ? (selected?.id ?? null) : null,
+    // `select` eases the camera to the feature itself.
+    flyOnSelect: false,
+    url: false,
+    // The workbench toolbar has its own table button, and the corner holds the active tool.
+    inlineButton: true,
+    onSelectRow: (feature: DataFeature, source) => select(source.id, feature.properties[FEATURE_ID_KEY]),
+  })
   const inspect = useCallback(
     (ids: string[]) => {
       const lookup = new globalThis.Map<string, { layer: string; id: string }>()
@@ -917,6 +930,7 @@ export default function DevMmgis() {
         terrain={mission.terrain}
       />
       <ViewportTracker onChange={setBounds} />
+      <MapTableBridge table={mapTable} />
       {overlays}
     </Map>
   )
@@ -940,23 +954,6 @@ export default function DevMmgis() {
       {raster && <RasterOverlay raster={raster} />}
     </Map>
   )
-  const tablePane = tableLayer ? (
-    <DataTablePanel
-      layer={tableLayer}
-      layers={mission.layers}
-      loaded={getLayer(tableLayer.id)}
-      getLayer={getLayer}
-      bounds={bounds}
-      showOnlyInView={inView}
-      selectedFeatureId={selectedFeature ? (selected?.id ?? null) : null}
-      height={tableHeight}
-      onHeightChange={setTableHeight}
-      onShowOnlyInViewChange={setInView}
-      onLayerChange={setTable}
-      onClose={() => setTable(null)}
-      onSelect={(f: DataFeature) => select(tableLayer.id, f.properties[FEATURE_ID_KEY])}
-    />
-  ) : undefined
   return (
     <div className="mm-workbench">
       <header className="mm-mission-header">
@@ -1001,8 +998,7 @@ export default function DevMmgis() {
         mobilePeekTitle="Mission workbench"
         mobilePeekSubtitle={`${visibleCount} features · ${tool === 'inspect' ? 'Inspect map' : `${tool} tool active`}`}
         mobileScrimEnabled={false}
-        bottomPane={tablePane}
-        bottomPaneHeight={tablePane ? tableHeight : 0}
+        table={mapTable}
       >
         <FileDropTarget onFiles={(f) => void files(f)} className="h-full min-h-0">
           <div className="mm-map-space">
@@ -1143,7 +1139,7 @@ export default function DevMmgis() {
             <footer className="mm-statusbar">
               <span>
                 <i className="mm-live-dot" />
-                {visibleCount.toLocaleString()} visible features
+                {visibleCount.toLocaleString(DEFAULT_LOCALE)} visible features
               </span>
               <span>
                 {pointer

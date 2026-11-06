@@ -2,6 +2,7 @@ import type { ExplorerFeature } from './featureTypes'
 import { useEffect } from 'react'
 import { useMap } from '@/components/ui/map'
 import type { ResearchRecordsLocation } from '../adapters/researchRecordsTypes'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 export function LocationCameraFocus({ location }: { location: ResearchRecordsLocation | null }) {
   const { map, isLoaded } = useMap()
@@ -43,7 +44,7 @@ export function LocationPopupFeature({
       <div>
         <h3 className="text-sm font-semibold">{name}</h3>
         <p className="text-xs text-muted-foreground">
-          {count.toLocaleString()} {recordPlural} (filtered)
+          {count.toLocaleString(DEFAULT_LOCALE)} {recordPlural} (filtered)
         </p>
       </div>
       <div className="space-y-1">

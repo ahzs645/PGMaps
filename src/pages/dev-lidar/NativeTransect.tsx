@@ -7,6 +7,7 @@ import { downloadText } from '@/lib/download'
 import { readSourceGrid, sourceCell, sourceValue, toMetric } from './sourceGrids'
 import type { TreeIsolation } from './treeIsolation'
 import type { SourceGrid } from './sourceGrids'
+import { DEFAULT_LOCALE } from '@/lib/format'
 export function startNativeTransect(
   control: Pick<LidarControl, 'clearCrossSection' | 'enableCrossSection' | 'setCrossSectionBufferDistance'>,
   totalWidth: number,
@@ -137,13 +138,14 @@ export function NativeTransect({
       {profile && (
         <>
           <p>
-            {profile.points.length.toLocaleString()} displayed returns · {supported.length.toLocaleString()} have source
-            terrain support · {length.toFixed(1)} m line.
+            {profile.points.length.toLocaleString(DEFAULT_LOCALE)} displayed returns ·{' '}
+            {supported.length.toLocaleString(DEFAULT_LOCALE)} have source terrain support · {length.toFixed(1)} m line.
           </p>
           <p className="text-muted-foreground">
             Classes 7/12/18 and supported heights outside −0.5–80 m are screened. Individual withheld flags are
-            unavailable in this native preview. The chart draws {shown.length.toLocaleString()} returns; CSV retains all{' '}
-            {normalized.length.toLocaleString()} screened loaded returns, with missing terrain left blank.
+            unavailable in this native preview. The chart draws {shown.length.toLocaleString(DEFAULT_LOCALE)} returns;
+            CSV retains all {normalized.length.toLocaleString(DEFAULT_LOCALE)} screened loaded returns, with missing
+            terrain left blank.
           </p>
           <svg
             viewBox="0 0 420 300"

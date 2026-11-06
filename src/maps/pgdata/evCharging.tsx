@@ -1,4 +1,5 @@
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
 import {
   BOUNDARY_SOURCE_OPTIONS as ALL_BOUNDARY_SOURCE_OPTIONS,
   type BoundarySource,
@@ -53,6 +54,30 @@ export type EvChargingFeature = GeoJSON.Feature<
 >
 
 export type EvChargingFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Point, EvChargingFeature['properties']>
+
+/** The source's station id. Coordinates stand in for a station that lacks one. */
+export function evStationRowId(station: EvChargingFeature): string {
+  return String(station.properties?.id ?? station.geometry.coordinates.join(','))
+}
+
+export const EV_STATION_COLUMNS = [
+  textColumn<EvChargingFeature>('name', 'Station', (station) => station.properties?.name, { width: 240 }),
+  textColumn<EvChargingFeature>('city', 'City', (station) => station.properties?.city),
+  textColumn<EvChargingFeature>('province', 'Province', (station) => station.properties?.province, { width: 100 }),
+  textColumn<EvChargingFeature>('network', 'Network', (station) => station.properties?.network),
+  textColumn<EvChargingFeature>('connectors', 'Connectors', (station) => station.properties?.connectors, {
+    width: 200,
+  }),
+  numberColumn<EvChargingFeature>('level2', 'Level 2', (station) => station.properties?.level2 ?? 0, {
+    format: String,
+    width: 90,
+  }),
+  numberColumn<EvChargingFeature>('dcFast', 'DC fast', (station) => station.properties?.dcFast ?? 0, {
+    format: String,
+    width: 90,
+  }),
+  textColumn<EvChargingFeature>('access', 'Access', (station) => station.properties?.access),
+]
 
 export interface EvChargingSummaryStats {
   stationCount: number

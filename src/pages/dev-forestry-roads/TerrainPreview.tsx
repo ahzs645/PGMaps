@@ -365,11 +365,11 @@ export function TerrainPreview({
           fullWidth={false}
         />
         {!terrainOnly && !!analysis.engineering?.culverts.length && (
-          <label className="flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground">
+          <label className="flex min-w-0 items-center gap-1 text-3xs text-muted-foreground">
             Structure
             <AppSelect
               triggerAriaLabel="3D structure"
-              contentClassName="z-[1600] text-xs"
+              contentClassName="z-workspace-popover text-xs"
               triggerClassName="h-7 max-w-48 text-xs"
               value={selectedCulvert?.id ?? ''}
               options={[
@@ -432,7 +432,7 @@ export function TerrainPreview({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-[11px]"
+            className="h-7 px-2 text-2xs"
             aria-pressed={wireframe}
             onClick={() => setWireframe((value) => !value)}
           >
@@ -441,7 +441,7 @@ export function TerrainPreview({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-[11px]"
+            className="h-7 px-2 text-2xs"
             aria-label="Fill small gaps in 3D display"
             aria-pressed={fillGaps}
             title="Estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain."
@@ -453,18 +453,18 @@ export function TerrainPreview({
             <Button
               size="sm"
               variant="ghost"
-              className="h-7 px-2 text-[11px]"
+              className="h-7 px-2 text-2xs"
               aria-pressed={showEarthwork}
               onClick={() => setShowEarthwork((value) => !value)}
             >
               Batters
             </Button>
           )}
-          <label className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <label className="flex items-center gap-1 text-3xs text-muted-foreground">
             Vertical
             <AppSelect
               triggerAriaLabel="Terrain vertical exaggeration"
-              contentClassName="z-[1600] text-xs"
+              contentClassName="z-workspace-popover text-xs"
               triggerClassName="h-7 w-16 text-xs"
               value={String(exaggeration)}
               onValueChange={(value) => setExaggeration(Number(value))}
@@ -477,7 +477,7 @@ export function TerrainPreview({
         <p
           role="status"
           data-testid="road-terrain-infill-note"
-          className="pointer-events-none absolute bottom-2 left-2 z-10 rounded border bg-background/90 px-2 py-1 text-[10px] text-muted-foreground"
+          className="pointer-events-none absolute bottom-2 left-2 z-10 rounded border bg-background/90 px-2 py-1 text-3xs text-muted-foreground"
           title="Small enclosed gaps are estimated from surrounding terrain for display. Station elevations, quantities and reports retain the original missing data."
         >
           Estimated patches · display only
@@ -892,7 +892,7 @@ export function TerrainPreview({
           </SizedChart>
         )}
       </ChartViewport>
-      <div className="shrink-0 text-[10px]">
+      <div className="shrink-0 text-3xs">
         {!terrainOnly && active && !active.complete && (
           <p
             role="status"

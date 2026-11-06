@@ -2,6 +2,8 @@ import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
+import { dateColumn, numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
 import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
@@ -17,6 +19,7 @@ import {
   ToggleChip,
 } from '@/components/ui/map-panels'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
+import { ListHeader } from '@/components/ui/result-list'
 import { AppSelect } from '@/components/ui/select'
 import { StatGroup } from '@/components/ui/stat-group'
 import { TextButton } from '@/components/ui/text-button'
@@ -123,6 +126,10 @@ type OpenLitterHexCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, OpenLi
 
 const ALL_CATEGORIES = 'all'
 const ALL_OBJECTS = 'all'
+const MAX_LISTED_CONTRIBUTORS = 6
+const MAX_LEGEND_CATEGORIES = 16
+// These lists sit inside a padded block, so the header takes no bar of its own.
+const INLINE_LIST_HEADER_CLASS = 'mb-1 border-0 bg-transparent p-0 backdrop-blur-none'
 
 const CATEGORY_COLORS: Record<string, string> = {
   alcohol: '#7c3aed',
@@ -203,6 +210,34 @@ function formatLitterNames(names: string[] | null | undefined, fallback = 'Unkno
 function getFeatureKey(feature: OpenLitterPointFeature): string {
   return `olm:${feature.properties.sourceId ?? feature.properties.id}`
 }
+
+const LITTER_RECORD_COLUMNS = [
+  textColumn<OpenLitterPointFeature>('categories', 'Categories', (feature) =>
+    formatLitterNames(feature.properties.categoryNames),
+  ),
+  textColumn<OpenLitterPointFeature>(
+    'objects',
+    'Objects',
+    (feature) => formatLitterNames(feature.properties.objectNames),
+    { width: 240 },
+  ),
+  textColumn<OpenLitterPointFeature>('materials', 'Materials', (feature) =>
+    formatLitterNames(feature.properties.materialNames),
+  ),
+  numberColumn<OpenLitterPointFeature>('litterCount', 'Items', (feature) => feature.properties.litterCount, {
+    format: String,
+    width: 90,
+  }),
+  dateColumn<OpenLitterPointFeature>('observed', 'Observed', (feature) => feature.properties.datetime),
+  textColumn<OpenLitterPointFeature>(
+    'pickedUp',
+    'Picked up',
+    (feature) => (feature.properties.pickedUp ? 'Yes' : 'No'),
+    { width: 100 },
+  ),
+  textColumn<OpenLitterPointFeature>('contributor', 'Contributor', (feature) => feature.properties.name || 'Unknown'),
+  textColumn<OpenLitterPointFeature>('team', 'Team', (feature) => feature.properties.team, { defaultHidden: true }),
+]
 
 function getPrimaryCategory(feature: OpenLitterPointFeature): string {
   return feature.properties.categoryNames?.[0] || 'Unknown'
@@ -610,6 +645,24 @@ export function useOpenLitterMapData(
     return filteredFeatures.find((feature) => getFeatureKey(feature) === selectedId) ?? null
   }, [filteredFeatures, selectedId])
 
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<OpenLitterPointFeature>({
+        id: 'litter-records',
+        label: 'Litter records',
+        color: CATEGORY_COLORS.plastic,
+        shape: 'point',
+        rows: filteredFeatures,
+        columns: LITTER_RECORD_COLUMNS,
+        getRowId: getFeatureKey,
+        getRowCenter: (feature) => [feature.geometry.coordinates[0], feature.geometry.coordinates[1]],
+        status: points.error || manifest.error ? 'error' : points.data ? 'ready' : 'loading',
+      }),
+    ],
+    [filteredFeatures, manifest.error, points.data, points.error],
+  )
+  const selectTableRow = useCallback((feature: OpenLitterPointFeature) => setSelectedId(getFeatureKey(feature)), [])
+
   const totalLitter = useMemo(
     () => filteredFeatures.reduce((sum, feature) => sum + (Number(feature.properties.litterCount) || 1), 0),
     [filteredFeatures],
@@ -636,6 +689,9 @@ export function useOpenLitterMapData(
     selectedId,
     setSelectedId,
     selectedFeature,
+    tableSources,
+    selectedTableRowId: selectedId,
+    selectTableRow,
     totalLitter,
     categoryBreakdown,
     bucketCounts,
@@ -781,8 +837,17 @@ export function OpenLitterMapSidebar({
 
       {manifest?.contributors?.length ? (
         <SidebarSection title="Top Contributors">
+          {manifest.contributors.length > MAX_LISTED_CONTRIBUTORS && (
+            <ListHeader
+              count={manifest.contributors.length}
+              noun={['contributor', 'contributors']}
+              shown={MAX_LISTED_CONTRIBUTORS}
+              sticky={false}
+              className={INLINE_LIST_HEADER_CLASS}
+            />
+          )}
           <ul className="space-y-1 text-xs text-muted-foreground">
-            {manifest.contributors.slice(0, 6).map((contributor) => (
+            {manifest.contributors.slice(0, MAX_LISTED_CONTRIBUTORS).map((contributor) => (
               <li
                 key={`${contributor.name}-${contributor.team ?? ''}`}
                 className="flex items-start justify-between gap-3"
@@ -1036,18 +1101,29 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
           {litter.categoryBreakdown.length === 0 ? (
             <MapLegendNote className="italic">No records in current filter.</MapLegendNote>
           ) : (
-            <ul className="max-h-36 space-y-0.5 overflow-y-auto pr-1 md:max-h-48 md:space-y-1">
-              {litter.categoryBreakdown.slice(0, 16).map((entry) => (
-                <li key={entry.name}>
-                  <LegendItem
-                    color={entry.color}
-                    label={`${formatLitterName(entry.name)} (${formatNumber(entry.litter)})`}
-                    active
-                    className="md:gap-2"
-                  />
-                </li>
-              ))}
-            </ul>
+            <>
+              {litter.categoryBreakdown.length > MAX_LEGEND_CATEGORIES && (
+                <ListHeader
+                  count={litter.categoryBreakdown.length}
+                  noun={['category', 'categories']}
+                  shown={MAX_LEGEND_CATEGORIES}
+                  sticky={false}
+                  className={INLINE_LIST_HEADER_CLASS}
+                />
+              )}
+              <ul className="max-h-36 space-y-0.5 overflow-y-auto pr-1 md:max-h-48 md:space-y-1">
+                {litter.categoryBreakdown.slice(0, MAX_LEGEND_CATEGORIES).map((entry) => (
+                  <li key={entry.name}>
+                    <LegendItem
+                      color={entry.color}
+                      label={`${formatLitterName(entry.name)} (${formatNumber(entry.litter)})`}
+                      active
+                      className="md:gap-2"
+                    />
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </>
       )}

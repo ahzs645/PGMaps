@@ -1,5 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Calculator, Footprints } from 'lucide-react'
+import { numberColumn, textColumn } from '@/components/map/tableColumns'
+import { defineTableSource } from '@/components/map/useMapTable'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import {
@@ -13,6 +15,7 @@ import {
 } from '@/components/ui/map-panels'
 import { AppSelect } from '@/components/ui/select'
 import { WalkabilityBuilderControls } from '@/features/walkability/WalkabilityBuilderControls'
+import { featureCenter, featuresBounds } from '@/lib/featureBounds'
 import { formatNumber } from '@/lib/format'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
 import { resolveWalkabilityMiBands, toWalkabilityMiLegendBands } from './walkabilityMiBands'
@@ -185,6 +188,22 @@ const WALKABILITY_SCORE_FIELD_BY_VARIANT: Record<string, keyof WalkabilityProper
   safetyAdjusted: 'safetyAdjustedScore',
   supplementedLocal: 'supplementedLocalScore',
 }
+
+/** Everything but the score, whose field follows the selected variant. */
+const WALKABILITY_COMMUNITY_COLUMNS = [
+  numberColumn<WalkabilityFeature>('areaSqKm', 'Area (km²)', (feature) => feature.properties.areaSqKm),
+  numberColumn<WalkabilityFeature>('sidewalkKm', 'Sidewalk km', (feature) => feature.properties.sidewalkKm),
+  numberColumn<WalkabilityFeature>('walkwayKm', 'Walkway km', (feature) => feature.properties.walkwayKm),
+  numberColumn<WalkabilityFeature>('intersections', 'Intersections', (feature) => feature.properties.intersectionCount),
+  numberColumn<WalkabilityFeature>('transitStops', 'Transit stops', (feature) => feature.properties.transitStopCount),
+  numberColumn<WalkabilityFeature>('parkAmenities', 'Park amenities', (feature) => feature.properties.parkAmenityCount),
+  numberColumn<WalkabilityFeature>(
+    'pedestrianCrashes',
+    'Pedestrian crashes',
+    (feature) => feature.properties.pedestrianCrashCount,
+  ),
+  numberColumn<WalkabilityFeature>('crossings', 'Crossings', (feature) => feature.properties.crossingCount),
+]
 
 const WalkabilityDeckHeatmapLayer = lazy(() =>
   import('./WalkabilityDeckHeatmapLayer').then((module) => ({ default: module.WalkabilityDeckHeatmapLayer })),
@@ -451,6 +470,46 @@ export function useWalkabilityData(
     return liveHeatmap
   }, [active, displayMode, gridHeatmap.data, heatmapOptionKey, liveHeatmap])
 
+  const scoreLabel = selectedVariant?.label ?? 'Score'
+  const tableSources = useMemo(
+    () =>
+      displayMode === 'community'
+        ? [
+            defineTableSource<WalkabilityFeature>({
+              id: 'walkability-communities',
+              label: 'Communities',
+              color: '#16a34a',
+              shape: 'fill',
+              rows: features,
+              columns: [
+                textColumn<WalkabilityFeature>(
+                  'community',
+                  'Community',
+                  (feature) => feature.properties.communityName,
+                  {
+                    width: 220,
+                  },
+                ),
+                numberColumn<WalkabilityFeature>('score', scoreLabel, (feature) =>
+                  Number(feature.properties[selectedScoreField]),
+                ),
+                ...WALKABILITY_COMMUNITY_COLUMNS,
+              ],
+              getRowId: (feature) => String(feature.properties.communityId),
+              getRowCenter: featureCenter,
+              getRowBounds: (feature) => featuresBounds([feature]),
+              flyZoom: 12,
+              status: data.error ? 'error' : data.data ? 'ready' : 'loading',
+            }),
+          ]
+        : [],
+    [data.data, data.error, displayMode, features, scoreLabel, selectedScoreField],
+  )
+  const selectTableRow = useCallback(
+    (feature: WalkabilityFeature) => setSelectedCommunityId(String(feature.properties.communityId)),
+    [],
+  )
+
   return {
     manifest,
     heatmapManifest,
@@ -480,6 +539,9 @@ export function useWalkabilityData(
     selectedCommunity,
     selectedCommunityId,
     setSelectedCommunityId,
+    tableSources,
+    selectedTableRowId: selectedCommunityId,
+    selectTableRow,
     minScore,
     maxScore,
     fillColor,

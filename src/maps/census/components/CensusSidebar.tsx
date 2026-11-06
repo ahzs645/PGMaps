@@ -2,16 +2,10 @@ import { useMemo, useRef, useState } from 'react'
 import { ChevronLeft, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
-import {
-  InlineAlert,
-  MapSidebarShell,
-  SearchInput,
-  SelectedItemCard,
-  SidebarSection,
-  StatGrid,
-} from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, SearchInput, SelectedItemCard, SidebarSection } from '@/components/ui/map-panels'
 import { ListState, ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { StatGroup } from '@/components/ui/stat-group'
 import { StickyListToolbar, useRevealBelowSticky } from '@/components/ui/sticky-list-toolbar'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { DATASETS } from '@/lib/dataCatalog'
@@ -285,7 +279,7 @@ export function CensusSidebar({
             ) : catalogLoading ? (
               <InlineAlert loading>Loading census variable catalog...</InlineAlert>
             ) : (
-              <InlineAlert tone={catalogError ? 'warning' : 'info'}>
+              <InlineAlert tone={catalogError ? 'error' : 'info'}>
                 {catalogError || 'Census variable catalog is not available.'} Core metrics above still work.
               </InlineAlert>
             )}
@@ -363,7 +357,11 @@ export function CensusSidebar({
                 />
               </div>
               <div>
-                {variableLoading && <div className="px-4 py-2 text-xs text-muted-foreground">Loading data...</div>}
+                {variableLoading && (
+                  <div className="px-4 py-2">
+                    <InlineAlert loading>Loading data...</InlineAlert>
+                  </div>
+                )}
                 {filteredVariables.map((v) => {
                   const isActive = variableSelection?.variableId === v.id
                   return (
@@ -399,8 +397,11 @@ export function CensusSidebar({
 
       {/* Summary stats */}
       <SidebarSection className="px-4 py-3">
-        <StatGrid
-          stats={[
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          columns={3}
+          items={[
             { label: 'units', value: formatNumber(filteredUnits.length), valueClassName: 'text-base' },
             { label: 'population', value: formatNumber(totals.population), valueClassName: 'text-base' },
             { label: 'km² area', value: formatAreaSqKm(totals.areaSqKm), valueClassName: 'text-base' },

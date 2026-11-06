@@ -17,6 +17,7 @@ import {
 import { materializeLayer } from './data/localLayers'
 import { saveLocalWorkbench } from './data/localWorkbench'
 import type { VectorData } from './data/workspace'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 type DraftRule = Omit<LayerPredicate, 'value' | 'upper'> & {
   valueType: 'string' | 'number' | 'boolean' | 'null'
@@ -279,9 +280,9 @@ export function PortalLayerQuery({ vector, onAdd }: { vector: VectorData; onAdd:
     <section className="min-w-0 space-y-3 rounded border p-3" aria-label="Local layer query">
       <h4 className="font-semibold">Query cached features</h4>
       <p className="text-xs text-muted-foreground">
-        Filter {vector.data.features.length.toLocaleString()} features from {vector.name}. Numeric comparisons keep
-        numbers separate from numeric text; text matches are case-sensitive. Results preserve original feature IDs and
-        geometry.
+        Filter {vector.data.features.length.toLocaleString(DEFAULT_LOCALE)} features from {vector.name}. Numeric
+        comparisons keep numbers separate from numeric text; text matches are case-sensitive. Results preserve original
+        feature IDs and geometry.
       </p>
       {!fields.length ? (
         <InlineAlert>This layer has no property fields to query.</InlineAlert>
@@ -293,8 +294,8 @@ export function PortalLayerQuery({ vector, onAdd }: { vector: VectorData; onAdd:
       ) : (
         <>
           <p role="status" className="text-sm">
-            {preview.data!.features.length.toLocaleString()} of {vector.data.features.length.toLocaleString()} cached
-            features match.
+            {preview.data!.features.length.toLocaleString(DEFAULT_LOCALE)} of{' '}
+            {vector.data.features.length.toLocaleString(DEFAULT_LOCALE)} cached features match.
           </p>
           <pre className="max-h-28 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 text-xs">
             {displayLayerQuery(preview.query!.expression)}

@@ -2,6 +2,7 @@ import { FileImage } from 'lucide-react'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { ExternalLink } from '@/components/ui/text-button'
 import { OrganizationSummary } from './OrganizationSummary'
 import type { CatalogueFacets, SourceImageRecord } from './catalogue'
 
@@ -51,22 +52,16 @@ export function SourceImagePreview({
           </p>
         )}
         {item?.image && (
-          <a href={item.image} target="_blank" rel="noreferrer noopener" className="text-sm underline">
-            Open available image at its supplied resolution ↗
-          </a>
+          <ExternalLink href={item.image} className="text-sm">
+            Open available image at its supplied resolution
+          </ExternalLink>
         )}
         <div>
           <h3 className="mb-2 text-sm font-semibold">Source documents</h3>
           {item?.sources.map((s) => (
-            <a
-              key={s.url}
-              href={s.url}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="mb-2 block break-words text-sm underline"
-            >
-              {s.title} ↗
-            </a>
+            <ExternalLink key={s.url} href={s.url} className="mb-2 flex break-words text-sm">
+              {s.title}
+            </ExternalLink>
           ))}
         </div>
         <CollapsibleSection label="Source scope & category notes" collapseOn="always" contentClassName="space-y-3 p-3">

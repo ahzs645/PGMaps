@@ -20,6 +20,7 @@ import { csvExport } from './data/monitoring'
 import { SHOWCASE_BASE } from './data/showcase'
 import { NECHAKO_BOUNDARY_URL } from './data/boundary'
 import { ProjectMapExplorer } from '@/maps/project-explorer/ProjectMapExplorer'
+import { DEFAULT_LOCALE } from '@/lib/format'
 
 const project = normalizeProjectPackage(packageJson)
 
@@ -103,7 +104,8 @@ function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef })
       {!data.loading && !data.error && (
         <>
           <p className="text-sm">
-            {data.submissions.length.toLocaleString()} total records · {unmapped.toLocaleString()} without location tags
+            {data.submissions.length.toLocaleString(DEFAULT_LOCALE)} total records ·{' '}
+            {unmapped.toLocaleString(DEFAULT_LOCALE)} without location tags
           </p>
           <SegmentedControl
             label="Research record scope"
@@ -129,7 +131,7 @@ function ResearchRecords({ config }: { config: ProjectMapExplorerWorkspaceDef })
             />
           </label>
           <p aria-live="polite" className="text-sm">
-            {records.length.toLocaleString()} matching records
+            {records.length.toLocaleString(DEFAULT_LOCALE)} matching records
           </p>
           <Button
             size="sm"

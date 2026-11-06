@@ -4,15 +4,19 @@ import { useSearchParams } from 'react-router-dom'
 import { useUrlParamSync } from '@/hooks/useUrlState'
 import { formatNumber } from '@/lib/format'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
+import { HEATMAP_COLOR_RAMPS } from '@/components/ui/map-styles'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { CrimeMap } from './components/CrimeMap'
 import { CrimeSidebar } from './components/CrimeSidebar'
+import { CRIME_TABLE_COLUMNS } from './components/CrimeTable'
 import { Timeline } from '@/components/ui/timeline'
 import { getCrimeCategory, CRIME_CATEGORY_COLORS } from './constants'
 import { useCrimeData } from './hooks/useCrimeData'
 import type { CrimeIncident, CrimeCategory } from './types'
 
 const ALL_CATEGORIES = Object.keys(CRIME_CATEGORY_COLORS) as CrimeCategory[]
+const HEATMAP_LEGEND_COLORS = HEATMAP_COLOR_RAMPS.crime.slice(1).map(([, color]) => color)
 
 export default function CrimeDataSection() {
   const [searchParams] = useSearchParams()
@@ -147,6 +151,36 @@ export default function CrimeDataSection() {
     return filteredIncidents.some((inc) => inc.id === selectedIncident.id) ? selectedIncident : null
   }, [filteredIncidents, selectedIncident])
 
+  const tableSources = useMemo(
+    () =>
+      showCrimeLayer
+        ? [
+            defineTableSource<CrimeIncident>({
+              id: 'incidents',
+              label: 'Crime incidents',
+              color: '#f43f5e',
+              shape: 'point',
+              rows: filteredIncidents,
+              columns: CRIME_TABLE_COLUMNS,
+              getRowId: (incident) => String(incident.id),
+              getRowCenter: (incident) => [incident.longitude, incident.latitude],
+              flyZoom: 15,
+              status: loading ? 'loading' : error ? 'error' : 'ready',
+              emptyMessage: error ?? 'No incidents match the current filters.',
+              exportFileName: 'pg-crime-incidents',
+            }),
+          ]
+        : [],
+    [error, filteredIncidents, loading, showCrimeLayer],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: visibleSelectedIncident ? String(visibleSelectedIncident.id) : null,
+    onSelectRow: setSelectedIncident,
+    // CrimeMap flies to the selected incident, which also covers a click on a point.
+    flyOnSelect: false,
+  })
+
   // Build legend items for active layers
   const legendItems = useMemo(() => {
     const items: Array<{ color: string; label: string }> = []
@@ -164,6 +198,7 @@ export default function CrimeDataSection() {
 
   return (
     <MapSectionLayout
+      table={table}
       mobilePeekTitle={<>PG Data · {formatNumber(filteredIncidents.length)} incidents</>}
       mobilePeekSubtitle={
         <>{visibleSelectedIncident?.crimeType || selectedCommunity || `${selectedCategories.length} categories`}</>
@@ -210,6 +245,7 @@ export default function CrimeDataSection() {
           onIncidentClear={() => setSelectedIncident(null)}
           showCrimeLayer={showCrimeLayer}
           loading={loading}
+          table={table}
         />
 
         {/* Timeline */}
@@ -230,16 +266,12 @@ export default function CrimeDataSection() {
         {/* Legend */}
         {showLegend && (
           <MapLegendPanel
-            elevated={timelineEnabled}
             title={showCrimeLayer && showHeatmap ? 'Heatmap (Crime Density)' : 'Legend'}
             collapsible
+            defaultCollapsed="mobile"
           >
             {showCrimeLayer && showHeatmap ? (
-              <MapGradientLegendItem
-                colors={['#3b82f6', '#22c55e', '#eab308', '#ef4444']}
-                minLabel="Low"
-                maxLabel="High"
-              />
+              <MapGradientLegendItem colors={HEATMAP_LEGEND_COLORS} minLabel="Low" maxLabel="High" />
             ) : (
               <div className="space-y-2">
                 {/* Point legends */}

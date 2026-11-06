@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useTheme } from 'next-themes'
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { KeyValueRows } from '@/components/ui/map-panels'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { Map as PgMap } from '@/components/ui/map'
@@ -12,8 +13,10 @@ import {
   type AqBasemap,
   type AqMonitorGroup,
   type AqNetworkSlug,
+  isMonitorVisible,
   monitorKey,
 } from './lib/monitorPresentation'
+import { aqMonitorColumns, aqTableLabels } from './lib/monitorTable'
 import { useAqmapSmokeLayers } from './lib/useAqmapSmokeLayers'
 import { type SmokeLayerKey } from './lib/smokeLayers'
 import {
@@ -828,6 +831,45 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
     return best && best.distanceKm <= 150 ? best : null
   }, [enrichedMonitors, selectedMonitorWithZone])
 
+  const tableColumns = useMemo(() => aqMonitorColumns(locale), [locale])
+  const tableSources = useMemo(
+    () => [
+      defineTableSource<AirMonitor>({
+        id: 'monitors',
+        label: translate('table.monitors', locale),
+        color: '#189aca',
+        shape: 'point',
+        rows: enrichedMonitors.filter((monitor) =>
+          isMonitorVisible(monitor, visibleGroups, isMain ? visibleNetworks : undefined),
+        ),
+        columns: tableColumns,
+        getRowId: monitorKey,
+        getRowCenter: (monitor) => [monitor.longitude, monitor.latitude],
+        status: loading ? 'loading' : error ? 'error' : 'ready',
+        emptyMessage: error ?? translate('table.empty', locale),
+        exportFileName: 'aqmap-monitors',
+      }),
+    ],
+    [enrichedMonitors, error, isMain, loading, locale, tableColumns, visibleGroups, visibleNetworks],
+  )
+  const tableLabels = useMemo(() => aqTableLabels(locale), [locale])
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: selectedMonitorWithZone ? monitorKey(selectedMonitorWithZone) : null,
+    // handleMonitorClick toggles, and a table row only ever means "show this one".
+    onSelectRow: (monitor: AirMonitor) => {
+      if (selectedMonitor?.id !== monitor.id) handleMonitorClick(monitor)
+    },
+    // This page writes its whole URL itself, through history.replaceState.
+    url: false,
+    // MonitorPopup pans to its monitor as it opens. Only the phone card has nothing that moves the camera.
+    flyOnSelect: isMobileViewport && effectiveMobileFeatureDisplay === 'card',
+    inlineButton: true,
+    labels: tableLabels,
+    buttonLabel: translate('table.open', locale),
+    buttonText: translate('table.button', locale),
+  })
+
   const debugInfo = useMemo<AqMapDebugInfo>(() => {
     return {
       zoom: mapView.zoom,
@@ -921,6 +963,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
 
   return (
     <MapSectionLayout
+      table={table}
       sidebar={isMain ? null : sidebar}
       disableSidebar={isMain}
       showDesktopSidebar={!isMain && showSidebar}
@@ -948,6 +991,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
           // count from lingering after its bubble vanishes on zoom.
           fadeDuration={0}
           loading={loading}
+          deferResize={table.deferResize}
           onViewportChange={(viewport) => {
             if (!isValidMapView(viewport)) return
             setMapView({
@@ -956,6 +1000,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             })
           }}
         >
+          <MapTableBridge table={table} />
           {smokeLayers.map((layer) => (
             <SmokePolygonLayer
               key={layer.key}
@@ -1116,7 +1161,7 @@ export default function AqMapSection({ variant = 'full' }: { variant?: 'full' | 
             fireDangerLegendVariant={fireDangerLegendVariant}
             locale={locale}
           />
-          <MapUtilityControls onReset={resetView} locale={locale} />
+          <MapUtilityControls onReset={resetView} locale={locale} tableButton={table.button} />
           <MapStatusBar latestDate={latestDate} locale={locale} />
         </PgMap>
       </div>
