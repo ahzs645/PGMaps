@@ -33,10 +33,10 @@ export function RasterMapLayer({
       const rect = container.getBoundingClientRect()
       const padding = map.getPadding()
       const viewport = {
-        left: rect.left + padding.left,
-        right: rect.right - padding.right,
-        top: rect.top + padding.top,
-        bottom: rect.bottom - padding.bottom,
+        left: rect.left + (padding.left ?? 0),
+        right: rect.right - (padding.right ?? 0),
+        top: rect.top + (padding.top ?? 0),
+        bottom: rect.bottom - (padding.bottom ?? 0),
       }
       const panels = Array.from(root.querySelectorAll<HTMLElement>('[data-map-mobile-sheet="true"]'))
         .filter((panel) => panel.getClientRects().length && getComputedStyle(panel).display !== 'none')
