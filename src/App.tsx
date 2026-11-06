@@ -32,6 +32,7 @@ const DevEarlyLearning = lazy(() => import('@/pages/DevEarlyLearning'))
 const DevBcerBoundaries = lazy(() => import('@/pages/DevBcerBoundaries'))
 const DevDesign = lazy(() => import('@/pages/DevDesign'))
 const DevLoad = lazy(() => import('@/pages/DevLoad'))
+const DevView = lazy(() => import('@/pages/DevView'))
 const DevData = lazy(() => import('@/pages/DevData'))
 const DevMmgis = lazy(() => import('@/pages/DevMmgis'))
 const DevInteract = lazy(() => import('@/pages/DevInteract'))
@@ -147,6 +148,7 @@ function App() {
             <Route path="/dev/boundaries/bcer" element={<DevBcerBoundaries />} />
             <Route path="/dev/design" element={<DevDesign />} />
             <Route path="/dev/load" element={<DevLoad />} />
+            <Route path="/dev/view" element={<DevView />} />
             <Route path="/dev/data" element={<DevData />} />
             <Route path="/dev/mmgis" element={<DevMmgis />} />
             <Route path="/dev/interact" element={<DevInteract />} />

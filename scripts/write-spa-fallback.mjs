@@ -21,6 +21,7 @@ const spaRoutes = [
   'correlation-lab',
   'projects',
   'dev',
+  'dev/view',
   'dev/lidar',
   ...[
     'canopy',
