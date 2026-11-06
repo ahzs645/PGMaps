@@ -87,12 +87,16 @@ def main():
         for attempt in range(4):
             try:
                 head=client().head(url)
-                if head.status_code==200 and head.headers.get('X-Content-SHA256')==checksum and int(head.headers['Content-Length'])==path.stat().st_size:return {'url':url,'bytes':path.stat().st_size,'sha256':checksum}
+                if head.status_code==200 and head.headers.get('X-Content-SHA256')==checksum and head.headers.get('Content-Length')==str(path.stat().st_size):return {'url':url,'bytes':path.stat().st_size,'sha256':checksum}
                 with path.open('rb') as f:
                     response=client().put(f'{endpoint}/__upload/{share}/{key}',content=f,headers={'Authorization':'Bearer '+token,'Content-Length':str(path.stat().st_size),'Content-Type':mime,'X-Content-SHA256':checksum})
                 response.raise_for_status();receipt=response.json();assert receipt['bytes']==path.stat().st_size and receipt['sha256']==checksum
                 # Verify the new object independently of a cached prior catalogue.
-                head=client().head(url+'?verify='+checksum);head.raise_for_status();assert head.headers.get('X-Content-SHA256')==checksum and int(head.headers['Content-Length'])==path.stat().st_size
+                verified=client().get(url+'?verify='+checksum) if mime=='application/json' else client().head(url+'?verify='+checksum)
+                verified.raise_for_status();assert verified.headers.get('X-Content-SHA256')==checksum
+                # Edge compression can remove Content-Length from catalogue responses.
+                if mime=='application/json':assert len(verified.content)==path.stat().st_size and hashlib.sha256(verified.content).hexdigest()==checksum
+                else:assert int(verified.headers['Content-Length'])==path.stat().st_size
                 return {'url':url,'bytes':path.stat().st_size,'sha256':checksum}
             except Exception:
                 if attempt==3:raise
