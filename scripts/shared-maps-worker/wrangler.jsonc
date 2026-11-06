@@ -1,0 +1,15 @@
+{
+  "name": "pgmaps-shared-maps",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-06",
+  "workers_dev": true,
+  "preview_urls": false,
+  "cache": { "enabled": true },
+  "r2_buckets": [{ "binding": "MAPS", "bucket_name": "pgmaps-shared-maps" }],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 0.01,
+    "logs": { "enabled": true, "invocation_logs": false },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 },
+  },
+}
