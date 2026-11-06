@@ -347,7 +347,7 @@ export function ScoreBuilderRegionInsightDialog({
       className="max-h-[min(88dvh,720px)] sm:max-h-[min(88dvh,720px)]"
       bodyClassName="space-y-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
       contentProps={{ 'data-score-builder-region-insight-dialog': 'true' }}
-      summary={region ? <StatGroup variant="tiles" items={summaryStats} /> : undefined}
+      summary={region ? <StatGroup variant="tiles" columns={3} items={summaryStats} /> : undefined}
       footerActions={
         region ? (
           <button
@@ -402,7 +402,7 @@ export function ScoreBuilderRegionInsightDialog({
               </div>
               <div>
                 <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Top pressure drivers
+                  Points left on the table
                 </div>
                 <div className="space-y-1">
                   {topPressureDrivers.map((row) => (

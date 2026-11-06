@@ -32,6 +32,7 @@ export function getBivariateColor(x: number, y: number, breaks: BivariateBreaks)
 export const RESIDUAL_NEGATIVE_COLOR = '#1d4ed8'
 export const RESIDUAL_NEUTRAL_COLOR = '#f1f5f9'
 export const RESIDUAL_POSITIVE_COLOR = '#b91c1c'
+export const RESIDUAL_GRADIENT = [RESIDUAL_NEGATIVE_COLOR, RESIDUAL_NEUTRAL_COLOR, RESIDUAL_POSITIVE_COLOR]
 
 function lerpColor(a: string, b: string, t: number): string {
   const ra = hexToRgb(a)

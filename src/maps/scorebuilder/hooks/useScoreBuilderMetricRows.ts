@@ -11,7 +11,8 @@ import {
   type MetricRecipeSource,
 } from '../lib/metricRecipes'
 import { buildMetricRanges, buildMetricValueLists, type RegionMetricRow } from '../lib/scoring'
-import { bufferedAccessShare, catchmentAccess, isInRegion, regionCenter } from '../lib/spatial'
+import { monitorIsActive } from '../lib/metrics'
+import { PointGrid, bufferedAccessShare, gridCatchmentAccess, isInRegion, regionCenter } from '../lib/spatial'
 import type { RegionDataCounts, ScoreBuilderRegion, ScoreMetricDefinition, ScoreMetricKey } from '../types'
 import type { ScoreBuilderPointRecords } from './useScoreBuilderPointRecords'
 import type { BcEnviroScreenLhaRow } from '../lib/bcEnviroScreenRelease'
@@ -124,6 +125,51 @@ export function useScoreBuilderMetricRows({
     return values
   }, [customMetricRecipes, datasetCollections, healthyPlanPgEnabled, regions])
 
+  const grids = useMemo(() => {
+    const atLngLat = (record: { lng: number; lat: number }) => [record.lng, record.lat] as const
+    const facilities = heatShadeFacilityPointRecords.filter((record) => record.kind === 'communityFacility')
+    const frequentStops = transitPointRecords.filter((record) => record.frequent)
+    return {
+      monitors: new PointGrid(monitorPointRecords, ({ monitor }) => [monitor.longitude, monitor.latitude]),
+      parks: new PointGrid(parkPointRecords, atLngLat),
+      trails: new PointGrid(trailPointRecords, atLngLat),
+      amenities: new PointGrid(amenityPointRecords, atLngLat),
+      restaurants: new PointGrid(restaurantPointRecords, atLngLat),
+      census: new PointGrid(censusPointRecords, atLngLat),
+      properties: new PointGrid(propertyPointRecords, atLngLat),
+      crime: new PointGrid(crimePointRecords, atLngLat),
+      transit: new PointGrid(transitPointRecords, atLngLat),
+      walkabilityLines: new PointGrid(walkabilityLineRecords, atLngLat),
+      walkabilityPoints: new PointGrid(walkabilityPointRecords, atLngLat),
+      trees: new PointGrid(heatShadeTreePointRecords, atLngLat),
+      forests: new PointGrid(heatShadeForestRecords, atLngLat),
+      facilities: new PointGrid(heatShadeFacilityPointRecords, atLngLat),
+      coolingFacilities: new PointGrid(facilities, atLngLat),
+      frequentStops: new PointGrid(frequentStops, atLngLat),
+      accessibleFrequentStops: new PointGrid(
+        frequentStops.filter((record) => record.accessible),
+        atLngLat,
+      ),
+      cimd: new PointGrid(cimdPointRecords, atLngLat),
+    }
+  }, [
+    amenityPointRecords,
+    censusPointRecords,
+    cimdPointRecords,
+    crimePointRecords,
+    heatShadeFacilityPointRecords,
+    heatShadeForestRecords,
+    heatShadeTreePointRecords,
+    monitorPointRecords,
+    parkPointRecords,
+    propertyPointRecords,
+    restaurantPointRecords,
+    trailPointRecords,
+    transitPointRecords,
+    walkabilityLineRecords,
+    walkabilityPointRecords,
+  ])
+
   const regionMetricRows = useMemo<RegionMetricRow[]>(() => {
     return regions.map((region) => {
       const counts: RegionDataCounts = {
@@ -131,6 +177,7 @@ export function useScoreBuilderMetricRows({
         lowCostCount: 0,
         referenceCount: 0,
         activeCount: 0,
+        statusKnownCount: 0,
         parkCount: 0,
         parkAreaSqKm: 0,
         trailCount: 0,
@@ -198,12 +245,14 @@ export function useScoreBuilderMetricRows({
       }
 
       // Air quality
-      monitorPointRecords.forEach(({ monitor, feature }) => {
+      grids.monitors.near(region.bounds).forEach(({ monitor, feature }) => {
         if (!isInRegion(monitor.longitude, monitor.latitude, feature, region)) return
         counts.monitorCount += 1
         if (LOW_COST_NETWORKS.has(monitor.network)) counts.lowCostCount += 1
         else counts.referenceCount += 1
-        if ((monitor.status || '').toLowerCase() === 'active') counts.activeCount += 1
+        const active = monitorIsActive(monitor.status)
+        if (active !== null) counts.statusKnownCount += 1
+        if (active) counts.activeCount += 1
         networks.add(monitor.network)
         monitor.parameters.forEach((p) => {
           const n = p.trim()
@@ -212,27 +261,27 @@ export function useScoreBuilderMetricRows({
       })
 
       // Parks
-      parkPointRecords.forEach((rec) => {
+      grids.parks.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.parkCount += 1
         counts.parkAreaSqKm += rec.areaSqKm
       })
 
       // Trails
-      trailPointRecords.forEach((rec) => {
+      grids.trails.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.trailCount += 1
         counts.trailLengthKm += rec.lengthKm
       })
 
       // Amenities
-      amenityPointRecords.forEach((rec) => {
+      grids.amenities.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.amenityCount += 1
       })
 
       // Restaurants
-      restaurantPointRecords.forEach((rec) => {
+      grids.restaurants.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.restaurantCount += 1
         counts.restaurantHazardSum += rec.hazard
@@ -243,18 +292,18 @@ export function useScoreBuilderMetricRows({
 
       // Census
       if (directCensusPopulation == null) {
-        censusPointRecords.forEach((rec) => {
+        grids.census.near(region.bounds).forEach((rec) => {
           if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
           counts.populationSum += rec.population
         })
       }
 
       // BC Assessment
-      propertyPointRecords.forEach((rec) => {
-        const directCensusMatch =
-          region.source === 'census' &&
-          (region.level === 'ct' || region.level === 'da') &&
-          rec[region.level as 'ct' | 'da'] === region.code
+      // Census tracts and DAs join parcels by code, which a bounding box could miss.
+      const joinsParcelsByCode = region.source === 'census' && (region.level === 'ct' || region.level === 'da')
+      const regionProperties = joinsParcelsByCode ? propertyPointRecords : grids.properties.near(region.bounds)
+      regionProperties.forEach((rec) => {
+        const directCensusMatch = joinsParcelsByCode && rec[region.level as 'ct' | 'da'] === region.code
         if (!directCensusMatch && !isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.parcelCount += 1
         counts.assessedValueSum += rec.assessedValue
@@ -275,14 +324,14 @@ export function useScoreBuilderMetricRows({
       })
 
       // Crime
-      crimePointRecords.forEach((rec) => {
+      grids.crime.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.crimeCount += 1
         if (rec.recent) counts.recentCrimeCount += 1
       })
 
       // Transit
-      transitPointRecords.forEach((rec) => {
+      grids.transit.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.transitStopCount += 1
         if (rec.accessible) counts.accessibleTransitStopCount += 1
@@ -294,13 +343,13 @@ export function useScoreBuilderMetricRows({
       })
 
       // Walkability / Pedestrian Network Study
-      walkabilityLineRecords.forEach((rec) => {
+      grids.walkabilityLines.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         if (rec.kind === 'sidewalk') counts.sidewalkLengthKm += rec.lengthKm
         else counts.walkwayLengthKm += rec.lengthKm
       })
 
-      walkabilityPointRecords.forEach((rec) => {
+      grids.walkabilityPoints.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         if (rec.kind === 'intersection') counts.walkabilityIntersectionCount += rec.count
         else if (rec.kind === 'crossing') counts.walkabilityCrossingCount += rec.count
@@ -311,25 +360,25 @@ export function useScoreBuilderMetricRows({
       })
 
       // Heat and shade
-      heatShadeTreePointRecords.forEach((rec) => {
+      grids.trees.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.treeCount += 1
         if (rec.mature) counts.matureTreeCount += 1
         counts.canopyProxyAreaSqKm += rec.canopyAreaSqKm
       })
 
-      heatShadeForestRecords.forEach((rec) => {
+      grids.forests.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         counts.forestAreaSqKm += rec.areaSqKm
       })
 
-      heatShadeFacilityPointRecords.forEach((rec) => {
+      grids.facilities.near(region.bounds).forEach((rec) => {
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         if (rec.kind === 'communityFacility') counts.coolingFacilityCount += 1
         else counts.responseFacilityCount += 1
       })
 
-      cimdPointRecords.forEach((rec) => {
+      grids.cimd.near(region.bounds).forEach((rec) => {
         const { cimd } = rec
         if (!isInRegion(rec.lng, rec.lat, rec.feature, region)) return
         const weight = cimd.population || 1
@@ -347,23 +396,11 @@ export function useScoreBuilderMetricRows({
       const parkBufferAccessShare = shouldComputeParkBufferAccess
         ? bufferedAccessShare(region, parkBufferRecords)
         : null
-      const parkWalk10Access = catchmentAccess(center, parkPointRecords, 0.8)
-      const parkWalk20Access = catchmentAccess(center, parkPointRecords, 1.6)
-      const coolingWalk15Access = catchmentAccess(
-        center,
-        heatShadeFacilityPointRecords.filter((record) => record.kind === 'communityFacility'),
-        1.2,
-      )
-      const frequentTransitAccess = catchmentAccess(
-        center,
-        transitPointRecords.filter((record) => record.frequent),
-        0.8,
-      )
-      const accessibleFrequentTransitAccess = catchmentAccess(
-        center,
-        transitPointRecords.filter((record) => record.frequent && record.accessible),
-        0.8,
-      )
+      const parkWalk10Access = gridCatchmentAccess(center, grids.parks, 0.8)
+      const parkWalk20Access = gridCatchmentAccess(center, grids.parks, 1.6)
+      const coolingWalk15Access = gridCatchmentAccess(center, grids.coolingFacilities, 1.2)
+      const frequentTransitAccess = gridCatchmentAccess(center, grids.frequentStops, 0.8)
+      const accessibleFrequentTransitAccess = gridCatchmentAccess(center, grids.accessibleFrequentStops, 0.8)
       const parkTransit20Access = Math.max(
         parkWalk20Access,
         Math.min(1, parkWalk20Access + frequentTransitAccess * 0.35),
@@ -387,7 +424,7 @@ export function useScoreBuilderMetricRows({
       metricValues.referenceDensity = counts.referenceCount / safeArea
       metricValues.networkVariety = networks.size
       metricValues.parameterVariety = parameters.size
-      metricValues.activeShare = counts.monitorCount > 0 ? counts.activeCount / counts.monitorCount : 0
+      metricValues.activeShare = counts.statusKnownCount > 0 ? counts.activeCount / counts.statusKnownCount : 0
       metricValues.monitorCount = counts.monitorCount
       metricValues.parkDensity = counts.parkCount / safeArea
       metricValues.parkAreaRatio = region.areaKm2 > 0 ? Math.min(1, counts.parkAreaSqKm / region.areaKm2) : 0
@@ -519,23 +556,10 @@ export function useScoreBuilderMetricRows({
       return { region, metrics: metricValues, counts, bcEnviroScreenSourceStatuses }
     })
   }, [
-    monitorPointRecords,
-    parkPointRecords,
+    grids,
     parkBufferRecords,
     shouldComputeParkBufferAccess,
-    trailPointRecords,
-    amenityPointRecords,
-    restaurantPointRecords,
-    censusPointRecords,
     propertyPointRecords,
-    crimePointRecords,
-    transitPointRecords,
-    walkabilityLineRecords,
-    walkabilityPointRecords,
-    heatShadeTreePointRecords,
-    heatShadeForestRecords,
-    heatShadeFacilityPointRecords,
-    cimdPointRecords,
     customMetricRecipes,
     censusCategoryData,
     pointRecipeValues,

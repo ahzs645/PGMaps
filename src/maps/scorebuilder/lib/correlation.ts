@@ -30,6 +30,8 @@ export interface CorrelationResult {
   stats: CorrelationStats | null
   points: CorrelationPoint[]
   residualMaxAbs: number
+  /** Residual that reaches full colour on the map; see `residualColorScale`. */
+  residualScale: number
 }
 
 export interface MetricCorrelation {
@@ -122,7 +124,7 @@ export function computeCorrelation(
   }
 
   if (xs.length < 2) {
-    return { stats: null, points: [], residualMaxAbs: 0 }
+    return { stats: null, points: [], residualMaxAbs: 0, residualScale: 0 }
   }
 
   const pearson = pearsonCoefficient(xs, ys)
@@ -168,7 +170,41 @@ export function computeCorrelation(
     },
     points,
     residualMaxAbs,
+    residualScale: residualColorScale(points.map((point) => point.residual)),
   }
+}
+
+/**
+ * The 90th percentile of the absolute residuals. Scaling colour to the largest residual
+ * lets one or two outliers wash every other region out to near-white.
+ */
+export function residualColorScale(residuals: number[]): number {
+  const sizes = residuals.map(Math.abs).sort((a, b) => a - b)
+  if (!sizes.length) return 0
+  const scale = sizes[Math.floor((sizes.length - 1) * 0.9)]
+  return scale > 0 ? scale : sizes[sizes.length - 1]
+}
+
+/**
+ * The strength of a relationship, from whichever of Pearson r and Spearman rho sees it,
+ * plus a note when they disagree enough to change how the number should be read.
+ */
+export function describeAssociation(pearson: number, spearman: number): { strength: string; note: string | null } {
+  const r = Math.abs(pearson)
+  const rho = Math.abs(spearman)
+  const size = Math.max(r, rho)
+  const strength =
+    size < 0.1 ? 'None' : size < 0.3 ? 'Weak' : size < 0.5 ? 'Moderate' : size < 0.7 ? 'Strong' : 'Very strong'
+  if (rho - r >= 0.2) {
+    return {
+      strength,
+      note: 'Regions rank alike but Pearson r is low, so outliers or a curved pattern are hiding it. Trust Spearman here.',
+    }
+  }
+  if (r - rho >= 0.2) {
+    return { strength, note: 'A few extreme regions are lifting Pearson r. Their ranks agree much less overall.' }
+  }
+  return { strength, note: null }
 }
 
 export function quantileBreaks(values: number[], n: number): number[] {
@@ -199,6 +235,7 @@ export function topMetricCorrelations(
   const limit = options.limit ?? 10
   const minN = options.minN ?? 8
   const allKeys = SCORE_METRICS.map((metric) => metric.key)
+  const categoryByKey = new Map(SCORE_METRICS.map((metric) => [metric.key, metric.category]))
   const keyValueLists = new Map<ScoreMetricKey, Array<{ rowIndex: number; value: number }>>()
   for (const key of allKeys) {
     const list: Array<{ rowIndex: number; value: number }> = []
@@ -218,6 +255,15 @@ export function topMetricCorrelations(
       'cimdSituationalVulnerability',
       'cimdEthnoCulturalComposition',
     ],
+    // The composite is built from these access metrics, so it correlates with them by design.
+    [
+      'serviceAccessComposite',
+      'parkWalk10Access',
+      'parkWalk20Access',
+      'parkTransit20Access',
+      'coolingWalk15Access',
+      'frequentTransitStopAccess',
+    ],
   ]
   for (const group of equivalenceGroups) {
     for (let a = 0; a < group.length; a += 1) {
@@ -234,6 +280,9 @@ export function topMetricCorrelations(
       const keyA = allKeys[i]
       const keyB = allKeys[j]
       if (skipPairs.has(`${keyA}|${keyB}`)) continue
+      // Two metrics from one topic are usually views of the same data, so they would fill
+      // the list with near-1.00 pairs that say nothing about how topics relate.
+      if (categoryByKey.get(keyA) === categoryByKey.get(keyB)) continue
       const aList = keyValueLists.get(keyA) || []
       const bList = keyValueLists.get(keyB) || []
       if (aList.length < minN || bList.length < minN) continue

@@ -1,6 +1,7 @@
 import { setMetricWeight } from '@pgmaps/geo-toolkit/index-lab/state'
 import type {
   BoundaryLevel,
+  BcerBoundaryLevel,
   BoundarySource,
   CensusBoundaryLevel,
   CityBoundaryLevel,
@@ -9,6 +10,7 @@ import type {
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
+  PostalBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   RegionLevel,
   WatershedBoundaryLevel,
@@ -41,6 +43,7 @@ import {
   parseAggregationMethod,
   parseBcEnviroScreenComponentWeight,
   parseBcEnviroScreenFormulaSettings,
+  parseBcerBoundaryLevel,
   parseBoundarySource,
   parseCensusBoundaryLevel,
   parseCityBoundaryLevel,
@@ -58,6 +61,7 @@ import {
   parseNormalizationMethod,
   parseNrAdminBoundaryLevel,
   parsePaletteOverride,
+  parsePostalBoundaryLevel,
   parseRegionalDistrictBoundaryLevel,
   parseScoreMetricKey,
   parseSelectedNetworks,
@@ -96,6 +100,8 @@ export interface ScoreBuilderControlState {
   drainageBoundaryLevel: DrainageBoundaryLevel
   fireZoneBoundaryLevel: FireZoneBoundaryLevel
   nrAdminBoundaryLevel: NrAdminBoundaryLevel
+  postalBoundaryLevel: PostalBoundaryLevel
+  bcerBoundaryLevel: BcerBoundaryLevel
   weights: ScoreMetricWeightMap
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]
@@ -162,6 +168,8 @@ export function getSelectedRegionLevel(state: ScoreBuilderControlState): RegionL
   if (state.boundarySource === 'economicRegion') return 'economicRegion'
   if (state.boundarySource === 'walkabilityCommunity') return 'walkabilityCommunity'
   if (state.boundarySource === 'cityCommunity') return state.communityBoundaryLevel
+  if (state.boundarySource === 'postal') return state.postalBoundaryLevel
+  if (state.boundarySource === 'bcEr') return state.bcerBoundaryLevel
   return state.boundarySource === 'bcHealth'
     ? state.healthBoundaryLevel
     : state.boundarySource === 'regionalDistrict'
@@ -198,7 +206,6 @@ function applyExampleToState(
   state: ScoreBuilderControlState,
   example: ScoreExample,
   allNetworks: string[],
-  options?: { deferNetworkSelectAll?: boolean },
 ): ScoreBuilderControlState {
   const next: ScoreBuilderControlState = {
     ...state,
@@ -237,8 +244,10 @@ function applyExampleToState(
     if (allNetworks.length > 0) {
       next.selectedNetworks = allNetworks
     } else {
+      // Monitors only load once their source is on, so this is the normal first-click
+      // path, not an edge case: defer so networksLoaded selects every network.
       next.selectedNetworks = []
-      if (options?.deferNetworkSelectAll) next.pendingNetworkSelectAll = true
+      next.pendingNetworkSelectAll = true
     }
   } else if (example.networkFilter === 'none') {
     next.selectedNetworks = []
@@ -375,6 +384,12 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
       if (state.boundarySource === 'nrAdmin') {
         return { ...state, nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(action.level) }
       }
+      if (state.boundarySource === 'postal') {
+        return { ...state, postalBoundaryLevel: parsePostalBoundaryLevel(action.level) }
+      }
+      if (state.boundarySource === 'bcEr') {
+        return { ...state, bcerBoundaryLevel: parseBcerBoundaryLevel(action.level) }
+      }
       if (state.boundarySource === 'bcWildfire') {
         return { ...state, fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(action.level) }
       }
@@ -409,7 +424,11 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         next = { ...next, enabledDataSources: [...next.enabledDataSources, source] }
       }
       if (source === 'airQuality' && !next.selectedNetworks.length) {
-        next = { ...next, selectedNetworks: action.allNetworks }
+        next = {
+          ...next,
+          selectedNetworks: action.allNetworks,
+          pendingNetworkSelectAll: action.allNetworks.length === 0,
+        }
       }
       return next
     }
@@ -464,6 +483,9 @@ function reduce(state: ScoreBuilderControlState, action: ScoreBuilderAction): Sc
         watershedBoundaryLevel: parseWatershedBoundaryLevel(share.watershedBoundaryLevel ?? null),
         drainageBoundaryLevel: parseDrainageBoundaryLevel(share.drainageBoundaryLevel ?? null),
         fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(share.fireZoneBoundaryLevel ?? null),
+        nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(share.nrAdminBoundaryLevel ?? null),
+        postalBoundaryLevel: parsePostalBoundaryLevel(share.postalBoundaryLevel ?? null),
+        bcerBoundaryLevel: parseBcerBoundaryLevel(share.bcerBoundaryLevel ?? null),
         enabledDataSources: [...share.enabledDataSources],
         selectedNetworks: [...share.selectedNetworks],
         pendingNetworkSelectAll: false,
@@ -750,6 +772,8 @@ export function createInitialScoreBuilderState(
     drainageBoundaryLevel: parseDrainageBoundaryLevel(searchParams.get('level')),
     fireZoneBoundaryLevel: parseFireZoneBoundaryLevel(searchParams.get('level')),
     nrAdminBoundaryLevel: parseNrAdminBoundaryLevel(searchParams.get('level')),
+    postalBoundaryLevel: parsePostalBoundaryLevel(searchParams.get('level')),
+    bcerBoundaryLevel: parseBcerBoundaryLevel(searchParams.get('level')),
     weights,
     enabledDataSources,
     selectedNetworks: networkSelection.selectedNetworks,
@@ -776,7 +800,24 @@ export function createInitialScoreBuilderState(
 
   const initialExample = SCORE_BUILDER_EXAMPLES[0]
   if (!quickPresetKey && !hasUrlWeights && initialExample) {
-    state = applyExampleToState(state, initialExample, [], { deferNetworkSelectAll: true })
+    const study = {
+      boundarySource: state.boundarySource,
+      healthBoundaryLevel: state.healthBoundaryLevel,
+      censusBoundaryLevel: state.censusBoundaryLevel,
+      communityBoundaryLevel: state.communityBoundaryLevel,
+      cityBoundaryLevel: state.cityBoundaryLevel,
+      regionalDistrictBoundaryLevel: state.regionalDistrictBoundaryLevel,
+      municipalityBoundaryLevel: state.municipalityBoundaryLevel,
+      watershedBoundaryLevel: state.watershedBoundaryLevel,
+      drainageBoundaryLevel: state.drainageBoundaryLevel,
+      fireZoneBoundaryLevel: state.fireZoneBoundaryLevel,
+      nrAdminBoundaryLevel: state.nrAdminBoundaryLevel,
+      postalBoundaryLevel: state.postalBoundaryLevel,
+      bcerBoundaryLevel: state.bcerBoundaryLevel,
+    }
+    state = applyExampleToState(state, initialExample, [])
+    // A study area in the URL outranks the starting example's own.
+    if (searchParams.get('src')) state = { ...state, ...study }
   }
 
   if (!state.enabledDataSources.includes('walkability') && state.mapSurface === 'source') {

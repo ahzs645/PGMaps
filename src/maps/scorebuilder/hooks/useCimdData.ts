@@ -53,8 +53,8 @@ function parseCimdRecords(payload: unknown): CimdRecord[] {
 }
 
 export function useCimdData(enabled = true) {
-  // The dataset is not in every build; `optional` covers both a real 404 and
-  // the HTML the static host serves in its place.
+  // Built by scripts/build-cimd-snapshot.mjs. `optional` covers a build without it,
+  // as a real 404 or as the HTML the static host serves in its place.
   const { data, loading, error } = useFetchData<unknown>(CIMD_PATH, { enabled, optional: true })
   const records = useMemo(() => (data ? parseCimdRecords(data) : []), [data])
 

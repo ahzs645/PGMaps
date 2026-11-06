@@ -89,7 +89,7 @@
     "native-land:probe": "npm --prefix vendor/bcdatamapper run native-land:probe --",
     "native-land:geojson": "npm --prefix vendor/bcdatamapper run native-land:geojson --",
     "native-land:copy": "npm --prefix vendor/bcdatamapper run native-land:copy --",
-    "cimd:sync": "npm --prefix vendor/bcdatamapper run cimd:sync --",
+    "cimd:sync": "node scripts/build-cimd-snapshot.mjs",
     "census:sync": "npm --prefix vendor/bcdatamapper run census:sync --",
     "census:bc-da-simplified": "npm --prefix vendor/bcdatamapper run census:bc-da-simplified --",
     "census:canada-csd": "npm --prefix vendor/bcdatamapper run census:canada-csd --",

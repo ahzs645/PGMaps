@@ -5,7 +5,8 @@ import {
   computeDataCoverageScore as computeIndexDataCoverageScore,
   findMeasurableMetricKeys as findIndexMeasurableMetricKeys,
 } from '@pgmaps/geo-toolkit/index-lab/scoring'
-export { clampScore, normalizeMetric, normalizeWithMethod } from '@pgmaps/geo-toolkit/index-lab/scoring'
+import { normalizeWithMethod as normalizeWithIndexMethod } from '@pgmaps/geo-toolkit/index-lab/scoring'
+export { clampScore, normalizeMetric } from '@pgmaps/geo-toolkit/index-lab/scoring'
 import {
   SCORE_ACCESS_THRESHOLD_METRICS,
   SCORE_METRICS,
@@ -96,6 +97,93 @@ export function buildMetricValueLists(
   )
 }
 
+/** Index of the first entry of a sorted list that is not below `value` (or, `after`, not above it). */
+function lowerBound(sorted: readonly number[], value: number, after = false): number {
+  let low = 0
+  let high = sorted.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if (sorted[middle] < value || (after && sorted[middle] === value)) low = middle + 1
+    else high = middle
+  }
+  return low
+}
+
+/**
+ * `normalizeWithMethod` from the toolkit, with its percentile found by binary search in the
+ * sorted value list instead of filtering the whole list. The toolkit's version costs
+ * regions² per metric, which froze the page at a few thousand regions.
+ */
+export function normalizeWithMethod(
+  value: number,
+  values: readonly number[],
+  range: { min: number; max: number },
+  method: ScoreMethodSettings['normalization'],
+): number {
+  if (method !== 'percentile' || !Number.isFinite(value) || !values.length) {
+    return normalizeWithIndexMethod(value, values, range, method)
+  }
+  const below = lowerBound(values, value)
+  const equal = lowerBound(values, value, true) - below
+  return Math.max(0, Math.min(1, (below + equal * 0.5) / values.length))
+}
+
+/** Per-metric mean and spread, so a z-score does not re-walk the list for every region. */
+function zScoreOf(value: number, values: readonly number[], mean: number, stdDev: number): number {
+  if (!Number.isFinite(value)) return 0
+  if (!values.length || !Number.isFinite(stdDev) || stdDev <= 0) return 0.5
+  return Math.max(0, Math.min(1, 0.5 + (value - mean) / stdDev / 6))
+}
+
+type ExpensiveNormalization = 'percentile' | 'zScore'
+type NormalizedRows = Map<RegionMetricRow, ScoreMetricValueMap>
+
+/** One table per value-list set and method: a metric's rank does not change between scoring passes. */
+const normalizedRowCache = new WeakMap<MetricValueListMap, Map<ExpensiveNormalization, NormalizedRows>>()
+
+/**
+ * Every metric of every row, already normalized by a method that needs the whole value
+ * list. The scoring passes behind one view (the index, its stress tests, the scenario
+ * comparison) then cost regions × metrics each rather than regions² × metrics.
+ */
+function normalizedRows(
+  rows: RegionMetricRow[],
+  metricKeys: ScoreMetricKey[],
+  metricValueLists: MetricValueListMap,
+  metricRanges: ScoreMetricRangeMap,
+  method: ExpensiveNormalization,
+): NormalizedRows {
+  const byMethod = normalizedRowCache.get(metricValueLists) ?? new Map<ExpensiveNormalization, NormalizedRows>()
+  normalizedRowCache.set(metricValueLists, byMethod)
+  const cached = byMethod.get(method)
+  if (cached && rows.every((row) => cached.has(row))) return cached
+
+  const statistics = new Map(
+    metricKeys.map((key) => {
+      const values = metricValueLists[key] ?? []
+      const mean = values.reduce((sum, value) => sum + value, 0) / (values.length || 1)
+      const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / (values.length || 1)
+      return [key, { values, mean, stdDev: Math.sqrt(variance) }] as const
+    }),
+  )
+  const table: NormalizedRows = new Map()
+  for (const row of rows) {
+    const normalized = {} as ScoreMetricValueMap
+    for (const key of metricKeys) {
+      const { values, mean, stdDev } = statistics.get(key)!
+      normalized[key] =
+        method === 'percentile'
+          ? normalizeWithMethod(row.metrics[key], values, metricRanges[key], method)
+          : zScoreOf(row.metrics[key], values, mean, stdDev)
+    }
+    table.set(row, normalized)
+  }
+  byMethod.set(method, table)
+  return table
+}
+
+const UNIT_RANGE = { min: 0, max: 1 }
+
 export function scoreRegionRows({
   rows,
   weights,
@@ -113,15 +201,25 @@ export function scoreRegionRows({
   paletteProfile: ScorePaletteProfile
   metrics?: ScoreMetricDefinition[]
 }): ScoredBoundaryRegion[] {
+  const metricKeys = metrics.map((metric) => metric.key)
+  const { normalization } = settings
+  // Handing the toolkit finished 0-1 values under min-max leaves them unchanged, so the
+  // slow methods run once here instead of once per region in every scoring pass.
+  const prepared =
+    normalization === 'percentile' || normalization === 'zScore'
+      ? normalizedRows(rows, metricKeys, metricValueLists, metricRanges, normalization)
+      : null
   const calculations = calculateIndexRows({
     rows,
     weights,
-    metricKeys: metrics.map((metric) => metric.key),
-    getValues: (row) => row.metrics,
-    normalization: settings.normalization,
+    metricKeys,
+    getValues: (row) => prepared?.get(row) ?? row.metrics,
+    normalization: prepared ? 'minMax' : normalization,
     missingData: settings.missingData,
     aggregation: settings.aggregation === 'geometric' ? 'geometric' : 'additive',
-    metricRanges,
+    metricRanges: prepared
+      ? (Object.fromEntries(metricKeys.map((key) => [key, UNIT_RANGE])) as ScoreMetricRangeMap)
+      : metricRanges,
     metricValueLists,
     hasCoverage: (row, key) => metricHasCoverage(key, row.counts),
     aggregate:

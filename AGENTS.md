@@ -97,6 +97,14 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - Keep `npm run toolkit:watch` running alongside Vite for live package edits; a failed build retains the last valid exports until the source is corrected.
 - Keep calculation normalization separate from display classification, use resolved scales for legends, and preserve source grid resolution, missing values and uncertainty. Each independent workspace owns its interaction events/card stack; legacy window coordination belongs only in application adapters.
 
+## Labs
+
+- `/labs`, `/score-builder`, `/density-lab` and `/correlation-lab` share `ScoreBuilderSection`. Keep each lab to its own concept: a lab links back to the Labs page, never sideways. The Labs cards carry the last study area (`rememberLabStudyArea`), and `src`/`level` in a URL without weights outrank the starting example.
+- GitHub Pages 301-redirects `/density-lab` to `/density-lab/`. Vite does not, so a path comparison that forgets the slash works locally and fails on every reload in production. Use `isOnLabPath`.
+- A new `BoundarySource` needs a level in the reducer state, `getSelectedRegionLevel`, `setRegionLevel`, `parseBoundarySource` and the share state, or it falls through to the watershed level and throws.
+- Region aggregation reads `PointGrid.near`, and `scoreRegionRows` hands the toolkit values already normalized by `normalizedRows`. The toolkit's percentile walks the whole value list for each value, which is regions² per metric on each of about 57 scoring passes, so do not route scoring back through it. Exports list only the metrics the view shows. Without this pair, large study areas freeze the page for minutes.
+- `public/data/cimd/prince_george_cimd_2021.json` comes from `npm run cimd:sync -- <bc_scores_quintiles_EN.csv>`. StatCan publishes four dimensions as signed factor scores and no composite: dimensions are BC percentiles, and the composite is the user guide's summed-quintiles score. It is a PGMaps-derived figure, so say so where it is shown.
+
 ## Project packages
 
 - For project-package creation, renderer changes, capability additions, or package audits, read `.agents/skills/pgmaps-project-builder/SKILL.md` and only the references it routes to for the active project mode.

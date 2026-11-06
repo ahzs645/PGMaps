@@ -1,4 +1,5 @@
 import type {
+  BcerBoundaryLevel,
   BoundaryLevel,
   BoundarySource,
   CensusBoundaryLevel,
@@ -8,6 +9,7 @@ import type {
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
   NrAdminBoundaryLevel,
+  PostalBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality'
@@ -20,6 +22,7 @@ import {
   HEALTH_BOUNDARY_LEVEL_OPTIONS,
   MUNICIPALITY_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
+  POSTAL_BOUNDARY_LEVEL_OPTIONS,
   REGIONAL_DISTRICT_BOUNDARY_LEVEL_OPTIONS,
   WATERSHED_BOUNDARY_LEVEL_OPTIONS,
   SCORE_METRICS,
@@ -70,6 +73,9 @@ const MUNICIPALITY_BOUNDARY_LEVEL_VALUES = new Set<MunicipalityBoundaryLevel>(
 const NR_ADMIN_BOUNDARY_LEVEL_VALUES = new Set<NrAdminBoundaryLevel>(
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
 )
+const POSTAL_BOUNDARY_LEVEL_VALUES = new Set<PostalBoundaryLevel>(
+  POSTAL_BOUNDARY_LEVEL_OPTIONS.map((option) => option.value),
+)
 
 export function parseBoundarySource(value: string | null): BoundarySource {
   return value === 'bcHealth' ||
@@ -82,7 +88,9 @@ export function parseBoundarySource(value: string | null): BoundarySource {
     value === 'watershed' ||
     value === 'bcDrainage' ||
     value === 'bcWildfire' ||
-    value === 'nrAdmin'
+    value === 'nrAdmin' ||
+    value === 'postal' ||
+    value === 'bcEr'
     ? value
     : 'census'
 }
@@ -139,6 +147,15 @@ export function parseMunicipalityBoundaryLevel(value: string | null): Municipali
 
 export function parseNrAdminBoundaryLevel(value: string | null): NrAdminBoundaryLevel {
   return NR_ADMIN_BOUNDARY_LEVEL_VALUES.has(value as NrAdminBoundaryLevel) ? (value as NrAdminBoundaryLevel) : 'nrArea'
+}
+
+export function parsePostalBoundaryLevel(value: string | null): PostalBoundaryLevel {
+  return POSTAL_BOUNDARY_LEVEL_VALUES.has(value as PostalBoundaryLevel) ? (value as PostalBoundaryLevel) : 'fsa'
+}
+
+export function parseBcerBoundaryLevel(_value: string | null): BcerBoundaryLevel {
+  // BCER has one level; the parameter keeps the signature of the other level parsers.
+  return 'bcerAdminZone'
 }
 
 export function parseNormalizationMethod(value: string | null): ScoreMethodSettings['normalization'] {

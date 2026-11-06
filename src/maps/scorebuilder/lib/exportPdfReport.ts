@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf'
 import type { Map as MapLibreMap } from 'maplibre-gl'
-import type { ScoredBoundaryRegion, ScoreMetricDefinition, ScoreMethodSettings } from '../types'
+import { captureMapImage } from '@/lib/mapImageCapture'
+import type { ScoredBoundaryRegion, ScoreMethodSettings } from '../types'
 import { formatAggregationMethod, formatNormalizationMethod } from '../components/scoreBuilderPanelUtils'
 
 export interface PdfReportOptions {
@@ -10,27 +11,13 @@ export interface PdfReportOptions {
   equationPreview: string
   methodSettings: ScoreMethodSettings
   scoredRegions: ScoredBoundaryRegion[]
-  metrics: ScoreMetricDefinition[]
+  /** Metrics carrying weight in the index, not every metric the app knows. */
+  activeMetricCount: number
   scoreSpread: { min: number; max: number; average: number }
 }
 
 const PAGE_MARGIN = 14
 const TOP_REGION_ROWS = 30
-
-/** Captures the map canvas inside a render frame (the GL buffer reads back blank otherwise). */
-function captureMapImage(map: MapLibreMap): Promise<{ dataUrl: string; width: number; height: number } | null> {
-  return new Promise((resolve) => {
-    map.once('render', () => {
-      try {
-        const canvas = map.getCanvas()
-        resolve({ dataUrl: canvas.toDataURL('image/png'), width: canvas.width, height: canvas.height })
-      } catch {
-        resolve(null)
-      }
-    })
-    map.triggerRepaint()
-  })
-}
 
 export async function exportPdfReport({
   map,
@@ -39,7 +26,7 @@ export async function exportPdfReport({
   equationPreview,
   methodSettings,
   scoredRegions,
-  metrics,
+  activeMetricCount,
   scoreSpread,
 }: PdfReportOptions): Promise<void> {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' })
@@ -69,13 +56,12 @@ export async function exportPdfReport({
   cursorY += 5
   doc.setFont('helvetica', 'normal')
   doc.setFontSize(9)
-  const activeMetrics = metrics.length
   const methodLines = doc.splitTextToSize(
     [
       `Normalization: ${formatNormalizationMethod(methodSettings.normalization)}`,
       `Aggregation: ${formatAggregationMethod(methodSettings.aggregation)}`,
       `Missing data policy: ${methodSettings.missingData}`,
-      `Active metrics: ${activeMetrics}`,
+      `Active metrics: ${activeMetricCount}`,
       `Score spread: ${scoreSpread.min.toFixed(1)} – ${scoreSpread.max.toFixed(1)} (average ${scoreSpread.average.toFixed(1)})`,
     ].join('\n'),
     contentWidth,
@@ -96,15 +82,20 @@ export async function exportPdfReport({
   // Map snapshot
   if (map) {
     const image = await captureMapImage(map)
-    if (image) {
-      const imageHeight = Math.min(120, (image.height / image.width) * contentWidth)
-      const pageHeight = doc.internal.pageSize.getHeight()
-      if (cursorY + imageHeight > pageHeight - PAGE_MARGIN) {
-        doc.addPage()
-        cursorY = PAGE_MARGIN
-      }
-      doc.addImage(image.dataUrl, 'PNG', PAGE_MARGIN, cursorY, contentWidth, imageHeight)
-      cursorY += imageHeight + 6
+    const imageHeight = Math.min(120, (image.canvas.height / image.canvas.width) * contentWidth)
+    const pageHeight = doc.internal.pageSize.getHeight()
+    if (cursorY + imageHeight > pageHeight - PAGE_MARGIN) {
+      doc.addPage()
+      cursorY = PAGE_MARGIN
+    }
+    doc.addImage(image.canvas.toDataURL('image/png'), 'PNG', PAGE_MARGIN, cursorY, contentWidth, imageHeight)
+    cursorY += imageHeight + 4
+    if (image.attribution) {
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(7)
+      doc.setTextColor(110)
+      doc.text(image.attribution, PAGE_MARGIN, cursorY)
+      doc.setTextColor(40)
     }
   }
 
@@ -170,5 +161,5 @@ export async function exportPdfReport({
   )
   doc.text(footerLines, PAGE_MARGIN, cursorY)
 
-  doc.save('score-builder-report.pdf')
+  doc.save('index-lab-report.pdf')
 }

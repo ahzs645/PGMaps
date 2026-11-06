@@ -11,6 +11,7 @@ export {
   FIRE_ZONE_BOUNDARY_LEVEL_OPTIONS,
   BCER_BOUNDARY_LEVEL_OPTIONS,
   NR_ADMIN_BOUNDARY_LEVEL_OPTIONS,
+  POSTAL_BOUNDARY_LEVEL_OPTIONS,
   WALKABILITY_COMMUNITY_BOUNDARY_LEVEL_OPTIONS,
   BOUNDARY_FILE_BY_LEVEL,
   BOUNDARY_INDEX_KEY_BY_LEVEL,
@@ -46,5 +47,7 @@ export const SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS: BoundarySourceOption[] = _SC
             disabledReason:
               'RFC snow basins are available in the boundary debug map but are not wired into Index Lab scoring yet.',
           }
-        : option,
+        : option.group === 'Local' || option.value === 'census'
+          ? option
+          : { ...option, description: `${option.description}. Most metrics cover Prince George only.` },
 )
