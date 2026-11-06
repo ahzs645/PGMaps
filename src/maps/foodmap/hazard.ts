@@ -25,11 +25,13 @@ export const HAZARD_HEX_COLORS: Record<'light' | 'dark', Record<HazardRating, st
   light: {
     Low: '#30a46c',
     Moderate: '#ffc53d',
+    High: '#e5484d',
     Unknown: '#8b8d98',
   },
   dark: {
     Low: '#33b074',
     Moderate: '#ffd60a',
+    High: '#f2555a',
     Unknown: '#777b84',
   },
 }
@@ -38,6 +40,7 @@ export const HAZARD_HEX_COLORS: Record<'light' | 'dark', Record<HazardRating, st
 export const HAZARD_TAILWIND: Record<HazardRating, { bg: string; border: string; text: string }> = {
   Low: { bg: 'bg-green-500', border: 'border-green-500', text: 'text-green-600 dark:text-green-400' },
   Moderate: { bg: 'bg-amber-500', border: 'border-amber-500', text: 'text-amber-600 dark:text-amber-400' },
+  High: { bg: 'bg-red-500', border: 'border-red-500', text: 'text-red-600 dark:text-red-400' },
   Unknown: { bg: 'bg-gray-500', border: 'border-gray-500', text: 'text-gray-600 dark:text-gray-400' },
 }
 
@@ -45,5 +48,6 @@ export const HAZARD_TAILWIND: Record<HazardRating, { bg: string; border: string;
 export const HAZARD_BADGE_CLASSES: Record<HazardRating, string> = {
   Low: 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300',
   Moderate: 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300',
+  High: 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300',
   Unknown: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300',
 }

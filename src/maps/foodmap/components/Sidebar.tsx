@@ -3,6 +3,7 @@ import { Dices, History, X } from 'lucide-react'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { RestaurantCard } from './RestaurantCard'
 import { RestaurantSummary } from './RestaurantSummary'
+import { RatingChangeList } from './RatingChangeList'
 import { formatFullAddress } from '../address'
 import { cn } from '@/lib/utils'
 import { AppSelect } from '@/components/ui/select'
@@ -29,6 +30,7 @@ import {
   type FoodMapFilters,
   type FoodMapFilterActions,
 } from '../hooks/useFoodMapFilters'
+import type { RatingChange } from '../inspectionTimeline'
 import type { FoodSortOrder, MarkerStyle } from '../types'
 import type { RestaurantWithStats, RestaurantStats, TimelineStats, HazardStatsAtDate, HazardRating } from '../types'
 
@@ -42,8 +44,12 @@ export interface SidebarData {
   timelineStats: TimelineStats
   hazardStatsAtDate: HazardStatsAtDate
   violationTimelineLabel: string
+  /** Month of the latest inspection on record, e.g. "Apr 2026". */
+  inspectionsThroughLabel: string
   /** Month the hazard ratings are read at, e.g. "Sep 2026". */
   hazardDateLabel: string
+  /** Rating changes in the timeline's month. */
+  monthRatingChanges: RatingChange[]
   activeFilterCount: number
 }
 
@@ -58,21 +64,15 @@ interface SidebarProps {
   onClearSelection: () => void
   onOpenInspectionPanel: () => void
   onToggleTimeline: () => void
+  onRatingChangeClick: (change: RatingChange) => void
   onOpenRoulette: () => void
   onResetFilters: () => void
 }
 
-const timelineOptions = [
-  { value: 3, label: '3 months' },
-  { value: 6, label: '6 months' },
-  { value: 12, label: '1 year' },
-  { value: 24, label: '2 years' },
-  { value: 0, label: 'All time' },
-]
-
 const hazardChipColors: Record<HazardRating, string> = {
   Low: '#22c55e',
   Moderate: '#f59e0b',
+  High: '#ef4444',
   Unknown: '#6b7280',
 }
 
@@ -119,6 +119,7 @@ export function Sidebar({
   onClearSelection,
   onOpenInspectionPanel,
   onToggleTimeline,
+  onRatingChangeClick,
   onOpenRoulette,
   onResetFilters,
 }: SidebarProps) {
@@ -131,7 +132,9 @@ export function Sidebar({
     timelineStats,
     hazardStatsAtDate,
     violationTimelineLabel,
+    inspectionsThroughLabel,
     hazardDateLabel,
+    monthRatingChanges,
     activeFilterCount,
   } = data
   const {
@@ -139,8 +142,6 @@ export function Sidebar({
     facilityTypes: selectedFacilityTypes,
     searchQuery,
     visualizationMode,
-    timelineMonths,
-    violationTimelineMode,
     sortOrder,
   } = filters
 
@@ -169,15 +170,18 @@ export function Sidebar({
       subtitle="Food Establishment Inspections"
       dataset={DATASETS.foodSafety}
       hideTitleOnMobile
+      // Clears the sheet's chevron, which otherwise sits on top of the roulette button.
+      headerClassName={isMobile ? '!pr-14' : undefined}
       actions={
         <button
           type="button"
           onClick={onOpenRoulette}
-          className="rounded-lg border border-border p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border p-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title="Restaurant roulette"
           aria-label="Restaurant roulette"
         >
           <Dices className="h-4 w-4" aria-hidden="true" />
+          {isMobile && 'Roulette'}
         </button>
       }
     >
@@ -186,7 +190,7 @@ export function Sidebar({
         label="Map options"
         summary={
           visualizationMode === 'violations'
-            ? `Violations · ${timelineOptions.find((opt) => opt.value === timelineMonths)?.label ?? `${timelineMonths} months`} · ${violationTimelineMode === 'period' ? 'Period' : 'Cumulative'}`
+            ? `Violations · ${violationTimelineLabel}`
             : `Hazard rating · as of ${hazardDateLabel}`
         }
       >
@@ -200,30 +204,6 @@ export function Sidebar({
               { value: 'hazard', label: 'Hazard rating' },
             ]}
           />
-
-          {visualizationMode === 'violations' && (
-            <div className="flex items-center gap-2">
-              <SegmentedControl
-                label="Count violations"
-                size="sm"
-                className="flex-1"
-                value={violationTimelineMode}
-                onChange={filterActions.setViolationTimelineMode}
-                options={[
-                  { value: 'period', label: 'Period' },
-                  { value: 'cumulative', label: 'Cumulative' },
-                ]}
-              />
-              <AppSelect
-                value={String(timelineMonths)}
-                onValueChange={(value) => filterActions.setTimelineMonths(parseInt(value))}
-                options={timelineOptions.map((opt) => ({ value: String(opt.value), label: opt.label }))}
-                className="w-28"
-                triggerAriaLabel="Period length"
-                triggerClassName="h-8 rounded text-xs focus:ring-2 focus:ring-sky-500"
-              />
-            </div>
-          )}
 
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span className="min-w-0 truncate">
@@ -244,6 +224,7 @@ export function Sidebar({
               {showTimeline ? 'Hide timeline' : 'Timeline'}
             </button>
           </div>
+          <p className="text-xs text-muted-foreground">Inspections through {inspectionsThroughLabel}</p>
         </div>
       </MobileCollapsibleSection>
 
@@ -275,11 +256,16 @@ export function Sidebar({
               : [
                   { label: 'low', value: hazardStatsAtDate?.Low || 0, tone: 'success' },
                   { label: 'moderate', value: hazardStatsAtDate?.Moderate || 0, tone: 'warning' },
+                  { label: 'high', value: hazardStatsAtDate?.High || 0, tone: 'danger' },
                   { label: 'unknown', value: hazardStatsAtDate?.Unknown || 0, tone: 'muted' },
                 ]
           }
         />
       </div>
+
+      {visualizationMode === 'hazard' && (
+        <RatingChangeList monthLabel={hazardDateLabel} changes={monthRatingChanges} onSelect={onRatingChangeClick} />
+      )}
 
       {/* Search, filters and sort stay reachable while the list scrolls. */}
       <StickyListToolbar

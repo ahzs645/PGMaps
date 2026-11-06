@@ -105,13 +105,16 @@ const CLUSTER_REVEAL_ZOOM = 13.5
 /** Wedge colors per violation bucket, in FOOD_VIOLATION_BUCKETS order (matches the legend). */
 const VIOLATION_BAND_COLORS: readonly string[] = VIOLATION_BUCKET_STYLES.map((bucket) => bucket.color)
 
-/** Wedge colors per hazard rating: Low, Moderate, Unknown (matches the legend). */
-const HAZARD_BAND_COLORS: readonly string[] = ['#22c55e', '#f59e0b', '#6b7280']
+/** Wedge colors per hazard rating: Low, Moderate, High, Unknown (matches the legend). */
+const HAZARD_BAND_COLORS: readonly string[] = ['#22c55e', '#f59e0b', '#ef4444', '#6b7280']
+
+const HAZARD_HEAT_WEIGHT: Record<HazardRating, number> = { Low: 0.3, Moderate: 1.5, High: 3, Unknown: 0.3 }
 
 function getHazardBandIndex(rating: HazardRating): number {
   if (rating === 'Low') return 0
   if (rating === 'Moderate') return 1
-  return 2
+  if (rating === 'High') return 2
+  return 3
 }
 
 /** Experimental marker dot renderers, switched by the `dots` URL param / sidebar select. */
@@ -296,9 +299,7 @@ export function RestaurantMap({
                 weight:
                   visualizationMode === 'violations'
                     ? 0.3 + (r.violationStats?.total || 0)
-                    : getHazardRating(r, { atDate: true }) === 'Moderate'
-                      ? 1.5
-                      : 0.3,
+                    : HAZARD_HEAT_WEIGHT[getHazardRating(r, { atDate: true })],
               },
             })),
     }),

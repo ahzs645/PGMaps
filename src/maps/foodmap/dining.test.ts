@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DINING_CATEGORIES, diningCategory, selectDiningRestaurants } from './dining'
+import { OTHER_SPOTS, ROULETTE_CATEGORIES, diningCategory, selectDiningRestaurants } from './dining'
 import type { EstablishmentType, Restaurant } from './types'
 
 function premise(
@@ -46,7 +46,7 @@ describe('spinner dining eligibility', () => {
     expect(selectDiningRestaurants(restaurants).map((r) => r.name)).toEqual(['Pizza place', 'Food truck'])
   })
 
-  it('applies dining exceptions without changing the source categories', () => {
+  it('keeps Other spots out by default without changing the source categories', () => {
     const restaurants = [
       premise('7-Eleven Food Store #37259', 'Restaurant'),
       premise('7-Eleven Food Store #37263', 'Restaurant'),
@@ -59,33 +59,37 @@ describe('spinner dining eligibility', () => {
       premise('Crave Cafe', 'Restaurant'),
     ]
     expect(selectDiningRestaurants(restaurants).map((r) => r.name)).toEqual(['Crave Cafe'])
-    expect(selectDiningRestaurants(restaurants, DINING_CATEGORIES, ['Costco Food Court']).map((r) => r.name)).toEqual([
-      'Costco Food Court',
-      'Crave Cafe',
-    ])
-    expect(diningCategory(restaurants[7])).toBeNull()
-    expect(diningCategory(restaurants[7], ['Costco Food Court'])).toBe('Restaurant')
+    expect(selectDiningRestaurants(restaurants, ROULETTE_CATEGORIES)).toEqual(restaurants)
+    expect(diningCategory(restaurants[7])).toBe(OTHER_SPOTS)
     expect(restaurants[7].establishment_type).toBe('Concession')
   })
 
-  it('lets individual exceptions in only when their dining category is selected', () => {
+  it('treats Other spots as its own category, independent of the dining categories', () => {
     const restaurants = [
       premise('Costco Food Court', 'Concession'),
       premise('Royal Canadian Legion #43', 'Bar/Pub'),
+      premise('Crave Cafe', 'Restaurant'),
       premise('PG Civic Centre - CG 60667', 'Concession'),
     ]
-    const exceptions = ['Costco Food Court', 'Royal Canadian Legion #43'] as const
-    expect(selectDiningRestaurants(restaurants, ['Restaurant'], exceptions).map((r) => r.name)).toEqual([
+    expect(selectDiningRestaurants(restaurants, [OTHER_SPOTS]).map((r) => r.name)).toEqual([
       'Costco Food Court',
-    ])
-    expect(selectDiningRestaurants(restaurants, ['Bar/Pub'], exceptions).map((r) => r.name)).toEqual([
       'Royal Canadian Legion #43',
     ])
-    expect(selectDiningRestaurants(restaurants, [], exceptions)).toEqual([])
+    expect(selectDiningRestaurants(restaurants, ['Bar/Pub']).map((r) => r.name)).toEqual([])
+    expect(selectDiningRestaurants(restaurants, [])).toEqual([])
   })
 
   it('supports a single category, an empty selection, and all dining categories', () => {
-    const restaurants = DINING_CATEGORIES.map((category) => premise(category, category))
+    const restaurants = [
+      premise('Restaurant', 'Restaurant'),
+      premise('Food Truck', 'Food Truck'),
+      premise('Coffee Shop', 'Coffee Shop'),
+      premise('Bar/Pub', 'Bar/Pub'),
+      premise('Brewery/Winery', 'Brewery/Winery'),
+      premise('Bakery', 'Bakery'),
+      premise('Deli', 'Deli'),
+      premise('Stand', 'Stand'),
+    ]
     expect(selectDiningRestaurants(restaurants, ['Restaurant']).map((r) => r.name)).toEqual(['Restaurant'])
     expect(selectDiningRestaurants(restaurants, [])).toEqual([])
     expect(selectDiningRestaurants(restaurants)).toEqual(restaurants)

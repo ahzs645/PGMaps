@@ -7,14 +7,7 @@ import {
   type FoodMapFilterActions,
   type FoodMapFilters,
 } from './hooks/useFoodMapFilters'
-import type {
-  HazardRating,
-  HazardStatsAtDate,
-  RestaurantWithStats,
-  TimelineStats,
-  ViolationTimelineMode,
-  VisualizationMode,
-} from './types'
+import type { HazardRating, HazardStatsAtDate, RestaurantWithStats, TimelineStats, VisualizationMode } from './types'
 import type { CrimeIncident } from '@/maps/pgdata/types'
 import { FOOD_VIOLATION_BUCKETS, type FoodViolationBucket } from './violationBuckets'
 
@@ -24,7 +17,6 @@ const TIMELINE_MONTH_OPTIONS = [0, 3, 6, 12, 24] as const
 const CRIME_RADIUS_OPTIONS = [250, 500, 1000, 2000] as const
 const CRIME_LOOKBACK_OPTIONS = [12, 24, 36, 60] as const
 const VISUALIZATION_MODES: VisualizationMode[] = ['violations', 'hazard']
-const TIMELINE_MODES: ViolationTimelineMode[] = ['period', 'cumulative']
 const READ_ONLY = { readOnlyHint: true, untrustedContentHint: true, consequentialHint: false } as const
 const UI_ACTION = { readOnlyHint: false, untrustedContentHint: true, consequentialHint: false } as const
 
@@ -235,6 +227,8 @@ interface FoodMapWebMCPData {
   selectedViolationBuckets: FoodViolationBucket[]
   setSelectedViolationBuckets: (buckets: FoodViolationBucket[]) => void
   violationTimelineLabel: string
+  /** Month of the latest inspection on record, e.g. "Apr 2026". */
+  inspectionsThroughLabel: string
   timelineStats: TimelineStats
   hazardStatsAtDate: HazardStatsAtDate
   crimeIncidents: CrimeIncident[]
@@ -262,6 +256,7 @@ function foodContext(data: FoodMapWebMCPData, maxResults: number) {
       establishments: data.restaurants.length,
       filteredEstablishments: data.filteredRestaurants.length,
       mappedEstablishments: data.geocodedRestaurants.length,
+      inspectionsThrough: data.inspectionsThroughLabel,
       interpretation:
         'Historical public inspection records. Hazard ratings and violation summaries are not real-time safety advice.',
     },
@@ -277,7 +272,6 @@ function foodContext(data: FoodMapWebMCPData, maxResults: number) {
       facilityTypes: data.filters.facilityTypes,
       violationBuckets: data.selectedViolationBuckets,
       timelineMonths: data.filters.timelineMonths,
-      timelineMode: data.filters.violationTimelineMode,
       periodLabel: data.violationTimelineLabel,
     },
     results:
@@ -336,8 +330,11 @@ export function useFoodMapWebMCP(data: FoodMapWebMCPData) {
                 "'zero' means inspected in the active period with no violations; 'uninspected' holds establishments with no inspection in that period.",
               items: { type: 'string', enum: FOOD_VIOLATION_BUCKETS },
             },
-            timelineMonths: { type: 'integer', enum: TIMELINE_MONTH_OPTIONS },
-            timelineMode: { type: 'string', enum: TIMELINE_MODES },
+            timelineMonths: {
+              type: 'integer',
+              enum: TIMELINE_MONTH_OPTIONS,
+              description: 'Months the violation window covers, ending at the timeline date. 0 means all time.',
+            },
           },
           additionalProperties: false,
         },
@@ -351,14 +348,12 @@ export function useFoodMapWebMCP(data: FoodMapWebMCPData) {
             'facilityTypes',
             'violationBuckets',
             'timelineMonths',
-            'timelineMode',
           ])
           const query = optionalText(record, 'query')
           const visualizationMode = enumValue(record, 'visualizationMode', VISUALIZATION_MODES)
           const hazardRatings = stringArray(record, 'hazardRatings', HAZARD_RATING_OPTIONS)
           const facilityTypes = stringArray(record, 'facilityTypes', FACILITY_TYPE_OPTIONS)
           const violationBuckets = stringArray(record, 'violationBuckets', FOOD_VIOLATION_BUCKETS)
-          const timelineMode = enumValue(record, 'timelineMode', TIMELINE_MODES)
           const timelineMonths = record.timelineMonths
           if (
             timelineMonths !== undefined &&
@@ -374,7 +369,6 @@ export function useFoodMapWebMCP(data: FoodMapWebMCPData) {
           if (hazardRatings !== undefined) filterPatch.hazardRatings = hazardRatings as HazardRating[]
           if (facilityTypes !== undefined) filterPatch.facilityTypes = facilityTypes
           if (timelineMonths !== undefined) filterPatch.timelineMonths = timelineMonths as number
-          if (timelineMode !== undefined) filterPatch.violationTimelineMode = timelineMode
 
           data.clearSelection()
           data.filterActions.applyFilters(filterPatch)

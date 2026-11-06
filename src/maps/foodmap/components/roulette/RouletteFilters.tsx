@@ -22,7 +22,7 @@ interface RouletteFiltersProps {
   onToggleHazard: (hazard: HazardRating) => void
 }
 
-const hazardOptions: HazardRating[] = ['Low', 'Moderate', 'Unknown']
+const hazardOptions: HazardRating[] = ['Low', 'Moderate', 'High', 'Unknown']
 const hazardColors = Object.fromEntries(
   hazardOptions.map((rating) => {
     const { bg, border, text } = HAZARD_TAILWIND[rating]

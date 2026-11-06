@@ -1,6 +1,7 @@
 import { useEffect, useCallback } from 'react'
 import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { PG_CENTER } from '@/components/ui/map-styles'
+import { useIsMobile } from '@/hooks/useIsMobile'
 // @ts-expect-error - turf types issue with package exports
 import * as turf from '@turf/turf'
 import type maplibregl from 'maplibre-gl'
@@ -19,6 +20,7 @@ export function RouletteLocationPicker({
   maxDistance,
   onLocationSelected,
 }: RouletteLocationPickerProps) {
+  const isMobile = useIsMobile()
   const handleMapClick = useCallback(
     (e: maplibregl.MapMouseEvent) => {
       onLocationSelected({
@@ -34,6 +36,8 @@ export function RouletteLocationPicker({
       <Map
         center={sourceLocation ? [sourceLocation.lng, sourceLocation.lat] : PG_CENTER}
         zoom={sourceLocation ? 12 : ZOOM}
+        // This map sits inside a scrolling sheet: one finger scrolls the sheet.
+        cooperativeGestures={isMobile}
       >
         <MapClickHandler onMapClick={handleMapClick} />
         <RadiusCircle sourceLocation={sourceLocation} maxDistance={maxDistance} />
