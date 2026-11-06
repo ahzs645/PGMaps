@@ -888,7 +888,18 @@ export default function MiscDataSection() {
                 : activeTab === 'bcer'
                   ? bcer.loading
                   : false
-  const showLegendPanel = activeTab !== 'ev' || evShowPoints || evShowHeatmap || evShowBoundaries
+  // A legend explains what is drawn, so it goes once nothing is. Heat & shade,
+  // flood, BCER and water stay: their legend rows are the layers' own toggles.
+  const showLegendPanel =
+    activeTab === 'ev'
+      ? evShowPoints || evShowHeatmap || evShowBoundaries
+      : activeTab === 'icbc'
+        ? icbc.showPoints || icbc.showHeatmap
+        : activeTab === 'wars'
+          ? wars.showPoints || wars.showHeatmap || wars.showHotspots || wars.showWinterRange
+          : activeTab === 'openLitterMap'
+            ? openLitterMap.showPoints || openLitterMap.showHeatmap || openLitterMap.showHexes
+            : true
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
@@ -1501,6 +1512,7 @@ export default function MiscDataSection() {
                 compactBars
                 overflowBuckets
                 percentChangeMode={{ enabled: true, label: 'YoY' }}
+                statsLabel={`${icbc.totalCrashes.toLocaleString()} crashes`}
                 windowMode={{
                   size: icbc.timelineWindowSize,
                   onSizeChange: icbc.setTimelineWindowSize,

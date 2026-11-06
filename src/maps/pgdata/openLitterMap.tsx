@@ -984,12 +984,12 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
   return (
     <div className="w-full space-y-1.5 text-xs text-muted-foreground">
       {litter.showHeatmap && (
-        <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2">
+        <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2 last:border-b-0 last:pb-0">
           <MapGradientLegendItem colors={HEATMAP_RAMP} minLabel="Low" maxLabel="High" />
         </MapLegendSection>
       )}
       {litter.showHexes && (
-        <MapLegendSection title="Hex item count" className="border-b border-border px-1 pb-2">
+        <MapLegendSection title="Hex item count" className="border-b border-border px-1 pb-2 last:border-b-0 last:pb-0">
           <MapGradientLegendItem colors={HEX_COUNT_RAMP} minLabel="Low" maxLabel="High" />
         </MapLegendSection>
       )}

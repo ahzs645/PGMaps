@@ -9,7 +9,6 @@ import {
   KeyValueRows,
   LegendItem,
   MapGradientLegendItem,
-  MapLegendNote,
   MapLegendSection,
   MapSizeLegend,
   SelectedItemCard,
@@ -538,7 +537,7 @@ export function IcbcLayer({ icbc }: { icbc: IcbcState }) {
 
 export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
   return (
-    <div className="w-full space-y-2 text-xs text-muted-foreground">
+    <div className="w-full space-y-1.5 text-xs text-muted-foreground">
       <div className="font-medium text-foreground">{getIcbcDatasetLabel(icbc.selectedDataset)}</div>
       {icbc.showPoints && (
         <div className="space-y-2">
@@ -551,16 +550,13 @@ export function IcbcLegend({ icbc }: { icbc: IcbcState }) {
         </div>
       )}
       {icbc.showHeatmap && (
-        <div className="border-t border-border pt-2">
+        <div className={cn(icbc.showPoints && 'border-t border-border pt-2')}>
           <MapGradientLegendItem
             colors={['#7dd3fc', '#fde047', '#dc2626']}
             minLabel="Lower density"
             maxLabel="Higher density"
           />
         </div>
-      )}
-      {!icbc.showPoints && !icbc.showHeatmap && (
-        <MapLegendNote className="italic">Both layers are hidden.</MapLegendNote>
       )}
     </div>
   )
