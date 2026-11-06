@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { FileImage, MapPinned } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import type { RasterRecord } from './catalogue'
+import { OrganizationSummary } from './OrganizationSummary'
+import type { CatalogueFacets, RasterRecord } from './catalogue'
 
 export function MapImagePreview({
   item,
@@ -12,12 +13,14 @@ export function MapImagePreview({
   onMap,
   onSheet,
   onDetails,
+  facets,
 }: {
   item: RasterRecord | null
   onClose: () => void
   onMap: (item: RasterRecord) => void
   onSheet: () => void
   onDetails: () => void
+  facets?: CatalogueFacets
 }) {
   const [image, setImage] = useState<{ id: string; url?: string; error?: string }>({ id: '' })
   useEffect(() => {
@@ -54,7 +57,9 @@ export function MapImagePreview({
       <DialogContent elevated className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{item?.title}</DialogTitle>
-          <DialogDescription>{item?.dateLabel || item?.subtitle || 'Map image preview'}</DialogDescription>
+          <DialogDescription>
+            {item?.dateLabel || item?.organization?.pageLabel || 'Map image preview'}
+          </DialogDescription>
         </DialogHeader>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={item?.confidence === 'experimental' ? 'warning' : 'neutral'}>
@@ -80,9 +85,6 @@ export function MapImagePreview({
           )}
         </div>
         {current?.error && <InlineAlert tone="warning">{current.error}</InlineAlert>}
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {item?.alignmentReview?.summary || item?.caveat}
-        </p>
         <div className="flex flex-wrap gap-2">
           <Button
             onClick={() => {
@@ -107,6 +109,14 @@ export function MapImagePreview({
             </a>
           )}
         </div>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {item?.alignmentReview?.summary || item?.caveat}
+        </p>
+        {item?.organization && (
+          <CollapsibleSection label="Category & source details" collapseOn="always" contentClassName="p-3">
+            <OrganizationSummary value={item.organization} facets={facets} detail />
+          </CollapsibleSection>
+        )}
         <p className="text-xs text-muted-foreground">
           Display preview. Original-resolution GeoTIFF downloads are available in Map notes & sources.
         </p>

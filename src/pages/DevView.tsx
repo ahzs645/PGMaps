@@ -12,10 +12,26 @@ import { CopyButton } from '@/components/ui/copy-button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { formatBytes } from '@/lib/format'
-import { loadCatalogue, shareLink, type RasterCatalogue, type RasterRecord } from './dev-view/catalogue'
+import {
+  loadCatalogue,
+  shareLink,
+  type RasterCatalogue,
+  type RasterRecord,
+  type SourceImageRecord,
+} from './dev-view/catalogue'
 import { RasterMapLayer } from './dev-view/RasterMapLayer'
 import { MapLibrary } from './dev-view/MapLibrary'
 import { MapImagePreview } from './dev-view/MapImagePreview'
+import { SourceImagePreview } from './dev-view/SourceImagePreview'
+import { LibraryFilters } from './dev-view/LibraryFilters'
+import { OrganizationSummary } from './dev-view/OrganizationSummary'
+import {
+  EMPTY_FILTERS,
+  isRaster,
+  matchesLibraryItem,
+  organizationOptions,
+  type LibraryItem,
+} from './dev-view/libraryOrganization'
 
 const STREET: StyleSpecification = {
   version: 8,
@@ -53,8 +69,10 @@ export default function DevView() {
   const [input, setInput] = useState(source)
   const [catalogue, setCatalogue] = useState<RasterCatalogue | null>(null)
   const [selectedId, setSelectedId] = useState(() => params().get('map') || '')
-  const [scope, setScope] = useState<'featured' | 'all'>('all')
+  const [scope, setScope] = useState<'featured' | 'all' | 'sources'>('all')
   const [view, setView] = useState<'library' | 'map'>(() => (params().get('view') === 'map' ? 'map' : 'library'))
+  const [sourcePreview, setSourcePreview] = useState<SourceImageRecord | null>(null)
+  const [filters, setFilters] = useState({ ...EMPTY_FILTERS })
   const [preview, setPreview] = useState<RasterRecord | null>(null)
   const [showMapTitle, setShowMapTitle] = useState(true)
   const libraryScroll = useRef(0)
@@ -80,12 +98,42 @@ export default function DevView() {
     [catalogue, selectedId],
   )
   const filtered = useMemo(
-    () =>
-      candidates.filter((i) =>
-        [i.title, i.subtitle, i.description, i.dateLabel].join(' ').toLowerCase().includes(query.toLowerCase()),
-      ),
-    [candidates, query],
+    () => candidates.filter((item) => matchesLibraryItem(item, query, filters)),
+    [candidates, query, filters],
   )
+  const filteredSources = useMemo(
+    () => (catalogue?.unplacedSources || []).filter((item) => matchesLibraryItem(item, query, filters)),
+    [catalogue, query, filters],
+  )
+  const filterOptions = useMemo(
+    () =>
+      organizationOptions(
+        catalogue ? [...catalogue.items, ...catalogue.featured, ...catalogue.unplacedSources] : [],
+        catalogue?.facets || { subjects: [], regions: [], eras: [] },
+      ),
+    [catalogue],
+  )
+  const libraryItems = scope === 'sources' ? filteredSources : filtered
+  const changeFilters = (next: typeof filters) => {
+    setFilters(next)
+    libraryScroll.current = 0
+  }
+  const filterBySource = (id: string) => {
+    setScope('all')
+    setQuery('')
+    changeFilters({ ...EMPTY_FILTERS, sourceGroup: id })
+  }
+  const categoryControls = (
+    <LibraryFilters
+      values={filters}
+      options={filterOptions}
+      sourceMode={scope === 'sources'}
+      onChange={changeFilters}
+    />
+  )
+  const coverageSummary = catalogue
+    ? `${catalogue.representationCount.toLocaleString()} raster representations${catalogue.coverage?.sourceDocuments ? ` · ${catalogue.coverage.sourceDocuments.toLocaleString()} source documents` : ''}${catalogue.unplacedSources.length ? ` · ${catalogue.unplacedSources.length.toLocaleString()} source-image records` : ''}`
+    : undefined
   const style = base === 'satellite' ? SATELLITE : STREET
   const styles = useMemo(() => ({ light: style, dark: style }), [style])
   useEffect(() => {
@@ -127,6 +175,7 @@ export default function DevView() {
         setSelectedId(item.id)
         setScope(params().get('view') === 'map' && value.featured.some((x) => x.id === item.id) ? 'featured' : 'all')
         setQuery('')
+        setFilters({ ...EMPTY_FILTERS })
       })
       .catch((e) => {
         if (!abort.signal.aborted)
@@ -143,6 +192,7 @@ export default function DevView() {
       const nextView = p.get('view') === 'map' ? 'map' : 'library'
       setView(nextView)
       setPreview(null)
+      setSourcePreview(null)
       setShowMapTitle(true)
       const changedSource = (p.get('catalog') || '') !== source
       setSource(p.get('catalog') || '')
@@ -156,6 +206,7 @@ export default function DevView() {
       if (changedSource) {
         setQuery('')
         setScope('all')
+        setFilters({ ...EMPTY_FILTERS })
         libraryScroll.current = 0
       }
       setTileError('')
@@ -183,9 +234,11 @@ export default function DevView() {
     setView('library')
     setPreview(null)
   }
-  const previewImage = (item: RasterRecord) => {
-    choose(item)
-    setPreview(item)
+  const previewImage = (item: LibraryItem) => {
+    if (isRaster(item)) {
+      choose(item)
+      setPreview(item)
+    } else setSourcePreview(item)
   }
   const sheet = selected?.fullSheets[sheetPage]
   const label =
@@ -238,25 +291,31 @@ export default function DevView() {
   )
   const collectionControls = catalogue && (
     <>
-      {!!catalogue.featured.length && (
+      {(!!catalogue.featured.length || !!catalogue.unplacedSources.length) && (
         <SegmentedControl
           label="Map scope"
           className="mt-3"
           value={scope}
           onChange={(value) => {
-            const next = value as 'featured' | 'all'
+            const next = value as 'featured' | 'all' | 'sources'
             setScope(next)
             setQuery('')
             libraryScroll.current = 0
-            if (view === 'map') {
+            if (next === 'sources' && view === 'map') openLibrary()
+            if (view === 'map' && next !== 'sources') {
               const item = (next === 'featured' ? catalogue.featured : catalogue.items)[0]
               choose(item)
               navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
             }
           }}
           options={[
-            { value: 'featured', label: `Selections ${catalogue.featured.length}` },
+            ...(catalogue.featured.length
+              ? [{ value: 'featured', label: `Selections ${catalogue.featured.length}` }]
+              : []),
             { value: 'all', label: `All ${catalogue.items.length}` },
+            ...(catalogue.unplacedSources.length
+              ? [{ value: 'sources', label: `Source images ${catalogue.unplacedSources.length}` }]
+              : []),
           ]}
         />
       )}
@@ -317,11 +376,13 @@ export default function DevView() {
           <SidebarSection title="Collection">
             <p className="text-xs text-muted-foreground">{catalogue.description}</p>
             {collectionControls}
+            {categoryControls}
           </SidebarSection>
           {selected && (
             <SidebarSection title="Selected map">
               <p className="text-xs font-medium text-amber-700 dark:text-amber-300">{label}</p>
               <h2 className="mt-1 text-sm font-semibold">{selected.title}</h2>
+              <OrganizationSummary value={selected.organization} facets={catalogue.facets} />
               {selected.dateLabel && <p className="mt-1 text-xs text-muted-foreground">{selected.dateLabel}</p>}
               <label className="mt-3 block text-xs" htmlFor="shared-opacity">
                 Map opacity <span className="float-right tabular-nums">{opacity}%</span>
@@ -461,27 +522,36 @@ export default function DevView() {
         <MapLibrary
           title={catalogue.title}
           description={catalogue.description}
-          items={filtered}
+          items={libraryItems}
+          facets={catalogue.facets}
+          coverageSummary={coverageSummary}
+          sourceMode={scope === 'sources'}
+          onSourceGroup={filterBySource}
           toolbar={
             <>
               <div className="grid gap-x-5 sm:grid-cols-[auto_minmax(12rem,1fr)_auto] sm:items-center">
                 {collectionControls}
               </div>
+              {categoryControls}
               <p className="mt-2 text-xs text-muted-foreground">
-                {filtered.length.toLocaleString()}{' '}
-                {scope === 'featured'
-                  ? filtered.length === 1
-                    ? 'curated selection'
-                    : 'curated selections'
-                  : filtered.length === 1
-                    ? 'raster representation'
-                    : 'raster representations'}
+                {libraryItems.length.toLocaleString()}{' '}
+                {scope === 'sources'
+                  ? libraryItems.length === 1
+                    ? 'source record'
+                    : 'source records'
+                  : scope === 'featured'
+                    ? filtered.length === 1
+                      ? 'curated selection'
+                      : 'curated selections'
+                    : filtered.length === 1
+                      ? 'raster representation'
+                      : 'raster representations'}
               </p>
             </>
           }
           sourceForm={sourceForm}
           getInitialScroll={getLibraryScroll}
-          resetKey={scope + ':' + query}
+          resetKey={scope + ':' + query + ':' + JSON.stringify(filters)}
           onScroll={(top) => {
             libraryScroll.current = top
           }}
@@ -502,6 +572,7 @@ export default function DevView() {
       <MapImagePreview
         key={preview?.id || 'closed'}
         item={preview}
+        facets={catalogue?.facets}
         onClose={() => setPreview(null)}
         onMap={openMap}
         onSheet={() => {
@@ -513,6 +584,7 @@ export default function DevView() {
           setDetails(true)
         }}
       />
+      <SourceImagePreview item={sourcePreview} facets={catalogue?.facets} onClose={() => setSourcePreview(null)} />
       <Dialog open={details} onOpenChange={setDetails}>
         <DialogContent elevated className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
@@ -522,6 +594,7 @@ export default function DevView() {
             </DialogDescription>
           </DialogHeader>
           <p className="text-sm font-semibold">{label}</p>
+          <OrganizationSummary value={selected?.organization} facets={catalogue?.facets} detail />
           <p className="text-sm leading-relaxed">{selected?.alignmentReview?.summary}</p>
           <p className="text-sm leading-relaxed">{selected?.caveat}</p>
           <h3 className="mt-2 font-semibold">Original-resolution GeoTIFFs</h3>

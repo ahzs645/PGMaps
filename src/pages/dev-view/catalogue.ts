@@ -4,6 +4,40 @@ export type Bounds = [number, number, number, number]
 export type RasterAsset = { url?: string; tiles?: string[]; bounds: Bounds; minZoom: number; maxZoom: number }
 export type SourceLink = { title: string; url: string }
 export type Sheet = { image: string; label: string; sourceNote?: string; legend?: { image: string; label?: string } }
+export type Organization = {
+  subjects: string[]
+  primarySubject?: string
+  region?: string
+  era?: string
+  sourceGroupId?: string
+  sourceGroupTitle?: string
+  sourceGroupSize?: number
+  pageLabel?: string
+  variantLabel?: string
+  classificationConfidence?: string
+  evidence?: string
+  regionConfidence?: string
+  regionEvidence?: string
+  dateKind?: string
+  dateEvidence?: string
+  contextDateLabel?: string
+  labelBasis?: string
+}
+export type Facet = { id: string; label: string }
+export type CatalogueFacets = { subjects: Facet[]; regions: Facet[]; eras: Facet[] }
+export type SourceImageRecord = {
+  id: string
+  title: string
+  description?: string
+  thumbnail?: string
+  image?: string
+  imageLabel?: string
+  imageScope?: string
+  sources: SourceLink[]
+  organization?: Organization
+  dateLabel?: string
+  statusNote?: string
+}
 export type RasterRecord = {
   id: string
   title: string
@@ -11,6 +45,7 @@ export type RasterRecord = {
   description?: string
   caveat?: string
   confidence?: string
+  organization?: Organization
   thumbnail?: string
   assets: RasterAsset[]
   bounds: Bounds
@@ -26,6 +61,9 @@ export type RasterCatalogue = {
   items: RasterRecord[]
   featured: RasterRecord[]
   representationCount: number
+  unplacedSources: SourceImageRecord[]
+  facets: CatalogueFacets
+  coverage?: { sourceDocuments?: number; sourceRecords?: number; unplacedSources?: number }
   notes?: string
 }
 const text = (v: unknown, fallback = '') => (typeof v === 'string' ? v.slice(0, 6000) : fallback)
@@ -71,6 +109,71 @@ function asset(value: unknown, base: string): RasterAsset {
   else throw Error('A map needs a raster PMTiles URL or tile URL template.')
   return result
 }
+function positiveCount(value: unknown) {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined
+}
+function organization(value: unknown): Organization | undefined {
+  if (!value) return undefined
+  const v = object(value)
+  return {
+    subjects: Array.isArray(v.subjects)
+      ? [...new Set(v.subjects.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 200)))].slice(
+          0,
+          30,
+        )
+      : [],
+    primarySubject: text(v.primarySubject),
+    region: text(v.region),
+    era: text(v.era),
+    sourceGroupId: text(v.sourceGroupId),
+    sourceGroupTitle: text(v.sourceGroupTitle),
+    sourceGroupSize: positiveCount(v.sourceGroupSize),
+    pageLabel: text(v.pageLabel),
+    variantLabel: text(v.variantLabel),
+    classificationConfidence: text(v.classificationConfidence),
+    evidence: text(v.evidence),
+    regionConfidence: text(v.regionConfidence),
+    regionEvidence: text(v.regionEvidence),
+    dateKind: text(v.dateKind),
+    dateEvidence: text(v.dateEvidence),
+    contextDateLabel: text(v.contextDateLabel),
+    labelBasis: text(v.labelBasis),
+  }
+}
+function sourceLinks(value: unknown, base: string): SourceLink[] {
+  return (Array.isArray(value) ? value : []).slice(0, 20).map((x) => {
+    const s = object(x)
+    return { title: text(s.title, 'Source document'), url: httpsURL(s.url, base) }
+  })
+}
+function sourceImage(value: unknown, base: string): SourceImageRecord {
+  const v = object(value)
+  const id = text(v.id)
+  if (!id) throw Error('Each source record needs an identifier.')
+  return {
+    id,
+    title: text(v.title, 'Untitled source'),
+    description: text(v.description),
+    thumbnail: v.thumbnail ? httpsURL(v.thumbnail, base) : undefined,
+    image: v.image ? httpsURL(v.image, base) : undefined,
+    imageLabel: text(v.imageLabel),
+    imageScope: text(v.imageScope),
+    sources: sourceLinks(v.sources, base),
+    organization: organization(v.organization),
+    dateLabel: text(v.dateLabel),
+    statusNote: text(v.statusNote),
+  }
+}
+function facetList(value: unknown): Facet[] {
+  const values = (Array.isArray(value) ? value : [])
+    .slice(0, 1000)
+    .map((x) => {
+      const v = object(x)
+      return { id: text(v.id).slice(0, 200), label: text(v.label) }
+    })
+    .filter((v) => v.id && v.label)
+  return [...new Map(values.map((v) => [v.id, v])).values()]
+}
 function record(value: unknown, base: string): RasterRecord {
   const v = object(value)
   if (!Array.isArray(v.assets) || !v.assets.length || v.assets.length > 16)
@@ -78,10 +181,7 @@ function record(value: unknown, base: string): RasterRecord {
   const assets = v.assets.map((x) => asset(x, base))
   const id = text(v.id)
   if (!id) throw Error('Each map needs an identifier.')
-  const links = (Array.isArray(v.sources) ? v.sources : []).slice(0, 20).map((x) => {
-    const s = object(x)
-    return { title: text(s.title, 'Source document'), url: httpsURL(s.url, base) }
-  })
+  const links = sourceLinks(v.sources, base)
   const sheets = (Array.isArray(v.fullSheets) ? v.fullSheets : []).slice(0, 30).map((x) => {
     const s = object(x)
     const l = s.legend ? object(s.legend) : null
@@ -109,6 +209,7 @@ function record(value: unknown, base: string): RasterRecord {
     description: text(v.description),
     caveat: text(v.caveat),
     confidence: text(v.confidence),
+    organization: organization(v.organization),
     dateLabel: text(v.dateLabel),
     assets,
     bounds: bounds(v.bounds),
@@ -125,6 +226,13 @@ export function parseCatalogue(raw: unknown, base: string): RasterCatalogue {
     throw Error('Open a raster-catalog-v1 catalogue, raster PMTiles file or raster TileJSON document.')
   const items = v.items.map((x) => record(x, base))
   const featured = (Array.isArray(v.featured) ? v.featured : []).slice(0, 200).map((x) => record(x, base))
+  const unplacedSources = (Array.isArray(v.unplacedSources) ? v.unplacedSources : [])
+    .slice(0, 5000)
+    .map((x) => sourceImage(x, base))
+  if (new Set(unplacedSources.map((item) => item.id)).size !== unplacedSources.length)
+    throw Error('Source records must have unique identifiers.')
+  const facets = v.facets ? object(v.facets) : {}
+  const coverage = v.coverage ? object(v.coverage) : null
   if (!items.length || new Set(items.map((i) => i.id)).size !== items.length)
     throw Error('The catalogue must contain maps with unique identifiers.')
   return {
@@ -133,6 +241,15 @@ export function parseCatalogue(raw: unknown, base: string): RasterCatalogue {
     items,
     featured,
     representationCount: items.length,
+    unplacedSources,
+    facets: { subjects: facetList(facets.subjects), regions: facetList(facets.regions), eras: facetList(facets.eras) },
+    coverage: coverage
+      ? {
+          sourceDocuments: positiveCount(coverage.sourceDocuments),
+          sourceRecords: positiveCount(coverage.sourceRecords),
+          unplacedSources: positiveCount(coverage.unplacedSources),
+        }
+      : undefined,
     notes: text(v.notes),
   }
 }

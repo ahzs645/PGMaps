@@ -52,6 +52,14 @@ URLs must use HTTPS without embedded credentials. The remote server must permit 
 
 Paths resolve relative to the catalogue URL. Optional `thumbnail`, `download`/`downloads`, `dateLabel`, `alignmentReview`, `fullSheets` and `fullSheets[].legend` supply previews, original downloads and source-reading views. `featured` is an optional array of curated stories; it may group several raster assets, and is not added to the `items` raster-representation count. Identifiers must be unique within `items`; catalogues are limited to 5,000 records and 6 MB.
 
+## Categories, source groups and image-only records
+
+Optional `organization` metadata on a raster record supplies `subjects` (an array of IDs), `primarySubject`, `region`, `era`, `sourceGroupId`, `sourceGroupTitle`, `sourceGroupSize`, `pageLabel` and `variantLabel`. Top-level `facets` maps `subjects`, `regions` and `eras` to arrays of `{ "id": "…", "label": "…" }`. The library filters these supplied fields; it does not infer map dates from filenames or geographic placement from category names. It retains every raster and uses source IDs to browse variants, without collapsing repeated titles.
+
+Category provenance can include `classificationConfidence`, `evidence`, `regionConfidence`, `regionEvidence`, `dateKind`, `dateEvidence`, `contextDateLabel` and `labelBasis`. Low-confidence region assignments are marked as inferred. These fields are independent of the raster's geographic `confidence` and `alignmentReview`. Map-date eras should describe supported map dates; edition, report, interview, imagery and scan dates belong in explicitly attributed date labels/context.
+
+Optional top-level `coverage` can report `sourceDocuments`, `sourceRecords` and `unplacedSources`; these counts are distinct from `items.length`. The optional `unplacedSources` array supplies image-only source records, shown in **Source images N**. Its historical field name does not imply that every entry is an additional cartographic map or a member of the same placement queue. Each source record has `id`, `title`, `sources` and optional `description`, `thumbnail`, `image`, `imageLabel`, `imageScope`, `statusNote`, `dateLabel` and `organization`. Source-image entries never receive an **Open on map** action. Records without a direct image show their source links and status instead. Label excerpts, contextual images and incomplete archive leads honestly through `imageScope` and `statusNote`.
+
 ## Cloudflare resources
 
 - Worker: `pgmaps-shared-maps`, source/config in `scripts/shared-maps-worker/`.

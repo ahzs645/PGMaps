@@ -74,3 +74,79 @@ describe('Library and map share links', () => {
     expect(map.get('catalog')).toBe(origin)
   })
 })
+
+describe('Optional organization and source-image records', () => {
+  it('keeps categories separate from placement confidence and preserves source-record counts', () => {
+    const result = parseCatalogue(
+      {
+        schema: 'raster-catalog-v1',
+        items: [
+          {
+            ...item,
+            confidence: 'experimental',
+            organization: {
+              subjects: ['survey', 'survey'],
+              region: 'north',
+              era: 'unknown',
+              sourceGroupId: 'source-a',
+              sourceGroupSize: 2,
+              classificationConfidence: 'high',
+              regionConfidence: 'low',
+              regionEvidence: 'Inferred only from extent',
+              dateKind: 'report-date',
+              dateEvidence: 'Dated report cover',
+            },
+          },
+        ],
+        facets: {
+          subjects: [{ id: 'survey', label: 'Survey plans' }],
+          regions: [{ id: 'north', label: 'Northern region' }],
+          eras: [{ id: 'unknown', label: 'Map date unknown' }],
+        },
+        coverage: { sourceDocuments: 1, sourceRecords: 3, unplacedSources: 2 },
+        unplacedSources: [
+          {
+            id: 'source-b',
+            title: 'Unplaced page',
+            image: 'sheets/page.png',
+            thumbnail: 'previews/page.webp',
+            imageScope: 'One reviewed page, not a complete report',
+            sources: [{ title: 'Source report', url: 'https://example.test/report.pdf' }],
+            organization: { subjects: ['survey'] },
+          },
+          { id: 'archive-c', title: 'Archive lead', statusNote: 'No direct image recovered', sources: [] },
+        ],
+      },
+      origin,
+    )
+    expect(result.representationCount).toBe(1)
+    expect(result.unplacedSources).toHaveLength(2)
+    expect(result.unplacedSources[0].image).toBe('https://maps.example.test/collection/sheets/page.png')
+    expect(result.unplacedSources[1].image).toBeUndefined()
+    expect(result.items[0].confidence).toBe('experimental')
+    expect(result.items[0].organization?.classificationConfidence).toBe('high')
+    expect(result.items[0].organization?.subjects).toEqual(['survey'])
+    expect(result.items[0].organization?.regionConfidence).toBe('low')
+    expect(result.facets.subjects[0].label).toBe('Survey plans')
+    expect(result.coverage?.sourceDocuments).toBe(1)
+  })
+  it('rejects unsafe source image URLs and duplicate source records', () => {
+    const source = { id: 'source', title: 'Source', image: 'javascript:alert(1)', sources: [] }
+    expect(() =>
+      parseCatalogue({ schema: 'raster-catalog-v1', items: [item], unplacedSources: [source] }, origin),
+    ).toThrow()
+    expect(() =>
+      parseCatalogue(
+        {
+          schema: 'raster-catalog-v1',
+          items: [item],
+          unplacedSources: [
+            { ...source, image: undefined },
+            { ...source, image: undefined },
+          ],
+        },
+        origin,
+      ),
+    ).toThrow(/unique/)
+  })
+})

@@ -4,7 +4,9 @@ import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import type { RasterRecord } from './catalogue'
+import type { CatalogueFacets, RasterRecord } from './catalogue'
+import { isRaster, type LibraryItem } from './libraryOrganization'
+import { OrganizationSummary } from './OrganizationSummary'
 
 export function MapLibrary({
   title,
@@ -17,17 +19,25 @@ export function MapLibrary({
   onScroll,
   onPreview,
   onMap,
+  onSourceGroup,
+  facets,
+  coverageSummary,
+  sourceMode = false,
 }: {
   title: string
   description?: string
-  items: RasterRecord[]
+  items: LibraryItem[]
   toolbar: ReactNode
   sourceForm: ReactNode
   getInitialScroll: () => number
   resetKey: string
   onScroll: (top: number) => void
-  onPreview: (item: RasterRecord) => void
+  onPreview: (item: LibraryItem) => void
   onMap: (item: RasterRecord) => void
+  onSourceGroup?: (id: string) => void
+  facets?: CatalogueFacets
+  coverageSummary?: string
+  sourceMode?: boolean
 }) {
   const wide = useMediaQuery('(min-width: 1280px)')
   const medium = useMediaQuery('(min-width: 640px)')
@@ -52,17 +62,20 @@ export function MapLibrary({
         <div className="mx-auto max-w-7xl">
           <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-muted-foreground">Map library</p>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h1>
-          {description && <p className="mt-2 max-w-3xl text-sm text-muted-foreground">{description}</p>}
+          {description && <p className="mt-2 hidden max-w-3xl text-sm text-muted-foreground sm:block">{description}</p>}
           <p className="mt-1 text-sm text-muted-foreground">
-            Browse the images, then open a map to explore its placement.
+            {sourceMode
+              ? 'Available source images and archive leads. These records have no geographic placement.'
+              : 'Browse the images, then open a map to explore its placement.'}
           </p>
+          {coverageSummary && <p className="mt-2 text-xs text-muted-foreground">{coverageSummary}</p>}
           <details className="mt-3 text-sm">
             <summary className="w-fit cursor-pointer text-muted-foreground">Open another map URL</summary>
             <div className="mt-3 max-w-2xl">{sourceForm}</div>
           </details>
         </div>
       </header>
-      <div className="border-b bg-background px-4 py-3 sm:px-6 md:px-8">
+      <div className="max-h-[45dvh] shrink-0 overflow-y-auto border-b bg-background px-4 py-3 sm:px-6 md:px-8">
         <div className="mx-auto max-w-7xl">{toolbar}</div>
       </div>
       <div
@@ -74,7 +87,7 @@ export function MapLibrary({
         <div className="mx-auto max-w-7xl pt-4">
           {!items.length && (
             <p role="status" className="py-12 text-center text-sm text-muted-foreground">
-              No maps match that search.
+              No records match these filters.
             </p>
           )}
           <VirtualResultList
@@ -94,7 +107,7 @@ export function MapLibrary({
                     <button
                       type="button"
                       onClick={() => onPreview(item)}
-                      aria-label={`Preview image: ${item.title}`}
+                      aria-label={`${isRaster(item) || item.image ? 'Preview image' : 'View source'}: ${item.title}`}
                       className="flex h-48 w-full items-center justify-center border-b bg-stone-100 p-2 focus-visible:outline-2 focus-visible:outline-ring dark:bg-zinc-900"
                     >
                       {item.thumbnail ? (
@@ -117,21 +130,40 @@ export function MapLibrary({
                         {item.title}
                       </h2>
                       <p className="line-clamp-1 w-full text-xs text-muted-foreground">
-                        {item.dateLabel || item.subtitle || 'Archive map'}
+                        {item.dateLabel ||
+                          (isRaster(item) ? item.subtitle : item.imageLabel) ||
+                          (isRaster(item) ? 'Archive map' : 'Source record')}
                       </p>
-                      <Badge tone={item.confidence === 'experimental' ? 'warning' : 'neutral'}>
-                        {item.alignmentReview?.label ||
-                          (item.confidence === 'experimental' ? 'Experimental' : 'Provisional')}
+                      <Badge tone={isRaster(item) && item.confidence === 'experimental' ? 'warning' : 'neutral'}>
+                        {isRaster(item)
+                          ? item.alignmentReview?.label ||
+                            (item.confidence === 'experimental' ? 'Experimental' : 'Provisional')
+                          : 'Not georeferenced'}
                       </Badge>
+                      <OrganizationSummary value={item.organization} facets={facets} />
+                      {isRaster(item) &&
+                        !!onSourceGroup &&
+                        !!item.organization?.sourceGroupId &&
+                        (item.organization.sourceGroupSize || 0) > 1 && (
+                          <button
+                            type="button"
+                            className="text-left text-xs underline underline-offset-2"
+                            onClick={() => onSourceGroup(item.organization!.sourceGroupId!)}
+                          >
+                            Browse {item.organization.sourceGroupSize} layers from this source
+                          </button>
+                        )}
                       <div className="mt-auto flex w-full flex-wrap gap-2 pt-2">
                         <Button size="sm" onClick={() => onPreview(item)}>
                           <FileImage />
-                          View image
+                          {isRaster(item) || item.image ? 'View image' : 'View source'}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => onMap(item)}>
-                          <MapPinned />
-                          Open on map
-                        </Button>
+                        {isRaster(item) && (
+                          <Button size="sm" variant="outline" onClick={() => onMap(item)}>
+                            <MapPinned />
+                            Open on map
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </article>
