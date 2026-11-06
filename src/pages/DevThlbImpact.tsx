@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { StepMarker, type StepStatus } from '@/components/ui/step-section'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { useState } from 'react'
 import { TreePine } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
@@ -20,19 +23,19 @@ export default function DevThlbImpact() {
   const [tab, setTab] = useState<Tab>('inputs')
   const [selected, setSelected] = useState<string | null>(null)
   const [settings, setSettings] = useState<Settings>({ matureAge: 80, reductionPercent: null, demo: false })
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'THLB impact · PG Maps'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('THLB impact · PGMaps')
   const stale = !!analysis.result && analysis.signature !== inputSignature(inputs.entries, settings)
   const ready =
     inputs.pending === 0 &&
     inputs.entries.every((entry) => entry.status === 'ready') &&
     inputs.entries.some((entry) => entry.role === 'areas') &&
     inputs.entries.some((entry) => entry.role === 'official' || entry.role === 'proxy')
+  const current = !!analysis.result && !stale
+  const statuses: Record<Tab, StepStatus> = {
+    inputs: ready ? 'done' : 'current',
+    settings: current ? 'done' : ready ? 'current' : 'todo',
+    results: current ? 'done' : analysis.busy ? 'current' : 'todo',
+  }
   const run = (next = settings) => {
     setSelected(null)
     setTab('results')
@@ -49,6 +52,8 @@ export default function DevThlbImpact() {
       title="THLB impact"
       subtitle="Harvestable hectares within proposed areas"
       icon={TreePine}
+      actions={<ForestryBackLink />}
+      density="compact"
       className={MAP_SIDEBAR_CLASS}
     >
       <div className="border-b bg-background px-3 py-3">
@@ -90,19 +95,30 @@ export default function DevThlbImpact() {
           </InlineAlert>
         )}
       </div>
-      <TabBar
-        label="THLB analysis steps"
-        value={tab}
-        onChange={setTab}
-        options={[
-          { value: 'inputs', label: '1. Inputs' },
-          { value: 'settings', label: '2. Assumptions' },
-          { value: 'results', label: '3. Results' },
-        ]}
-        idPrefix="thlb"
-        stretch
-        getTabProps={(option) => ({ 'data-thlb-tab': option.value })}
-      />
+      <div className="sticky top-0 z-10 border-b border-border bg-background/95 px-2 pt-1 backdrop-blur">
+        <TabBar
+          label="THLB analysis steps"
+          variant="underline"
+          stretch
+          stacked
+          idPrefix="thlb"
+          className="border-b-0"
+          value={tab}
+          onChange={setTab}
+          options={(
+            [
+              ['inputs', 'Inputs', 1],
+              ['settings', 'Assumptions', 2],
+              ['results', 'Results', 3],
+            ] as const
+          ).map(([value, label, step]) => ({
+            value,
+            label,
+            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-[11px]" />,
+          }))}
+          getTabProps={(option) => ({ 'data-thlb-tab': option.value })}
+        />
+      </div>
       <div {...panel('inputs')}>
         <InputsPanel inputs={inputs} disabled={analysis.busy} />
       </div>

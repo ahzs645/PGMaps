@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { MapMouseEvent, StyleSpecification } from 'maplibre-gl'
 import proj4 from 'proj4'
-import { Map, MapControls, MapScaleBar, useMap } from '@/components/ui/map'
+import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
+import { MapImageLayer, type MapQuadCoordinates } from '@/components/ui/map-layers'
 import { indexAt, type RestorationResult } from './model'
 import { ALL_PRODUCTS as PRODUCTS, type AnalysisProduct as Product } from './products'
 import { projectionDefinition, rasterCorners, rasterStats } from './outputs'
@@ -46,26 +47,7 @@ function RasterLayer({ result, product }: { result: RestorationResult; product: 
     context.putImageData(pixels, 0, 0)
     return { url: canvas.toDataURL(), stats, width: canvas.width }
   }, [g])
-  useEffect(() => {
-    if (!map || !isLoaded) return
-    const coordinates = rasterCorners({ ...g, width: preview.width }, result.epsg) as [
-      [number, number],
-      [number, number],
-      [number, number],
-      [number, number],
-    ]
-    map.addSource('restoration-raster', { type: 'image', url: preview.url, coordinates })
-    map.addLayer({
-      id: 'restoration-raster',
-      type: 'raster',
-      source: 'restoration-raster',
-      paint: { 'raster-opacity': 0.9, 'raster-resampling': 'nearest', 'raster-fade-duration': 0 },
-    })
-    return () => {
-      if (map.getLayer('restoration-raster')) map.removeLayer('restoration-raster')
-      if (map.getSource('restoration-raster')) map.removeSource('restoration-raster')
-    }
-  }, [map, isLoaded, g, result.epsg, preview.url, preview.width])
+  const coordinates = rasterCorners({ ...g, width: preview.width }, result.epsg) as MapQuadCoordinates
   useEffect(() => {
     if (!map || !isLoaded) return
     const corners = rasterCorners(result.rasters.terrain, result.epsg)
@@ -99,28 +81,36 @@ function RasterLayer({ result, product }: { result: RestorationResult; product: 
     }
   }, [map, g, product, result.epsg])
   return (
-    <div
-      className="absolute bottom-12 left-3 z-10 max-w-xs rounded-lg border bg-background/95 p-3 text-xs shadow"
-      aria-label="Raster legend"
-    >
-      <p className="font-semibold">
-        {PRODUCTS[product].label} · {g.cellM} m cells
-      </p>
-      <div className="my-2 h-2 rounded bg-gradient-to-r from-[#f0f8d2] to-[#148a32]" />
-      <p>
-        {preview.stats.min?.toFixed(2) ?? 'NoData'} – {preview.stats.max?.toFixed(2) ?? 'NoData'}{' '}
-        {PRODUCTS[product].unit}
-      </p>
-      <p className="mt-1">Transparent = NoData. Click for a source cell value.</p>
-      <p role="status">{picked?.product === product ? picked.text : ''}</p>
-    </div>
+    <>
+      <MapImageLayer
+        id="restoration-raster"
+        url={preview.url}
+        coordinates={coordinates}
+        opacity={0.9}
+        resampling="nearest"
+      />
+      <div
+        className="absolute bottom-12 left-3 z-10 max-w-xs rounded-lg border bg-background/95 p-3 text-xs shadow"
+        aria-label="Raster legend"
+      >
+        <p className="font-semibold">
+          {PRODUCTS[product].label} · {g.cellM} m cells
+        </p>
+        <div className="my-2 h-2 rounded bg-gradient-to-r from-[#f0f8d2] to-[#148a32]" />
+        <p>
+          {preview.stats.min?.toFixed(2) ?? 'NoData'} – {preview.stats.max?.toFixed(2) ?? 'NoData'}{' '}
+          {PRODUCTS[product].unit}
+        </p>
+        <p className="mt-1">Transparent = NoData. Click for a source cell value.</p>
+        <p role="status">{picked?.product === product ? picked.text : ''}</p>
+      </div>
+    </>
   )
 }
 
 export function RestorationMap({ result, product }: { result: RestorationResult | null; product: Product }) {
   return (
-    <Map center={[-122.8, 53.9]} zoom={10} styles={STYLES}>
-      <MapControls />
+    <Map center={[-122.8, 53.9]} zoom={10} styles={STYLES} controls={WORKSPACE_MAP_CONTROLS}>
       <MapScaleBar />
       {result && <RasterLayer result={result} product={product} />}
       {!result && (

@@ -1,6 +1,8 @@
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { writeClipboardText, copyTextWithSelection } from '@/hooks/useClipboardText'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { TreePine } from 'lucide-react'
+import { Layers } from 'lucide-react'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { MapSidebarShell, InlineAlert } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
@@ -115,13 +117,7 @@ export default function DevAvastVolume() {
   const vri = useVriFill()
   const [vriRules, setVriRules] = useState<VriRules>(DEFAULT_VRI_RULES)
 
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'AVAST volume · PGMaps Dev'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('AVAST volume · PGMaps')
   useEffect(() => {
     try {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings))
@@ -524,7 +520,9 @@ export default function DevAvastVolume() {
     <MapSidebarShell
       title="AVAST volume"
       subtitle="Planning volume for candidate blocks"
-      icon={TreePine}
+      icon={Layers}
+      actions={<ForestryBackLink />}
+      density="compact"
       className={MAP_SIDEBAR_CLASS}
     >
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 px-2 pt-1 backdrop-blur">

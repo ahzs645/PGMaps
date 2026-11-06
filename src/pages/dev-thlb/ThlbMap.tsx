@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Map, MapControls, MapScaleBar, useMap } from '@/components/ui/map'
+import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
@@ -60,7 +60,7 @@ export function ThlbMap({
     return areas?.length ? bboxOf(areas.flatMap((area) => area.geometry)) : null
   }, [result, selected])
   return (
-    <Map center={[-123.4, 54.2]} zoom={6} controls={<MapControls position="top-right" showCompass showFullscreen />}>
+    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS}>
       <Camera box={box} />
       <MapFillLayer
         data={data.pieces}

@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
 import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
@@ -188,6 +189,7 @@ function loadInitialScene(): ForestryScene {
 }
 
 function DevForestryVisuals() {
+  useDocumentTitle('Visual quality · PGMaps')
   const mapRef = useRef<MapRef>(null)
   const { scene, setScene, warning: sceneStorageWarning } = usePersistentScene(loadInitialScene)
   const [drawMode, setDrawMode] = useState<DrawMode>('none')

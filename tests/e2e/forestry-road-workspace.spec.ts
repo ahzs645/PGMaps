@@ -99,7 +99,7 @@ test('panels close and restore, and divider drags preserve the map drawing buffe
   await page.getByRole('button', { name: 'Screen presets & panels', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show detail view panel', exact: true }).check()
   await page
-    .getByRole('dialog', { name: 'Screen layouts', exact: true })
+    .getByRole('dialog', { name: 'Screen presets & panels', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .click()
   await expect(page.getByTestId('road-section-chart')).toBeVisible()
@@ -108,7 +108,7 @@ test('panels close and restore, and divider drags preserve the map drawing buffe
   await page.getByRole('button', { name: 'Screen presets & panels', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show plan panel', exact: true }).check()
   await page
-    .getByRole('dialog', { name: 'Screen layouts', exact: true })
+    .getByRole('dialog', { name: 'Screen presets & panels', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .click()
   await expect(canvas).toBeVisible()
@@ -322,5 +322,47 @@ test('loading notifications align inline without a dismiss button and errors rem
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
   await error.getByRole('button', { name: 'Dismiss error notification', exact: true }).click()
   await expect(error).toHaveCount(0)
+  expect(errors).toEqual([])
+})
+
+test('a preset always shows its own panels, whichever control picks it', async ({ page }) => {
+  const errors = await prepare(page)
+  const picker = page.getByRole('combobox', { name: 'Road view layout', exact: true })
+  const pick = async (label: string) => {
+    await picker.click()
+    await page.getByRole('option', { name: label, exact: true }).click()
+  }
+  const openDialog = async () => {
+    await page.getByRole('button', { name: 'Screen presets & panels', exact: true }).click()
+    return page.getByRole('dialog', { name: 'Screen presets & panels', exact: true })
+  }
+  const profile = page.locator('[data-pane="profile"]')
+  const detail = page.locator('[data-pane="detail"]')
+
+  await pick('Map only')
+  await expect(profile).toBeHidden()
+  const dialog = await openDialog()
+  await dialog.getByRole('checkbox', { name: 'Show profile panel', exact: true }).check()
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(profile).toBeVisible()
+  await expect(picker).toHaveText('Map only · edited')
+
+  // The picker offers the plain preset while edited, and choosing it restores the preset.
+  await pick('Map only')
+  await expect(profile).toBeHidden()
+  await expect(picker).toHaveText('Map only')
+
+  // The same holds for the dialog's card, and after leaving and returning.
+  const again = await openDialog()
+  await again.getByRole('checkbox', { name: 'Show detail view panel', exact: true }).check()
+  await again.getByRole('button', { name: 'Map only', exact: true }).click()
+  await expect(detail).toBeHidden()
+  await pick('Linked overview')
+  await expect(detail).toBeVisible()
+  await pick('Map only')
+  await expect(detail).toBeHidden()
+  await page.reload()
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  await expect(page.locator('[data-pane="detail"]')).toBeHidden()
   expect(errors).toEqual([])
 })

@@ -1,3 +1,5 @@
+import { MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import {
   FormField,
   NumberField as SharedNumberField,
@@ -703,7 +705,10 @@ export function Sidebar({
     <MapSidebarShell
       title="Visual quality"
       subtitle="Visual impact assessment, step by step"
-      className="h-full w-full border-0 shadow-none md:border-r md:shadow-xl"
+      icon={Eye}
+      actions={<ForestryBackLink />}
+      className={MAP_SIDEBAR_CLASS}
+      density="compact"
     >
       <ViaHeadline
         assessment={via.assessment}

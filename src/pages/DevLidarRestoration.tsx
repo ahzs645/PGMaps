@@ -1,9 +1,14 @@
+import { FileDropField } from '@/components/ui/file-drop-field'
+import type { PickedFile } from '@/components/ui/picked-files'
+import { StepSection } from '@/components/ui/step-section'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { useEffect, useRef, useState } from 'react'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { Download, Sprout } from 'lucide-react'
 import { MapSectionLayout, MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
 import { Button } from '@/components/ui/button'
-import { FormField, NumberField, SelectField } from '@/components/ui/form-field'
+import { NumberField, SelectField } from '@/components/ui/form-field'
 import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { downloadBlob, downloadText } from '@/lib/download'
 import {
@@ -36,13 +41,7 @@ export default function DevLidarRestoration() {
   const [exporting, setExporting] = useState(false)
   const active = useRef<AbortController | null>(null)
   useEffect(() => () => active.current?.abort(), [])
-  useEffect(() => {
-    const title = document.title
-    document.title = 'LiDAR road restoration · PGMaps Dev'
-    return () => {
-      document.title = title
-    }
-  }, [])
+  useDocumentTitle('LiDAR road restoration · PGMaps')
 
   function invalidate() {
     setResult(null)
@@ -89,6 +88,13 @@ export default function DevLidarRestoration() {
       setExporting(false)
     }
   }
+  function chooseFiles(picked: PickedFile[]) {
+    // Drops and folders bypass the input's `accept`.
+    const tiles = picked.map((entry) => entry.file).filter((file) => /\.la[sz]$/i.test(file.name))
+    setFiles(tiles)
+    invalidate()
+    if (!tiles.length) setError('No .las or .laz files there.')
+  }
   const busy = Boolean(progress)
   const sidebar = (
     <MapSidebarShell
@@ -96,37 +102,40 @@ export default function DevLidarRestoration() {
       title="LiDAR road restoration"
       subtitle="Local files · SCRIP + PEM-style screening"
       icon={Sprout}
+      actions={<ForestryBackLink />}
+      density="compact"
     >
       <SidebarSection>
-        <div className="flex gap-4 text-xs underline">
-          <Link to="/dev/forestry">Forestry tools</Link>
-          <Link to="/dev/lidar">LiDAR tools</Link>
-        </div>
-        <p className="mt-3 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           Create slope, canopy structure and return-density layers from classified LAS/LAZ files. Your files are
-          processed in your browser.
+          processed in your browser. Also in the{' '}
+          <Link to="/dev/lidar" className="underline">
+            LiDAR tools
+          </Link>
+          .
         </p>
       </SidebarSection>
-      <SidebarSection
-        title="1. Choose LiDAR"
-        subtitle="Class 2 ground required; horizontal and vertical coordinates in metres."
+      <StepSection
+        collapsible={false}
+        step={1}
+        title="Choose LiDAR"
+        status={files.length ? 'done' : 'current'}
+        summary="Class 2 ground required; horizontal and vertical coordinates in metres."
+        contentClassName="px-3 pb-3"
       >
-        <FormField
+        <p className="mb-2 text-xs text-muted-foreground">
+          LAS / LAZ tiles, up to 768 MiB and 150 million returns per run. Adjacent tiles must share a CRS and have no
+          overlapping bounds.
+        </p>
+        <FileDropField
           label="LAS / LAZ tiles"
-          description="Up to 768 MiB and 150 million returns per run. Adjacent tiles must share a CRS and have no overlapping bounds."
-        >
-          <input
-            type="file"
-            accept=".las,.laz"
-            multiple
-            disabled={busy || exporting}
-            className="w-full text-sm"
-            onChange={(e) => {
-              setFiles(Array.from(e.target.files ?? []))
-              invalidate()
-            }}
-          />
-        </FormField>
+          accept=".las,.laz"
+          folderLabel="Add folder"
+          disabled={busy || exporting}
+          onFiles={chooseFiles}
+          onError={(cause) => setError(String(cause))}
+          inputProps={{ 'aria-label': 'LAS / LAZ tiles' }}
+        />
         {files.length > 0 && (
           <p className="mt-2 break-all text-xs">
             {files.map((f) => f.name).join(', ')} · {(files.reduce((n, f) => n + f.size, 0) / 1024 ** 2).toFixed(1)} MiB
@@ -140,8 +149,14 @@ export default function DevLidarRestoration() {
           has 84.6 million returns (525 MiB). Download it, then choose it above. Large files can take several minutes
           and need a desktop browser with available memory.
         </p>
-      </SidebarSection>
-      <SidebarSection title="2. Set grid sizes">
+      </StepSection>
+      <StepSection
+        collapsible={false}
+        step={2}
+        title="Set grid sizes"
+        status={result ? 'done' : files.length ? 'current' : 'todo'}
+        contentClassName="px-3 pb-3"
+      >
         <div className="space-y-3">
           {(
             [
@@ -203,10 +218,16 @@ export default function DevLidarRestoration() {
             <InlineAlert tone="error">{error}</InlineAlert>
           </div>
         )}
-      </SidebarSection>
+      </StepSection>
       {result && (
         <>
-          <SidebarSection title="3. Inspect results">
+          <StepSection
+            collapsible={false}
+            step={3}
+            title="Inspect results"
+            status="current"
+            contentClassName="px-3 pb-3"
+          >
             <SelectField
               label="Restoration layer"
               value={product}
@@ -241,8 +262,14 @@ export default function DevLidarRestoration() {
                 </InlineAlert>
               </div>
             )}
-          </SidebarSection>
-          <SidebarSection title="4. Export GIS products">
+          </StepSection>
+          <StepSection
+            collapsible={false}
+            step={4}
+            title="Export GIS products"
+            status="todo"
+            contentClassName="px-3 pb-3"
+          >
             <div className="flex flex-wrap gap-2">
               <Button size="sm" disabled={exporting} onClick={() => void exportResult('tif')}>
                 <Download className="mr-1 size-4" />
@@ -270,7 +297,7 @@ export default function DevLidarRestoration() {
                 Preparing GIS export…
               </p>
             )}
-          </SidebarSection>
+          </StepSection>
         </>
       )}
       <SidebarSection title="Methods and limits">

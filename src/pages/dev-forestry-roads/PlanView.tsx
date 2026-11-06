@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { AppSelect } from '@/components/ui/select'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
-import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES } from './planLegend'
+import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES } from './planLegendModel'
 import {
   distance,
   horizontalCurveSummary,

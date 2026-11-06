@@ -1,10 +1,10 @@
 import { NativeSelect } from '@/components/ui/form-field'
-import { useRef, useState, type ReactNode } from 'react'
-import { FileUp, FolderOpen, Trash2 } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FileDropField } from '@/components/ui/file-drop-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
-import { cn } from '@/lib/utils'
-import { filesFromDrop, filesFromInput, type SourceFile } from './gdal'
+import type { SourceFile } from './gdal'
 import type { InputEntry, InputRole } from './useAvastInputs'
 
 export const FIELD_CLASS =
@@ -230,9 +230,6 @@ function RoleSection({
   onUpdate: (id: string, patch: Partial<InputEntry>) => void
   footer?: ReactNode
 }) {
-  const filesRef = useRef<HTMLInputElement>(null)
-  const folderRef = useRef<HTMLInputElement>(null)
-  const [dragging, setDragging] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const copy = ROLE_COPY[role]
   const add = async (files: SourceFile[]) => {
@@ -246,71 +243,15 @@ function RoleSection({
   return (
     <SidebarSection title={copy.title} className="space-y-3">
       <p className="text-xs leading-5 text-muted-foreground">{copy.hint}</p>
-      <div
-        data-avast-drop={role}
-        onDragOver={(event) => {
-          event.preventDefault()
-          setDragging(true)
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={async (event) => {
-          event.preventDefault()
-          setDragging(false)
-          await add(await filesFromDrop(event.dataTransfer))
-        }}
-        className={cn(
-          'flex flex-wrap items-center gap-2 rounded-md border border-dashed border-border p-3 transition-colors',
-          dragging && 'border-primary bg-primary/5',
-        )}
-      >
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="touch:h-10"
-          onClick={() => filesRef.current?.click()}
-        >
-          <FileUp className="mr-1.5 h-4 w-4" />
-          Add files
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="touch:h-10"
-          onClick={() => folderRef.current?.click()}
-        >
-          <FolderOpen className="mr-1.5 h-4 w-4" />
-          {copy.folder}
-        </Button>
-        <span className="text-xs text-muted-foreground">or drop here</span>
-        <input
-          ref={filesRef}
-          type="file"
-          multiple
-          accept={ACCEPT}
-          className="hidden"
-          data-avast-files={role}
-          onChange={async (event) => {
-            const files = filesFromInput(event.target.files)
-            event.target.value = ''
-            await add(files)
-          }}
-        />
-        <input
-          ref={folderRef}
-          type="file"
-          multiple
-          className="hidden"
-          data-avast-folder={role}
-          {...{ webkitdirectory: '', directory: '' }}
-          onChange={async (event) => {
-            const files = filesFromInput(event.target.files)
-            event.target.value = ''
-            await add(files)
-          }}
-        />
-      </div>
+      <FileDropField
+        label={copy.title}
+        accept={ACCEPT}
+        folderLabel={copy.folder}
+        onFiles={add}
+        dropProps={{ 'data-avast-drop': role }}
+        inputProps={{ 'data-avast-files': role }}
+        folderInputProps={{ 'data-avast-folder': role }}
+      />
       {notice && <InlineAlert tone="warning">{notice}</InlineAlert>}
       {entries.map((entry) => (
         <EntryCard

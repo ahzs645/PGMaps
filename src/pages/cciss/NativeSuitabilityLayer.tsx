@@ -1,7 +1,7 @@
-import { useEffect, useId } from 'react'
+import { useEffect, useMemo } from 'react'
 import type { GeoTIFF } from 'geotiff'
 import MapLibreGL from 'maplibre-gl'
-import { useMap } from '@/components/ui/map'
+import { MapRasterLayer } from '@/components/ui/map-layers'
 import { suitabilityColor } from './raster'
 
 type GeoTIFFImage = Awaited<ReturnType<GeoTIFF['getImage']>>
@@ -88,6 +88,8 @@ async function drawNumericTile(image: GeoTIFFImage, z: number, x: number, y: num
     : createImageBitmap(canvas)
 }
 
+let nextImageId = 0
+
 function ensureProtocol() {
   if (protocolRegistered) return
   MapLibreGL.addProtocol(PROTOCOL, async (request, abortController) => {
@@ -109,37 +111,29 @@ function ensureProtocol() {
 
 /** One numeric raster source across all zooms; MapLibre overzooms its native tiles sharply. */
 export function NativeSuitabilityLayer({ image }: { image: GeoTIFFImage }) {
-  const { map, isLoaded } = useMap()
-  const uid = useId().replace(/:/g, '')
-  const sourceId = `cciss-numeric-source-${uid}`
-  const layerId = `cciss-numeric-layer-${uid}`
-
+  // The tile URL has to change with the image, or MapLibre keeps the old tiles.
+  const imageId = useMemo(() => {
+    void image
+    return `image-${++nextImageId}`
+  }, [image])
   useEffect(() => {
-    if (!map || !isLoaded) return
     ensureProtocol()
-    images.set(uid, image)
-    map.addSource(sourceId, {
-      type: 'raster',
-      tiles: [`${PROTOCOL}://${uid}/{z}/{x}/{y}`],
-      tileSize: TILE_SIZE,
-      minzoom: 5,
-      maxzoom: SOURCE_MAX_ZOOM,
-      attribution: 'CCISS GeoTIFF download · BC Ministry of Forests',
-    })
-    map.addLayer({
-      id: layerId,
-      type: 'raster',
-      source: sourceId,
-      paint: { 'raster-opacity': 0.8, 'raster-resampling': 'nearest', 'raster-fade-duration': 0 },
-    })
+    images.set(imageId, image)
     return () => {
-      images.delete(uid)
-      // The parent Map can remove its style before React unmounts this child.
-      if (!map.getStyle()) return
-      if (map.getLayer(layerId)) map.removeLayer(layerId)
-      if (map.getSource(sourceId)) map.removeSource(sourceId)
+      images.delete(imageId)
     }
-  }, [map, isLoaded, uid, image, sourceId, layerId])
-
-  return null
+  }, [image, imageId])
+  return (
+    <MapRasterLayer
+      key={imageId}
+      tiles={[`${PROTOCOL}://${imageId}/{z}/{x}/{y}`]}
+      tileSize={TILE_SIZE}
+      minZoom={5}
+      maxZoom={SOURCE_MAX_ZOOM}
+      opacity={0.8}
+      resampling="nearest"
+      fadeDuration={0}
+      attribution="CCISS GeoTIFF download · BC Ministry of Forests"
+    />
+  )
 }

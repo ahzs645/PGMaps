@@ -1,8 +1,11 @@
+import { Sprout } from 'lucide-react'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useState } from 'react'
 import type { GeoTIFF } from 'geotiff'
-import { Map, MapMarker, MarkerContent, useMap } from '@/components/ui/map'
+import { Map, MapMarker, MarkerContent, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
 import { MapRasterLayer } from '@/components/ui/map-layers'
 import { MapSectionLayout, MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
 import { CollapsibleSection, InlineAlert, MapSidebarShell, MapSwatch, SidebarSection } from '@/components/ui/map-panels'
@@ -224,6 +227,7 @@ function SampleResult({
 }
 
 export default function DevCcissSuitability() {
+  useDocumentTitle('CCISS suitability · PGMaps')
   const [analysis, setAnalysis] = useState<CcissAnalysisMode>(INITIAL_WORKSPACE.analysis)
   const comparisons = useComparisonSnapshots()
   const openComparison = useCallback(() => setAnalysis('compare'), [])
@@ -294,8 +298,11 @@ export default function DevCcissSuitability() {
       mobilePeekSubtitle="Tile trace and numeric reference lookup"
       sidebar={
         <MapSidebarShell
-          title="CCISS spatial"
+          title="CCISS suitability"
           subtitle="Tile trace · numeric reference lookup"
+          icon={Sprout}
+          actions={<ForestryBackLink />}
+          density="compact"
           className={MAP_SIDEBAR_CLASS}
         >
           <SidebarSection title="Analysis">
@@ -829,7 +836,11 @@ export default function DevCcissSuitability() {
         </MapSidebarShell>
       }
     >
-      <Map center={INITIAL_WORKSPACE.camera.center} zoom={INITIAL_WORKSPACE.camera.zoom}>
+      <Map
+        center={INITIAL_WORKSPACE.camera.center}
+        zoom={INITIAL_WORKSPACE.camera.zoom}
+        controls={WORKSPACE_MAP_CONTROLS}
+      >
         <SyncMapUrl />
         {polygonLayer ? (
           <MapCategoricalRaster

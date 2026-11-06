@@ -28,6 +28,11 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - Read its **Changing the renderer** section before editing `src/maps/project-story/`. It lists the files a new story option has to touch together, and the renderer invariants that break silently — scene cameras are re-fitted to the map pane rather than used verbatim, chrome in the `scrolly`/`slides` layouts sits in a `pointer-events-none` overlay, and the slides pane sizes itself by rendering every slide stacked.
 - Story packages live in `public/data/projects/*.json` and are listed in `index.json`; regenerate that index with `npm run projects:index` after adding or renaming one.
 
+## Forestry tools
+
+- `docs/forestry-tool-standard.md` lists what every `/dev/forestry` tool shares, the three tool shapes, and how a map keeps its own look through the toolkit. Read it before adding a tool or a map layer.
+- Every map is the toolkit's `Map`. Give a tool its look through props (`styles`, `controls`, `MapTerrain`); do not call `map.addSource` or `map.addLayer` in a page. The doc lists the exceptions.
+
 ## Forestry visual quality
 
 - `docs/forestry-visual-quality.md` is the contract for `/dev/forestry/visual-quality`: what each reported percentage means, what the sightline model does and does not include, and the run's cost limits.

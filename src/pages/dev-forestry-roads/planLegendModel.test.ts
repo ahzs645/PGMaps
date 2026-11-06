@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPlanLegend, PLAN_CONTEXT_STYLES, type PlanLegendSources } from './planLegend'
+import { buildPlanLegend, PLAN_CONTEXT_STYLES, type PlanLegendSources } from './planLegendModel'
 import { createDemoProject } from './terrain'
 
 const line = (properties: Record<string, unknown> = {}): GeoJSON.Feature => ({

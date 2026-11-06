@@ -156,7 +156,17 @@ function readPanels(storageId: string, layout: RoadLayout): RoadPaneId[] {
   } catch {
     /* Use the preset. */
   }
-  return layout === 'plan' ? ['profile', 'detail'] : layout === 'split' ? ['detail'] : []
+  return presetHiddenPanels(layout)
+}
+/** The panels a preset hides. Picking the preset always restores exactly this. */
+export const presetHiddenPanels = (layout: RoadLayout): RoadPaneId[] =>
+  layout === 'plan' ? ['profile', 'detail'] : layout === 'split' ? ['detail'] : []
+/** Whether the visible panels no longer match the preset; `data` only exists in the four-pane layouts. */
+export function panelsEdited(layout: RoadLayout, hidden: readonly RoadPaneId[]) {
+  const relevant = (id: RoadPaneId) => id !== 'data' || ['engineering', 'pegging'].includes(layout)
+  const preset = presetHiddenPanels(layout)
+  const current = hidden.filter(relevant)
+  return current.length !== preset.length || preset.some((id) => !current.includes(id))
 }
 export function useRoadPanels(storageId: string, layout: RoadLayout) {
   const [state, setState] = useState(() => ({ key: storageId, hidden: readPanels(storageId, layout) }))
@@ -168,5 +178,10 @@ export function useRoadPanels(storageId: string, layout: RoadLayout) {
       /* Optional device preference. */
     }
   }, [state])
-  return [state.hidden, (hidden: RoadPaneId[]) => setState({ key: storageId, hidden })] as const
+  return [
+    state.hidden,
+    (hidden: RoadPaneId[]) => setState({ key: storageId, hidden }),
+    /** Select a preset as defined, dropping any panels opened or closed in it earlier. */
+    (preset: RoadLayout) => setState({ key: preset, hidden: presetHiddenPanels(preset) }),
+  ] as const
 }

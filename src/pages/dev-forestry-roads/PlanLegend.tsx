@@ -6,7 +6,7 @@ import {
   TERRAIN_ELEVATION_COLORS,
   type TerrainDisplay,
 } from './terrainDisplay'
-import type { PlanLegendSection } from './planLegend'
+import type { PlanLegendSection } from './planLegendModel'
 
 export function PlanLegend({
   sections,

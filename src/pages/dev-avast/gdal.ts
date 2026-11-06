@@ -1,3 +1,4 @@
+import { filesFromDrop, filesFromInput, type PickedFile } from '@/components/ui/picked-files'
 /**
  * GDAL (gdal3.js, WebAssembly in its own worker) for the formats a planner
  * actually has: File Geodatabase folders, shapefiles, GeoPackages, GeoJSON,
@@ -33,7 +34,8 @@ export function loadGdal(): Promise<Gdal> {
   return gdalPromise
 }
 
-export type SourceFile = { file: File; path: string }
+export type SourceFile = PickedFile
+export { filesFromDrop, filesFromInput }
 
 export type DetectedDataset = {
   id: string
@@ -170,37 +172,6 @@ export async function expandZips(datasets: DetectedDataset[]): Promise<DetectedD
 }
 
 /** Picker files, keeping a folder picker's relative paths. */
-export function filesFromInput(list: FileList | null): SourceFile[] {
-  return [...(list ?? [])].map((file) => ({ file, path: file.webkitRelativePath || file.name }))
-}
-
-/** Files from a drop, walking dropped folders (a .gdb is a folder). */
-export async function filesFromDrop(transfer: DataTransfer): Promise<SourceFile[]> {
-  const entries = [...transfer.items]
-    .map((item) => item.webkitGetAsEntry?.())
-    .filter((entry): entry is FileSystemEntry => !!entry)
-  if (!entries.length) return filesFromInput(transfer.files)
-  const out: SourceFile[] = []
-  const walk = async (entry: FileSystemEntry, prefix: string): Promise<void> => {
-    if (entry.isFile) {
-      const file = await new Promise<File>((resolve, reject) => (entry as FileSystemFileEntry).file(resolve, reject))
-      out.push({ file, path: `${prefix}${entry.name}` })
-      return
-    }
-    const reader = (entry as FileSystemDirectoryEntry).createReader()
-    const children: FileSystemEntry[] = []
-    // readEntries returns at most 100 entries per call.
-    for (;;) {
-      const batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject))
-      if (!batch.length) break
-      children.push(...batch)
-    }
-    for (const child of children) await walk(child, `${prefix}${entry.name}/`)
-  }
-  for (const entry of entries) await walk(entry, '')
-  return out
-}
-
 /**
  * One GDAL operation at a time. A mount closes every open dataset, so two
  * inputs being read at once would otherwise pull the files out from under

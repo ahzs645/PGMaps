@@ -340,8 +340,12 @@ linked overview (plan | profile / detail) or the four-view plan · profile · se
 data and pegging layouts ((plan / data) | (profile / detail)), plus two panes and map-only.
 **Screen presets & panels** offers visual presets and checkboxes to restore closed
 panels. Each panel has a close button; remaining views fill its space, and the last
-visible panel cannot be closed. Visibility is saved per layout under
-`pgmaps-road-panels:<layout>` and copied into a named saved layout.
+visible panel cannot be closed. Picking a preset, from either control, always shows
+that preset as defined and drops panel changes made in it earlier. While the panels differ
+from the current preset the picker reads `<preset> · edited`, so the label cannot claim an
+arrangement that is not on screen. Visibility is saved per layout under
+`pgmaps-road-panels:<layout>` and copied into a named saved layout, which keeps its own
+panels; to keep a changed arrangement, save it.
 The tree keeps the same
 shape in every layout, so switching layouts keeps the plan's map mounted.
 

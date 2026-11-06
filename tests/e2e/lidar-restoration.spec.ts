@@ -61,7 +61,7 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await prepare(page)
-  await page.getByLabel('LAS / LAZ tiles').setInputFiles('tests/fixtures/restoration-synthetic.laz')
+  await page.getByLabel('LAS / LAZ tiles', { exact: true }).setInputFiles('tests/fixtures/restoration-synthetic.laz')
   const wasm = page.waitForResponse((r) => /laz-perf[^/]*\.wasm/.test(r.url()) && r.status() === 200)
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await wasm
@@ -99,7 +99,7 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
   await expect(page.getByTestId('returns-read')).toHaveCount(0)
   expect(errors).toEqual([])
   await page.goto('/dev/forestry')
-  await expect(page.getByRole('link', { name: 'Open Road restoration' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Open LiDAR road restoration' })).toBeVisible()
   await page.goto('/dev/lidar')
   await expect(page.getByRole('link', { name: 'Local LiDAR road restoration' })).toBeVisible()
 })
@@ -107,12 +107,12 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
 test('rejects malformed files and can run again with LAS on the LiDAR route', async ({ page }) => {
   await prepare(page, '/dev/lidar/restoration')
   await page
-    .getByLabel('LAS / LAZ tiles')
+    .getByLabel('LAS / LAZ tiles', { exact: true })
     .setInputFiles({ name: 'broken.las', mimeType: 'application/octet-stream', buffer: Buffer.from('broken') })
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await expect(page.getByText(/truncated LAS header/)).toBeVisible()
   await page
-    .getByLabel('LAS / LAZ tiles')
+    .getByLabel('LAS / LAZ tiles', { exact: true })
     .setInputFiles({ name: 'flat.las', mimeType: 'application/octet-stream', buffer: Buffer.from(restorationLas()) })
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await expect(page.getByTestId('returns-read')).toHaveText('80')
@@ -121,7 +121,7 @@ test('rejects malformed files and can run again with LAS on the LiDAR route', as
 test('mobile controls and results remain reachable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await prepare(page)
-  await page.getByLabel('LAS / LAZ tiles').setInputFiles('tests/fixtures/restoration-synthetic.laz')
+  await page.getByLabel('LAS / LAZ tiles', { exact: true }).setInputFiles('tests/fixtures/restoration-synthetic.laz')
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await expect(page.getByTestId('returns-read')).toHaveText('80')
   await page.getByRole('button', { name: 'Run manifest' }).scrollIntoViewIfNeeded()
@@ -135,7 +135,7 @@ test('full supplied BC tile runs in Chromium and exports all GIS products', asyn
   // A long real-data run must survive source edits made in another review window.
   await page.routeWebSocket('**', (socket) => socket.close())
   await prepare(page)
-  await page.getByLabel('LAS / LAZ tiles').setInputFiles(process.env.PGMAPS_RESTORATION_LAZ!)
+  await page.getByLabel('LAS / LAZ tiles', { exact: true }).setInputFiles(process.env.PGMAPS_RESTORATION_LAZ!)
   const started = Date.now()
   await page.getByRole('button', { name: 'Run restoration metrics' }).click()
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeVisible()

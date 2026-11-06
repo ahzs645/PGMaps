@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Map, MapControls, MapScaleBar, useMap } from '@/components/ui/map'
+import { Map, MapScaleBar, useMap, WORKSPACE_MAP_CONTROLS } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { LegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -177,7 +177,7 @@ export function AvastMap(props: AvastMapProps) {
           ))
 
   return (
-    <Map center={[-123.4, 54.2]} zoom={6} controls={<MapControls showCompass showFullscreen />}>
+    <Map center={[-123.4, 54.2]} zoom={6} controls={WORKSPACE_MAP_CONTROLS}>
       <CameraFit bounds={props.bounds} focus={props.focus} />
       {/* Only the block layer has a hover card: every layer under the pointer would otherwise open its own. */}
       <MapFillLayer

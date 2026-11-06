@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { Link } from 'react-router-dom'
 import { ArrowLeft, Droplets, Eye, Layers, Route, Sprout, TreePine, Trees } from 'lucide-react'
 
@@ -15,7 +15,7 @@ const forestryTools: DevEntry[] = [
     label: '/dev/forestry/castor',
   },
   {
-    title: 'Drought risk',
+    title: 'Forest drought risk',
     description:
       'Compare published BC drought risk across BGC units, soil regimes, tree species and climate periods. Run a separate soil-water calculation from your daily climate CSV, directly in the browser.',
     href: '/dev/forestry/drought-risk',
@@ -24,7 +24,7 @@ const forestryTools: DevEntry[] = [
     label: '/dev/forestry/drought-risk',
   },
   {
-    title: 'Road restoration',
+    title: 'LiDAR road restoration',
     description:
       'Process local LAS/LAZ tiles in your browser: slope, mean first-return height, vegetation strata and ground-return density. Export reusable GIS rasters and mean-height cells.',
     href: '/dev/forestry/road-restoration',
@@ -42,7 +42,7 @@ const forestryTools: DevEntry[] = [
     label: '/dev/forestry/thlb-impact',
   },
   {
-    title: 'Road design',
+    title: 'Forest road design',
     description:
       'Peg road alternatives on LiDAR terrain. Link plan, profile, cross-section and 3D views; design grades, landings and turnouts, compare earthworks and export a road project.',
     href: '/dev/forestry/road-design',
@@ -98,13 +98,7 @@ const forestryTools: DevEntry[] = [
 ]
 
 export default function DevForestry() {
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Forestry tools · PGMaps Dev'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('Forestry tools · PGMaps')
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-8 pt-24 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">

@@ -8,6 +8,7 @@ import {
   ROAD_LAYOUT_OPTIONS,
   ROAD_PANE_SPLITS,
   ROAD_PANEL_OPTIONS,
+  panelsEdited,
   roadPanelsKey,
   roadPaneKey,
   type RoadLayout,
@@ -18,6 +19,16 @@ import {
 export type SavedLayout = { id: string; name: string; base: RoadLayout }
 const STORAGE = 'pgmaps-road-saved-layouts'
 const MANAGE = '__manage'
+/** Shown while a preset's panels are changed, so picking that preset again counts as a change. */
+const EDITED = '__edited'
+/** Each thumbnail draws its preset's real arrangement on a two-by-two grid. */
+const LAYOUT_THUMBNAILS: Record<RoadLayout, string[]> = {
+  linked: ['row-span-2', '', ''],
+  split: ['row-span-2', 'row-span-2'],
+  plan: ['col-span-2 row-span-2'],
+  engineering: ['', '', '', ''],
+  pegging: ['', '', '', ''],
+}
 
 export function readSavedLayouts(): SavedLayout[] {
   try {
@@ -44,11 +55,15 @@ function writeSavedLayouts(layouts: SavedLayout[]) {
 }
 
 /** A selection is a preset id or `saved:<id>`; sizes live under the preset id or `saved-<id>`. */
-export function resolveLayout(selection: string, saved: SavedLayout[]): { base: RoadLayout; storageId: string } {
+export function resolveLayout(
+  selection: string,
+  saved: SavedLayout[],
+): { base: RoadLayout; storageId: string; selection: string } {
   const named = selection.startsWith('saved:') ? saved.find((s) => `saved:${s.id}` === selection) : undefined
-  if (named) return { base: named.base, storageId: `saved-${named.id}` }
+  if (named) return { base: named.base, storageId: `saved-${named.id}`, selection }
+  // A deleted saved layout falls back here too; report the preset so the picker never shows blank.
   const preset = ROAD_LAYOUT_OPTIONS.find((o) => o.value === selection)?.value ?? 'linked'
-  return { base: preset, storageId: preset }
+  return { base: preset, storageId: preset, selection: preset }
 }
 
 export function LayoutPicker({
@@ -65,7 +80,8 @@ export function LayoutPicker({
   hiddenPanels: RoadPaneId[]
   compact?: boolean
   onHiddenPanels: (hidden: RoadPaneId[]) => void
-  onSelect: (selection: string) => void
+  /** `saved` carries the list when a layout is selected in the same update that creates it. */
+  onSelect: (selection: string, saved?: SavedLayout[]) => void
   saved: SavedLayout[]
   onSaved: (layouts: SavedLayout[]) => void
   portalContainer?: HTMLElement | null
@@ -73,6 +89,9 @@ export function LayoutPicker({
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const current = resolveLayout(selection, saved)
+  const isPreset = !current.selection.startsWith('saved:')
+  const edited = isPreset && panelsEdited(current.base, hiddenPanels)
+  const presetLabel = ROAD_LAYOUT_OPTIONS.find((o) => o.value === current.base)?.label
   const save = () => {
     const label = name.trim().slice(0, 60) || `Layout ${saved.length + 1}`
     const layout: SavedLayout = { id: crypto.randomUUID(), name: label, base: current.base }
@@ -90,7 +109,7 @@ export function LayoutPicker({
     const next = [...saved, layout]
     writeSavedLayouts(next)
     onSaved(next)
-    onSelect(`saved:${layout.id}`)
+    onSelect(`saved:${layout.id}`, next)
     setName('')
     setOpen(false)
   }
@@ -100,20 +119,25 @@ export function LayoutPicker({
       for (const split of ROAD_PANE_SPLITS)
         for (const suffix of ['', ':stacked'])
           localStorage.removeItem(roadPaneKey(`saved-${layout.id}`, split) + suffix)
+      localStorage.removeItem(roadPanelsKey(`saved-${layout.id}`))
     } catch {
       /* Nothing to clean. */
     }
     writeSavedLayouts(next)
     onSaved(next)
-    if (selection === `saved:${layout.id}`) onSelect(layout.base)
+    if (selection === `saved:${layout.id}`) onSelect(layout.base, next)
   }
   return (
     <>
       <span className={compact ? 'hidden' : 'contents'}>
         <AppSelect
-          value={selection}
-          onValueChange={(value) => (value === MANAGE ? setOpen(true) : onSelect(value))}
+          value={edited ? EDITED : current.selection}
+          onValueChange={(value) => {
+            if (value === MANAGE) setOpen(true)
+            else if (value !== EDITED) onSelect(value)
+          }}
           options={[
+            ...(edited ? [{ value: EDITED, label: `${presetLabel} · edited` }] : []),
             ...ROAD_LAYOUT_OPTIONS,
             ...saved.map((s) => ({ value: `saved:${s.id}`, label: `★ ${s.name}` })),
             { value: MANAGE, label: 'Save or manage layouts…' },
@@ -138,8 +162,8 @@ export function LayoutPicker({
         onOpenChange={setOpen}
         portalContainer={portalContainer}
         size="md"
-        title="Screen layouts"
-        subtitle="A saved layout keeps its own pane sizes on this device."
+        title="Screen presets & panels"
+        subtitle="A preset always opens as drawn. A saved layout keeps its own panels and pane sizes on this device."
         contentProps={{ 'data-testid': 'road-layouts-dialog' }}
       >
         <div className="space-y-4 text-xs">
@@ -147,33 +171,20 @@ export function LayoutPicker({
             {ROAD_LAYOUT_OPTIONS.map((option) => (
               <button
                 key={option.value}
-                className={`rounded-lg border p-3 text-left hover:bg-accent ${current.base === option.value ? 'border-primary bg-primary/5' : ''}`}
-                aria-pressed={current.base === option.value}
+                type="button"
+                className={`rounded-lg border p-3 text-left hover:bg-accent ${!edited && current.selection === option.value ? 'border-primary bg-primary/5' : ''}`}
+                aria-pressed={!edited && current.selection === option.value}
                 onClick={() => {
                   onSelect(option.value)
                   setOpen(false)
                 }}
               >
-                <span className="mb-2 grid h-12 grid-cols-2 gap-1" aria-hidden="true">
-                  {Array.from(
-                    {
-                      length:
-                        option.value === 'plan' ? 1 : option.value === 'split' ? 2 : option.value === 'linked' ? 3 : 4,
-                    },
-                    (_, index) => (
-                      <span key={index} className="rounded-sm bg-muted-foreground/20" />
-                    ),
-                  )}
+                <span className="mb-2 grid h-12 grid-cols-2 grid-rows-2 gap-1" aria-hidden="true">
+                  {LAYOUT_THUMBNAILS[option.value].map((cell, index) => (
+                    <span key={index} className={`rounded-sm bg-muted-foreground/20 ${cell}`} />
+                  ))}
                 </span>
-                <span className="block font-medium">
-                  {option.value === 'linked'
-                    ? 'Three panes'
-                    : option.value === 'engineering'
-                      ? 'Four panes'
-                      : option.value === 'pegging'
-                        ? 'Four panes · pegging'
-                        : option.label}
-                </span>
+                <span className="block font-medium">{option.label}</span>
               </button>
             ))}
           </div>

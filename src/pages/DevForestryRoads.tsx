@@ -1,10 +1,10 @@
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { NativeSelect } from '@/components/ui/form-field'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
-  ArrowLeft,
   BarChart3,
   Download,
   FolderOpen,
@@ -235,7 +235,7 @@ export default function DevForestryRoads() {
     }
   })
   const { base: layout, storageId: layoutStorageId } = resolveLayout(layoutSelection, savedLayouts)
-  const [hiddenPanels, setHiddenPanels] = useRoadPanels(layoutStorageId, layout)
+  const [hiddenPanels, setHiddenPanels, restorePreset] = useRoadPanels(layoutStorageId, layout)
   const focusOptions = [
     { value: 'plan' as const, label: 'Plan' },
     { value: 'profile' as const, label: 'Profile' },
@@ -475,14 +475,8 @@ export default function DevForestryRoads() {
       /* View preferences are optional. */
     }
   }, [layoutSelection])
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Forest road design · PGMaps'
-    return () => {
-      document.title = previous
-      operation.current?.abort()
-    }
-  }, [])
+  useDocumentTitle('Forest road design · PGMaps')
+  useEffect(() => () => operation.current?.abort(), [])
 
   const terrainProfile = useMemo(() => {
     const saved = project.profiles?.find((p) => p.id === activeProfile)
@@ -1666,11 +1660,7 @@ export default function DevForestryRoads() {
         data-testid="road-workspace-header"
       >
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
-          <Button variant="ghost" size="icon" className="size-8" asChild>
-            <Link to="/dev/forestry" aria-label="Back to forestry tools">
-              <ArrowLeft className="size-4" />
-            </Link>
-          </Button>
+          <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
             <h1 className="text-lg font-semibold tracking-tight">Forest road design</h1>
             <p
@@ -1713,9 +1703,11 @@ export default function DevForestryRoads() {
             hiddenPanels={hiddenPanels}
             onHiddenPanels={setHiddenPanels}
             selection={layoutSelection}
-            onSelect={(value) => {
+            onSelect={(value, saved = savedLayouts) => {
+              const next = resolveLayout(value, saved)
               setLayoutSelection(value)
-              if (resolveLayout(value, savedLayouts).base !== 'linked') setDetail('section')
+              if (!value.startsWith('saved:')) restorePreset(next.base)
+              if (next.base !== 'linked') setDetail('section')
             }}
             saved={savedLayouts}
             onSaved={setSavedLayouts}

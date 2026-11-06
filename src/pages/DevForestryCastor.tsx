@@ -1,5 +1,7 @@
+import { ToolPageHeader } from '@/components/ui/tool-page-header'
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
 import {
   ArrowLeft,
   BookOpen,
@@ -78,13 +80,7 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
   const validation = useMemo(() => (project ? validateCastorProject(project, config) : null), [project, config])
   const running = state.status === 'running'
 
-  useEffect(() => {
-    const previous = document.title
-    document.title = 'Castor forest scenarios · PGMaps'
-    return () => {
-      document.title = previous
-    }
-  }, [])
+  useDocumentTitle('Castor forest scenarios · PGMaps')
   useEffect(() => {
     let alive = true
     void loadCastorDraft()
@@ -296,37 +292,31 @@ export default function DevForestryCastor({ standalone = false }: { standalone?:
 
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/25">
-      <div className="mx-auto max-w-[1500px] px-4 pb-12 pt-24 sm:px-6 sm:pt-28 md:pt-12">
-        {standalone ? (
-          <a
-            href="https://pgmaps.ahmadjalil.com/dev/forestry"
-            className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> PGMaps forestry tools
-          </a>
-        ) : (
-          <Link
-            to="/dev/forestry"
-            className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Forestry tools
-          </Link>
-        )}
-        <header className="mb-6 flex flex-col justify-between gap-4 sm:flex-row">
-          <div className="max-w-3xl">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium text-teal-700 dark:text-teal-400">
-              <Trees className="size-5" /> Forest management scenarios
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Castor forest scenarios</h1>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground sm:text-base">
-              Explore how harvest targets, growth and management constraints change a forest over time. Keep the
-              scenario, maps and reports together as you compare possible futures.
-            </p>
-          </div>
-          <Badge tone="success" variant="outline" className="self-start">
-            Runs in your browser
-          </Badge>
-        </header>
+      <div className="mx-auto max-w-[1500px] px-4 pb-8 pt-20 sm:px-6 md:pt-6">
+        <ToolPageHeader
+          back={
+            standalone ? (
+              <a
+                href="https://pgmaps.ahmadjalil.com/dev/forestry"
+                className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                <ArrowLeft className="size-4" /> PGMaps forestry tools
+              </a>
+            ) : (
+              <ForestryBackLink variant="text" />
+            )
+          }
+          eyebrow="Forest management scenarios"
+          eyebrowIcon={Trees}
+          eyebrowClassName="text-teal-700 dark:text-teal-400"
+          title="Castor forest scenarios"
+          description="Explore how harvest targets, growth and management constraints change a forest over time. Keep the scenario, maps and reports together as you compare possible futures."
+          aside={
+            <Badge tone="success" variant="outline">
+              Runs in your browser
+            </Badge>
+          }
+        />
 
         <Section
           title="Your landscape"

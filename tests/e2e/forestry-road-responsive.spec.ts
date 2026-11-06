@@ -190,8 +190,8 @@ test('short workspace keeps controls internally scrollable, reaches all engineer
 
   await page.getByRole('button', { name: 'Screen presets & panels', exact: true }).click()
   await page
-    .getByRole('dialog', { name: 'Screen layouts', exact: true })
-    .getByRole('button', { name: 'Four panes', exact: true })
+    .getByRole('dialog', { name: 'Screen presets & panels', exact: true })
+    .getByRole('button', { name: 'Plan · profile · section · data', exact: true })
     .click()
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   for (const label of ['Plan', 'Profile', 'Detail', 'Data']) {

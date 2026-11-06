@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
-import { FileUp, FolderOpen, Trash2 } from 'lucide-react'
+import { useState } from 'react'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FileDropField } from '@/components/ui/file-drop-field'
 import { FormField, NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
-import { filesFromDrop, filesFromInput } from '../dev-avast/gdal'
 import { THLB_SOURCES } from './sources'
 import type { Fields, InputRole } from './types'
 import type { InputEntry, useInputs } from './useInputs'
@@ -122,8 +122,6 @@ function RoleInput({
   inputs,
   disabled,
 }: (typeof ROLES)[number] & { inputs: Inputs; disabled: boolean }) {
-  const fileRef = useRef<HTMLInputElement>(null)
-  const folderRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
   const add: Inputs['add'] = async (target, files) => {
     setError(null)
@@ -135,56 +133,16 @@ function RoleInput({
   }
   return (
     <SidebarSection title={title}>
-      <div
-        className="space-y-3"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault()
-          if (!disabled)
-            void filesFromDrop(event.dataTransfer)
-              .then((files) => add(role, files))
-              .catch((cause) => setError(String(cause)))
-        }}
-      >
+      <div className="space-y-3">
         <p className="text-xs leading-5 text-muted-foreground">{hint}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => fileRef.current?.click()}>
-            <FileUp className="mr-1 h-4 w-4" />
-            Add files
-          </Button>
-          <Button size="sm" variant="outline" disabled={disabled} onClick={() => folderRef.current?.click()}>
-            <FolderOpen className="mr-1 h-4 w-4" />
-            Add .gdb folder
-          </Button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
+        <FileDropField
+          label={title}
           accept={ACCEPT}
-          className="hidden"
-          aria-label={`${title} files`}
-          data-thlb-files={role}
+          folderLabel="Add .gdb folder"
           disabled={disabled}
-          onChange={(event) => {
-            const files = filesFromInput(event.target.files)
-            event.target.value = ''
-            void add(role, files)
-          }}
-        />
-        <input
-          ref={folderRef}
-          type="file"
-          multiple
-          className="hidden"
-          aria-label={`${title} folder`}
-          {...{ webkitdirectory: '', directory: '' }}
-          disabled={disabled}
-          onChange={(event) => {
-            const files = filesFromInput(event.target.files)
-            event.target.value = ''
-            void add(role, files)
-          }}
+          onFiles={(files) => add(role, files)}
+          onError={(cause) => setError(String(cause))}
+          inputProps={{ 'data-thlb-files': role }}
         />
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
         {inputs.entries
