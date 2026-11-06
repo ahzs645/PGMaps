@@ -14,6 +14,8 @@ The actual collection capability URLs are **not committed to this public reposit
 
 Collection links open a scrolling image library, including older links that contain a `map` identifier. All raster representations are available by default; a separate selections tab shows curated stories. Search and the virtualized preview grid keep large catalogues usable without fetching every image or opening a basemap.
 
+On phones, the header, filters and cards scroll together so the full card actions and the final record stay reachable, including when filters are expanded. Desktop keeps the header and toolbar above a separately scrolling card grid. Check this at short phone heights as well as full desktop sizes.
+
 Choose **View image** to inspect a larger raster image, then **Open on map** to explore its geographic placement. The larger preview is assembled on demand from existing raster tiles (up to 1,800 pixels on its longest side); it is a display derivative, not a replacement for the native GeoTIFF. Full source sheets, available legend crops, source notes and original downloads remain accessible from the image preview.
 
 Map links explicitly add `&view=map&map=<map id>`. The map's **Library** button returns to browsing with the current search and scroll position retained. The mobile map title sits below the main navigation, has a dismiss button, and can be restored with **Map info**. Loading background imagery does not block its controls or the historic overlay.
