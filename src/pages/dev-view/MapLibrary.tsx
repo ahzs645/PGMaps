@@ -41,6 +41,7 @@ export function MapLibrary({
 }) {
   const wide = useMediaQuery('(min-width: 1280px)')
   const medium = useMediaQuery('(min-width: 640px)')
+  const desktop = useMediaQuery('(min-width: 1024px)')
   const columns = wide ? 3 : medium ? 2 : 1
   const rows = useMemo(
     () =>
@@ -49,14 +50,23 @@ export function MapLibrary({
       ),
     [items, columns],
   )
-  const scroll = useRef<HTMLDivElement>(null)
+  // The virtual list follows the same scrolling element as the visible page:
+  // the whole library on phones, and just the cards below the desktop toolbar.
+  const pageScroll = useRef<HTMLElement>(null)
+  const cardScroll = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
-    if (scroll.current) scroll.current.scrollTop = getInitialScroll()
-  }, [getInitialScroll, resetKey])
+    const scroll = desktop ? cardScroll.current : pageScroll.current
+    if (scroll) scroll.scrollTop = getInitialScroll()
+  }, [desktop, getInitialScroll, resetKey])
   return (
     <section
-      className="flex h-full min-h-0 flex-col bg-muted/30 pt-[calc(env(safe-area-inset-top)+4.5rem)] md:pt-0"
+      ref={pageScroll}
+      data-map-sidebar-scroll={!desktop ? 'true' : undefined}
+      className="h-full min-h-0 overflow-y-auto scroll-pt-[calc(env(safe-area-inset-top)+4.5rem)] bg-muted/30 pt-[calc(env(safe-area-inset-top)+4.5rem)] lg:flex lg:flex-col lg:overflow-hidden md:scroll-pt-0 md:pt-0"
       aria-label="Map library"
+      onScroll={(event) => {
+        if (!desktop) onScroll(event.currentTarget.scrollTop)
+      }}
     >
       <header className="border-b bg-background px-4 py-4 sm:px-6 md:px-8">
         <div className="mx-auto max-w-7xl">
@@ -75,14 +85,16 @@ export function MapLibrary({
           </details>
         </div>
       </header>
-      <div className="max-h-[45dvh] shrink-0 overflow-y-auto border-b bg-background px-4 py-3 sm:px-6 md:px-8">
+      <div className="border-b bg-background px-4 py-3 sm:px-6 lg:max-h-[45dvh] lg:shrink-0 lg:overflow-y-auto md:px-8">
         <div className="mx-auto max-w-7xl">{toolbar}</div>
       </div>
       <div
-        ref={scroll}
-        data-map-sidebar-scroll="true"
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-8 sm:px-6 md:px-8"
-        onScroll={(event) => onScroll(event.currentTarget.scrollTop)}
+        ref={cardScroll}
+        data-map-sidebar-scroll={desktop ? 'true' : undefined}
+        className="px-4 pb-[calc(env(safe-area-inset-bottom)+2rem)] sm:px-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:overscroll-contain md:px-8"
+        onScroll={(event) => {
+          if (desktop) onScroll(event.currentTarget.scrollTop)
+        }}
       >
         <div className="mx-auto max-w-7xl pt-4">
           {!items.length && (
