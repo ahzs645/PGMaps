@@ -1,4 +1,5 @@
 import { FileImage } from 'lucide-react'
+import { CollapsibleSection } from '@/components/ui/map-panels'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { OrganizationSummary } from './OrganizationSummary'
@@ -23,13 +24,14 @@ export function SourceImagePreview({
       <DialogContent elevated className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{item?.title || 'Source record'}</DialogTitle>
-          <DialogDescription>{item?.description || 'Available source imagery and document links.'}</DialogDescription>
+          <DialogDescription>
+            Available source imagery and document links. No geographic placement is assigned.
+          </DialogDescription>
         </DialogHeader>
         <Badge tone="warning" className="w-fit">
           Not georeferenced
         </Badge>
         {item?.dateLabel && <p className="text-sm text-muted-foreground">{item.dateLabel}</p>}
-        <OrganizationSummary value={item?.organization} facets={facets} detail />
         {item?.image ? (
           <img
             src={item.image}
@@ -44,11 +46,10 @@ export function SourceImagePreview({
           </div>
         )}
         {(item?.imageLabel || item?.imageScope) && (
-          <p className="text-xs leading-relaxed text-muted-foreground">
+          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
             {[item.imageLabel, item.imageScope].filter(Boolean).join(' · ')}
           </p>
         )}
-        {item?.statusNote && <p className="text-sm leading-relaxed">{item.statusNote}</p>}
         {item?.image && (
           <a href={item.image} target="_blank" rel="noreferrer noopener" className="text-sm underline">
             Open available image at its supplied resolution ↗
@@ -68,6 +69,12 @@ export function SourceImagePreview({
             </a>
           ))}
         </div>
+        <CollapsibleSection label="Source scope & category notes" collapseOn="always" contentClassName="space-y-3 p-3">
+          {item?.description && <p className="text-sm leading-relaxed">{item.description}</p>}
+          {item?.imageScope && <p className="text-sm leading-relaxed">Image scope: {item.imageScope}</p>}
+          {item?.statusNote && <p className="text-sm leading-relaxed">{item.statusNote}</p>}
+          <OrganizationSummary value={item?.organization} facets={facets} detail />
+        </CollapsibleSection>
         <p className="text-xs text-muted-foreground">
           This source record has no geographic placement. Available imagery may be a page, excerpt or contextual lead;
           its scope is recorded above.
