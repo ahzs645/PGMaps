@@ -2,8 +2,8 @@ import { useObserveMapViewport } from '@/components/ui/map-viewport'
 import { useCallback, useMemo, useState } from 'react'
 import { useTimelineState } from '@/hooks/useTimelineState'
 import { Trash2 } from 'lucide-react'
-import { MapClusterLayer, MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
-import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
+import { MapMarker, MapPopup, MarkerContent, useMap } from '@/components/ui/map'
+import { MapFillLayer, MapHeatmapLayer, MapPieClusterLayer } from '@/components/ui/map-layers'
 import { MobileFeatureCard, ResponsiveFeatureDetail } from '@/components/ui/mobile-feature-card'
 import {
   InlineAlert,
@@ -23,7 +23,7 @@ import { TextButton } from '@/components/ui/text-button'
 import type { TimelineWindowOption } from '@/components/ui/timeline'
 import { useFetchData } from '@/hooks/useFetchData'
 import { formatDate, useJsonManifest } from './shared'
-import { colorForKey, hexToRgba } from '@/lib/color'
+import { colorForKey } from '@/lib/color'
 import { formatBytes, formatNumber } from '@/lib/format'
 
 export const OPEN_LITTER_TIMELINE_WINDOW_OPTIONS: TimelineWindowOption[] = [
@@ -121,11 +121,6 @@ interface OpenLitterHexProperties {
 
 type OpenLitterHexCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon, OpenLitterHexProperties>
 
-type OpenLitterPointProperties = OpenLitterMapProperties & {
-  featureKey: string
-  primaryCategory: string
-}
-
 const ALL_CATEGORIES = 'all'
 const ALL_OBJECTS = 'all'
 
@@ -136,15 +131,16 @@ const CATEGORY_COLORS: Record<string, string> = {
   coffee: '#92400e',
   dumping: '#475569',
   food: '#f97316',
-  industrial: '#64748b',
+  industrial: '#4d7c0f',
   other: '#64748b',
   plastic: '#2563eb',
   sanitary: '#be123c',
   smoking: '#dc2626',
   softdrinks: '#0891b2',
-  // Pinned to the colour the previous hash gave it, so the switch to colorForKey
-  // did not repaint a category already in the extract.
-  marine: '#ea580c',
+  marine: '#1d4ed8',
+  // About a fifth of records carry no tag. Neutral, as the food map's "Not
+  // inspected" wedge is, so missing data does not read as a real category.
+  unknown: '#9ca3af',
 }
 
 /** Hex fill stops, low to high. The layer and its legend both read this so they cannot drift. */
@@ -210,6 +206,62 @@ function getFeatureKey(feature: OpenLitterPointFeature): string {
 
 function getPrimaryCategory(feature: OpenLitterPointFeature): string {
   return feature.properties.categoryNames?.[0] || 'Unknown'
+}
+
+function getCategories(feature: OpenLitterPointFeature): string[] {
+  return feature.properties.categoryNames?.length ? feature.properties.categoryNames : ['Unknown']
+}
+
+/**
+ * The category a record is drawn as. Records carry several tags, so while one
+ * category is filtered a record that leads with another tag still counts as
+ * the filtered one; otherwise the filter would show wedges for categories
+ * nobody asked for.
+ */
+function getDrawnCategory(feature: OpenLitterPointFeature, selectedCategory: string): string {
+  return selectedCategory === ALL_CATEGORIES ? getPrimaryCategory(feature) : selectedCategory
+}
+
+/**
+ * Donut bands for the whole extract, most common category first. Taken before
+ * any filter because MapPieClusterLayer rebuilds its source when the bands
+ * change, which would blink every donut on each timeline step.
+ */
+export function buildLitterBands(features: OpenLitterPointFeature[]): { categories: string[]; colors: string[] } {
+  const counts = new Map<string, number>()
+  for (const feature of features) {
+    for (const category of getCategories(feature)) counts.set(category, (counts.get(category) ?? 0) + 1)
+  }
+  const categories = Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([category]) => category)
+  return { categories, colors: categories.map(getCategoryColor) }
+}
+
+export function buildLitterClusterData(
+  features: OpenLitterPointFeature[],
+  categories: string[],
+  selectedCategory: string,
+): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  const bandIndexByCategory = new Map(categories.map((category, index) => [category, index]))
+  return {
+    type: 'FeatureCollection',
+    features: features.map((feature) => {
+      const category = getDrawnCategory(feature, selectedCategory)
+      const items = Number(feature.properties.litterCount) || 1
+      return {
+        type: 'Feature',
+        geometry: feature.geometry,
+        properties: {
+          featureKey: getFeatureKey(feature),
+          color: getCategoryColor(category),
+          bandIndex: bandIndexByCategory.get(category) ?? 0,
+          spiderTitle: `${formatLitterNames(feature.properties.categoryNames)} · ${formatNumber(items)} item${items === 1 ? '' : 's'}`,
+          spiderSubtitle: formatLitterDate(feature.properties.datetime),
+        },
+      }
+    }),
+  }
 }
 
 function hexSizeForZoom(zoom: number, baseSizeM: number): number {
@@ -524,8 +576,7 @@ export function useOpenLitterMapData(
   const categoryBreakdown = useMemo(() => {
     const counts = new Map<string, { name: string; count: number; litter: number; color: string }>()
     for (const feature of filteredFeatures) {
-      const categories = feature.properties.categoryNames?.length ? feature.properties.categoryNames : ['Unknown']
-      for (const category of categories) {
+      for (const category of getCategories(feature)) {
         const entry = counts.get(category) ?? {
           name: category,
           count: 0,
@@ -627,9 +678,13 @@ export function OpenLitterMapSidebar({
   showLayerControls?: boolean
 }) {
   const manifest = litter.manifest.data
+  // Short enough for a third-width tile to hold on one line, level with the counts
+  // beside it. "2019–2024" wraps at the dash. The exact dates are in the source notes.
   const dateLabel =
-    manifest?.dateStart && manifest.dateEnd
-      ? `${formatLitterDate(manifest.dateStart)} - ${formatLitterDate(manifest.dateEnd)}`
+    manifest?.yearStart && manifest.yearEnd
+      ? manifest.yearStart === manifest.yearEnd
+        ? String(manifest.yearStart)
+        : `${manifest.yearStart}–${String(manifest.yearEnd).slice(-2)}`
       : 'All dates'
   const objectFilterActive = litter.selectedObject !== ALL_OBJECTS
 
@@ -714,16 +769,13 @@ export function OpenLitterMapSidebar({
             items={[
               { label: 'records', value: formatNumber(litter.filteredFeatures.length) },
               { label: 'items', value: formatNumber(litter.totalLitter) },
-              { label: 'period', value: dateLabel },
+              { label: 'period', value: dateLabel, valueClassName: 'whitespace-nowrap' },
             ]}
           />
 
           {litter.points.error && <InlineAlert tone="error">{litter.points.error}</InlineAlert>}
           {litter.manifest.error && <InlineAlert tone="error">{litter.manifest.error}</InlineAlert>}
           {manifest?.dedication && <InlineAlert tone="info">{manifest.dedication}</InlineAlert>}
-          <InlineAlert>
-            Records are clipped to the Prince George community-boundary union from the OpenLitterMap public map API.
-          </InlineAlert>
         </div>
       </SidebarSection>
 
@@ -774,6 +826,12 @@ export function OpenLitterMapSourceNotes({ litter }: { litter: OpenLitterMapStat
   return (
     <>
       <p>OpenLitterMap extract updated {formatDate(litter.manifest.data?.generatedAt)}.</p>
+      {litter.manifest.data?.dateStart && litter.manifest.data.dateEnd && (
+        <p>
+          Records run from {formatLitterDate(litter.manifest.data.dateStart)} to{' '}
+          {formatLitterDate(litter.manifest.data.dateEnd)}.
+        </p>
+      )}
       {litter.manifest.data?.dedication && <p>{litter.manifest.data.dedication}</p>}
       {litter.manifest.data?.gzipBytes && (
         <p>
@@ -797,26 +855,11 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
     initial: 'always',
   })
 
-  const collectionsByCategory = useMemo(() => {
-    const grouped = new Map<string, GeoJSON.FeatureCollection<GeoJSON.Point, OpenLitterPointProperties>>()
-
-    litter.filteredFeatures.forEach((feature) => {
-      const category = getPrimaryCategory(feature)
-      if (!grouped.has(category)) {
-        grouped.set(category, { type: 'FeatureCollection', features: [] })
-      }
-      grouped.get(category)?.features.push({
-        ...feature,
-        properties: {
-          ...feature.properties,
-          primaryCategory: category,
-          featureKey: getFeatureKey(feature),
-        },
-      })
-    })
-
-    return Array.from(grouped.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [litter.filteredFeatures])
+  const bands = useMemo(() => buildLitterBands(litter.features), [litter.features])
+  const clusterData = useMemo(
+    () => buildLitterClusterData(litter.filteredFeatures, bands.categories, litter.selectedCategory),
+    [bands.categories, litter.filteredFeatures, litter.selectedCategory],
+  )
 
   const dynamicHexSizeM = useMemo(
     () => hexSizeForZoom(hexZoom, litter.manifest.data?.hexSizeM || 350),
@@ -885,31 +928,26 @@ export function OpenLitterMapLayer({ litter }: { litter: OpenLitterMapState }) {
         />
       )}
 
-      {litter.showPoints &&
-        collectionsByCategory.map(([category, collection]) => {
-          const color = getCategoryColor(category)
-          return (
-            <MapClusterLayer<OpenLitterPointProperties>
-              key={category}
-              data={collection}
-              pointColor={color}
-              clusterColors={[hexToRgba(color, 0.65), hexToRgba(color, 0.82), color]}
-              clusterMaxZoom={12}
-              clusterRadius={42}
-              clusterThresholds={[50, 250]}
-              onPointClick={(feature) => {
-                const featureKey = feature.properties?.featureKey
-                if (featureKey) litter.setSelectedId(litter.selectedId === featureKey ? null : featureKey)
-              }}
-            />
-          )
-        })}
+      {litter.showPoints && (
+        <MapPieClusterLayer
+          data={clusterData}
+          bandColors={bands.colors}
+          // Dense blocks keep zooming in; only records within about 30 m of
+          // each other open as a spider or list, including exact stacks.
+          clusterMaxZoom={16}
+          expandOverlappingPoints
+          onPointClick={(properties) => {
+            const featureKey = String(properties.featureKey ?? '')
+            if (featureKey) litter.setSelectedId(litter.selectedId === featureKey ? null : featureKey)
+          }}
+        />
+      )}
 
       {litter.showPoints &&
         litter.selectedFeature &&
         (() => {
           const [longitude, latitude] = litter.selectedFeature.geometry.coordinates
-          const category = getPrimaryCategory(litter.selectedFeature)
+          const category = getDrawnCategory(litter.selectedFeature, litter.selectedCategory)
           return (
             <MapMarker longitude={longitude} latitude={latitude} onClick={() => litter.setSelectedId(null)}>
               <MarkerContent>
@@ -984,12 +1022,12 @@ export function OpenLitterMapLegend({ litter }: { litter: OpenLitterMapState }) 
   return (
     <div className="w-full space-y-1.5 text-xs text-muted-foreground">
       {litter.showHeatmap && (
-        <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2">
+        <MapLegendSection title="Litter density" className="border-b border-border px-1 pb-2 last:border-b-0 last:pb-0">
           <MapGradientLegendItem colors={HEATMAP_RAMP} minLabel="Low" maxLabel="High" />
         </MapLegendSection>
       )}
       {litter.showHexes && (
-        <MapLegendSection title="Hex item count" className="border-b border-border px-1 pb-2">
+        <MapLegendSection title="Hex item count" className="border-b border-border px-1 pb-2 last:border-b-0 last:pb-0">
           <MapGradientLegendItem colors={HEX_COUNT_RAMP} minLabel="Low" maxLabel="High" />
         </MapLegendSection>
       )}

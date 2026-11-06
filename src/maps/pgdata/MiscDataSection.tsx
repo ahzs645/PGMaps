@@ -5,7 +5,7 @@ import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 import { point } from '@turf/helpers'
 import { Layers, Satellite, Trees } from 'lucide-react'
 import { Map as PgMap, MapClusterLayer, MapMarker, MapPopup, MarkerContent } from '@/components/ui/map'
-import { MapFillLayer, MapHeatmapLayer, MapPmtilesFillLayer } from '@/components/ui/map-layers'
+import { MapFillLayer, MapHeatmapLayer } from '@/components/ui/map-layers'
 import { SectionTabsBar } from '@/components/layout/SectionTabsBar'
 import { MobileFeatureCard } from '@/components/ui/mobile-feature-card'
 import { PG_CENTER } from '@/components/ui/map-styles'
@@ -20,7 +20,7 @@ import {
   type RegionLevel,
   type StudyAreaRegion,
 } from '@/lib/studyArea'
-import { LegendItem, MapGradientLegendItem, MapLegendPanel, ToggleChip } from '@/components/ui/map-panels'
+import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapSwatch, ToggleChip } from '@/components/ui/map-panels'
 import { DATASETS } from '@/lib/dataCatalog'
 import { useHeatShadeData } from '@/maps/scorebuilder/hooks/useHeatShadeData'
 import { formatDate, formatNullableNumber, useJsonManifest } from './shared'
@@ -39,13 +39,15 @@ import {
   type EvChargingSummaryStats,
 } from './evCharging'
 import { CanueGraphDrawer, MobileCanueBoundaryFeatureCard } from './CanueGraphDrawer'
+import { CanueGridLayers } from './CanueGridLayers'
 import { CanueSidebar } from './CanueSidebar'
 import { useCanueController } from './useCanueController'
 import { MISC_LEGEND_TITLES, MISC_TABS, parseMiscDataTab, type MiscDataTab } from './miscDataTabs'
 import {
   CANUE_TIMELINE_WINDOW_OPTIONS,
   MISC_LAYERS,
-  canueV2Paint,
+  CANUE_BOUNDARY_FILL_OPACITY,
+  CANUE_SCALE_COLORS,
   getCanueV2VariableLabel,
   getCanueVariableLabel,
   renderCanueDisplayLabel,
@@ -119,7 +121,7 @@ import { DroughtSection } from '@/maps/drought'
 import { RemediationSection } from '@/maps/remediation/RemediationSection'
 import { ParcelMapSection } from '@/maps/parcelmap/ParcelMapSection'
 import { CensusSection } from '@/maps/census'
-import { CANUE_V2_ENABLED } from './canueV2'
+import { CANUE_V2_ENABLED, type CanueVariableSelection } from './canueV2'
 
 interface HeatShadeManifestSource {
   id: string
@@ -177,6 +179,9 @@ function MobileEvStationFeatureCard({ station, onClose }: { station: EvChargingF
     </MobileFeatureCard>
   )
 }
+
+const NO_CANUE_SELECTIONS: readonly CanueVariableSelection[] = []
+const NO_CANUE_FEATURE_STATE: Record<string, { value: number | null }> = {}
 
 function EvChargingLegend({
   showPoints,
@@ -408,6 +413,8 @@ export default function MiscDataSection() {
     handleCanueTimelineDateChange,
     handleCanueTimelineDisable,
     canueTimelinePrefetch,
+    canueTimelineSelections,
+    canueTimelineGridScale,
     canuePeriodLabel,
     canuePmtilesBoundaryData,
     canueV2AggregateData,
@@ -419,6 +426,8 @@ export default function MiscDataSection() {
     activeCanueGraphRows,
     canueGraphsAvailable,
     renderedCanueBoundaryLayer,
+    canueBoundaryShapes,
+    renderedCanueFeatureState,
     renderedCanueFillColor,
     canueMapCenter,
     canueMapZoom,
@@ -426,6 +435,13 @@ export default function MiscDataSection() {
     handleCanueBoundarySourceChange,
     handleCanueGraphVariableToggle,
   } = useCanueController({ activeTab, searchParams })
+  const canueBoundaryAreaCount = canueBoundaryShapes?.features.length ?? 0
+  const canueAreasWithValuesLabel = `${activeCanueBoundaryData.validBoundaryCount.toLocaleString()} of ${canueBoundaryAreaCount.toLocaleString()} areas`
+  const canueNoValueAreaCount =
+    showCanueBoundaries && !activeCanueBoundaryData.loading
+      ? Math.max(canueBoundaryAreaCount - activeCanueBoundaryData.validBoundaryCount, 0)
+      : 0
+  const canueSharedScale = showCanueBoundaries ? canueTimelinePrefetch.scale : canueTimelineGridScale
   const { trees, forests, facilities, loading, error } = useHeatShadeData(activeTab === 'heatShade')
   const heatShadeManifest = useJsonManifest<HeatShadeManifest>(
     activeTab === 'heatShade' ? '/data/heat-shade/manifest.json' : null,
@@ -888,7 +904,18 @@ export default function MiscDataSection() {
                 : activeTab === 'bcer'
                   ? bcer.loading
                   : false
-  const showLegendPanel = activeTab !== 'ev' || evShowPoints || evShowHeatmap || evShowBoundaries
+  // A legend explains what is drawn, so it goes once nothing is. Heat & shade,
+  // flood, BCER and water stay: their legend rows are the layers' own toggles.
+  const showLegendPanel =
+    activeTab === 'ev'
+      ? evShowPoints || evShowHeatmap || evShowBoundaries
+      : activeTab === 'icbc'
+        ? icbc.showPoints || icbc.showHeatmap
+        : activeTab === 'wars'
+          ? wars.showPoints || wars.showHeatmap || wars.showHotspots || wars.showWinterRange
+          : activeTab === 'openLitterMap'
+            ? openLitterMap.showPoints || openLitterMap.showHeatmap || openLitterMap.showHexes
+            : true
 
   const sidebar = (
     <div className="z-10 flex h-full min-h-0 w-full flex-col overflow-hidden border-r border-border bg-background/95 shadow-xl backdrop-blur">
@@ -1269,26 +1296,23 @@ export default function MiscDataSection() {
                 ))}
 
               {activeTab === 'canue' && CANUE_V2_ENABLED && selectedCanueV2Selection && !showCanueBoundaries && (
-                <MapPmtilesFillLayer
-                  key={selectedCanueV2Selection.pmtilesUrl}
-                  url={selectedCanueV2Selection.pmtilesUrl}
-                  sourceLayer="canue"
-                  fillColor={canueV2Paint(selectedCanueV2Selection)}
-                  fillOpacity={0.64}
-                  lineColor="#0f172a"
-                  lineWidth={0.18}
-                  lineOpacity={0.22}
+                <CanueGridLayers
+                  selection={selectedCanueV2Selection}
+                  timelineSelections={canueTimelineActive ? canueTimelineSelections : NO_CANUE_SELECTIONS}
+                  scale={canueTimelineGridScale}
                 />
               )}
 
               {activeTab === 'canue' &&
                 showCanueBoundaries &&
                 renderedCanueBoundaryLayer &&
-                renderedCanueBoundaryLayer.data.features.length > 0 && (
+                canueBoundaryShapes &&
+                canueBoundaryShapes.features.length > 0 && (
                   <MapFillLayer
-                    data={renderedCanueBoundaryLayer.data}
+                    data={canueBoundaryShapes}
+                    featureState={renderedCanueFeatureState ?? NO_CANUE_FEATURE_STATE}
                     fillColor={renderedCanueFillColor}
-                    fillOpacity={0.74}
+                    fillOpacity={CANUE_BOUNDARY_FILL_OPACITY}
                     lineColor="#0e7490"
                     lineWidth={0.7}
                     lineOpacity={0.58}
@@ -1501,6 +1525,7 @@ export default function MiscDataSection() {
                 compactBars
                 overflowBuckets
                 percentChangeMode={{ enabled: true, label: 'YoY' }}
+                statsLabel={`${icbc.totalCrashes.toLocaleString()} crashes`}
                 windowMode={{
                   size: icbc.timelineWindowSize,
                   onSizeChange: icbc.setTimelineWindowSize,
@@ -1550,9 +1575,11 @@ export default function MiscDataSection() {
                   })),
                 }}
                 statsLabel={
-                  canueTimelinePrefetch.loading
-                    ? `Loading timeline ${canueTimelinePrefetch.loaded}/${canueTimelinePrefetch.total} | ${activeCanueBoundaryData.validBoundaryCount.toLocaleString()} areas`
-                    : `${activeCanueBoundaryData.validBoundaryCount.toLocaleString()} areas with values`
+                  !showCanueBoundaries
+                    ? `${(selectedCanueV2Layer?.features ?? 0).toLocaleString()} grid cells`
+                    : canueTimelinePrefetch.loading
+                      ? `Loading timeline ${canueTimelinePrefetch.loaded}/${canueTimelinePrefetch.total} | ${canueAreasWithValuesLabel}`
+                      : `${canueAreasWithValuesLabel} with values`
                 }
               />
             )}
@@ -1621,15 +1648,33 @@ export default function MiscDataSection() {
                       </div>
                       <MapGradientLegendItem
                         className="mt-1 px-1"
-                        colors={['#67e8f9', '#fde047', '#ef4444']}
-                        minLabel={formatNullableNumber(
-                          activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min,
-                        )}
-                        maxLabel={formatNullableNumber(
-                          activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max,
-                        )}
+                        colors={CANUE_SCALE_COLORS}
+                        minLabel={
+                          canueSharedScale
+                            ? `${canueSharedScale.clippedLow ? '≤ ' : ''}${formatNullableNumber(canueSharedScale.low)}`
+                            : formatNullableNumber(activeCanueBoundaryData.minValue ?? selectedCanueV2Selection?.min)
+                        }
+                        maxLabel={
+                          canueSharedScale
+                            ? `${canueSharedScale.clippedHigh ? '≥ ' : ''}${formatNullableNumber(canueSharedScale.high)}`
+                            : formatNullableNumber(activeCanueBoundaryData.maxValue ?? selectedCanueV2Selection?.max)
+                        }
                       />
+                      {canueSharedScale && (
+                        <p className="mt-1 px-1 text-[11px] leading-tight">
+                          One scale for every period on the timeline
+                        </p>
+                      )}
                     </div>
+                    {canueNoValueAreaCount > 0 && (
+                      <LegendItem
+                        className="px-1"
+                        color="#94a3b8"
+                        swatch={<MapSwatch color="#94a3b8" active={false} />}
+                        label="No data this period"
+                        value={canueNoValueAreaCount.toLocaleString()}
+                      />
+                    )}
                   </div>
                 )}
                 {activeTab === 'network' && (

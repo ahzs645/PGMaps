@@ -175,6 +175,7 @@ export const BC_ENVIRO_SCREEN_METRICS: ScoreMetricDefinition[] = SEEDS.map((seed
   missingDataPolicy: 'excludeRegion',
   proxyLevel: 'proxy',
   boundarySources: ['bcHealth'],
+  boundaryLevels: ['lha'],
   boundaryRequirementLabel: 'Available only for BC Ministry of Health Local Health Areas.',
 }))
 

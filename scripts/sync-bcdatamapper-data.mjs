@@ -16,6 +16,8 @@ const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EAR
 
 const appOwnedDataPaths = [
   'projects',
+  // Built from Statistics Canada's CIMD table by scripts/build-cimd-snapshot.mjs.
+  'cimd',
   // Versioned forDRAT reference data owned by the forestry browser tool.
   'forest-drought',
   // Pinned published study tables and story assets, not scraper snapshots.

@@ -8,6 +8,7 @@ import { formatNumber } from '@/lib/format'
 import { formatNullableNumber, useJsonManifest } from './shared'
 import { CANUE_V2_ENABLED, listCanueV2Selections, type CanueV2Catalog, type CanueVariableSelection } from './canueV2'
 import {
+  canueBoundaryMetric,
   CANUE_BOUNDARY_SOURCE_OPTIONS,
   CANUE_MONTHS,
   CANUE_SUPPORTED_SOURCES,
@@ -434,7 +435,7 @@ export function CanueSidebar({
                   {
                     label: renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)),
                     value: formatNullableNumber(
-                      Number(selectedCanueBoundary.properties?.[selectedCanueV2Selection.property]),
+                      canueBoundaryMetric(selectedCanueBoundary, selectedCanueV2Selection.property),
                     ),
                   },
                 ]}
@@ -605,7 +606,7 @@ export function CanueSidebar({
                   {
                     label: renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
                     value: formatNullableNumber(
-                      Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty]),
+                      canueBoundaryMetric(selectedCanueBoundary, activeCanueBoundaryProperty),
                     ),
                   },
                 ]}

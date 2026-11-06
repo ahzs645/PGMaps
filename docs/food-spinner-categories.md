@@ -2,19 +2,24 @@
 
 Audit of the checked-in food-health snapshot on September 30, 2026: **457
 premises**, with **253 default dining candidates** and **204 excluded premises**.
-Opting into Costco Food Court produces 254 candidates and 203 exclusions with
-all dining categories selected. These are records in the inspection library, not a
+Turning on Other spots adds eight more, for 261 candidates and 196 exclusions.
+These are records in the inspection library, not a
 verified list of currently operating businesses.
 
 The food safety map retains every premise. Restaurant Roulette uses its own
 dining eligibility in `src/maps/foodmap/dining.ts` before applying any optional
-distance, violation or hazard filters. Turning off “Use Filters” never bypasses
-the dining selection. All eight dining categories are selected initially;
-users can narrow them independently of the safety filters. Named exceptions
-are visible as individual include/exclude options from the initial setup and
-start excluded. “All” means all dining categories; it does not enable exceptions
-or include all inspected premises. Exceptions still require their assigned
-dining category to be selected and obey enabled distance/safety filters.
+distance, violation or hazard filters. Turning off “Distance and safety
+filters” never bypasses the dining selection. Category, wheel-size and optional
+filter controls sit behind the Filters button so the wheel comes first, and
+spinning closes that panel. On phones the roulette also opens from the collapsed
+sheet, so it is reachable without expanding the panel.
+
+All eight dining categories are selected initially, and users can narrow them
+independently of the safety filters. A ninth category, **Other spots**, holds
+the named exceptions below and starts off. Users see it as one category rather
+than as individual places: turning it on adds all eight, whichever other
+categories are selected, and they still obey enabled distance/safety filters.
+“All” selects all nine categories; it does not include all inspected premises.
 
 ## Category inventory
 
@@ -33,7 +38,7 @@ remain owned by `vendor/bcdatamapper/datascrapers/food-health/output`.
 | Bakery | 16 | 16 | Include as snacks/desserts; includes specialty sellers |
 | Deli | 14 | 14 | Include; includes grocery deli counters |
 | Stand | 6 | 6 | Include as snacks/seasonal food |
-| Concession | 22 | 0 | Costco Food Court is an optional Restaurant exception |
+| Concession | 22 | 0 | Costco Food Court is in Other spots |
 | Recreation | 27 | 0 | Exclude venue facilities pending review |
 | Social Services | 39 | 0 | Exclude meal programs and organizations |
 | Community Kitchen | 30 | 0 | Exclude churches, halls and community kitchens |
@@ -47,23 +52,24 @@ remain owned by `vendor/bcdatamapper/datascrapers/food-health/output`.
 | Unknown | 7 | 0 | Exclude until categorized |
 | **Total** | **457** | **253** | **204 excluded by default** |
 
-## Spinner exceptions
+## Other spots
 
-Exact-name exceptions are selectable product options for a casual dining spinner. They
-do not rewrite a premise's inspection classification or claim to verify its
-current service. Ordinary hotel restaurants and hospital/university coffee
-shops remain eligible when their own records have a dining category.
+These exact-name entries make up the optional Other spots category for a casual
+dining spinner. They do not rewrite a premise's inspection classification or
+claim to verify its current service. Ordinary hotel restaurants and
+hospital/university coffee shops remain eligible when their own records have a
+dining category.
 
-| Premise | Source category | Spinner decision |
+| Premise | Source category | Reason it is optional |
 | --- | --- | --- |
-| 7-Eleven Food Store #37259 | Restaurant | Optional Restaurant; convenience store |
-| 7-Eleven Food Store #37263 | Restaurant | Optional Restaurant; convenience store |
-| Active Body Nutrition | Coffee Shop | Optional Coffee Shop; nutrition retailer |
-| Royal Canadian Legion #43 | Bar/Pub | Optional Bar/Pub; organization/club |
-| Crush Night Club | Bar/Pub | Optional Bar/Pub; nightlife venue |
-| Ignite Night Club | Bar/Pub | Optional Bar/Pub; nightlife venue |
-| The Underground Show Lounge and Bar | Bar/Pub | Optional Bar/Pub; show lounge |
-| Costco Food Court | Concession | Optional Restaurant |
+| 7-Eleven Food Store #37259 | Restaurant | Convenience store |
+| 7-Eleven Food Store #37263 | Restaurant | Convenience store |
+| Active Body Nutrition | Coffee Shop | Nutrition retailer |
+| Royal Canadian Legion #43 | Bar/Pub | Organization/club |
+| Crush Night Club | Bar/Pub | Nightlife venue |
+| Ignite Night Club | Bar/Pub | Nightlife venue |
+| The Underground Show Lounge and Bar | Bar/Pub | Show lounge |
+| Costco Food Court | Concession | Food court inside a retailer |
 
 For example, Evangelical Free Church, St Giles Presbyterian Church and Trinity
 United Downtown Church fall under Community Kitchen. PG Civic Centre - CG
@@ -81,7 +87,7 @@ with the following cases worth checking against business information:
   Lounge and Tee Box Golf Simulators & Lounge Ltd.
 - Retail records that may be snack destinations: Fort George Railway Scoop
   Shop. Gas Station also contains Eastway Esso-KFC; review whether that record
-  should become a dining exception.
+  should join Other spots.
 - Unknown records: Cook Shack, The; PG Afro Caribbean Enterprise; Rice Bowl;
   Silver Gosling; Sweden Creek Eats; The Muddled Leaf; Walker Camp.
 - Restaurant fallback includes Apna Bazaar. Review whether it describes a
@@ -92,7 +98,7 @@ with the following cases worth checking against business information:
   that food is available. Users can deselect these entire categories; a later
   verified dining curation can narrow individual records.
 
-New or renamed premises may lose a name-based classification or exception.
+New or renamed premises may lose a name-based classification or Other spots entry.
 Review this inventory when the scraper snapshot changes; Unknown and other
 non-dining categories stay excluded. Broad source-label mistakes should be
 corrected in bcdatamapper, following its commit/push/sync workflow. Spinner-only

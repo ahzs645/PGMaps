@@ -19,7 +19,7 @@ import type {
 import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import type { BaselineComparisonResult, BaselineSnapshot } from '../lib/baselineComparison'
 import type { PopulationWeightedEquitySummary } from '../lib/populationSummary'
-import { formatScore, getUnavailableWeightedMetrics } from '../lib/metrics'
+import { formatRegionCount, formatScore, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import { DataSourceToggleList } from './DataSourceToggleList'
 import { WeightDistribution } from './EquationComposer'
@@ -169,8 +169,8 @@ export function ScoreBuilderSidebar({
           <div className="text-base font-semibold leading-tight text-foreground">{activeRecipeLabel}</div>
           <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{activeRecipeDescription}</p>
           <div className="mt-2 text-xs text-muted-foreground">
-            {regions.length.toLocaleString(DEFAULT_LOCALE)} regions · avg {formatScore(scoreSpread.average)} ·{' '}
-            {enabledDataSources.length} source{enabledDataSources.length === 1 ? '' : 's'}
+            {formatRegionCount(regions.length)} · avg {formatScore(scoreSpread.average)} · {enabledDataSources.length}{' '}
+            source{enabledDataSources.length === 1 ? '' : 's'}
           </div>
           <div className="mt-3 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
             <button type="button" onClick={onOpenRecipes} className={actionClass} aria-label="Browse recipes">

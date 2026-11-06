@@ -1385,9 +1385,6 @@ export function WarsLegend({ wars }: { wars: WarsState }) {
           )}
         </div>
       )}
-      {!wars.showPoints && !wars.showHeatmap && !wars.showHotspots && !wars.showWinterRange && (
-        <MapLegendNote className="italic">All layers are hidden.</MapLegendNote>
-      )}
     </div>
   )
 }

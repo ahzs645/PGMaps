@@ -53,7 +53,7 @@ export function useScoreBuilderMapColors({
   showWalkabilitySourceSurface,
 }: ScoreBuilderMapColorsOptions) {
   const correlationResult = useMemo<CorrelationResult>(() => {
-    if (!correlateMode) return { stats: null, points: [], residualMaxAbs: 0 }
+    if (!correlateMode) return { stats: null, points: [], residualMaxAbs: 0, residualScale: 0 }
     return computeCorrelation(regionMetricRows, correlateMetricX, correlateMetricY)
   }, [correlateMode, correlateMetricX, correlateMetricY, regionMetricRows])
 
@@ -68,7 +68,7 @@ export function useScoreBuilderMapColors({
     if (correlateVisStyle === 'residual') {
       const colors: Record<string, string> = {}
       for (const point of correlationResult.points) {
-        colors[point.regionId] = getResidualColor(point.residual, correlationResult.residualMaxAbs)
+        colors[point.regionId] = getResidualColor(point.residual, correlationResult.residualScale)
       }
       return colors
     }

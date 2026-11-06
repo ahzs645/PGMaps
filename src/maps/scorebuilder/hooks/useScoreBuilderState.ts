@@ -13,7 +13,7 @@ import {
 } from '../lib/shareState'
 import { encodeCustomMetricRecipes, encodeCustomMetricWeights, getQuickIndexLabPresetKey } from '../lib/urlState'
 import { encodeWalkabilitySurfaceTuning, type WalkabilitySurfaceTuning } from '../lib/walkabilitySurface'
-import { LAB_URL_PARAMS, getScoreLab, type ScoreLabKind } from '../lib/labs'
+import { LAB_URL_PARAMS, isOnLabPath, rememberLabStudyArea, type ScoreLabKind } from '../lib/labs'
 import type {
   ScoreDataSource,
   ScoreFilterKey,
@@ -246,13 +246,19 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
     // Router navigations render in a transition, so a lab being switched away from stays
     // mounted for a moment after the address changes. Its relative search-param write would
     // then pull the browser back to this lab's path.
-    if (window.location.pathname !== getScoreLab(lab).path) return
+    if (!isOnLabPath(window.location.pathname, lab)) return
     const params = new URLSearchParams(urlQuery)
     // The build/explore view param is owned by the section; carry it through rewrites.
     const view = searchParamsRef.current.get('view')
     if (lab === 'index' && (view === 'build' || view === 'explore')) params.set('view', view)
     setSearchParams(params, { replace: true })
   }, [lab, quickPending, setSearchParams, urlQuery])
+
+  // The Labs cards reopen on this study area; each lab still owns its own metrics.
+  const { boundarySource } = state
+  useEffect(() => {
+    rememberLabStudyArea({ source: boundarySource, level: selectedRegionLevel })
+  }, [boundarySource, selectedRegionLevel])
 
   // Shared-state tokens are decoded asynchronously, then applied on top of the initial state.
   useEffect(() => {
@@ -446,6 +452,9 @@ export function useScoreBuilderState(lab: ScoreLabKind = 'index') {
       watershedBoundaryLevel: state.watershedBoundaryLevel,
       drainageBoundaryLevel: state.drainageBoundaryLevel,
       fireZoneBoundaryLevel: state.fireZoneBoundaryLevel,
+      nrAdminBoundaryLevel: state.nrAdminBoundaryLevel,
+      postalBoundaryLevel: state.postalBoundaryLevel,
+      bcerBoundaryLevel: state.bcerBoundaryLevel,
       enabledDataSources: state.enabledDataSources,
       selectedNetworks: state.selectedNetworks,
       weights: state.weights,

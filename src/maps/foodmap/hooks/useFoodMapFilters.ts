@@ -7,9 +7,9 @@ import {
   useSetUrlParams,
   useUrlState,
 } from '@/hooks/useUrlState'
-import type { FoodSortOrder, HazardRating, MarkerStyle, VisualizationMode, ViolationTimelineMode } from '../types'
+import type { FoodSortOrder, HazardRating, MarkerStyle, VisualizationMode } from '../types'
 
-export const HAZARD_RATING_OPTIONS: readonly HazardRating[] = ['Low', 'Moderate', 'Unknown']
+export const HAZARD_RATING_OPTIONS: readonly HazardRating[] = ['Low', 'Moderate', 'High', 'Unknown']
 
 export const FACILITY_TYPE_OPTIONS: readonly string[] = [
   'Restaurant',
@@ -44,7 +44,6 @@ export const MARKER_STYLE_OPTIONS: readonly { value: MarkerStyle; label: string 
   { value: 'heat', label: 'Heatmap reveal' },
   { value: 'cluster', label: 'Cluster reveal' },
 ]
-const VIOLATION_TIMELINE_MODES: readonly ViolationTimelineMode[] = ['period', 'cumulative']
 export const SORT_OPTIONS: readonly { value: FoodSortOrder; label: string }[] = [
   { value: 'name', label: 'Name' },
   { value: 'violations', label: 'Most violations' },
@@ -61,7 +60,9 @@ const markerStyleCodec = stringUnionCodec(
   'cluster',
 )
 const monthsCodec = numberCodec(12)
-const timelineModeCodec = stringUnionCodec(VIOLATION_TIMELINE_MODES, 'period')
+// Older shared links spelled "all time" as violationTimeline=cumulative.
+const LEGACY_CUMULATIVE_PARAM = 'violationTimeline'
+const legacyTimelineCodec = stringCodec('')
 const sortCodec = stringUnionCodec(
   SORT_OPTIONS.map((opt) => opt.value),
   'name',
@@ -73,8 +74,8 @@ export interface FoodMapFilters {
   searchQuery: string
   visualizationMode: VisualizationMode
   markerStyle: MarkerStyle
+  /** Months the violation window covers, ending at the timeline date; 0 is all time. */
   timelineMonths: number
-  violationTimelineMode: ViolationTimelineMode
   sortOrder: FoodSortOrder
 }
 
@@ -85,7 +86,6 @@ export interface FoodMapFilterActions {
   setVisualizationMode: (mode: VisualizationMode) => void
   setMarkerStyle: (style: MarkerStyle) => void
   setTimelineMonths: (months: number) => void
-  setViolationTimelineMode: (mode: ViolationTimelineMode) => void
   setSortOrder: (order: FoodSortOrder) => void
   applyFilters: (filters: Partial<FoodMapFilters>) => void
 }
@@ -102,8 +102,9 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
   const [searchQuery, setSearchQuery] = useUrlState('q', searchCodec)
   const [visualizationMode, setVisualizationMode] = useUrlState('mode', modeCodec)
   const [markerStyle, setMarkerStyle] = useUrlState('dots', markerStyleCodec)
-  const [timelineMonths, setTimelineMonths] = useUrlState('months', monthsCodec)
-  const [violationTimelineMode, setViolationTimelineMode] = useUrlState('violationTimeline', timelineModeCodec)
+  const [storedMonths] = useUrlState('months', monthsCodec)
+  const [legacyTimeline] = useUrlState(LEGACY_CUMULATIVE_PARAM, legacyTimelineCodec)
+  const timelineMonths = legacyTimeline === 'cumulative' ? 0 : storedMonths
   const [sortOrder, setSortOrder] = useUrlState('sort', sortCodec)
 
   const filters = useMemo<FoodMapFilters>(
@@ -114,19 +115,9 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       visualizationMode,
       markerStyle,
       timelineMonths,
-      violationTimelineMode,
       sortOrder,
     }),
-    [
-      hazardRatings,
-      facilityTypes,
-      searchQuery,
-      visualizationMode,
-      markerStyle,
-      timelineMonths,
-      violationTimelineMode,
-      sortOrder,
-    ],
+    [hazardRatings, facilityTypes, searchQuery, visualizationMode, markerStyle, timelineMonths, sortOrder],
   )
 
   const actions = useMemo<FoodMapFilterActions>(() => {
@@ -137,9 +128,9 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       if (patch.searchQuery !== undefined) updates.q = searchCodec.encode(patch.searchQuery)
       if (patch.visualizationMode !== undefined) updates.mode = modeCodec.encode(patch.visualizationMode)
       if (patch.markerStyle !== undefined) updates.dots = markerStyleCodec.encode(patch.markerStyle)
-      if (patch.timelineMonths !== undefined) updates.months = monthsCodec.encode(patch.timelineMonths)
-      if (patch.violationTimelineMode !== undefined) {
-        updates.violationTimeline = timelineModeCodec.encode(patch.violationTimelineMode)
+      if (patch.timelineMonths !== undefined) {
+        updates.months = monthsCodec.encode(patch.timelineMonths)
+        updates[LEGACY_CUMULATIVE_PARAM] = null
       }
       if (patch.sortOrder !== undefined) updates.sort = sortCodec.encode(patch.sortOrder)
       setUrlParams(updates)
@@ -151,8 +142,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
       setSearchQuery,
       setVisualizationMode,
       setMarkerStyle,
-      setTimelineMonths,
-      setViolationTimelineMode,
+      setTimelineMonths: (months) => applyFilters({ timelineMonths: months }),
       setSortOrder,
       applyFilters,
     }
@@ -161,9 +151,7 @@ export function useFoodMapFilters(): { filters: FoodMapFilters; actions: FoodMap
     setHazardRatings,
     setMarkerStyle,
     setSearchQuery,
-    setTimelineMonths,
     setUrlParams,
-    setViolationTimelineMode,
     setVisualizationMode,
     setSortOrder,
   ])

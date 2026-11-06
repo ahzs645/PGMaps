@@ -1,4 +1,5 @@
 import type { BoundarySource } from '@/lib/studyArea'
+import type { RegionLevel } from '@/maps/airquality'
 import { SCORE_METRICS } from '../constants'
 import type {
   RegionDataCounts,
@@ -39,8 +40,13 @@ export interface MetricAvailability {
   message: string
 }
 
-export function isMetricAvailableOnBoundary(metric: ScoreMetricDefinition, boundarySource: BoundarySource): boolean {
-  return !metric.boundarySources || metric.boundarySources.includes(boundarySource)
+export function isMetricAvailableOnBoundary(
+  metric: ScoreMetricDefinition,
+  boundarySource: BoundarySource,
+  regionLevel?: RegionLevel,
+): boolean {
+  if (metric.boundarySources && !metric.boundarySources.includes(boundarySource)) return false
+  return !regionLevel || !metric.boundaryLevels || metric.boundaryLevels.includes(regionLevel)
 }
 
 /**
@@ -51,8 +57,9 @@ export function getMetricUnavailability(
   metric: ScoreMetricDefinition,
   enabledDataSources: Iterable<ScoreDataSource>,
   boundarySource: BoundarySource,
+  regionLevel?: RegionLevel,
 ): MetricAvailability | null {
-  if (!isMetricAvailableOnBoundary(metric, boundarySource)) {
+  if (!isMetricAvailableOnBoundary(metric, boundarySource, regionLevel)) {
     return {
       reason: 'boundary',
       message: metric.boundaryRequirementLabel ?? 'Not populated on the current study area.',
@@ -79,12 +86,13 @@ export function getUnavailableWeightedMetrics(
   weights: ScoreMetricWeightMap,
   enabledDataSources: ScoreDataSource[],
   boundarySource: BoundarySource,
+  regionLevel?: RegionLevel,
 ): Map<ScoreMetricKey, MetricAvailability> {
   const enabled = new Set(enabledDataSources)
   const result = new Map<ScoreMetricKey, MetricAvailability>()
   metrics.forEach((metric) => {
     if ((weights[metric.key] ?? 0) === 0) return
-    const unavailable = getMetricUnavailability(metric, enabled, boundarySource)
+    const unavailable = getMetricUnavailability(metric, enabled, boundarySource, regionLevel)
     if (unavailable) result.set(metric.key, unavailable)
   })
   return result
@@ -98,6 +106,21 @@ export function getUnavailableWeightedMetrics(
 const DATA_SOURCE_BY_METRIC_KEY: ReadonlyMap<ScoreMetricKey, ScoreDataSource | null> = new Map(
   SCORE_METRICS.map((metric) => [metric.key, metricToDataSource(metric.category)] as const),
 )
+
+const ACTIVE_MONITOR_STATUSES = new Set(['active', 'on', 'yes', 'online', 'operating'])
+const INACTIVE_MONITOR_STATUSES = new Set(['inactive', 'off', 'no', 'offline', 'planned', 'decommissioned', 'closed'])
+
+/**
+ * Sensor feeds disagree on how they report status (`ON`, `yes`, `active`, `inactive`,
+ * `planned`), and the PurpleAir snapshot reports none. Null means unknown, which must
+ * not count against a region's active share.
+ */
+export function monitorIsActive(status: string | null | undefined): boolean | null {
+  const normalized = (status ?? '').trim().toLowerCase()
+  if (ACTIVE_MONITOR_STATUSES.has(normalized)) return true
+  if (INACTIVE_MONITOR_STATUSES.has(normalized)) return false
+  return null
+}
 
 export function metricHasCoverage(metric: ScoreMetricKey, counts: RegionDataCounts): boolean {
   const source = DATA_SOURCE_BY_METRIC_KEY.get(metric) ?? null
@@ -154,6 +177,18 @@ export function getMetricFormat(key: ScoreMetricKey): string {
   return SCORE_METRICS.find((metric) => metric.key === key)?.format || 'count'
 }
 
+const SPARSE_DENSITY_METRICS: ReadonlySet<ScoreMetricKey> = new Set([
+  'overallDensity',
+  'lowCostDensity',
+  'referenceDensity',
+])
+
+function formatDensityNumber(value: number): string {
+  const size = Math.abs(value)
+  if (size > 0 && size < 1) return value.toLocaleString(DEFAULT_LOCALE, { maximumSignificantDigits: 2 })
+  return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: size >= 100 ? 0 : 1 })
+}
+
 export function formatMetricValue(metric: ScoreMetricKey, value: number, compact = false): string {
   const format = getMetricFormat(metric)
 
@@ -168,10 +203,11 @@ export function formatMetricValue(metric: ScoreMetricKey, value: number, compact
       : `${perThousand.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} incidents / 1,000 residents`
   }
   if (format === 'density') {
-    const scaled = value * 1_000
-    return compact
-      ? `${scaled.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })}/1k km2`
-      : `${scaled.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })} / 1,000 km2`
+    // Sensors are sparse enough that a per-km² figure would be all leading zeros.
+    const perThousand = SPARSE_DENSITY_METRICS.has(metric)
+    const scaled = perThousand ? value * 1_000 : value
+    const unit = perThousand ? '1,000 km²' : 'km²'
+    return `${formatDensityNumber(scaled)}${compact ? '/' : ' / '}${unit}`
   }
   if (format === 'ratio' || format === 'percent') return `${(value * 100).toFixed(1)}%`
   if (format === 'rawPercent') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })}%`
@@ -179,6 +215,24 @@ export function formatMetricValue(metric: ScoreMetricKey, value: number, compact
   if (format === 'years') return `${value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 1 })} yrs`
   if (Number.isInteger(value)) return value.toLocaleString(DEFAULT_LOCALE)
   return value.toLocaleString(DEFAULT_LOCALE, { maximumFractionDigits: 2 })
+}
+
+export function formatRegionCount(count: number): string {
+  return `${count.toLocaleString(DEFAULT_LOCALE)} region${count === 1 ? '' : 's'}`
+}
+
+/**
+ * The month of the newest observation, for example "Oct 2025". Compared as dates: the
+ * feeds mix formats and some send the literal string "None", which sorts above any date.
+ */
+export function latestObservationMonth(dates: Array<string | null | undefined>): string | null {
+  let latest = Number.NEGATIVE_INFINITY
+  for (const date of dates) {
+    const time = date ? new Date(date.replace(' ', 'T')).getTime() : Number.NaN
+    if (Number.isFinite(time) && time > latest) latest = time
+  }
+  if (!Number.isFinite(latest)) return null
+  return new Date(latest).toLocaleDateString(DEFAULT_LOCALE, { month: 'short', year: 'numeric' })
 }
 
 export function formatScore(value: number): string {

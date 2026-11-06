@@ -1,5 +1,6 @@
 import createWebShareEngine from '@firstform/json-url/web-share'
 import type {
+  BcerBoundaryLevel,
   BoundarySource,
   CensusBoundaryLevel,
   BoundaryLevel,
@@ -8,6 +9,8 @@ import type {
   DrainageBoundaryLevel,
   FireZoneBoundaryLevel,
   MunicipalityBoundaryLevel,
+  NrAdminBoundaryLevel,
+  PostalBoundaryLevel,
   RegionalDistrictBoundaryLevel,
   WatershedBoundaryLevel,
 } from '@/maps/airquality'
@@ -27,6 +30,9 @@ export interface ScoreBuilderShareState {
   watershedBoundaryLevel?: WatershedBoundaryLevel
   drainageBoundaryLevel?: DrainageBoundaryLevel
   fireZoneBoundaryLevel?: FireZoneBoundaryLevel
+  nrAdminBoundaryLevel?: NrAdminBoundaryLevel
+  postalBoundaryLevel?: PostalBoundaryLevel
+  bcerBoundaryLevel?: BcerBoundaryLevel
   enabledDataSources: ScoreDataSource[]
   selectedNetworks: string[]
   weights: Partial<ScoreMetricWeightMap>

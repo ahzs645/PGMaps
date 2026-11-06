@@ -3,11 +3,10 @@ import { haversineKm } from '@/lib/geo'
 import { getHazardRating } from '../hazard'
 import {
   DINING_CATEGORIES,
-  DINING_EXCEPTIONS,
+  ROULETTE_CATEGORIES,
   diningCategory,
   selectDiningRestaurants,
-  type DiningCategory,
-  type DiningExceptionName,
+  type RouletteCategory,
 } from '../dining'
 import type { Restaurant, HazardRating, SourceLocation, SpinnerMode, RouletteRestaurant } from '../types'
 
@@ -87,26 +86,18 @@ function shuffleArray<T>(array: T[]): T[] {
 export function useRouletteState(allRestaurants: Restaurant[]) {
   // The optional distance/safety filters never bypass dining eligibility.
   const [useFilters, setUseFilters] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<DiningCategory[]>([...DINING_CATEGORIES])
-  const [selectedExceptions, setSelectedExceptions] = useState<DiningExceptionName[]>([])
-  const availableExceptions = useMemo(
-    () => DINING_EXCEPTIONS.filter((item) => allRestaurants.some((r) => r.name === item.name)),
-    [allRestaurants],
-  )
-  const diningRestaurants = useMemo(
-    () => selectDiningRestaurants(allRestaurants, DINING_CATEGORIES, selectedExceptions),
-    [allRestaurants, selectedExceptions],
-  )
-  const categoryCounts = useMemo(
-    () =>
-      Object.fromEntries(
-        DINING_CATEGORIES.map((category) => [
-          category,
-          diningRestaurants.filter((r) => diningCategory(r, selectedExceptions) === category).length,
-        ]),
-      ) as Record<DiningCategory, number>,
-    [diningRestaurants, selectedExceptions],
-  )
+  const [selectedCategories, setSelectedCategories] = useState<RouletteCategory[]>([...DINING_CATEGORIES])
+  const categoryCounts = useMemo(() => {
+    const counts = Object.fromEntries(ROULETTE_CATEGORIES.map((category) => [category, 0])) as Record<
+      RouletteCategory,
+      number
+    >
+    allRestaurants.forEach((restaurant) => {
+      const category = diningCategory(restaurant)
+      if (category) counts[category] += 1
+    })
+    return counts
+  }, [allRestaurants])
 
   // Location state
   const [sourceLocation, setSourceLocation] = useState<SourceLocation | null>(null)
@@ -133,7 +124,7 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
 
   // Computed: filtered restaurants for roulette
   const eligibleRestaurants = useMemo<RouletteRestaurant[]>(() => {
-    const selectedRestaurants = selectDiningRestaurants(diningRestaurants, selectedCategories, selectedExceptions)
+    const selectedRestaurants = selectDiningRestaurants(allRestaurants, selectedCategories)
     if (!useFilters) {
       return selectedRestaurants.map((r) => ({
         ...r,
@@ -171,9 +162,8 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
         }
       })
   }, [
-    diningRestaurants,
+    allRestaurants,
     selectedCategories,
-    selectedExceptions,
     useFilters,
     sourceLocation,
     maxDistance,
@@ -182,15 +172,9 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
     violationTimePeriod,
   ])
 
-  const toggleCategory = useCallback((category: DiningCategory) => {
+  const toggleCategory = useCallback((category: RouletteCategory) => {
     setSelectedCategories((previous) =>
       previous.includes(category) ? previous.filter((value) => value !== category) : [...previous, category],
-    )
-  }, [])
-
-  const toggleException = useCallback((name: DiningExceptionName) => {
-    setSelectedExceptions((previous) =>
-      previous.includes(name) ? previous.filter((value) => value !== name) : [...previous, name],
     )
   }, [])
 
@@ -277,7 +261,6 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
   const resetFilters = useCallback(() => {
     setUseFilters(false)
     setSelectedCategories([...DINING_CATEGORIES])
-    setSelectedExceptions([])
     setSourceLocation(null)
     setLocationMode('none')
     setMaxDistance(5)
@@ -292,15 +275,22 @@ export function useRouletteState(allRestaurants: Restaurant[]) {
     setWheelRestaurants([])
   }, [])
 
+  const categoriesChanged =
+    selectedCategories.length !== DINING_CATEGORIES.length ||
+    DINING_CATEGORIES.some((category) => !selectedCategories.includes(category))
+  const activeFilterCount = [
+    categoriesChanged,
+    useFilters && sourceLocation !== null,
+    useFilters && maxViolations !== null,
+    useFilters && excludedHazardRatings.length > 0,
+  ].filter(Boolean).length
+
   return {
-    availableExceptions,
-    selectedExceptions,
-    toggleException,
+    activeFilterCount,
     selectedCategories,
     setSelectedCategories,
     toggleCategory,
     categoryCounts,
-    nonDiningCount: allRestaurants.length - diningRestaurants.length,
     useFilters,
     setUseFilters,
     sourceLocation,

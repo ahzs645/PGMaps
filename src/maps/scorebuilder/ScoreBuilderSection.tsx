@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Redo2, Undo2 } from 'lucide-react'
+import { Redo2, Undo2, X } from 'lucide-react'
 import {
   DESKTOP_SIDEBAR_MAX_WIDTH,
   DESKTOP_SIDEBAR_MIN_WIDTH,
   MapSectionLayout,
 } from '@/components/layout/MapSectionLayout'
 import type { MapRef } from '@/components/ui/map'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { COLOR_SCALES } from '@/components/ui/map-styles'
+import { escapeHtml } from '@/lib/escapeHtml'
 import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
 import { IndexLabHeader, LabsBackLink } from './components/IndexLabHeader'
 import { ScoreBuilderEquationBar } from './components/ScoreBuilderEquationBar'
@@ -34,7 +37,12 @@ import { useScoreBuilderResults } from './hooks/useScoreBuilderResults'
 import { useScoreBuilderState } from './hooks/useScoreBuilderState'
 import { useUserDatasets } from './hooks/useUserDatasets'
 import { useWalkabilityMiZonal } from './hooks/useWalkabilityMiZonal'
-import { exportMapImage, exportScoredRegions, type ScoreBuilderExportFormat } from './lib/exportRegions'
+import {
+  exportMapImage,
+  exportScoredRegions,
+  type MapImageLegend,
+  type ScoreBuilderExportFormat,
+} from './lib/exportRegions'
 import { exportPdfReport } from './lib/exportPdfReport'
 import { captureBaselineSnapshot, compareAgainstBaseline, type BaselineSnapshot } from './lib/baselineComparison'
 import {
@@ -48,9 +56,18 @@ import {
   downloadProjectPackage,
   findProjectPackageBySlug,
 } from '@/lib/projectPackages'
-import { DEFAULT_LOCALE } from '@/lib/format'
-import { formatMetricValue } from './lib/metrics'
+import {
+  formatMetricValue,
+  formatRegionCount,
+  formatScore,
+  getMetricLabel,
+  latestObservationMonth,
+  metricHasCoverage,
+} from './lib/metrics'
 import { getScoreLab, type ScoreLabKind } from './lib/labs'
+import { regionsBounds } from './lib/spatial'
+import { BIVARIATE_3X3_PALETTE, RESIDUAL_GRADIENT } from './lib/correlationColors'
+import { MINIMUM_DATA_COVERAGE, type ScoreMetricKey } from './types'
 
 /** Each lab keeps its own panel layout; the lens labs have a single sidebar. */
 function layoutStorageKey(lab: ScoreLabKind): string {
@@ -63,6 +80,11 @@ interface StoredLayoutPrefs {
   sidebarWidth?: number
   rightSidebarWidth?: number
 }
+
+/** The lens labs have no score to report, so they skip the PDF report. */
+const LENS_EXPORT_FORMATS: readonly ScoreBuilderExportFormat[] = ['csv', 'geojson', 'png']
+/** Below this share of ranked regions the map reads as broken, so the coverage notice explains it. */
+const COVERAGE_NOTICE_SHARE = 0.25
 
 const DEFAULT_SIDEBAR_WIDTH = 300
 const DEFAULT_RIGHT_SIDEBAR_WIDTH = 380
@@ -207,11 +229,24 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     [datasets.datasetProfiles, userDatasets.profiles],
   )
 
+  // Two metrics are expensive, so they only compute when something shows them: a weight
+  // in the Index Lab, or the lens metric of the Density and Correlation labs.
+  const lensMetrics = useMemo<ScoreMetricKey[]>(
+    () =>
+      state.densityMode
+        ? [state.densityMetric]
+        : state.correlateMode
+          ? [state.correlateMetricX, state.correlateMetricY]
+          : [],
+    [state.correlateMetricX, state.correlateMetricY, state.correlateMode, state.densityMetric, state.densityMode],
+  )
+  const metricIsShown = (metric: ScoreMetricKey) => (state.weights[metric] ?? 0) !== 0 || lensMetrics.includes(metric)
+
   const points = useScoreBuilderPointRecords({
     enabledSourceSet: sb.enabledSourceSet,
     datasets,
     selectedNetworks: state.selectedNetworks,
-    parkBufferAccessNeeded: state.weights.parkAccessGap1Mile !== 0,
+    parkBufferAccessNeeded: metricIsShown('parkAccessGap1Mile'),
   })
 
   // Keep the control state in sync with the networks present in the monitor data.
@@ -222,7 +257,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
 
   // The MI-surface zonal aggregation is expensive, so it only runs when the user
   // actually weights the metric (turning the raster into a scored, ranked input).
-  const walkabilityMiByRegion = useWalkabilityMiZonal((state.weights.walkabilityMiSurface ?? 0) !== 0, datasets.regions)
+  const walkabilityMiByRegion = useWalkabilityMiZonal(metricIsShown('walkabilityMiSurface'), datasets.regions)
 
   const { regionMetricRows, metricRanges, metricValueLists } = useScoreBuilderMetricRows({
     regions: datasets.regions,
@@ -352,38 +387,175 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     [activeRecipeDescription, activeRecipeLabel, sb],
   )
 
+  // Exports carry what the view shows; every other metric would be a column of zeros
+  // from a switched-off source.
+  const exportMetrics = useMemo(() => {
+    const { demographicMetric, environmentMetric } = state.methodSettings.healthyPlanPriority
+    const healthyPlan = state.methodSettings.aggregation === 'healthyPlanPairwisePriority'
+    return sb.activeMetricDefinitions.filter((metric) =>
+      isIndexLab
+        ? (state.weights[metric.key] ?? 0) !== 0 ||
+          (healthyPlan && (metric.key === demographicMetric || metric.key === environmentMetric))
+        : lensMetrics.includes(metric.key),
+    )
+  }, [isIndexLab, lensMetrics, sb.activeMetricDefinitions, state.methodSettings, state.weights])
+
+  const mapImageLegend = useMemo<MapImageLegend | null>(() => {
+    if (lab === 'correlate') {
+      if (state.correlateVisStyle === 'residual') {
+        return {
+          kind: 'gradient',
+          title: `${getMetricLabel(state.correlateMetricY)} against fit`,
+          colors: RESIDUAL_GRADIENT,
+          minLabel: 'Below fit',
+          maxLabel: 'Above fit',
+        }
+      }
+      return {
+        kind: 'bivariate',
+        title: 'Bivariate map',
+        palette: BIVARIATE_3X3_PALETTE,
+        xLabel: getMetricLabel(state.correlateMetricX),
+        yLabel: getMetricLabel(state.correlateMetricY),
+      }
+    }
+    if (lab === 'density') {
+      const range = metricRanges[state.densityMetric]
+      return {
+        kind: 'gradient',
+        title: getMetricLabel(state.densityMetric),
+        colors: COLOR_SCALES.amber,
+        minLabel: range ? formatMetricValue(state.densityMetric, range.min, true) : 'Lower',
+        maxLabel: range ? formatMetricValue(state.densityMetric, range.max, true) : 'Higher',
+      }
+    }
+    if (bcEnviroScreenMapActive || sb.canUseWalkabilitySourceSurface) return null
+    const absolute = state.methodSettings.mapColorScale === 'absolute'
+    return {
+      kind: 'gradient',
+      title: results.scorePaletteProfile.label,
+      colors: results.scorePaletteProfile.colors,
+      minLabel: absolute ? '0' : results.scoreSpread.min.toFixed(0),
+      maxLabel: absolute ? '100' : results.scoreSpread.max.toFixed(0),
+    }
+  }, [
+    bcEnviroScreenMapActive,
+    lab,
+    metricRanges,
+    results.scorePaletteProfile,
+    results.scoreSpread,
+    sb.canUseWalkabilitySourceSurface,
+    state.correlateMetricX,
+    state.correlateMetricY,
+    state.correlateVisStyle,
+    state.densityMetric,
+    state.methodSettings.mapColorScale,
+  ])
+
+  const [exportError, setExportError] = useState<string | null>(null)
   const handleExport = useCallback(
     (format: ScoreBuilderExportFormat) => {
+      setExportError(null)
+      const reportFailure = (cause: unknown) =>
+        setExportError(cause instanceof Error ? cause.message : 'The export failed. Try again.')
+      const stem = isIndexLab ? 'index-lab' : `${lab === 'density' ? 'density' : 'correlation'}-lab`
       if (format === 'png') {
         const map = mapInstanceRef.current
-        if (map) void exportMapImage(map, activeRecipeLabel).catch(() => {})
+        if (!map) {
+          setExportError('The map is not ready yet. Try again in a moment.')
+          return
+        }
+        exportMapImage(map, {
+          title: isIndexLab ? activeRecipeLabel : labInfo.title,
+          subtitle: `PGMaps ${labInfo.title} · ${new Date().toISOString().slice(0, 10)}`,
+          legend: mapImageLegend,
+          filename: `${stem}-map.png`,
+        }).catch(reportFailure)
         return
       }
       if (format === 'pdf') {
-        void exportPdfReport({
+        exportPdfReport({
           map: mapInstanceRef.current,
           title: activeRecipeLabel,
           description: activeRecipeDescription,
           equationPreview: results.equationPreview,
           methodSettings: state.methodSettings,
           scoredRegions: results.scoredRegions,
-          metrics: sb.activeMetricDefinitions,
+          activeMetricCount: exportMetrics.length,
           scoreSpread: results.scoreSpread,
-        }).catch(() => {})
+        }).catch(reportFailure)
         return
       }
-      exportScoredRegions(format, results.scoredRegions, sb.activeMetricDefinitions, state.methodSettings.aggregation)
+      exportScoredRegions(format, results.scoredRegions, {
+        metrics: exportMetrics,
+        aggregation: state.methodSettings.aggregation,
+        includeScores: isIndexLab,
+        filenameStem: `${stem}-regions`,
+      })
     },
     [
       activeRecipeDescription,
       activeRecipeLabel,
+      exportMetrics,
+      isIndexLab,
+      lab,
+      labInfo.title,
+      mapImageLegend,
       results.equationPreview,
       results.scoreSpread,
       results.scoredRegions,
-      sb.activeMetricDefinitions,
       state.methodSettings,
     ],
   )
+
+  const studyAreaBounds = useMemo(() => regionsBounds(datasets.regions), [datasets.regions])
+
+  const unrankedRegions = useMemo(() => {
+    if (results.scoredRegions.length === results.unfilteredScoredRegions.length) return []
+    const ranked = new Set(results.scoredRegions.map((entry) => entry.region.id))
+    return results.unfilteredScoredRegions.filter(
+      (entry) => !ranked.has(entry.region.id) && entry.dataCoverageScore < MINIMUM_DATA_COVERAGE,
+    )
+  }, [results.scoredRegions, results.unfilteredScoredRegions])
+
+  const regionTooltips = useMemo(() => {
+    const tooltips: Record<string, string> = {}
+    for (const entry of results.scoredRegions) {
+      const lines = isIndexLab
+        ? [`#${entry.rank} · score ${formatScore(entry.score)}`]
+        : lensMetrics.map(
+            (metric) =>
+              `${escapeHtml(getMetricLabel(metric))}: ${escapeHtml(formatMetricValue(metric, entry.metrics[metric], true))}`,
+          )
+      tooltips[entry.region.id] = [`<strong>${escapeHtml(entry.region.name)}</strong>`, ...lines].join('<br />')
+    }
+    return tooltips
+  }, [isIndexLab, lensMetrics, results.scoredRegions])
+
+  const lensCoverage = useMemo(() => {
+    if (isIndexLab || datasets.loading) return null
+    const total = results.unfilteredScoredRegions.length
+    const covered = results.unfilteredScoredRegions.filter((entry) =>
+      lensMetrics.every((metric) => metricHasCoverage(metric, entry.counts)),
+    ).length
+    return { covered, total }
+  }, [datasets.loading, isIndexLab, lensMetrics, results.unfilteredScoredRegions])
+
+  const sensorDataDate = useMemo(
+    () => latestObservationMonth(points.filteredMonitors.map((monitor) => monitor.dateObserved)),
+    [points.filteredMonitors],
+  )
+
+  const studyAreaKey = `${state.boundarySource}|${sb.selectedRegionLevel}`
+  const [dismissedCoverageNotice, setDismissedCoverageNotice] = useState<string | null>(null)
+  const rankedCount = results.scoredRegions.length
+  const lowCoverageCount = results.lowCoverageExcludedCount
+  const showCoverageNotice =
+    !datasets.loading &&
+    lowCoverageCount > 0 &&
+    (rankedCount === 0 ||
+      (dismissedCoverageNotice !== studyAreaKey &&
+        rankedCount / (rankedCount + lowCoverageCount) < COVERAGE_NOTICE_SHARE))
 
   const visiblePresets = useMemo(
     () => SCORE_PRESETS.filter((preset) => presetAppliesToBoundary(preset, state.boundarySource)),
@@ -522,6 +694,10 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
     onEnableDataSource: sb.enableDataSource,
     showPoints: state.showPoints,
     onTogglePoints: sb.togglePoints,
+    lensCoverage,
+    // Desktop exports live in the header, which the phone layout does not show.
+    onExport: isDesktop ? undefined : handleExport,
+    exportFormats: LENS_EXPORT_FORMATS,
     selectedRegion: results.selectedRegion,
     onRegionSelect: sb.selectRegion,
     onClearRegionSelection: sb.clearRegionSelection,
@@ -558,7 +734,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
   const selectedRegion = results.selectedRegion
   const mobilePeekSubtitle = (() => {
     if (!selectedRegion) {
-      const count = `${results.scoredRegions.length.toLocaleString(DEFAULT_LOCALE)} regions`
+      const count = formatRegionCount(results.scoredRegions.length)
       return isIndexLab ? `${count} · avg ${results.scoreSpread.average.toFixed(1)}` : count
     }
     if (lab === 'density') {
@@ -641,7 +817,12 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                 onExport={handleExport}
               />
             ) : (
-              <IndexLabHeader title={labInfo.title} description={labInfo.description} />
+              <IndexLabHeader
+                title={labInfo.title}
+                description={labInfo.description}
+                onExport={handleExport}
+                exportFormats={LENS_EXPORT_FORMATS}
+              />
             ))}
           <div className="min-h-0 flex-1">
             <MapSectionLayout
@@ -687,7 +868,9 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     walkabilitySurfaceTuning={state.walkabilitySurfaceTuning}
                     loading={datasets.loading}
                     onMapInstance={handleMapInstance}
-                    fitAllRegions={bcEnviroScreenMapActive}
+                    studyAreaBounds={studyAreaBounds}
+                    unrankedRegions={unrankedRegions}
+                    regionTooltips={regionTooltips}
                   />
 
                   {bcEnviroScreenMapActive && (
@@ -700,11 +883,30 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     />
                   )}
 
-                  {!datasets.loading && results.scoredRegions.length === 0 && results.lowCoverageExcludedCount > 0 && (
+                  {showCoverageNotice && (
                     <ScoreBuilderCoverageNotice
-                      excludedCount={results.lowCoverageExcludedCount}
+                      excludedCount={lowCoverageCount}
+                      rankedCount={rankedCount}
                       onShowAnyway={() => sb.toggleScoreFilter('requireCoverage')}
+                      onDismiss={rankedCount > 0 ? () => setDismissedCoverageNotice(studyAreaKey) : undefined}
+                      className="max-md:top-[calc(env(safe-area-inset-top)+7rem)]"
                     />
+                  )}
+
+                  {exportError && (
+                    <div className="absolute left-1/2 top-3 z-30 flex w-[min(26rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-1 rounded-md bg-background shadow-xl max-md:top-[calc(env(safe-area-inset-top)+7rem)]">
+                      <InlineAlert tone="error" title="Export failed" className="min-w-0 flex-1 p-2.5">
+                        {exportError}
+                      </InlineAlert>
+                      <button
+                        type="button"
+                        onClick={() => setExportError(null)}
+                        aria-label="Dismiss export error"
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   )}
 
                   {sb.showWalkabilitySourceSurface && (
@@ -723,8 +925,9 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                       data-score-builder-mobile-actions="true"
                     >
                       <LabsBackLink size="lg" />
+                      {/* Beside the back link: the right edge belongs to the map's zoom controls. */}
                       {isIndexLab && (
-                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <div className="flex shrink-0 items-center gap-1.5">
                           <button
                             type="button"
                             onClick={sb.undo}
@@ -779,6 +982,7 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                     thinCoverageCount={results.thinCoverageCount}
                     lowCoverageExcludedCount={results.lowCoverageExcludedCount}
                     bcEnviroScreenMapView={bcEnviroScreenMapView}
+                    sensorDataDate={sensorDataDate}
                   />
                 </div>
               </div>

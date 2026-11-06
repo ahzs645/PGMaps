@@ -1,5 +1,5 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Copy, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -16,8 +16,9 @@ import type {
   ScoreMetricWeightMap,
 } from '../types'
 import type { CorrelationResult, MetricCorrelation } from '../lib/correlation'
+import type { ScoreBuilderExportFormat } from '../lib/exportRegions'
 import { getScoreLab } from '../lib/labs'
-import { formatMetricValue, getMetricLabel, getUnavailableWeightedMetrics } from '../lib/metrics'
+import { formatMetricValue, formatRegionCount, getMetricLabel, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { CorrelateTab } from './CorrelateTab'
 import { DataSourceToggleList } from './DataSourceToggleList'
 import { DensityTab } from './DensityTab'
@@ -64,6 +65,18 @@ type LensLabSidebarProps = (DensityLensProps | CorrelateLensProps) & {
   selectedRegion: ScoredBoundaryRegion | null
   onRegionSelect: (regionId: string) => void
   onClearRegionSelection: () => void
+  /** How many regions have data for the lens metrics, to warn when most are empty. */
+  lensCoverage: { covered: number; total: number } | null
+  /** Set where no header offers exports, which is the phone layout. */
+  onExport?: (format: ScoreBuilderExportFormat) => void
+  exportFormats?: readonly ScoreBuilderExportFormat[]
+}
+
+const EXPORT_LABELS: Record<ScoreBuilderExportFormat, string> = {
+  csv: 'CSV',
+  geojson: 'GeoJSON',
+  png: 'Map image',
+  pdf: 'PDF',
 }
 
 /**
@@ -92,6 +105,9 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
     selectedRegion,
     onRegionSelect,
     onClearRegionSelection,
+    lensCoverage,
+    onExport,
+    exportFormats = [],
   } = props
   const [sourcesOpen, setSourcesOpen] = useState(false)
   const { copy, status: copyStatus } = useClipboardText({ failureResetAfterMs: 1800 })
@@ -107,8 +123,15 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
   // is flagged the same way an orphaned weighted term is in the Index Lab.
   const unavailableTerms = useMemo(() => {
     const lensWeights = Object.fromEntries(lensMetrics.map((metric) => [metric, 1])) as ScoreMetricWeightMap
-    return getUnavailableWeightedMetrics(metrics, lensWeights, enabledDataSources, boundarySource)
-  }, [boundarySource, enabledDataSources, lensMetrics, metrics])
+    return getUnavailableWeightedMetrics(metrics, lensWeights, enabledDataSources, boundarySource, selectedRegionLevel)
+  }, [boundarySource, enabledDataSources, lensMetrics, metrics, selectedRegionLevel])
+
+  // A map click is the usual way here, so bring its values into view from anywhere.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const selectedRegionId = selectedRegion?.region.id ?? null
+  useEffect(() => {
+    if (selectedRegionId) scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+  }, [selectedRegionId])
 
   const handleCopyLink = () => {
     void copy(window.location.href)
@@ -119,14 +142,14 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
       className={cn('flex h-full min-h-0 w-full flex-col overflow-hidden bg-background', className)}
       data-score-lab-sidebar={props.lab}
     >
-      <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">
         <div className="border-b border-border px-4 py-2">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               {showDescription && (
                 <p className="mb-1 text-xs leading-snug text-muted-foreground">{getScoreLab(props.lab).description}</p>
               )}
-              <div className="text-xs text-muted-foreground">{regionCount.toLocaleString(DEFAULT_LOCALE)} regions</div>
+              <div className="text-xs text-muted-foreground">{formatRegionCount(regionCount)}</div>
             </div>
             <button
               type="button"
@@ -141,11 +164,36 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
           </div>
         </div>
 
+        {onExport && (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
+            <span className="text-xs text-muted-foreground">Export</span>
+            {exportFormats.map((format) => (
+              <button
+                key={format}
+                type="button"
+                onClick={() => onExport(format)}
+                className="inline-flex min-h-9 items-center rounded-md border border-input px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {EXPORT_LABELS[format]}
+              </button>
+            ))}
+          </div>
+        )}
+
         {dataErrors.length > 0 && (
           <InlineAlert tone="error" title="Some data could not load" className="m-4 p-3">
             {dataErrors.map((err, i) => (
               <p key={i}>{err}</p>
             ))}
+          </InlineAlert>
+        )}
+
+        {lensCoverage && lensCoverage.total > 1 && lensCoverage.covered / lensCoverage.total < 0.5 && (
+          <InlineAlert tone="warning" className="m-4 mb-0 leading-snug">
+            Only {lensCoverage.covered.toLocaleString(DEFAULT_LOCALE)} of{' '}
+            {lensCoverage.total.toLocaleString(DEFAULT_LOCALE)} regions have data for{' '}
+            {secondaryMetric ? 'these metrics' : 'this metric'}. The rest read as zero, so a smaller study area will say
+            more.
           </InlineAlert>
         )}
 
@@ -165,33 +213,6 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             })}
           </div>
         )}
-
-        <section className="border-b border-border" data-score-builder-lens-panel={props.lab}>
-          {props.lab === 'density' ? (
-            <DensityTab
-              className="p-4"
-              densityMetric={props.densityMetric}
-              onDensityMetricChange={props.onDensityMetricChange}
-              densitySummary={props.densitySummary}
-              densityLeaders={props.densityLeaders}
-              selectedRegion={selectedRegion}
-              onRegionSelect={onRegionSelect}
-            />
-          ) : (
-            <CorrelateTab
-              className="p-4"
-              metricX={props.correlateMetricX}
-              metricY={props.correlateMetricY}
-              onMetricXChange={props.onCorrelateMetricXChange}
-              onMetricYChange={props.onCorrelateMetricYChange}
-              visStyle={props.correlateVisStyle}
-              onVisStyleChange={props.onCorrelateVisStyleChange}
-              result={props.correlationResult}
-              topPairs={props.correlationTopPairs}
-              onApplyTopPair={props.onApplyTopPair}
-            />
-          )}
-        </section>
 
         {selectedRegion && (
           <section className="border-b border-border px-4 py-3" data-score-lab-selected-region="true">
@@ -218,6 +239,37 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             </dl>
           </section>
         )}
+
+        <section className="border-b border-border" data-score-builder-lens-panel={props.lab}>
+          {props.lab === 'density' ? (
+            <DensityTab
+              className="p-4"
+              densityMetric={props.densityMetric}
+              onDensityMetricChange={props.onDensityMetricChange}
+              densitySummary={props.densitySummary}
+              densityLeaders={props.densityLeaders}
+              selectedRegion={selectedRegion}
+              onRegionSelect={onRegionSelect}
+            />
+          ) : (
+            <CorrelateTab
+              className="p-4"
+              metricX={props.correlateMetricX}
+              metricY={props.correlateMetricY}
+              onMetricXChange={props.onCorrelateMetricXChange}
+              onMetricYChange={props.onCorrelateMetricYChange}
+              visStyle={props.correlateVisStyle}
+              onVisStyleChange={props.onCorrelateVisStyleChange}
+              result={props.correlationResult}
+              topPairs={props.correlationTopPairs}
+              onApplyTopPair={props.onApplyTopPair}
+              boundarySource={boundarySource}
+              regionLevel={selectedRegionLevel}
+              selectedRegionId={selectedRegionId}
+              onRegionSelect={onRegionSelect}
+            />
+          )}
+        </section>
 
         <StudyAreaSelector<BoundarySource, RegionLevel>
           source={boundarySource}

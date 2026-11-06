@@ -4,10 +4,10 @@ import { HEALTHYPLAN_EQUITY_PRIORITY_RAMP } from '@/lib/healthyplan'
 import { toWalkabilityMiLegendBands, useWalkabilityMiBands } from '@/maps/pgdata/walkabilityMiBands'
 import { SCORE_METRICS, type ScorePaletteProfile } from '../constants'
 import type { CorrelationResult } from '../lib/correlation'
-import { BIVARIATE_3X3_PALETTE } from '../lib/correlationColors'
+import { BIVARIATE_3X3_PALETTE, RESIDUAL_GRADIENT } from '../lib/correlationColors'
 import type { ScoreSpread } from '../lib/scoreSummaries'
 import type { ScoreMethodSettings, ScoreMetricKey } from '../types'
-import { formatMetricValue } from '../lib/metrics'
+import { formatMetricValue, formatRegionCount } from '../lib/metrics'
 import type { BcEnviroScreenMapView } from '../lib/bcEnviroScreenMapView'
 import { BcEnviroScreenMapLegend } from './BcEnviroScreenMapLegend'
 
@@ -31,6 +31,8 @@ interface ScoreBuilderMapLegendProps {
   /** Regions the coverage floor is holding out of the ranking. */
   lowCoverageExcludedCount?: number
   bcEnviroScreenMapView?: BcEnviroScreenMapView | null
+  /** When the sensor readings behind this map were taken, for example "Oct 2025". */
+  sensorDataDate?: string | null
 }
 
 /**
@@ -60,6 +62,7 @@ export function ScoreBuilderMapLegend({
   thinCoverageCount,
   lowCoverageExcludedCount = 0,
   bcEnviroScreenMapView = null,
+  sensorDataDate = null,
 }: ScoreBuilderMapLegendProps) {
   const walkabilityBands = showWalkabilitySourceSurface || canUseWalkabilitySourceSurface
   // Same resolved MI bands the raster paints with, so a regenerated grid moves
@@ -130,7 +133,8 @@ export function ScoreBuilderMapLegend({
               <>
                 Avg <span className="font-medium text-foreground">{scoreSpread.average.toFixed(1)}</span>
                 {' · '}
-                {regionCount} regions · {enabledDataSourceCount} source{enabledDataSourceCount === 1 ? '' : 's'}
+                {formatRegionCount(regionCount)} · {enabledDataSourceCount} source
+                {enabledDataSourceCount === 1 ? '' : 's'}
               </>
             )}
           </div>
@@ -146,6 +150,7 @@ export function ScoreBuilderMapLegend({
           )}
         </>
       )}
+      {sensorDataDate && <div className="mt-1 text-xs text-muted-foreground">Sensor data: {sensorDataDate}</div>}
     </MapLegendPanel>
   )
 }
@@ -172,7 +177,7 @@ function CorrelationMapLegend({ visStyle, result }: { visStyle: 'bivariate' | 'r
           </div>
         </div>
       ) : (
-        <MapGradientLegendItem colors={['#1d4ed8', '#f1f5f9', '#b91c1c']} minLabel="Below fit" maxLabel="Above fit" />
+        <MapGradientLegendItem colors={RESIDUAL_GRADIENT} minLabel="Below fit" maxLabel="Above fit" />
       )}
       <div className="mt-2 text-xs text-muted-foreground">
         r <span className="font-medium text-foreground">{stats ? stats.pearson.toFixed(2) : '–'}</span>

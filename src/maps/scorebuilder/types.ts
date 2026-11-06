@@ -230,6 +230,8 @@ export interface ScoreMetricDefinition {
    * exists for those sources, so weighting it anywhere else contributes nothing.
    */
   boundarySources?: BoundarySource[]
+  /** Narrower than `boundarySources`, for metrics published at one level of a hierarchy. */
+  boundaryLevels?: RegionLevel[]
   /** Shown in place of the description when the metric is unavailable on the active boundary. */
   boundaryRequirementLabel?: string
 }
@@ -282,6 +284,8 @@ export interface RegionDataCounts {
   lowCostCount: number
   referenceCount: number
   activeCount: number
+  /** Monitors whose feed reports a status at all; the denominator of the active share. */
+  statusKnownCount: number
   parkCount: number
   parkAreaSqKm: number
   trailCount: number
@@ -388,7 +392,7 @@ export interface ScoredBoundaryRegion {
   scoreColor: string
   rank: number
   dataCoverageScore: number
-  rankConfidence: 'Stable priority' | 'Borderline priority' | 'Sensitive result'
+  rankConfidence: 'Stable priority' | 'Borderline priority' | 'Sensitive result' | 'Not tested'
   rankInterval: [number, number]
   scoreInterval: [number, number]
   comparisonUniverseLabel: string

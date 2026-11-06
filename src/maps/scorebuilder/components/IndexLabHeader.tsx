@@ -27,6 +27,8 @@ export interface IndexLabHeaderProps {
   onOpenRecipes?: () => void
   onOpenSettings?: () => void
   onExport?: (format: ScoreBuilderExportFormat) => void
+  /** Which exports `onExport` offers; every format when omitted. */
+  exportFormats?: readonly ScoreBuilderExportFormat[]
   /** Extra actions rendered at the end of the toolbar. */
   actions?: ReactNode
 }
@@ -59,6 +61,7 @@ export function IndexLabHeader({
   onOpenRecipes,
   onOpenSettings,
   onExport,
+  exportFormats,
   actions,
 }: IndexLabHeaderProps) {
   return (
@@ -113,7 +116,7 @@ export function IndexLabHeader({
               <span className="hidden sm:inline">Recipes</span>
             </button>
           )}
-          {onExport && <ExportMenu onExport={onExport} />}
+          {onExport && <ExportMenu onExport={onExport} formats={exportFormats} />}
           {onOpenSettings && (
             <button
               type="button"
@@ -205,7 +208,13 @@ export function LabsBackLink({ size = 'sm', className }: { size?: 'sm' | 'lg'; c
   )
 }
 
-function ExportMenu({ onExport }: { onExport: (format: ScoreBuilderExportFormat) => void }) {
+function ExportMenu({
+  onExport,
+  formats,
+}: {
+  onExport: (format: ScoreBuilderExportFormat) => void
+  formats?: readonly ScoreBuilderExportFormat[]
+}) {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -243,7 +252,7 @@ function ExportMenu({ onExport }: { onExport: (format: ScoreBuilderExportFormat)
           role="menu"
           className="absolute right-0 top-9 z-30 w-44 rounded-md border border-border bg-background p-1 shadow-lg"
         >
-          {EXPORT_FORMATS.map(([format, label]) => (
+          {EXPORT_FORMATS.filter(([format]) => !formats || formats.includes(format)).map(([format, label]) => (
             <button
               key={format}
               role="menuitem"

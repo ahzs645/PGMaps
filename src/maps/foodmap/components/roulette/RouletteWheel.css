@@ -1,6 +1,26 @@
 /* Overrides for @firstform/spinnerwheel.
    Imported after the library styles so these win. */
 
+/* Keep the play button blue when it isn't hovered. The toolkit's base reset,
+   `.geo-toolkit button { background-color: transparent }`, outranks the
+   library's plain `.spinner-wheel-spin-button` but not its `:hover` rule, so
+   the white icon sat on the white hub until the pointer reached it. The extra
+   class beats the reset and still loses to the library's hover colour. */
+.spin-btn-wrap .spinner-wheel-spin-button {
+  position: relative;
+  background-color: #348ef6;
+}
+
+/* Our wrapper scales the wheel to about 0.6, which leaves the button under
+   40px on phones. This grows what can be tapped to the size of the white hub
+   without changing how the button looks. */
+.spin-btn-wrap .spinner-wheel-spin-button::before {
+  content: '';
+  position: absolute;
+  inset: -11px;
+  border-radius: 9999px;
+}
+
 /* Bigger "Press ► to spin the wheel" prompt. Keep a FIXED width (wider than
    the library's 312px to fit the larger font, but still narrower than the
    512px wheel) so the pill never resizes — long restaurant names shown while

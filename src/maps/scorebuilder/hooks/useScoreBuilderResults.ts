@@ -8,7 +8,7 @@ import { computePopulationWeightedEquitySummary, type PopulationWeightedEquitySu
 import { getActivePresetKey, scoreDataSourcesEqual, scoreWeightsEqual } from '../lib/presets'
 import { getScoreDrivers } from '../lib/scoreDrivers'
 import { clampScore, scoreRegionRows, type MetricValueListMap, type RegionMetricRow } from '../lib/scoring'
-import { buildScoreBandSummary, summarizeScores } from '../lib/scoreSummaries'
+import { buildScoreBandSummary, rankStability, summarizeScores } from '../lib/scoreSummaries'
 import { computeMedian } from '../lib/spatial'
 import {
   METRIC_CATEGORY_LABELS,
@@ -22,6 +22,23 @@ import {
   type ScoreMetricWeightMap,
 } from '../types'
 import type { ScoreBuilderControlState } from './scoreBuilderReducer'
+
+/** The Robustness tab lists this many regions; every ranked region is still tested. */
+const ROBUSTNESS_LISTED_REGIONS = 12
+
+const RANK_CONFIDENCE_BY_STABILITY: Record<RobustnessResult['stability'], ScoredBoundaryRegion['rankConfidence']> = {
+  stable: 'Stable priority',
+  moderate: 'Borderline priority',
+  sensitive: 'Sensitive result',
+}
+
+interface RegionStressTest {
+  entry: ScoredBoundaryRegion
+  medianRank: number
+  rankInterval: [number, number]
+  scoreInterval: [number, number]
+  stability: RobustnessResult['stability']
+}
 
 export interface ScoreBuilderResultsOptions {
   control: ScoreBuilderControlState
@@ -167,7 +184,7 @@ export function useScoreBuilderResults({
     }
   }, [unfilteredScoredRegions])
 
-  const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
+  const rankedRegions = useMemo<ScoredBoundaryRegion[]>(() => {
     const filtered = unfilteredScoredRegions.filter((entry) => {
       // Coverage first: a region scored almost entirely from zero-filled metrics is
       // not a low-scoring region, it is an unmeasured one.
@@ -213,11 +230,7 @@ export function useScoreBuilderResults({
       return {
         ...row,
         rankConfidence:
-          row.dataCoverageScore < 0.6 || nearestBandBoundary <= 2
-            ? 'Borderline priority'
-            : row.rank <= 12
-              ? 'Stable priority'
-              : 'Sensitive result',
+          row.dataCoverageScore < 0.6 || nearestBandBoundary <= 2 ? 'Borderline priority' : 'Sensitive result',
         equityAudit: {
           referenceRank: reference?.rank ?? null,
           rankDelta: reference ? reference.rank - row.rank : 0,
@@ -232,6 +245,89 @@ export function useScoreBuilderResults({
       }
     })
   }, [filterThresholds, scoreFilters, scoreRows, unfilteredScoredRegions])
+
+  // Every ranked region is stress-tested, so the rank and score intervals in the panels
+  // and exports are measured, not placeholders. The Robustness tab lists the top of them.
+  const stressTests = useMemo<RegionStressTest[]>(() => {
+    if (!methodSettings.sensitivity || !rankedRegions.length) return []
+    const eligibleIds = new Set(rankedRegions.map((entry) => entry.region.id))
+    const rankSamples = new Map<string, number[]>()
+    const scoreSamples = new Map<string, number[]>()
+    rankedRegions.forEach((entry) => {
+      rankSamples.set(entry.region.id, [entry.rank])
+      scoreSamples.set(entry.region.id, [entry.score])
+    })
+
+    const sampleRows = (rows: ScoredBoundaryRegion[]) => {
+      rows
+        .filter((entry) => eligibleIds.has(entry.region.id))
+        .forEach((entry, index) => {
+          rankSamples.get(entry.region.id)?.push(index + 1)
+          scoreSamples.get(entry.region.id)?.push(entry.score)
+        })
+    }
+
+    for (let trial = 0; trial < 24; trial += 1) {
+      const perturbedWeights = { ...weights }
+      activeMetricDefinitions.forEach((metric, index) => {
+        const weight = weights[metric.key]
+        if (weight === 0) return
+        const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
+        perturbedWeights[metric.key] = Math.round(weight * (1 + wave * 0.15))
+      })
+      sampleRows(scoreRows(perturbedWeights))
+    }
+
+    activeMetricDefinitions
+      .filter((metric) => weights[metric.key] !== 0)
+      .forEach((metric) => {
+        sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
+      })
+    ;(['minMax', 'winsorizedMinMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
+      if (normalization === methodSettings.normalization) return
+      sampleRows(scoreRows(weights, { ...methodSettings, normalization }))
+    })
+
+    return rankedRegions.map((entry) => {
+      const ranks = [...(rankSamples.get(entry.region.id) || [entry.rank])].sort((a, b) => a - b)
+      const scores = [...(scoreSamples.get(entry.region.id) || [entry.score])].sort((a, b) => a - b)
+      return {
+        entry,
+        medianRank: computeMedian(ranks),
+        rankInterval: [ranks[0], ranks[ranks.length - 1]],
+        scoreInterval: [scores[0], scores[scores.length - 1]],
+        stability: rankStability(ranks[ranks.length - 1] - ranks[0], rankedRegions.length),
+      }
+    })
+  }, [activeMetricDefinitions, methodSettings, rankedRegions, scoreRows, weights])
+
+  const scoredRegions = useMemo<ScoredBoundaryRegion[]>(() => {
+    if (!stressTests.length) return rankedRegions.map((entry) => ({ ...entry, rankConfidence: 'Not tested' as const }))
+    return stressTests.map(({ entry, rankInterval, scoreInterval, stability }) => ({
+      ...entry,
+      rankInterval,
+      scoreInterval,
+      // Thin data or a score beside a band cutoff stays a caution however steady the rank.
+      rankConfidence:
+        entry.rankConfidence === 'Borderline priority' ? entry.rankConfidence : RANK_CONFIDENCE_BY_STABILITY[stability],
+    }))
+  }, [rankedRegions, stressTests])
+
+  const robustnessResults = useMemo<RobustnessResult[]>(
+    () =>
+      stressTests.slice(0, ROBUSTNESS_LISTED_REGIONS).map(({ entry, ...test }) => ({
+        ...test,
+        regionId: entry.region.id,
+        regionName: entry.region.name,
+        baseRank: entry.rank,
+        topDrivers: activeMetricDefinitions
+          .filter((metric) => weights[metric.key] !== 0)
+          .sort((a, b) => Math.abs(entry.contributions[b.key]) - Math.abs(entry.contributions[a.key]))
+          .slice(0, 3)
+          .map((metric) => metric.key),
+      })),
+    [activeMetricDefinitions, stressTests, weights],
+  )
 
   const populationEquitySummary = useMemo<PopulationWeightedEquitySummary | null>(() => {
     const configuredDemographicMetric = methodSettings.healthyPlanPriority.demographicMetric
@@ -347,69 +443,6 @@ export function useScoreBuilderResults({
       .filter((summary) => summary.activeMetricCount > 0)
   }, [activeMetricDefinitions, scoredRegions, selectedRegion, weights])
 
-  const robustnessResults = useMemo<RobustnessResult[]>(() => {
-    if (!methodSettings.sensitivity || !scoredRegions.length) return []
-    const eligibleIds = new Set(scoredRegions.map((entry) => entry.region.id))
-    const trackedRegions = scoredRegions.slice(0, 12)
-    const rankSamples = new Map<string, number[]>()
-    const scoreSamples = new Map<string, number[]>()
-    trackedRegions.forEach((entry) => {
-      rankSamples.set(entry.region.id, [entry.rank])
-      scoreSamples.set(entry.region.id, [entry.score])
-    })
-
-    const sampleRows = (rows: ScoredBoundaryRegion[]) => {
-      rows
-        .filter((entry) => eligibleIds.has(entry.region.id))
-        .forEach((entry, index) => {
-          if (!rankSamples.has(entry.region.id)) return
-          rankSamples.get(entry.region.id)?.push(index + 1)
-          scoreSamples.get(entry.region.id)?.push(entry.score)
-        })
-    }
-
-    for (let trial = 0; trial < 24; trial += 1) {
-      const perturbedWeights = { ...weights }
-      activeMetricDefinitions.forEach((metric, index) => {
-        const weight = weights[metric.key]
-        if (weight === 0) return
-        const wave = Math.sin((trial + 1) * (index + 3) * 1.618)
-        perturbedWeights[metric.key] = Math.round(weight * (1 + wave * 0.15))
-      })
-      sampleRows(scoreRows(perturbedWeights))
-    }
-
-    activeMetricDefinitions
-      .filter((metric) => weights[metric.key] !== 0)
-      .forEach((metric) => {
-        sampleRows(scoreRows({ ...weights, [metric.key]: 0 }))
-      })
-    ;(['minMax', 'winsorizedMinMax', 'percentile', 'zScore'] as const).forEach((normalization) => {
-      if (normalization === methodSettings.normalization) return
-      sampleRows(scoreRows(weights, { ...methodSettings, normalization }))
-    })
-
-    return trackedRegions.map((entry) => {
-      const ranks = [...(rankSamples.get(entry.region.id) || [entry.rank])].sort((a, b) => a - b)
-      const scores = [...(scoreSamples.get(entry.region.id) || [entry.score])].sort((a, b) => a - b)
-      const rankSpread = ranks[ranks.length - 1] - ranks[0]
-      return {
-        regionId: entry.region.id,
-        regionName: entry.region.name,
-        baseRank: entry.rank,
-        medianRank: computeMedian(ranks),
-        rankInterval: [ranks[0], ranks[ranks.length - 1]],
-        scoreInterval: [scores[0], scores[scores.length - 1]],
-        stability: rankSpread <= 2 ? 'stable' : rankSpread <= 6 ? 'moderate' : 'sensitive',
-        topDrivers: activeMetricDefinitions
-          .filter((metric) => weights[metric.key] !== 0)
-          .sort((a, b) => Math.abs(entry.contributions[b.key]) - Math.abs(entry.contributions[a.key]))
-          .slice(0, 3)
-          .map((metric) => metric.key),
-      }
-    })
-  }, [activeMetricDefinitions, methodSettings, scoreRows, scoredRegions, weights])
-
   const scenarioComparison = useMemo<ScenarioComparison | null>(() => {
     const referencePreset = SCORE_PRESETS.find((preset) => preset.key === 'balancedCoverage') || SCORE_PRESETS[0]
     if (!referencePreset || !unfilteredScoredRegions.length) return null
@@ -516,7 +549,9 @@ export function useScoreBuilderResults({
   }, [densityMetric, scoredRegions])
 
   const densityLeaders = useMemo(() => {
-    return [...scoredRegions].sort((a, b) => b.metrics[densityMetric] - a.metrics[densityMetric]).slice(0, 3)
+    return scoredRegions
+      .filter((entry) => Number.isFinite(entry.metrics[densityMetric]))
+      .sort((a, b) => b.metrics[densityMetric] - a.metrics[densityMetric])
   }, [densityMetric, scoredRegions])
 
   const equationPreview = useMemo(() => {

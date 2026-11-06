@@ -209,3 +209,52 @@ describe('walkability surface model from recipes', () => {
     expect(other.walkabilitySurfaceTuning.enabled).toBe(false)
   })
 })
+
+describe('air-quality networks on first use', () => {
+  const start = () => createInitialScoreBuilderState(new URLSearchParams(), 'index')
+
+  it('defers select-all when a sensor recipe applies before monitors have loaded', () => {
+    const next = scoreBuilderReducer(start(), { type: 'applyExample', exampleKey: 'airQualityGapsCt', allNetworks: [] })
+    expect(next.selectedNetworks).toEqual([])
+    expect(next.pendingNetworkSelectAll).toBe(true)
+
+    const loaded = scoreBuilderReducer(next, { type: 'networksLoaded', allNetworks: ['PA', 'BC'] })
+    expect(loaded.selectedNetworks).toEqual(['PA', 'BC'])
+  })
+
+  it('defers select-all when a sensor metric is added before monitors have loaded', () => {
+    const next = scoreBuilderReducer(start(), {
+      type: 'addMetric',
+      metric: 'overallDensity',
+      value: 10,
+      allNetworks: [],
+    })
+    expect(next.pendingNetworkSelectAll).toBe(true)
+  })
+})
+
+describe('postal and BCER study areas', () => {
+  it.each([
+    ['postal', 'fsa'],
+    ['bcEr', 'bcerAdminZone'],
+  ] as const)('selects a real level for %s rather than falling through to watersheds', (source, level) => {
+    const start = createInitialScoreBuilderState(new URLSearchParams(), 'index')
+    const next = scoreBuilderReducer(start, { type: 'setBoundarySource', source })
+    expect(getSelectedRegionLevel(next)).toBe(level)
+  })
+
+  it('moves between postal levels', () => {
+    const start = createInitialScoreBuilderState(new URLSearchParams('src=postal&level=fsa&w=1'), 'index')
+    expect(start.boundarySource).toBe('postal')
+    const next = scoreBuilderReducer(start, { type: 'setRegionLevel', level: 'postalRegion' })
+    expect(getSelectedRegionLevel(next)).toBe('postalRegion')
+  })
+})
+
+describe('a study area in the URL without weights', () => {
+  it.each(['index', 'density', 'correlate'] as const)('outranks the starting example in the %s lab', (lab) => {
+    const state = createInitialScoreBuilderState(new URLSearchParams('src=census&level=da'), lab)
+    expect(state.boundarySource).toBe('census')
+    expect(getSelectedRegionLevel(state)).toBe('da')
+  })
+})

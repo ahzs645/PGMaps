@@ -11,7 +11,7 @@ import { getLevelOptionsForSource } from '@/lib/studyArea'
 import type { BoundarySource, RegionLevel } from '@/maps/airquality'
 import { SCORE_BUILDER_BOUNDARY_SOURCE_OPTIONS } from '../constants'
 import type { ScoreDataSource, ScoreMetricDefinition, ScoreMetricKey, ScoreMetricWeightMap } from '../types'
-import { getUnavailableWeightedMetrics } from '../lib/metrics'
+import { formatRegionCount, getUnavailableWeightedMetrics } from '../lib/metrics'
 import { DataSourceToggleList } from './DataSourceToggleList'
 import { InactiveTermNotice } from './WeightRow'
 import { MetricLibraryPanel } from './MetricLibrary'
@@ -111,7 +111,7 @@ export function ScoreBuilderLeftPanel({
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Layers className="h-4 w-4 text-muted-foreground" />
         <h2 className="text-sm font-semibold text-foreground">Index Inputs</h2>
-        <span className="ml-auto text-xs text-muted-foreground">{regionCount} regions</span>
+        <span className="ml-auto text-xs text-muted-foreground">{formatRegionCount(regionCount)}</span>
       </div>
 
       <div className="flex-1 min-h-0 overflow-y-auto" data-score-builder-scroll="true">

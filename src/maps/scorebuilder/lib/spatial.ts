@@ -33,11 +33,92 @@ export function featurePoint(feature: GeoJSON.Feature): GeoJSON.Feature<GeoJSON.
   return center ? point(center) : null
 }
 
+/** The combined bounds of a set of regions, or null when there are none. */
+export function regionsBounds(
+  regions: Array<{ bounds: [number, number, number, number] }>,
+): [number, number, number, number] | null {
+  if (!regions.length) return null
+  return regions.reduce<[number, number, number, number]>(
+    (bounds, region) => [
+      Math.min(bounds[0], region.bounds[0]),
+      Math.min(bounds[1], region.bounds[1]),
+      Math.max(bounds[2], region.bounds[2]),
+      Math.max(bounds[3], region.bounds[3]),
+    ],
+    [Infinity, Infinity, -Infinity, -Infinity],
+  )
+}
+
 export function regionCenter(region: ScoreBuilderRegion): [number, number] {
   return [(region.bounds[0] + region.bounds[2]) / 2, (region.bounds[1] + region.bounds[3]) / 2]
 }
 
 export { distanceKm, geometryBounds }
+
+const GRID_CELL_DEGREES = 0.05
+const KM_PER_DEGREE_LATITUDE = 110
+
+/**
+ * Point records bucketed by a coarse lon/lat grid, so asking for the records near one
+ * region does not walk every record in the dataset. Without it, scoring costs regions ×
+ * records for each of a dozen datasets, which froze the page on large study areas.
+ * `near` returns candidates only: callers still run their exact test on each one.
+ */
+export class PointGrid<T> {
+  private readonly cells = new Map<string, T[]>()
+
+  constructor(records: readonly T[], position: (record: T) => readonly [number, number]) {
+    for (const record of records) {
+      const [lng, lat] = position(record)
+      const key = `${Math.floor(lng / GRID_CELL_DEGREES)}:${Math.floor(lat / GRID_CELL_DEGREES)}`
+      const cell = this.cells.get(key)
+      if (cell) cell.push(record)
+      else this.cells.set(key, [record])
+    }
+  }
+
+  near(bounds: readonly [number, number, number, number]): T[] {
+    const [west, south, east, north] = bounds
+    const minColumn = Math.floor(west / GRID_CELL_DEGREES)
+    const maxColumn = Math.floor(east / GRID_CELL_DEGREES)
+    const minRow = Math.floor(south / GRID_CELL_DEGREES)
+    const maxRow = Math.floor(north / GRID_CELL_DEGREES)
+    const found: T[] = []
+    // A province-sized region spans more cells than exist, so walk whichever is shorter.
+    if ((maxColumn - minColumn + 1) * (maxRow - minRow + 1) > this.cells.size) {
+      for (const [key, cell] of this.cells) {
+        const [column, row] = key.split(':').map(Number)
+        if (column >= minColumn && column <= maxColumn && row >= minRow && row <= maxRow) found.push(...cell)
+      }
+      return found
+    }
+    for (let column = minColumn; column <= maxColumn; column += 1) {
+      for (let row = minRow; row <= maxRow; row += 1) {
+        const cell = this.cells.get(`${column}:${row}`)
+        if (cell) found.push(...cell)
+      }
+    }
+    return found
+  }
+}
+
+/** A box around `origin` that holds everything within `maxKm` of it. */
+export function boundsAround(origin: [number, number], maxKm: number): [number, number, number, number] {
+  const [lng, lat] = origin
+  const latitudeSpan = maxKm / KM_PER_DEGREE_LATITUDE
+  const cosine = Math.max(0.1, Math.cos((Math.min(89, Math.abs(lat) + latitudeSpan) * Math.PI) / 180))
+  const longitudeSpan = latitudeSpan / cosine
+  return [lng - longitudeSpan, lat - latitudeSpan, lng + longitudeSpan, lat + latitudeSpan]
+}
+
+/** `catchmentAccess` over a grid; same result, without measuring to every point in the dataset. */
+export function gridCatchmentAccess<T extends { lng: number; lat: number }>(
+  origin: [number, number],
+  grid: PointGrid<T>,
+  maxKm: number,
+): number {
+  return catchmentAccess(origin, grid.near(boundsAround(origin, maxKm)), maxKm)
+}
 
 /** Linear access score in [0, 1]: 1 at the origin, 0 at or beyond `maxKm` from the nearest point. */
 export function catchmentAccess(

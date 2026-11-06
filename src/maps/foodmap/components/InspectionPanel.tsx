@@ -210,7 +210,14 @@ export function InspectionPanel({
                 {
                   label: 'hazard now',
                   value: currentRating || 'Unknown',
-                  tone: currentRating === 'Low' ? 'success' : currentRating === 'Moderate' ? 'warning' : 'default',
+                  tone:
+                    currentRating === 'Low'
+                      ? 'success'
+                      : currentRating === 'Moderate'
+                        ? 'warning'
+                        : currentRating === 'High'
+                          ? 'danger'
+                          : 'default',
                 },
               ]}
             />

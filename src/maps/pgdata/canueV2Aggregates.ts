@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { collectTimelineValues, resolveBoundaryTimelineScale, type CanueColorScale } from './canue/timelineScale'
 import type { CanueVariableSelection } from './canueV2'
 
 const CANUE_V2_AGGREGATES_BASE_URL = 'https://data.map.ahmad.sh/canue/aggregates-v2'
@@ -63,12 +64,18 @@ export interface CanueV2AggregatePrefetchResult {
   loaded: number
   total: number
   error: string | null
+  /** The whole timeline's colour scale; null until every period has settled. */
+  scale: CanueColorScale | null
 }
 
 const aggregateCache = new Map<string, Promise<CanueAggregateFile>>()
 
+function aggregateFolderUrl(source: string, level: string) {
+  return `${CANUE_V2_AGGREGATES_BASE_URL}/${source}/${level}/`
+}
+
 function aggregateUrl(source: string, level: string, selection: CanueVariableSelection) {
-  return `${CANUE_V2_AGGREGATES_BASE_URL}/${source}/${level}/${selection.family}_${selection.year}_aggregate.json`
+  return `${aggregateFolderUrl(source, level)}${selection.family}_${selection.year}_aggregate.json`
 }
 
 function loadAggregate(url: string): Promise<CanueAggregateFile> {
@@ -104,53 +111,74 @@ export function useCanueV2AggregatePrefetch({
   selections: CanueVariableSelection[]
   enabled: boolean
 }): CanueV2AggregatePrefetchResult {
-  const [result, setResult] = useState<CanueV2AggregatePrefetchResult>({
+  const urls = useMemo(
+    () => (enabled ? uniqueAggregateUrls(source, level, selections) : []),
+    [enabled, level, selections, source],
+  )
+  const [result, setResult] = useState<CanueV2AggregatePrefetchResult & { urls: string[] | null }>({
     loading: false,
     loaded: 0,
     total: 0,
     error: null,
+    scale: null,
+    urls: null,
   })
 
   useEffect(() => {
-    const urls = enabled ? uniqueAggregateUrls(source, level, selections) : []
     if (!urls.length) {
-      setResult({ loading: false, loaded: 0, total: 0, error: null })
+      setResult({ loading: false, loaded: 0, total: 0, error: null, scale: null, urls })
       return
     }
 
     let cancelled = false
-    setResult({ loading: true, loaded: 0, total: urls.length, error: null })
+    setResult({ loading: true, loaded: 0, total: urls.length, error: null, scale: null, urls })
 
     async function prefetch() {
       let loaded = 0
       let firstError: string | null = null
+      const files = new Map<string, CanueAggregateFile>()
 
       await Promise.all(
         urls.map(async (url) => {
           try {
-            await loadAggregate(url)
-            loaded += 1
-            if (!cancelled) {
-              setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
-            }
+            files.set(url, await loadAggregate(url))
           } catch (error) {
-            loaded += 1
             firstError ??= (error as Error).message || 'Unable to preload CANUE timeline data'
-            if (!cancelled) {
-              setResult({ loading: loaded < urls.length, loaded, total: urls.length, error: firstError })
-            }
+          }
+          loaded += 1
+          if (!cancelled && loaded < urls.length) {
+            setResult({ loading: true, loaded, total: urls.length, error: firstError, scale: null, urls })
           }
         }),
       )
+      if (cancelled) return
+
+      // Waiting for every period keeps the scale from shifting under the map
+      // as files land; a failed period just contributes no values to it.
+      const values = collectTimelineValues(
+        selections,
+        (selection) => files.get(aggregateUrl(source, level, selection))?.rows ?? null,
+      )
+      setResult({
+        loading: false,
+        loaded,
+        total: urls.length,
+        error: firstError,
+        scale: resolveBoundaryTimelineScale(values),
+        urls,
+      })
     }
 
     void prefetch()
     return () => {
       cancelled = true
     }
-  }, [enabled, level, selections, source])
+  }, [level, selections, source, urls])
 
-  return result
+  // A result from before a boundary level or variable change has the old scale.
+  return result.urls === urls
+    ? result
+    : { loading: urls.length > 0, loaded: 0, total: urls.length, error: null, scale: null }
 }
 
 export function useCanueV2AggregateData({
@@ -184,7 +212,13 @@ export function useCanueV2AggregateData({
     let cancelled = false
 
     async function load() {
-      setResult((current) => ({ ...current, loading: true, error: null, url }))
+      // The last result bridges a new period, but not a new boundary level: its
+      // ids belong to other shapes, which would draw empty with nothing loading.
+      setResult((current) =>
+        current.url?.startsWith(aggregateFolderUrl(source, level))
+          ? { ...current, loading: true, error: null, url }
+          : { ...EMPTY_RESULT, loading: true, url },
+      )
       try {
         const aggregate = await loadAggregate(url)
         if (cancelled) return

@@ -3,6 +3,7 @@ import { Map as PgMap, MapClusterLayer, type MapRef } from '@/components/ui/map'
 import { MapFillLayer } from '@/components/ui/map-layers'
 import { PG_CENTER, PG_DEFAULT_ZOOM } from '@/components/ui/map-styles'
 import { hexToRgbaArray } from '@/lib/color'
+import { escapeHtml } from '@/lib/escapeHtml'
 import { useMap } from '@/components/ui/map'
 import { useJsonManifest } from '@/maps/pgdata/shared'
 import {
@@ -26,7 +27,12 @@ interface ScoreBuilderMapProps {
   walkabilitySurfaceTuning?: WalkabilitySurfaceTuning
   loading?: boolean
   onMapInstance?: (map: MapRef | null) => void
-  fitAllRegions?: boolean
+  /** Bounds of the whole study area; the map frames them when nothing is selected. */
+  studyAreaBounds?: [number, number, number, number] | null
+  /** Study-area regions without enough data to rank, drawn so the area does not look empty. */
+  unrankedRegions?: ScoredBoundaryRegion[]
+  /** Hover text per region id, as HTML the caller has already escaped. */
+  regionTooltips?: Record<string, string>
 }
 
 interface WalkabilityHeatmapManifest {
@@ -56,6 +62,15 @@ interface WalkabilityLiveGridState {
 }
 
 const ZOOM = PG_DEFAULT_ZOOM
+const NO_REGIONS: ScoredBoundaryRegion[] = []
+
+function regionTooltip(properties: Record<string, unknown>): string | null {
+  return typeof properties.tooltip === 'string' ? properties.tooltip : null
+}
+
+function unrankedTooltip(properties: Record<string, unknown>): string {
+  return `<strong>${escapeHtml(String(properties.name ?? ''))}</strong><br />Not ranked: too little data`
+}
 
 export function ScoreBuilderMap({
   regions,
@@ -69,12 +84,16 @@ export function ScoreBuilderMap({
   walkabilitySurfaceTuning,
   loading = false,
   onMapInstance,
-  fitAllRegions = false,
+  studyAreaBounds = null,
+  unrankedRegions = NO_REGIONS,
+  regionTooltips,
 }: ScoreBuilderMapProps) {
   const mapRef = useRef<MapRef | null>(null)
+  const [mapReady, setMapReady] = useState(false)
   const setMapRef = useCallback(
     (instance: MapRef | null) => {
       mapRef.current = instance
+      setMapReady(instance !== null)
       onMapInstance?.(instance)
     },
     [onMapInstance],
@@ -94,12 +113,25 @@ export function ScoreBuilderMap({
           name: entry.region.name,
           score: entry.score,
           scoreColor: regionFillColors?.[entry.region.id] ?? entry.scoreColor,
+          tooltip: regionTooltips?.[entry.region.id],
           monitorCount: entry.counts.monitorCount,
           density: entry.metrics.overallDensity,
         },
       })),
     }
-  }, [regions, regionFillColors])
+  }, [regions, regionFillColors, regionTooltips])
+
+  const unrankedCollection = useMemo<GeoJSON.FeatureCollection>(
+    () => ({
+      type: 'FeatureCollection',
+      features: unrankedRegions.map((entry) => ({
+        type: 'Feature',
+        geometry: entry.region.feature.geometry,
+        properties: { id: entry.region.id, name: entry.region.name },
+      })),
+    }),
+    [unrankedRegions],
+  )
 
   const points = useMemo<GeoJSON.FeatureCollection<GeoJSON.Point, GeoJSON.GeoJsonProperties>>(() => {
     return {
@@ -119,50 +151,28 @@ export function ScoreBuilderMap({
     }
   }, [monitors])
 
-  const selectedRegion = useMemo(() => {
-    if (!selectedRegionId) return null
-    return regions.find((entry) => entry.region.id === selectedRegionId)?.region || null
-  }, [regions, selectedRegionId])
-
-  const allRegionBounds = useMemo(() => {
-    if (!fitAllRegions || regions.length === 0) return null
-    return regions.reduce<[number, number, number, number]>(
-      (bounds, entry) => [
-        Math.min(bounds[0], entry.region.bounds[0]),
-        Math.min(bounds[1], entry.region.bounds[1]),
-        Math.max(bounds[2], entry.region.bounds[2]),
-        Math.max(bounds[3], entry.region.bounds[3]),
-      ],
-      [Infinity, Infinity, -Infinity, -Infinity],
-    )
-  }, [fitAllRegions, regions])
+  // A string, so editing a weight (which rebuilds `regions`) does not move the map.
+  const selectedBounds = regions.find((entry) => entry.region.id === selectedRegionId)?.region.bounds
+  const frame = selectedBounds ? selectedBounds.join(',') : studyAreaBounds?.join(',')
+  const framesSelection = Boolean(selectedBounds)
+  const framedOnce = useRef(false)
 
   useEffect(() => {
-    if (!allRegionBounds || selectedRegion || !mapRef.current) return
-    mapRef.current.fitBounds(
+    const map = mapRef.current
+    if (!map || !mapReady || !frame) return
+    const [west, south, east, north] = frame.split(',').map(Number)
+    map.fitBounds(
       [
-        [allRegionBounds[0], allRegionBounds[1]],
-        [allRegionBounds[2], allRegionBounds[3]],
+        [west, south],
+        [east, north],
       ],
-      { padding: 36, duration: 500, maxZoom: 8 },
+      framesSelection
+        ? // Above the default zoom: a neighbourhood must get larger when it is selected.
+          { padding: 80, duration: 500, maxZoom: 14 }
+        : { padding: 36, duration: framedOnce.current ? 500 : 0, maxZoom: 13 },
     )
-  }, [allRegionBounds, selectedRegion])
-
-  useEffect(() => {
-    if (!selectedRegion || !mapRef.current) return
-
-    mapRef.current.fitBounds(
-      [
-        [selectedRegion.bounds[0], selectedRegion.bounds[1]],
-        [selectedRegion.bounds[2], selectedRegion.bounds[3]],
-      ],
-      {
-        padding: 80,
-        duration: 500,
-        maxZoom: 10,
-      },
-    )
-  }, [selectedRegion])
+    framedOnce.current = true
+  }, [frame, framesSelection, mapReady])
 
   return (
     <div className="h-full w-full">
@@ -171,10 +181,24 @@ export function ScoreBuilderMap({
           <ScoreBuilderWalkabilitySourceGrid weights={sourceGridWeights} tuning={walkabilitySurfaceTuning} />
         )}
 
+        {unrankedCollection.features.length > 0 && !walkabilitySourceSurface && (
+          <MapFillLayer
+            data={unrankedCollection}
+            fillColor="#94a3b8"
+            fillOpacity={0.14}
+            lineColor="#64748b"
+            lineWidth={0.6}
+            lineOpacity={0.5}
+            hoverHtml={unrankedTooltip}
+          />
+        )}
+
         <MapFillLayer
           data={featureCollection}
           fillColor={['coalesce', ['get', 'scoreColor'], '#475569']}
           fillOpacity={walkabilitySourceSurface ? 0 : 0.72}
+          hoverHtml={regionTooltip}
+          hoverFillOpacity={walkabilitySourceSurface ? 0 : 0.88}
           lineColor="#0f172a"
           lineWidth={0.7}
           lineOpacity={walkabilitySourceSurface ? 0 : 0.45}

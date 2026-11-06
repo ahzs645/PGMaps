@@ -1,7 +1,17 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Activity, ArrowRight, Calculator, Flame, type LucideIcon } from 'lucide-react'
+import { TextButton } from '@/components/ui/text-button'
+import { BOUNDARY_SOURCE_OPTIONS, getLevelOptionsForSource, type BoundarySource } from '@/lib/studyArea'
 import { cn } from '@/lib/utils'
-import { SCORE_LABS, type ScoreLabKind } from '@/maps/scorebuilder/lib/labs'
+import {
+  SCORE_LABS,
+  forgetLabStudyArea,
+  labHref,
+  recallLabStudyArea,
+  type LabStudyArea,
+  type ScoreLabKind,
+} from '@/maps/scorebuilder/lib/labs'
 
 const LAB_CARDS: Record<ScoreLabKind, { icon: LucideIcon; color: string; detail: string }> = {
   index: {
@@ -21,11 +31,23 @@ const LAB_CARDS: Record<ScoreLabKind, { icon: LucideIcon; color: string; detail:
   },
 }
 
+/** The starting study area needs no carrying, so it never shows as remembered. */
+const DEFAULT_STUDY_SOURCE = 'cityCommunity'
+
+function studyAreaLabel(area: LabStudyArea): string {
+  const source = BOUNDARY_SOURCE_OPTIONS.find((option) => option.value === area.source)
+  const level = getLevelOptionsForSource(area.source as BoundarySource).find((option) => option.value === area.level)
+  return [source?.label ?? area.source, level?.label].filter(Boolean).join(' · ')
+}
+
 /**
  * The Labs landing page. Each lab is a separate page that shows only its own concept;
  * this page is the one place they are listed side by side.
  */
 export default function Labs() {
+  const [recalled, setRecalled] = useState(recallLabStudyArea)
+  const studyArea = recalled?.source === DEFAULT_STUDY_SOURCE ? null : recalled
+
   return (
     <div className="min-h-full bg-gradient-to-b from-background to-muted/30">
       <div className="container mx-auto px-4 pb-8 pt-20 sm:px-6 sm:pb-12 sm:pt-28 md:py-12">
@@ -34,6 +56,20 @@ export default function Labs() {
           <p className="mx-auto max-w-2xl text-sm leading-relaxed text-muted-foreground sm:text-lg">
             Three ways to analyze Prince George regions. Each lab focuses on one question; come back here to switch.
           </p>
+          {studyArea && (
+            <p className="mt-3 text-sm text-muted-foreground" data-labs-study-area="true">
+              Opening on your last study area:{' '}
+              <span className="font-medium text-foreground">{studyAreaLabel(studyArea)}</span>.{' '}
+              <TextButton
+                onClick={() => {
+                  forgetLabStudyArea()
+                  setRecalled(null)
+                }}
+              >
+                Reset
+              </TextButton>
+            </p>
+          )}
         </div>
 
         <div className="grid gap-4 sm:gap-5 md:grid-cols-3" data-labs-grid="true">
@@ -42,7 +78,7 @@ export default function Labs() {
             return (
               <Link
                 key={lab.kind}
-                to={lab.path}
+                to={labHref(lab, studyArea)}
                 data-lab-card={lab.kind}
                 className="group flex h-full flex-col rounded-lg border bg-card p-4 transition-all duration-200 hover:border-primary/50 hover:shadow-lg sm:rounded-xl sm:p-6"
               >

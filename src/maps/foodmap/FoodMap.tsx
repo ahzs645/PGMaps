@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
+import { Dices } from 'lucide-react'
 import { RestaurantMap } from './components/RestaurantMap'
 import { Sidebar } from './components/Sidebar'
 import { InspectionPanel } from './components/InspectionPanel'
@@ -13,6 +14,21 @@ import { isMobileViewport } from '@/hooks/useIsMobile'
 import { toggleArrayItem, useToggleArray } from '@/hooks/useToggleArray'
 import { createEmptyViolationRiskSummary, summarizeViolationRisk } from './risk'
 import { getHazardRating } from './hazard'
+import {
+  criticalViolationsByMonth,
+  encodeTimelineMonth,
+  endOfMonth,
+  findRatingChanges,
+  hazardRatingAt,
+  inspectionDate,
+  inspectionMonthRange,
+  ratingChangesByMonth,
+  resolveTimelineMonth,
+  sameMonth,
+  startOfMonth,
+  VIOLATION_RATE_SHIFT,
+  type RatingChange,
+} from './inspectionTimeline'
 import { formatFullAddress } from './address'
 import { useFoodMapWebMCP } from './foodWebMCP'
 import { useCrimeData } from '@/maps/pgdata/hooks/useCrimeData'
@@ -22,56 +38,29 @@ import {
   VIOLATION_BUCKET_STYLES,
   type FoodViolationBucket,
 } from './violationBuckets'
-import type { RestaurantWithStats, HazardRating } from './types'
+import type { Restaurant, RestaurantWithStats, HazardRating } from './types'
 
 type ViolationBucket = FoodViolationBucket
 
 // Codec for the selected restaurant's name in the URL (absent = no selection)
 const restaurantNameCodec = stringCodec('')
-
-// Parse date string like "18-Mar-2024" or "March 18, 2024"
-function parseInspectionDate(dateStr: string | undefined): Date | null {
-  if (!dateStr) return null
-
-  // Try "DD-MMM-YYYY" format
-  const shortMatch = dateStr.match(/(\d{1,2})-(\w{3})-(\d{4})/)
-  if (shortMatch) {
-    const months: Record<string, number> = {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
-    }
-    return new Date(parseInt(shortMatch[3]), months[shortMatch[2]], parseInt(shortMatch[1]))
-  }
-
-  // Try "Month DD, YYYY" format
-  const longMatch = dateStr.match(/(\w+)\s+(\d{1,2}),\s+(\d{4})/)
-  if (longMatch) {
-    return new Date(dateStr)
-  }
-
-  return null
-}
-
-function startOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1)
-}
-
-function endOfMonth(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth() + 1, 0, 23, 59, 59, 999)
-}
+// The timeline month ("2024-03"); absent means the latest month with inspections.
+const timelineDateCodec = stringCodec('')
 
 function formatMonthYear(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
+const WINDOW_OPTIONS = [
+  { value: 3, label: '3 mo' },
+  { value: 6, label: '6 mo' },
+  { value: 12, label: '1 yr' },
+  { value: 24, label: '2 yr' },
+  { value: -1, label: 'All' },
+]
+
+function plural(count: number, noun: string): string {
+  return `${count.toLocaleString()} ${noun}${count === 1 ? '' : 's'}`
 }
 
 export default function FoodMap() {
@@ -86,7 +75,6 @@ export default function FoodMap() {
     searchQuery,
     visualizationMode,
     timelineMonths,
-    violationTimelineMode,
     sortOrder,
   } = filters
 
@@ -102,86 +90,46 @@ export default function FoodMap() {
   // map right above the sheet. Same rule as MapLegendPanel's defaultCollapsed="mobile".
   const [legendCollapsed, setLegendCollapsed] = useState(isMobileViewport)
 
-  // Timeline toggle
-  const [showTimeline, setShowTimeline] = useState(false)
+  // The month is in the URL so a shared link lands on it, and such a link
+  // opens with the timeline up to show where it landed.
+  const [timelineParam, setTimelineParam] = useUrlState('date', timelineDateCodec)
+  const [showTimeline, setShowTimeline] = useState(timelineParam !== '')
 
-  const now = new Date()
-  const [timelineDate, setTimelineDate] = useState(startOfMonth(now))
+  // The track covers the inspection record, which stops at the last scrape.
+  const inspectionDateRange = useMemo(() => {
+    const thisMonth = startOfMonth(new Date())
+    return inspectionMonthRange(restaurants) ?? { start: thisMonth, end: thisMonth }
+  }, [restaurants])
+
+  const timelineDate = useMemo(
+    () => resolveTimelineMonth(timelineParam, inspectionDateRange),
+    [timelineParam, inspectionDateRange],
+  )
+
+  const setTimelineDate = useCallback(
+    (date: Date) => setTimelineParam(sameMonth(date, inspectionDateRange.end) ? '' : encodeTimelineMonth(date)),
+    [inspectionDateRange.end, setTimelineParam],
+  )
 
   const violationDateRange = useMemo(() => {
     const end = endOfMonth(timelineDate)
 
-    if (violationTimelineMode === 'cumulative' || timelineMonths === 0) {
-      return { start: null as Date | null, end }
-    }
+    if (timelineMonths === 0) return { start: null as Date | null, end }
 
     const start = startOfMonth(timelineDate)
     start.setMonth(start.getMonth() - timelineMonths + 1)
     return { start, end }
-  }, [timelineDate, timelineMonths, violationTimelineMode])
+  }, [timelineDate, timelineMonths])
 
   const violationTimelineLabel = useMemo(() => {
-    if (violationTimelineMode === 'cumulative') {
-      return `Through ${formatMonthYear(timelineDate)}`
-    }
-    if (timelineMonths === 0) {
-      return `All time through ${formatMonthYear(timelineDate)}`
-    }
     const start = violationDateRange.start
-    return start
-      ? `${formatMonthYear(start)} – ${formatMonthYear(violationDateRange.end)}`
-      : `Through ${formatMonthYear(timelineDate)}`
-  }, [timelineDate, timelineMonths, violationDateRange, violationTimelineMode])
-
-  // Calculate date range from all inspections
-  const inspectionDateRange = useMemo(() => {
-    let minDate = new Date()
-    let maxDate = new Date(2020, 0, 1)
-
-    restaurants.forEach((r) => {
-      ;(r.inspections || []).forEach((insp) => {
-        const date = parseInspectionDate(insp.date || insp.inspection_date)
-        if (date) {
-          if (date < minDate) minDate = date
-          if (date > maxDate) maxDate = date
-        }
-      })
-    })
-
-    const start = new Date(minDate)
-    start.setMonth(start.getMonth() - 1)
-    const end = new Date()
-
-    return { start, end }
-  }, [restaurants])
-
-  // Get hazard rating at a specific date for a restaurant
-  const getHazardRatingAtDate = useCallback((restaurant: RestaurantWithStats, targetDate: Date): HazardRating => {
-    const inspections = restaurant.inspections || []
-    if (inspections.length === 0) return (restaurant.hazard_rating as HazardRating) || 'Unknown'
-
-    // Sort inspections by date descending
-    const sortedInspections = [...inspections]
-      .map((insp) => ({
-        ...insp,
-        parsedDate: parseInspectionDate(insp.date || insp.inspection_date),
-      }))
-      .filter((insp) => insp.parsedDate)
-      .sort((a, b) => (b.parsedDate as Date).getTime() - (a.parsedDate as Date).getTime())
-
-    // Find the most recent inspection before or on the target date
-    const inspectionAtDate = sortedInspections.find((insp) => {
-      const parsed = insp.parsedDate as Date
-      return parsed <= targetDate
-    })
-
-    if (inspectionAtDate) {
-      return (inspectionAtDate.hazard_rating as HazardRating) || (restaurant.hazard_rating as HazardRating) || 'Unknown'
-    }
-
-    // If no inspection before target date, return Unknown (restaurant may not have existed yet)
-    return 'Unknown'
-  }, [])
+    if (!start) return `Through ${formatMonthYear(timelineDate)}`
+    // Early windows stop at the first inspection, as the timeline's highlight does.
+    const shownStart = start < inspectionDateRange.start ? inspectionDateRange.start : start
+    return sameMonth(shownStart, timelineDate)
+      ? formatMonthYear(timelineDate)
+      : `${formatMonthYear(shownStart)} – ${formatMonthYear(violationDateRange.end)}`
+  }, [timelineDate, violationDateRange, inspectionDateRange.start])
 
   // Compute violation stats for each restaurant within the timeline
   const restaurantsWithStats = useMemo<RestaurantWithStats[]>(() => {
@@ -190,15 +138,13 @@ export default function FoodMap() {
 
       const filteredInspections = inspections
         .filter((insp) => {
-          const date = parseInspectionDate(insp.date || insp.inspection_date)
+          const date = inspectionDate(insp)
           if (!date) return false
           const matchesStart = !violationDateRange.start || date >= violationDateRange.start
           return matchesStart && date <= violationDateRange.end
         })
         .sort((a, b) => {
-          const dateA = parseInspectionDate(a.date || a.inspection_date)?.getTime() || 0
-          const dateB = parseInspectionDate(b.date || b.inspection_date)?.getTime() || 0
-          return dateB - dateA
+          return (inspectionDate(b)?.getTime() || 0) - (inspectionDate(a)?.getTime() || 0)
         })
 
       // Calculate violation stats
@@ -227,36 +173,50 @@ export default function FoodMap() {
         },
       }
 
-      // Get hazard rating at the timeline date (for hazard mode)
-      result.hazardRatingAtDate = getHazardRatingAtDate(result, timelineDate)
+      // The month's own inspections count, as they do for the violation window.
+      result.hazardRatingAtDate = hazardRatingAt(r, violationDateRange.end)
 
       return result
     })
-  }, [restaurants, violationDateRange, timelineDate, getHazardRatingAtDate])
+  }, [restaurants, violationDateRange])
+
+  // The filters that don't depend on the timeline's position, so the bars and
+  // totals follow them without shifting while the timeline scrubs. Hazard chips
+  // read the scrubbed rating in hazard mode, so they stay out of it there.
+  const matchesScope = useCallback(
+    (r: Restaurant) => {
+      const matchesHazard = visualizationMode === 'hazard' || selectedHazardRatings.includes(getHazardRating(r))
+      const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
+      const query = searchQuery.toLowerCase()
+      const matchesSearch = !query || r.name.toLowerCase().includes(query) || r.address.toLowerCase().includes(query)
+      return matchesHazard && matchesFacility && matchesSearch
+    },
+    [visualizationMode, selectedHazardRatings, selectedFacilityTypes, searchQuery],
+  )
+
+  const scopedRestaurants = useMemo(() => restaurants.filter(matchesScope), [restaurants, matchesScope])
+  const scopedWithStats = useMemo(() => restaurantsWithStats.filter(matchesScope), [restaurantsWithStats, matchesScope])
 
   const filteredRestaurants = useMemo(() => {
-    return restaurantsWithStats.filter((r) => {
-      // In hazard mode, filter by the rating at the selected date
-      const ratingToCheck = visualizationMode === 'hazard' ? r.hazardRatingAtDate : getHazardRating(r)
-
-      const matchesHazard = selectedHazardRatings.includes(ratingToCheck)
-      const matchesViolationBucket =
-        visualizationMode !== 'violations' || selectedViolationBuckets.includes(getViolationBucket(r.violationStats))
-      const matchesFacility = selectedFacilityTypes.includes(r.establishment_type || r.facility_type || 'Unknown')
-      const matchesSearch =
-        !searchQuery ||
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.address.toLowerCase().includes(searchQuery.toLowerCase())
-      return matchesHazard && matchesViolationBucket && matchesFacility && matchesSearch
+    return scopedWithStats.filter((r) => {
+      if (visualizationMode === 'hazard') return selectedHazardRatings.includes(r.hazardRatingAtDate)
+      return selectedViolationBuckets.includes(getViolationBucket(r.violationStats))
     })
-  }, [
-    restaurantsWithStats,
-    visualizationMode,
-    selectedHazardRatings,
-    selectedViolationBuckets,
-    selectedFacilityTypes,
-    searchQuery,
-  ])
+  }, [scopedWithStats, visualizationMode, selectedHazardRatings, selectedViolationBuckets])
+
+  const ratingChanges = useMemo(() => findRatingChanges(scopedRestaurants), [scopedRestaurants])
+  const monthRatingChanges = useMemo(
+    () => ratingChanges.filter((change) => sameMonth(change.date, timelineDate)),
+    [ratingChanges, timelineDate],
+  )
+
+  const timelineBars = useMemo(
+    () =>
+      visualizationMode === 'violations'
+        ? criticalViolationsByMonth(scopedRestaurants)
+        : ratingChangesByMonth(ratingChanges),
+    [visualizationMode, scopedRestaurants, ratingChanges],
+  )
 
   const geocodedRestaurants = useMemo(() => {
     return filteredRestaurants.filter((r) => r.latitude && r.longitude)
@@ -266,10 +226,7 @@ export default function FoodMap() {
   const sortedRestaurants = useMemo(() => {
     if (sortOrder === 'name') return filteredRestaurants
     const latestTime = (r: RestaurantWithStats) =>
-      Math.max(
-        0,
-        ...(r.inspections || []).map((insp) => parseInspectionDate(insp.date || insp.inspection_date)?.getTime() || 0),
-      )
+      Math.max(0, ...(r.inspections || []).map((insp) => inspectionDate(insp)?.getTime() || 0))
     const keyed = filteredRestaurants.map((r) => ({
       r,
       key:
@@ -313,24 +270,45 @@ export default function FoodMap() {
 
   // Stats for the current timeline
   const timelineStats = useMemo(() => {
-    const all = restaurantsWithStats
+    const all = scopedWithStats
     return {
       totalViolations: all.reduce((sum, r) => sum + (r.violationStats?.total || 0), 0),
       criticalViolations: all.reduce((sum, r) => sum + (r.violationStats?.critical || 0), 0),
       totalInspections: all.reduce((sum, r) => sum + (r.violationStats?.inspectionCount || 0), 0),
       restaurantsWithViolations: all.filter((r) => (r.violationStats?.total || 0) > 0).length,
     }
-  }, [restaurantsWithStats])
+  }, [scopedWithStats])
 
   // Hazard stats at the selected date
   const hazardStatsAtDate = useMemo(() => {
-    const all = restaurantsWithStats
+    const all = scopedWithStats
     return {
       Low: all.filter((r) => r.hazardRatingAtDate === 'Low').length,
       Moderate: all.filter((r) => r.hazardRatingAtDate === 'Moderate').length,
+      High: all.filter((r) => r.hazardRatingAtDate === 'High').length,
       Unknown: all.filter((r) => r.hazardRatingAtDate === 'Unknown').length,
     }
-  }, [restaurantsWithStats])
+  }, [scopedWithStats])
+
+  const reachesSparseRecords = (violationDateRange.start ?? inspectionDateRange.start) < VIOLATION_RATE_SHIFT
+
+  const timelineSummary = useMemo(() => {
+    if (visualizationMode === 'hazard') {
+      const worse = monthRatingChanges.filter((change) => change.direction === 'worse').length
+      return [
+        plural(monthRatingChanges.length, 'rating change'),
+        `${worse} worse`,
+        `${monthRatingChanges.length - worse} better`,
+      ].join(' · ')
+    }
+    // The row holds about 45 characters beside the window and speed controls,
+    // so the early-record warning replaces the counts the sidebar also shows.
+    if (reachesSparseRecords) return `Far fewer violations before ${formatMonthYear(VIOLATION_RATE_SHIFT)}`
+    return [
+      plural(timelineStats.totalInspections, 'inspection'),
+      `${timelineStats.criticalViolations.toLocaleString()} critical`,
+    ].join(' · ')
+  }, [visualizationMode, monthRatingChanges, timelineStats, reachesSparseRecords])
 
   const violationBucketRows = useMemo(() => {
     const counts = new Map<ViolationBucket, number>()
@@ -379,6 +357,14 @@ export default function FoodMap() {
     [handleRestaurantClick],
   )
 
+  const handleRatingChangeClick = useCallback(
+    (change: RatingChange) => {
+      const restaurant = restaurantsWithStats.find((item) => item.details_url === change.restaurant.details_url)
+      if (restaurant) selectRestaurant(restaurant)
+    },
+    [restaurantsWithStats, selectRestaurant],
+  )
+
   const clearSelection = useCallback(() => {
     selectRestaurant(null)
     setShowInspectionPanel(false)
@@ -414,6 +400,8 @@ export default function FoodMap() {
     [selectRestaurant],
   )
 
+  const inspectionsThroughLabel = formatMonthYear(inspectionDateRange.end)
+
   useFoodMapWebMCP({
     loading,
     error,
@@ -426,6 +414,7 @@ export default function FoodMap() {
     selectedViolationBuckets,
     setSelectedViolationBuckets,
     violationTimelineLabel,
+    inspectionsThroughLabel,
     timelineStats,
     hazardStatsAtDate,
     crimeIncidents,
@@ -442,14 +431,39 @@ export default function FoodMap() {
       <MapSectionLayout
         showDesktopSidebar={showSidebar}
         onToggleDesktopSidebar={() => setShowSidebar((current) => !current)}
-        mobilePeekTitle={<>Food Safety · {geocodedRestaurants.length.toLocaleString()} on map</>}
-        mobilePeekSubtitle={
-          <>
-            {selectedRestaurant?.name ||
-              (visualizationMode === 'violations'
-                ? `Violations · ${violationTimelineLabel}`
-                : `Hazard ratings · as of ${formatMonthYear(timelineDate)}`)}
-          </>
+        mobilePeek={
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0 text-left">
+              <div className="truncate text-xs font-semibold text-foreground">
+                Food Safety · {geocodedRestaurants.length.toLocaleString()} on map
+              </div>
+              <div className="truncate text-xs text-muted-foreground">
+                {selectedRestaurant?.name ||
+                  (visualizationMode === 'violations'
+                    ? `Violations · ${violationTimelineLabel}`
+                    : `Hazard ratings · as of ${formatMonthYear(timelineDate)}`)}
+              </div>
+            </div>
+            {/* Sits in the sheet's drag handle. The attribute is what keeps a tap from
+                moving the sheet: its gestures are native touch listeners, which run
+                before React's stopPropagation below can reach them. */}
+            <button
+              type="button"
+              data-map-mobile-sheet-peek-action="true"
+              onClick={(event) => {
+                event.stopPropagation()
+                setShowRoulette(true)
+              }}
+              onPointerDown={(event) => event.stopPropagation()}
+              onMouseDown={(event) => event.stopPropagation()}
+              onTouchStart={(event) => event.stopPropagation()}
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              aria-label="Open restaurant roulette"
+            >
+              <Dices className="h-4 w-4" aria-hidden="true" />
+              Roulette
+            </button>
+          </div>
         }
         selectedFeatureMobilePeek={
           selectedRestaurant
@@ -471,7 +485,9 @@ export default function FoodMap() {
               timelineStats,
               hazardStatsAtDate,
               violationTimelineLabel,
+              inspectionsThroughLabel,
               hazardDateLabel: formatMonthYear(timelineDate),
+              monthRatingChanges,
               activeFilterCount,
             }}
             filters={filters}
@@ -483,6 +499,7 @@ export default function FoodMap() {
             onClearSelection={clearSelection}
             onOpenInspectionPanel={openInspectionPanel}
             onToggleTimeline={() => setShowTimeline(!showTimeline)}
+            onRatingChangeClick={handleRatingChangeClick}
             onOpenRoulette={() => setShowRoulette(true)}
           />
         }
@@ -507,6 +524,19 @@ export default function FoodMap() {
               currentDate={timelineDate}
               onDateChange={setTimelineDate}
               onClose={() => setShowTimeline(false)}
+              bucketCounts={timelineBars}
+              bucketValueLabel={visualizationMode === 'violations' ? 'critical violations' : 'rating changes'}
+              statsLabel={timelineSummary}
+              windowMode={
+                visualizationMode === 'violations'
+                  ? {
+                      size: timelineMonths === 0 ? -1 : timelineMonths,
+                      onSizeChange: (size) => actions.setTimelineMonths(size === -1 ? 0 : size),
+                      options: WINDOW_OPTIONS,
+                      anchor: 'end',
+                    }
+                  : undefined
+              }
             />
           )}
 
@@ -561,6 +591,12 @@ export default function FoodMap() {
               {visualizationMode === 'violations' && (
                 <div className="space-y-0.5 md:space-y-1">
                   <div className="pb-0.5 text-xs leading-snug text-muted-foreground">{violationTimelineLabel}</div>
+                  {reachesSparseRecords && (
+                    <p className="pb-0.5 text-xs leading-snug text-muted-foreground">
+                      Inspections found far fewer violations before {formatMonthYear(VIOLATION_RATE_SHIFT)}. The record
+                      doesn&apos;t say why, so earlier months may not compare.
+                    </p>
+                  )}
                   {violationBucketRows.map((bucket) => (
                     <LegendItem
                       key={bucket.key}
@@ -590,6 +626,13 @@ export default function FoodMap() {
                     value={hazardStatsAtDate.Moderate}
                     active={selectedHazardRatings.includes('Moderate')}
                     onClick={() => toggleHazardRating('Moderate')}
+                  />
+                  <LegendItem
+                    color="#ef4444"
+                    label="High"
+                    value={hazardStatsAtDate.High}
+                    active={selectedHazardRatings.includes('High')}
+                    onClick={() => toggleHazardRating('High')}
                   />
                   <LegendItem
                     color="#6b7280"

@@ -5,6 +5,7 @@ import {
   getCanueV2MonthKey,
   getCanueV2SelectionDate,
   getCanueV2TimelineKey,
+  resolveGridTimelineScale,
   type CanueBoundaryLevel,
   type CanueBoundarySource,
 } from './canueCore'
@@ -109,6 +110,11 @@ export function useCanueTimeline({
     enabled: activeTab === 'canue' && showCanueBoundaries && canueTimelineActive,
   })
 
+  const canueTimelineGridScale = useMemo(
+    () => (canueTimelineActive ? resolveGridTimelineScale(canueTimelineSelections) : null),
+    [canueTimelineActive, canueTimelineSelections],
+  )
+
   return {
     canueTimelineEnabled,
     setCanueTimelineEnabled,
@@ -125,5 +131,6 @@ export function useCanueTimeline({
     handleCanueTimelineDateChange,
     handleCanueTimelineDisable,
     canueTimelinePrefetch,
+    canueTimelineGridScale,
   }
 }

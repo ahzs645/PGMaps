@@ -1,9 +1,9 @@
-import { useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useId, useState } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
 import { FilterChipGroup } from '@/components/ui/map-panels'
+import { FilterToggleButton } from '@/components/ui/sticky-list-toolbar'
 import { SelectAllActions } from '@/components/ui/text-button'
-import { ToggleRow } from '@/components/ui/toggle-row'
-import { DINING_CATEGORIES } from '../../dining'
+import { ROULETTE_CATEGORIES } from '../../dining'
 import { RouletteFilters } from './RouletteFilters'
 import { RouletteWheel } from './RouletteWheel'
 import { RouletteResult } from './RouletteResult'
@@ -20,15 +20,14 @@ interface RouletteModalProps {
 const wheelSizeOptions = [4, 6, 8, 10, 65, 0]
 
 export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteModalProps) {
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filtersPanelId = useId()
   const {
-    availableExceptions,
-    selectedExceptions,
-    toggleException,
+    activeFilterCount,
     selectedCategories,
     setSelectedCategories,
     toggleCategory,
     categoryCounts,
-    nonDiningCount,
     useFilters,
     setUseFilters,
     sourceLocation,
@@ -87,6 +86,12 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
     clearGeoPosition()
   }, [clearSourceLocation, clearGeoPosition])
 
+  // The panel can push the wheel off the sheet, so it gets out of the way.
+  const handleSpinStart = useCallback(() => {
+    setFiltersOpen(false)
+    startSpinning()
+  }, [startSpinning])
+
   const handleSpinAgain = useCallback(() => {
     resetSpin()
     shuffleWheel()
@@ -135,87 +140,109 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:p-4">
-          {/* Filters & Wheel Options */}
-          <div className="space-y-3 rounded-xl border border-border bg-muted/50 p-3">
-            <section aria-label="Dining categories" className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">Dining categories</h3>
-                <SelectAllActions
-                  onAll={() => {
-                    resetSpin()
-                    setSelectedCategories([...DINING_CATEGORIES])
-                  }}
-                  onNone={() => {
-                    resetSpin()
-                    setSelectedCategories([])
-                  }}
-                  allSelected={isSpinning || selectedCategories.length === DINING_CATEGORIES.length}
-                  noneSelected={isSpinning || selectedCategories.length === 0}
-                />
-              </div>
-              <FilterChipGroup
-                variant="filled"
-                showDot={false}
-                items={DINING_CATEGORIES.map((category) => ({
-                  value: category,
-                  label: category,
-                  count: categoryCounts[category],
-                  disabled: isSpinning,
-                }))}
-                selectedValues={selectedCategories}
-                onToggle={(category) => {
-                  resetSpin()
-                  toggleCategory(category)
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                {nonDiningCount.toLocaleString('en-CA')} other inspected premises excluded, including community and
-                institutional kitchens, stores and venue concessions.
-              </p>
-            </section>
-            {availableExceptions.length > 0 && (
-              <section aria-label="Individual exceptions" className="space-y-2">
-                <h3 className="text-sm font-semibold">Individual exceptions</h3>
-                <p className="text-xs text-muted-foreground">
-                  Optional places outside the default dining list. Included places also follow your selected categories
-                  and filters.
-                </p>
-                {availableExceptions.map((item) => {
-                  const restaurant = restaurants.find((r) => r.name === item.name)!
-                  const sourceCategory = restaurant.establishment_type || restaurant.facility_type
-                  const active = selectedExceptions.includes(item.name)
-                  return (
-                    <ToggleRow
-                      key={item.name}
-                      label={item.name}
-                      aria-label={`Include ${item.name}`}
-                      description={
-                        sourceCategory === item.category ? sourceCategory : `${sourceCategory} → ${item.category}`
-                      }
-                      active={active}
-                      trailing={active ? 'Included' : 'Excluded'}
-                      disabled={isSpinning}
-                      onClick={() => {
-                        resetSpin()
-                        toggleException(item.name)
-                      }}
-                    />
-                  )
-                })}
-              </section>
+        {/* The wheel stays first; every option sits behind the Filters button.
+            Outside the scroller so a long panel can always be closed to get back
+            to the wheel. The matching gutter lines it up with the content below. */}
+        <div className="flex shrink-0 items-center justify-between gap-2 overflow-hidden px-3 pb-2 pt-3 [scrollbar-gutter:stable] sm:px-4 sm:pt-4">
+          <FilterToggleButton
+            open={filtersOpen}
+            onToggle={() => setFiltersOpen((open) => !open)}
+            panelId={filtersPanelId}
+            activeCount={activeFilterCount}
+          />
+          <div className="flex items-center gap-2">
+            <span
+              className={`text-right text-sm leading-tight ${
+                eligibleRestaurants.length > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              }`}
+            >
+              {eligibleRestaurants.length.toLocaleString()} available
+            </span>
+            {!hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
+              <button
+                onClick={shuffleWheel}
+                className="flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+                Shuffle
+              </button>
             )}
-            {/* Use Filters + Options on one line */}
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              {/* Filter Toggle */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-foreground">Use Filters</span>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 space-y-4 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] p-3 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-1 sm:p-4 sm:pt-1">
+          {filtersOpen && (
+            <div id={filtersPanelId} className="space-y-3 rounded-xl border border-border bg-muted/50 p-3">
+              <section aria-label="Dining categories" className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Dining categories</h3>
+                  <SelectAllActions
+                    onAll={() => {
+                      resetSpin()
+                      setSelectedCategories([...ROULETTE_CATEGORIES])
+                    }}
+                    onNone={() => {
+                      resetSpin()
+                      setSelectedCategories([])
+                    }}
+                    allSelected={isSpinning || selectedCategories.length === ROULETTE_CATEGORIES.length}
+                    noneSelected={isSpinning || selectedCategories.length === 0}
+                  />
+                </div>
+                <FilterChipGroup
+                  variant="filled"
+                  showDot={false}
+                  items={ROULETTE_CATEGORIES.map((category) => ({
+                    value: category,
+                    label: category,
+                    count: categoryCounts[category],
+                    disabled: isSpinning,
+                  }))}
+                  selectedValues={selectedCategories}
+                  onToggle={(category) => {
+                    resetSpin()
+                    toggleCategory(category)
+                  }}
+                />
+                <p className="text-xs text-muted-foreground">Other spots: clubs, convenience stores, food courts.</p>
+              </section>
+
+              <section aria-label="Wheel size" className="space-y-2">
+                <h3 className="text-sm font-semibold">Wheel size</h3>
+                <div className="grid grid-cols-6 gap-1">
+                  {wheelSizeOptions.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setWheelSize(size)}
+                      disabled={isSpinning}
+                      className={`h-9 min-w-0 rounded-lg px-1 text-sm font-medium transition-colors disabled:opacity-50 sm:h-8 ${
+                        wheelSize === size
+                          ? 'bg-sky-500 text-white shadow'
+                          : 'border border-input bg-background text-foreground hover:bg-accent'
+                      }`}
+                    >
+                      {size === 0 ? 'All' : size}
+                    </button>
+                  ))}
+                </div>
+              </section>
+
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-foreground">Distance and safety filters</span>
                 <button
                   onClick={() => setUseFilters(!useFilters)}
-                  aria-label="Use filters"
+                  aria-label="Distance and safety filters"
                   aria-pressed={useFilters}
-                  className={`relative h-6 w-12 shrink-0 rounded-full transition-colors ${
+                  disabled={isSpinning}
+                  className={`relative h-6 w-12 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
                     useFilters ? 'bg-sky-500' : 'bg-input'
                   }`}
                 >
@@ -227,78 +254,27 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
                 </button>
               </div>
 
-              {/* Options + eligible count + shuffle.
-                  min-h-8 reserves the Shuffle button's height so the row
-                  doesn't shrink when the button hides on spin (which would
-                  toggle the modal scrollbar). */}
-              <div className="flex min-h-8 items-center gap-2">
-                <span className="text-sm text-muted-foreground">Options:</span>
-                <span
-                  className={`text-right text-sm leading-tight ${
-                    eligibleRestaurants.length > 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
-                  }`}
-                >
-                  {eligibleRestaurants.length.toLocaleString()} available
-                </span>
-                {!hasSpun && !isSpinning && wheelSize !== 0 && eligibleRestaurants.length > wheelSize && (
-                  <button
-                    onClick={shuffleWheel}
-                    className="flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-                  >
-                    <svg className="h-3.5 w-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                      />
-                    </svg>
-                    Shuffle
-                  </button>
-                )}
-              </div>
+              {useFilters && (
+                <RouletteFilters
+                  sourceLocation={sourceLocation}
+                  locationMode={locationMode}
+                  maxDistance={maxDistance}
+                  violationTimePeriod={violationTimePeriod}
+                  maxViolations={maxViolations}
+                  excludedHazardRatings={excludedHazardRatings}
+                  geoLoading={geoLoading}
+                  geoError={geoError}
+                  onGetLocation={handleGetLocation}
+                  onClearLocation={handleClearLocation}
+                  onMapClick={handleMapClick}
+                  onMaxDistanceChange={setMaxDistance}
+                  onViolationTimePeriodChange={setViolationTimePeriod}
+                  onMaxViolationsChange={setMaxViolations}
+                  onToggleHazard={toggleHazardExclusion}
+                />
+              )}
             </div>
-
-            {/* Wheel size options */}
-            <div className="grid grid-cols-6 gap-1">
-              {wheelSizeOptions.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setWheelSize(size)}
-                  className={`h-9 min-w-0 rounded-lg px-1 text-sm font-medium transition-colors sm:h-8 ${
-                    wheelSize === size
-                      ? 'bg-sky-500 text-white shadow'
-                      : 'border border-input bg-background text-foreground hover:bg-accent'
-                  }`}
-                >
-                  {size === 0 ? 'All' : size}
-                </button>
-              ))}
-            </div>
-
-            {/* Filters (collapsible) */}
-            {useFilters && (
-              <RouletteFilters
-                sourceLocation={sourceLocation}
-                locationMode={locationMode}
-                maxDistance={maxDistance}
-                violationTimePeriod={violationTimePeriod}
-                maxViolations={maxViolations}
-                excludedHazardRatings={excludedHazardRatings}
-                geoLoading={geoLoading}
-                geoError={geoError}
-                onGetLocation={handleGetLocation}
-                onClearLocation={handleClearLocation}
-                onMapClick={handleMapClick}
-                onMaxDistanceChange={setMaxDistance}
-                onViolationTimePeriodChange={setViolationTimePeriod}
-                onMaxViolationsChange={setMaxViolations}
-                onToggleHazard={toggleHazardExclusion}
-              />
-            )}
-          </div>
+          )}
 
           {/* Spinner or Result.
               Reserve the wheel's height (mirrors RouletteWheel's reserved box
@@ -314,7 +290,7 @@ export function RouletteModal({ restaurants, onClose, onSelectOnMap }: RouletteM
             {!(hasSpun && !isSpinning && winner) && (
               <RouletteWheel
                 restaurants={wheelRestaurants}
-                onSpinStart={startSpinning}
+                onSpinStart={handleSpinStart}
                 onSpinComplete={completeSpinningWithWinner}
               />
             )}

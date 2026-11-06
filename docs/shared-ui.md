@@ -96,6 +96,12 @@ from clipboard rejection when presenting a share-link failure.
 
 - `VirtualResultList` for any list that can exceed ~50 rows. Do not cap with
   `slice(0, N)`; if a cap is unavoidable, say so with `ListHeader shown={N}`.
+  Pass `revealKey` to scroll a row into view when it changes (a map click, a deep
+  link). For a selection in a long list, render its detail under the row inside
+  the list's `children` rather than above the list, where it lands out of view;
+  rows are re-measured, so they can grow. Wrap it in `ResultRowDetail`, which
+  continues the row's tint and left bar, rather than a card of its own. BC
+  Assessment is the reference.
 - `ResultRow` for a row (marker, title, subtitle, meta, trailing value,
   `selected` + `accent`, aria-pressed).
 - `ListHeader` for the "N items" line, `ListState` for loading / error / empty
@@ -303,19 +309,23 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   not a `className` width, `100vw` or `md:` breakpoint: the widths follow the
   map rather than the viewport, and a collapsed panel shrinks to its title. Don't
   fix a width on the content either (`md:w-56`); it overflows the panel's
-  padding. The panel takes the bottom-right corner and MapLibre's attribution
-  sits on top of it (the panel publishes its footprint as
-  `--map-legend-panel-visible-height`, the map publishes the attribution's
-  height as `--map-bottom-right-controls-height`); anything else in a bottom
-  corner stacks above both. Zoom and compass stay top right on phones too,
-  below the floating toolbar. The legend clears a mounted timeline by itself;
-  `elevated` is deprecated and does nothing.
+  padding. MapLibre's attribution keeps the bottom-right corner and the panel
+  sits on top of it (the map publishes the attribution's height as
+  `--map-bottom-right-controls-height`, the panel publishes its footprint as
+  `--map-legend-panel-visible-height`), so opening a legend moves nothing below
+  it; anything else in a bottom corner stacks above both. Zoom and compass stay
+  top right on phones too, below the floating toolbar. The legend clears a
+  mounted timeline by itself; `elevated` is deprecated and does nothing. Don't
+  render a panel that only says its layers are off: drop it, unless its rows
+  are the only way to turn those layers back on.
 - Timelines: `Timeline` (`src/components/ui/timeline.tsx`) adapts the
   toolkit's `MapTimeline` to the date props pages already pass. New pages can
   use `MapTimeline` with `buildTimelineBuckets`, `timelineBucketKey` and
   `timelineWindow` from `@pgmaps/geo-toolkit/calculations` directly, and filter
   their records with the same window the timeline highlights. It sizes itself
-  from its own width, so don't wrap it in viewport breakpoints.
+  from its own width, so don't wrap it in viewport breakpoints. With 12 or fewer
+  buckets it turns into a compact picker and hides controls that do nothing at
+  that length, so pass your full option lists and let it drop them.
 - Our Tailwind utilities inside a map workspace: `postcss.config.js` gives each
   generated utility a second `.geo-toolkit`-prefixed selector
   (`scripts/postcss/workspace-utilities.js`). Without it the toolkit's scoped

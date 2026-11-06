@@ -2,14 +2,20 @@ import { useMemo, useState } from 'react'
 import { formatNullableNumber } from './shared'
 import { CANUE_V2_ENABLED, type CanueVariableSelection } from './canueV2'
 import {
+  buildBoundaryIndex,
+  canueBoundaryFeatureState,
+  canueBoundaryMetric,
   canueBoundaryPaint,
   getCanueV2VariableLabel,
   getCanueVariableLabel,
   renderCanueDisplayLabel,
+  resolvePeriodScale,
   type BoundaryFeatureCollection,
+  type BoundaryLevelConfig,
   type CanueBoundaryFeatureCardData,
   type CanueBoundaryLevel,
   type CanueBoundaryResult,
+  type CanueColorScale,
   type CanueFile,
 } from './canueCore'
 
@@ -18,7 +24,10 @@ type BoundaryLayerData = Pick<CanueBoundaryResult, 'data' | 'loading' | 'minValu
 interface UseCanueBoundaryLayerArgs {
   activeCanueBoundaryData: BoundaryLayerData
   activeCanueBoundaryProperty: string
+  canueBoundaries: BoundaryFeatureCollection | null
+  canueBoundaryConfig: BoundaryLevelConfig
   canueBoundaryLevel: CanueBoundaryLevel
+  canueTimelineScale: CanueColorScale | null
   selectedCanueBoundaryId: string | null
   selectedCanueFile: CanueFile | null
   selectedCanueV2Selection: CanueVariableSelection | null
@@ -28,7 +37,10 @@ interface UseCanueBoundaryLayerArgs {
 export function useCanueBoundaryLayer({
   activeCanueBoundaryData,
   activeCanueBoundaryProperty,
+  canueBoundaries,
+  canueBoundaryConfig,
   canueBoundaryLevel,
+  canueTimelineScale,
   selectedCanueBoundaryId,
   selectedCanueFile,
   selectedCanueV2Selection,
@@ -52,7 +64,7 @@ export function useCanueBoundaryLayer({
         title: String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary'),
         metricLabel: renderCanueDisplayLabel(getCanueV2VariableLabel(selectedCanueV2Selection)),
         metricValue: formatNullableNumber(
-          Number(selectedCanueBoundary.properties?.[selectedCanueV2Selection.property]),
+          canueBoundaryMetric(selectedCanueBoundary, selectedCanueV2Selection.property),
         ),
         recordCount: Number(selectedCanueBoundary.properties?.rowCount ?? 0),
         recordLabel: 'decoded grid features',
@@ -63,7 +75,7 @@ export function useCanueBoundaryLayer({
       return {
         title: String(selectedCanueBoundary.properties?.boundaryName ?? 'Selected boundary'),
         metricLabel: renderCanueDisplayLabel(getCanueVariableLabel(selectedCanueFile, selectedCanueVariable)),
-        metricValue: formatNullableNumber(Number(selectedCanueBoundary.properties?.[activeCanueBoundaryProperty])),
+        metricValue: formatNullableNumber(canueBoundaryMetric(selectedCanueBoundary, activeCanueBoundaryProperty)),
         recordCount: Number(selectedCanueBoundary.properties?.rowCount ?? 0),
         recordLabel: 'source records',
       }
@@ -121,14 +133,33 @@ export function useCanueBoundaryLayer({
       : lastReadyCanueBoundaryLayer?.boundaryLevel === canueBoundaryLevel
         ? lastReadyCanueBoundaryLayer
         : null
-  const renderedCanueFillColor = useMemo(() => {
-    if (!renderedCanueBoundaryLayer) return '#e5e7eb'
-    return canueBoundaryPaint(
-      renderedCanueBoundaryLayer.property,
-      renderedCanueBoundaryLayer.minValue,
-      renderedCanueBoundaryLayer.maxValue,
-    )
-  }, [renderedCanueBoundaryLayer])
+  // The drawn shapes stay one object for as long as the boundaries do. Time only
+  // changes feature state, so a step never re-sends and re-tiles every polygon.
+  const canueBoundaryShapes = useMemo<BoundaryFeatureCollection | null>(() => {
+    if (!canueBoundaries) return null
+    return {
+      type: 'FeatureCollection',
+      features: buildBoundaryIndex(canueBoundaries, canueBoundaryConfig).map(({ feature, id, name }) => ({
+        ...feature,
+        properties: { boundaryId: id, boundaryName: name },
+      })),
+    }
+  }, [canueBoundaries, canueBoundaryConfig])
+  const renderedCanueFeatureState = useMemo(
+    () =>
+      renderedCanueBoundaryLayer
+        ? canueBoundaryFeatureState(renderedCanueBoundaryLayer.data.features, renderedCanueBoundaryLayer.property)
+        : null,
+    [renderedCanueBoundaryLayer],
+  )
+  // A shared timeline scale must not follow each period's own range, or every
+  // step would hand MapLibre a new paint expression.
+  const periodMinValue = canueTimelineScale ? null : (renderedCanueBoundaryLayer?.minValue ?? null)
+  const periodMaxValue = canueTimelineScale ? null : (renderedCanueBoundaryLayer?.maxValue ?? null)
+  const renderedCanueFillColor = useMemo(
+    () => canueBoundaryPaint(canueTimelineScale ?? resolvePeriodScale(periodMinValue, periodMaxValue)),
+    [canueTimelineScale, periodMaxValue, periodMinValue],
+  )
 
   return {
     selectedCanueBoundary,
@@ -136,6 +167,8 @@ export function useCanueBoundaryLayer({
     canueBoundaryLayerReady,
     stableCanueBoundaryLayer,
     renderedCanueBoundaryLayer,
+    canueBoundaryShapes,
+    renderedCanueFeatureState,
     renderedCanueFillColor,
   }
 }

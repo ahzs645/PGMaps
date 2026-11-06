@@ -1,3 +1,5 @@
+import { useState } from 'react'
+import { TextButton } from '@/components/ui/text-button'
 import { AppSelect } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { DENSITY_METRIC_OPTIONS } from '../constants'
@@ -14,6 +16,8 @@ interface DensityTabProps {
   onRegionSelect: (regionId: string) => void
 }
 
+const COLLAPSED_LEADERS = 8
+
 export function DensityTab({
   className,
   densityMetric,
@@ -23,19 +27,21 @@ export function DensityTab({
   selectedRegion,
   onRegionSelect,
 }: DensityTabProps) {
+  const [showAll, setShowAll] = useState(false)
+  const visibleLeaders = showAll ? densityLeaders : densityLeaders.slice(0, COLLAPSED_LEADERS)
+
   return (
     <div className={cn('space-y-2', className)} data-score-builder-section="density">
-      <div className="flex items-center justify-between gap-2">
+      <div className="space-y-1">
         <label htmlFor="score-builder-density" className="text-xs font-medium text-muted-foreground">
           Heat-map metric
         </label>
         <AppSelect
           id="score-builder-density"
-          aria-label="Density metric"
+          triggerAriaLabel="Density metric"
           value={densityMetric}
           onValueChange={(value) => onDensityMetricChange(value as ScoreMetricKey)}
           options={DENSITY_METRIC_OPTIONS.map((metric) => ({ value: metric, label: getMetricLabel(metric) }))}
-          className="w-44"
           triggerClassName="h-8 rounded text-xs focus:ring-1 focus:ring-cyan-500"
         />
       </div>
@@ -53,22 +59,31 @@ export function DensityTab({
             ))}
           </div>
           <div className="space-y-1">
-            {densityLeaders.map((entry) => (
+            {visibleLeaders.map((entry, index) => (
               <button
                 key={`density-${entry.region.id}`}
+                type="button"
                 onClick={() => onRegionSelect(entry.region.id)}
                 className={cn(
-                  'flex w-full items-center justify-between rounded border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:bg-accent',
+                  'flex w-full items-center justify-between gap-2 rounded border border-border bg-background px-2 py-1.5 text-xs transition-colors hover:bg-accent',
                   selectedRegion?.region.id === entry.region.id && 'bg-cyan-50 dark:bg-cyan-950/40',
                 )}
               >
-                <span className="truncate text-left text-foreground">{entry.region.name}</span>
-                <span className="font-medium text-cyan-700 dark:text-cyan-300">
+                <span className="min-w-0 truncate text-left text-foreground">
+                  <span className="mr-1.5 tabular-nums text-muted-foreground">{index + 1}</span>
+                  {entry.region.name}
+                </span>
+                <span className="shrink-0 font-medium text-cyan-700 dark:text-cyan-300">
                   {formatMetricValue(densityMetric, entry.metrics[densityMetric], true)}
                 </span>
               </button>
             ))}
           </div>
+          {densityLeaders.length > COLLAPSED_LEADERS && (
+            <TextButton onClick={() => setShowAll((current) => !current)}>
+              {showAll ? 'Show fewer' : `Show all ${densityLeaders.length} regions`}
+            </TextButton>
+          )}
           <div className="text-xs text-muted-foreground">{getMetricDescription(densityMetric)}</div>
         </>
       ) : (

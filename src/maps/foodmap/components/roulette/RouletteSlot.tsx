@@ -26,6 +26,8 @@ function getDifficultyIndicator(restaurant: RouletteRestaurant) {
       return '!'
     case 'Moderate':
       return '!!'
+    case 'High':
+      return '!!!'
     case 'Unknown':
       return '!?'
     default:

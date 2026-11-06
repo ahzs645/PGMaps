@@ -28,6 +28,7 @@ import {
   createBcEnviroScreenMapViewCache,
   type BcEnviroScreenMapVariable,
 } from './lib/bcEnviroScreenMapView'
+import { regionsBounds } from './lib/spatial'
 
 const TRANSPARENT_FILL = 'rgba(0, 0, 0, 0)'
 
@@ -159,7 +160,9 @@ export function ProjectScoreMapPreview({
         sourceGridWeights={previewControl.weights}
         walkabilitySurfaceTuning={surfaceTuning}
         loading={datasets.loading}
-        fitAllRegions={bcEnviroScreenMapActive}
+        studyAreaBounds={
+          bcEnviroScreenMapActive ? regionsBounds(results.scoredRegions.map((entry) => entry.region)) : null
+        }
       />
 
       {showWalkabilitySourceSurface && (

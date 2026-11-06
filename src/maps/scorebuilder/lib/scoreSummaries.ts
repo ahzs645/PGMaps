@@ -32,3 +32,13 @@ export function buildScoreBandSummary(regions: ScoredBoundaryRegion[]): ScoreBan
     ).length,
   }))
 }
+
+/**
+ * How far a region's rank moved across the stress tests, relative to how many regions
+ * are ranked: moving six places means little among 135 regions and a lot among 20.
+ */
+export function rankStability(rankSpread: number, rankedCount: number): 'stable' | 'moderate' | 'sensitive' {
+  if (rankSpread <= Math.max(2, Math.round(rankedCount * 0.05))) return 'stable'
+  if (rankSpread <= Math.max(6, Math.round(rankedCount * 0.15))) return 'moderate'
+  return 'sensitive'
+}

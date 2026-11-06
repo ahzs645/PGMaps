@@ -19,6 +19,17 @@ import { useBcEnviroScreenData } from './useBcEnviroScreenData'
 
 const CENSUS_VARIABLE_LEVEL_VALUES = new Set<CensusHierarchyLevel>(['cd', 'csd', 'ct', 'da', 'db'])
 
+/**
+ * The census subdivision file is national, about 5,200 polygons, but no scoring dataset
+ * reaches past BC. Dropping the rest keeps those levels responsive and readable. BC's
+ * census geography codes begin with 59.
+ */
+export function limitToBcSubdivisions<T extends { source: string; level: string; code: string }>(regions: T[]): T[] {
+  if (!regions.length || regions[0].source !== 'census') return regions
+  if (regions[0].level !== 'csd' && regions[0].level !== 'northSouthCsd') return regions
+  return regions.filter((region) => region.code.startsWith('59'))
+}
+
 export interface ScoreBuilderDatasetsOptions {
   enabledSourceSet: ReadonlySet<ScoreDataSource>
   boundarySource: BoundarySource
@@ -57,10 +68,11 @@ export function useScoreBuilderDatasets({
   } = useRestaurantData(enabledSourceSet.has('restaurants'))
   const { unitsByLevel, loading: loadingCensus, error: censusError } = useCensusData(['da'], censusDataEnabled)
   const {
-    regions,
+    regions: studyAreaRegions,
     loading: loadingRegions,
     error: regionsError,
   } = useScoreBuilderRegions(boundarySource, selectedRegionLevel)
+  const regions = useMemo(() => limitToBcSubdivisions(studyAreaRegions), [studyAreaRegions])
   const {
     properties,
     loading: loadingProperties,
