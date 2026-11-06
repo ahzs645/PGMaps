@@ -91,7 +91,8 @@ def main():
                 with path.open('rb') as f:
                     response=client().put(f'{endpoint}/__upload/{share}/{key}',content=f,headers={'Authorization':'Bearer '+token,'Content-Length':str(path.stat().st_size),'Content-Type':mime,'X-Content-SHA256':checksum})
                 response.raise_for_status();receipt=response.json();assert receipt['bytes']==path.stat().st_size and receipt['sha256']==checksum
-                head=client().head(url);head.raise_for_status();assert head.headers.get('X-Content-SHA256')==checksum and int(head.headers['Content-Length'])==path.stat().st_size
+                # Verify the new object independently of a cached prior catalogue.
+                head=client().head(url+'?verify='+checksum);head.raise_for_status();assert head.headers.get('X-Content-SHA256')==checksum and int(head.headers['Content-Length'])==path.stat().st_size
                 return {'url':url,'bytes':path.stat().st_size,'sha256':checksum}
             except Exception:
                 if attempt==3:raise
