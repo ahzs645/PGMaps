@@ -96,6 +96,12 @@ from clipboard rejection when presenting a share-link failure.
 
 - `VirtualResultList` for any list that can exceed ~50 rows. Do not cap with
   `slice(0, N)`; if a cap is unavoidable, say so with `ListHeader shown={N}`.
+  Pass `revealKey` to scroll a row into view when it changes (a map click, a deep
+  link). For a selection in a long list, render its detail under the row inside
+  the list's `children` rather than above the list, where it lands out of view;
+  rows are re-measured, so they can grow. Wrap it in `ResultRowDetail`, which
+  continues the row's tint and left bar, rather than a card of its own. BC
+  Assessment is the reference.
 - `ResultRow` for a row (marker, title, subtitle, meta, trailing value,
   `selected` + `accent`, aria-pressed).
 - `ListHeader` for the "N items" line, `ListState` for loading / error / empty

@@ -1,19 +1,21 @@
 import { useMemo, useState } from 'react'
 import { formatCompactCurrency, formatCurrency } from '@/lib/format'
-import { Clock } from 'lucide-react'
+import { ChevronDown, Clock } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
 import { AppSelect } from '@/components/ui/select'
 import {
   CollapsibleSection,
   FilterChipGroup,
+  KeyValueRows,
   MapSidebarShell,
   SearchInput,
   SelectedItemCard,
   SidebarSection,
   StatGrid,
 } from '@/components/ui/map-panels'
-import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
+import { ListHeader, ListState, ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { useIsMobile } from '@/hooks/useIsMobile'
 import {
   BOUNDARY_SOURCE_OPTIONS,
   createStudyAreaLevelOptions,
@@ -202,6 +204,23 @@ export function HistorySparkline({
   )
 }
 
+/** One property's figures: under its list row on desktop, in the feature card on phones. */
+export function PropertyDetails({ property, className }: { property: Property; className?: string }) {
+  return (
+    <div className={className}>
+      <KeyValueRows
+        rows={[
+          { label: 'Total Assessed', value: formatCurrency(property.totalAssessed) },
+          { label: 'Land', value: formatCurrency(property.totalLand) },
+          { label: 'Building', value: formatCurrency(property.totalBuilding) },
+          property.yearBuilt ? { label: 'Year Built', value: String(property.yearBuilt) } : null,
+        ]}
+      />
+      {property.histValues && property.histValues.length > 1 && <HistorySparkline values={property.histValues} />}
+    </div>
+  )
+}
+
 export function BcAssessmentSidebar({
   className,
   properties,
@@ -229,6 +248,7 @@ export function BcAssessmentSidebar({
   onToggleTimeline,
   onTimelineYearChange,
 }: BcAssessmentSidebarProps) {
+  const isMobile = useIsMobile()
   const categoryCounts = useMemo(() => {
     const counts = new globalThis.Map<PropertyCategory, number>()
     properties.forEach((p) => {
@@ -383,27 +403,6 @@ export function BcAssessmentSidebar({
           </SelectedItemCard>
         )}
 
-        {selectedProperty && (
-          <SelectedItemCard
-            className="mb-3"
-            tone="blue"
-            eyebrow="Active property"
-            title={selectedProperty.address}
-            subtitle={selectedProperty.description}
-            onClear={onClearSelection}
-            rows={[
-              { label: 'Total Assessed', value: formatCurrency(selectedProperty.totalAssessed) },
-              { label: 'Land', value: formatCurrency(selectedProperty.totalLand) },
-              { label: 'Building', value: formatCurrency(selectedProperty.totalBuilding) },
-              ...(selectedProperty.yearBuilt ? [{ label: 'Year Built', value: selectedProperty.yearBuilt }] : []),
-            ]}
-          >
-            {selectedProperty.histValues && selectedProperty.histValues.length > 1 && (
-              <HistorySparkline values={selectedProperty.histValues} />
-            )}
-          </SelectedItemCard>
-        )}
-
         <SearchInput
           icon
           value={searchQuery}
@@ -483,16 +482,39 @@ export function BcAssessmentSidebar({
               getKey={(property) => property.id}
               estimateSize={64}
               label="Properties"
+              revealKey={selectedProperty?.id}
             >
-              {(prop) => (
-                <ResultRow
-                  title={prop.address}
-                  subtitle={`${formatCompactCurrency(prop.totalAssessed)} · ${prop.description}`}
-                  dotColor={getCategoryColor(prop.category)}
-                  selected={selectedProperty?.id === prop.id}
-                  onClick={() => onPropertyClick(prop)}
-                />
-              )}
+              {(prop) => {
+                const selected = selectedProperty?.id === prop.id
+                return (
+                  <>
+                    <ResultRow
+                      title={prop.address}
+                      subtitle={`${formatCompactCurrency(prop.totalAssessed)} · ${prop.description}`}
+                      dotColor={getCategoryColor(prop.category)}
+                      selected={selected}
+                      aria-expanded={isMobile ? undefined : selected}
+                      trailing={
+                        isMobile ? undefined : (
+                          <ChevronDown
+                            aria-hidden="true"
+                            className={cn(
+                              'mt-1 size-4 text-muted-foreground transition-transform',
+                              selected && 'rotate-180',
+                            )}
+                          />
+                        )
+                      }
+                      onClick={() => onPropertyClick(prop)}
+                    />
+                    {selected && !isMobile && (
+                      <ResultRowDetail>
+                        <PropertyDetails property={prop} />
+                      </ResultRowDetail>
+                    )}
+                  </>
+                )
+              }}
             </VirtualResultList>
           </>
         )}
