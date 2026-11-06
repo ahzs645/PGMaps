@@ -82,6 +82,30 @@ vi.mock('maplibre-gl', () => ({
     ScaleControl: class {},
   },
 }))
+// The toolkit map's own lifecycle has its own tests; this file pins the layers ImportMap adds.
+vi.mock('@/components/ui/map', async () => {
+  const { useEffect } = await import('react')
+  const { default: maplibre } = await import('maplibre-gl')
+  const Map = ({
+    styles,
+    onMapCreate,
+  }: {
+    styles: { light: unknown }
+    onMapCreate: (map: unknown) => void | (() => void)
+  }) => {
+    useEffect(() => {
+      const map = new (maplibre.Map as unknown as new (options: unknown) => { remove(): void })({ style: styles.light })
+      const release = onMapCreate(map)
+      return () => {
+        release?.()
+        map.remove()
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
+    return null
+  }
+  return { Map, MapControls: () => null, MapScaleBar: () => null, useMap: () => ({ map: null, isLoaded: false }) }
+})
 vi.mock('maplibre-gl-lidar', () => ({
   LidarControl: class {
     on() {}
@@ -138,18 +162,14 @@ const props = (): Props => ({
   onPointStatus: vi.fn(),
 })
 describe('import map adapter', () => {
-  it('installs namespaced vector context under imported layers and resizes with the pane', async () => {
+  it('installs namespaced vector context under imported layers', async () => {
     await mount(props())
     expect(state.map.layers.has('analysis-height')).toBe(true)
     expect(state.map.layers.has('basemap-vector-context-background')).toBe(true)
     expect(state.map.layers.has('basemap-vector-forest')).toBe(true)
     expect(renderer.root.findAllByProps({ role: 'alert' })).toHaveLength(0)
-    state.observers[0].callback()
-    expect(state.map.resize).toHaveBeenCalled()
-    const observer = state.observers[0],
-      map = state.map
+    const map = state.map
     await act(async () => renderer.unmount())
-    expect(observer.disconnect).toHaveBeenCalled()
     expect(map.removed).toBe(true)
   })
   it('reconciles layer visibility, opacity, selection and removal while switching basemaps', async () => {

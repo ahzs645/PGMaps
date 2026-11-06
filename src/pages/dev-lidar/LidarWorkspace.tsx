@@ -42,6 +42,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     setToolsOpen,
     basemap,
     labels,
+    hillshade,
     surfaceVisible,
     surfaceOpacity,
     analysisOptions,
@@ -213,6 +214,7 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
                       surfaceVisible={surfaceVisible}
                       surfaceOpacity={surfaceOpacity}
                       labels={labels}
+                      hillshade={hillshade}
                       sceneGround={sceneGround}
                     />
                   </div>

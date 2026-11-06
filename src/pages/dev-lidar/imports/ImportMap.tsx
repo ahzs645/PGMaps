@@ -1,5 +1,6 @@
+import { LidarMap, pointCloudFrame } from '../LidarMap'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import maplibregl, { type GeoJSONSource, type LayerSpecification } from 'maplibre-gl'
+import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from 'maplibre-gl'
 import { LidarControl } from 'maplibre-gl-lidar'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import 'maplibre-gl-lidar/style.css'
@@ -35,11 +36,11 @@ interface Props {
   onPointStatus: (text: string) => void
 }
 export function ImportMap(props: Props) {
-  const container = useRef<HTMLDivElement>(null),
-    map = useRef<maplibregl.Map | null>(null),
+  const map = useRef<MapLibreMap | null>(null),
     latest = useRef(props),
     context = useRef<LayerSpecification[]>([]),
     installed = useRef(new Map<string, ImportedLayer>())
+  const pointControl = useRef<LidarControl | null>(null)
   const pointId = props.session.point?.id
   const [ready, setReady] = useState(false),
     [error, setError] = useState(''),
@@ -47,33 +48,12 @@ export function ImportMap(props: Props) {
   useLayoutEffect(() => {
     latest.current = props
   })
-  useEffect(() => {
-    if (!container.current) return
+  const createMap = (instance: MapLibreMap) => {
     const installedLayers = installed.current
     let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 20000)
-    let instance: maplibregl.Map
-    try {
-      instance = new maplibregl.Map({
-        container: container.current,
-        style: initialLidarStyle(latest.current.basemap),
-        center: [-122.812, 53.894],
-        zoom: 13,
-        maxPitch: 75,
-        attributionControl: { compact: true },
-      })
-    } catch (e) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- MapLibre failed to start (e.g. no WebGL); show it once.
-      setError(errorText(e))
-      return () => {
-        clearTimeout(timer)
-        abort.abort()
-      }
-    }
     map.current = instance
-    instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
-    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
     instance.on('error', (e) => {
       if (active) setError(e.error?.message ?? 'Map resource unavailable')
     })
@@ -142,18 +122,14 @@ export function ImportMap(props: Props) {
         }
       }
     })
-    const observer = new ResizeObserver(() => instance.resize())
-    observer.observe(container.current)
     return () => {
       active = false
-      observer.disconnect()
       clearTimeout(timer)
       abort.abort()
-      instance.remove()
       map.current = null
       installedLayers.clear()
     }
-  }, [])
+  }
   useEffect(() => {
     if (ready && map.current) applyBasemap(map.current, context.current, props.basemap, true)
   }, [ready, props.basemap])
@@ -308,6 +284,7 @@ export function ImportMap(props: Props) {
     })
     m.addControl(control, 'top-left')
     hideNativeLoadSection(m.getContainer())
+    pointControl.current = control
     control.on('loaderror', (event) => {
       if (active) latest.current.onPointStatus(errorText(event.error ?? 'Point-cloud load failed'))
     })
@@ -348,12 +325,21 @@ export function ImportMap(props: Props) {
         })
     return () => {
       active = false
+      pointControl.current = null
       m.removeControl(control)
     }
   }, [ready, pointId])
   return (
     <div className="relative h-full min-h-0" aria-label="Imported data map">
-      <div ref={container} className="absolute inset-0" />
+      <LidarMap
+        style={initialLidarStyle(props.basemap)}
+        center={[-122.812, 53.894]}
+        zoom={13}
+        saveImage
+        imageOverlays={() => pointCloudFrame(pointControl.current)}
+        onMapCreate={createMap}
+        onCreateError={(e) => setError(errorText(e))}
+      />
       {(error || contextError) && (
         <p role="alert" className="absolute bottom-2 left-2 right-12 rounded bg-background/95 p-2 text-xs">
           {error || contextError}

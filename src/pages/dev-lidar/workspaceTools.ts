@@ -1,3 +1,4 @@
+import { CAMERA_PARAM } from './mapCamera'
 import { ANALYSIS_MODES, type AnalysisMode } from './analysisWorkflows'
 
 export const LIDAR_BASE = '/dev/lidar/'
@@ -129,6 +130,10 @@ export function resolveLidarRoute(pathname: string, search: string) {
       ? params.get('family')
       : null
   const inspect = family === 'neural' && params.get('inspect') === 'trees' ? '&inspect=trees' : ''
-  const canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}${inspect}`
+  let canonical = `${toolPath(tool?.id, mode)}${panel && tool?.id === 'buildings' ? `${mode !== tool.defaultMode ? '&' : '?'}panel=roofs` : ''}${family ? `?family=${family}` : ''}${inspect}`
+  // A shared map view survives normalising the rest of the address.
+  const camera = params.get(CAMERA_PARAM)
+  if (camera)
+    canonical = `${canonical}${canonical.includes('?') ? '&' : '?'}${CAMERA_PARAM}=${encodeURIComponent(camera)}`
   return { tool, mode, panel, valid, canonical }
 }

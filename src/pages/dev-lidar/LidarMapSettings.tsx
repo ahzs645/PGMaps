@@ -13,6 +13,8 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
     basemap,
     labels,
     setLabels,
+    hillshade,
+    setHillshade,
     surfaceVisible,
     setSurfaceVisible,
     surfaceOpacity,
@@ -52,6 +54,10 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
             disabled={basemap === 'none'}
           />
           Basemap labels
+        </label>
+        <label className="mt-3 flex items-center gap-2 text-xs">
+          <input type="checkbox" checked={hillshade} onChange={(event) => setHillshade(event.target.checked)} />
+          Regional hillshade
         </label>
         <label className="mt-3 block text-xs">
           Surface opacity · {Math.round(surfaceOpacity * 100)}%

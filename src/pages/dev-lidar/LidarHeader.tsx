@@ -1,3 +1,4 @@
+import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, PanelLeft, Upload } from 'lucide-react'
@@ -21,6 +22,9 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
       </Button>
       <div className="min-w-0 flex-1">
         <span className="hidden text-sm font-semibold sm:inline">LiDAR</span>
+        {(c.tool?.id === 'forestry' || c.tool?.id === 'canopy') && (
+          <ForestryBackLink variant="text" className="mb-0 ml-3 hidden text-xs sm:inline-flex" />
+        )}
       </div>
       <NativeSelect
         aria-label="LiDAR tool"

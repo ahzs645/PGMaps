@@ -27,7 +27,7 @@ async function bytes(download: import('@playwright/test').Download) {
 test('runs the synthetic example, exports its ledgers, and protects stale results', async ({ page }, testInfo) => {
   await open(page)
   await page.locator('[data-thlb-demo]').click()
-  await expect(page.getByRole('status')).toContainText('Analysis complete', { timeout: 60_000 })
+  await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible({ timeout: 60_000 })
   const rows = page.locator('[data-thlb-results]')
   await expect(rows).toContainText('Example WHA A')
   await expect(rows).toContainText('2.50')
@@ -138,7 +138,7 @@ test('imports real files through GDAL, gives official coverage precedence, and r
   await expect(page.locator('[data-thlb-entry="proxy"] select').nth(1)).toHaveValue('pthlb_fact')
   await page.locator('[data-thlb-tab="results"]').click()
   await page.locator('[data-thlb-run]').click()
-  await expect(page.getByRole('status')).toContainText('Analysis complete', { timeout: 60_000 })
+  await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible({ timeout: 60_000 })
   const row = page.locator('[data-thlb-results] tbody tr')
   await expect(row).toContainText('WHA-1')
   await expect(row.locator('td').nth(1)).toHaveText('0.75')
@@ -148,7 +148,7 @@ test('imports real files through GDAL, gives official coverage precedence, and r
   const [gdb] = await Promise.all([page.waitForEvent('download'), page.locator('[data-thlb-download="gdb"]').click()])
   expect(gdb.suggestedFilename()).toBe('THLB_Impact.gdb.zip')
   await page.locator('[data-thlb-run]').click()
-  await expect(page.getByRole('status')).toContainText('Analysis complete', { timeout: 60_000 })
+  await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible({ timeout: 60_000 })
   await expect(page.locator('[data-thlb-results] tbody tr td').nth(3)).toHaveText('1.25')
 
   // No nearby THLB is a valid result; even its empty piece layers must export.
@@ -160,7 +160,7 @@ test('imports real files through GDAL, gives official coverage precedence, and r
   await expect(page.locator('[data-thlb-entry="areas"] select').nth(1)).toHaveValue('AREA_ID')
   await page.locator('[data-thlb-tab="results"]').click()
   await page.locator('[data-thlb-run]').click()
-  await expect(page.getByRole('status')).toContainText('Analysis complete')
+  await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible()
   await expect(page.locator('[data-thlb-results] tbody tr td').nth(3)).toHaveText('0.00')
   await expect(page.locator('[data-thlb-results] tbody tr td').nth(4)).toHaveText('2.00')
   const [uncoveredGdb] = await Promise.all([
@@ -174,7 +174,7 @@ test('keeps mobile results and exports reachable inside the sidebar', async ({ p
   await page.setViewportSize({ width: 390, height: 844 })
   await open(page)
   await page.locator('[data-thlb-demo]').click()
-  await expect(page.getByRole('status')).toContainText('Analysis complete')
+  await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible()
   const exportButton = page.locator('[data-thlb-download="excel"]')
   await exportButton.scrollIntoViewIfNeeded()
   await expect(exportButton).toBeInViewport()

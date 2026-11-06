@@ -13,7 +13,18 @@ import {
 import { treePointLayer } from '../treePointLayer'
 import type { TreeCrop } from '../treeIsolation'
 import { EMPTY_FEATURES } from './data'
-import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
+import { LidarMap } from '../LidarMap'
+
+/** The vector context anchors on `analysis-height`, which a comparison has no raster for. */
+function comparisonStyle(basemap: Basemap) {
+  const style = initialLidarStyle(basemap)
+  style.layers.splice(style.layers.length - 1, 0, {
+    id: 'analysis-height',
+    type: 'background',
+    paint: { 'background-opacity': 0 },
+  })
+  return style
+}
 
 /** Relative centres let cameras stay linked even for two different crown locations. */
 export interface ComparisonCamera {
@@ -57,8 +68,7 @@ interface Props {
   onReferencePick?: (id: string) => void
 }
 export function ComparisonMap(props: Props) {
-  const container = useRef<HTMLDivElement>(null),
-    map = useRef<maplibregl.Map | null>(null),
+  const map = useRef<maplibregl.Map | null>(null),
     latest = useRef(props),
     applying = useRef(false)
   const context = useRef<LayerSpecification[]>([]),
@@ -67,41 +77,11 @@ export function ComparisonMap(props: Props) {
   useLayoutEffect(() => {
     latest.current = props
   }, [props])
-  useEffect(() => {
-    if (!container.current) return
-    let active = true,
-      instance: maplibregl.Map
+  const createMap = (instance: maplibregl.Map) => {
+    let active = true
     const abort = new AbortController(),
       timer = setTimeout(() => abort.abort(), 20000)
-    try {
-      const p = latest.current
-      const style = initialLidarStyle(p.basemap)
-      style.layers.splice(style.layers.length - 1, 0, {
-        id: 'analysis-height',
-        type: 'background',
-        paint: { 'background-opacity': 0 },
-      })
-      instance = new maplibregl.Map({
-        container: container.current,
-        style,
-        center: p.centre,
-        zoom: p.zoom ?? 19,
-        pitch: p.view === '3d' ? 50 : 0,
-        maxPitch: 75,
-        attributionControl: { compact: true },
-      })
-    } catch (e) {
-      // MapLibre can fail synchronously before load events exist; expose that external failure.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setError(`Map unavailable: ${String(e)}`)
-      return () => {
-        abort.abort()
-        clearTimeout(timer)
-      }
-    }
     map.current = instance
-    instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
-    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
     instance.on('error', (e) => {
       if (active) setError(e.error?.message ?? 'A map resource failed to load')
     })
@@ -212,18 +192,14 @@ export function ComparisonMap(props: Props) {
         pitch: instance.getPitch(),
       })
     })
-    const resize = new ResizeObserver(() => resizeMap(instance))
-    resize.observe(container.current)
     return () => {
       active = false
       abort.abort()
       clearTimeout(timer)
-      resize.disconnect()
-      instance.remove()
       map.current = null
       context.current = []
     }
-  }, [])
+  }
   useEffect(() => {
     const m = map.current
     if (!ready || !m) return
@@ -319,7 +295,15 @@ export function ComparisonMap(props: Props) {
   }, [ready, props.camera, props.centre])
   return (
     <div className="relative h-full min-h-0 w-full">
-      <div ref={container} className="absolute inset-0" aria-label={props.label} />
+      <LidarMap
+        label={props.label}
+        style={comparisonStyle(props.basemap)}
+        center={props.centre}
+        zoom={props.zoom ?? 19}
+        pitch={props.view === '3d' ? 50 : 0}
+        onMapCreate={createMap}
+        onCreateError={(e) => setError(`Map unavailable: ${String(e)}`)}
+      />
       {error && (
         <p className="absolute bottom-8 left-2 right-12 rounded bg-background/95 p-2 text-[10px]" role="status">
           {error}

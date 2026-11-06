@@ -33,6 +33,8 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `docs/forestry-tool-standard.md` lists what every `/dev/forestry` tool shares, the three tool shapes, and how a map keeps its own look through the toolkit. Read it before adding a tool or a map layer.
 - Every map is the toolkit's `Map`. Give a tool its look through props (`styles`, `controls`, `MapTerrain`); do not call `map.addSource` or `map.addLayer` in a page. The doc lists the exceptions.
 
+- `LidarMap.tsx` passes one style object as both `styles`. A second object, or `fallbackStyles`, lets the toolkit call `setStyle` on a theme change, which wipes every LiDAR layer: nothing re-adds them. A saved map image takes the point cloud in deck's `onAfterRender` (`pointCloudFrame`), because its canvas reads back blank at any other time and nothing reports it. Hillshade uses `MapTerrain reliefOnly`: maplibre-gl-lidar owns the map's 3D terrain, and a plain `MapTerrain` clears it.
+
 ## Forestry visual quality
 
 - `docs/forestry-visual-quality.md` is the contract for `/dev/forestry/visual-quality`: what each reported percentage means, what the sightline model does and does not include, and the run's cost limits.

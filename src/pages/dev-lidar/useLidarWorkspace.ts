@@ -1,3 +1,4 @@
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { ColorSchemeType, ElevationProfile } from 'maplibre-gl-lidar'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -57,6 +58,7 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   const [toolsOpen, setToolsOpen] = useState(false)
   const [basemap, setBasemap] = useState<Basemap>('vector')
   const [labels, setLabels] = useState(true)
+  const [hillshade, setHillshade] = useState(false)
   const [surfaceVisible, setSurfaceVisible] = useState(false)
   const [surfaceOpacity, setSurfaceOpacity] = useState(0.65)
   const [analysisOptions, setAnalysisOptions] = useState(INITIAL_ANALYSIS)
@@ -329,9 +331,7 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     }
     if (navigation.panel === 'buildings' && tool?.id === 'buildings') setTab('buildings')
   }
-  useEffect(() => {
-    if (summary) document.title = `${tool?.title ?? 'Tools'} · LiDAR · PGMaps`
-  }, [summary, tool?.title])
+  useDocumentTitle(`${tool?.title ?? 'Tools'} · LiDAR · PGMaps`)
   const openTool = (id?: LidarToolId) => {
     const mode = id ? lastModes.get(id) : undefined
     if (mode) navigation.openMode(mode)
@@ -395,6 +395,8 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setBasemap,
     labels,
     setLabels,
+    hillshade,
+    setHillshade,
     surfaceVisible,
     setSurfaceVisible,
     surfaceOpacity,

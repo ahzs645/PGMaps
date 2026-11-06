@@ -51,7 +51,11 @@ These remain on purpose:
   against the road e2e suite.
 - `cciss/NativeSuitabilityLayer.tsx` registers a tile protocol, which the toolkit does
   not wrap. Its layer is a `MapRasterLayer`.
-- `dev-lidar` creates and manages its own maps and is not yet on the toolkit `Map`.
+- `dev-lidar` uses the toolkit `Map` through `LidarMap.tsx` and keeps its own layers, added
+  in `onMapCreate`. They depend on insertion order and anchors, and `basemaps.ts` switches
+  the basemap in place, so the style stays fixed for the map's life. `maplibre-gl-lidar`
+  brings its own deck.gl 9.4, which must stay apart from the toolkit's.
+  Relief uses `MapTerrain reliefOnly`, because that package owns the map's 3D terrain.
 
 ## Candidates to share next
 

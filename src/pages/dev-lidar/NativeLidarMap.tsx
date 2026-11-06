@@ -42,7 +42,19 @@ import {
   VECTOR_STYLE_URL,
   type Basemap,
 } from './basemaps'
-import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
+import { LidarMap, pointCloudFrame, RegionalHillshade } from './LidarMap'
+import { CAMERA_PARAM, formatCamera, parseCamera } from './mapCamera'
+
+/** Keeps the address bar on the current view, so a copied link opens the same place. */
+function shareCamera(map: MapLibreMap) {
+  const url = new URL(window.location.href)
+  const { lng, lat } = map.getCenter()
+  url.searchParams.set(
+    CAMERA_PARAM,
+    formatCamera({ center: [lng, lat], zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() }),
+  )
+  window.history.replaceState(window.history.state, '', url)
+}
 
 interface Props {
   inspectionView?: 'top' | '3d'
@@ -77,11 +89,13 @@ interface Props {
   surfaceVisible: boolean
   surfaceOpacity: number
   labels: boolean
+  hillshade: boolean
   sceneGround: number | null
 }
 
 export function NativeLidarMap(props: Props) {
-  const container = useRef<HTMLDivElement>(null)
+  const [sharedView] = useState(() => parseCamera(new URLSearchParams(window.location.search).get(CAMERA_PARAM)))
+  const sharedCamera = useRef(!!sharedView)
   const map = useRef<MapLibreMap | null>(null)
   const lidar = useRef<LidarControl | null>(null)
   const cloudId = useRef<string | null>(null)
@@ -123,6 +137,10 @@ export function NativeLidarMap(props: Props) {
       props.workflowOptions.threshold,
     ],
   )
+  const [source, setSource] = useState({ analysisBase: props.analysisBase, summary: props.summary, generation: 0 })
+  if (source.analysisBase !== props.analysisBase || source.summary !== props.summary)
+    setSource({ analysisBase: props.analysisBase, summary: props.summary, generation: source.generation + 1 })
+  const mapGeneration = source.generation
   const [previousViewContext, setPreviousViewContext] = useState(viewContext)
   if (previousViewContext !== viewContext) {
     setPreviousViewContext(viewContext)
@@ -143,37 +161,15 @@ export function NativeLidarMap(props: Props) {
     }
   }
 
-  useEffect(() => {
-    // Recreate GPU resources only for a new source snapshot; option effects update the live map.
+  // Recreate GPU resources only for a new source snapshot; option effects update the live map.
+  const createMap = (instance: MapLibreMap) => {
     const initial = latest.current
-    if (!container.current) return
     let active = true
     let samples: Float32Array | null = null
     const abort = new AbortController()
     const contextAbort = new AbortController()
     let contextTimeout: number | undefined
-    let instance: MapLibreMap
-    try {
-      instance = new maplibregl.Map({
-        container: container.current,
-        style: initialLidarStyle(latest.current.basemap),
-        bounds: [
-          [initial.summary.bounds_wgs84[0], initial.summary.bounds_wgs84[1]],
-          [initial.summary.bounds_wgs84[2], initial.summary.bounds_wgs84[3]],
-        ],
-        fitBoundsOptions: { padding: 35 },
-        maxPitch: 75,
-        attributionControl: { compact: true },
-      })
-    } catch (e) {
-      // Publish a synchronous MapLibre/WebGL failure as visible error UI.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setError(e instanceof Error ? e.message : 'WebGL map could not start')
-      return
-    }
     map.current = instance
-    instance.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right')
-    instance.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
     instance.on('error', (event) => {
       if (active) setError(event.error?.message ?? 'A map resource could not load')
     })
@@ -397,25 +393,24 @@ export function NativeLidarMap(props: Props) {
     })
     // Read-only camera diagnostics let acceptance checks verify preservation across tool routes.
     const reportCamera = () => {
-      container.current?.setAttribute('data-map-center', instance.getCenter().toArray().join(','))
-      container.current?.setAttribute('data-map-zoom', String(instance.getZoom()))
+      instance.getContainer().setAttribute('data-map-center', instance.getCenter().toArray().join(','))
+      instance.getContainer().setAttribute('data-map-zoom', String(instance.getZoom()))
     }
     reportCamera()
     instance.on('moveend', reportCamera)
-    const observer = new ResizeObserver(() => resizeMap(instance))
-    observer.observe(container.current)
+    instance.on('moveend', () => {
+      if (active) shareCamera(instance)
+    })
     return () => {
       active = false
       abort.abort()
       contextAbort.abort()
       window.clearTimeout(contextTimeout)
-      observer.disconnect()
       lidar.current = null
       contextLayers.current = []
       map.current = null
-      instance.remove()
     }
-  }, [props.analysisBase, props.summary])
+  }
 
   useEffect(() => {
     const instance = map.current
@@ -608,7 +603,8 @@ export function NativeLidarMap(props: Props) {
   }, [ready, props.cloud, props.toolsOpen])
 
   useEffect(() => {
-    if (!ready) return
+    // A shared link's view wins over the tool's starting view until it has been applied.
+    if (!ready || sharedCamera.current) return
     map.current?.easeTo({
       pitch: inspectionPitch(props.inspectionView, !!(props.cloud || props.modelActive || props.treeCrop)),
       duration: 700,
@@ -627,6 +623,10 @@ export function NativeLidarMap(props: Props) {
 
   useEffect(() => {
     if (!ready || !map.current) return
+    if (sharedCamera.current) {
+      sharedCamera.current = false
+      return
+    }
     const place = props.summary.highlights[props.focus.index]
     if (props.focus.center)
       map.current.easeTo({
@@ -666,7 +666,24 @@ export function NativeLidarMap(props: Props) {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden" data-lidar-map>
-      <div ref={container} className="absolute inset-0" aria-label="Interactive native LiDAR analysis map" />
+      <LidarMap
+        key={mapGeneration}
+        label="Interactive native LiDAR analysis map"
+        style={initialLidarStyle(props.basemap)}
+        saveImage
+        imageOverlays={() => pointCloudFrame(lidar.current)}
+        {...(sharedView ?? {
+          bounds: [
+            [props.summary.bounds_wgs84[0], props.summary.bounds_wgs84[1]],
+            [props.summary.bounds_wgs84[2], props.summary.bounds_wgs84[3]],
+          ],
+          fitBoundsOptions: { padding: 35 },
+        })}
+        onMapCreate={createMap}
+        onCreateError={(e) => setError(e instanceof Error ? e.message : 'WebGL map could not start')}
+      >
+        {props.hillshade && <RegionalHillshade beforeId={`analysis-${Object.keys(props.summary.rasters)[0]}`} />}
+      </LidarMap>
       <div
         className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-[10px] text-foreground shadow"
         role="status"
