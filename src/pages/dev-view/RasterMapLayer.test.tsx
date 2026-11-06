@@ -11,6 +11,7 @@ const { map } = vi.hoisted(() => ({
       getBoundingClientRect: () => ({ left: 0, right: 1000, top: 0, bottom: 800 }),
     })),
     getPadding: vi.fn(() => ({ top: 0, bottom: 0, left: 0, right: 0 })),
+    getStyle: vi.fn((): object | undefined => ({ version: 8, sources: {}, layers: [] })),
     isStyleLoaded: vi.fn(() => false), // Existing raster tiles are still loading.
     getLayer: vi.fn(() => undefined),
     getSource: vi.fn(() => undefined),
@@ -24,7 +25,7 @@ const { map } = vi.hoisted(() => ({
     off: vi.fn(),
   },
 }))
-vi.mock('@/components/ui/map', () => ({ useMap: () => ({ map, isLoaded: true }) }))
+vi.mock('@/components/ui/map', () => ({ useMap: () => ({ map, isLoaded: false }) }))
 vi.mock('maplibre-gl', () => ({ default: { addProtocol: vi.fn() } }))
 vi.mock('pmtiles', () => ({
   Protocol: class {
@@ -41,7 +42,7 @@ const item: RasterRecord = {
   downloads: [],
 }
 describe('Map selection during pending raster requests', () => {
-  it('installs and frames the selected map even while prior tiles are loading', () => {
+  it('installs and frames the selected map without waiting for all background imagery to load', () => {
     vi.stubGlobal(
       'MutationObserver',
       class {
@@ -65,7 +66,10 @@ describe('Map selection during pending raster requests', () => {
       expect.any(Object),
     )
     vi.stubGlobal('cancelAnimationFrame', vi.fn())
+    const readsBeforeUnmount = map.getLayer.mock.calls.length
+    map.getStyle.mockReturnValueOnce(undefined) // Parent map has already been removed.
     act(() => root.unmount())
+    expect(map.getLayer).toHaveBeenCalledTimes(readsBeforeUnmount)
     vi.unstubAllGlobals()
   })
 })

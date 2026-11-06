@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { httpsURL, loadCatalogue, parseCatalogue } from './catalogue'
+import { httpsURL, loadCatalogue, parseCatalogue, shareLink } from './catalogue'
 
 const origin = 'https://maps.example.test/collection/catalog.json'
 const item = {
@@ -61,4 +61,16 @@ describe('Shared map catalogue boundary', () => {
   })
   it('preserves XYZ template placeholders', () =>
     expect(httpsURL('https://tiles.example.test/{z}/{x}/{y}.webp')).toContain('/{z}/{x}/{y}.webp'))
+})
+
+describe('Library and map share links', () => {
+  it('opens in the library by default and only requests a map explicitly', () => {
+    vi.stubGlobal('window', { location: { origin: 'https://maps.example.test' } })
+    const library = new URL(shareLink(origin))
+    expect(new URLSearchParams(library.hash.slice(1)).has('view')).toBe(false)
+    const map = new URLSearchParams(new URL(shareLink(origin, 'one', 'map')).hash.slice(1))
+    expect(map.get('map')).toBe('one')
+    expect(map.get('view')).toBe('map')
+    expect(map.get('catalog')).toBe(origin)
+  })
 })

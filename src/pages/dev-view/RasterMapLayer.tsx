@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { Protocol } from 'pmtiles'
 import { useMap } from '@/components/ui/map'
@@ -19,10 +19,11 @@ export function RasterMapLayer({
   opacity: number
   onError: (text: string) => void
 }) {
-  const { map, isLoaded } = useMap()
+  const { map } = useMap()
+  const currentOpacity = useRef(opacity)
   const workspace = useWorkspace()
   useEffect(() => {
-    if (!map || !isLoaded || !item) return
+    if (!map || !item) return
     const ids = item.assets.map((_, i) => `shared-raster-${i}`)
     let following = true
     let frame = 0
@@ -75,6 +76,8 @@ export function RasterMapLayer({
       if (event.originalEvent) following = false
     }
     const install = () => {
+      // A style can be ready while its background imagery is still downloading.
+      if (!map.getStyle()) return
       ids.forEach((id, i) => {
         const asset = item.assets[i]
         if (map.getLayer(id)) map.removeLayer(id)
@@ -91,7 +94,7 @@ export function RasterMapLayer({
           id,
           type: 'raster',
           source: id,
-          paint: { 'raster-opacity': opacity / 100, 'raster-fade-duration': 150 },
+          paint: { 'raster-opacity': currentOpacity.current / 100, 'raster-fade-duration': 150 },
         })
       })
       fit()
@@ -124,20 +127,22 @@ export function RasterMapLayer({
       stopCoverListener()
       panelsObserver.disconnect()
       cancelAnimationFrame(frame)
+      // The parent map may already have destroyed its style during unmount.
+      if (!map.getStyle()) return
       ids.forEach((id) => {
         if (map.getLayer(id)) map.removeLayer(id)
         if (map.getSource(id)) map.removeSource(id)
       })
     }
     // Opacity has its own paint-only effect so moving the slider never refits the camera.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, isLoaded, item, onError, workspace?.root])
+  }, [map, item, onError, workspace?.root])
   useEffect(() => {
-    if (!map || !isLoaded || !item) return
+    currentOpacity.current = opacity
+    if (!map || !item || !map.getStyle()) return
     item.assets.forEach((_, i) => {
       const id = `shared-raster-${i}`
       if (map.getLayer(id)) map.setPaintProperty(id, 'raster-opacity', opacity / 100)
     })
-  }, [map, isLoaded, item, opacity])
+  }, [map, item, opacity])
   return null
 }
