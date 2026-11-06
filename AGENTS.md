@@ -13,6 +13,12 @@
 - Keep deployment checkout configured with recursive submodules. A build that does not initialize `vendor/bcdatamapper` cannot assemble scraper-owned data.
 - `vendor/canadadatamapper` holds national (Canada-wide) scrapers under the same rules; `scripts/sync-bcdatamapper-data.mjs` copies its `canadaPathMappings` too, and the deploy cache key includes both submodule revisions. ISED cell sites land at `public/data/canada/cell-sites`. Build towers from ISED's `Site_Data_Extract_FX.zip`, never by scraping ertyu.org, whose `robots.txt` disallows automated clients.
 
+## LiDAR point cloud tiles
+
+- `vendor/pgmaps-lidar-data` builds and publishes the EPT tiles. Its Release stores them and its own Pages site serves them to the browser; PGMaps loads them at runtime and does not deploy them. Do not bring them back into `dist`: at 495 MB they put this site over GitHub's 1 GB Pages limit, which `deploy.yml` now warns about at 900 MB compressed.
+- Browsers cannot read a GitHub Release asset, because GitHub sends no CORS headers on those downloads. A Release can store data but cannot serve it to the app.
+- Pages keys a deployment by commit, and a cancelled commit cannot deploy again. Retry a timed-out deploy with a new commit, not a rerun.
+
 ## Updating submodule data
 
 1. Make and validate scraper/data changes inside `vendor/bcdatamapper`.

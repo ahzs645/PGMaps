@@ -17,8 +17,12 @@ embedded upstream application, or second copy of the workspace implementation.
 - `scripts/lidar/`: reproducible batch processing, version-pinned dependencies,
   actual GeoLibre WASI runs, scientific checks and publication. Heavy processing
   does not rerun whenever someone opens the page.
-- `scripts/prepare-lidar.py`: the complete original cloud's EPT index. No source
-  points are removed from this visualization dataset.
+- `vendor/pgmaps-lidar-data`: the complete original cloud's EPT index, built and published
+  by that repository. No source points are removed from this visualization dataset. A
+  Release stores the tiles and its GitHub Pages site serves them, because browsers cannot
+  read Release assets: GitHub sends no CORS headers on those downloads. The viewer loads
+  them at runtime, so they are not in this site's deployment. Set `VITE_LIDAR_CLOUD_BASE`
+  to use other tiles.
 - `lidar-preview/`: a small entrypoint importing the same workspace for Sites.
   Sites is a hosting adapter, not the source of the analytical methods.
 

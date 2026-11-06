@@ -21,7 +21,7 @@ An offline check for `crown-1` read six intersecting EPT nodes containing 308,05
 /path/to/venv/bin/python scripts/lidar/inspect_tree_ept.py --crown crown-1
 ```
 
-The offline check expects the prepared EPT tree under `public/data/lidar/bc-093g086` and enforces the same 750,000-input-return cost bound. Source grids/candidate files are verified by deployment; raw LAZ/EPT binaries are not duplicated in Git.
+The offline check expects the prepared EPT tree under `public/data/lidar/bc-093g086`, built with `vendor/pgmaps-lidar-data/prepare-lidar.py`, and enforces the same 750,000-input-return cost bound. Source grids/candidate files are verified by deployment; raw LAZ/EPT binaries are not duplicated in Git.
 
 ## Observed side profiles
 

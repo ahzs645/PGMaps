@@ -10,3 +10,6 @@
 [submodule "vendor/canadadatamapper"]
 	path = vendor/canadadatamapper
 	url = https://github.com/ahzs645/canadadatamapper.git
+[submodule "vendor/pgmaps-lidar-data"]
+	path = vendor/pgmaps-lidar-data
+	url = https://github.com/ahzs645/pgmaps-lidar-data.git
