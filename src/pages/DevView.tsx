@@ -136,11 +136,19 @@ export default function DevView() {
       const p = params()
       setSource(p.get('catalog') || '')
       setInput(p.get('catalog') || '')
-      if (p.get('map')) setSelectedId(p.get('map') || '')
+      const id = p.get('map') || ''
+      if (id) {
+        setSelectedId(id)
+        if (catalogue) setScope(catalogue.featured.some((item) => item.id === id) ? 'featured' : 'all')
+      }
+      setQuery('')
+      setTileError('')
+      setSheetPage(0)
+      setLegend(false)
     }
     window.addEventListener('hashchange', change)
     return () => window.removeEventListener('hashchange', change)
-  }, [])
+  }, [catalogue])
   const choose = useCallback((item: RasterRecord) => {
     setSelectedId(item.id)
     setTileError('')

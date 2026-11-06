@@ -37,7 +37,7 @@ test('Range response supplies exact byte framing and browser-readable headers', 
     MAPS: {
       get: async (key, options) => {
         assert.equal(key, `collections/${capability}/tiles/map.pmtiles`)
-        assert.equal(options.range.get('range'), 'bytes=10-12')
+        assert.deepEqual(options.range, { offset: 10, length: 3 })
         return object({ range: { offset: 10, length: 3 } })
       },
     },

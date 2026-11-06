@@ -7,6 +7,7 @@ const COMMON = {
   'X-Robots-Tag': 'noindex, nofollow, noarchive',
   'Referrer-Policy': 'no-referrer',
   'X-Content-Type-Options': 'nosniff',
+  Vary: 'Range',
 }
 const ALLOWED_FILE = /^(catalog\.json|(?:raw|tiles|previews|sheets|reviews)\/[a-zA-Z0-9._/-]+)$/
 export function objectKey(path, upload = false) {
@@ -61,15 +62,27 @@ export async function handle(request, env) {
   if (!key) return reply('Not found', 404)
   if (!['GET', 'HEAD'].includes(request.method))
     return reply('Method not allowed', 405, { Allow: 'GET, HEAD, OPTIONS' })
+  const rangeHeader = request.headers.get('Range')
+  let range
+  if (rangeHeader) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader)
+    if (!match || (!match[1] && !match[2])) return reply('Invalid range', 416)
+    range = match[1]
+      ? { offset: Number(match[1]), ...(match[2] ? { length: Number(match[2]) - Number(match[1]) + 1 } : {}) }
+      : { suffix: Number(match[2]) }
+    if ((range.length !== undefined && range.length < 1) || (range.suffix !== undefined && range.suffix < 1))
+      return reply('Invalid range', 416)
+  }
   const object =
     request.method === 'HEAD'
       ? await env.MAPS.head(key)
-      : await env.MAPS.get(key, { range: request.headers, onlyIf: request.headers })
+      : await env.MAPS.get(key, { ...(range ? { range } : {}), onlyIf: request.headers })
   if (!object) return reply('Not found', 404)
   const headers = new Headers(COMMON)
   object.writeHttpMetadata(headers)
   headers.set('ETag', object.httpEtag)
   headers.set('Accept-Ranges', 'bytes')
+  if (key.includes('/raw/')) headers.set('Content-Disposition', 'attachment')
   headers.set('X-Content-SHA256', object.customMetadata?.sha256 || '')
   headers.set(
     'Cache-Control',
@@ -85,12 +98,12 @@ export async function handle(request, env) {
       headers,
     })
   }
-  if (object.range) {
+  if (range && object.range) {
     const { offset, length } = object.range
     headers.set('Content-Range', `bytes ${offset}-${offset + length - 1}/${object.size}`)
     headers.set('Content-Length', String(length))
   } else headers.set('Content-Length', String(object.size))
-  return new Response(object.body, { status: object.range ? 206 : 200, headers })
+  return new Response(object.body, { status: range && object.range ? 206 : 200, headers })
 }
 export default {
   async fetch(request, env) {
