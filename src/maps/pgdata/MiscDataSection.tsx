@@ -1748,7 +1748,6 @@ export default function MiscDataSection() {
                 bucketCounts={canueTimelineBucketCounts}
                 compactBars
                 overflowBuckets
-                percentChangeMode={{ enabled: !canueTimelineIsMonthly, label: 'YoY' }}
                 windowMode={{
                   size: canueTimelineWindowSize,
                   onSizeChange: setCanueTimelineWindowSize,
