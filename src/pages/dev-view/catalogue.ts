@@ -213,10 +213,11 @@ export async function loadCatalogue(input: string, signal: AbortSignal): Promise
     )
   return parseCatalogue(raw, url)
 }
-export function shareLink(source: string, mapId?: string) {
+export function shareLink(source: string, mapId?: string, view: 'library' | 'map' = 'library') {
   const url = new URL('/dev/view', window.location.origin)
   const p = new URLSearchParams({ catalog: source })
   if (mapId) p.set('map', mapId)
+  if (view === 'map') p.set('view', 'map')
   url.hash = p.toString()
   return url.href
 }

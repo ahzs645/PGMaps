@@ -5,10 +5,18 @@ The reusable viewer is **https://pgmaps.ahmadjalil.com/dev/view**. It is intenti
 Share links use the fragment, so the collection address is not sent to GitHub Pages as a page request:
 
 ```text
-https://pgmaps.ahmadjalil.com/dev/view#catalog=<URL-encoded HTTPS catalogue URL>&map=<optional map id>
+https://pgmaps.ahmadjalil.com/dev/view#catalog=<URL-encoded HTTPS catalogue URL>
 ```
 
 The actual collection capability URLs are **not committed to this public repository**. Keep the local `PRIVATE_SHARE.json`, generated catalogues and publication receipts outside the checkout. The viewer sets `noindex, nofollow, noarchive` and `no-referrer`. This is unlisted, anyone-with-the-link access, not account authentication: recipients can forward their link and download the data it exposes. Do not put a real link in issues, PR bodies, fixtures or public build logs.
+
+## Library and image previews
+
+Collection links open a scrolling image library, including older links that contain a `map` identifier. All raster representations are available by default; a separate selections tab shows curated stories. Search and the virtualized preview grid keep large catalogues usable without fetching every image or opening a basemap.
+
+Choose **View image** to inspect a larger raster image, then **Open on map** to explore its geographic placement. The larger preview is assembled on demand from existing raster tiles (up to 1,800 pixels on its longest side); it is a display derivative, not a replacement for the native GeoTIFF. Full source sheets, available legend crops, source notes and original downloads remain accessible from the image preview.
+
+Map links explicitly add `&view=map&map=<map id>`. The map's **Library** button returns to browsing with the current search and scroll position retained. The mobile map title sits below the main navigation, has a dismiss button, and can be restored with **Map info**. Loading background imagery does not block its controls or the historic overlay.
 
 ## What the viewer accepts
 
@@ -22,19 +30,23 @@ URLs must use HTTPS without embedded credentials. The remote server must permit 
 {
   "schema": "raster-catalog-v1",
   "title": "Example map collection",
-  "items": [{
-    "id": "example-map",
-    "title": "Example map",
-    "bounds": [-126, 53, -124, 55],
-    "assets": [{
-      "url": "tiles/example.pmtiles",
+  "items": [
+    {
+      "id": "example-map",
+      "title": "Example map",
       "bounds": [-126, 53, -124, 55],
-      "minZoom": 3,
-      "maxZoom": 14
-    }],
-    "sources": [{"title": "Original source", "url": "https://example.org/source"}],
-    "caveat": "Record the map's actual placement uncertainty."
-  }]
+      "assets": [
+        {
+          "url": "tiles/example.pmtiles",
+          "bounds": [-126, 53, -124, 55],
+          "minZoom": 3,
+          "maxZoom": 14
+        }
+      ],
+      "sources": [{ "title": "Original source", "url": "https://example.org/source" }],
+      "caveat": "Record the map's actual placement uncertainty."
+    }
+  ]
 }
 ```
 

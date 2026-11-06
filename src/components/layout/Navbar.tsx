@@ -222,7 +222,7 @@ export function Navbar() {
   }, [closeMobileMenu])
 
   const activeNavLabel =
-    EXTRA_PAGE_LABELS[location.pathname] ??
+    EXTRA_PAGE_LABELS[location.pathname.replace(/\/+$/, '')] ??
     navLinks.find(({ path }) => path !== '/' && isNavActive(path))?.label ??
     null
   const mobileMenuLabel = isProjectPage ? 'Project' : (activeNavLabel ?? 'PGMaps')

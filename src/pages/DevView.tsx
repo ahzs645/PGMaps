@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ExternalLink, FileImage, Link2, MapPinned, Search } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ExternalLink, FileImage, Library, Link2, MapPinned, Search, X } from 'lucide-react'
 import type { StyleSpecification } from 'maplibre-gl'
 import { Map as AppMap } from '@/components/ui/map'
 import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSectionLayout'
@@ -13,6 +14,8 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { formatBytes } from '@/lib/format'
 import { loadCatalogue, shareLink, type RasterCatalogue, type RasterRecord } from './dev-view/catalogue'
 import { RasterMapLayer } from './dev-view/RasterMapLayer'
+import { MapLibrary } from './dev-view/MapLibrary'
+import { MapImagePreview } from './dev-view/MapImagePreview'
 
 const STREET: StyleSpecification = {
   version: 8,
@@ -45,11 +48,17 @@ function params() {
 }
 
 export default function DevView() {
+  const navigate = useNavigate()
   const [source, setSource] = useState(() => params().get('catalog') || '')
   const [input, setInput] = useState(source)
   const [catalogue, setCatalogue] = useState<RasterCatalogue | null>(null)
   const [selectedId, setSelectedId] = useState(() => params().get('map') || '')
-  const [scope, setScope] = useState<'featured' | 'all'>('featured')
+  const [scope, setScope] = useState<'featured' | 'all'>('all')
+  const [view, setView] = useState<'library' | 'map'>(() => (params().get('view') === 'map' ? 'map' : 'library'))
+  const [preview, setPreview] = useState<RasterRecord | null>(null)
+  const [showMapTitle, setShowMapTitle] = useState(true)
+  const libraryScroll = useRef(0)
+  const getLibraryScroll = useCallback(() => libraryScroll.current, [])
   const [query, setQuery] = useState('')
   const [base, setBase] = useState<'street' | 'satellite'>('satellite')
   const [opacity, setOpacity] = useState(65)
@@ -116,7 +125,7 @@ export default function DevView() {
         const item =
           [...value.featured, ...value.items].find((x) => x.id === requested) || value.featured[0] || value.items[0]
         setSelectedId(item.id)
-        setScope(value.featured.some((x) => x.id === item.id) ? 'featured' : 'all')
+        setScope(params().get('view') === 'map' && value.featured.some((x) => x.id === item.id) ? 'featured' : 'all')
         setQuery('')
       })
       .catch((e) => {
@@ -129,36 +138,166 @@ export default function DevView() {
     return () => abort.abort()
   }, [source, reloadNonce])
   useEffect(() => {
-    if (source && selectedId) history.replaceState(null, '', shareLink(source, selectedId))
-  }, [source, selectedId])
-  useEffect(() => {
     const change = () => {
       const p = params()
+      const nextView = p.get('view') === 'map' ? 'map' : 'library'
+      setView(nextView)
+      setPreview(null)
+      setShowMapTitle(true)
+      const changedSource = (p.get('catalog') || '') !== source
       setSource(p.get('catalog') || '')
       setInput(p.get('catalog') || '')
       const id = p.get('map') || ''
       if (id) {
         setSelectedId(id)
-        if (catalogue) setScope(catalogue.featured.some((item) => item.id === id) ? 'featured' : 'all')
+        if (catalogue && nextView === 'map')
+          setScope(catalogue.featured.some((item) => item.id === id) ? 'featured' : 'all')
       }
-      setQuery('')
+      if (changedSource) {
+        setQuery('')
+        setScope('all')
+        libraryScroll.current = 0
+      }
       setTileError('')
       setSheetPage(0)
       setLegend(false)
     }
     window.addEventListener('hashchange', change)
     return () => window.removeEventListener('hashchange', change)
-  }, [catalogue])
+  }, [catalogue, source])
   const choose = useCallback((item: RasterRecord) => {
     setSelectedId(item.id)
+    setShowMapTitle(true)
     setTileError('')
     setSheetPage(0)
     setLegend(false)
   }, [])
+  const openMap = (item: RasterRecord) => {
+    choose(item)
+    setPreview(null)
+    navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash })
+    setView('map')
+  }
+  const openLibrary = () => {
+    navigate({ hash: new URL(shareLink(source)).hash })
+    setView('library')
+    setPreview(null)
+  }
+  const previewImage = (item: RasterRecord) => {
+    choose(item)
+    setPreview(item)
+  }
   const sheet = selected?.fullSheets[sheetPage]
   const label =
     selected?.alignmentReview?.label ||
     (selected?.confidence === 'experimental' ? 'Experimental placement' : 'Provisional placement')
+  const sourceForm = (
+    <>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          setView('library')
+          setPreview(null)
+          libraryScroll.current = 0
+          navigate({ hash: new URL(shareLink(input.trim())).hash })
+          setSource(input.trim())
+          if (input.trim() === source) {
+            setReloadNonce((value) => value + 1)
+          }
+        }}
+        className="space-y-2"
+      >
+        <label htmlFor="shared-map-url" className="block text-xs text-muted-foreground">
+          Catalogue JSON, raster PMTiles or raster TileJSON
+        </label>
+        <input
+          id="shared-map-url"
+          type="url"
+          required
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          placeholder="https://…/catalog.json"
+          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+        />
+        <Button type="submit" size="sm" disabled={loading}>
+          {loading ? 'Opening…' : 'Open map URL'}
+        </Button>
+      </form>
+      {!catalogue && !loading && !error && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          Open a complete share link, or paste a compatible HTTPS data URL. Collections are not listed or discoverable
+          from this page.
+        </p>
+      )}
+      {error && (
+        <InlineAlert tone="error" className="mt-3">
+          {error}
+        </InlineAlert>
+      )}
+    </>
+  )
+  const collectionControls = catalogue && (
+    <>
+      {!!catalogue.featured.length && (
+        <SegmentedControl
+          label="Map scope"
+          className="mt-3"
+          value={scope}
+          onChange={(value) => {
+            const next = value as 'featured' | 'all'
+            setScope(next)
+            setQuery('')
+            libraryScroll.current = 0
+            if (view === 'map') {
+              const item = (next === 'featured' ? catalogue.featured : catalogue.items)[0]
+              choose(item)
+              navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
+            }
+          }}
+          options={[
+            { value: 'featured', label: `Selections ${catalogue.featured.length}` },
+            { value: 'all', label: `All ${catalogue.items.length}` },
+          ]}
+        />
+      )}
+      <div className="relative mt-3">
+        <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
+        <label htmlFor="shared-map-search" className="sr-only">
+          Search maps
+        </label>
+        <input
+          id="shared-map-search"
+          value={query}
+          onChange={(event) => {
+            setQuery(event.target.value)
+            libraryScroll.current = 0
+          }}
+          placeholder="Find a map or source…"
+          className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm"
+        />
+      </div>
+      <CopyButton
+        text={() => shareLink(source, view === 'map' ? selectedId : undefined, view)}
+        className="mt-3 text-xs underline underline-offset-4"
+        onResult={(result) => {
+          if (!result.copied && result.text) setManualShare(result.text)
+        }}
+      >
+        {view === 'map' ? 'Copy this map’s share link' : 'Copy library link'}
+      </CopyButton>
+      {manualShare && (
+        <label className="mt-2 block text-xs">
+          Copy this link manually
+          <input
+            readOnly
+            value={manualShare}
+            onFocus={(e) => e.target.select()}
+            className="mt-1 w-full rounded border p-2"
+          />
+        </label>
+      )}
+    </>
+  )
   const sidebar = (
     <MapSidebarShell
       title={catalogue?.title || 'Open a shared map'}
@@ -171,98 +310,13 @@ export default function DevView() {
       className={MAP_SIDEBAR_CLASS}
     >
       <SidebarSection title="Map URL" icon={Link2}>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault()
-            setSource(input.trim())
-            if (input.trim() === source) {
-              setReloadNonce((value) => value + 1)
-            }
-          }}
-          className="space-y-2"
-        >
-          <label htmlFor="shared-map-url" className="block text-xs text-muted-foreground">
-            Catalogue JSON, raster PMTiles or raster TileJSON
-          </label>
-          <input
-            id="shared-map-url"
-            type="url"
-            required
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            placeholder="https://…/catalog.json"
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-          />
-          <Button type="submit" size="sm" disabled={loading}>
-            {loading ? 'Opening…' : 'Open map URL'}
-          </Button>
-        </form>
-        {!catalogue && !loading && !error && (
-          <p className="mt-3 text-xs text-muted-foreground">
-            Open a complete share link, or paste a compatible HTTPS data URL. Collections are not listed or discoverable
-            from this page.
-          </p>
-        )}
-        {error && (
-          <InlineAlert tone="error" className="mt-3">
-            {error}
-          </InlineAlert>
-        )}
+        {sourceForm}
       </SidebarSection>
       {catalogue && (
         <>
           <SidebarSection title="Collection">
             <p className="text-xs text-muted-foreground">{catalogue.description}</p>
-            {!!catalogue.featured.length && (
-              <SegmentedControl
-                label="Map scope"
-                className="mt-3"
-                value={scope}
-                onChange={(value) => {
-                  const next = value as 'featured' | 'all'
-                  setScope(next)
-                  setQuery('')
-                  choose((next === 'featured' ? catalogue.featured : catalogue.items)[0])
-                }}
-                options={[
-                  { value: 'featured', label: `Selections ${catalogue.featured.length}` },
-                  { value: 'all', label: `All ${catalogue.items.length}` },
-                ]}
-              />
-            )}
-            <div className="relative mt-3">
-              <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
-              <label htmlFor="shared-map-search" className="sr-only">
-                Search maps
-              </label>
-              <input
-                id="shared-map-search"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="Find a map or source…"
-                className="h-9 w-full rounded-md border bg-background pl-8 pr-2 text-sm"
-              />
-            </div>
-            <CopyButton
-              text={() => shareLink(source, selectedId)}
-              className="mt-3 text-xs underline underline-offset-4"
-              onResult={(result) => {
-                if (!result.copied && result.text) setManualShare(result.text)
-              }}
-            >
-              Copy this map’s share link
-            </CopyButton>
-            {manualShare && (
-              <label className="mt-2 block text-xs">
-                Copy this link manually
-                <input
-                  readOnly
-                  value={manualShare}
-                  onFocus={(e) => e.target.select()}
-                  className="mt-1 w-full rounded border p-2"
-                />
-              </label>
-            )}
+            {collectionControls}
           </SidebarSection>
           {selected && (
             <SidebarSection title="Selected map">
@@ -323,7 +377,10 @@ export default function DevView() {
                 }
                 selected={item.id === selectedId}
                 accent="teal"
-                onClick={() => choose(item)}
+                onClick={() => {
+                  choose(item)
+                  navigate({ hash: new URL(shareLink(source, item.id, 'map')).hash }, { replace: true })
+                }}
                 leading={
                   item.thumbnail ? (
                     <img
@@ -346,31 +403,116 @@ export default function DevView() {
   )
   return (
     <>
-      <MapSectionLayout
-        sidebar={sidebar}
-        desktopSidebarWidth={390}
-        mobileInitialSheetState="half"
-        mobilePeekTitle={catalogue?.title || 'Shared map viewer'}
-        mobilePeekSubtitle={selected?.title || 'Open a map URL'}
-      >
-        <AppMap
-          className="h-full w-full"
-          center={[-125.2, 53.75]}
-          zoom={9}
-          maxZoom={22}
-          styles={styles}
-          showStyleLoadingOverlay={false}
-          loading={loading}
+      {view === 'map' && catalogue && selected ? (
+        <MapSectionLayout
+          sidebar={sidebar}
+          desktopSidebarWidth={390}
+          mobileInitialSheetState="half"
+          mobilePeekTitle={catalogue?.title || 'Shared map viewer'}
+          mobilePeekSubtitle={selected?.title || 'Open a map URL'}
         >
-          <RasterMapLayer item={selected} opacity={opacity} onError={setTileError} />
-          {selected && (
-            <MapOverlay position="top-left" className="max-w-[calc(100%-5rem)] p-2 text-xs">
-              <span className="font-medium">{selected.title}</span>
-              <span className="mt-0.5 block text-muted-foreground">{label} · tiles load as you zoom</span>
+          <AppMap
+            className="h-full w-full"
+            center={[-125.2, 53.75]}
+            zoom={9}
+            maxZoom={22}
+            styles={styles}
+            showStyleLoadingOverlay={false}
+            showLoadingOverlay={false}
+            loading={loading}
+          >
+            <RasterMapLayer item={selected} opacity={opacity} onError={setTileError} />
+            <MapOverlay
+              position="top-left"
+              className="top-[calc(env(safe-area-inset-top)+4rem)] max-w-[calc(100%-6rem)] p-2 text-xs md:top-3"
+              data-testid="shared-map-title"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <Button size="sm" variant="ghost" onClick={openLibrary}>
+                  <Library />
+                  Library
+                </Button>
+                {showMapTitle ? (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="size-8"
+                    aria-label="Dismiss map title"
+                    onClick={() => setShowMapTitle(false)}
+                  >
+                    <X />
+                  </Button>
+                ) : (
+                  <Button size="sm" variant="ghost" onClick={() => setShowMapTitle(true)}>
+                    Map info
+                  </Button>
+                )}
+              </div>
+              {showMapTitle && (
+                <div className="max-w-80 px-1 pb-1">
+                  <p className="line-clamp-2 font-medium">{selected.title}</p>
+                  <p className="mt-0.5 text-muted-foreground">{label}</p>
+                </div>
+              )}
             </MapOverlay>
+          </AppMap>
+        </MapSectionLayout>
+      ) : catalogue ? (
+        <MapLibrary
+          title={catalogue.title}
+          description={catalogue.description}
+          items={filtered}
+          toolbar={
+            <>
+              <div className="grid gap-x-5 sm:grid-cols-[auto_minmax(12rem,1fr)_auto] sm:items-center">
+                {collectionControls}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {filtered.length.toLocaleString()}{' '}
+                {scope === 'featured'
+                  ? filtered.length === 1
+                    ? 'curated selection'
+                    : 'curated selections'
+                  : filtered.length === 1
+                    ? 'raster representation'
+                    : 'raster representations'}
+              </p>
+            </>
+          }
+          sourceForm={sourceForm}
+          getInitialScroll={getLibraryScroll}
+          resetKey={scope + ':' + query}
+          onScroll={(top) => {
+            libraryScroll.current = top
+          }}
+          onPreview={previewImage}
+          onMap={openMap}
+        />
+      ) : (
+        <section className="mx-auto max-w-2xl px-5 pb-10 pt-24 md:pt-10">
+          <h1 className="mb-4 text-2xl font-semibold">Open a shared map library</h1>
+          {sourceForm}
+          {loading && (
+            <InlineAlert loading className="mt-4">
+              Opening map library…
+            </InlineAlert>
           )}
-        </AppMap>
-      </MapSectionLayout>
+        </section>
+      )}
+      <MapImagePreview
+        key={preview?.id || 'closed'}
+        item={preview}
+        onClose={() => setPreview(null)}
+        onMap={openMap}
+        onSheet={() => {
+          setPreview(null)
+          setSheetOpen(true)
+        }}
+        onDetails={() => {
+          setPreview(null)
+          setDetails(true)
+        }}
+      />
       <Dialog open={details} onOpenChange={setDetails}>
         <DialogContent elevated className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
