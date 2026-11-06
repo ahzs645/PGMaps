@@ -12,7 +12,7 @@ export function AppUpdateNotice() {
       role="status"
       aria-live="polite"
       aria-label="Application update available"
-      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-[1300] rounded-xl border border-cyan-500/30 bg-background/95 p-4 text-foreground shadow-2xl backdrop-blur sm:inset-x-auto sm:right-4 sm:w-[24rem]"
+      className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-menu rounded-xl border border-cyan-500/30 bg-background/95 p-4 text-foreground shadow-2xl backdrop-blur sm:inset-x-auto sm:right-4 sm:w-[24rem]"
     >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full bg-cyan-500/15 text-cyan-700 dark:text-cyan-300">

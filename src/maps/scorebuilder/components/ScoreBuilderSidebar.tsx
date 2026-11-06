@@ -174,8 +174,8 @@ export function ScoreBuilderSidebar({
         </div>
         <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{activeRecipeDescription}</p>
         <div className="mt-2 text-xs text-muted-foreground">
-          {formatRegionCount(regions.length)} · avg {formatScore(scoreSpread.average)} ·{' '}
-          {enabledDataSources.length} source{enabledDataSources.length === 1 ? '' : 's'}
+          {formatRegionCount(regions.length)} · avg {formatScore(scoreSpread.average)} · {enabledDataSources.length}{' '}
+          source{enabledDataSources.length === 1 ? '' : 's'}
         </div>
         <div className="mt-3 grid grid-cols-[1fr_1fr_auto_auto] gap-2">
           <button type="button" onClick={onOpenRecipes} className={actionClass} aria-label="Browse recipes">

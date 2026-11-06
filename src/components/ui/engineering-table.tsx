@@ -27,7 +27,7 @@ export function EngineeringTable({
     <table
       className={cn(
         'w-full border-collapse',
-        text ? 'whitespace-normal text-left text-xs' : 'whitespace-nowrap text-right text-[11px] tabular-nums',
+        text ? 'whitespace-normal text-left text-xs' : 'whitespace-nowrap text-right text-2xs tabular-nums',
         '[&_td]:border-x [&_td]:border-b [&_td]:border-border/60',
         text ? '[&_td]:p-2' : '[&_td]:px-2 [&_td]:py-0.5',
         rowHeaders &&
@@ -56,7 +56,7 @@ export function ColumnHeader({
       {...props}
     >
       <span className="block">{label}</span>
-      {unit && <span className="block text-[10px] font-normal text-muted-foreground">{unit}</span>}
+      {unit && <span className="block text-3xs font-normal text-muted-foreground">{unit}</span>}
     </th>
   )
 }

@@ -234,7 +234,7 @@ export function ToolFieldPanel({
         <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? 'Reading image…' : 'Import photograph or evidence image'}
         </Button>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
           Verify position, date, true-north heading and field of view; panoramas and edited/cropped photos need manual
           calibration.

@@ -77,7 +77,7 @@ export function BcEnviroScreenMapControls({
           onChange={(event) => onColorBinsChange(Number(event.target.value))}
           className="mt-2 h-2 w-full cursor-pointer accent-violet-700"
         />
-        <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+        <div className="mt-1 flex justify-between text-3xs text-muted-foreground">
           <span>{BC_ENVIRO_SCREEN_MIN_COLOR_BINS}</span>
           <span>Equal intervals</span>
           <span>{BC_ENVIRO_SCREEN_MAX_COLOR_BINS}</span>

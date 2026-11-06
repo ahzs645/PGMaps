@@ -30,7 +30,7 @@ export function LayerLegend({
 
   return (
     <div className="space-y-0.5" role="group" aria-label={`${layer.label} legend`}>
-      {column && <div className="pb-0.5 text-[11px] font-medium text-muted-foreground">{column.label}</div>}
+      {column && <div className="pb-0.5 text-2xs font-medium text-muted-foreground">{column.label}</div>}
       {entries.map((entry) => {
         const swatch =
           entry.size !== undefined ? (

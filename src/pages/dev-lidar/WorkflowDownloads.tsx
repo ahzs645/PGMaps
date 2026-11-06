@@ -38,7 +38,7 @@ export function WorkflowDownloads({ mode }: { mode: AnalysisMode | null }) {
           Methods and rerun instructions ↗
         </a>
       </div>
-      <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+      <p className="mt-3 text-3xs leading-4 text-muted-foreground">
         {model
           ? 'Roofer used height-screened points within unverified patches. Review decisions are browser-local and do not change model geometry.'
           : 'Original LiDAR classifications contain no building or vegetation classes. Results retain source provenance and remain exploratory.'}

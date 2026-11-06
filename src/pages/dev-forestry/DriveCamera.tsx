@@ -307,7 +307,7 @@ export function DriveCamera(props: Props) {
           </Button>
         </div>
       )}
-      <p className="mt-1 text-[10px] text-muted-foreground" hidden={!optionsExpanded}>
+      <p className="mt-1 text-3xs text-muted-foreground" hidden={!optionsExpanded}>
         Preview speed; posted limits are not loaded.{' '}
         {props.speedKmh && props.routeLengthMeters
           ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.`

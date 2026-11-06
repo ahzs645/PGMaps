@@ -244,7 +244,7 @@ export function RegionsTab({
                 </EngineeringTable>
               </div>
               {weightedMetrics.length > COMPARED_METRIC_LIMIT && (
-                <p className="mt-1 text-[11px] text-amber-800 dark:text-amber-200">
+                <p className="mt-1 text-2xs text-amber-800 dark:text-amber-200">
                   Showing the first {COMPARED_METRIC_LIMIT} of {weightedMetrics.length} weighted metrics.
                 </p>
               )}

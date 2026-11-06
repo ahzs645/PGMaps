@@ -253,7 +253,7 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
             {tableError && <InlineAlert tone="error">{tableError}</InlineAlert>}
           </details>
           {curveRows.length > 0 && (
-            <div className="overflow-x-auto text-[11px]" data-testid="road-speed-criteria-review">
+            <div className="overflow-x-auto text-2xs" data-testid="road-speed-criteria-review">
               <EngineeringTable>
                 <thead>
                   <tr>

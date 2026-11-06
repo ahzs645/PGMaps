@@ -159,7 +159,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   <option value="species">Pine 12.5 cm · others 17.5 cm</option>
                 </NativeSelect>
               </label>
-              <p className="mt-1 text-[10px] leading-5">
+              <p className="mt-1 text-3xs leading-5">
                 Same utilization choices as PGMaps AVAST. These are inventory DBH utilization levels, not measured top
                 diameters.
               </p>
@@ -189,7 +189,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                 inputClassName="mt-1 w-full rounded border bg-background p-2"
                 onValueChange={(value) => patch({ minAge: Math.max(0, value || 0) })}
               />
-              <p className="mt-1 text-[10px] leading-5">
+              <p className="mt-1 text-3xs leading-5">
                 0 includes all recorded ages. PG planning rules use age ≥60; an unknown age is excluded when a minimum
                 is applied.
               </p>
@@ -218,7 +218,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                     inputClassName="mt-1 w-full rounded border bg-background p-2"
                     onValueChange={(value) => patch({ asOfYear: Math.max(1900, Math.min(2200, value || 2026)) })}
                   />
-                  <p className="col-span-2 text-[10px] leading-5">
+                  <p className="col-span-2 text-3xs leading-5">
                     AVAST's PG curve: 100% through year 1, 80% at year 2, declining to 40% at year 15+. Earliest
                     disturbance is only a proxy for death. This does not project inventory growth to the chosen year.
                   </p>
@@ -304,7 +304,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                     { label: 'Inventory reference year', value: String(active.inventory.referenceYear ?? '—') },
                   ]}
                 />
-                <p className="mt-2 text-[10px] leading-5">
+                <p className="mt-2 text-3xs leading-5">
                   The two height statistics describe different things. They do not calibrate or automatically rescale
                   volume.
                 </p>
@@ -334,7 +334,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               <p className="mt-2 text-sm font-semibold" aria-label="VRI recovered volume">
                 {m3(totals.scenario_recovered_m3)} scenario recovered
               </p>
-              <p className="mt-1 text-[10px] leading-5">
+              <p className="mt-1 text-3xs leading-5">
                 Known net m³ × (1 − volume retained) × recovery. VRI net volumes already deduct decay, waste and
                 breakage; no extra defect factor is applied. Defaults of 0% retained and 100% recovery are neutral
                 assumptions.
@@ -355,7 +355,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   <p className="mt-2 text-sm font-semibold">
                     {m3(totals.historical_audit_m3)} historical audit scenario
                   </p>
-                  <p className="mt-1 text-[10px] leading-5">
+                  <p className="mt-1 text-3xs leading-5">
                     Same species ratios used by AVAST: pine 0.836, spruce 0.946, balsam 1.246, other 1.159. Applied to
                     the known net sum; this is a sensitivity comparison, not a confidence interval or validation of this
                     tile.
@@ -381,7 +381,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   { label: 'Inventory unmapped', value: ha(data.coverage.unmapped_ha) },
                 ]}
               />
-              <p className="mt-2 text-[10px] leading-5">
+              <p className="mt-2 text-3xs leading-5">
                 {data.area_method} No substand LiDAR volume model is implied. This snapshot does not automatically
                 remove disturbance after its projected date.
               </p>
@@ -396,7 +396,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               >
                 VRI net-volume field definitions
               </a>
-              <p className="mt-2 text-[10px]">
+              <p className="mt-2 text-3xs">
                 {data.source.licence} · retrieved {data.source.retrieved_utc.slice(0, 10)}
               </p>
               <Button
@@ -490,7 +490,7 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               onFeaturePick={toggle}
               overlayOpacity={0.65}
             />
-            <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-[10px]">
+            <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs">
               <p className="font-semibold">
                 {layer === 'volume'
                   ? 'VRI net volume · m³/ha · clipped stand pieces'

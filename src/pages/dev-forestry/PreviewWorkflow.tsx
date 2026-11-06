@@ -167,7 +167,7 @@ export function PreviewWorkflow(props: Props) {
           </ActionButton>
         </div>
         {props.storageWarning && <p role="alert">{props.storageWarning}</p>}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           The file includes geometry and viewpoints. Terrain and inventory need an internet connection when reopened.
         </p>
       </div>

@@ -216,7 +216,7 @@ export function ForestVolumeWorkspace({
                   Plot footprints
                 </Button>
               </div>
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-3xs text-muted-foreground">
                 Fill at least 10 template rows and remove unused rows. The 10–200 row limit is a software constraint,
                 not an adequate survey-design guarantee.
               </p>
@@ -257,7 +257,7 @@ export function ForestVolumeWorkspace({
               </label>
               <textarea
                 aria-label="Volume reference CSV"
-                className="mt-2 w-full rounded border bg-background p-2 font-mono text-[10px]"
+                className="mt-2 w-full rounded border bg-background p-2 font-mono text-3xs"
                 rows={5}
                 value={csv}
                 onChange={(e) => {
@@ -274,7 +274,7 @@ export function ForestVolumeWorkspace({
                   {fitError}
                 </p>
               )}
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-3xs text-muted-foreground">
                 CSV stays in this browser. OLS uses CHM surface p95 and canopy fraction. Predictions outside the
                 reference predictor hull are withheld.
               </p>
@@ -294,13 +294,13 @@ export function ForestVolumeWorkspace({
                     },
                   ]}
                 />
-                <p className="mt-2 text-[10px] text-muted-foreground">
+                <p className="mt-2 text-3xs text-muted-foreground">
                   Leave-one-out diagnostics are not spatially independent field validation or confidence intervals.
                   Errors may be larger outside the surveyed stand types.
                 </p>
                 <details className="mt-2 text-xs">
                   <summary>Model and reference values</summary>
-                  <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-[10px]">
+                  <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-3xs">
                     {JSON.stringify(
                       {
                         method: model.method,
@@ -386,7 +386,7 @@ export function ForestVolumeWorkspace({
                   },
                 ]}
               />
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-3xs text-muted-foreground">
                 Delivered scenario = gross × merchantable share × (1 − volume retained) × recovery. These are user
                 assumptions, not estimated log grades, defects, access, or a timber-cruise result.
               </p>
@@ -465,7 +465,7 @@ export function ForestVolumeWorkspace({
                 ? `Experimental gross stem volume · 0–${maximum.toFixed(0)} m³/ha`
                 : 'Height context only · CHM p95 0–50 m'}
             </strong>
-            <p className="mt-1 text-[10px]">
+            <p className="mt-1 text-3xs">
               {model
                 ? 'Light to dark green: increasing predicted volume. Grey: unsupported or outside calibration domain. Black outline: selected.'
                 : 'No forest volume is inferred until matched reference data are supplied. Green shows canopy height context.'}

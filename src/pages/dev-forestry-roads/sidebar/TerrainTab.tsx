@@ -36,7 +36,7 @@ export function TerrainTab(p: SidebarProps) {
       >
         <div className="rounded-md border bg-muted/20 px-2.5 py-2">
           <p className="text-sm font-medium leading-5">{project.terrain.name}</p>
-          <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">
             {project.terrain.resolutionM.toFixed(2)} m cells ·{' '}
             {project.terrain.epsg ? `EPSG:${project.terrain.epsg}` : 'training coordinates'} ·{' '}
             {project.terrain.verticalReference}
@@ -49,7 +49,7 @@ export function TerrainTab(p: SidebarProps) {
           </InlineAlert>
         )}
         {project.scenario && (
-          <div className="mt-2 space-y-1.5 text-[11px] text-muted-foreground" data-testid="road-scenario-evidence">
+          <div className="mt-2 space-y-1.5 text-2xs text-muted-foreground" data-testid="road-scenario-evidence">
             <p>
               Initial library terrain check · {project.scenario.terrainCoveragePercent.toFixed(0)}% of sampled
               section-corridor ground covered at load. Current section completeness is shown in the summary above.
@@ -186,7 +186,7 @@ export function TerrainTab(p: SidebarProps) {
                 max={1000}
                 onChange={(v) => p.onPointCloud({ ...p.pointCloud, preserveCorridorM: v })}
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Points inside the active road corridor retain full density. Outside it, thinning respects the worker's
                 point budget; a corridor larger than the budget fails explicitly.
               </p>

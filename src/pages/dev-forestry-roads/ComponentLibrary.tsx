@@ -31,7 +31,7 @@ export function ComponentLibrary({
   return (
     <details className="rounded border p-2">
       <summary className="cursor-pointer text-xs">Reusable component library</summary>
-      <p className="my-2 text-[11px] text-muted-foreground">
+      <p className="my-2 text-2xs text-muted-foreground">
         Keep individual components on this device or transfer their definitions as JSON. Material and reference IDs must
         exist in the receiving project.
       </p>

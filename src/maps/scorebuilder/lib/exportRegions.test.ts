@@ -22,6 +22,11 @@ const metrics = [
 const base = { metrics, aggregation: 'additive', filenameStem: 'x' } as const
 
 describe('scoredRegionsCsv', () => {
+  it('escapes a double quote and a comma in a region name', () => {
+    const named = { ...region, region: { ...region.region, name: 'Fort "North" Side, BC' } } as ScoredBoundaryRegion
+    expect(scoredRegionsCsv([named], { ...base, includeScores: true })).toContain('"Fort ""North"" Side, BC"')
+  })
+
   it('writes only the metrics it is given, and leaves a missing value blank', () => {
     const csv = scoredRegionsCsv([region], { ...base, includeScores: true })
     expect(csv).toContain('"Park Density","COPD"')

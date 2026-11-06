@@ -59,19 +59,19 @@ function TurnCard({ t, onShow, both }: { t: SweptManeuver; onShow: (t: SweptMane
           {Math.abs(Math.abs(t.deflectionDegrees) - 180) < 20 ? ' · switchback' : ''}
         </span>
         <span
-          className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${t.fits ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'}`}
+          className={`rounded px-1.5 py-0.5 text-3xs font-medium ${t.fits ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300'}`}
         >
           {t.fits ? 'Wheels fit' : `Widen ${m(need(t))}`}
         </span>
       </div>
-      <p className="mt-0.5 text-[11px] text-muted-foreground">
+      <p className="mt-0.5 text-2xs text-muted-foreground">
         {formatRoadStation(t.start)}–{formatRoadStation(t.end)} · inside {inside.toLowerCase()}
         {both ? ` · governed by ${t.direction === 'up' ? 'up' : 'down'}-station travel` : ''}
       </p>
       <dl className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-1">
         {rows.map(([label, value]) => (
           <div key={label} className="min-w-0">
-            <dt className="text-[10px] text-muted-foreground">{label}</dt>
+            <dt className="text-3xs text-muted-foreground">{label}</dt>
             <dd className="break-words font-mono tabular-nums">{value}</dd>
           </div>
         ))}
@@ -103,7 +103,7 @@ function UnitFields({
   const name = unit.name || `Unit ${index + 1}`
   return (
     <fieldset className="min-w-0 rounded-md border p-2">
-      <legend className="px-1 text-[11px] font-medium">{name}</legend>
+      <legend className="px-1 text-2xs font-medium">{name}</legend>
       <div className="grid grid-cols-2 gap-2">
         <NumberField
           label={`${name} wheelbase (m)`}
@@ -224,7 +224,7 @@ export function SweptPathPanel({
                   ? `${failing.length} of ${turns.length} turns need wider formation`
                   : `Wheels stay on the formation in all ${turns.length} turns`}
         </p>
-        <p className="mt-0.5 text-[11px] opacity-80">
+        <p className="mt-0.5 text-2xs opacity-80">
           {check.vehicle.name} · {check.direction === 'both' ? 'both directions' : `${check.direction}-station`} ·{' '}
           {m(check.clearanceM)} clearance
         </p>
@@ -254,7 +254,7 @@ export function SweptPathPanel({
       {result?.warnings
         .filter((w) => !w.startsWith('No fitted'))
         .map((w) => (
-          <p key={w} className="border-l-2 border-amber-500 pl-2 text-[11px] text-amber-800 dark:text-amber-300">
+          <p key={w} className="border-l-2 border-amber-500 pl-2 text-2xs text-amber-800 dark:text-amber-300">
             {w}
           </p>
         ))}
@@ -282,7 +282,7 @@ export function SweptPathPanel({
               </option>
             </NativeSelect>
           </Field>
-          <p className="text-[11px] text-amber-800 dark:text-amber-300">
+          <p className="text-2xs text-amber-800 dark:text-amber-300">
             Presets are example dimensions. Enter your fleet’s truck, trailer and load before relying on a result.
           </p>
           <Field label="Vehicle name">
@@ -361,7 +361,7 @@ export function SweptPathPanel({
           </Button>
         </div>
       </details>
-      <details className="text-[11px] text-muted-foreground">
+      <details className="text-2xs text-muted-foreground">
         <summary className="cursor-pointer">How the swept path is calculated</summary>
         <p className="mt-1">{SWEPT_PATH_BASIS}</p>
         <p className="mt-1">

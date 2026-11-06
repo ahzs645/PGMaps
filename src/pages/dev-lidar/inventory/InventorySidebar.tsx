@@ -129,7 +129,7 @@ export function InventorySidebar({
                   onChange={(value) => patch({ [c.key]: value })}
                 />
               ))}
-              <p className="mt-2 text-[10px]">
+              <p className="mt-2 text-3xs">
                 These controls filter saved runs and recalculate estimates; they do not rerun segmentation. Point-count
                 filters apply only where assigned point counts exist. Retention and recovery are planning assumptions.
                 Published volume ranges are enforced; unsupported estimates remain unavailable.
@@ -214,7 +214,7 @@ export function InventorySidebar({
               {data.methods.map((m) => (
                 <div key={m.id} className="mt-2">
                   <strong>{m.name}</strong>
-                  <pre className="overflow-x-auto text-[10px]">{JSON.stringify(m.parameters, null, 2)}</pre>
+                  <pre className="overflow-x-auto text-3xs">{JSON.stringify(m.parameters, null, 2)}</pre>
                 </div>
               ))}
               <p className="mt-2 break-all">

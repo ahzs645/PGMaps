@@ -18,7 +18,7 @@ export function InventoryDetail({
   return (
     <>
       <SidebarSection title={`Candidate #${p.label}`}>
-        <p className="break-all text-[10px] text-muted-foreground">{p.id}</p>
+        <p className="break-all text-3xs text-muted-foreground">{p.id}</p>
         <Badge tone="warning">Provisional core-local identity</Badge>
         <KeyValueRows
           size="sm"
@@ -43,7 +43,7 @@ export function InventoryDetail({
             { label: 'Predicted stem returns in band', value: number(p.stem_band_returns, 0) },
           ]}
         />
-        <p className="mt-2 text-[10px]">
+        <p className="mt-2 text-3xs">
           Outline: {p.geometry_method}. Location is a canopy-apex proxy.{' '}
           {p.boundary && (
             <strong>
@@ -72,11 +72,11 @@ export function InventoryDetail({
             { label: 'Modelled merchantable stem', value: `${number(row.merchant, 3)} m³` },
           ]}
         />
-        <p className="mt-2 text-[10px] leading-4">
+        <p className="mt-2 text-3xs leading-4">
           {row.status}. The sensitivity bracket uses published global diameter scatter, not a local confidence interval.
           Merchantable uses a 0.3 m stump and 4 cm inside-bark top, with no defect deductions.
         </p>
-        <p className="mt-2 text-[10px]">
+        <p className="mt-2 text-3xs">
           VRI stand {p.vri_id ?? 'unavailable'}: leading species {p.vri_species ?? 'unknown'} (
           {number(p.vri_species_pct, 0)}%); net stand volume {number(p.vri_net_m3_ha)} m³/ha. Stand values are context,
           not individual-tree measurements.
@@ -139,7 +139,7 @@ export function InventoryDetail({
               onChange={(e) => onReview({ note: e.target.value })}
             />
           </label>
-          <p className="text-[10px]">
+          <p className="text-3xs">
             Stored in this browser and scoped to this source/run. Review changes do not edit the original point labels.
           </p>
         </div>

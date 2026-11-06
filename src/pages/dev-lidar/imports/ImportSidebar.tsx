@@ -139,7 +139,7 @@ export function ImportSidebar({
                 </p>
               </div>
             )}
-            <details className="mt-2 text-[10px]">
+            <details className="mt-2 text-3xs">
               <summary>Source fingerprint</summary>
               <p className="break-all">SHA-256 {layer.source.sha256}</p>
             </details>
@@ -154,7 +154,7 @@ export function ImportSidebar({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
-            <p className="mb-2 text-[10px]">
+            <p className="mb-2 text-3xs">
               IDs and colours belong to each loaded layer. Candidate centroids represent model assignments; they are not
               measured stem locations.
             </p>
@@ -182,7 +182,7 @@ export function ImportSidebar({
                 value: (typeof value === 'object' ? JSON.stringify(value) : String(value)).slice(0, 1000),
               }))}
             />
-            <p className="mt-1 text-[10px]">Long values truncate here. Download source retains complete attributes.</p>
+            <p className="mt-1 text-3xs">Long values truncate here. Download source retains complete attributes.</p>
           </SidebarSection>
         )}
         <SidebarSection title="Processing and restore">

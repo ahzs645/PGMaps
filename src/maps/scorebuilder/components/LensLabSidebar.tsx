@@ -1,9 +1,8 @@
 import { useClipboardText } from '@/hooks/useClipboardText'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button } from '@/components/ui/button'
 import { Check, Copy, X } from 'lucide-react'
 import { StudyAreaSelector } from '@/components/StudyAreaSelector'
-import { CollapsibleSection, InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { getLevelOptionsForSource } from '@/lib/studyArea'
@@ -149,7 +148,8 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
       titleClassName="sr-only"
       headerClassName="border-0 p-0"
     >
-      <div ref={scrollRef} className="border-b border-border px-4 py-2">
+      <div ref={scrollRef} aria-hidden="true" />
+      <div className="border-b border-border px-4 py-2">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             {showDescription && (
@@ -174,15 +174,14 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
         <div className="flex flex-wrap items-center gap-1.5 border-b border-border px-4 py-2">
           <span className="text-xs text-muted-foreground">Export</span>
           {exportFormats.map((format) => (
-            <Button
+            <button
               key={format}
-              size="sm"
-              variant="outline"
-              className="min-h-9 text-xs"
+              type="button"
               onClick={() => onExport(format)}
+              className="inline-flex min-h-9 items-center rounded-md border border-input px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {EXPORT_LABELS[format]}
-            </Button>
+            </button>
           ))}
         </div>
       )}
@@ -192,6 +191,15 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
           {dataErrors.map((err, i) => (
             <p key={i}>{err}</p>
           ))}
+        </InlineAlert>
+      )}
+
+      {lensCoverage && lensCoverage.total > 1 && lensCoverage.covered / lensCoverage.total < 0.5 && (
+        <InlineAlert tone="warning" className="m-4 mb-0 leading-snug">
+          Only {lensCoverage.covered.toLocaleString(DEFAULT_LOCALE)} of{' '}
+          {lensCoverage.total.toLocaleString(DEFAULT_LOCALE)} regions have data for{' '}
+          {secondaryMetric ? 'these metrics' : 'this metric'}. The rest read as zero, so a smaller study area will say
+          more.
         </InlineAlert>
       )}
 
@@ -210,6 +218,32 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             )
           })}
         </div>
+      )}
+
+      {selectedRegion && (
+        <section className="border-b border-border px-4 py-3" data-score-lab-selected-region="true">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="min-w-0 truncate text-sm font-semibold text-foreground">{selectedRegion.region.name}</h3>
+            <button
+              type="button"
+              onClick={onClearRegionSelection}
+              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
+              aria-label="Clear selected region"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <dl className="mt-1 space-y-1 text-xs">
+            {lensMetrics.map((metric) => (
+              <div key={metric} className="flex items-center justify-between gap-3">
+                <dt className="min-w-0 truncate text-muted-foreground">{getMetricLabel(metric)}</dt>
+                <dd className="shrink-0 font-medium text-foreground">
+                  {formatMetricValue(metric, selectedRegion.metrics[metric], true)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
       )}
 
       <section className="border-b border-border" data-score-builder-lens-panel={props.lab}>
@@ -235,39 +269,13 @@ export function LensLabSidebar(props: LensLabSidebarProps) {
             result={props.correlationResult}
             topPairs={props.correlationTopPairs}
             onApplyTopPair={props.onApplyTopPair}
+            boundarySource={boundarySource}
+            regionLevel={selectedRegionLevel}
+            selectedRegionId={selectedRegionId}
+            onRegionSelect={onRegionSelect}
           />
         )}
       </section>
-
-      {selectedRegion && (
-        <SidebarSection
-          className="px-4 py-3"
-          data-score-lab-selected-region="true"
-          headingLevel={3}
-          title={selectedRegion.region.name}
-          actions={
-            <button
-              type="button"
-              onClick={onClearRegionSelection}
-              className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
-              aria-label="Clear selected region"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          }
-        >
-          <dl className="space-y-1 text-xs">
-            {lensMetrics.map((metric) => (
-              <div key={metric} className="flex items-center justify-between gap-3">
-                <dt className="min-w-0 truncate text-muted-foreground">{getMetricLabel(metric)}</dt>
-                <dd className="shrink-0 font-medium text-foreground">
-                  {formatMetricValue(metric, selectedRegion.metrics[metric], true)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </SidebarSection>
-      )}
 
       <StudyAreaSelector<BoundarySource, RegionLevel>
         source={boundarySource}

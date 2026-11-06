@@ -107,7 +107,7 @@ export function ModelComparisonWorkspace({
                         {STATUS_LABELS[item.status]}
                       </Badge>
                     </span>
-                    <span className="mt-1 block text-[10px] text-muted-foreground">{item.input}</span>
+                    <span className="mt-1 block text-3xs text-muted-foreground">{item.input}</span>
                   </button>
                 ))}
               </div>

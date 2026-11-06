@@ -619,7 +619,7 @@ export default function DevAvastVolume() {
           ).map(([value, label, step]) => ({
             value,
             label,
-            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-[11px]" />,
+            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-2xs" />,
             ...(value === 'vri' && { ariaLabel: 'Step 4, optional: fill AVAST gaps with VRI' }),
           }))}
           getTabProps={(option) => ({ 'data-avast-tab': option.value })}

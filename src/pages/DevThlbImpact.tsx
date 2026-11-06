@@ -168,7 +168,7 @@ export default function DevThlbImpact() {
           ).map(([value, label, step]) => ({
             value,
             label,
-            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-[11px]" />,
+            marker: <StepMarker step={step} status={statuses[value]} className="h-5 w-5 text-2xs" />,
           }))}
           getTabProps={(option) => ({ 'data-thlb-tab': option.value })}
         />

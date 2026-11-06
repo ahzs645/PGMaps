@@ -159,7 +159,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
                   { label: 'Field-reference plots', value: String(data.model.training_n) },
                 ]}
               />
-              <p className="mt-2 text-[11px] leading-5">
+              <p className="mt-2 text-2xs leading-5">
                 RMSE describes typical prediction error on the held-out plots. It is not a ± confidence interval for a
                 cell or the total. The final map uses a refit on all plots.
               </p>
@@ -203,7 +203,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
                 ).toLocaleString(DEFAULT_LOCALE)}{' '}
                 m³ scenario recovered
               </p>
-              <p className="mt-1 text-[10px]">
+              <p className="mt-1 text-3xs">
                 Predicted merchantable m³ × (1 − retained fraction) × recovery. The initial 20% and 90% are
                 demonstration assumptions.
               </p>
@@ -212,13 +212,13 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
               <a href={data.source.tutorial} target="_blank" rel="noreferrer" className="text-xs underline">
                 UBC workshop: area-based forest inventory
               </a>
-              <p className="mt-2 text-[10px] leading-5">
+              <p className="mt-2 text-3xs leading-5">
                 {data.source.attribution}. The supplied metrics were precomputed; we reran the volume regression,
                 spatial diagnostics and mapped predictions. {data.source.note}
               </p>
               <details className="mt-2 text-xs">
                 <summary>Model, exclusions and limitations</summary>
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[10px]">
+                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-3xs">
                   {JSON.stringify(
                     {
                       model: data.model,
@@ -314,7 +314,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
               }}
               overlayOpacity={0.7}
             />
-            <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-[10px]">
+            <div className="absolute bottom-8 left-2 right-12 rounded border bg-background/95 p-2 text-3xs">
               <p className="font-semibold">
                 {layer === 'volume' ? 'Predicted merchantable volume · m³/ha' : 'Return-height p95 · m'}
               </p>

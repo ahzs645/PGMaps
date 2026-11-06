@@ -9,7 +9,7 @@ export function StandTable({ rows, area }: { rows: EstimatedTree[]; area: number
   const groups = standTable(rows, area)
   return (
     <div className="overflow-x-auto">
-      <p className="mb-2 text-[10px]">
+      <p className="mb-2 text-3xs">
         Detected candidates by species assumption / reviewed assignment and estimated or entered DBH in 5 cm classes.
         This is not a free-growing or well-spaced stocking survey. Known-volume sums omit unavailable estimates.
       </p>
@@ -63,7 +63,7 @@ export function MethodTable({
   const left = inventoryRows(data, method, rules, reviews, polygon).filter((r) => r.review.status !== 'excluded')
   return (
     <div className="overflow-x-auto">
-      <p className="mb-2 text-[10px]">
+      <p className="mb-2 text-3xs">
         Greedy nearest canopy-apex matching within 5 m, one-to-one, within each common core. This is cross-method
         agreement, not accuracy. ForestTools uses 16 m CHM buffers; neural results use their inference buffers; FORA
         uses core-only returns. Surface crowns and 3D instances are different objects.
@@ -113,7 +113,7 @@ export function ReturnTable({ core, polygon }: { core: CorePoints | null; polygo
   return (
     <div className="grid gap-3 text-xs md:grid-cols-2">
       <div>
-        <p className="text-[10px]">
+        <p className="text-3xs">
           FORA-inspired metrics, restricted to loaded core {core.chunk}:{' '}
           {metrics.returns.toLocaleString(DEFAULT_LOCALE)} original returns inside the selection. Height percentiles
           exclude returns ≤0.5 m. Density ratios use all loaded in-scope returns; they are not foliage or pulse density.

@@ -1837,9 +1837,7 @@ export default function MiscDataSection() {
                         }
                       />
                       {canueSharedScale && (
-                        <p className="mt-1 px-1 text-[11px] leading-tight">
-                          One scale for every period on the timeline
-                        </p>
+                        <p className="mt-1 px-1 text-2xs leading-tight">One scale for every period on the timeline</p>
                       )}
                     </div>
                     {canueNoValueAreaCount > 0 && (

@@ -280,7 +280,7 @@ export function SwitchbackTools({
                     ? `Wheels stay on the formation · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`
                     : `Wheels need ${sweptTurn.requiredWideningM.toFixed(2)} m more formation · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`}
               </p>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {vehicleCheck.vehicle.name}
                 {alignment.vehicleCheck
                   ? ` · ${vehicleCheck.direction === 'both' ? 'both directions' : `${vehicleCheck.direction}-station`} · ${vehicleCheck.clearanceM.toFixed(2)} m clearance`
@@ -340,12 +340,12 @@ export function SwitchbackTools({
         {project.alignments.length >= 20 && (
           <p className="text-xs text-muted-foreground">The project already has 20 road alternatives.</p>
         )}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Inspect the new road in plan, profile and section. The swept-path check covers wheels against the formation
           for the whole 180° turn; body clearance to cut batters and trees, overlapping earthworks between the legs, and
           traction on grade still need review.
         </p>
-        <details className="text-[11px] text-muted-foreground">
+        <details className="text-2xs text-muted-foreground">
           <summary className="cursor-pointer">Profile and engineering inputs</summary>
           <p className="mt-1">
             The active profile is extended at the entered grade. Round the new join grade break as needed. Existing

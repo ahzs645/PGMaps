@@ -238,7 +238,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
         </Button>
       </div>
       <div
-        className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-emerald-50 px-3 py-1.5 text-[11px] dark:bg-emerald-950"
+        className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-emerald-50 px-3 py-1.5 text-2xs dark:bg-emerald-950"
         aria-label="Inventory summary"
       >
         <strong>
@@ -322,7 +322,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
                 onFeaturePick={choose}
                 overlayOpacity={0.55}
               />
-              <p className="pointer-events-none absolute bottom-8 left-2 right-12 rounded bg-background/90 p-1.5 text-[10px]">
+              <p className="pointer-events-none absolute bottom-8 left-2 right-12 rounded bg-background/90 p-1.5 text-3xs">
                 {colour === 'species'
                   ? 'Species assumptions: spruce green · aspen orange · birch magenta · Douglas-fir blue · unknown grey.'
                   : colour === 'review'
@@ -385,7 +385,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
                       {status}: {rows.filter((r) => r.review.status === status).length}
                     </Button>
                   ))}
-                  <p className="w-full text-[10px]">
+                  <p className="w-full text-3xs">
                     Select a category to open the searchable review list. Decisions, entered diameters and notes persist
                     locally and export in a source/run-scoped manifest.
                   </p>

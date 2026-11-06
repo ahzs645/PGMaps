@@ -81,7 +81,7 @@ export function WorkflowPanel(props: WorkflowPanelProps) {
             ))}
           </NativeSelect>
         </label>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           Map context and overlays follow the selected workflow.
         </p>
         {!data && options.mode !== 'trees' && (

@@ -100,7 +100,7 @@ export function TemplateSandbox({ template, name }: { template: RoadTemplate; na
               <div className="h-[260px]">
                 <CrossSectionChart station={c.station} alignment={c.alignment} analysis={c.analysis} />
               </div>
-              <p className="mt-1 text-[10px] text-muted-foreground">
+              <p className="mt-1 text-3xs text-muted-foreground">
                 {c.focused
                   ? 'View fitted to calculated daylight; quantities retain the full sampled section.'
                   : 'Full sampled extent retained; incomplete terrain or unclosed daylight remains visible.'}

@@ -450,7 +450,7 @@ export function PublishedExplorer({ active }: { active: boolean }) {
                           className="sticky left-0 z-10 border-b bg-background px-2 py-3 text-left font-medium"
                         >
                           <span className="block">{tree.code}</span>
-                          <span className="block text-[11px] font-normal text-muted-foreground">{tree.name}</span>
+                          <span className="block text-2xs font-normal text-muted-foreground">{tree.name}</span>
                         </th>
                         {series.map((row) => (
                           <td key={row.period}>

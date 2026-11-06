@@ -144,7 +144,7 @@ export function GravelSourcesPanel({
             ))}
           </>
         )}
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Selecting a source reference clears the previous rates and haul assumptions, switches it off, and sets
           available quantity to zero. Enter confirmed capacity and delivery inputs before enabling it.
         </p>

@@ -32,7 +32,7 @@ export function PlanLegend({
         defaultCollapsed
         width="sm"
         className="road-map-legend bottom-2 right-2 flex p-2 max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
-        contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-contain text-[11px]"
+        contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-contain text-2xs"
       >
         <div className="mt-1 space-y-3 border-t pt-1.5" data-testid="road-plan-legend-content">
           {sections.map((section) => (
@@ -52,7 +52,7 @@ export function PlanLegend({
                       />
                     ) : entry.symbol ? (
                       <span
-                        className="flex h-4 w-5 items-center justify-center text-[10px] font-semibold"
+                        className="flex h-4 w-5 items-center justify-center text-3xs font-semibold"
                         style={{ color: entry.color }}
                       >
                         {entry.symbol}

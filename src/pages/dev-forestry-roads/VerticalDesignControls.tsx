@@ -457,7 +457,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-1 text-[11px]"
+                    className="h-6 px-1 text-2xs"
                     disabled={!designed}
                     onClick={() => setControl(c.id, fromAlignment(c.chainage))}
                   >
@@ -561,7 +561,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             {checks.map((check, index) => (
               <button
                 key={`${check.kind}-${index}`}
-                className="block w-full border-l-2 border-rose-500 pl-2 text-left text-[11px] leading-4"
+                className="block w-full border-l-2 border-rose-500 pl-2 text-left text-2xs leading-4"
                 onClick={() => setStation(check.chainage)}
               >
                 {check.message}
@@ -570,10 +570,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           </div>
         )}
         {designed && checks.length === 0 && (standards !== EMPTY_VERTICAL_STANDARDS || controls.length > 0) && (
-          <p
-            className="mt-2 text-[11px] text-emerald-700 dark:text-emerald-400"
-            data-testid="road-vertical-checks-pass"
-          >
+          <p className="mt-2 text-2xs text-emerald-700 dark:text-emerald-400" data-testid="road-vertical-checks-pass">
             The profile meets every set standard and control.
           </p>
         )}

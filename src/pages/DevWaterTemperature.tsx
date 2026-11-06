@@ -260,7 +260,7 @@ export default function DevWaterTemperature() {
     <div
       ref={dashboardRef}
       data-fullscreen={dashboardFullscreen || undefined}
-      className="flex min-h-full flex-col gap-2 bg-background px-3 pb-3 pt-20 md:pt-3 lg:h-full lg:min-h-0 lg:overflow-hidden [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1400] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:overflow-y-auto [&[data-fullscreen]]:pt-3 max-lg:[&[data-fullscreen]]:block"
+      className="flex min-h-full flex-col gap-2 bg-background px-3 pb-3 pt-20 md:pt-3 lg:h-full lg:min-h-0 lg:overflow-hidden [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-overlay [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:overflow-y-auto [&[data-fullscreen]]:pt-3 max-lg:[&[data-fullscreen]]:block"
     >
       <DashboardToolbar className="rounded-xl border bg-card p-2" title="Nechako water temperature">
         <>

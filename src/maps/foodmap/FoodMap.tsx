@@ -26,6 +26,7 @@ import {
   hazardRatingAt,
   inspectionDate,
   inspectionMonthRange,
+  parseInspectionDate,
   ratingChangesByMonth,
   resolveTimelineMonth,
   sameMonth,

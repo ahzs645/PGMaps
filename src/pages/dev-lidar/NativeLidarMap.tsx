@@ -689,7 +689,7 @@ export function NativeLidarMap(props: Props) {
         {props.children}
       </LidarMap>
       <div
-        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-[10px] text-foreground shadow"
+        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-3xs text-foreground shadow"
         role="status"
         title={height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       >
@@ -707,7 +707,7 @@ export function NativeLidarMap(props: Props) {
         </div>
       )}
       {contextError && props.basemap === 'vector' && (
-        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-[10px]">
+        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-3xs">
           {contextError}
         </div>
       )}

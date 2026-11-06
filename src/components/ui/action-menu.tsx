@@ -137,7 +137,7 @@ export function ActionMenu({
               return (
                 <div
                   key={item.id}
-                  className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+                  className="px-3 pb-1 pt-2 text-2xs font-semibold uppercase tracking-wide text-muted-foreground"
                 >
                   {item.label}
                 </div>

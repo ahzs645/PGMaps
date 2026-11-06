@@ -162,7 +162,7 @@ export function CurveReviewPanel({
                   </Button>
                 ))}
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {active.events.length === 4
                   ? 'TS/ST bound the full curve; SC/CS bound the circular arc. Full deflection includes both spirals.'
                   : 'BC/EC bound the circular curve. No spirals are fitted.'}{' '}
@@ -205,18 +205,18 @@ export function CurveReviewPanel({
                   ['Complete calculated sections', `${active.completeSampleCount} of ${active.sampleCount}`],
                 ].map(([label, value]) => (
                   <div key={label} className="min-w-0">
-                    <dt className="text-[10px] text-muted-foreground">{label}</dt>
+                    <dt className="text-3xs text-muted-foreground">{label}</dt>
                     <dd className="break-words font-mono">{value}</dd>
                   </div>
                 ))}
               </dl>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Widths, radii, grades and crossfalls use {active.circularSampleCount} calculated sections on the
                 circular arc. Crossfall is positive falling away from the centreline. The capped target can differ from
                 actual crossfall because the section retains its template crown. Entered widening is additional to the
                 resolved template and local widening ranges.
               </p>
-              <div className="space-y-1 text-[11px]">
+              <div className="space-y-1 text-2xs">
                 {active.warnings.map((warning) => (
                   <p key={warning} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
                     {warning}
@@ -226,7 +226,7 @@ export function CurveReviewPanel({
                   <p className="text-muted-foreground">Inner-edge screen unavailable: {active.innerEdgeGradeReason}</p>
                 )}
               </div>
-              <details className="text-[11px] text-muted-foreground">
+              <details className="text-2xs text-muted-foreground">
                 <summary className="cursor-pointer">Calculation basis and switchback limits</summary>
                 <p className="mt-1">{INNER_EDGE_GRADE_BASIS}</p>
                 <p className="mt-1">{CURVE_REVIEW_BASIS}</p>
@@ -243,7 +243,7 @@ export function CurveReviewPanel({
                   ...runs.map((t) => Math.max(t.requiredLeftWideningM, t.requiredRightWideningM)),
                 )
                 return (
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-2xs">
                     <p
                       className={runs.length && widen > 0 ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}
                       data-testid="road-curve-swept-status"

@@ -166,13 +166,7 @@ export function TerrainLandformFinder({
           <span className="flex items-center justify-between gap-2">
             <span>Now assessing against the terrain landform. It replaced {replaced}.</span>
             {onUndo && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-7 shrink-0 px-2 text-[11px]"
-                onClick={onUndo}
-              >
+              <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-2xs" onClick={onUndo}>
                 Undo
               </Button>
             )}

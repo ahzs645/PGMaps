@@ -529,7 +529,7 @@ export function PortalSubmissionSearch({
           </label>
         </div>
       </div>
-      <p className="shrink-0 text-[11px] text-muted-foreground">
+      <p className="shrink-0 text-2xs text-muted-foreground">
         {view === 'search' && selection !== 'normal'
           ? geoApplied
             ? 'Filtered by source spatial selection. '

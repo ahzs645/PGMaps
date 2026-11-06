@@ -123,7 +123,7 @@ export function SpeciesPanel({
                 key={v.id}
                 size="sm"
                 variant={mode === v.id ? 'secondary' : 'outline'}
-                className="h-auto min-h-10 whitespace-normal px-2 py-1 text-left text-[10px]"
+                className="h-auto min-h-10 whitespace-normal px-2 py-1 text-left text-3xs"
                 onClick={() => onMode(v.id)}
               >
                 {v.label}
@@ -131,7 +131,7 @@ export function SpeciesPanel({
             ))}
           </div>
         </details>
-        <p className="mt-3 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-3 text-3xs leading-4 text-muted-foreground">
           Species: BC inventory records · structure: measured LiDAR proxies · model: experimental held-out estimates.
           Species colours do not identify individual trees.
         </p>
@@ -236,7 +236,7 @@ export function SpeciesPanel({
               step={5}
               onChange={(v) => set({ speciesLowCoverMaximum: v })}
             />
-            <p className="mt-2 text-[10px] text-muted-foreground">
+            <p className="mt-2 text-3xs text-muted-foreground">
               Low height may represent shrubs, lawns, openings or young trees. No regeneration age, survival or stocking
               is inferred. Review imagery and visit the site.
             </p>
@@ -272,7 +272,7 @@ export function SpeciesPanel({
                 <option value="metric">Selected LiDAR metric</option>
               </NativeSelect>
             </label>
-            <p className="mt-2 text-[10px] text-muted-foreground">
+            <p className="mt-2 text-3xs text-muted-foreground">
               Plots require ≥95% eligible support. Species context requires ≥80% overlap with one supported inventory
               stand. Unmatched plots stay grey when colouring by species.
             </p>
@@ -287,7 +287,7 @@ export function SpeciesPanel({
         />
         <div className="mt-3" aria-label="Species mix source">
           {legend.categorical ? (
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="grid grid-cols-2 gap-2 text-3xs">
               {Object.entries(SPECIES_COLOURS).map(([code, colour]) => (
                 <span key={code} className="flex items-center gap-1">
                   <i className="size-3 shrink-0 rounded" style={{ backgroundColor: colour }} />
@@ -302,7 +302,7 @@ export function SpeciesPanel({
                 className="h-2 rounded"
                 style={{ background: `linear-gradient(to right,${legend.colors.join(',')})` }}
               />
-              <div className="mt-1 flex justify-between text-[10px]">
+              <div className="mt-1 flex justify-between text-3xs">
                 <span>
                   {legend.min}
                   {legend.unit}
@@ -312,7 +312,7 @@ export function SpeciesPanel({
                   {legend.unit}
                 </span>
               </div>
-              <p className="mt-1 text-[10px]">{legend.label} · grey: unavailable</p>
+              <p className="mt-1 text-3xs">{legend.label} · grey: unavailable</p>
             </>
           )}
         </div>
@@ -330,7 +330,7 @@ export function SpeciesPanel({
           )}
         </div>
         {mode === 'species-field' && (
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-3xs text-muted-foreground">
             Coordinates lie inside supported stand geometry. They are map review points, not confirmed access or safe
             survey locations. The shortlist is purposive and cannot estimate an unbiased forest-wide mean.
           </p>
@@ -364,7 +364,7 @@ export function SpeciesPanel({
               { label: 'Eligible plot area', value: `${plot.sampled_m2} m² (${plot.support_percent}%)` },
             ]}
           />
-          <p className="mt-2 text-[10px]">
+          <p className="mt-2 text-3xs">
             Return proportions describe laser returns; they do not measure vegetation volume or biodiversity.
           </p>
           <Button className="mt-3" size="sm" variant="outline" onClick={() => onPoints(plot)}>
@@ -388,7 +388,7 @@ export function SpeciesPanel({
           </div>
           <div className="mt-2 space-y-1">
             {data.species_order.map((code) => (
-              <div key={code} className="flex justify-between gap-1 text-[10px]">
+              <div key={code} className="flex justify-between gap-1 text-3xs">
                 <span className="flex items-center gap-1">
                   <i className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: SPECIES_COLOURS[code] }} />
                   {code} · {data.species[code]}
@@ -474,7 +474,7 @@ export function SpeciesPanel({
             {code} · {data.species[code]}: {value.toFixed(1)}%
           </p>
         ))}
-        <p className="mt-2 text-[10px] text-muted-foreground">
+        <p className="mt-2 text-3xs text-muted-foreground">
           {(data.coverage.labelled_m2 / 10000).toFixed(1)} ha labelled; {(data.coverage.other_m2 / 10000).toFixed(1)} ha
           other/unlabelled. This area-weighted index is not the tile’s measured fraction of stems, biomass or crown
           area.
@@ -486,7 +486,7 @@ export function SpeciesPanel({
           {data.experiment.model.broadleaf_mae_pp.toFixed(1)} pp; training-stand mean baseline:{' '}
           {data.experiment.baseline.broadleaf_mae_pp.toFixed(1)} pp.
         </p>
-        <p className="mt-2 text-[10px] leading-4 text-muted-foreground">
+        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           The model does not beat the broadleaf baseline. Differences are disagreement with historical inventory, not
           proven inventory errors or calibrated uncertainty. Geographic transfer and independent field accuracy remain
           unvalidated. No species-model retraining occurs when changing views or saving notes.

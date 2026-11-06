@@ -70,7 +70,7 @@ function CulvertProfile({ culvert }: { culvert: CulvertAnalysis }) {
           </text>
         </g>
       </svg>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Brown: original ground · orange: sampled formation · blue: invert / crown. Pipe lengths and elevations follow
         the recorded structure geometry.
       </p>
@@ -186,7 +186,7 @@ export function EngineeringSummary({
                 ))}
               </tbody>
             </EngineeringTable>
-            <p className="mt-2 text-[11px] text-muted-foreground">
+            <p className="mt-2 text-2xs text-muted-foreground">
               Entered rates and supported quantities define this estimate. Zero rates are unpriced work. Ground-material
               excavation replaces the default cut rate only where a horizon is assigned.
             </p>
@@ -405,7 +405,7 @@ export function EngineeringSummary({
           </>
         )}
         {result?.warnings.map((warning, index) => (
-          <p key={index} className="mt-2 border-l-2 border-amber-500 pl-2 text-[11px]">
+          <p key={index} className="mt-2 border-l-2 border-amber-500 pl-2 text-2xs">
             {warning}
           </p>
         ))}

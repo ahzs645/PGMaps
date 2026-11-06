@@ -1313,7 +1313,7 @@ export function NetworkResultPreview({
             )
           })}
       </svg>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Gold: supplied road cells · blue: projected network · pink: selected branch · green/red: target outcome · dark:
         blocked/no-data.
         {stride > 1

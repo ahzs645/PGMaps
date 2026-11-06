@@ -20,7 +20,7 @@ export function ComparisonPane({
         <h2 className="truncate text-sm font-semibold">
           {label} · {title}
         </h2>
-        <div className="mt-1 text-[11px]">
+        <div className="mt-1 text-2xs">
           <KeyValueRows size="sm" rows={metrics} />
         </div>
       </header>

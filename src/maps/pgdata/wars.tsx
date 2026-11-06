@@ -795,7 +795,7 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
           <button
             type="button"
             onClick={wars.clearMonths}
-            className="text-[11px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+            className="text-2xs font-medium text-sky-600 hover:underline dark:text-sky-400"
           >
             Clear
           </button>
@@ -825,14 +825,14 @@ function WarsMonthChart({ wars }: { wars: WarsState }) {
           )
         })}
       </div>
-      <div className="mt-1 flex gap-[3px] text-center text-[10px] text-muted-foreground">
+      <div className="mt-1 flex gap-[3px] text-center text-3xs text-muted-foreground">
         {MONTH_INITIALS.map((initial, month) => (
           <span key={month} className="flex-1">
             {initial}
           </span>
         ))}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">Click months to filter the map.</p>
+      <p className="mt-1 text-2xs text-muted-foreground">Click months to filter the map.</p>
     </div>
   )
 }
@@ -864,7 +864,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
     <div>
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-foreground">Records by year{monthNote}</span>
-        <span className="text-[11px] text-muted-foreground">
+        <span className="text-2xs text-muted-foreground">
           {firstYear}-{lastYear}
         </span>
       </div>
@@ -886,7 +886,7 @@ function WarsYearChart({ wars }: { wars: WarsState }) {
           )
         })}
       </div>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         Counts follow reporting effort as well as collision rates, so read year-to-year changes as trends in what was
         recorded.
       </p>
@@ -902,7 +902,7 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
     <div>
       <span className="text-xs font-medium text-foreground">Most recurrent sites</span>
       {sites.length === 0 ? (
-        <p className="mt-1 text-[11px] text-muted-foreground">
+        <p className="mt-1 text-2xs text-muted-foreground">
           No ~1 km site has strikes in {HOTSPOT_MIN_YEARS}+ separate years under the current filters.
         </p>
       ) : (
@@ -916,24 +916,24 @@ function WarsHotspotList({ wars }: { wars: WarsState }) {
                   className="flex w-full items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5 text-left transition-colors hover:border-sky-500"
                 >
                   <span
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white"
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-3xs font-bold text-white"
                     style={{ backgroundColor: getHotspotColor(cell.yearCount) }}
                   >
                     {index + 1}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[11px] font-medium text-foreground">{cell.nearestTown}</span>
-                    <span className="block truncate text-[10px] text-muted-foreground">
+                    <span className="block truncate text-2xs font-medium text-foreground">{cell.nearestTown}</span>
+                    <span className="block truncate text-3xs text-muted-foreground">
                       {cell.topSpecies} · {formatNumber(cell.recordCount)} records
                       {cell.firstYear != null && cell.lastYear != null ? ` · ${cell.firstYear}-${cell.lastYear}` : ''}
                     </span>
                   </span>
-                  <span className="shrink-0 text-[10px] font-medium text-muted-foreground">{cell.yearCount} yr</span>
+                  <span className="shrink-0 text-3xs font-medium text-muted-foreground">{cell.yearCount} yr</span>
                 </button>
               </li>
             ))}
           </ol>
-          <p className="mt-1 text-[11px] text-muted-foreground">Click a site to zoom the map to it.</p>
+          <p className="mt-1 text-2xs text-muted-foreground">Click a site to zoom the map to it.</p>
         </>
       )}
     </div>
@@ -1281,7 +1281,7 @@ export function WarsLayer({ wars }: { wars: WarsState }) {
               <MarkerContent>
                 {/* pointer-events-none keeps cluster and point clicks working underneath */}
                 <div
-                  className="pointer-events-none flex items-center justify-center rounded-full border-2 text-[10px] font-bold"
+                  className="pointer-events-none flex items-center justify-center rounded-full border-2 text-3xs font-bold"
                   style={{
                     width: size,
                     height: size,

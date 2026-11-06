@@ -156,7 +156,7 @@ export function TreeIsolationPanel({
               Focus crown on map
             </Button>
           </div>
-          <p className="mt-2 text-[10px] text-muted-foreground">
+          <p className="mt-2 text-3xs text-muted-foreground">
             This loads a bounded subset from the original EPT cloud, then keeps returns 2–80 m above terrain in this
             crown’s exact 1 m columns. Ground/noise classes are excluded. A crown column can contain neighbouring
             branches or understory.
@@ -179,7 +179,7 @@ export function TreeIsolationPanel({
                 {crop.points.length.toLocaleString(DEFAULT_LOCALE)} isolated returns · {crop.loaded_nodes}/
                 {crop.available_nodes} intersecting EPT nodes loaded.
               </p>
-              <p className="mt-2 text-[10px] text-muted-foreground">
+              <p className="mt-2 text-3xs text-muted-foreground">
                 {crop.budget_limited
                   ? 'Point budget or hierarchy limits apply; this is a partial crop.'
                   : 'All selected intersecting nodes loaded; segmentation validity remains unverified.'}{' '}
@@ -239,7 +239,7 @@ export function TreeIsolationPanel({
           neighbouring crowns may merge, and small or suppressed trees may be missed. These are not confirmed stems,
           complete trees, species labels, DBH or a validated tree count.
         </p>
-        <p className="mt-2 text-[10px] text-muted-foreground">
+        <p className="mt-2 text-3xs text-muted-foreground">
           Footprints are simplified for display; point selection uses exact source-cell membership. The source points
           retain their original orthometric elevations; the 3D view shifts the selected treetop’s ground to zero for
           display.

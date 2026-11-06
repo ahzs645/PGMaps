@@ -232,7 +232,7 @@ export function LidarComparison({
               </tbody>
             </EngineeringTable>
           </div>
-          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-[10px]">
+          <pre className="mt-2 overflow-x-auto whitespace-pre-wrap text-3xs">
             {JSON.stringify(
               plot.methods.map(({ id, status, parameters, reason }) => ({ id, status, parameters, reason })),
               null,

@@ -320,7 +320,7 @@ export function EngineeringControls({
           ]}
         />
         <div className="space-y-1.5 rounded border bg-muted/20 p-2" data-testid="road-aggregate-summary">
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {design.surfacingSupply?.enabled ? (
               <>
                 Aggregate: <span className="font-medium text-foreground">{design.surfacingSupply.name}</span> ·{' '}
@@ -532,7 +532,7 @@ export function EngineeringControls({
                   }}
                 />
                 <p
-                  className={`text-[11px] leading-4 ${templateDirty ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                  className={`text-2xs leading-4 ${templateDirty ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
                   data-testid="template-candidate-status"
                   role="status"
                 >
@@ -655,7 +655,7 @@ export function EngineeringControls({
               Assign selected template
             </Button>
             {templateDirty && (
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              <p className="mt-2 text-2xs text-muted-foreground">
                 Save or discard template changes before adding a station assignment.
               </p>
             )}
@@ -1045,7 +1045,7 @@ export function EngineeringControls({
                   />
                 )}
                 {result && (
-                  <p className="text-[11px] leading-4">
+                  <p className="text-2xs leading-4">
                     Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}
                     {result.coverM?.toFixed(2) ?? '—'} m · required span {result.requiredLengthM?.toFixed(1) ?? '—'} m
                     {' · '}inclined barrel {result.barrelLengthM?.toFixed(2) ?? 'unknown'} m
@@ -1286,7 +1286,7 @@ export function EngineeringControls({
         </>
       )}
       {at && (
-        <p className="px-3 py-2 text-[11px] text-muted-foreground">
+        <p className="px-3 py-2 text-2xs text-muted-foreground">
           Editing {alignment.name} · selected station {formatRoadStation(at.chainage)}
         </p>
       )}

@@ -27,7 +27,7 @@ export function ReadoutGrid({
 }) {
   return (
     <dl
-      className={cn('grid gap-x-3 text-[10px] leading-4 tabular-nums', className)}
+      className={cn('grid gap-x-3 text-3xs leading-4 tabular-nums', className)}
       style={{ gridTemplateColumns: `repeat(auto-fill, minmax(min(${minColumnWidth}, 100%), 1fr))` }}
       data-testid={props['data-testid']}
     >

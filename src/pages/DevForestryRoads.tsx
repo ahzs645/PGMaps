@@ -1648,7 +1648,7 @@ export default function DevForestryRoads() {
     <div
       ref={ref}
       data-fullscreen={fullscreen || undefined}
-      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 px-3 pb-3 pt-20 md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-[1300] [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
+      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 px-3 pb-3 pt-20 md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
       data-testid="road-workspace"
       data-compact={compact || undefined}
       data-focus-mode={focusMode || undefined}
@@ -1675,7 +1675,7 @@ export default function DevForestryRoads() {
           <span
             title={planningBasis}
             data-testid="road-planning-basis"
-            className={`road-source-badge hidden cursor-help rounded-full border px-2 py-1 text-[10px] sm:block ${project.terrain.kind === 'demo' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'}`}
+            className={`road-source-badge hidden cursor-help rounded-full border px-2 py-1 text-3xs sm:block ${project.terrain.kind === 'demo' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'}`}
           >
             {project.terrain.kind === 'demo'
               ? compact
@@ -1713,7 +1713,7 @@ export default function DevForestryRoads() {
             onSaved={setSavedLayouts}
             portalContainer={ref.current}
           />
-          <span className="mx-1 hidden max-w-40 truncate text-[10px] text-muted-foreground xl:inline" title={w.saving}>
+          <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
             {w.saving}
           </span>
           {/* Narrower headers keep the autosave state as a dot whose title and label carry the text. */}
@@ -2331,7 +2331,7 @@ export default function DevForestryRoads() {
                       actions={
                         <>
                           {' '}
-                          <span className="road-plan-hint text-[10px] text-muted-foreground">
+                          <span className="road-plan-hint text-3xs text-muted-foreground">
                             {drainageOnPlan
                               ? 'Blue design streams · dashed existing · red redirected · amber low point'
                               : drainageStale && !terrainProfile
@@ -2499,7 +2499,7 @@ export default function DevForestryRoads() {
                                 ]}
                                 triggerAriaLabel="Road detail view"
                                 triggerClassName="h-8 w-32 max-w-full text-xs"
-                                contentClassName="z-[1500] text-xs"
+                                contentClassName="z-workspace-menu text-xs"
                               />
                               {detail === 'section' && !terrainProfile && (
                                 <Button
@@ -2746,7 +2746,7 @@ export default function DevForestryRoads() {
                                       </NativeSelect>
                                       {cableResult.summary && (
                                         <details
-                                          className="mb-1 rounded border px-2 py-1 text-[11px]"
+                                          className="mb-1 rounded border px-2 py-1 text-2xs"
                                           data-testid="road-cable-summary"
                                         >
                                           <summary className="cursor-pointer">

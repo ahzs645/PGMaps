@@ -218,7 +218,7 @@ export function TravelLayers({
       {contourLabels.map(({ minutes, point }) => (
         <MapMarker key={minutes} longitude={point[0]} latitude={point[1]} anchor="center">
           <MarkerContent>
-            <span className="pointer-events-none rounded border border-border bg-background/90 px-1 py-0.5 text-[10px] font-semibold text-foreground shadow-sm">
+            <span className="pointer-events-none rounded border border-border bg-background/90 px-1 py-0.5 text-3xs font-semibold text-foreground shadow-sm">
               {minutes} min
             </span>
           </MarkerContent>

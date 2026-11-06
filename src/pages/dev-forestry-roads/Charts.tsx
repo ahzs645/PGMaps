@@ -326,7 +326,7 @@ function Grid({
 
 function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-2xs text-muted-foreground">
       {items.map((item) => (
         <span className="inline-flex items-center gap-1.5" key={item.label}>
           <span className="h-0.5 w-4" style={{ backgroundColor: item.color }} />
@@ -689,12 +689,12 @@ export function ProfileChart({
       (check) => (check.kind === 'k' || check.kind === 'curve-length') && Math.abs(check.chainage - chainage) < 0.01,
     )
   // Grow to a tappable size on touch screens; the mouse layout stays compact.
-  const control = 'h-5 min-w-5 rounded px-1 text-[10px] leading-none touch:h-8 touch:min-w-8 touch:text-xs'
+  const control = 'h-5 min-w-5 rounded px-1 text-3xs leading-none touch:h-8 touch:min-w-8 touch:text-xs'
   // Pan, zoom and vertical scale float over the chart's top edge instead of taking a row under it.
   const toolbar = (exaggeration: number, width: number) => (
     <div className="pointer-events-none absolute inset-x-1 top-0.5 flex items-start justify-between gap-2">
       <p
-        className="min-w-0 truncate pl-1 pt-1 text-[10px] tabular-nums text-muted-foreground"
+        className="min-w-0 truncate pl-1 pt-1 text-3xs tabular-nums text-muted-foreground"
         title={`${summary} · ${editable ? 'Click or drag to inspect; double-click adds a vertical control; drag a control to edit.' : 'Click or drag to inspect.'} Arrow keys move the station.`}
         data-testid="road-profile-summary"
       >
@@ -703,7 +703,7 @@ export function ProfileChart({
       <div
         role="toolbar"
         aria-label="Profile view"
-        className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-md border bg-background/90 p-0.5 text-[10px] text-muted-foreground shadow-sm backdrop-blur-sm"
+        className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-md border bg-background/90 p-0.5 text-3xs text-muted-foreground shadow-sm backdrop-blur-sm"
       >
         <Button
           className={control}
@@ -746,7 +746,7 @@ export function ProfileChart({
         <NativeSelect
           aria-label="Profile vertical exaggeration"
           title="Vertical exaggeration · display only"
-          className="h-5 rounded border-0 bg-transparent px-0.5 text-[10px] text-foreground touch:h-8 touch:text-xs"
+          className="h-5 rounded border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs"
           value={verticalScale}
           onChange={(event) => setVerticalScale(event.target.value)}
         >
@@ -789,7 +789,7 @@ export function ProfileChart({
                     ]
               }
             />
-            <span className="text-[11px] tabular-nums text-muted-foreground">
+            <span className="text-2xs tabular-nums text-muted-foreground">
               {formatRoadStation(active?.chainage ?? station)} · {format(active?.gradePercent)}% · ground{' '}
               {format(active?.groundElevation)} m
             </span>
@@ -1575,14 +1575,14 @@ export function CrossSectionChart({
             <div
               role="group"
               aria-label="Road section adjustments"
-              className="flex flex-nowrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground md:flex-wrap"
+              className="flex flex-nowrap items-center gap-x-3 gap-y-1 text-3xs text-muted-foreground md:flex-wrap"
             >
               {onShift && (
                 <div role="group" aria-label="Shift alignment" className="flex shrink-0 items-center gap-1">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px]"
+                    className="h-6 px-2 text-3xs"
                     aria-label="Shift road left one metre"
                     onClick={() => onShift(-1)}
                   >
@@ -1592,7 +1592,7 @@ export function CrossSectionChart({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px]"
+                    className="h-6 px-2 text-3xs"
                     aria-label="Shift road right one metre"
                     onClick={() => onShift(1)}
                   >
@@ -1605,7 +1605,7 @@ export function CrossSectionChart({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px]"
+                    className="h-6 px-2 text-3xs"
                     aria-label="Lower formation 0.25 metres"
                     onClick={() => onVerticalShift(-0.25)}
                   >
@@ -1615,7 +1615,7 @@ export function CrossSectionChart({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-6 px-2 text-[10px]"
+                    className="h-6 px-2 text-3xs"
                     aria-label="Raise formation 0.25 metres"
                     onClick={() => onVerticalShift(0.25)}
                   >
@@ -1626,7 +1626,7 @@ export function CrossSectionChart({
             </div>
           )}
           {engineering && engineering.layers.length > 0 && (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-3xs text-muted-foreground">
               User-entered ground layers:{' '}
               {engineering.layers
                 .map(
@@ -1638,7 +1638,7 @@ export function CrossSectionChart({
             </p>
           )}
           <p
-            className="hidden min-h-4 text-[10px] tabular-nums text-muted-foreground md:block"
+            className="hidden min-h-4 text-3xs tabular-nums text-muted-foreground md:block"
             data-testid="road-section-probe"
           >
             {hovered ? (
@@ -1666,7 +1666,7 @@ export function CrossSectionChart({
               aria-label={`Select section culvert ${c.name}`}
               aria-pressed={selectedCulvertId === c.id}
               onClick={() => onSelectCulvert?.(c.id)}
-              className={`block w-full rounded border px-1 py-0.5 text-left text-[10px] ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-amber-700 dark:text-amber-400' : 'border-transparent text-muted-foreground'}`}
+              className={`block w-full rounded border px-1 py-0.5 text-left text-3xs ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-amber-700 dark:text-amber-400' : 'border-transparent text-muted-foreground'}`}
             >
               {c.name}: projected barrel · cover {format(c.coverM)} m · pipe grade {format(c.gradePercent)}% ·{' '}
               {c.complete ? 'sampled geometry complete' : 'incomplete levels or terrain'}. {c.warnings.join(' ')}
@@ -2118,11 +2118,11 @@ export function MassHaulChart({
               { label: 'Deficit', color: ROAD_CHART_COLORS.fill },
             ]}
           />
-          <p className="text-[10px]" data-testid="road-mass-cursor">
+          <p className="text-3xs" data-testid="road-mass-cursor">
             {formatRoadStation(selected?.x ?? station)} · balance {format(selected?.ground)} m³
             {finite(selected?.ground) ? '' : ' · unknown after an incomplete section'}
           </p>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-3xs text-muted-foreground">
             {engineering
               ? 'Material reuse and compaction follow the entered assumptions. '
               : 'Balance of computed earthwork. '}
@@ -2130,7 +2130,7 @@ export function MassHaulChart({
           </p>
           {engineering?.haul.enabled && (
             <>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-3xs text-muted-foreground">
                 Road totals · compacted volume: free haul {format(engineering.haul.freeHaulM3)} · overhaul{' '}
                 {format(engineering.haul.overhaulM3)} · end haul {format(engineering.haul.endHaulM3)} m³. Borrow{' '}
                 {format(engineering.haul.borrowCompactedM3)} compacted m³ · waste {format(engineering.haul.wasteBankM3)}{' '}
@@ -2139,7 +2139,7 @@ export function MassHaulChart({
               {nearbyMovements.length > 0 && (
                 <div className="-mx-3 border-t" data-testid="road-haul-movements">
                   <button
-                    className="flex w-full justify-between px-3 py-1 text-[10px] text-muted-foreground hover:bg-muted"
+                    className="flex w-full justify-between px-3 py-1 text-3xs text-muted-foreground hover:bg-muted"
                     aria-expanded={showMovements}
                     onClick={() => setShowMovements((value) => !value)}
                   >
@@ -2361,15 +2361,15 @@ export function CableChart({
                 { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
               ]}
             />
-            <span className="text-[11px]">
+            <span className="text-2xs">
               Minimum clearance {format(analysis.minClearance)} m{analysis.complete ? '' : ' · incomplete terrain'}
             </span>
           </div>
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-3xs text-muted-foreground">
             Geometric deflection screen. Cable tension, payload and equipment capacity require a separate design.
           </p>
           {onDistance && (
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-3xs text-muted-foreground">
               Cursor {format(active?.distance)} m · ground {format(active?.ground)} m · cable {format(active?.cable)} m
               · clearance {format(active?.clearance)} m. Click or drag to inspect the same point on the plan.
             </p>

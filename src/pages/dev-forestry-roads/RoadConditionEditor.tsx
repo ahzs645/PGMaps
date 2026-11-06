@@ -104,7 +104,7 @@ export function RoadConditionEditor({
       data-testid="road-condition-editor"
     >
       <h4 className="text-xs font-semibold">Dated condition evidence</h4>
-      <p className="text-[11px] text-muted-foreground">
+      <p className="text-2xs text-muted-foreground">
         Link an inspection or dated image, record the observed component and a reviewer, then set how long this evidence
         may inform planning. Record dates and tenure awards do not establish construction age.
       </p>
@@ -144,14 +144,14 @@ export function RoadConditionEditor({
             }
           />
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           These are your planning applicability windows. An unset window leaves that source unassessed; it does not
           prescribe an inspection schedule or predict deterioration.
         </p>
         {assessmentError && <InlineAlert tone="warning">{assessmentError}</InlineAlert>}
         {estimate && (
           <div
-            className="space-y-1 rounded border bg-muted/20 p-2 text-[11px]"
+            className="space-y-1 rounded border bg-muted/20 p-2 text-2xs"
             data-testid="road-condition-estimate"
             data-estimated-condition={estimate.condition}
             data-evidence-basis={estimate.basis}
@@ -201,7 +201,7 @@ export function RoadConditionEditor({
         {!!estimate?.records.length && (
           <ul className="divide-y rounded border" aria-label="Dated road observations">
             {estimate.records.map(({ observation, status, ageDays, reason }) => (
-              <li key={observation.id} className="space-y-1 p-2 text-[11px]">
+              <li key={observation.id} className="space-y-1 p-2 text-2xs">
                 <div className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">
@@ -216,7 +216,7 @@ export function RoadConditionEditor({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 px-1 text-[11px]"
+                    className="h-6 px-1 text-2xs"
                     aria-label={`Remove observation ${observation.id}`}
                     onClick={() =>
                       onChangeObservations(
@@ -374,7 +374,7 @@ export function RoadConditionEditor({
                 ))}
               </NativeSelect>
             </Field>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               A newer date alone does not replace conflicting evidence. Replacements apply to the same component and
               asset and take effect only when the new record is applicable and reviewed. Imagery cannot clear a bridge
               or culvert as serviceable. Links are saved; their contents are not downloaded or analysed.
@@ -389,7 +389,7 @@ export function RoadConditionEditor({
               Add dated evidence
             </Button>
             {observations.length >= MAX_ROAD_CONDITION_OBSERVATIONS && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 The road has reached its {MAX_ROAD_CONDITION_OBSERVATIONS}-observation limit.
               </p>
             )}

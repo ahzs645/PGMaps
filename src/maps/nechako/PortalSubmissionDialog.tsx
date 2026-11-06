@@ -125,7 +125,7 @@ function FormSection({
           >
             <div className="mb-1 min-w-0">
               <h3 className="text-sm font-medium">{definition?.label ?? field.label}</h3>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Field ID {field.id} · {definition?.type ?? field.type}
               </p>
             </div>

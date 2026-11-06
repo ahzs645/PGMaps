@@ -76,7 +76,7 @@ export function LidarResults({
                 className="h-20 w-full bg-slate-950 object-contain"
                 loading="lazy"
               />
-              <span className="block p-2 text-[11px] font-medium">{title}</span>
+              <span className="block p-2 text-2xs font-medium">{title}</span>
             </button>
           ))}
         </div>
@@ -86,7 +86,7 @@ export function LidarResults({
           {summary.return_height_profile.counts.map((count, i, counts) => {
             const percent = (count / counts.reduce((a, b) => a + b, 0)) * 100
             return (
-              <div key={i} className="grid grid-cols-[52px_1fr_38px] items-center gap-2 text-[10px]">
+              <div key={i} className="grid grid-cols-[52px_1fr_38px] items-center gap-2 text-3xs">
                 <span>{summary.return_height_profile.bins_m[i]} m</span>
                 <span className="h-2 rounded bg-muted">
                   <span className="block h-2 rounded bg-emerald-600" style={{ width: `${percent}%` }} />

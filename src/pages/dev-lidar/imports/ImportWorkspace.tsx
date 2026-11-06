@@ -281,7 +281,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             </Button>
           )}
         </div>
-        <p className="shrink-0 border-b px-3 py-1 text-[11px]">
+        <p className="shrink-0 border-b px-3 py-1 text-2xs">
           Files stay in this browser tab. Save project preserves processed layers; reattach point sources after restore.
           Analysis tools use the bundled BC example. Ordinary LAS/LAZ: ≤2M points / 64 MiB; large clouds: COPC/EPT
           streaming.
@@ -329,7 +329,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               onPointStatus={setPointStatus}
             />
           </div>
-          <div className="max-h-[16dvh] shrink-0 overflow-y-auto border-t p-2 text-[11px]" aria-live="polite">
+          <div className="max-h-[16dvh] shrink-0 overflow-y-auto border-t p-2 text-2xs" aria-live="polite">
             {sample && <p>{sample}</p>}
             <p>{pointStatus}</p>
           </div>

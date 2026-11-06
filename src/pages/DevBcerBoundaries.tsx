@@ -218,7 +218,7 @@ function BoundaryMap({
           <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
         </div>
-        <div className="flex gap-2 text-[11px] text-muted-foreground">
+        <div className="flex gap-2 text-2xs text-muted-foreground">
           <span className="rounded-full bg-muted px-2 py-1">{formatPayloadBytes(stats.bytes)}</span>
           <span className="rounded-full bg-muted px-2 py-1">
             {stats.vertices.toLocaleString(DEFAULT_LOCALE)} vertices
@@ -252,7 +252,7 @@ function BoundaryMap({
             }
           />
         </Map>
-        <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur">
+        <div className="pointer-events-none absolute bottom-2 left-2 rounded-md border border-border/80 bg-background/90 px-2 py-1 text-2xs text-muted-foreground shadow-sm backdrop-blur">
           Pan or zoom either map — both stay synchronized
         </div>
       </div>

@@ -1035,7 +1035,7 @@ function Layers(
           >
             <MarkerContent>
               <button
-                className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-[10px] shadow-sm"
+                className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
                 onClick={() => props.onOverlaySelect?.(feature.properties)}
                 title={String(feature.properties?.label ?? 'Planning candidate')}
               >
@@ -1048,7 +1048,7 @@ function Layers(
         <MapMarker longitude={cableCursor[0]} latitude={cableCursor[1]}>
           <MarkerContent>
             <div
-              className="pointer-events-none rounded border-2 border-white bg-violet-700 px-1 py-0.5 text-[10px] text-white shadow"
+              className="pointer-events-none rounded border-2 border-white bg-violet-700 px-1 py-0.5 text-3xs text-white shadow"
               data-testid="road-active-cable-position"
               data-distance={props.cableDistance}
             >
@@ -1075,7 +1075,7 @@ function Layers(
           <MapMarker key={`cable-support-${index}`} longitude={support.coordinate[0]} latitude={support.coordinate[1]}>
             <MarkerContent>
               <button
-                className="-translate-y-5 rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-[10px] text-violet-800 shadow-sm"
+                className="-translate-y-5 rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
                 title={`${support.role}: ${support.height.toFixed(1)} m above the selected terrain`}
                 aria-label={`Inspect ${support.role.toLowerCase()} support`}
                 onClick={() => props.onCableDistance?.(support.distance)}
@@ -1097,7 +1097,7 @@ function Layers(
                 <MarkerContent>
                   <button
                     style={{ transform: `translate(${dx}px, ${dy}px)` }}
-                    className="whitespace-nowrap rounded-sm bg-background/80 px-1 text-[10px] font-medium leading-4 tabular-nums text-foreground"
+                    className="whitespace-nowrap rounded-sm bg-background/80 px-1 text-3xs font-medium leading-4 tabular-nums text-foreground"
                     aria-label={`Inspect plan station ${s.chainage.toFixed(1)} metres`}
                     data-plan-station-label={s.chainage}
                     onClick={() => props.onStation(s.chainage)}
@@ -1116,7 +1116,7 @@ function Layers(
               <MarkerContent>
                 <button
                   style={{ transform: `translate(${dx}px, ${dy}px)` }}
-                  className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-[10px] font-medium leading-4 text-violet-800"
+                  className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-3xs font-medium leading-4 text-violet-800"
                   title={title}
                   aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
                   onClick={() => props.onStation((curve.start + curve.end) / 2)}
@@ -1145,7 +1145,7 @@ function Layers(
                 aria-label={`Horizontal point ${index + 1}`}
                 title={`${index === 0 ? 'Start' : index === props.alignment.points.length - 1 ? 'End' : `Control ${index + 1}`} · drag to move`}
                 aria-pressed={props.selectedPoint === p.id}
-                className={`size-7 cursor-grab touch-none rounded-full border-2 bg-background text-[10px] font-bold shadow active:cursor-grabbing ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}
+                className={`size-7 cursor-grab touch-none rounded-full border-2 bg-background text-3xs font-bold shadow active:cursor-grabbing ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}
               >
                 {index + 1}
               </button>
@@ -1195,7 +1195,7 @@ function Layers(
               {props.showLabels && (
                 <span
                   data-testid="road-active-map-label"
-                  className="absolute left-1/2 top-1/2 whitespace-nowrap rounded-sm border border-rose-500 bg-background/95 px-1 text-[10px] font-medium leading-4 tabular-nums text-rose-700 shadow-sm dark:text-rose-300"
+                  className="absolute left-1/2 top-1/2 whitespace-nowrap rounded-sm border border-rose-500 bg-background/95 px-1 text-3xs font-medium leading-4 tabular-nums text-rose-700 shadow-sm dark:text-rose-300"
                   style={(() => {
                     const text = `${formatRoadStation(chosen.chainage)} · ${chosen.gradePercent === null ? '—' : chosen.gradePercent.toFixed(1)}% · Z ${chosen.groundElevation === null ? '—' : chosen.groundElevation.toFixed(1)}`
                     const [dx, dy] = labelOffset(chosen.bearing, view?.bearing ?? 0, text.length, -1, 12)
@@ -1252,7 +1252,7 @@ function Layers(
             >
               <MarkerContent>
                 <button
-                  className={`rounded border bg-background/95 px-1 py-0.5 text-[10px] shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-amber-600 text-amber-800' : 'border-sky-600 text-sky-800'}`}
+                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${selected ? 'border-rose-600 text-rose-700 ring-2 ring-rose-400/50' : culvert.warnings.length ? 'border-amber-600 text-amber-800' : 'border-sky-600 text-sky-800'}`}
                   aria-label={`Inspect structure ${culvert.name}`}
                   aria-pressed={selected}
                   onClick={() => {
@@ -1453,7 +1453,7 @@ export function PlanView(props: PlanProps) {
           value={terrainLayer}
           onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
           triggerAriaLabel="Terrain display"
-          contentClassName="z-[1600] text-xs"
+          contentClassName="z-workspace-popover text-xs"
           triggerClassName="h-8 w-24 min-w-0 bg-background/95 text-xs shadow-sm sm:w-32"
           options={[
             { value: 'hillshade', label: 'Hillshade' },
@@ -1483,8 +1483,8 @@ export function PlanView(props: PlanProps) {
             onClose={closeSettings}
             role="dialog"
             ariaLabel="Map display settings"
-            // Above an expanded plan pane (z-[1400]), like the Terrain display list next to it.
-            className="z-[1600] w-60 max-w-[calc(100vw-3rem)] rounded-lg p-3"
+            // Above an expanded plan pane (z-overlay), like the Terrain display list next to it.
+            className="z-workspace-popover w-60 max-w-[calc(100vw-3rem)] rounded-lg p-3"
           >
             <div className="mb-2 flex items-center justify-between">
               <h3 className="text-xs font-semibold">Map settings</h3>
@@ -1548,7 +1548,7 @@ export function PlanView(props: PlanProps) {
       {props.mode === 'edit' &&
         (editHelpVisible ? (
           <div
-            className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-[11px] shadow"
+            className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
             data-testid="road-edit-help"
           >
             <span className="min-w-0 flex-1">

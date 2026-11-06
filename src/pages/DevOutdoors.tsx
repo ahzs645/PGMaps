@@ -165,7 +165,7 @@ const INPUT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const KIND_SELECT_CLASS =
-  'h-7 rounded-md border border-border bg-background px-1.5 text-[11px] text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+  'h-7 rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
 const ICON_BUTTON_CLASS =
   'rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
@@ -355,11 +355,11 @@ function FeatureRow({
             </option>
           ))}
         </NativeSelect>
-        <span className="text-[11px] tabular-nums text-muted-foreground">{detail}</span>
+        <span className="text-2xs tabular-nums text-muted-foreground">{detail}</span>
       </div>
       {selected && (
         <textarea
-          className="mt-2 min-h-14 w-full rounded-md border border-border bg-background px-2 py-1.5 text-[11px] leading-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          className="mt-2 min-h-14 w-full rounded-md border border-border bg-background px-2 py-1.5 text-2xs leading-4 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           placeholder="Verification, access, or field notes…"
           value={notes ?? ''}
           onChange={(event) => onNotesChange(event.target.value)}
@@ -930,7 +930,7 @@ function DevOutdoors() {
           <Button
             type="button"
             size="sm"
-            className="h-6 px-2 text-[11px]"
+            className="h-6 px-2 text-2xs"
             disabled={drawMode === 'route' ? draftVertices.length < 2 : draftVertices.length < 3}
             onClick={finishDraft}
           >
@@ -939,7 +939,7 @@ function DevOutdoors() {
           </Button>
         </>
       )}
-      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-[11px]" onClick={cancelDraw}>
+      <Button type="button" variant="ghost" size="sm" className="h-6 px-2 text-2xs" onClick={cancelDraw}>
         <X className="size-3" />
         Cancel
       </Button>
@@ -965,9 +965,9 @@ function DevOutdoors() {
           }}
         />
         <p className="mt-2 text-xs font-semibold text-foreground">{activeStageInfo.title}</p>
-        <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{activeStageInfo.description}</p>
+        <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">{activeStageInfo.description}</p>
         {activeStage !== 'field-plan' && (
-          <InlineAlert tone="warning" className="mt-2 text-[11px] leading-4">
+          <InlineAlert tone="warning" className="mt-2 text-2xs leading-4">
             The blue WMU layer is authoritative. Imported and hand-drawn hunt areas, closures, routes, and access points
             remain planning references until checked against their official source.
           </InlineAlert>
@@ -1060,7 +1060,7 @@ function DevOutdoors() {
               </ul>
             )}
             {wmuLayer && (
-              <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+              <p className="mt-3 text-2xs leading-4 text-muted-foreground">
                 WMU boundaries: BC Data Catalogue snapshot
                 {wmuLayer.sourceUpdated ? ` updated ${wmuLayer.sourceUpdated}` : ''}
                 {wmuLayer.version ? ` (${wmuLayer.version})` : ''}. Always confirm season dates in the official BC
@@ -1279,11 +1279,11 @@ function DevOutdoors() {
           </Button>
         </div>
         {statusMessage && (
-          <p className="mt-2 rounded-md border border-border bg-muted/40 p-2 text-[11px] leading-4 text-muted-foreground">
+          <p className="mt-2 rounded-md border border-border bg-muted/40 p-2 text-2xs leading-4 text-muted-foreground">
             {statusMessage}
           </p>
         )}
-        <p className="mt-3 text-[11px] leading-4 text-muted-foreground">
+        <p className="mt-3 text-2xs leading-4 text-muted-foreground">
           The link in the address bar carries waypoint-scale plans; geometry-heavy plans share via Export instead.
           Exported plan files reopen here via Import, and GeoJSON drops into QGIS, Caltopo, or Avenza. The sample is a
           real MU 7-42 planning map converted from KML.

@@ -116,7 +116,7 @@ export function DesignTab(p: SidebarProps) {
           >
             Plan road network
           </Button>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Connect multiple landings to selected roads, compare network methods and stage future access. Review a
             projected branch here before designing its curves, profile and sections.
           </p>
@@ -126,7 +126,7 @@ export function DesignTab(p: SidebarProps) {
         <Button size="sm" className="w-full" onClick={p.onCompareCompleteCosts} disabled={!!p.workspace.busy}>
           Compare complete route costs
         </Button>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Compare construction, connected road reuse, rehabilitation and delivered gravel costs. Each candidate must
           pass final curve, loaded-grade and full road-footprint checks.
         </p>
@@ -327,7 +327,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
                 onChange={(roadSnapDistanceM) => setRoute((current) => ({ ...current, roadSnapDistanceM }))}
               />
             </div>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-2xs text-muted-foreground">
               Mark individual roads eligible after reviewing access and condition. Proximity is a cost preference; it
               does not verify a connection.
             </p>
@@ -381,7 +381,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           </label>
         )}
         {livePreview && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             Preview refreshes after a short pause while you type or use the arrow keys. Save an alternative to keep it.
           </p>
         )}
@@ -407,7 +407,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             earthworks.
           </InfoTip>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           The corridor optimizer uses grade, radius and mapped exclusions. The terrain-slope, stream-crossing, setback
           and reuse settings above apply to terrain-cost and FSR searches.
         </p>

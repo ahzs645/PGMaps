@@ -305,7 +305,7 @@ export function FullCostPlanningDialog({
                         {candidate.checks.metrics.lengthM.toFixed(0)} m new connector · final checks{' '}
                         {candidate.checks.status} · {result.status}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">{candidate.basis}</p>
+                      <p className="text-2xs text-muted-foreground">{candidate.basis}</p>
                       {result.blockers.length > 0 && (
                         <ul className="list-disc space-y-1 pl-4 text-xs text-destructive">
                           {result.blockers.map((message, index) => (

@@ -345,7 +345,7 @@ export function TreeBenchmarks({
       </p>
       <details>
         <summary>Parameters, screening and limitations</summary>
-        <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-[10px]">
+        <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-3xs">
           {JSON.stringify(
             {
               a: { version: a.version, parameters: a.parameters },

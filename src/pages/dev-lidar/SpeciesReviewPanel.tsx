@@ -89,7 +89,7 @@ export function SpeciesReviewPanel({ data, standId }: { data: SpeciesData; stand
           </label>
         </fieldset>
       )}
-      <p className="mt-2 text-[10px]" role="status">
+      <p className="mt-2 text-3xs" role="status">
         {message || 'Loading browser-local review…'}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -125,7 +125,7 @@ export function SpeciesReviewPanel({ data, standId }: { data: SpeciesData; stand
           />
         </label>
       </div>
-      <p className="mt-2 text-[10px] text-muted-foreground">
+      <p className="mt-2 text-3xs text-muted-foreground">
         A checked review is a user observation, not verified training data. Import replaces this browser’s current
         notes; export first to retain them.
       </p>

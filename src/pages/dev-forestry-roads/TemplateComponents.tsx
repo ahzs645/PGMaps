@@ -109,7 +109,7 @@ export function TemplateComponents({
         <p className="text-xs font-medium">
           {component.name}-{selected.side}
         </p>
-        <p className="mb-2 text-[11px] leading-4 text-muted-foreground">{component.rule}</p>
+        <p className="mb-2 text-2xs leading-4 text-muted-foreground">{component.rule}</p>
         <div className="grid grid-cols-2 gap-2">
           {component.fields(selected.side).map((field) => (
             <div key={field.key}>
@@ -123,7 +123,7 @@ export function TemplateComponents({
               />
               {overridden(field) && (
                 <button
-                  className="text-[10px] underline"
+                  className="text-3xs underline"
                   onClick={() => {
                     const next = { ...template }
                     delete next[field.key]

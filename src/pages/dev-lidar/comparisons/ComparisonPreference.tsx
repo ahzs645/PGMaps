@@ -77,7 +77,7 @@ export function ComparisonPreference({
         </p>
       )}
       {message && (
-        <p className="text-[11px] text-muted-foreground" role="status">
+        <p className="text-2xs text-muted-foreground" role="status">
           {message}
         </p>
       )}
