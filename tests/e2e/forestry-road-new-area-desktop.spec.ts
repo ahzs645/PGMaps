@@ -4,6 +4,7 @@ import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine
 import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -198,7 +199,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     ['shortest', 100],
   ] as const) {
     await expandRoadSection(page, 'road-route-tools')
-    await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
+    await choose(page.getByLabel('Corridor optimization objective', { exact: true }), objective)
     await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
     await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
     const failure = page.getByRole('alert').filter({ hasText: /budget|No verified candidate|Candidate failed/i })
@@ -233,7 +234,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await station.press('Tab')
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', '50')
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '50')
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   await page.screenshot({ path: info.outputPath('desktop-optimized-3d.png') })
 
@@ -279,7 +280,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     )
     .toBe(optimized.activeAlignmentId)
   await page.reload()
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(optimized.activeAlignmentId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
   expect(await save(page)).toEqual(optimized)
 
   const fresh = await context.browser()!.newContext({ viewport: { width: 1512, height: 982 }, serviceWorkers: 'block' })
@@ -292,7 +293,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     const choose = reopened.waitForEvent('filechooser')
     await reopened.getByRole('button', { name: 'Open', exact: true }).click()
     await (await choose).setFiles(info.outputPath('optimized.road.json'))
-    await expect(reopened.getByLabel('Active road', { exact: true })).toHaveValue(optimized.activeAlignmentId)
+    await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
     expect(await save(reopened)).toEqual(optimized)
     await expect(reopened.getByTestId('road-profile-chart')).toBeVisible()
     await expect(reopened.getByTestId('road-section-chart')).toBeVisible()

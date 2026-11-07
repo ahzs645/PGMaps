@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
+import { choose, optionEntries, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -230,8 +231,8 @@ test('uploaded roads retain explicit condition evidence in a portable project an
   await expect(panel.getByTestId('road-existing-road-evidence')).toContainText('Construction year: unknown')
   const reuse = panel.getByRole('checkbox', { name: 'Allow this road in the reuse cost scenario', exact: true })
   await expect(reuse).not.toBeChecked()
-  await panel.getByRole('combobox', { name: 'Planning condition', exact: true }).selectOption('rehabilitation')
-  await panel.getByRole('combobox', { name: 'Condition evidence', exact: true }).selectOption('assumed')
+  await choose(panel.getByRole('combobox', { name: 'Planning condition', exact: true }), 'rehabilitation')
+  await choose(panel.getByRole('combobox', { name: 'Condition evidence', exact: true }), 'assumed')
   await panel
     .getByRole('spinbutton', { name: 'Known construction year (leave blank if unknown)', exact: true })
     .fill('2001')
@@ -259,7 +260,7 @@ test('uploaded roads retain explicit condition evidence in a portable project an
     .getByRole('dialog', { name: 'Save & export', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .click()
-  await panel.getByRole('combobox', { name: 'Planning condition', exact: true }).selectOption('closed')
+  await choose(panel.getByRole('combobox', { name: 'Planning condition', exact: true }), 'closed')
   await expect(reuse).not.toBeChecked()
   await expect(reuse).toBeDisabled()
 })
@@ -313,10 +314,10 @@ test('FSR connectors meet the mapped segment from either road endpoint and prese
     .click()
   await page.getByTestId('road-route-tools').click()
   for (const [index, endpoint] of ['start', 'end'].entries()) {
-    await page.getByRole('combobox', { name: 'Active road', exact: true }).selectOption(original.id)
-    await page.getByRole('combobox', { name: 'Connect from', exact: true }).selectOption(endpoint)
+    await choose(page.getByRole('combobox', { name: 'Active road', exact: true }), original.id)
+    await choose(page.getByRole('combobox', { name: 'Connect from', exact: true }), endpoint)
     await page.getByRole('button', { name: 'Find FSR connection', exact: true }).click()
-    await expect(page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')).toHaveCount(
+    await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(
       3 + index,
     )
     const connected = await downloadProject(page)
@@ -379,15 +380,15 @@ test('an explicitly selected farther FSR is highlighted and connected without fa
     .getByRole('tab', { name: 'Design', exact: true })
     .click()
   await page.getByTestId('road-route-tools').click()
-  await page.getByRole('combobox', { name: 'Connect from', exact: true }).selectOption('start')
+  await choose(page.getByRole('combobox', { name: 'Connect from', exact: true }), 'start')
   await page.getByRole('button', { name: 'Find nearby FSRs', exact: true }).click()
   const picker = page.getByRole('combobox', { name: 'FSR to connect to', exact: true })
-  await expect(picker.locator('option')).toHaveCount(3)
+  await expect.poll(async () => (await optionLabels(picker)).length).toBe(3)
   await expect(picker).not.toContainText('Closed fixture FSR')
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')).toHaveCount(2)
-  const fartherId = await picker.locator('option').filter({ hasText: 'Farther fixture FSR' }).getAttribute('value')
+  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(2)
+  const fartherId = (await optionEntries(picker)).find((entry) => entry.label.includes('Farther fixture FSR'))?.value
   expect(fartherId).toBeTruthy()
-  await picker.selectOption(fartherId!)
+  await choose(picker, fartherId!)
   await expect(page.getByTestId('road-fsr-selected-target')).toContainText('Farther fixture FSR')
   await expect
     .poll(async () =>
@@ -400,7 +401,7 @@ test('an explicitly selected farther FSR is highlighted and connected without fa
     )
     .toBe(true)
   await page.getByRole('button', { name: 'Connect to selected FSR', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')).toHaveCount(3)
+  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(3)
   const connected = await downloadProject(page)
   const connector = connected.alignments.find((alignment) => alignment.id === connected.activeAlignmentId)!
   expect(connector.name).toContain('Farther fixture FSR')
@@ -441,17 +442,17 @@ test('an explicitly selected farther FSR is highlighted and connected without fa
   await expectRecordedDestinationOnPlan()
 
   // A road closed after selection must become unavailable, without silently choosing another target.
-  await page.getByRole('combobox', { name: 'Active road', exact: true }).selectOption(original.id)
-  await page.getByRole('combobox', { name: 'Connect from', exact: true }).selectOption('start')
-  await picker.selectOption(fartherId!)
+  await choose(page.getByRole('combobox', { name: 'Active road', exact: true }), original.id)
+  await choose(page.getByRole('combobox', { name: 'Connect from', exact: true }), 'start')
+  await choose(picker, fartherId!)
   await page
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
   await openRoadPanel(page, 'Existing roads & reuse')
   const existing = page.getByTestId('road-existing-roads')
-  await existing.getByRole('combobox', { name: 'Review existing road', exact: true }).selectOption(fartherId!)
-  await existing.getByRole('combobox', { name: 'Planning condition', exact: true }).selectOption('closed')
+  await choose(existing.getByRole('combobox', { name: 'Review existing road', exact: true }), fartherId!)
+  await choose(existing.getByRole('combobox', { name: 'Planning condition', exact: true }), 'closed')
   await page
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Design', exact: true })
@@ -460,7 +461,7 @@ test('an explicitly selected farther FSR is highlighted and connected without fa
   await expect(
     page.getByText('The selected FSR is unavailable. Refresh the choices or choose another section.', { exact: true }),
   ).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')).toHaveCount(3)
+  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(3)
 })
 
 test('mobile controls stay above map chrome and expose existing-road review and aggregate settings directly', async ({

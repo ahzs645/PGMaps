@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -41,8 +42,8 @@ async function saveProject(page: Page): Promise<RoadProject> {
   return project
 }
 
-async function choose(page: Page, label: string, option: string) {
-  await page.getByRole('combobox', { name: label, exact: true }).selectOption({ label: option })
+async function chooseOption(page: Page, label: string, option: string) {
+  await choose(page.getByRole('combobox', { name: label, exact: true }), { label: option })
 }
 
 async function openCosts(page: Page) {
@@ -82,7 +83,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(project)),
   })
-  await expect(page.getByLabel('Active road').locator('option')).toHaveCount(1)
+  await expect.poll(async () => (await optionLabels(page.getByLabel('Active road'))).length).toBe(1)
 
   const dialog = await openCosts(page)
   await expect(dialog).toContainText('100.0% of the road has complete sections')
@@ -101,7 +102,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await expect(page.getByTestId('road-cost-readiness')).toHaveCount(0)
   await expect(dialog).toBeVisible()
   const customTotal = await page.getByTestId('road-cost-total').innerText()
-  await choose(page, 'Rate preset', 'PG Maps placeholder rates')
+  await chooseOption(page, 'Rate preset', 'PG Maps placeholder rates')
   for (const [label, value] of [
     ['Cut rate', '12'],
     ['Fill rate', '8'],
@@ -126,7 +127,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   const coveredTotal = await page.getByTestId('road-cost-total').innerText()
   await page.getByTestId('road-bc-cost-toggle').click()
   const region = page.getByRole('combobox', { name: 'BC natural resource region', exact: true })
-  await expect(region.locator('option')).toHaveText([
+  await expect.poll(() => optionLabels(region)).toEqual([
     'Choose a region',
     'Cariboo',
     'Kootenay-Boundary',
@@ -137,15 +138,15 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
     'South Coast',
     'West Coast',
   ])
-  await region.selectOption({ label: 'Cariboo' })
+  await choose(region, { label: 'Cariboo' })
   const interiorDownload = page.getByRole('button', { name: 'Download Interior comparison JSON', exact: true })
   await expect(interiorDownload).toBeDisabled()
-  await choose(page, 'Interior road group', '4 · Cariboo supply blocks / Prince George G–H')
+  await chooseOption(page, 'Interior road group', '4 · Cariboo supply blocks / Prince George G–H')
   await page.getByRole('spinbutton', { name: 'Uphill side slope (%)', exact: true }).fill('30')
   await page.getByRole('spinbutton', { name: 'Section rock (%)', exact: true }).fill('20')
-  await choose(page, 'Interior road type', 'Long-term · raised subgrade and ditch')
-  await choose(page, 'Verified BEC zone', 'ESSF')
-  await choose(page, 'Absolute soil moisture', 'Wet')
+  await chooseOption(page, 'Interior road type', 'Long-term · raised subgrade and ditch')
+  await chooseOption(page, 'Verified BEC zone', 'ESSF')
+  await chooseOption(page, 'Absolute soil moisture', 'Wet')
   await page.getByRole('spinbutton', { name: 'Homogeneous section length (m, optional)', exact: true }).fill('1200')
   await expect(interiorDownload).toBeDisabled()
   await page.getByRole('button', { name: 'Confirm Interior benchmark applicability reviewed', exact: true }).click()
@@ -165,11 +166,11 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
     timeout: 60_000,
   })
 
-  await choose(page, 'BC natural resource region', 'West Coast')
+  await chooseOption(page, 'BC natural resource region', 'West Coast')
   const coastDownload = page.getByRole('button', { name: 'Download Coast comparison JSON', exact: true })
   await expect(coastDownload).toBeDisabled()
-  await choose(page, 'Coast construction category', 'MRK · Blasted rock face 1.51–3.00 m')
-  await choose(page, 'Coast rock hardness', 'Hard · RMC 5')
+  await chooseOption(page, 'Coast construction category', 'MRK · Blasted rock face 1.51–3.00 m')
+  await chooseOption(page, 'Coast rock hardness', 'Hard · RMC 5')
   await page
     .getByRole('spinbutton', { name: 'Eligible isolated timber volume fraction (0–1)', exact: true })
     .fill('0.5')
@@ -180,7 +181,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await expect(coastDownload).toBeDisabled()
   await expect(page.getByTestId('road-coast-benchmark-result')).toContainText('Choose a point-of-origin area')
   await expect(page.getByTestId('road-coast-benchmark-result')).not.toContainText('CAD/km')
-  await choose(page, 'Coast point-of-origin area', 'Graham Island (GRIS) · +$7,548/km')
+  await chooseOption(page, 'Coast point-of-origin area', 'Graham Island (GRIS) · +$7,548/km')
   await expect(page.getByTestId('road-coast-benchmark-result')).toContainText('$155,533 CAD/km')
   const coast = await downloadJson<{
     schema: string
@@ -201,7 +202,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
 
   // Quote conversions use their explicit volume basis and remain temporary comparison inputs.
   await page.getByRole('button', { name: 'Convert quotes and calculate unit rates', exact: true }).click()
-  await choose(page, 'Material quote unit', 'CAD per tonne')
+  await chooseOption(page, 'Material quote unit', 'CAD per tonne')
   await page.getByRole('spinbutton', { name: 'Quoted price (CAD/tonne)', exact: true }).fill('13')
   await page.getByRole('spinbutton', { name: 'Tonnes required per compacted m³', exact: true }).fill('2')
   await expect(page.getByTestId('road-material-unit-rate')).toHaveText('26.00 CAD/compacted m³')
@@ -241,16 +242,16 @@ test('phone cost references scroll to an eligible Coast comparison and download 
     timeout: 60_000,
   })
   await page.getByTestId('road-bc-cost-toggle').click()
-  await choose(page, 'BC natural resource region', 'West Coast')
-  await choose(page, 'Coast construction category', 'OMLB · Other material — local ballast')
-  await choose(page, 'Coast rock hardness', 'Soft/medium · RMC 1–4')
+  await chooseOption(page, 'BC natural resource region', 'West Coast')
+  await chooseOption(page, 'Coast construction category', 'OMLB · Other material — local ballast')
+  await chooseOption(page, 'Coast rock hardness', 'Soft/medium · RMC 1–4')
   await page.getByRole('button', { name: 'Coast tabular-road eligibility reviewed', exact: true }).click()
   const result = page.getByTestId('road-coast-benchmark-result')
   const download = page.getByRole('button', { name: 'Download Coast comparison JSON', exact: true })
   await expect(download).toBeDisabled()
   await expect(result).toContainText('Choose a point-of-origin area')
   await expect(result).not.toContainText('CAD/km')
-  await choose(page, 'Coast point-of-origin area', 'Reviewed · no eligible origin addition')
+  await chooseOption(page, 'Coast point-of-origin area', 'Reviewed · no eligible origin addition')
   await result.scrollIntoViewIfNeeded()
   await expect(result).toContainText('$72,601 CAD/km')
   await expect(result).toBeInViewport()

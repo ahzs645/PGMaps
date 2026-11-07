@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Field, NumberField, roadFieldClass } from '../Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
@@ -345,14 +344,15 @@ function CableLines(p: SidebarProps) {
             </Button>
           </div>
           <Field label="Yarder position">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Yarder position"
               className={roadFieldClass}
               value={c.yarderAt ?? 'start'}
-              onChange={(e) => edit(c.id, (a) => ({ ...a, yarderAt: e.target.value as 'start' | 'end' }))}
+              onValueChange={(value) => edit(c.id, (a) => ({ ...a, yarderAt: value as 'start' | 'end' }))}
             >
               <option value="start">Start endpoint</option>
               <option value="end">End endpoint</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <div className="grid grid-cols-3 gap-1">
             {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (

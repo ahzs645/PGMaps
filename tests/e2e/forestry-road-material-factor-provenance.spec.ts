@@ -3,6 +3,7 @@ import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engi
 import { createTrainingScenario } from '../../src/pages/dev-forestry-roads/scenarios'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
+import { choose } from './road-select'
 
 test.setTimeout(180_000)
 
@@ -65,7 +66,7 @@ async function importProject(page: Page, bytes: Buffer, activeAlignmentId: strin
       { timeout: 60_000, message: 'Imported factor project finishes loading and enables saving' },
     )
     .toEqual({ loading: 0, saveEnabled: true })
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(activeAlignmentId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', activeAlignmentId)
   await expect(page.getByTestId('workspace-toast-error')).toHaveCount(0)
 }
 
@@ -135,9 +136,9 @@ for (const size of [
       await showMaterialConverter(page)
       const reuse = page.getByRole('spinbutton', { name: `${materialName} reusable fraction`, exact: true })
       await expect(reuse).toHaveValue(String(reusableFraction))
-      await page
+      await choose(page
         .getByRole('combobox', { name: `${materialName} factor convention`, exact: true })
-        .selectOption('bank-per-compacted')
+        , 'bank-per-compacted')
       await page.getByLabel(`${materialName} entered volume factor`, { exact: true }).fill('1.1')
       await page.getByLabel(`${materialName} factor source (optional)`, { exact: true }).fill(source)
       await expect(page.getByLabel(`${materialName} canonical factor preview`, { exact: true })).toContainText(
@@ -182,7 +183,7 @@ for (const size of [
         await showMaterialConverter(fresh)
         await expect(
           fresh.getByRole('combobox', { name: `${materialName} factor convention`, exact: true }),
-        ).toHaveValue('bank-per-compacted')
+        ).toHaveAttribute('data-value', 'bank-per-compacted')
         const entered = fresh.getByLabel(`${materialName} entered volume factor`, { exact: true })
         await expect(entered).toHaveValue('1.1')
         await expect(fresh.getByLabel(`${materialName} factor source (optional)`, { exact: true })).toHaveValue(source)

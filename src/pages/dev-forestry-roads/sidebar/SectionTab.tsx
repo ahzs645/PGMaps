@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Field, NumberField, roadFieldClass } from '../Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { CURVE_DESIGN_HELP, CurveDesignControls } from '../CurveTools'
 import { RoadSettingsDialog } from '../RoadSettingsDialog'
@@ -197,25 +196,27 @@ function Widenings(p: SidebarProps) {
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Widening type">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Widening type"
                   className={roadFieldClass}
                   value={v.kind}
-                  onChange={(e) => tweak(v.id, { kind: e.target.value as WidthOverride['kind'] })}
+                  onValueChange={(value) => tweak(v.id, { kind: value as WidthOverride['kind'] })}
                 >
                   <option value="landing">Landing · unsurfaced</option>
                   <option value="turnout">Turnout · surfaced</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <Field label="Widening side">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Widening side"
                   className={roadFieldClass}
                   value={v.side}
-                  onChange={(e) => tweak(v.id, { side: e.target.value as WidthOverride['side'] })}
+                  onValueChange={(value) => tweak(v.id, { side: value as WidthOverride['side'] })}
                 >
                   <option value="left">Left</option>
                   <option value="right">Right</option>
                   <option value="both">Both</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
             </div>
             <div className="grid grid-cols-2 gap-2">

@@ -1,13 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)
 
 const EXAMPLE = new URL('../../docs/forestry-road-design/examples/switchback-review.json', import.meta.url)
 
-const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')
+const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true })
+const countRoads = async (page: Page) => (await optionLabels(roads(page))).length
 const activeRoad = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true })
 
 async function prepare(page: Page) {
@@ -44,9 +46,9 @@ async function saveProject(page: Page): Promise<RoadProject> {
 }
 
 async function chooseLayout(page: Page, name: string) {
-  await page
+  await choose(page
     .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: name })
+    .getByRole('combobox', { name: 'Road view layout', exact: true }), { label: name })
 }
 
 async function openSwitchbackTools(page: Page) {
@@ -71,7 +73,7 @@ async function setNumber(tools: Locator, label: string, value: number) {
 
 /** The reference construction in docs/forestry-road-design/switchbacks.md. */
 async function stageReference(tools: Locator, direction: 'Left' | 'Right' = 'Left') {
-  await tools.getByRole('combobox', { name: 'Switchback turn', exact: true }).selectOption(direction.toLowerCase())
+  await choose(tools.getByRole('combobox', { name: 'Switchback turn', exact: true }), direction.toLowerCase())
   await setNumber(tools, 'Switchback radius (m)', 40)
   await setNumber(tools, 'Entry straight (m)', 50)
   await setNumber(tools, 'Middle straight (m)', 10)
@@ -92,7 +94,7 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
   const original = initial.alignments.find((a) => a.id === initial.activeAlignmentId)!
   const tools = await openSwitchbackTools(page)
   // Active road lives in the Design tab, so count the roads once it is showing.
-  const roadCount = await roads(page).count()
+  const roadCount = await countRoads(page)
   expect(roadCount).toBe(initial.alignments.length)
   const preview = await stageReference(tools)
   const endElevation = Number(
@@ -107,7 +109,7 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
   await expect(preview).toContainText('Added length265.7 m')
 
   await tools.getByRole('button', { name: 'Create switchback alternative', exact: true }).click()
-  await expect(roads(page)).toHaveCount(roadCount + 1)
+  await expect.poll(() => countRoads(page)).toBe(roadCount + 1)
   await expect(activeRoad(page)).toContainText('left switchback R40')
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText(
     'Created a left switchback alternative',
@@ -182,7 +184,7 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
 
   // Creation is one normal undoable edit.
   await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
-  await expect(roads(page)).toHaveCount(roadCount)
+  await expect.poll(() => countRoads(page)).toBe(roadCount)
   expect(await saveProject(page)).toEqual(initial)
   expect(errors).toEqual([])
 })
@@ -238,7 +240,7 @@ test('a design vehicle swept path checks the switchback as one turn, frames it, 
   const truck = data.getByRole('spinbutton', { name: 'Truck wheelbase (m)', exact: true })
   await truck.fill('7')
   await truck.press('Tab')
-  await expect(data.getByRole('combobox', { name: 'Design vehicle preset', exact: true })).toHaveValue('custom')
+  await expect(data.getByRole('combobox', { name: 'Design vehicle preset', exact: true })).toHaveAttribute('data-value', 'custom')
   // A longer truck tracks further inside: the switchback needs widening again at zero clearance.
   await expect(summary).toContainText('1 of 6 turns need wider formation')
   await expect(summary).toContainText('Loaded log truck + pole trailer (edited)')
@@ -273,15 +275,15 @@ test('the documented switchback example opens with three complete alternatives',
     mimeType: 'application/json',
     buffer: Buffer.from(example),
   })
-  await expect(roads(page)).toHaveCount(3)
+  await expect.poll(() => countRoads(page)).toBe(3)
   await expect(activeRoad(page)).toContainText('Left return')
   const summary = page.locator('dl').filter({ hasText: 'Coverage' }).first()
   await expect(summary).toContainText('1,695 m')
   await expect(summary).toContainText('100%')
-  await activeRoad(page).selectOption({ label: 'Baseline hillside road · synthetic training' })
+  await choose(activeRoad(page), { label: 'Baseline hillside road · synthetic training' })
   await expect(summary).toContainText('1,429 m')
   await expect(summary).toContainText('100%')
-  await activeRoad(page).selectOption({ label: 'Right return · R40 m / +3% assumptions · synthetic' })
+  await choose(activeRoad(page), { label: 'Right return · R40 m / +3% assumptions · synthetic' })
   await expect(summary).toContainText('1,695 m')
   await expect(summary).toContainText('100%')
   expect(errors).toEqual([])
@@ -303,7 +305,7 @@ for (const viewport of [
     test('switchback tools fit the phone sidebar and create an alternative', async ({ page }, info) => {
       const errors = await prepare(page)
       const tools = await openSwitchbackTools(page)
-      const roadCount = await roads(page).count()
+      const roadCount = await countRoads(page)
       expect(roadCount).toBeGreaterThan(0)
       await stageReference(tools, 'Right')
       const overflow = await tools.evaluate((element) => {
@@ -327,7 +329,7 @@ for (const viewport of [
       await expect(page.getByRole('button', { name: 'Show road controls', exact: true })).toBeVisible()
       await expect(page.locator('dl').filter({ hasText: 'Coverage' }).first()).toContainText('1,695 m')
       await press(page.getByRole('button', { name: 'Show road controls', exact: true }))
-      await expect(roads(page)).toHaveCount(roadCount + 1)
+      await expect.poll(() => countRoads(page)).toBe(roadCount + 1)
       await expect(activeRoad(page)).toContainText('right switchback R40')
       expect(errors).toEqual([])
     })
@@ -359,7 +361,7 @@ for (const viewport of [
       await press(
         page.getByRole('tablist', { name: 'Visible road pane', exact: true }).getByRole('tab', { name: 'Detail' }),
       )
-      await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Swept path' })
+      await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Swept path' })
       const panel = page.getByTestId('road-swept-path')
       await press(panel.getByRole('button', { name: 'Check a design vehicle', exact: true }))
       const turn = panel.getByTestId('road-swept-turn').filter({ hasText: 'switchback' })

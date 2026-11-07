@@ -34,7 +34,8 @@ vi.mock('@/components/ui/tab-bar', () => ({
       ),
     ),
 }))
-vi.mock('./Controls', () => ({
+vi.mock('./Controls', async () => ({
+  RoadSelect: (await import('./roadSelectTestDouble')).RoadSelectTestDouble,
   roadFieldClass: '',
   Field: ({ label, children }: { label: string; children: ReactNode }) =>
     createElement(
@@ -196,8 +197,10 @@ function button(label: string) {
   if (!found) throw Error(`Missing button: ${label}`)
   return found
 }
-const change = (label: string, value: string) =>
-  renderer!.root.findByProps({ 'aria-label': label }).props.onChange({ target: { value } })
+/** The field itself: a select's wrapper carries the same name but no change handler. */
+const field = (label: string) =>
+  renderer!.root.findAll((node) => node.props['aria-label'] === label && typeof node.props.onChange === 'function')[0]
+const change = (label: string, value: string) => field(label).props.onChange({ target: { value } })
 function deferredFile() {
   let complete: (text: string) => void = () => {}
   const text = new Promise<string>((resolve) => {

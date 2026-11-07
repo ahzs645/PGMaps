@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { createFullCostTrainingProject } from '../../src/pages/dev-forestry-roads/trainingFullCostScenario'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection } from './road-sidebar'
+import { choose, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(240_000)
@@ -14,7 +15,7 @@ async function openProject(page: Page, project: RoadProject) {
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(project)),
   })
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(project.activeAlignmentId, {
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId, {
     timeout: 60_000,
   })
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 60_000 })
@@ -39,7 +40,7 @@ test('grades by haul direction are set in the search tools and saved with the pr
   const haul = page.getByTestId('road-haul-grades')
   const direction = haul.getByRole('combobox', { name: 'Loaded haul direction', exact: true })
   await expect(haul.getByLabel('Empty uphill %', { exact: true })).toHaveCount(0)
-  await direction.selectOption('end-to-start')
+  await choose(direction, 'end-to-start')
   await haul.getByLabel('Loaded uphill %', { exact: true }).fill('8')
   await haul.getByLabel('Loaded uphill %', { exact: true }).press('Tab')
   await haul.getByLabel('Empty uphill %', { exact: true }).fill('16')
@@ -59,7 +60,7 @@ test('grades by haul direction are set in the search tools and saved with the pr
     .getByRole('dialog', { name: 'Save & export', exact: true })
     .getByRole('button', { name: 'Close', exact: true })
     .click()
-  await direction.selectOption('off')
+  await choose(direction, 'off')
   await expect(haul.getByLabel('Empty uphill %', { exact: true })).toHaveCount(0)
   expect(errors).toEqual([])
 })
@@ -86,11 +87,11 @@ test('a harvest block gets ranked access options to nearby FSRs, and the chosen 
   const chosen = (await page.locator('[data-access-option][aria-checked="true"] .font-medium').textContent()) ?? ''
   await page.screenshot({ path: info.outputPath('block-access-options.png') })
 
-  const roads = page.getByLabel('Active road', { exact: true }).locator('option')
-  const before = await roads.count()
+  const roads = page.getByLabel('Active road', { exact: true })
+  const before = (await optionLabels(roads)).length
   await panel.getByRole('button', { name: 'Add as road', exact: true }).click()
-  await expect(roads).toHaveCount(before + 1)
-  const active = page.getByLabel('Active road', { exact: true }).locator('option:checked')
+  await expect.poll(async () => (await optionLabels(roads)).length).toBe(before + 1)
+  const active = page.getByLabel('Active road', { exact: true })
   await expect(active).toContainText('block access')
   await expect(active).toContainText(chosen.replace(/^\d+\.\s*/, ''))
   await expect(page.getByTestId('road-block-access-options')).toHaveCount(0)
@@ -100,8 +101,8 @@ test('a harvest block gets ranked access options to nearby FSRs, and the chosen 
 test('Draw block adds a harvest block rather than an avoidance area', async ({ page }) => {
   const errors = await prepare(page)
   const panel = page.getByTestId('road-block-access')
-  const blocks = panel.getByRole('combobox', { name: 'Harvest block', exact: true }).locator('option')
-  const before = await blocks.count()
+  const blocks = panel.getByRole('combobox', { name: 'Harvest block', exact: true })
+  const before = (await optionLabels(blocks)).length
   await panel.getByRole('button', { name: 'Draw block', exact: true }).click()
   await expect(page.getByTestId('pegging-feedback')).toContainText('Draw harvest block')
   const box = (await page.getByTestId('road-plan-view').locator('canvas').first().boundingBox())!
@@ -112,8 +113,8 @@ test('Draw block adds a harvest block rather than an avoidance area', async ({ p
   ])
     await page.mouse.click(box.x + box.width * x, box.y + box.height * y)
   await page.getByRole('button', { name: 'Finish block', exact: true }).click()
-  await expect(blocks).toHaveCount(before + 1)
-  await expect(blocks.last()).toHaveText(/^Harvest block \d+$/)
+  await expect.poll(async () => (await optionLabels(blocks)).length).toBe(before + 1)
+  expect((await optionLabels(blocks)).at(-1)).toMatch(/^Harvest block \d+$/)
   expect(errors).toEqual([])
 })
 

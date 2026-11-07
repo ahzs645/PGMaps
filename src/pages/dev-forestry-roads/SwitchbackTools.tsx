@@ -1,9 +1,8 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { parseProject } from './project'
 import {
@@ -202,15 +201,15 @@ export function SwitchbackTools({
     >
       <div className="space-y-2" data-testid="road-switchback-tools">
         <Field label="Switchback turn">
-          <NativeSelect
+          <RoadSelect
             className={roadFieldClass}
-            aria-label="Switchback turn"
+            ariaLabel="Switchback turn"
             value={direction}
-            onChange={(e) => setDirection(e.target.value as typeof direction)}
+            onValueChange={(value) => setDirection(value as typeof direction)}
           >
             <option value="left">Left</option>
             <option value="right">Right</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <NumberField

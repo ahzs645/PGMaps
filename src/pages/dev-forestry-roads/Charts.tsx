@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
 import {
   createContext,
@@ -743,19 +743,19 @@ export function ProfileChart({
         >
           Fit
         </Button>
-        <NativeSelect
-          aria-label="Profile vertical exaggeration"
+        <RoadSelect
+          ariaLabel="Profile vertical exaggeration"
           title="Vertical exaggeration · display only"
           className="h-5 rounded border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs"
           value={verticalScale}
-          onChange={(event) => setVerticalScale(event.target.value)}
+          onValueChange={(value) => setVerticalScale(value)}
         >
           {['fit', '1', '2', '5', '10'].map((value) => (
             <option value={value} key={value}>
               {value === 'fit' ? `V auto ×${format(exaggeration, 1)}` : `V ×${value}`}
             </option>
           ))}
-        </NativeSelect>
+        </RoadSelect>
         {width >= 420 && (
           <span className="px-1 tabular-nums" data-testid="road-profile-range">
             {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}

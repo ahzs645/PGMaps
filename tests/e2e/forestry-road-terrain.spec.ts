@@ -3,6 +3,7 @@ import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -150,7 +151,7 @@ test('source gaps remain visible across station selection, charts and the terrai
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '200')
   expect(await page.getByTestId('road-section-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
   expect(await page.getByTestId('road-profile-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   await expect(page.getByTestId('road-terrain-preview')).toHaveAttribute('data-station', '200')
   await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   await station.fill('600')

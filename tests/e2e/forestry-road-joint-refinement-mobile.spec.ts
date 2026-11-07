@@ -5,6 +5,7 @@ import { createDemoProject, demoTerrain, DEMO_ORIGIN } from '../../src/pages/dev
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
 import { openRoadPanel } from './road-sidebar'
+import { choose, optionLabels } from './road-select'
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -130,17 +131,17 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
   await numberField(page, 'PVI spacing (m)', '50')
   await numberField(page, 'Search ± (m)', '1')
   await numberField(page, 'Level step (m)', '0.5')
-  await page.getByLabel('Profile search band centre', { exact: true }).selectOption('ground')
+  await choose(page.getByLabel('Profile search band centre', { exact: true }), 'ground')
   await openRoadPanel(page, 'Joint refinement')
   await numberField(page, 'Plan step (m)', '5')
   await numberField(page, 'Refinement rounds', '1')
-  await page.getByLabel('Joint refinement objective', { exact: true }).selectOption('engineering')
+  await choose(page.getByLabel('Joint refinement objective', { exact: true }), 'engineering')
   await page.getByRole('button', { name: 'Refine plan and profile', exact: true }).tap()
   await expect(page.getByTestId('road-workspace-header').getByRole('status', { includeHidden: true })).toContainText(
     /Plan\/profile refinement: .* engineering cost; 4 evaluated trials/,
     { timeout: 60_000 },
   )
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')).toHaveCount(2)
+  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(2)
   const after = await save(page)
   const refined = after.alignments.find((road) => road.id === after.activeAlignmentId)!
   expect(after.alignments.find((road) => road.id === original.id)).toEqual(original)
@@ -169,7 +170,7 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
   await open(page, edited, 'phone-refined-reopen.road.json')
   await designControls(page)
   await expect(page.getByLabel('Road name', { exact: true })).toHaveValue(name)
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveValue(refined.id)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveAttribute('data-value', refined.id)
   await page.getByRole('button', { name: 'Refine plan and profile', exact: true }).scrollIntoViewIfNeeded()
   expect(
     await page.evaluate(() => {

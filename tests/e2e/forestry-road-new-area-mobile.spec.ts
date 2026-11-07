@@ -4,6 +4,7 @@ import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 const demPath = process.env.PGMAPS_ROAD_NEW_AREA_DEM
 test.skip(!demPath, 'Supply a real GeoTIFF for the opt-in new-area mobile journey.')
@@ -331,7 +332,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     })
 
     await controls(page, 'Design')
-    await page.getByLabel('Active road', { exact: true }).selectOption(originalRoad.id)
+    await choose(page.getByLabel('Active road', { exact: true }), originalRoad.id)
     const beforeOptimization = await save(page)
     const review = page.getByTestId('road-optimization-review')
     for (const [objective, halfWidth] of [
@@ -339,7 +340,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       ['shortest', 25],
     ] as const) {
       await expandRoadSection(page, 'road-route-tools')
-      await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
+      await choose(page.getByLabel('Corridor optimization objective', { exact: true }), objective)
       await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
       await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).tap()
       const failure = page.getByTestId('workspace-toast-error')
@@ -391,7 +392,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     await page.screenshot({ path: info.outputPath('05-mobile-profile.png') })
     await tabs.getByRole('tab', { name: 'Detail', exact: true }).tap()
     await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '60')
-    await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
+    await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
     await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
     await fits(page)
     await page.screenshot({ path: info.outputPath('06-mobile-terrain.png') })
@@ -430,7 +431,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       .toBe(optimized.activeAlignmentId)
     await page.reload()
     await controls(page, 'Design')
-    await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(optimized.activeAlignmentId)
+    await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
     expect(await save(page)).toEqual(optimized)
 
     const fresh = await browser.newContext({
@@ -453,7 +454,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       await reopened.getByRole('button', { name: 'Open', exact: true }).tap()
       await (await choose).setFiles(info.outputPath('05-optimized.road.json'))
       await controls(reopened, 'Design')
-      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveValue(optimized.activeAlignmentId)
+      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
       expect(await save(reopened)).toEqual(optimized)
       await fits(reopened)
     } finally {

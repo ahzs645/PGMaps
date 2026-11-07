@@ -96,6 +96,9 @@ export function AnchoredPopover({
     const onPointer = (event: PointerEvent) => {
       const target = event.target as Node
       if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return
+      // A dropdown or popover opened from inside this one renders in its own portal; choosing in it
+      // is not a press outside.
+      if (target instanceof Element && target.closest('[data-floating-layer]')) return
       onClose()
     }
     const place = () => {
@@ -117,6 +120,7 @@ export function AnchoredPopover({
   return createPortal(
     <div
       ref={panelRef}
+      data-floating-layer=""
       role={role}
       aria-label={ariaLabel}
       aria-hidden={!open || undefined}

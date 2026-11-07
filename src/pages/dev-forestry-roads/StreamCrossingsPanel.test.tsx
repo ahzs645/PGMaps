@@ -9,6 +9,10 @@ import { parseProject, serializeProject } from './project'
 import type { Alignment, Coordinate, RoadProject } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
+vi.mock('./Controls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./Controls')>()),
+  RoadSelect: (await import('./roadSelectTestDouble')).RoadSelectTestDouble,
+}))
 vi.mock('./SidebarParts', () => ({
   RoadSection: ({ children }: { children: ReactNode }) => createElement('section', {}, children),
 }))

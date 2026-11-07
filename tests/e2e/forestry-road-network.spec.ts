@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -100,8 +101,8 @@ for (const viewport of [
     await page.setViewportSize(viewport)
     const errors = await prepare(page)
     const dialog = await openNetwork(page)
-    await dialog.getByRole('combobox', { name: 'Network input source', exact: true }).selectOption('example')
-    await dialog.getByRole('combobox', { name: 'Network example', exact: true }).selectOption('clus-reference')
+    await choose(dialog.getByRole('combobox', { name: 'Network input source', exact: true }), 'example')
+    await choose(dialog.getByRole('combobox', { name: 'Network example', exact: true }), 'clus-reference')
     await dialog
       .getByRole('checkbox', { name: 'Compare all four methods using the same inputs and stages', exact: true })
       .check()
@@ -131,7 +132,7 @@ for (const viewport of [
     expect(JSON.parse(reconstructed.text).warnings.length).toBeGreaterThan(0)
     await page.screenshot({ path: info.outputPath('network-example.png') })
     await tab(dialog, 'Inputs & scenarios')
-    await dialog.getByRole('combobox', { name: 'Network example', exact: true }).selectOption('isolated-target')
+    await choose(dialog.getByRole('combobox', { name: 'Network example', exact: true }), 'isolated-target')
     await dialog
       .getByRole('checkbox', { name: 'Compare all four methods using the same inputs and stages', exact: true })
       .uncheck()
@@ -143,7 +144,7 @@ for (const viewport of [
     await dialog
       .getByLabel('Network scenario file', { exact: true })
       .setInputFiles({ name: 'network-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(bundle.text) })
-    await expect(dialog.getByRole('combobox', { name: 'Network example', exact: true })).toHaveValue('imported')
+    await expect(dialog.getByRole('combobox', { name: 'Network example', exact: true })).toHaveAttribute('data-value', 'imported')
     await calculate(dialog)
     const imported = JSON.parse(
       (await downloadText(page, dialog.getByRole('button', { name: 'Network scenario JSON', exact: true }))).text,
@@ -164,7 +165,7 @@ test('project network preview reaches the actual map and selected branch adoptio
   await page
     .getByRole('button', { name: 'Load Training · connected access, gravel and condition', exact: true })
     .click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveValue(
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', 
     'training-full-cost-short-a',
   )
   const initial = await saveProject(page)
@@ -197,7 +198,7 @@ test('project network preview reaches the actual map and selected branch adoptio
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(saved)),
   })
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveValue(
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', 
     candidate.id,
   )
   const reopened = await saveProject(page)

@@ -77,7 +77,7 @@ async function expandSections(sidebar: Locator) {
     if (await details.isVisible()) await details.locator(':scope > summary').click()
   }
   for (const toggle of await sidebar
-    .locator('button[aria-controls][aria-expanded="false"]:not([aria-haspopup])')
+    .locator('button[aria-controls][aria-expanded="false"]:not([aria-haspopup]):not([role="combobox"])')
     .all()) {
     if (await toggle.isVisible()) await toggle.click()
   }

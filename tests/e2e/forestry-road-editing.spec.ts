@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(120000)
@@ -25,7 +26,7 @@ async function open(page: Page, project: RoadProject) {
   await (
     await pending
   ).setFiles({ name: 'editing.road.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) })
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(project.activeAlignmentId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId)
 }
 async function prepare(page: Page) {
   const errors: string[] = []
@@ -140,7 +141,7 @@ test('edit start/end, add and drag middle controls, and save separate editable p
   await open(page, project)
   await open(page, reshaped)
   expect(await save(page)).toEqual(reshaped)
-  await page.getByLabel('Active road', { exact: true }).selectOption(original.id)
+  await choose(page.getByLabel('Active road', { exact: true }), original.id)
   expect((await save(page)).alignments.find((a) => a.id === original.id)).toEqual(original)
   expect(errors).toEqual([])
 })

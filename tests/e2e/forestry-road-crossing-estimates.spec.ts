@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -19,7 +20,7 @@ test('entered crossing items and a shared item persist with source evidence and 
   await expect(panel).toContainText('Incomplete / unpriced')
   await panel.getByRole('button', { name: /^Stream crossing estimates/ }).click()
   await panel.getByRole('button', { name: 'Record detected crossings', exact: true }).click()
-  await panel.getByRole('combobox', { name: 'Planning structure option', exact: true }).selectOption('bridge')
+  await choose(panel.getByRole('combobox', { name: 'Planning structure option', exact: true }), 'bridge')
   await panel
     .getByRole('textbox', { name: 'Crossing evidence / review notes', exact: true })
     .fill('Synthetic planning fixture; no engineering approval.')

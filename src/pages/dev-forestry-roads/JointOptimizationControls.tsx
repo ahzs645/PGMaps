@@ -1,7 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NumberField, roadFieldClass } from './Controls'
+import { NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { refinePlanAndProfile } from './jointOptimizer'
 import { runFullCostComparison } from './fullCostRun'
@@ -149,17 +148,17 @@ export function JointOptimizationControls({
       </div>
       <label className="mt-2 block text-xs">
         Refinement objective
-        <NativeSelect
+        <RoadSelect
           className={roadFieldClass}
-          aria-label="Joint refinement objective"
+          ariaLabel="Joint refinement objective"
           value={objective}
-          onChange={(e) => setObjective(e.target.value as typeof objective)}
+          onValueChange={(value) => setObjective(value as typeof objective)}
         >
           <option value="engineering">Complete engineering estimate</option>
           <option value="complete-access" disabled={!workspace.project.totalCostPlanning}>
             Complete access including network/supply
           </option>
-        </NativeSelect>
+        </RoadSelect>
       </label>
       <Button
         className="mt-2 w-full"

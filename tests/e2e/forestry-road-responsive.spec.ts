@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(180000)
@@ -227,7 +228,7 @@ test('short workspace keeps controls internally scrollable, reaches all engineer
   await expectContained(page)
 
   await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   await expect(page.getByTestId('road-terrain-preview').locator('svg[role="group"]')).toBeVisible()
   await expectContained(page)
   await page.screenshot({ path: info.outputPath('short-terrain-preview.png') })

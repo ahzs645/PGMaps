@@ -1,6 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import type { AlignmentEngineering, FillRequirement, HaulDirectionRange, SidecastRange } from './engineeringTypes'
 import { MAX_FILL_REQUIREMENTS, MAX_HAUL_DIRECTION_RANGES, MAX_SIDECAST_RANGES } from './allocationPolicy'
@@ -105,23 +104,25 @@ export function MaterialAllocationControls({
                 onChange={(value) => patchRequirement(r.id, { end: value })}
               />
               <Field label={`Requirement ${index + 1} layer`}>
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel={`Requirement ${index + 1} layer`}
                   className={roadFieldClass}
                   value={r.layer}
-                  onChange={(event) => patchRequirement(r.id, { layer: event.target.value })}
+                  onValueChange={(value) => patchRequirement(r.id, { layer: value })}
                 >
                   {[...new Set([...knownLayers, r.layer])].map((id) => (
                     <option key={id} value={id}>
                       {id === 'subgrade' ? 'Subgrade fill' : id === 'surfacing' ? 'Default surfacing' : id}
                     </option>
                   ))}
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <Field label={`Requirement ${index + 1} material`}>
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel={`Requirement ${index + 1} material`}
                   className={roadFieldClass}
                   value={r.materialId ?? ''}
-                  onChange={(event) => patchRequirement(r.id, { materialId: event.target.value || undefined })}
+                  onValueChange={(value) => patchRequirement(r.id, { materialId: value || undefined })}
                 >
                   {r.replaceable && <option value="">Minimum quality only</option>}
                   {e.materials
@@ -131,7 +132,7 @@ export function MaterialAllocationControls({
                         {m.name}
                       </option>
                     ))}
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <OptionalNumberField
                 label={`Requirement ${index + 1} minimum quality`}
@@ -198,17 +199,18 @@ export function MaterialAllocationControls({
                   />
                 </div>
                 <Field label={`Direction ${index + 1} movement`}>
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel={`Direction ${index + 1} movement`}
                     className={roadFieldClass}
                     value={r.direction}
-                    onChange={(event) =>
-                      patchDirection(r.id, { direction: event.target.value as HaulDirectionRange['direction'] })
+                    onValueChange={(value) =>
+                      patchDirection(r.id, { direction: value as HaulDirectionRange['direction'] })
                     }
                   >
                     <option value="forward">Forward only</option>
                     <option value="backward">Backward only</option>
                     <option value="blocked">Blocked</option>
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Button
                   size="sm"
@@ -274,12 +276,11 @@ export function MaterialAllocationControls({
                   />
                 </div>
                 <Field label={`Sidecast ${index + 1} accepted material`}>
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel={`Sidecast ${index + 1} accepted material`}
                     className={roadFieldClass}
                     value={r.materialIds?.length === 1 ? r.materialIds[0] : ''}
-                    onChange={(event) =>
-                      patchSidecast(r.id, { materialIds: event.target.value ? [event.target.value] : undefined })
-                    }
+                    onValueChange={(value) => patchSidecast(r.id, { materialIds: value ? [value] : undefined })}
                   >
                     <option value="">All entered materials</option>
                     {e.materials.map((m) => (
@@ -287,7 +288,7 @@ export function MaterialAllocationControls({
                         {m.name}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Button
                   size="sm"

@@ -1,10 +1,9 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import type { LibraryEntry } from './projectLibrary'
 import type { Coordinate } from './types'
 import { ROAD_SCENARIOS, type RoadScenarioId } from './scenarios'
@@ -329,11 +328,12 @@ export function ProjectsDialog({
             {kind === 'regional' && (
               <div className="space-y-2 rounded-lg border p-3">
                 <Field label="Place">
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel="Place"
                     className={roadFieldClass}
-                    value={place}
-                    onChange={(e) => {
-                      setPlace(Number(e.target.value))
+                    value={String(place)}
+                    onValueChange={(value) => {
+                      setPlace(Number(value))
                       setLat(null)
                       setLon(null)
                     }}
@@ -343,7 +343,7 @@ export function ProjectsDialog({
                         {p.label}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <div className="grid grid-cols-3 gap-2">
                   <NumberField label="Latitude" value={at[1]} min={-85} max={85} step={0.001} onChange={setLat} />

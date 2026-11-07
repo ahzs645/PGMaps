@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import {
   DEFAULT_VEHICLE_CHECK,
@@ -262,13 +261,13 @@ export function SweptPathPanel({
         <summary className="cursor-pointer p-2 font-medium">Vehicle, direction & clearance</summary>
         <div className="space-y-2 border-t p-2">
           <Field label="Starting configuration">
-            <NativeSelect
+            <RoadSelect
               className={roadFieldClass}
-              aria-label="Design vehicle preset"
+              ariaLabel="Design vehicle preset"
               disabled={!onChange}
               value={preset?.id ?? 'custom'}
-              onChange={(e) => {
-                const next = VEHICLE_PRESETS.find((p) => p.id === e.target.value)
+              onValueChange={(value) => {
+                const next = VEHICLE_PRESETS.find((p) => p.id === value)
                 if (next) set({ vehicle: structuredClone(next.vehicle) })
               }}
             >
@@ -280,7 +279,7 @@ export function SweptPathPanel({
               <option value="custom" disabled>
                 Custom dimensions
               </option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <p className="text-2xs text-amber-800 dark:text-amber-300">
             Presets are example dimensions. Enter your fleet’s truck, trailer and load before relying on a result.
@@ -297,17 +296,17 @@ export function SweptPathPanel({
           </Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Loaded travel">
-              <NativeSelect
+              <RoadSelect
                 className={roadFieldClass}
-                aria-label="Design vehicle travel direction"
+                ariaLabel="Design vehicle travel direction"
                 disabled={!onChange}
                 value={check.direction}
-                onChange={(e) => set({ direction: e.target.value as VehicleCheck['direction'] })}
+                onValueChange={(value) => set({ direction: value as VehicleCheck['direction'] })}
               >
                 <option value="both">Both directions</option>
                 <option value="up">Up-station</option>
                 <option value="down">Down-station</option>
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <NumberField
               label="Wheel clearance (m)"

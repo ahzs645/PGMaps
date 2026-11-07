@@ -1,9 +1,8 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, roadFieldClass } from './Controls'
+import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { nearestFsrConnections } from './fsrNetwork'
 import { MAX_FSR_CHOICES, type FsrConnectionPreference } from './fsrConnections'
 import { distance } from './engine'
@@ -59,11 +58,12 @@ export function FsrConnectionControls({
         </InfoTip>
       </div>
       <Field label="Connect from">
-        <NativeSelect
+        <RoadSelect
+          ariaLabel="Connect from"
           className={roadFieldClass}
           value={endpoint}
-          onChange={(event) => {
-            const next = event.target.value as 'start' | 'end'
+          onValueChange={(value) => {
+            const next = value as 'start' | 'end'
             setEndpoint(next)
             setTargetId('auto')
             onPreview?.(null, next)
@@ -71,7 +71,7 @@ export function FsrConnectionControls({
         >
           <option value="end">Road end</option>
           <option value="start">Road start</option>
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       {p.onDiscoverFsrs && (
         <Button size="sm" variant="outline" className="w-full" onClick={() => p.onDiscoverFsrs?.(endpoint)}>
@@ -83,12 +83,13 @@ export function FsrConnectionControls({
         {discovery?.scope ?? 'Choices use the FSR network currently loaded in this project.'}
       </p>
       <Field label="FSR to connect to">
-        <NativeSelect
+        <RoadSelect
+          ariaLabel="FSR to connect to"
           className={roadFieldClass}
           value={targetId}
-          onChange={(event) => {
-            setTargetId(event.target.value)
-            onPreview?.(event.target.value === 'auto' ? null : event.target.value, endpoint)
+          onValueChange={(value) => {
+            setTargetId(value)
+            onPreview?.(value === 'auto' ? null : value, endpoint)
           }}
         >
           <option value="auto">Automatic choice</option>
@@ -102,7 +103,7 @@ export function FsrConnectionControls({
               {index + 1}. {target.name} · {length(target.distanceM)} away
             </option>
           ))}
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       {!automatic && !selected && (
         <InlineAlert tone="warning">
@@ -125,14 +126,15 @@ export function FsrConnectionControls({
       )}
       {automatic && (
         <Field label="FSR connection preference">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="FSR connection preference"
             className={roadFieldClass}
             value={preference}
-            onChange={(event) => setPreference(event.target.value as FsrConnectionPreference)}
+            onValueChange={(value) => setPreference(value as FsrConnectionPreference)}
           >
             <option value="nearest">Nearest terrain-screened route</option>
             <option value="lowest-cost">Lowest terrain search score</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
       )}
       <div className="flex items-center gap-2 text-xs">

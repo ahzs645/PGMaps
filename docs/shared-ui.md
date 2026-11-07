@@ -59,6 +59,14 @@ unchanged; only an omitted class gets `FORM_INPUT_CLASS`. Use `SelectField` when
 the field wrapper is also needed; its `className` styles the select and
 `fieldClassName` styles the wrapper.
 
+For a styled dropdown, use `AppSelect` (`select.tsx`). `searchable` turns it into a combobox with a
+filter box over the list, for lists too long to scan; `searchText` gives a non-text label something
+to match. The trigger and each option carry their value in `data-value`, so tests and readers can
+pick and check values without depending on labels. The road design page uses styled dropdowns
+throughout through `RoadSelect` (`dev-forestry-roads/Controls.tsx`), which also accepts `<option>`
+children; its e2e specs pick options with `tests/e2e/road-select.ts`, since `selectOption` and
+`toHaveValue` only work on native selects.
+
 Numeric fields take `value` / `onValueChange` and retain partial drafts. Choose
 `updateOn="change" | "commit"` and `clampOn="change" | "commit" | "never"`
 explicitly when adapting an existing editor. Required blank input restores the

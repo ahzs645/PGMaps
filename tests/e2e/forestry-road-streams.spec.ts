@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 
@@ -27,7 +28,7 @@ test('a stream goes from unassessed to a reviewed class, and survives a reload',
   await expect(suggestion(page)).toContainText('S3 if fish-bearing or in a community watershed, otherwise S6')
   await expect(suggestion(page)).toContainText('Outstanding: determine whether it is a fish stream')
 
-  await page.getByRole('combobox', { name: 'Fish stream' }).selectOption('presumed')
+  await choose(page.getByRole('combobox', { name: 'Fish stream' }), 'presumed')
   await expect(suggestion(page)).toContainText('S3')
   await expect(suggestion(page)).toContainText('20 m reserve + 20 m management each side')
   await expect(suggestion(page)).toContainText('Provisional')
@@ -88,7 +89,7 @@ test('constraints say what they do, and a cost does not read as permission', asy
   await page.getByRole('button', { name: /^Constraints/ }).click()
   const list = page.getByTestId('road-constraints')
   await expect(list).toContainText('Excluded from route search')
-  await list.getByRole('combobox').first().selectOption('additional-cost')
+  await choose(list.getByRole('combobox').first(), 'additional-cost')
   const field = list.getByRole('spinbutton').first()
   await field.fill('250')
   await field.press('Tab')

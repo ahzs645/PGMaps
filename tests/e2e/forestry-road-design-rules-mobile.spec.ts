@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -74,7 +75,7 @@ for (const size of [
     await fill(page, 'Range sag K', '7')
     await fill(page, 'Range crest K', '4')
     await openRoadPanel(page, 'Optimize vertical profile')
-    await page.getByLabel('Profile search band centre', { exact: true }).selectOption('design')
+    await choose(page.getByLabel('Profile search band centre', { exact: true }), 'design')
     await openRoadPanel(page, 'Joint refinement')
     await expect(page.getByRole('button', { name: 'Refine plan and profile', exact: true })).toBeVisible()
     await page.screenshot({ path: info.outputPath('vertical-criteria.png') })

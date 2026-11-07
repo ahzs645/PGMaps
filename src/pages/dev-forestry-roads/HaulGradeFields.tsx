@@ -1,6 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { MAX_HAUL_GRADE_PERCENT, MIN_HAUL_GRADE_PERCENT, type HaulGradeLimits } from './routing'
 
 const OFF = 'off'
@@ -29,12 +28,12 @@ export function HaulGradeFields({
         </InfoTip>
       </div>
       <Field label="Loaded trucks travel">
-        <NativeSelect
+        <RoadSelect
           className={roadFieldClass}
-          aria-label="Loaded haul direction"
+          ariaLabel="Loaded haul direction"
           value={value?.loadedDirection ?? OFF}
-          onChange={(event) => {
-            const next = event.target.value
+          onValueChange={(picked) => {
+            const next = picked
             if (next === OFF) onChange(null)
             else
               onChange({
@@ -49,7 +48,7 @@ export function HaulGradeFields({
           <option value={OFF}>Either way · maximum grade only</option>
           <option value="start-to-end">Start to end</option>
           <option value="end-to-start">End to start</option>
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       {value && (
         <div className="grid grid-cols-3 gap-2">

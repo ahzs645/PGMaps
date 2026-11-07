@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 20000 })
 test.setTimeout(180000)
@@ -74,7 +75,7 @@ test('legend follows alternative road colours, context visibility, earthworks an
   await expect(content.getByText('Station ticks', { exact: true })).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'Contours', exact: true }).uncheck()
   await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Basemap' })
+  await choose(page.getByRole('combobox', { name: 'Terrain display', exact: true }), { label: 'Basemap' })
   await expect(content.locator('[data-legend-section="terrain"]')).toHaveCount(0)
   await expect(page.getByTestId('road-terrain-legend').locator('.road-map-legend')).toBeVisible()
   await expect(content.getByText('Existing roads', { exact: true })).toHaveCount(1)
@@ -115,7 +116,7 @@ test('cost-preview legend shows actual reused, loaded and return routes and remo
 
 test('drainage legend follows the actual analysis and drops stale flow overlays', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Drainage' })
   const panel = page.getByTestId('road-drainage')
   await panel.getByLabel('Stream from (ha)', { exact: true }).fill('0.5')
   await panel.getByRole('button', { name: 'Run drainage check', exact: true }).click()

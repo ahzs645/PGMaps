@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { DrainageEvidence } from '../../src/pages/dev-forestry-roads/drainageEvidence'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)
@@ -19,7 +20,7 @@ async function prepare(page: Page) {
 async function showDrainage(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).tap()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Drainage' })
   await expect(page.getByTestId('road-drainage')).toBeVisible()
 }
 /** Read the actual MapLibre source and projected active-road coordinates; do not inject app state. */

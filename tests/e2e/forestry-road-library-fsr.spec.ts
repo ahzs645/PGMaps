@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose, optionEntries, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -79,7 +80,7 @@ test('the connected-access library scenario previews and generates a chosen FSR 
     .getByRole('button', { name: 'Load Training · connected access, gravel and condition', exact: true })
     .click()
   const active = page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })
-  await expect(active).toHaveValue(IDS.original)
+  await expect(active).toHaveAttribute('data-value', IDS.original)
   const before = await exportProject(page)
   const original = before.alignments.find((alignment) => alignment.id === IDS.original)!
   const target = before.context.find((feature) => feature.id === IDS.armB)!
@@ -95,14 +96,15 @@ test('the connected-access library scenario previews and generates a chosen FSR 
   if ((await tools.getAttribute('aria-expanded')) !== 'true') await tools.click()
   const fsr = page.getByTestId('road-fsr-connection')
   // Both initial roads already end at the U network. Start from their common block instead.
-  await fsr.getByRole('combobox', { name: 'Connect from', exact: true }).selectOption('start')
+  await choose(fsr.getByRole('combobox', { name: 'Connect from', exact: true }), 'start')
   await fsr.getByRole('button', { name: 'Find nearby FSRs', exact: true }).click()
   const picker = fsr.getByRole('combobox', { name: 'FSR to connect to', exact: true })
-  await expect(picker.locator('option')).toHaveCount(4)
+  await expect.poll(async () => (await optionLabels(picker)).length).toBe(4)
+  const choices = await optionEntries(picker)
   for (const id of [IDS.armA, IDS.upper, IDS.armB])
-    await expect(picker.locator(`option[value="${id}"]`)).toHaveText(/Synthetic/)
+    expect(choices.find((entry) => entry.value === id)?.label).toMatch(/Synthetic/)
   await expect(fsr).toContainText('The search used the loaded synthetic scenario FSR network.')
-  await picker.selectOption(IDS.armB)
+  await choose(picker, IDS.armB)
   await expect(page.getByTestId('road-fsr-selected-target')).toContainText(target.name)
   await expect
     .poll(
@@ -117,12 +119,12 @@ test('the connected-access library scenario previews and generates a chosen FSR 
         (await destinationOverlay(page))?.find((feature) => feature.properties?.kind === 'fsr-target')?.geometry,
     )
     .toEqual({ type: 'Point', coordinates: expectedJunction })
-  await expect(active.locator('option')).toHaveCount(2)
+  await expect.poll(async () => (await optionLabels(active)).length).toBe(2)
   await expect(
     fsr.getByRole('checkbox', { name: 'Use regional terrain across connection (screening)' }),
   ).not.toBeChecked()
   await fsr.getByRole('button', { name: 'Connect to selected FSR', exact: true }).click()
-  await expect(active.locator('option')).toHaveCount(3)
+  await expect.poll(async () => (await optionLabels(active)).length).toBe(3)
   const after = await exportProject(page)
   const generated = after.alignments.find((alignment) => alignment.id === after.activeAlignmentId)!
   expect(generated.fsrConnection).toMatchObject({

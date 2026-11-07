@@ -9,6 +9,7 @@ import {
 } from '../../src/pages/dev-forestry-roads/drainageRun'
 import { formatRoadStation } from '../../src/pages/dev-forestry-roads/Charts'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose } from './road-select'
 
 const root = process.env.PGMAPS_ROAD_DRAINAGE_PROJECT_DIR
 test.skip(!root, 'Supply the directory containing the actual Kamloops and Vernon exported road projects.')
@@ -121,7 +122,7 @@ async function detail(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
   const select = page.getByRole('combobox', { name: 'Road detail view', exact: true })
-  if ((await select.inputValue()) !== 'drainage') await select.selectOption({ label: 'Drainage' })
+  if ((await select.inputValue()) !== 'drainage') await choose(select, { label: 'Drainage' })
 }
 
 async function field(page: Page, label: string, value: number) {

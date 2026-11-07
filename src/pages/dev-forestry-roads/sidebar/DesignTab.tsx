@@ -1,12 +1,11 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Copy, Plus, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { HaulGradeFields } from '../HaulGradeFields'
 import { BlockAccessPanel } from '../BlockAccessPanel'
 import { formatRoadStation } from '../Charts'
@@ -51,12 +50,12 @@ export function DesignTab(p: SidebarProps) {
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Active road">
-              <NativeSelect
-                aria-label="Active road"
+              <RoadSelect
+                ariaLabel="Active road"
                 className={roadFieldClass}
                 value={alignment.id}
-                onChange={(e) => {
-                  p.workspace.update((x) => ({ ...x, activeAlignmentId: e.target.value }))
+                onValueChange={(value) => {
+                  p.workspace.update((x) => ({ ...x, activeAlignmentId: value }))
                   p.onProfile('')
                   p.onPoint(null)
                 }}
@@ -66,7 +65,7 @@ export function DesignTab(p: SidebarProps) {
                     {a.name}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Field label="Road name">
               <input
@@ -456,16 +455,16 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         )}
         <div className="grid grid-cols-2 gap-2">
           <Field label="Preference">
-            <NativeSelect
-              aria-label="Corridor optimization objective"
+            <RoadSelect
+              ariaLabel="Corridor optimization objective"
               className={roadFieldClass}
               value={objective}
-              onChange={(e) => setObjective(e.target.value as RoadOptimizationObjective)}
+              onValueChange={(value) => setObjective(value as RoadOptimizationObjective)}
             >
               <option value="shortest">Shortest</option>
               <option value="balanced">Balanced</option>
               <option value="contour">Contour-friendly</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <Field label="Width each side (m)">
             <input
@@ -536,12 +535,12 @@ function HorizontalPoints(p: SidebarProps) {
         </Button>
       )}
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1">
-        <NativeSelect
-          aria-label="Selected horizontal point"
+        <RoadSelect
+          ariaLabel="Selected horizontal point"
           className={roadFieldClass}
           value={point?.id ?? ''}
-          onChange={(e) => {
-            p.onPoint(e.target.value)
+          onValueChange={(value) => {
+            p.onPoint(value)
             p.onMode('edit')
           }}
         >
@@ -552,7 +551,7 @@ function HorizontalPoints(p: SidebarProps) {
               {i === 0 ? ' · start' : i === alignment.points.length - 1 ? ' · end' : ''} · radius {x.radiusM} m
             </option>
           ))}
-        </NativeSelect>
+        </RoadSelect>
         <Button
           size="sm"
           variant="outline"

@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { RoadSelect } from './Controls'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -88,18 +88,18 @@ export function CompareAlternatives({
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <label className="flex min-w-0 items-center gap-2">
           Compared with
-          <NativeSelect
-            aria-label="Comparison baseline"
+          <RoadSelect
+            ariaLabel="Comparison baseline"
             className="min-w-0 max-w-48 rounded border bg-background px-1 text-base md:text-xs"
             value={baselineAlignment.id}
-            onChange={(e) => setBaselineId(e.target.value)}
+            onValueChange={(value) => setBaselineId(value)}
           >
             {alignments.map((a) => (
               <option key={a.id} value={a.id}>
                 {names.get(a.id)}
               </option>
             ))}
-          </NativeSelect>
+          </RoadSelect>
         </label>
         <InfoTip label="About this comparison">
           Changes are against the baseline on the same terrain and rates. Disturbance is the area between catch points.

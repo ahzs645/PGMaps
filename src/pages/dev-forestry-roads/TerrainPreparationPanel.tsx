@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatRoadStation } from './Charts'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { burnRoad } from './designSurface'
 import {
@@ -169,14 +168,15 @@ export function TerrainPreparationPanel({
       >
         <fieldset disabled={working || !!w.busy} className="min-w-0 space-y-2" data-testid="road-terrain-preparation">
           <Field label="Overlapping ground grids">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Overlapping ground grids"
               className={roadFieldClass}
               value={overlap}
-              onChange={(e) => setOverlap(e.target.value as typeof overlap)}
+              onValueChange={(value) => setOverlap(value as typeof overlap)}
             >
               <option value="last">New files take precedence</option>
               <option value="first">Current ground takes precedence</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <input
             ref={file}
@@ -472,14 +472,15 @@ export function TerrainPreparationPanel({
       >
         <fieldset disabled={working || !!w.busy} className="space-y-2" data-testid="road-terrain-backgrounds">
           <Field label="Background GeoTIFF type">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Background GeoTIFF type"
               className={roadFieldClass}
               value={backgroundKind}
-              onChange={(e) => setBackgroundKind(e.target.value as typeof backgroundKind)}
+              onValueChange={(value) => setBackgroundKind(value as typeof backgroundKind)}
             >
               <option value="canopy">Canopy height (0–40 m ramp)</option>
               <option value="ortho">RGB orthophoto</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <input
             type="file"
@@ -702,11 +703,12 @@ export function TerrainPreparationPanel({
           </Button>
           {!!project.surveyBooks?.length && (
             <Field label="Saved survey field books">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Saved survey field books"
                 className={roadFieldClass}
                 value=""
-                onChange={(e) => {
-                  const book = project.surveyBooks?.find((b) => b.id === e.target.value)
+                onValueChange={(value) => {
+                  const book = project.surveyBooks?.find((b) => b.id === value)
                   if (!book) return
                   const grid = exportGrid(metadata, alignment.points[0].coordinate)
                   if (book.epsg !== grid.epsg || book.verticalReference !== metadata.verticalReference) {
@@ -740,7 +742,7 @@ export function TerrainPreparationPanel({
                     {b.name}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
           )}
           {survey && (

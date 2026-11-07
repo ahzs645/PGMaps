@@ -10,6 +10,10 @@ import type { Alignment, Coordinate, RoadAnalysis, RoadProject } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 // Tooltip positioning uses browser media queries; the controls and numerical model remain real.
+vi.mock('./Controls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./Controls')>()),
+  RoadSelect: (await import('./roadSelectTestDouble')).RoadSelectTestDouble,
+}))
 vi.mock('@/components/ui/info-tip', () => ({
   InfoTip: ({ children, label }: { children: ReactNode; label: string }) =>
     createElement('span', { 'aria-label': label }, children),

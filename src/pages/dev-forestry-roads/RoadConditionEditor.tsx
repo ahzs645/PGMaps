@@ -1,9 +1,8 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   assessRoadCondition,
   MAX_CONDITION_EVIDENCE_AGE_DAYS,
@@ -220,14 +219,15 @@ export function RoadConditionEditor({
           <div className="space-y-2 border-t p-2">
             <div className="grid grid-cols-2 gap-2">
               <Field label="Evidence source">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Evidence source"
                   className={roadFieldClass}
                   value={draft.source}
-                  onChange={(event) => change({ source: event.target.value as RoadConditionSource })}
+                  onValueChange={(value) => change({ source: value as RoadConditionSource })}
                 >
                   <option value="inspection">Inspection record</option>
                   <option value="imagery">Dated imagery</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <Field label="Observation date">
                 <input
@@ -238,32 +238,32 @@ export function RoadConditionEditor({
                 />
               </Field>
               <Field label="Observed component">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Observed component"
                   className={roadFieldClass}
                   value={draft.component}
-                  onChange={(event) =>
-                    change({ component: event.target.value as RoadConditionComponent, replaces: '' })
-                  }
+                  onValueChange={(value) => change({ component: value as RoadConditionComponent, replaces: '' })}
                 >
                   {Object.entries(ROAD_COMPONENT_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
                   ))}
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <Field label="Observed condition">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Observed condition"
                   className={roadFieldClass}
                   value={draft.finding}
-                  onChange={(event) => change({ finding: event.target.value as RoadCondition })}
+                  onValueChange={(value) => change({ finding: value as RoadCondition })}
                 >
                   {Object.entries(ROAD_CONDITION_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
                     </option>
                   ))}
-                </NativeSelect>
+                </RoadSelect>
               </Field>
             </div>
             <Field label="Observed asset / station (optional)">
@@ -325,10 +325,11 @@ export function RoadConditionEditor({
               </div>
             )}
             <Field label="Replaces observation (optional)">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Replaces observation (optional)"
                 className={roadFieldClass}
                 value={draft.replaces}
-                onChange={(event) => change({ replaces: event.target.value })}
+                onValueChange={(value) => change({ replaces: value })}
               >
                 <option value="">Keep all existing evidence</option>
                 {replaceOptions.map((observation) => (
@@ -336,7 +337,7 @@ export function RoadConditionEditor({
                     {observation.observedAt} · {ROAD_CONDITION_LABELS[observation.finding]} · {observation.id}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             {entryError && <InlineAlert tone="warning">{entryError}</InlineAlert>}
             <div className="flex items-center gap-1">

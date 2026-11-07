@@ -1,5 +1,6 @@
+import { RoadSelect } from './Controls'
 import { Columns3, ListFilter } from 'lucide-react'
-import { FormField, NativeSelect, NumberField } from '@/components/ui/form-field'
+import { FormField, NumberField } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ActiveFilterChip, ToolbarPopover } from '@/components/ui/toolbar-popover'
@@ -218,18 +219,18 @@ export function StationTable({
               Flagged only
             </label>
             <FormField label="Report every">
-              <NativeSelect
-                aria-label="Station table reporting interval"
+              <RoadSelect
+                ariaLabel="Station table reporting interval"
                 className={field}
-                value={every}
-                onChange={(e) => setEvery(Number(e.target.value))}
+                value={String(every)}
+                onValueChange={(value) => setEvery(Number(value))}
               >
                 {INTERVALS.map((v) => (
                   <option key={v} value={v}>
                     {v ? `${v} m` : 'Every station'}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </FormField>
             <div className="grid grid-cols-2 gap-2">
               {/* These commit on blur or Enter: clamping each keystroke would rewrite a half-typed number. */}

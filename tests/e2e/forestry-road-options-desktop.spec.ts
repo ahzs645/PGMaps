@@ -11,6 +11,7 @@ import { terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadOptimizationResult } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { Alignment, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection } from './road-sidebar'
+import { choose } from './road-select'
 
 test.skip(
   process.env.PGMAPS_ROAD_OPTIONS !== '1' || !process.env.PGMAPS_ROAD_OPTIONS_PROJECT,
@@ -32,7 +33,7 @@ async function open(page: Page, path: string, activeId: string) {
   const pending = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Open', exact: true }).click()
   await (await pending).setFiles(path)
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(activeId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', activeId)
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
 }
 
@@ -76,9 +77,9 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
     await open(page, baselinePath, baseline.activeAlignmentId)
     expect(await save(page)).toEqual(baseline)
     await expandRoadSection(page, 'road-route-tools')
-    await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
+    await choose(page.getByLabel('Corridor optimization objective', { exact: true }), objective)
     await page.getByLabel('Corridor half-width metres', { exact: true }).fill('100')
-    await expect(page.getByLabel('Corridor optimization objective', { exact: true })).toHaveValue(objective)
+    await expect(page.getByLabel('Corridor optimization objective', { exact: true })).toHaveAttribute('data-value', objective)
     await expect(page.getByLabel('Corridor half-width metres', { exact: true })).toHaveValue('100')
     const started = Date.now()
     await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()

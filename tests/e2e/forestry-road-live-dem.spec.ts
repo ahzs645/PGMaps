@@ -5,6 +5,7 @@ import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimi
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 // Opt-in real-data workflow. See docs/forestry-road-workflow-check.md for the download command.
 const demPath = process.env.PGMAPS_ROAD_DEM_PATH
@@ -123,7 +124,7 @@ for (const [site, u, v] of [
       ['shortest', 25],
     ] as const) {
       await expandRoadSection(page, 'road-route-tools')
-      await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption(objective)
+      await choose(page.getByLabel('Corridor optimization objective', { exact: true }), objective)
       await page.getByLabel('Corridor half-width metres', { exact: true }).fill(String(halfWidth))
       await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
       const failure = page.getByRole('alert').filter({ hasText: /budget|No verified candidate|Candidate failed/i })
@@ -189,7 +190,7 @@ for (const [site, u, v] of [
       )
       .toBe(active.id)
     await page.goto('/dev/forestry/road-design')
-    await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(active.id)
+    await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', active.id)
     expect(await save(page)).toEqual(optimized)
     // A fresh browser context has no autosave and no network access. Reopen the actual downloaded project.
     const fresh = await context
@@ -207,7 +208,7 @@ for (const [site, u, v] of [
       const open = reopened.waitForEvent('filechooser')
       await reopened.getByRole('button', { name: 'Open', exact: true }).click()
       await (await open).setFiles(info.outputPath('optimized.road.json'))
-      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveValue(active.id)
+      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', active.id)
       expect(await save(reopened)).toEqual(optimized)
       await expect(reopened.getByTestId('road-profile-chart')).toBeVisible()
       await expect(reopened.getByTestId('road-section-chart')).toBeVisible()

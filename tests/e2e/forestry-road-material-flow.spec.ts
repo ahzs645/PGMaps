@@ -4,6 +4,7 @@ import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/
 import { demoTerrain } from '../../src/pages/dev-forestry-roads/terrain'
 import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engineeringTypes'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose } from './road-select'
 
 test.setTimeout(180_000)
 async function activate(locator: Locator) {
@@ -45,7 +46,7 @@ async function importProject(page: Page, project: RoadProject) {
     )
     .toEqual({ loading: 0, saveEnabled: true })
   await expect(save).toBeEnabled()
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(project.activeAlignmentId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId)
   await expect(page.getByTestId('workspace-toast-error')).toHaveCount(0)
 }
 async function dialogFits(dialog: Locator) {
@@ -169,14 +170,14 @@ for (const size of [
       )
       await activate(page.getByRole('button', { name: 'Haul & cost settings', exact: true }))
       const dialog = page.getByRole('dialog', { name: 'Haul & cost settings', exact: true })
-      await dialog
+      await choose(dialog
         .getByRole('combobox', { name: 'Material allocation method', exact: true })
-        .selectOption({ label: 'Economic material flow' })
+        , { label: 'Economic material flow' })
       await activate(dialog.getByRole('button', { name: 'Add fill requirement', exact: true }))
       await dialog.getByLabel('Permit substitution by quality', { exact: true }).check()
       await dialog.getByRole('spinbutton', { name: 'Requirement 1 minimum quality', exact: true }).fill('80')
       await activate(dialog.getByRole('button', { name: 'Add direction range', exact: true }))
-      await expect(dialog.getByRole('combobox', { name: 'Direction 1 movement', exact: true })).toHaveValue('forward')
+      await expect(dialog.getByRole('combobox', { name: 'Direction 1 movement', exact: true })).toHaveAttribute('data-value', 'forward')
       await activate(dialog.getByRole('button', { name: 'Add sidecast range', exact: true }))
       await dialog.getByRole('spinbutton', { name: 'Sidecast 1 capacity (bank m³/m)', exact: true }).fill('1')
       await dialog.getByRole('spinbutton', { name: 'Sidecast 1 disposal ($/bank m³)', exact: true }).fill('0.5')

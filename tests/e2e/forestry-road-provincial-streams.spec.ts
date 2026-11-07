@@ -121,7 +121,7 @@ test('provincial sources render, retain separate assessment evidence, and travel
   await expect.poll(() => mapEvidenceCounts(page)).toEqual({ fish: 1, watersheds: 1 })
   await row.click()
   await expect(page.getByTestId('stream-source-evidence')).toContainText('FWA source record 42')
-  await expect(page.getByRole('combobox', { name: 'Fish stream', exact: true })).toHaveValue('unresolved')
+  await expect(page.getByRole('combobox', { name: 'Fish stream', exact: true })).toHaveAttribute('data-value', 'unresolved')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save project JSON', exact: true }).click()

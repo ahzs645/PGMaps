@@ -1,4 +1,3 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
@@ -6,7 +5,7 @@ import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { createEngineeringDesign } from './engineeringTypes'
 import { createMaterialVolumeFactorProvenance, materialCompactionFactorPatch } from './materialFactors'
 import { downloadText } from '@/lib/download'
@@ -103,14 +102,15 @@ function MaterialFactorEditor({
         help="Choose the ratio stated by your source. Bank / compacted is inverted to compacted / bank before applying. Reusable fraction stays separate. The quoted RoadEng fill-factor example corresponds to bank / compacted only when its cut factor is 1; this is not a general RoadEng importer. Source notes are entered evidence, not verification."
       >
         <Field label={`${material.name} factor convention`}>
-          <NativeSelect
+          <RoadSelect
+            ariaLabel={`${material.name} factor convention`}
             className={roadFieldClass}
             value={convention}
-            onChange={(event) => setConvention(event.target.value as MaterialVolumeFactorConvention)}
+            onValueChange={(value) => setConvention(value as MaterialVolumeFactorConvention)}
           >
             <option value="compacted-per-bank">Compacted / bank</option>
             <option value="bank-per-compacted">Bank / compacted</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field label={`${material.name} entered volume factor`}>
           <input
@@ -506,28 +506,29 @@ export function EngineeringControls({
               </Button>
             </div>
             <Field label="Library import mode">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Library import mode"
                 className={roadFieldClass}
                 value={libraryMode}
-                onChange={(e) => setLibraryMode(e.target.value as typeof libraryMode)}
+                onValueChange={(value) => setLibraryMode(value as typeof libraryMode)}
               >
                 <option value="merge">Merge definitions</option>
                 <option value="replace">Replace library & clear assignments</option>
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Field label="Template starting point">
-              <NativeSelect
-                aria-label="Template starting point"
+              <RoadSelect
+                ariaLabel="Template starting point"
                 className={roadFieldClass}
                 value={preset}
-                onChange={(e) => setPreset(e.target.value as TemplateStarter)}
+                onValueChange={(value) => setPreset(value as TemplateStarter)}
               >
                 <option value="current">Current road section</option>
                 <option value="single">Forest single lane</option>
                 <option value="double">Forest double lane</option>
                 <option value="landing">Wide landing</option>
                 <option value="urban">Crowned road</option>
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Button
               size="sm"
@@ -564,11 +565,12 @@ export function EngineeringControls({
             {selected && candidate && (
               <div key={`${alignment.id}-${selected.id}-${templateCandidate.epoch}`} className="mt-3 space-y-2">
                 <Field label="Library template">
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel="Library template"
                     className={roadFieldClass}
                     value={selected.id}
-                    onChange={(e) => {
-                      setTemplateId(e.target.value)
+                    onValueChange={(value) => {
+                      setTemplateId(value)
                       onClosePreview?.()
                     }}
                   >
@@ -577,7 +579,7 @@ export function EngineeringControls({
                         {t.name}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Name
                   value={selected.name}
@@ -775,28 +777,30 @@ export function EngineeringControls({
                   </Button>
                 </div>
                 <Field label={`Assignment ${index + 1} template`}>
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel={`Assignment ${index + 1} template`}
                     className={roadFieldClass}
                     value={a.templateId}
-                    onChange={(e) => patch('assignments', a.id, { templateId: e.target.value })}
+                    onValueChange={(value) => patch('assignments', a.id, { templateId: value })}
                   >
                     {design.templates.map((t) => (
                       <option key={t.id} value={t.id}>
                         {t.name}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Field label={`Assignment ${index + 1} side`}>
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel={`Assignment ${index + 1} side`}
                     className={roadFieldClass}
                     value={a.side}
-                    onChange={(e) => patch('assignments', a.id, { side: e.target.value as TemplateAssignment['side'] })}
+                    onValueChange={(value) => patch('assignments', a.id, { side: value as TemplateAssignment['side'] })}
                   >
                     {['both', 'left', 'right'].map((side) => (
                       <option key={side}>{side}</option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Fields<TemplateAssignment>
                   value={a}
@@ -860,19 +864,20 @@ export function EngineeringControls({
                     />
                   </Field>
                   <Field label="Excavated material type">
-                    <NativeSelect
+                    <RoadSelect
+                      ariaLabel="Excavated material type"
                       className={roadFieldClass}
                       value={m.purpose ?? 'earthwork'}
-                      onChange={(e) =>
+                      onValueChange={(value) =>
                         patch('materials', m.id, {
-                          purpose: e.target.value as GroundMaterial['purpose'],
-                          ...(e.target.value === 'stripping' ? { reusableFraction: 0 } : {}),
+                          purpose: value as GroundMaterial['purpose'],
+                          ...(value === 'stripping' ? { reusableFraction: 0 } : {}),
                         })
                       }
                     >
                       <option value="earthwork">Earthwork</option>
                       <option value="stripping">Excavated stripping</option>
-                    </NativeSelect>
+                    </RoadSelect>
                   </Field>
                 </div>
                 <Fields<GroundMaterial>
@@ -975,17 +980,18 @@ export function EngineeringControls({
                   </Button>
                 </div>
                 <Field label={`Horizon ${index + 1} material`}>
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel={`Horizon ${index + 1} material`}
                     className={roadFieldClass}
                     value={s.materialId}
-                    onChange={(e) => patch('strata', s.id, { materialId: e.target.value })}
+                    onValueChange={(value) => patch('strata', s.id, { materialId: value })}
                   >
                     {design.materials.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.name}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Fields<StratumAssignment>
                   value={s}
@@ -1048,14 +1054,15 @@ export function EngineeringControls({
                   Select {formatRoadStation(c.chainage)} in all views
                 </Button>
                 <Field label="Culvert purpose">
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel="Culvert purpose"
                     className={roadFieldClass}
                     value={c.kind ?? 'cross-drain'}
-                    onChange={(e) => patch('culverts', c.id, { kind: e.target.value as Culvert['kind'] })}
+                    onValueChange={(value) => patch('culverts', c.id, { kind: value as Culvert['kind'] })}
                   >
                     <option value="cross-drain">Road cross-drain</option>
                     <option value="stream">Natural stream</option>
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <Fields<Culvert>
                   value={c}
@@ -1338,10 +1345,11 @@ export function EngineeringControls({
                     onChange={(p) => patch('sites', s.id, p)}
                   />
                   <Field label={`Site ${index + 1} material`}>
-                    <NativeSelect
+                    <RoadSelect
+                      ariaLabel={`Site ${index + 1} material`}
                       className={roadFieldClass}
                       value={s.materialId ?? ''}
-                      onChange={(event) => patch('sites', s.id, { materialId: event.target.value || undefined })}
+                      onValueChange={(value) => patch('sites', s.id, { materialId: value || undefined })}
                     >
                       <option value="">
                         {s.kind === 'borrow' ? 'Unknown material (cannot meet quality rules)' : 'Accept all materials'}
@@ -1353,7 +1361,7 @@ export function EngineeringControls({
                             {m.name}
                           </option>
                         ))}
-                    </NativeSelect>
+                    </RoadSelect>
                   </Field>
                   <label className="flex items-center gap-1 text-xs">
                     <input

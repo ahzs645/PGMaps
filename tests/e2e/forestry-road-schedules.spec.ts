@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -111,7 +112,7 @@ test('the plan map and its markers follow a pane boundary with no blank frame', 
 
 test('the station table keeps one toolbar row and its popovers open above a fullscreen pane', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('combobox', { name: 'Road view layout' }).selectOption({ label: 'Plan · profile · section · data' })
+  await choose(page.getByRole('combobox', { name: 'Road view layout' }), { label: 'Plan · profile · section · data' })
   await expect(page.getByRole('tablist', { name: 'Road data schedule', exact: true })).toBeVisible()
   const filter = page.getByRole('button', { name: 'Filter stations', exact: true })
   const columns = page.getByRole('button', { name: 'Choose columns', exact: true })
@@ -141,7 +142,7 @@ test('the station table keeps one toolbar row and its popovers open above a full
 
 test('vertical controls read as a table and crossing icons sit centred on their marker', async ({ page }) => {
   await prepare(page)
-  await page.getByRole('combobox', { name: 'Road view layout' }).selectOption({ label: 'Plan · profile · section · data' })
+  await choose(page.getByRole('combobox', { name: 'Road view layout' }), { label: 'Plan · profile · section · data' })
   await page.getByRole('tab', { name: 'Vertical controls', exact: true }).click()
   const table = page.getByTestId('road-vertical-control-table')
   await expect(table).toBeVisible()

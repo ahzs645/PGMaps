@@ -1,11 +1,10 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { derivedRoadName } from './roadNames'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
-import { NumberField, OptionalNumberField } from './Controls'
+import { NumberField, OptionalNumberField, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
 import { nearestStation } from './engine'
@@ -396,29 +395,29 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </div>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Search band centre
-          <NativeSelect
-            aria-label="Profile search band centre"
+          <RoadSelect
+            ariaLabel="Profile search band centre"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.bandCenter}
-            onChange={(e) => setSearch((x) => ({ ...x, bandCenter: e.target.value as 'ground' | 'design' }))}
+            onValueChange={(value) => setSearch((x) => ({ ...x, bandCenter: value as 'ground' | 'design' }))}
           >
             <option value="ground">Ground</option>
             <option value="design" disabled={!designed}>
               Current fitted design
             </option>
-          </NativeSelect>
+          </RoadSelect>
         </label>
         <label className="mt-2 flex items-center justify-between gap-2 text-xs">
           Objective
-          <NativeSelect
-            aria-label="Profile optimization objective"
+          <RoadSelect
+            ariaLabel="Profile optimization objective"
             className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
             value={search.objective}
-            onChange={(e) => setSearch((x) => ({ ...x, objective: e.target.value as 'earthwork' | 'total' }))}
+            onValueChange={(value) => setSearch((x) => ({ ...x, objective: value as 'earthwork' | 'total' }))}
           >
             <option value="earthwork">Cut and fill</option>
             <option value="total">Total cost incl. haul, borrow, waste</option>
-          </NativeSelect>
+          </RoadSelect>
         </label>
         <label className="mt-2 flex items-center gap-2 text-xs">
           <input
@@ -430,15 +429,15 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         </label>
         <label className="mt-2 block text-xs">
           Save optimized result as
-          <NativeSelect
-            aria-label="Profile optimization result target"
+          <RoadSelect
+            ariaLabel="Profile optimization result target"
             className="mt-1 w-full rounded border bg-background p-1 text-base md:text-xs"
             value={resultTarget}
-            onChange={(e) => setResultTarget(e.target.value as typeof resultTarget)}
+            onValueChange={(value) => setResultTarget(value as typeof resultTarget)}
           >
             <option value="road">Separate road alternative</option>
             <option value="vertical">Named vertical profile on this road</option>
-          </NativeSelect>
+          </RoadSelect>
         </label>
         <Button
           className="mt-2 w-full"

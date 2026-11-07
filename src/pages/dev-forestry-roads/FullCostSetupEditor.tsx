@@ -1,7 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { PlanningCoordinateField } from './PlanningCoordinateField'
 import type { TotalCostPlanning } from './fullCostPlanning'
 import type { RoadNetworkPolicy } from './roadNetworkTypes'
@@ -33,17 +32,18 @@ export function FullCostSetupEditor({
         charged as a newly excavated road.
       </InlineAlert>
       <Field label="Active connector road attachment">
-        <NativeSelect
+        <RoadSelect
+          ariaLabel="Active connector road attachment"
           className={roadFieldClass}
           value={w.alignment.networkEntryRoadId ?? w.alignment.fsrConnection?.targetFeatureId ?? ''}
-          onChange={(event) =>
+          onValueChange={(value) =>
             w.updateAlignment((road) => {
               const { networkEntryRoadId: _old, ...rest } = road
               void _old
               return {
                 ...rest,
-                ...(event.target.value ? { networkEntryRoadId: event.target.value } : {}),
-                ...(road.fsrConnection && event.target.value !== road.fsrConnection.targetFeatureId
+                ...(value ? { networkEntryRoadId: value } : {}),
+                ...(road.fsrConnection && value !== road.fsrConnection.targetFeatureId
                   ? { fsrConnection: undefined }
                   : {}),
               }
@@ -58,7 +58,7 @@ export function FullCostSetupEditor({
                 {road.name}
               </option>
             ))}
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       <p className="text-2xs text-muted-foreground">
         The connector's end must meet this section within the entered tie-in tolerance. This choice distinguishes
@@ -84,10 +84,11 @@ export function FullCostSetupEditor({
         onChange={(outlet) => onChange({ ...planning, outlet })}
       />
       <Field label="Outlet road attachment">
-        <NativeSelect
+        <RoadSelect
+          ariaLabel="Outlet road attachment"
           className={roadFieldClass}
           value={planning.outletRoadId ?? ''}
-          onChange={(event) => onChange({ ...planning, outletRoadId: event.target.value || null })}
+          onValueChange={(value) => onChange({ ...planning, outletRoadId: value || null })}
         >
           <option value="">Determine from unambiguous geometry</option>
           {w.project.context
@@ -97,7 +98,7 @@ export function FullCostSetupEditor({
                 {road.name}
               </option>
             ))}
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -229,17 +230,18 @@ export function FullCostSetupEditor({
       <fieldset className="space-y-3 rounded border p-3">
         <legend className="px-1 text-xs font-semibold">Final fitted connector checks</legend>
         <Field label="Loaded timber travel direction">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Loaded timber travel direction"
             className={roadFieldClass}
             value={planning.connectorChecks.loadedDirection ?? ''}
-            onChange={(event) =>
-              checks({ loadedDirection: (event.target.value as ConnectorCheckOptions['loadedDirection']) || null })
+            onValueChange={(value) =>
+              checks({ loadedDirection: (value as ConnectorCheckOptions['loadedDirection']) || null })
             }
           >
             <option value="">Unknown — cannot adopt</option>
             <option value="start-to-end">Road start to end</option>
             <option value="end-to-start">Road end to start</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <div className="grid grid-cols-2 gap-2">
           <OptionalNumberField
@@ -312,13 +314,14 @@ export function FullCostSetupEditor({
         {planning.connectorChecks.approvedCrossings.map((window, index) => (
           <div key={index} className="space-y-2 rounded border p-2">
             <Field label={`Crossing ${index + 1} stream`}>
-              <NativeSelect
+              <RoadSelect
+                ariaLabel={`Crossing ${index + 1} stream`}
                 className={roadFieldClass}
                 value={window.featureId}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   checks({
                     approvedCrossings: planning.connectorChecks.approvedCrossings.map((row, i) =>
-                      i === index ? { ...row, featureId: event.target.value } : row,
+                      i === index ? { ...row, featureId: value } : row,
                     ),
                   })
                 }
@@ -328,16 +331,17 @@ export function FullCostSetupEditor({
                     {stream.name}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Field label={`Crossing ${index + 1} entered structure`}>
-              <NativeSelect
+              <RoadSelect
+                ariaLabel={`Crossing ${index + 1} entered structure`}
                 className={roadFieldClass}
                 value={window.structureId}
-                onChange={(event) =>
+                onValueChange={(value) =>
                   checks({
                     approvedCrossings: planning.connectorChecks.approvedCrossings.map((row, i) =>
-                      i === index ? { ...row, structureId: event.target.value } : row,
+                      i === index ? { ...row, structureId: value } : row,
                     ),
                   })
                 }
@@ -347,7 +351,7 @@ export function FullCostSetupEditor({
                     {structure.name}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <NumberField

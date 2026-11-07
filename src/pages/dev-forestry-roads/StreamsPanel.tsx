@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { ChevronLeft, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
 import type { ConstraintPolicy } from './constraints'
@@ -159,18 +158,18 @@ export function StreamsPanel({
             </Button>
           </div>
           {streams.length > 3 && (
-            <NativeSelect
-              aria-label="Filter streams"
+            <RoadSelect
+              ariaLabel="Filter streams"
               className={roadFieldClass}
               value={filter}
-              onChange={(event) => setFilter(event.target.value as Filter)}
+              onValueChange={(value) => setFilter(value as Filter)}
             >
               {Object.entries(FILTERS).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
               ))}
-            </NativeSelect>
+            </RoadSelect>
           )}
           {visible.length > 50 ? (
             <VirtualResultList items={visible} getKey={(f) => f.id} estimateSize={52} label="Streams">
@@ -279,10 +278,11 @@ function StreamDetails({
           onChange={(channelWidthM) => onChange({ channelWidthM })}
         />
         <Field label="Measured from">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Measured from"
             className={roadFieldClass}
             value={assessment.widthBasis ?? ''}
-            onChange={(event) => onChange({ widthBasis: (event.target.value || undefined) as WidthBasis | undefined })}
+            onValueChange={(value) => onChange({ widthBasis: (value || undefined) as WidthBasis | undefined })}
           >
             <option value="">Not recorded</option>
             {Object.entries(WIDTH_BASIS_LABELS).map(([value, label]) => (
@@ -290,36 +290,38 @@ function StreamDetails({
                 {label}
               </option>
             ))}
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field
           label="Fish stream"
           hint="Under the regulation a fish stream is a watercourse frequented by listed species with a gradient under 20%, unless an exception applies. A steeper slope alone does not establish fish absence, and no record of fish is not evidence of absence."
         >
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Fish stream"
             className={roadFieldClass}
             value={assessment.fish}
-            onChange={(event) => onChange({ fish: event.target.value as FishDetermination })}
+            onValueChange={(value) => onChange({ fish: value as FishDetermination })}
           >
             {Object.entries(FISH_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field label="Community watershed">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Community watershed"
             className={roadFieldClass}
             value={assessment.communityWatershed}
-            onChange={(event) => onChange({ communityWatershed: event.target.value as WatershedDetermination })}
+            onValueChange={(value) => onChange({ communityWatershed: value as WatershedDetermination })}
           >
             {Object.entries(WATERSHED_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
               </option>
             ))}
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <OptionalNumberField
           label="1 km average width (m)"
@@ -346,10 +348,11 @@ function StreamDetails({
         <div className="space-y-2 border-t p-2">
           <div className="grid grid-cols-2 gap-2">
             <Field label="Reviewed class">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Reviewed class"
                 className={roadFieldClass}
                 value={decision}
-                onChange={(event) => setChoice(event.target.value as RiparianClass | '')}
+                onValueChange={(value) => setChoice(value as RiparianClass | '')}
               >
                 <option value="">Choose</option>
                 {RIPARIAN_CLASSES.map((value) => (
@@ -357,7 +360,7 @@ function StreamDetails({
                     {value}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Field label="Assessor">
               <input

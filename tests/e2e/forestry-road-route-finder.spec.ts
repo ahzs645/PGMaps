@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { openRoadPanel } from './road-sidebar'
+import { choose, optionEntries, optionLabels, selectedValue } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(240_000)
@@ -12,7 +13,8 @@ async function openTraining(page: Page) {
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('tab', { name: 'Design', exact: true }).click()
 }
-const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')
+const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true })
+const roadCount = async (page: Page) => (await optionLabels(roads(page))).length
 const results = (page: Page) => page.getByTestId('road-route-results')
 
 async function compare(page: Page) {
@@ -24,12 +26,12 @@ test('compares your road with designed routes, opens one and switches between th
   page,
 }) => {
   await openTraining(page)
-  const before = await roads(page).count()
+  const before = await roadCount(page)
   for (const goal of ['Gentlest', 'Fewest drainage issues'])
     await page.getByRole('group', { name: 'Route goals' }).getByRole('button', { name: goal, exact: true }).click()
   await expect(page.getByTestId('road-compare-routes')).toHaveText('Compare 2 routes')
   await compare(page)
-  await expect(roads(page)).toHaveCount(before)
+  await expect.poll(() => roadCount(page)).toBe(before)
   await expect(results(page).locator('[data-route-row="current"]')).toContainText('Your road')
   // Every row is named for what it measured, so no goal appears twice and prices are explained.
   const designed = results(page).locator('[data-route-row]:not([data-route-row="current"])')
@@ -39,10 +41,10 @@ test('compares your road with designed routes, opens one and switches between th
   await expect(designed.first()).toContainText(/\$[\d,]+ build \+ \$[\d,]+ drainage/)
 
   // Opening a road adds it and turns every chart to it; the original is one click back.
-  const original = await page.getByRole('combobox', { name: 'Active road', exact: true }).inputValue()
+  const original = await selectedValue(page.getByRole('combobox', { name: 'Active road', exact: true }))
   const profileBefore = await page.getByTestId('road-profile-chart').innerHTML()
   await designed.first().click()
-  await expect(roads(page)).toHaveCount(before + 1)
+  await expect.poll(() => roadCount(page)).toBe(before + 1)
   await expect(designed.first()).toHaveAttribute('aria-pressed', 'true')
   await expect(designed.first()).toContainText('Viewing')
   await expect.poll(() => page.getByTestId('road-profile-chart').innerHTML()).not.toBe(profileBefore)
@@ -52,11 +54,11 @@ test('compares your road with designed routes, opens one and switches between th
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   await expect(switcher).toBeVisible()
   const viewing = switcher.getByRole('combobox', { name: 'Viewing road', exact: true })
-  const firstRoad = (await viewing.locator('option').first().getAttribute('value'))!
-  await viewing.selectOption(firstRoad)
-  await expect(viewing).toHaveValue(firstRoad)
+  const firstRoad = (await optionEntries(viewing))[0].value
+  await choose(viewing, firstRoad)
+  await expect(viewing).toHaveAttribute('data-value', firstRoad)
   await page.getByRole('tab', { name: 'Design', exact: true }).click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveValue(original)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveAttribute('data-value', original)
 
   // Changing a limit makes the prices old, and says so rather than leaving them on show.
   const limit = page.getByRole('spinbutton', { name: 'Grade limit %', exact: true })
@@ -79,14 +81,14 @@ test('the toast names the job, shows how far along it is and keeps Cancel beside
 
 test('Cancel stops the comparison and changes nothing', async ({ page }) => {
   await openTraining(page)
-  const before = await roads(page).count()
+  const before = await roadCount(page)
   await page.getByTestId('road-compare-routes').click()
   await page.getByRole('button', { name: 'Cancel route comparison', exact: true }).click()
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('cancelled', {
     timeout: 60_000,
   })
   await expect(results(page)).toHaveCount(0)
-  await expect(roads(page)).toHaveCount(before)
+  await expect.poll(() => roadCount(page)).toBe(before)
 })
 
 test('the review checklist reports the road and links to the next step', async ({ page }) => {

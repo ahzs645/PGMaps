@@ -4,11 +4,10 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ExternalLink } from '@/components/ui/text-button'
-import { NativeSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
 import { downloadText } from '@/lib/download'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { PlanningCoordinateField } from './PlanningCoordinateField'
 import { ROADS_EXAMPLES, prepExData } from './roads/examples'
 import { runProjection } from './roads/client'
@@ -418,16 +417,16 @@ export function NetworkPlanningDialog({
           <fieldset disabled={running || !!w.busy} className="min-w-0 space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
               <Field label="Network input source">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Network input source"
                   className={roadFieldClass}
                   value={planning.mode}
-                  onChange={(event) => {
-                    if (event.target.value === 'example' && planning.exampleId !== 'imported')
-                      chooseExample(planning.exampleId)
+                  onValueChange={(value) => {
+                    if (value === 'example' && planning.exampleId !== 'imported') chooseExample(planning.exampleId)
                     else
                       patch({
-                        mode: event.target.value as NetworkPlanning['mode'],
-                        ...(event.target.value === 'project'
+                        mode: value as NetworkPlanning['mode'],
+                        ...(value === 'project'
                           ? { options: { ...planning.options, gradeMode: 'terrain', preventCornerCutting: true } }
                           : {}),
                       })
@@ -435,7 +434,7 @@ export function NetworkPlanningDialog({
                 >
                   <option value="project">Current terrain and project features</option>
                   <option value="example">Example or imported raster scenario</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <div className="flex items-end gap-2">
                 <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
@@ -457,10 +456,11 @@ export function NetworkPlanningDialog({
             {planning.mode === 'example' ? (
               <div className="space-y-2 rounded-lg border p-3">
                 <Field label="Network example">
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel="Network example"
                     className={roadFieldClass}
                     value={planning.exampleId}
-                    onChange={(event) => chooseExample(event.target.value)}
+                    onValueChange={(value) => chooseExample(value)}
                   >
                     {ROADS_EXAMPLES.map((example) => (
                       <option key={example.id} value={example.id}>
@@ -468,7 +468,7 @@ export function NetworkPlanningDialog({
                       </option>
                     ))}
                     {planning.exampleId === 'imported' && <option value="imported">Imported raster scenario</option>}
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
                 <p className="text-sm">
                   {ROADS_EXAMPLES.find((example) => example.id === planning.exampleId)?.description ??
@@ -671,17 +671,16 @@ export function NetworkPlanningDialog({
                     <summary className="cursor-pointer font-medium">Generate targets from harvest polygons</summary>
                     <div className="mt-3 grid gap-3 sm:grid-cols-3">
                       <Field label="Landing sampling">
-                        <NativeSelect
+                        <RoadSelect
+                          ariaLabel="Landing sampling"
                           className={roadFieldClass}
                           value={planning.landingMethod}
-                          onChange={(event) =>
-                            patch({ landingMethod: event.target.value as NetworkPlanning['landingMethod'] })
-                          }
+                          onValueChange={(value) => patch({ landingMethod: value as NetworkPlanning['landingMethod'] })}
                         >
                           <option value="centroid">Interior point per polygon</option>
                           <option value="systematic">Regular spacing</option>
                           <option value="random">Seeded random sampling</option>
-                        </NativeSelect>
+                        </RoadSelect>
                       </Field>
                       <NumberField
                         label="Landings per hectare"
@@ -884,17 +883,18 @@ export function NetworkPlanningDialog({
               {activeResult.paths.length > 0 && (
                 <div className="space-y-2 rounded border p-3">
                   <Field label="Projected branch">
-                    <NativeSelect
+                    <RoadSelect
+                      ariaLabel="Projected branch"
                       className={roadFieldClass}
                       value={activePath?.id ?? ''}
-                      onChange={(event) => setSelectedPath(event.target.value)}
+                      onValueChange={(value) => setSelectedPath(value)}
                     >
                       {activeResult.paths.map((path, i) => (
                         <option key={path.id} value={path.id}>
                           Branch {i + 1} · {fmt(path.lengthM)} m · {path.targetIds.join(', ') || 'network connector'}
                         </option>
                       ))}
-                    </NativeSelect>
+                    </RoadSelect>
                   </Field>
                   <p className="text-xs text-muted-foreground">
                     A raster branch has sharp cell-to-cell corners. Adoption creates an editable road with no fitted
@@ -1002,26 +1002,28 @@ export function NetworkPlanningDialog({
                   <summary className="cursor-pointer text-sm font-medium">Reconstruct raster road lines</summary>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
                     <Field label="Raster road line method">
-                      <NativeSelect
+                      <RoadSelect
+                        ariaLabel="Raster road line method"
                         className={roadFieldClass}
                         value={reconstructionMethod}
                         disabled={running}
-                        onChange={(event) => setReconstructionMethod(event.target.value as 'nearest' | 'mst')}
+                        onValueChange={(value) => setReconstructionMethod(value as 'nearest' | 'mst')}
                       >
                         <option value="nearest">Nearest road-cell pairs</option>
                         <option value="mst">MST over raster road cells</option>
-                      </NativeSelect>
+                      </RoadSelect>
                     </Field>
                     <Field label="Raster road cells">
-                      <NativeSelect
+                      <RoadSelect
+                        ariaLabel="Raster road cells"
                         className={roadFieldClass}
                         value={reconstructionSource}
                         disabled={running}
-                        onChange={(event) => setReconstructionSource(event.target.value as 'seeds' | 'network')}
+                        onValueChange={(value) => setReconstructionSource(value as 'seeds' | 'network')}
                       >
                         <option value="network">Seeds and projected network</option>
                         <option value="seeds">Original road seed cells only</option>
-                      </NativeSelect>
+                      </RoadSelect>
                     </Field>
                   </div>
                   <p className="my-2 text-xs text-muted-foreground">
@@ -1076,50 +1078,54 @@ function NetworkOptions({
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Network method">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Network method"
             className={roadFieldClass}
             value={value.method}
-            onChange={(event) => onChange({ method: event.target.value as RoadsMethod })}
+            onValueChange={(value) => onChange({ method: value as RoadsMethod })}
           >
             {NETWORK_METHODS.map((method) => (
               <option key={method.value} value={method.value}>
                 {method.label}
               </option>
             ))}
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field label="Grid neighbourhood">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Grid neighbourhood"
             className={roadFieldClass}
             value={value.neighbourhood}
-            onChange={(event) => onChange({ neighbourhood: event.target.value as RoadsOptions['neighbourhood'] })}
+            onValueChange={(value) => onChange({ neighbourhood: value as RoadsOptions['neighbourhood'] })}
           >
             <option value="rook">Rook · 4 neighbours</option>
             <option value="queen">Queen · 8 neighbours</option>
             <option value="octagon">Octagon · 8 neighbours, diagonal distance correction</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field label="Edge weighting">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Edge weighting"
             className={roadFieldClass}
             value={value.weightFunction}
-            onChange={(event) => onChange({ weightFunction: event.target.value as RoadsOptions['weightFunction'] })}
+            onValueChange={(value) => onChange({ weightFunction: value as RoadsOptions['weightFunction'] })}
           >
             <option value="simple">Simple · mean cell weight × length</option>
             <option value="grade">Elevation grade penalty</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         <Field label="Landing connection order (iterative method)">
-          <NativeSelect
+          <RoadSelect
+            ariaLabel="Landing connection order (iterative method)"
             className={roadFieldClass}
             value={value.ordering}
-            onChange={(event) => onChange({ ordering: event.target.value as RoadsOptions['ordering'] })}
+            onValueChange={(value) => onChange({ ordering: value as RoadsOptions['ordering'] })}
           >
             <option value="closest">Closest first</option>
             <option value="farthest">Farthest first</option>
             <option value="input">Input order</option>
             <option value="random">Seeded random order</option>
-          </NativeSelect>
+          </RoadSelect>
         </Field>
         {value.ordering === 'random' && (
           <NumberField
@@ -1168,20 +1174,21 @@ function NetworkOptions({
             onChange={(penalty) => onChange({ grade: { ...value.grade, penalty } })}
           />
           <Field label="Grade limit treatment">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Grade limit treatment"
               className={roadFieldClass}
               value={value.grade.limitWeight === undefined ? 'blocked' : 'penalty'}
-              onChange={(event) => {
+              onValueChange={(picked) => {
                 const { limitWeight: _previous, ...grade } = value.grade
                 void _previous
                 onChange({
-                  grade: event.target.value === 'blocked' ? grade : { ...grade, limitWeight: grade.baseCost * 10 },
+                  grade: picked === 'blocked' ? grade : { ...grade, limitWeight: grade.baseCost * 10 },
                 })
               }}
             >
               <option value="blocked">Block over-limit edges</option>
               <option value="penalty">Allow with entered penalty</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           {value.grade.limitWeight !== undefined && (
             <NumberField
@@ -1195,14 +1202,15 @@ function NetworkOptions({
           )}
           {!projectMode && (
             <Field label="Grade raster interpretation">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Grade raster interpretation"
                 className={roadFieldClass}
                 value={value.gradeMode}
-                onChange={(event) => onChange({ gradeMode: event.target.value as RoadsOptions['gradeMode'] })}
+                onValueChange={(value) => onChange({ gradeMode: value as RoadsOptions['gradeMode'] })}
               >
                 <option value="terrain">Separate unchanged terrain elevations</option>
                 <option value="upstream">Upstream R overloaded-weight convention</option>
-              </NativeSelect>
+              </RoadSelect>
             </Field>
           )}
         </div>

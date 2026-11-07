@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
 import { openRoadPanel } from './road-sidebar'
+import { optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 390, height: 844 }, hasTouch: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)
@@ -104,7 +105,9 @@ test('phone terrain preparation, independent imagery and survey evidence survive
   await survey.getByRole('button', { name: 'Reduce survey observations', exact: true }).click()
   await expect(survey).toContainText('3 stations · 100.00 m')
   await survey.getByRole('button', { name: 'Save field book to project', exact: true }).click()
-  await expect(page.getByRole('combobox',{name:'Saved survey field books', exact: true})).toContainText('Survey 1')
+  await expect
+    .poll(() => optionLabels(page.getByRole('combobox', { name: 'Saved survey field books', exact: true })))
+    .toContain('Survey 1')
   const csvPending = page.waitForEvent('download')
   await survey.getByRole('button', { name: 'Export survey CSV', exact: true }).click()
   expect((await csvPending).suggestedFilename()).toBe('survey-reduction.csv')

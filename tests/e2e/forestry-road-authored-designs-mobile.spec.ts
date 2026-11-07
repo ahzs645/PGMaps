@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
 import { openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15000 })
 test.setTimeout(240000)
@@ -34,7 +35,7 @@ async function showCompare(page: Page) {
     .getByRole('tablist', { name: 'Visible road pane', exact: true })
     .getByRole('tab', { name: 'Detail', exact: true })
     .tap()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Compare' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Compare' })
   await expect(page.getByTestId('road-vertical-alternatives')).toBeVisible()
 }
 async function showSidebar(page: Page, tab: 'Design' | 'Section') {
@@ -45,8 +46,8 @@ async function showSidebar(page: Page, tab: 'Design' | 'Section') {
     .getByRole('tab', { name: tab, exact: true })
     .tap()
 }
-async function choose(_page: Page, control: Locator, label: string) {
-  await control.selectOption({ label })
+async function chooseOption(_page: Page, control: Locator, label: string) {
+  await choose(control, { label })
 }
 async function fits(page: Page, selector: string) {
   const result = await page.locator(selector).evaluate((element) => {
@@ -89,9 +90,9 @@ for (const viewport of [
     await editor.getByLabel('New profile name', { exact: true }).fill('Mobile raised profile')
     await editor.getByRole('button', { name: 'Add profile', exact: true }).tap()
     await expect(
-      editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }).locator('option:checked'),
+      editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }),
     ).toHaveText('Mobile raised profile')
-    await choose(
+    await chooseOption(
       page,
       editor.getByRole('combobox', { name: 'Vertical alternative engineering mode', exact: true }),
       'Independent engineering per profile',
@@ -119,7 +120,7 @@ for (const viewport of [
       .tap()
     await dialogsClosed(page)
     await showCompare(page)
-    await choose(
+    await chooseOption(
       page,
       editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }),
       'Original profile',
@@ -131,7 +132,7 @@ for (const viewport of [
     expect(base.engineering?.haul.borrowRate).toBe(original.engineering?.haul.borrowRate)
     expect(base.verticalAlternatives).toHaveLength(2)
 
-    await choose(
+    await chooseOption(
       page,
       editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }),
       'Mobile raised profile',
@@ -141,7 +142,7 @@ for (const viewport of [
     expect(raised.vertical[0].elevation).toBeCloseTo(original.vertical[0].elevation + 1, 8)
     expect(raised.engineering?.haul.borrowRate).toBe(77)
     await expect(editor.getByRole('img', { name: 'Vertical alternatives profile overlay', exact: true })).toBeVisible()
-    await choose(
+    await chooseOption(
       page,
       editor.getByRole('combobox', { name: 'Vertical alternative engineering mode', exact: true }),
       'Shared materials, haul and structures',
@@ -155,9 +156,9 @@ for (const viewport of [
     const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
     await dialog.getByRole('button', { name: 'Configure plot book', exact: true }).tap()
     const reports = page.getByTestId('road-report-settings')
-    await choose(page, reports.getByRole('combobox', { name: 'Report paper size', exact: true }), 'A4 landscape')
+    await chooseOption(page, reports.getByRole('combobox', { name: 'Report paper size', exact: true }), 'A4 landscape')
     await reports.getByLabel('Station label expression', { exact: true }).fill('{road} @ {station}')
-    await choose(
+    await chooseOption(
       page,
       reports.getByRole('combobox', { name: 'New report chapter type', exact: true }),
       'Station schedule',

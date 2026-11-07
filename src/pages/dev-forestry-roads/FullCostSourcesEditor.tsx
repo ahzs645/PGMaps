@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { PlanningCoordinateField } from './PlanningCoordinateField'
 import {
   createRoadPlanSource,
@@ -81,17 +80,18 @@ export function FullCostSourcesEditor({
       ) : (
         <div key={selected.id} className="space-y-3">
           <Field label="Planning source">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Planning source"
               className={roadFieldClass}
               value={selected.id}
-              onChange={(event) => setSelectedId(event.target.value)}
+              onValueChange={(value) => setSelectedId(value)}
             >
               {planning.sources.map((source) => (
                 <option key={source.id} value={source.id}>
                   {source.name}
                 </option>
               ))}
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <label className="flex items-start gap-2 text-xs">
             <input
@@ -110,18 +110,16 @@ export function FullCostSourcesEditor({
             />
           </Field>
           <Field label="Source material use">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Source material use"
               className={roadFieldClass}
               value={
                 selected.uses.includes('waste') ? 'waste' : selected.uses.length === 2 ? 'aggregate' : selected.uses[0]
               }
-              onChange={(event) => {
-                const basisChanged = selected.uses.includes('waste') !== (event.target.value === 'waste')
+              onValueChange={(value) => {
+                const basisChanged = selected.uses.includes('waste') !== (value === 'waste')
                 patch({
-                  uses:
-                    event.target.value === 'aggregate'
-                      ? ['surfacing', 'fill']
-                      : [event.target.value as 'surfacing' | 'fill' | 'waste'],
+                  uses: value === 'aggregate' ? ['surfacing', 'fill'] : [value as 'surfacing' | 'fill' | 'waste'],
                   qualityConfirmed: false,
                   ...(basisChanged
                     ? {
@@ -141,7 +139,7 @@ export function FullCostSourcesEditor({
               <option value="surfacing">Surfacing only (compacted m³)</option>
               <option value="fill">Fill only (compacted m³)</option>
               <option value="waste">Waste disposal only (bank m³)</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <fieldset className="space-y-2 rounded border p-2">
             <legend className="px-1 text-xs font-medium">Material classes and quality</legend>
@@ -188,11 +186,12 @@ export function FullCostSourcesEditor({
             onChange={(entrance) => patch({ entrance, accessConfirmed: false, qualityConfirmed: false })}
           />
           <Field label="Source entrance road attachment">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Source entrance road attachment"
               className={roadFieldClass}
               value={selected.entranceRoadId ?? ''}
-              onChange={(event) =>
-                patch({ entranceRoadId: event.target.value || null, accessConfirmed: false, qualityConfirmed: false })
+              onValueChange={(value) =>
+                patch({ entranceRoadId: value || null, accessConfirmed: false, qualityConfirmed: false })
               }
             >
               <option value="">Determine from unambiguous geometry</option>
@@ -203,7 +202,7 @@ export function FullCostSourcesEditor({
                     {road.name}
                   </option>
                 ))}
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <Button
             size="sm"

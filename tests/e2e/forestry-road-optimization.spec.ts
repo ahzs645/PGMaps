@@ -3,6 +3,7 @@ import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import { distance, positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { expandRoadSection } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(150000)
@@ -45,7 +46,7 @@ async function openProject(page: Page, project: RoadProject) {
     )
     .toEqual({ loading: 0, saveEnabled: true })
   await expect(save).toBeEnabled()
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveValue(project.activeAlignmentId)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId)
   await expect(page.getByTestId('workspace-toast-error')).toHaveCount(0)
 }
 async function prepare(page: Page) {
@@ -161,7 +162,7 @@ test('discard and cancellation never change the saved road', async ({ page }) =>
   await openProject(page, cancellationProject)
   const beforeCancellation = await saved(page)
   await expandRoadSection(page, 'road-route-tools')
-  await page.getByLabel('Corridor optimization objective', { exact: true }).selectOption('contour')
+  await choose(page.getByLabel('Corridor optimization objective', { exact: true }), 'contour')
   await page.getByLabel('Corridor half-width metres', { exact: true }).fill('300')
   await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
   const cancel = page.getByRole('button', { name: 'Cancel road optimization', exact: true })

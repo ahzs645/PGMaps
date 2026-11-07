@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)
@@ -23,7 +24,7 @@ async function loadScenario(page: Page) {
   await page
     .getByRole('button', { name: 'Load Training · connected access, gravel and condition', exact: true })
     .click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveValue(IDS.a)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', IDS.a)
 }
 
 async function comparison(page: Page) {
@@ -76,7 +77,7 @@ async function reviewRoad(page: Page, id: string) {
     .click()
   await openRoadPanel(page, 'Existing roads & reuse')
   const roads = page.getByTestId('road-existing-roads')
-  await roads.getByRole('combobox', { name: 'Review existing road', exact: true }).selectOption(id)
+  await choose(roads.getByRole('combobox', { name: 'Review existing road', exact: true }), id)
   return roads
 }
 
@@ -123,7 +124,7 @@ test('network hauling changes the chosen horizontal road and adopted totals roun
   await expect(page.getByRole('term').filter({ hasText: 'Candidate complete cost' }).locator('..')).toContainText(
     quotedCost,
   )
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveValue(IDS.a)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', IDS.a)
   await page.screenshot({ path: '/tmp/full-cost-preview.png' })
   await page.getByRole('button', { name: 'Return to comparison', exact: true }).click()
   await expect(dialog).toBeVisible()
@@ -173,8 +174,8 @@ test('a closed bridge or road access blocks network reuse rather than granting a
   await close(dialog)
   let roads = await reviewRoad(page, IDS.armA)
   let network = await networkEditor(roads)
-  await network.getByRole('combobox', { name: 'Bridge / structure status', exact: true }).selectOption('closed')
-  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveValue('serviceable')
+  await choose(network.getByRole('combobox', { name: 'Bridge / structure status', exact: true }), 'closed')
+  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute('data-value', 'serviceable')
   dialog = await comparison(page)
   await calculate(dialog)
   await expect(candidate(dialog, IDS.a)).toHaveAttribute('data-status', 'infeasible')
@@ -183,7 +184,7 @@ test('a closed bridge or road access blocks network reuse rather than granting a
   await close(dialog)
   roads = await reviewRoad(page, IDS.armB)
   network = await networkEditor(roads)
-  await network.getByRole('combobox', { name: 'Road access', exact: true }).selectOption('closed')
+  await choose(network.getByRole('combobox', { name: 'Road access', exact: true }), 'closed')
   dialog = await comparison(page)
   await calculate(dialog)
   await expectNoAdoption(dialog)
@@ -201,8 +202,8 @@ test('dated evidence expires eligibility without fabricating or overwriting the 
   await roads.getByText('Assessment date & evidence age', { exact: true }).click()
   await roads.getByLabel('Assess condition as of', { exact: true }).fill('2028-01-01')
   await expect(estimate).toHaveAttribute('data-estimated-condition', 'unknown')
-  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveValue('serviceable')
-  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveValue('assumed')
+  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute('data-value', 'serviceable')
+  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute('data-value', 'assumed')
   const dialog = await comparison(page)
   await calculate(dialog)
   await expectNoAdoption(dialog)
@@ -214,7 +215,7 @@ test('dated evidence expires eligibility without fabricating or overwriting the 
   await close(dialog)
   roads = await reviewRoad(page, IDS.armA)
   await expect(roads.getByTestId('road-condition-estimate')).toHaveAttribute('data-estimated-condition', 'serviceable')
-  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveValue('assumed')
+  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute('data-value', 'assumed')
 })
 
 test('final prism and directional-grade failures cannot be adopted even with priced connected access', async ({
@@ -273,9 +274,14 @@ test('phone complete-cost setup, sources, footer, preview and adoption remain re
   await loadScenario(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
-  // Wait for the phone layout to settle before deciding whether the controls need opening.
-  await expect(show.or(page.getByRole('tablist', { name: 'Road workflow', exact: true })).first()).toBeVisible()
-  if (await show.isVisible()) await show.click()
+  const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
+  // The phone layout settles after the resize: keep opening the controls until the tabs show.
+  await expect
+    .poll(async () => {
+      if (await show.isVisible()) await show.click()
+      return workflow.isVisible()
+    })
+    .toBe(true)
   const dialog = await comparison(page)
   const expectNoOverflow = async () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)

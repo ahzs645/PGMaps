@@ -1,11 +1,10 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, roadFieldClass } from '../Controls'
+import { Field, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
 import { StreamsPanel } from '../StreamsPanel'
@@ -159,11 +158,12 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </summary>
           <div className="space-y-2 border-t p-2">
             <Field label="Point-cloud surface">
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Point-cloud surface"
                 className={roadFieldClass}
                 value={p.pointCloud.surface}
-                onChange={(e) =>
-                  p.onPointCloud({ ...p.pointCloud, surface: e.target.value as PointCloudChoice['surface'] })
+                onValueChange={(value) =>
+                  p.onPointCloud({ ...p.pointCloud, surface: value as PointCloudChoice['surface'] })
                 }
               >
                 {Object.entries(SURFACES).map(([value, label]) => (
@@ -171,19 +171,20 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
                     {label}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             <Field
               label="Ground classification"
               hint="Unclassified clouds are classified in the browser with WhiteboxTools' ground point filter."
             >
-              <NativeSelect
+              <RoadSelect
+                ariaLabel="Ground classification"
                 className={roadFieldClass}
                 value={String(p.pointCloud.classify)}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   p.onPointCloud({
                     ...p.pointCloud,
-                    classify: e.target.value === 'auto' ? 'auto' : e.target.value === 'true',
+                    classify: value === 'auto' ? 'auto' : value === 'true',
                   })
                 }
               >
@@ -192,7 +193,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
                     {label}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             {p.pointCloud.surface === 'tin' && (
               <div className="flex items-center gap-2">

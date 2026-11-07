@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { openRoadPanel } from './road-sidebar'
+import { choose, optionLabels } from './road-select'
 
 for (const device of [
   { name: 'desktop', width: 1512, height: 982, touch: false },
@@ -37,7 +38,7 @@ for (const device of [
       const editor = page.getByTestId('road-template-components').getByTestId('road-section-assembly')
       await editor.getByRole('button', { name: 'Add component', exact: true }).click()
       await editor.getByLabel('Component 1 name', { exact: true }).fill('Survey bench')
-      await editor.getByRole('combobox', { name: 'Component 1 condition', exact: true }).selectOption('always')
+      await choose(editor.getByRole('combobox', { name: 'Component 1 condition', exact: true }), 'always')
       await editor.getByLabel('Component 1 width (m)', { exact: true }).fill('2')
       await editor.getByLabel('Component 1 width (m)', { exact: true }).press('Tab')
       await editor.getByLabel('Component 1 point code', { exact: true }).fill('survey-bench-edge')
@@ -47,9 +48,9 @@ for (const device of [
       await editor.getByLabel('Course 1 depth (m)', { exact: true }).press('Tab')
       await editor.getByText('Reference feature or surface', { exact: true }).click()
       await expect(editor.getByRole('combobox', { name: 'Component 1 reference surface', exact: true })).toBeVisible()
-      await expect(
-        editor.getByRole('combobox', { name: 'Component 1 reference surface', exact: true }).locator('option'),
-      ).toContainText(['Relative rise / feature level', 'Original ground', 'Prepared ground'])
+      expect(
+        await optionLabels(editor.getByRole('combobox', { name: 'Component 1 reference surface', exact: true })),
+      ).toEqual(expect.arrayContaining(['Relative rise / feature level', 'Original ground', 'Prepared ground']))
       await page.screenshot({ path: info.outputPath(`${device.name}-section-assembly.png`) })
 
       await workflow.getByRole('tab', { name: 'Engineering', exact: true }).click()
@@ -61,7 +62,7 @@ for (const device of [
       await stripping.getByRole('button', { name: 'Add stripping range', exact: true }).click()
       await stripping.getByLabel('Stripping 1 Removal depth (m)', { exact: true }).fill('.3')
       await stripping.getByLabel('Stripping 1 Removal depth (m)', { exact: true }).press('Tab')
-      await expect(stripping.getByRole('combobox', { name: 'Stripping 1 material', exact: true })).not.toHaveValue('')
+      await expect(stripping.getByRole('combobox', { name: 'Stripping 1 material', exact: true })).not.toHaveAttribute('data-value', '')
       await page.screenshot({ path: info.outputPath(`${device.name}-site-preparation.png`) })
       const overflowing = await page.evaluate(() => ({
         document: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,

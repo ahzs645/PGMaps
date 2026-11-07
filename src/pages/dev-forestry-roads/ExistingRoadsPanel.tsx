@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { parseProject } from './project'
 import { refreshExistingRoadFeature, unreviewedRoadEvidence } from './existingRoadEvidence'
@@ -213,13 +212,18 @@ export function ExistingRoadsPanel({
         {road && (
           <>
             <Field label="Review existing road">
-              <NativeSelect className={roadFieldClass} value={road.id} onChange={(e) => setSelected(e.target.value)}>
+              <RoadSelect
+                ariaLabel="Review existing road"
+                className={roadFieldClass}
+                value={road.id}
+                onValueChange={(value) => setSelected(value)}
+              >
                 {roads.map((f) => (
                   <option key={f.id} value={f.id}>
                     {sectionLabel(f)}
                   </option>
                 ))}
-              </NativeSelect>
+              </RoadSelect>
             </Field>
             {onLocateRoad && (
               <Button
@@ -273,39 +277,42 @@ export function ExistingRoadsPanel({
             <div className="grid grid-cols-2 gap-2">
               {evidence.source !== 'bc-ften' && (
                 <Field label="User road network class">
-                  <NativeSelect
+                  <RoadSelect
+                    ariaLabel="User road network class"
                     className={roadFieldClass}
                     value={evidence.roadClass ?? 'user'}
-                    onChange={(e) => change({ roadClass: e.target.value as ExistingRoadEvidence['roadClass'] })}
+                    onValueChange={(value) => change({ roadClass: value as ExistingRoadEvidence['roadClass'] })}
                   >
                     <option value="user">Other / unknown</option>
                     <option value="fsr">FSR (user identified)</option>
                     <option value="permit">Permit road</option>
-                  </NativeSelect>
+                  </RoadSelect>
                 </Field>
               )}
               <Field label="Planning condition">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Planning condition"
                   className={roadFieldClass}
                   value={evidence.condition}
-                  onChange={(e) => change({ condition: e.target.value as ExistingRoadEvidence['condition'] })}
+                  onValueChange={(value) => change({ condition: value as ExistingRoadEvidence['condition'] })}
                 >
                   <option value="unknown">Unknown</option>
                   <option value="serviceable">Serviceable</option>
                   <option value="rehabilitation">Needs rehabilitation</option>
                   <option value="closed">Closed / unavailable</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
               <Field label="Condition evidence">
-                <NativeSelect
+                <RoadSelect
+                  ariaLabel="Condition evidence"
                   className={roadFieldClass}
                   value={evidence.conditionBasis}
-                  onChange={(e) => change({ conditionBasis: e.target.value as ExistingRoadEvidence['conditionBasis'] })}
+                  onValueChange={(value) => change({ conditionBasis: value as ExistingRoadEvidence['conditionBasis'] })}
                 >
                   <option value="unreviewed">Unreviewed</option>
                   <option value="assumed">Planning assumption</option>
                   <option value="field-verified">Field verified by user</option>
-                </NativeSelect>
+                </RoadSelect>
               </Field>
             </div>
             <OptionalNumberField

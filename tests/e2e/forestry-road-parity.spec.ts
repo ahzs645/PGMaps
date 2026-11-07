@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { dialogsClosed } from './road-dialogs'
+import { choose, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -40,7 +41,8 @@ async function estimate(page: Page) {
   await dialogsClosed(page)
   return value
 }
-const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true }).locator('option')
+const roads = (page: Page) => page.getByRole('combobox', { name: 'Active road', exact: true })
+const roadCount = async (page: Page) => (await optionLabels(roads(page))).length
 
 test('vertical standards, control points and the profile optimizer', async ({ page }) => {
   const errors = await prepare(page)
@@ -54,13 +56,13 @@ test('vertical standards, control points and the profile optimizer', async ({ pa
   await expect(page.getByTestId('road-profile-chart').locator('[data-vertical-control]')).toHaveCount(1)
 
   const before = await estimate(page)
-  const count = await roads(page).count()
+  const count = await roadCount(page)
   await openRoadPanel(page, 'Optimize vertical profile')
   await page.getByLabel('Search ± (m)', { exact: true }).fill('12')
   await page.getByLabel('Search ± (m)', { exact: true }).press('Tab')
   await page.getByLabel('Tie both ends to ground', { exact: true }).uncheck()
   await page.getByRole('button', { name: 'Optimize profile (K 4)', exact: true }).click()
-  await expect(roads(page)).toHaveCount(count + 1)
+  await expect.poll(() => roadCount(page)).toBe(count + 1)
   await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveText(/optimized profile/)
   await expect.poll(() => estimate(page)).toBeLessThan(before)
   // The optimized profile meets the standards and the control it was given.
@@ -75,14 +77,14 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   await page.getByRole('button', { name: 'Best fit every corner', exact: true }).click()
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText(/Set \d+ curves?/)
 
-  const count = await roads(page).count()
+  const count = await roadCount(page)
   await expandRoadSection(page, 'road-route-tools')
   await page.getByLabel('Alternatives', { exact: true }).fill('3')
   await page.getByLabel('Alternatives', { exact: true }).press('Tab')
   await page.getByRole('button', { name: 'Suggest terrain-cost alternatives', exact: true }).click()
-  await expect.poll(() => roads(page).count()).toBeGreaterThan(count + 1)
+  await expect.poll(() => roadCount(page)).toBeGreaterThan(count + 1)
   await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveText(/terrain-cost #1 \(\$/)
-  await page.getByRole('combobox', { name: 'Active road', exact: true }).selectOption({ index: count - 1 })
+  await choose(page.getByRole('combobox', { name: 'Active road', exact: true }), { index: count - 1 })
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const xml = await download(page, page.getByRole('button', { name: 'LandXML', exact: true }))
@@ -102,11 +104,11 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
 
 test('station table interval and columns, saved layouts and cost status', async ({ page }) => {
   const errors = await prepare(page)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Stations' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Stations' })
   const table = page.getByTestId('road-station-table')
   const all = await table.locator('tbody tr').count()
   await page.getByRole('button', { name: 'Filter stations', exact: true }).click()
-  await page.getByLabel('Station table reporting interval', { exact: true }).selectOption('100')
+  await choose(page.getByLabel('Station table reporting interval', { exact: true }), '100')
   await expect.poll(() => table.locator('tbody tr').count()).toBeLessThan(all / 5)
   await expect(table.locator('tfoot')).toContainText('Cum. tot.')
   await page.keyboard.press('Escape')
@@ -120,14 +122,14 @@ test('station table interval and columns, saved layouts and cost status', async 
   await page.keyboard.press('Escape')
 
   const picker = page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout' })
-  await picker.selectOption({ label: 'Save or manage layouts…' })
+  await choose(picker, { label: 'Save or manage layouts…' })
   const dialog = page.getByTestId('road-layouts-dialog')
   await dialog.getByLabel('Name for the current layout').fill('Wide plan')
   await dialog.getByRole('button', { name: 'Save current layout', exact: true }).click()
-  await expect(picker.locator('option:checked')).toHaveText(/Wide plan/)
+  await expect(picker).toHaveText(/Wide plan/)
   await page.reload()
   await expect(page.getByTestId('road-profile-chart')).toBeVisible()
-  await expect(picker.locator('option:checked')).toHaveText(/Wide plan/)
+  await expect(picker).toHaveText(/Wide plan/)
 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
   await expect(page.getByTestId('road-cost-status')).toContainText(

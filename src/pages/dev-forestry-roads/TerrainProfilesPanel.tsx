@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
-import { roadFieldClass } from './Controls'
+import { roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -38,18 +37,18 @@ export function TerrainProfilesPanel({
         </Button>
         {line && (
           <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-1">
-            <NativeSelect
-              aria-label="Line to sample"
+            <RoadSelect
+              ariaLabel="Line to sample"
               className={roadFieldClass}
               value={line.id}
-              onChange={(event) => setLineId(event.target.value)}
+              onValueChange={(value) => setLineId(value)}
             >
               {lines.map((feature) => (
                 <option key={feature.id} value={feature.id}>
                   {feature.name}
                 </option>
               ))}
-            </NativeSelect>
+            </RoadSelect>
             <Button variant="outline" size="sm" className="text-xs" onClick={() => onProfile(line.id)}>
               Sample
             </Button>

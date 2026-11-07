@@ -4,6 +4,7 @@ import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/
 import { DEFAULT_DRAINAGE_SETTINGS } from '../../src/pages/dev-forestry-roads/drainageRun'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import type { drainageComparisonsExport } from '../../src/pages/dev-forestry-roads/drainageSensitivity'
+import { choose } from './road-select'
 
 test.setTimeout(180_000)
 async function prepare(page: Page, url = '/dev/forestry/road-design?example=training') {
@@ -28,10 +29,10 @@ async function importProject(page: Page, bytes: Buffer) {
 async function showDrainage(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Drainage' })
 }
-async function choose(page: Page, control: string, value: string) {
-  await page.getByRole('combobox', { name: control, exact: true }).selectOption({ label: value })
+async function chooseOption(page: Page, control: string, value: string) {
+  await choose(page.getByRole('combobox', { name: control, exact: true }), { label: value })
 }
 async function download(page: Page, name: string): Promise<Buffer> {
   const pending = page.waitForEvent('download')
@@ -86,8 +87,8 @@ for (const size of [
       await panel.getByRole('button', { name: 'Save comparison run', exact: true }).click()
       await expect(panel.getByRole('article', { name: 'Comparison Baseline', exact: true })).toBeVisible()
 
-      await choose(page, 'Depression treatment', 'Preserve depressions')
-      await choose(page, 'Outlet snap policy', 'Lowest elevation')
+      await chooseOption(page, 'Depression treatment', 'Preserve depressions')
+      await chooseOption(page, 'Outlet snap policy', 'Lowest elevation')
       await panel.getByLabel('Requested grid cell (m)', { exact: true }).fill('10')
       await panel.getByLabel('Requested grid cell (m)', { exact: true }).press('Tab')
       await expect(panel.getByRole('button', { name: 'Export drainage evidence', exact: true })).toBeDisabled()
@@ -145,10 +146,10 @@ for (const size of [
           'Preserve depressions',
         )
         await expect(
-          fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true }).locator('option:checked'),
+          fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true }),
         ).toHaveText('Lowest elevation')
         await expect(
-          fresh.getByRole('combobox', { name: 'Depression treatment', exact: true }).locator('option:checked'),
+          fresh.getByRole('combobox', { name: 'Depression treatment', exact: true }),
         ).toHaveText('Preserve depressions')
         const again = JSON.parse((await download(fresh, 'Export comparison evidence')).toString()) as ReturnType<
           typeof drainageComparisonsExport

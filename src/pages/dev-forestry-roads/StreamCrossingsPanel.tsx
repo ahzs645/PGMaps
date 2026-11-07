@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Field, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import {
   CROSSING_STRUCTURES,
@@ -32,18 +32,18 @@ function EstimateItems({
     <div className="space-y-3">
       {items.length > 0 && (
         <Field label={shared ? 'Shared estimate item' : 'Estimate item'}>
-          <select
+          <RoadSelect
             className={roadFieldClass}
-            aria-label={shared ? 'Shared estimate item' : 'Estimate item'}
+            ariaLabel={shared ? 'Shared estimate item' : 'Estimate item'}
             value={activeId}
-            onChange={(event) => setSelectedItem(event.target.value)}
+            onValueChange={(value) => setSelectedItem(value)}
           >
             {items.map((item, index) => (
               <option key={item.id} value={item.id}>
                 {index + 1}. {item.label}
               </option>
             ))}
-          </select>
+          </RoadSelect>
         </Field>
       )}
       {items.flatMap((item, index) =>
@@ -201,18 +201,18 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
       {row && (
         <div className="space-y-3">
           <Field label="Crossing">
-            <select
+            <RoadSelect
               className={roadFieldClass}
-              aria-label="Stream crossing"
+              ariaLabel="Stream crossing"
               value={row.record.id}
-              onChange={(event) => setSelected(event.target.value)}
+              onValueChange={(value) => setSelected(value)}
             >
               {estimate.rows.map((entry) => (
                 <option key={entry.record.id} value={entry.record.id}>
                   {entry.name} — {entry.chainage.toFixed(1)} m — {entry.status}
                 </option>
               ))}
-            </select>
+            </RoadSelect>
           </Field>
           <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => workspace.setStation(row.chainage)}>
@@ -231,18 +231,18 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
             )}
           </div>
           <Field label="Planning structure option">
-            <select
+            <RoadSelect
               className={roadFieldClass}
-              aria-label="Planning structure option"
+              ariaLabel="Planning structure option"
               value={row.record.structure}
-              onChange={(event) => saveRecord({ ...row.record, structure: event.target.value as CrossingStructure })}
+              onValueChange={(value) => saveRecord({ ...row.record, structure: value as CrossingStructure })}
             >
               {CROSSING_STRUCTURES.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </RoadSelect>
           </Field>
           <p className="text-xs text-muted-foreground">
             A structure choice is not a hydraulic, fish-passage or regulatory approval.
@@ -260,11 +260,11 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
           {(row.record.replacesCulvertId ||
             alignment.engineering?.culverts.some((c) => c.sourceFeatureId === row.record.featureId)) && (
             <Field label="Replace existing installed allowance">
-              <select
+              <RoadSelect
                 className={roadFieldClass}
-                aria-label="Replace existing installed allowance"
+                ariaLabel="Replace existing installed allowance"
                 value={row.record.replacesCulvertId ?? ''}
-                onChange={(event) => saveRecord({ ...row.record, replacesCulvertId: event.target.value || undefined })}
+                onValueChange={(value) => saveRecord({ ...row.record, replacesCulvertId: value || undefined })}
               >
                 <option value="">Choose a matching engineering culvert</option>
                 {alignment.engineering?.culverts
@@ -285,7 +285,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
                       c.sourceFeatureId === row.record.featureId &&
                       Math.abs(c.chainage - row.chainage) <= LEGACY_CULVERT_ASSOCIATION_M,
                   ) && <option value={row.record.replacesCulvertId}>Previous culvert no longer matches</option>}
-              </select>
+              </RoadSelect>
             </Field>
           )}
           <EstimateItems items={row.record.items} onChange={(items) => saveRecord({ ...row.record, items })} />
@@ -319,18 +319,18 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
           <summary>{estimate.retired.length} earlier records retained outside this estimate</summary>
           <div className="space-y-2 pt-2">
             <Field label="Earlier crossing record">
-              <select
+              <RoadSelect
                 className={roadFieldClass}
-                aria-label="Earlier crossing record"
+                ariaLabel="Earlier crossing record"
                 value={retired.id}
-                onChange={(event) => setRetiredId(event.target.value)}
+                onValueChange={(value) => setRetiredId(value)}
               >
                 {estimate.retired.map((record) => (
                   <option key={record.id} value={record.id}>
                     {record.featureId} — former {record.chainage.toFixed(1)} m
                   </option>
                 ))}
-              </select>
+              </RoadSelect>
             </Field>
             <p>
               <strong>

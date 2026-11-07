@@ -4,6 +4,7 @@ import { createDemoProject, DEMO_ORIGIN } from '../../src/pages/dev-forestry-roa
 import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { openRoadPanel } from './road-sidebar'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000 })
 test.setTimeout(120_000)
@@ -72,7 +73,7 @@ async function prepare(page: Page) {
   await page.getByRole('spinbutton', { name: 'Selected station metres', exact: true }).press('Tab')
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: '3D' })
   const preview = page.getByTestId('road-terrain-preview')
   await expect(preview).toHaveAttribute('data-station', '390')
   return { preview, errors }
@@ -131,7 +132,7 @@ for (const viewport of [
     await page.screenshot({ path: testInfo.outputPath('steep-high-fill-follow.png') })
     await preview.getByRole('button', { name: 'Rotate terrain right', exact: true }).click()
     await expectFitted(preview)
-    await preview.getByRole('combobox', { name: 'Terrain vertical exaggeration', exact: true }).selectOption({ label: '×4' })
+    await choose(preview.getByRole('combobox', { name: 'Terrain vertical exaggeration', exact: true }), { label: '×4' })
     await expectFitted(preview)
     await preview.getByRole('button', { name: 'Batters', exact: true }).click()
     await expect(preview.locator('[data-unfinished-batter]')).toHaveCount(0)

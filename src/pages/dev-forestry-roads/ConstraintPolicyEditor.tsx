@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
-import { Field, NumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   CONSTRAINT_LABELS,
   CONSTRAINT_TREATMENTS,
@@ -32,11 +31,12 @@ export function ConstraintPolicyEditor({
         label={`${feature.name} treatment`}
         hint="Excluded blocks search. Conditional blocks until a recorded planning review is current. Avoid where practical adds a search penalty; additional cost adds a planning allowance. None establishes legal permission."
       >
-        <NativeSelect
+        <RoadSelect
+          ariaLabel={`${feature.name} treatment`}
           className={roadFieldClass}
           value={policy.treatment}
-          onChange={(event) => {
-            const treatment = event.target.value as ConstraintTreatment
+          onValueChange={(value) => {
+            const treatment = value as ConstraintTreatment
             onChange({
               ...policy,
               treatment,
@@ -53,7 +53,7 @@ export function ConstraintPolicyEditor({
               {CONSTRAINT_LABELS[value]}
             </option>
           ))}
-        </NativeSelect>
+        </RoadSelect>
       </Field>
       <p className="text-2xs text-muted-foreground" role="status">
         {resolved.blocked

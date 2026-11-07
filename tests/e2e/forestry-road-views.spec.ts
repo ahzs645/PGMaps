@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { choose } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -69,9 +70,9 @@ async function prepare(page: Page) {
 
 /** The layout picker is a combobox in the page header. */
 async function chooseLayout(page: Page, name: string) {
-  await page
+  await choose(page
     .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: name })
+    .getByRole('combobox', { name: 'Road view layout', exact: true }), { label: name })
 }
 
 async function saveProject(page: Page): Promise<RoadProject> {
@@ -164,14 +165,14 @@ test('profile zoom, pan, fit and vertical exaggeration affect only the display',
   await page.getByRole('button', { name: 'Pan profile forward', exact: true }).click()
   await page.getByRole('button', { name: 'Pan profile backward', exact: true }).click()
 
-  await page.getByLabel('Profile vertical exaggeration', { exact: true }).selectOption('5')
+  await choose(page.getByLabel('Profile vertical exaggeration', { exact: true }), '5')
   await expect.poll(async () => Number(await chart.getAttribute('data-vertical-exaggeration'))).toBeCloseTo(5, 5)
   await expectLinkedStation(page, 200)
   await page.getByRole('button', { name: 'Zoom profile out', exact: true }).click()
   expect(await rangeOf(chart)).toEqual(initial)
   await page.getByRole('button', { name: 'Fit full road profile', exact: true }).click()
   expect(await rangeOf(chart)).toEqual(initial)
-  await expect(page.getByLabel('Profile vertical exaggeration', { exact: true })).toHaveValue('fit')
+  await expect(page.getByLabel('Profile vertical exaggeration', { exact: true })).toHaveAttribute('data-value', 'fit')
   expect(await saveProject(page)).toEqual(original)
   expect(errors).toEqual([])
 })
@@ -213,7 +214,7 @@ test('an off-screen shared station is revealed and profile bands keep the same c
     .poll(async () => Number(await page.getByLabel('Selected station metres', { exact: true }).inputValue()))
     .toBeCloseTo(target, 0)
   expect(await rangeOf(bands)).toEqual(await rangeOf(chart))
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Mass haul' })
+  await choose(page.getByRole('combobox', { name: 'Road detail view', exact: true }), { label: 'Mass haul' })
   const mass = page.getByTestId('road-mass-chart')
   await expect(mass).toBeVisible()
   await expect.poll(async () => rangeOf(mass)).toEqual(await rangeOf(chart))
@@ -233,7 +234,7 @@ test('terrain aspect and context visibility change actual map sources without mo
   const initial = (await mapState(page))!
   expect(initial.terrainHash).not.toBe(0)
   expect(initial.contextKinds).toContain('stream')
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Aspect' })
+  await choose(page.getByRole('combobox', { name: 'Terrain display', exact: true }), { label: 'Aspect' })
   await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByText('Aspect · downslope direction', { exact: true })).toBeVisible()
   await expect.poll(async () => (await mapState(page))?.terrainHash).not.toBe(initial.terrainHash)
@@ -245,7 +246,7 @@ test('terrain aspect and context visibility change actual map sources without mo
   await page.getByRole('checkbox', { name: 'Show streams context', exact: true }).check()
   await expect.poll(async () => (await mapState(page))!.contextKinds).toEqual(initial.contextKinds)
   await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Hillshade' })
+  await choose(page.getByRole('combobox', { name: 'Terrain display', exact: true }), { label: 'Hillshade' })
   await expect.poll(async () => (await mapState(page))?.terrainHash).toEqual(initial.terrainHash)
   expect(await saveProject(page)).toEqual(original)
   expect(errors).toEqual([])
@@ -465,8 +466,7 @@ test('header picker, no footer or status row, profile controls on the chart, sec
   await expect(
     page
       .getByTestId('road-workspace-header')
-      .getByRole('combobox', { name: 'Road view layout', exact: true })
-      .locator('option:checked'),
+      .getByRole('combobox', { name: 'Road view layout', exact: true }),
   ).toHaveText(/Linked overview/)
   await expect(page.getByText(/Concept planning/)).toHaveCount(0)
   await expect(page.getByText(/average end areas/)).toHaveCount(0)
@@ -546,7 +546,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   await expect(page.getByTestId('road-rate-source')).toContainText('not taken from a published cost survey')
   await about.click()
   await expect(page.getByTestId('road-rate-source')).toHaveCount(0)
-  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).locator('option:checked')).toHaveText(
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
     /PG Maps placeholder rates/,
   )
   const money = (text: string | null) => Number(text!.replace(/[$,]/g, ''))
@@ -562,7 +562,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   const raised = money(await total.textContent())
   expect(raised).toBeGreaterThan(before)
   await expect(dialog.getByTestId('road-cost-change')).toContainText('since opened')
-  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).locator('option:checked')).toHaveText(
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
     /Custom/,
   )
   await page.screenshot({ path: testInfo.outputPath('cost-breakdown.png') })
@@ -572,7 +572,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
 
   // The preset restores every base rate.
   await tile.click()
-  await dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).selectOption({ label: 'PG Maps placeholder rates' })
+  await choose(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }), { label: 'PG Maps placeholder rates' })
   await expect.poll(async () => money(await total.textContent())).toBeCloseTo(before, -1)
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)

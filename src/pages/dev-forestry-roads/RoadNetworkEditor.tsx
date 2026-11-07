@@ -1,8 +1,7 @@
-import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { CollapsibleSection } from '@/components/ui/map-panels'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { createBridgeLoadRatingEvidence, createRoadNetworkEvidence } from './roadNetwork'
 import type { BridgeLoadRatingEvidence, RoadNetworkEvidence } from './roadNetworkTypes'
 import type { Coordinate } from './types'
@@ -96,27 +95,29 @@ export function RoadNetworkEditor({
         </p>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Road access">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Road access"
               className={roadFieldClass}
               value={network.access}
-              onChange={(event) => patch({ access: event.target.value as RoadNetworkEvidence['access'] })}
+              onValueChange={(value) => patch({ access: value as RoadNetworkEvidence['access'] })}
             >
               <option value="unknown">Unknown</option>
               <option value="allowed">Allowed (reviewed input)</option>
               <option value="permission-required">Permission required</option>
               <option value="closed">Closed / unavailable</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <Field label="Travel direction">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Travel direction"
               className={roadFieldClass}
               value={network.direction}
-              onChange={(event) => patch({ direction: event.target.value as RoadNetworkEvidence['direction'] })}
+              onValueChange={(value) => patch({ direction: value as RoadNetworkEvidence['direction'] })}
             >
               <option value="both">Both directions</option>
               <option value="forward">Forward along line only</option>
               <option value="reverse">Reverse along line only</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
           <RestrictionList
             label="Permitted seasons"
@@ -138,16 +139,17 @@ export function RoadNetworkEditor({
             onChange={(maxVehicleWeightTonnes) => patch({ maxVehicleWeightTonnes })}
           />
           <Field label="Bridge / structure status">
-            <NativeSelect
+            <RoadSelect
+              ariaLabel="Bridge / structure status"
               className={roadFieldClass}
               value={network.bridgeStatus}
-              onChange={(event) => patch({ bridgeStatus: event.target.value as RoadNetworkEvidence['bridgeStatus'] })}
+              onValueChange={(value) => patch({ bridgeStatus: value as RoadNetworkEvidence['bridgeStatus'] })}
             >
               <option value="unknown">Unknown</option>
               <option value="none">Reviewed: none on road</option>
               <option value="reviewed">Present: limits reviewed</option>
               <option value="closed">Closed structure</option>
-            </NativeSelect>
+            </RoadSelect>
           </Field>
         </div>
         {network.bridgeStatus === 'reviewed' && (
