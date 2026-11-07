@@ -12,6 +12,12 @@ import { terrainMesh, cachedTerrainSampler, type TerrainVertex as Vertex } from 
 import { previewEarthwork, type PreviewBatterEdge } from './previewEarthwork'
 import { previewCamera } from './previewCamera'
 import { isBeyondReachFlag } from './engine'
+import {
+  TERRAIN_ELEVATION_COLORS,
+  TERRAIN_SLOPE_STOPS,
+  terrainElevationColor,
+  terrainSlopeColor,
+} from './terrainDisplay'
 import type { Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
 
 const NO_FACES: Face[] = []
@@ -95,6 +101,41 @@ function sideways(station: RoadStation, offset: number, frame: ReturnType<typeof
   return { x: x + Math.cos(bearing) * offset, y: y - Math.sin(bearing) * offset, z: elevation }
 }
 
+type GroundColour = 'slope' | 'elevation' | 'plain'
+const GROUND_COLOURS: { value: GroundColour; label: string }[] = [
+  { value: 'slope', label: 'Slope' },
+  { value: 'elevation', label: 'Elevation' },
+  { value: 'plain', label: 'Plain' },
+]
+/** Road faces over the grade limit: light enough to stay apart from the rose selection. */
+const OVER_GRADE_FILL = '#f2a39b'
+const percentOf = (degrees: number) => Math.round(Math.tan((degrees * Math.PI) / 180) * 100)
+
+/**
+ * A ground face coloured the way the plan colours the same ground, then lit, so steepness and relief
+ * both read. Slope comes from the face's true metres, before vertical exaggeration.
+ */
+function colourFace(a: Vertex, b: Vertex, c: Vertex, colour: GroundColour, zMin: number, zMax: number) {
+  if (colour === 'plain') return shade(a, b, c)
+  const ux = b.x - a.x,
+    uy = b.y - a.y,
+    uz = b.z - a.z
+  const vx = c.x - a.x,
+    vy = c.y - a.y,
+    vz = c.z - a.z
+  const nx = uy * vz - uz * vy,
+    ny = uz * vx - ux * vz,
+    nz = Math.abs(ux * vy - uy * vx)
+  const flip = ux * vy - uy * vx < 0 ? -1 : 1
+  const magnitude = Math.hypot(nx, ny, nz) || 1
+  const degrees = (Math.atan2(Math.hypot(nx, ny), nz) * 180) / Math.PI
+  const light = clamp((flip * nx * -0.35 + flip * ny * -0.45 + nz * 0.82) / magnitude, -0.5, 1)
+  const base =
+    colour === 'slope' ? terrainSlopeColor(degrees) : terrainElevationColor((a.z + b.z + c.z) / 3, zMin, zMax)
+  const factor = 0.72 + light * 0.28
+  return `rgb(${base.map((value) => Math.round(clamp(value * factor, 0, 255))).join(',')})`
+}
+
 function shade(a: Vertex, b: Vertex, c: Vertex) {
   const ux = b.x - a.x,
     uy = b.y - a.y,
@@ -126,6 +167,7 @@ export function TerrainPreview({
   sourceLabel = 'Project terrain',
   selectedCulvertId,
   onSelectCulvert,
+  maxGradePercent,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -137,6 +179,8 @@ export function TerrainPreview({
   sourceLabel?: string
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
+  /** Road faces steeper than this draw in the over-grade colour, as on the plan. */
+  maxGradePercent?: number
 }) {
   const [mode, setMode] = useState<'orbit' | 'follow'>('orbit')
   const [yaw, setYaw] = useState(28)
@@ -145,6 +189,7 @@ export function TerrainPreview({
   const [wireframe, setWireframe] = useState(false)
   const [showEarthwork, setShowEarthwork] = useState(true)
   const [fillGaps, setFillGaps] = useState(true)
+  const [groundColour, setGroundColour] = useState<GroundColour>('slope')
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [wheelSvg, setWheelSvg] = useState<SVGSVGElement | null>(null)
@@ -267,7 +312,11 @@ export function TerrainPreview({
         if (vertices.length >= 3)
           road.push({
             vertices,
-            fill: '#e8c886',
+            fill:
+              maxGradePercent !== undefined &&
+              Math.max(Math.abs(a.gradePercent ?? 0), Math.abs(b.gradePercent ?? 0)) > maxGradePercent
+                ? OVER_GRADE_FILL
+                : '#e8c886',
             station: (a.chainage + b.chainage) / 2,
             terrainGap: analysis.stations.slice(a.index, b.index + 1).some((s) => !finite(s.groundElevation)),
           })
@@ -337,8 +386,19 @@ export function TerrainPreview({
       cells: ground.length,
       infilledCells: mesh.infilledCells,
       openGapCells: mesh.openGapCells,
+      groundLow: zValues.length ? Math.min(...zValues) : 0,
+      groundHigh: zValues.length ? Math.max(...zValues) : 0,
     }
-  }, [analysis, followingStation, terrainOnly, cachedElevation, fillGaps])
+  }, [analysis, followingStation, terrainOnly, cachedElevation, fillGaps, maxGradePercent])
+  const groundFaces = useMemo(() => {
+    if (!sourceGeometry) return NO_FACES
+    if (groundColour === 'plain') return sourceGeometry.ground
+    const { groundLow, groundHigh } = sourceGeometry
+    return sourceGeometry.ground.map((face) => ({
+      ...face,
+      fill: colourFace(face.vertices[0], face.vertices[1], face.vertices[2], groundColour, groundLow, groundHigh),
+    }))
+  }, [sourceGeometry, groundColour])
 
   return (
     <div
@@ -461,6 +521,17 @@ export function TerrainPreview({
             </Button>
           )}
           <label className="flex items-center gap-1 text-3xs text-muted-foreground">
+            Colour
+            <AppSelect
+              triggerAriaLabel="Terrain colour"
+              contentClassName="z-workspace-popover text-xs"
+              triggerClassName="h-7 w-24 text-xs"
+              value={groundColour}
+              onValueChange={(value) => setGroundColour(value as GroundColour)}
+              options={GROUND_COLOURS}
+            />
+          </label>
+          <label className="flex items-center gap-1 text-3xs text-muted-foreground">
             Vertical
             <AppSelect
               triggerAriaLabel="Terrain vertical exaggeration"
@@ -473,6 +544,14 @@ export function TerrainPreview({
           </label>
         </div>
       </div>
+      {sourceGeometry && groundColour !== 'plain' && (
+        <TerrainColourLegend
+          colour={groundColour}
+          low={sourceGeometry.groundLow}
+          high={sourceGeometry.groundHigh}
+          maxGradePercent={terrainOnly ? undefined : maxGradePercent}
+        />
+      )}
       {!!sourceGeometry?.infilledCells && (
         <p
           role="status"
@@ -674,7 +753,7 @@ export function TerrainPreview({
                   </title>
                   <rect width={width} height={height} fill="hsl(var(--muted))" opacity={0.3} />
                   <TerrainGround
-                    faces={sourceGeometry.ground}
+                    faces={groundFaces}
                     overlays={showEarthwork ? sourceGeometry.earthwork : NO_FACES}
                     project={project}
                     width={width}
@@ -917,6 +996,73 @@ export function TerrainPreview({
           </p>
         )}
       </div>
+    </div>
+  )
+}
+
+/** What the ground colours mean, in the plan's degrees and the percent forestry works in. */
+function TerrainColourLegend({
+  colour,
+  low,
+  high,
+  maxGradePercent,
+}: {
+  colour: Exclude<GroundColour, 'plain'>
+  low: number
+  high: number
+  maxGradePercent?: number
+}) {
+  const top = TERRAIN_SLOPE_STOPS[TERRAIN_SLOPE_STOPS.length - 1].value
+  return (
+    <div
+      className="pointer-events-none absolute bottom-2 right-2 z-10 w-56 rounded border bg-background/90 px-2 py-1 text-3xs"
+      data-testid="road-3d-legend"
+    >
+      {colour === 'slope' ? (
+        <>
+          <p className="font-medium">Ground slope</p>
+          <div
+            className="mt-0.5 h-2 rounded-sm"
+            style={{
+              background: `linear-gradient(to right, ${TERRAIN_SLOPE_STOPS.map((stop) => `${stop.color} ${(stop.value / top) * 100}%`).join(', ')})`,
+            }}
+          />
+          <div className="relative mt-0.5 h-6 tabular-nums text-muted-foreground">
+            {TERRAIN_SLOPE_STOPS.map((stop, i) => (
+              <span
+                key={stop.value}
+                className="absolute top-0 -translate-x-1/2 text-center leading-3"
+                style={{
+                  left: `${(stop.value / top) * 100}%`,
+                  transform: i === 0 ? 'none' : i === TERRAIN_SLOPE_STOPS.length - 1 ? 'translateX(-100%)' : undefined,
+                }}
+              >
+                {stop.value}°{i === TERRAIN_SLOPE_STOPS.length - 1 ? '+' : ''}
+                <br />
+                {percentOf(stop.value)}%
+              </span>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="font-medium">Ground elevation</p>
+          <div
+            className="mt-0.5 h-2 rounded-sm"
+            style={{ background: `linear-gradient(to right, ${TERRAIN_ELEVATION_COLORS.join(', ')})` }}
+          />
+          <p className="flex justify-between tabular-nums text-muted-foreground">
+            <span>{Math.round(low)} m</span>
+            <span>{Math.round(high)} m</span>
+          </p>
+        </>
+      )}
+      {maxGradePercent !== undefined && (
+        <p className="mt-0.5 flex items-center gap-1">
+          <span className="size-2 rounded-sm" style={{ background: OVER_GRADE_FILL }} aria-hidden="true" />
+          Road over {maxGradePercent}% grade
+        </p>
+      )}
     </div>
   )
 }

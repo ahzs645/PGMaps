@@ -60,7 +60,7 @@ export function terrainAspectFromGradient(eastGradient: number, northGradient: n
 
 const MAX_CONTOUR_SEGMENTS = 60_000
 const clamp = (n: number, low: number, high: number) => Math.max(low, Math.min(high, n))
-type Color = [number, number, number]
+export type Color = [number, number, number]
 const rgb = (hex: string): Color => [
   Number.parseInt(hex.slice(1, 3), 16),
   Number.parseInt(hex.slice(3, 5), 16),
@@ -87,6 +87,9 @@ function elevationColor(value: number, min: number, max: number): Color {
   const index = Math.min(elevationColors.length - 2, Math.floor(position))
   return mix(elevationColors[index], elevationColors[index + 1], position - index)
 }
+/** The plan's slope ramp, for other views that colour the same ground. */
+export const terrainSlopeColor = (degrees: number): Color => slopeColor(degrees)
+export const terrainElevationColor = (value: number, min: number, max: number): Color => elevationColor(value, min, max)
 function aspectColor(degrees: number): Color {
   const index = Math.min(aspectColors.length - 2, Math.floor(degrees / 45))
   const a = aspectColors[index],

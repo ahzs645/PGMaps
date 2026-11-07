@@ -2687,6 +2687,7 @@ export default function DevForestryRoads() {
                                     station={station}
                                     onStation={w.setStation}
                                     playing={playing}
+                                    maxGradePercent={project.settings.maxGradePercent}
                                   />
                                 )}
                                 {detail === 'mass' && !terrainProfile && (
