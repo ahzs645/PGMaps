@@ -15,8 +15,9 @@ test('entered crossing items and a shared item persist with source evidence and 
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('tab', { name: 'Engineering', exact: true }).click()
   const panel = page.getByTestId('stream-crossings-panel')
-  await panel.getByRole('button', { name: /^Stream crossing estimates/ }).click()
+  // The folded section states its total; it shows it only while folded.
   await expect(panel).toContainText('Incomplete / unpriced')
+  await panel.getByRole('button', { name: /^Stream crossing estimates/ }).click()
   await panel.getByRole('button', { name: 'Record detected crossings', exact: true }).click()
   await panel.getByRole('combobox', { name: 'Planning structure option', exact: true }).selectOption('bridge')
   await panel

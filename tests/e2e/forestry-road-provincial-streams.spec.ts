@@ -116,7 +116,7 @@ test('provincial sources render, retain separate assessment evidence, and travel
 }) => {
   await open(page)
   await page.getByRole('button', { name: 'Load BC streams & evidence', exact: true }).click()
-  const row = page.getByRole('button', { name: /Fixture FWA reach/ })
+  const row = page.locator('[data-stream-row="bc-fwa-42-0"]')
   await expect(row).toContainText('No class · unassessed')
   await expect.poll(() => mapEvidenceCounts(page)).toEqual({ fish: 1, watersheds: 1 })
   await row.click()
@@ -141,14 +141,14 @@ test('a failed companion source leaves the existing project untouched', async ({
   await open(page, true)
   await page.getByRole('button', { name: 'Load BC streams & evidence', exact: true }).click()
   await expect(page.getByTestId('provincial-stream-context')).toContainText('failed (503)')
-  await expect(page.getByRole('button', { name: /Fixture FWA reach/ })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: /Synthetic drainage/ })).toBeVisible()
+  await expect(page.locator('[data-stream-row="bc-fwa-42-0"]')).toHaveCount(0)
+  await expect(page.locator('[data-stream-row="demo-stream"]')).toBeVisible()
 })
 
 test('the provincial loading controls remain usable on a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await open(page)
   await page.getByRole('button', { name: 'Load BC streams & evidence', exact: true }).click()
-  await expect(page.getByRole('button', { name: /Fixture FWA reach/ })).toBeVisible()
+  await expect(page.locator('[data-stream-row="bc-fwa-42-0"]')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })

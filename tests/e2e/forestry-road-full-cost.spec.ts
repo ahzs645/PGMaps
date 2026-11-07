@@ -273,6 +273,8 @@ test('phone complete-cost setup, sources, footer, preview and adoption remain re
   await loadScenario(page)
   await page.setViewportSize({ width: 390, height: 844 })
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
+  // Wait for the phone layout to settle before deciding whether the controls need opening.
+  await expect(show.or(page.getByRole('tablist', { name: 'Road workflow', exact: true })).first()).toBeVisible()
   if (await show.isVisible()) await show.click()
   const dialog = await comparison(page)
   const expectNoOverflow = async () => {

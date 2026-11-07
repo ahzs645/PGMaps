@@ -61,7 +61,7 @@ for (const size of [
     await expect(page.getByText('Widening table · 1 entries', { exact: true })).toBeVisible()
     await page.screenshot({ path: info.outputPath('curve-criteria.png') })
     await workflow(page, 'Design')
-    await openRoadPanel(page, 'Crossing prices')
+    await openRoadPanel(page, 'Crossing screening allowances')
     await fill(page, 'New cost group', 'major')
     await fill(page, 'Cost group price ($)', '12000')
     await page.getByRole('button', { name: 'Save cost group', exact: true }).tap()
