@@ -14,6 +14,7 @@ export function MapImagePreview({
   onMap,
   onSheet,
   onDetails,
+  onGeoreference,
   facets,
 }: {
   item: RasterRecord | null
@@ -21,6 +22,7 @@ export function MapImagePreview({
   onMap: (item: RasterRecord) => void
   onSheet: () => void
   onDetails: () => void
+  onGeoreference?: (item: RasterRecord) => void
   facets?: CatalogueFacets
 }) {
   const [image, setImage] = useState<{ id: string; url?: string; error?: string }>({ id: '' })
@@ -104,6 +106,11 @@ export function MapImagePreview({
           <Button variant="outline" onClick={onDetails}>
             Map notes & sources
           </Button>
+          {!!item?.downloads.length && onGeoreference && (
+            <Button variant="outline" onClick={() => onGeoreference(item)}>
+              Adjust alignment
+            </Button>
+          )}
           {current?.url && (
             <ExternalLink href={current.url} className="self-center px-2 text-sm">
               Open larger image

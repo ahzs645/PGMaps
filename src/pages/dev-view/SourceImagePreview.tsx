@@ -1,4 +1,5 @@
 import { FileImage } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -10,10 +11,12 @@ export function SourceImagePreview({
   item,
   facets,
   onClose,
+  onGeoreference,
 }: {
   item: SourceImageRecord | null
   facets?: CatalogueFacets
   onClose: () => void
+  onGeoreference?: (item: SourceImageRecord) => void
 }) {
   return (
     <Dialog
@@ -55,6 +58,11 @@ export function SourceImagePreview({
           <ExternalLink href={item.image} className="text-sm">
             Open available image at its supplied resolution
           </ExternalLink>
+        )}
+        {item?.image && onGeoreference && (
+          <Button variant="outline" className="w-fit" onClick={() => onGeoreference(item)}>
+            Georeference this source image
+          </Button>
         )}
         <div>
           <h3 className="mb-2 text-sm font-semibold">Source documents</h3>

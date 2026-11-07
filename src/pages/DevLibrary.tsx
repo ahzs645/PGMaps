@@ -24,6 +24,15 @@ const AQMAP_SAMPLE_PATH = '/dev/aqmap?lng=-96.0000&lat=56.0000&z=3.10#/3.10/56.0
 
 const devEntries: DevEntry[] = [
   {
+    title: 'Georeference maps',
+    description:
+      'Match image and map landmarks, preview scale and local warp adjustments, and download editable projects or rectified GeoTIFFs.',
+    href: '/dev/georeference',
+    icon: MapPinned,
+    color: 'bg-sky-700',
+    label: '/dev/georeference',
+  },
+  {
     title: 'Government map catalog',
     description:
       'B.C. air-monitoring maps, source data streams, tested access limits and options for native PGMaps recreations.',
