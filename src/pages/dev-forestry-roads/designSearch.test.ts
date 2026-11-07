@@ -126,6 +126,7 @@ describe('richer bounded design searches', () => {
         id: 's',
         name: 'Stream',
         kind: 'stream' as const,
+        riparianPolicy: { treatment: 'additional-cost' as const, costPerM: 0 },
         crossingGroup: 'major',
         geometry: { type: 'LineString' as const, coordinates: [point(-20, -200), point(-20, 200)] },
       },
@@ -142,6 +143,7 @@ describe('richer bounded design searches', () => {
       id: 's',
       name: 'Short stream',
       kind: 'stream' as const,
+      riparianPolicy: { treatment: 'additional-cost' as const, costPerM: 0 },
       crossingGroup: 'sensitive',
       geometry: { type: 'LineString' as const, coordinates: [point(0, -20), point(0, 20)] },
     }

@@ -72,16 +72,16 @@ export function suggestFsrConnections(
   }
   connections.sort((a, b) =>
     preference === 'lowest-cost'
-      ? a.cost - b.cost ||
+      ? a.searchScore - b.searchScore ||
         a.target.distanceM - b.target.distanceM ||
         a.target.featureId.localeCompare(b.target.featureId)
-      : a.target.distanceM - b.target.distanceM || a.cost - b.cost,
+      : a.target.distanceM - b.target.distanceM || a.searchScore - b.searchScore,
   )
   const selected = connections[0]
   return {
     selected,
     connections,
     attempts,
-    message: `${chosen ? 'Chosen FSR' : preference === 'lowest-cost' ? 'Lowest screening-cost' : 'Nearest feasible'} connection to ${selected.target.name}: ${Math.round(selected.lengthM).toLocaleString('en-CA')} m of proposed road, $${Math.round(selected.cost).toLocaleString('en-CA')} under the route-search model. ${chosen ? 'Used only the selected FSR target.' : `Checked ${attempts.length} of up to ${MAX_FSR_CONNECTION_CANDIDATES} nearest targets in the loaded FSR network.`} The endpoint meets the mapped segment exactly; inspect road condition, access, junction geometry, curves and the designed profile.`,
+    message: `${chosen ? 'Chosen FSR' : preference === 'lowest-cost' ? 'Lowest screening-cost' : 'Nearest feasible'} connection to ${selected.target.name}: ${Math.round(selected.lengthM).toLocaleString('en-CA')} m of proposed road, $${Math.round(selected.cost).toLocaleString('en-CA')} under the route-search model${selected.avoidancePenalty ? `, plus ${Math.round(selected.avoidancePenalty).toLocaleString('en-CA')} CAD-equivalent avoidance penalty for ranking only` : ''}. ${chosen ? 'Used only the selected FSR target.' : `Checked ${attempts.length} of up to ${MAX_FSR_CONNECTION_CANDIDATES} nearest targets in the loaded FSR network.`} The endpoint meets the mapped segment exactly; inspect road condition, access, junction geometry, curves and the designed profile.`,
   }
 }

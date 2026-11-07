@@ -1,5 +1,6 @@
 /** Legend entries derived from the same visible GeoJSON collections used by the plan renderer. */
 import { shortRoadNames } from './roadNames'
+import { RIPARIAN_MAP_COLORS } from './riparian'
 import type { Alignment, ContextFeature } from './types'
 
 export type PlanLegendShape = 'line' | 'dashed-line' | 'circle' | 'square' | 'area'
@@ -171,6 +172,19 @@ export function buildPlanLegend({
   roads.finish()
   const context = section('context', 'Map context')
   for (const feature of sources.context.features) {
+    const band = feature.properties?.riparianBand as keyof typeof RIPARIAN_MAP_COLORS | undefined
+    if (band && RIPARIAN_MAP_COLORS[band]) {
+      context.add({
+        id: `riparian-${band}`,
+        label:
+          band === 'uncertain'
+            ? 'Riparian extent unresolved · horizontal screen'
+            : `Riparian ${band} · preliminary horizontal screen`,
+        color: RIPARIAN_MAP_COLORS[band],
+        shape: 'area',
+      })
+      continue
+    }
     const kind = feature.properties?.kind as ContextFeature['kind']
     const style = PLAN_CONTEXT_STYLES[kind]
     if (!style) continue

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { alignmentLength, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
+import { newCrossingCostItem, synchronizeCrossingRecords } from './crossingPlan'
 import {
   analyzeFullCostConnector,
   buildFullCostDemands,
@@ -181,6 +182,47 @@ function compare(candidates: FullCostCandidateInput[], planning: TotalCostPlanni
 }
 
 describe('checked horizontal full-cost comparison', () => {
+  it('charges shared crossing work once in the final ledger and preserves the normalized engine structures cost', () => {
+    const input = candidate('short-a', a)
+    input.alignment.engineering!.haul.contingencyPercent = 10
+    const planning = plan()
+    const before = compare([input], planning).candidates[0]
+    expect(before.status).toBe('feasible')
+    const streams = [
+      {
+        id: 'stream',
+        name: 'Crossing stream',
+        kind: 'stream' as const,
+        geometry: { type: 'LineString' as const, coordinates: [point(50, -30), point(50, 30)] },
+      },
+    ]
+    const observed = analyzeFullCostConnector(input.alignment, terrain, settings, streams)
+    input.alignment.crossingRecords = synchronizeCrossingRecords(input.alignment, observed.crossings, streams).map(
+      (record) => ({
+        ...record,
+        structure: 'bridge',
+        items: [
+          { ...newCrossingCostItem('bridge'), unitRate: 1000, source: 'Synthetic quote', priceDate: '2026-11-07' },
+        ],
+      }),
+    )
+    input.analysis = analyzeFullCostConnector(input.alignment, terrain, settings, streams, {
+      sharedCrossingCosts: [
+        {
+          ...newCrossingCostItem('shared-survey'),
+          unitRate: 500,
+          source: 'Synthetic survey quote',
+          priceDate: '2026-11-07',
+        },
+      ],
+    })
+    expect(input.analysis.crossingEstimate!.complete).toBe(true)
+    const after = compare([input], planning).candidates[0]
+    expect(after.status).toBe('feasible')
+    expect(after.ledger!.newConstruction - before.ledger!.newConstruction).toBeCloseTo(1500, 8)
+    expect(after.ledger!.subtotal - before.ledger!.subtotal).toBeCloseTo(1500, 8)
+    expect(after.totalCost! - before.totalCost!).toBeCloseTo(1650, 8)
+  })
   it('retains named surface-layer quantities and requires a matching external material class', () => {
     const c = candidate('short-a', a)
     c.alignment.engineering!.materials = [

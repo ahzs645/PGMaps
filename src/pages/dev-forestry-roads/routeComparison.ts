@@ -7,6 +7,7 @@
  * Takes terrain and projections as arguments and touches neither the DOM nor the network.
  */
 import { safeAnalyzeRoad } from './analysisResult'
+import { crossingScreeningOverlapCount } from './crossingPlan'
 import { corridorFrame, optimizeRoadCorridorAsync, type RoadOptimizationObjective } from './corridorOptimizer'
 import { corridorCandidate } from './corridorCandidate'
 import { runDrainage, type DrainageSettings } from './drainageRun'
@@ -18,6 +19,7 @@ import { suggestRoutes, type RouteSearchOptions } from './routing'
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import { fitHorizontalRadii } from './horizontalTools'
 import { optimizeVerticalProfile } from './verticalOptimizer'
+import { constraintRouteIssues } from './riparian'
 import type {
   Alignment,
   ContextFeature,
@@ -104,6 +106,8 @@ export interface DrainageScreen {
   redirected: number
   newPondingM2: number
   allowance: number
+  /** Possible overlap with priced structures; excluded from subtotal pending review. */
+  crossingCostOverlaps?: number
 }
 export interface RouteRow {
   id: string
@@ -244,8 +248,11 @@ export function flowPenalty(
 function metrics(
   analysis: RoadAnalysis,
   limit: number,
+  context: ContextFeature[],
 ): Pick<RouteRow, 'lengthM' | 'maxGradePercent' | 'earthworksM3' | 'constructionCost' | 'blockers'> {
-  const blockers: string[] = []
+  const blockers = constraintRouteIssues(analysis.centerline, context)
+  if (analysis.crossingEstimate?.complete === false)
+    blockers.push('Crossing estimates are incomplete or need review; the known subtotal is not a complete road price.')
   if (analysis.maxGradePercent > limit + 1e-6) blockers.push(`Grade ${analysis.maxGradePercent.toFixed(1)}% over limit`)
   if (analysis.coveragePercent < 99.95) blockers.push(`${analysis.coveragePercent.toFixed(0)}% of sections complete`)
   const sharp = new Set(
@@ -345,6 +352,7 @@ export async function compareRoutes(
   const searchOptions = (halfWidth: number) => ({
     corridorHalfWidthM: Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth),
     groundWindowM: options.groundWindowM,
+    constraintCostBasePerM: routeOptions.baseCostPerM,
   })
 
   let wetness: ((coordinate: Coordinate) => number) | null = null
@@ -533,8 +541,11 @@ export async function compareRoutes(
   /** Build plus drainage allowance: the same total a row shows. */
   const totalOf = (alignment: Alignment) => {
     const analysis = analyse(alignment)
+    if (analysis.crossingEstimate?.complete === false || constraintRouteIssues(analysis.centerline, context).length)
+      return Infinity
     try {
-      return analysis.estimatedCost + screen(alignment, analysis).allowance
+      const drainage = screen(alignment, analysis)
+      return drainage.crossingCostOverlaps ? Infinity : analysis.estimatedCost + drainage.allowance
     } catch {
       aborted()
       return analysis.estimatedCost
@@ -561,14 +572,21 @@ export async function compareRoutes(
       settings: { ...options.drainage, bufferM: Math.min(options.drainage.bufferM, SCREENING_BUFFER_M) },
       maxCells: 1_500_000,
     })
-    const crossings = run.crossings.filter((crossing) => !crossing.culvertId).length,
+    const unassignedCrossings = run.crossings.filter((crossing) => !crossing.culvertId)
+    const crossingCostOverlaps = crossingScreeningOverlapCount(
+      analysis,
+      unassignedCrossings,
+      Math.max(resolutionM, SCREENING_CELL_M),
+    )
+    const crossings = unassignedCrossings.length,
       crossDrains = crossDrainSites(run.lowPoints)
     return {
       crossings,
       crossDrains,
       redirected: run.crossings.filter((crossing) => crossing.redirected).length,
       newPondingM2: run.newPonding.areaM2,
-      allowance: crossings * options.crossingCost + crossDrains * options.crossDrainCost,
+      allowance: (crossings - crossingCostOverlaps) * options.crossingCost + crossDrains * options.crossDrainCost,
+      ...(crossingCostOverlaps ? { crossingCostOverlaps } : {}),
     }
   }
 
@@ -580,7 +598,7 @@ export async function compareRoutes(
       color: '#ea580c',
       alignment: base,
       coordinates: baseAnalysis.centerline,
-      ...metrics(baseAnalysis, settings.maxGradePercent),
+      ...metrics(baseAnalysis, settings.maxGradePercent, context),
       drainage: null,
       totalCost: null,
       notes: base.vertical.length ? [] : ['No designed profile: the formation follows the ground.'],
@@ -623,7 +641,7 @@ export async function compareRoutes(
       row.notes = notes
       const analysis = analyse(candidate)
       row.coordinates = analysis.centerline
-      Object.assign(row, metrics(analysis, settings.maxGradePercent))
+      Object.assign(row, metrics(analysis, settings.maxGradePercent, context))
     } catch (cause) {
       aborted()
       row.blockers = [cause instanceof Error ? cause.message : 'No route found.']
@@ -638,6 +656,12 @@ export async function compareRoutes(
       const analysis = row.goal === 'current' ? baseAnalysis : analyse(row.alignment)
       row.drainage = screen(row.alignment, analysis)
       row.totalCost = row.constructionCost! + row.drainage.allowance
+      if (row.drainage.crossingCostOverlaps) {
+        row.totalCost = null
+        row.blockers.push(
+          `${row.drainage.crossingCostOverlaps} modelled drainage crossing(s) may overlap itemized stream structures. Review their association before comparing a complete total; the potentially duplicate allowance is excluded from the known subtotal.`,
+        )
+      }
     } catch (cause) {
       aborted()
       drainageChecked = false

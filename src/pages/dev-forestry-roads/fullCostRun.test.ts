@@ -29,7 +29,16 @@ afterEach(() => {
 
 function directSuggestions() {
   return vi.spyOn(routing, 'suggestRoutes').mockImplementation((start, end) => ({
-    routes: [{ coordinates: [start, end], lengthM: distance(start, end), cost: 0, crossings: 0 }],
+    routes: [
+      {
+        coordinates: [start, end],
+        lengthM: distance(start, end),
+        cost: 0,
+        searchScore: 0,
+        avoidancePenalty: 0,
+        crossings: 0,
+      },
+    ],
     visited: 2,
     message: 'Deterministic geometry fixture',
   }))
@@ -50,6 +59,8 @@ function cornerSuggestions() {
           coordinates: [start, middle, end],
           lengthM: distance(start, middle) + distance(middle, end),
           cost: 0,
+          searchScore: 0,
+          avoidancePenalty: 0,
           crossings: 0,
         },
       ],

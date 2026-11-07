@@ -276,6 +276,7 @@ export async function runFullCostComparison(
     const analysis = analyzeFullCostConnector(alignment, source, project.settings, project.context, {
       referenceSurfaces,
       verticalReference: project.terrain.verticalReference,
+      sharedCrossingCosts: project.sharedCrossingCosts,
     })
     candidates.push({
       alignment,

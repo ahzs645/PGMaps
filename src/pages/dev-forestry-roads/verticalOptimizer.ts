@@ -16,12 +16,14 @@ import { analyzeRoad, positionAt, sectionAreasAt } from './engine'
 import { gradeWindowAt, curvatureRuleAt } from './verticalStandards'
 import { simplifyProfile } from './verticalTools'
 import type { Alignment, ContextFeature, RoadSettings, TerrainSource, VerticalPoint } from './types'
+import type { CrossingCostItem } from './crossingPlanTypes'
 
 export interface VerticalOptimizationOptions {
   /** Reference-feature/surface components use the same design inputs as the workspace. */
   context?: ContextFeature[]
   referenceSurfaces?: Record<string, TerrainSource>
   verticalReference?: string
+  sharedCrossingCosts?: readonly CrossingCostItem[]
   pviSpacingM: number
   /** Centre the permitted vertical band on ground or the existing fitted profile. */
   bandCenter: 'ground' | 'design'
@@ -466,6 +468,7 @@ export function optimizeVerticalProfile(
     analyzeRoad({ ...alignment, vertical: v }, terrain, settings, o.context, {
       referenceSurfaces: o.referenceSurfaces,
       verticalReference: o.verticalReference,
+      sharedCrossingCosts: o.sharedCrossingCosts,
     })
   // Curves move the formation away from their PVI elevation. Solve the retained control
   // PVIs against the actual parabola, then recheck all geometry, grades and K limits.
@@ -554,6 +557,9 @@ export function optimizeVerticalProfile(
     // outside a station-range limit. Only a rechecked candidate can be adopted.
     const checkFailure =
       result.analysis.verticalChecks?.[0]?.message ||
+      (o.objective === 'total' && result.analysis.crossingEstimate?.complete === false
+        ? 'Stream crossing estimates need review or prices before total-cost optimization.'
+        : '') ||
       (result.analysis.engineering?.haul.optimizationStatus === 'infeasible' ||
       (o.objective === 'total' && result.analysis.engineering?.haul.enabled && !result.analysis.engineering.complete)
         ? 'The engineering material/haul prescription is incomplete or infeasible.'

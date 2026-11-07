@@ -1,5 +1,10 @@
 /** Versioned, bounded project and interchange formats; no network or DOM access. */
 import { parseStreamAssessment } from './streamClass'
+import { parseConstraintPolicy } from './constraints'
+import { parseCrossingCostItems, parseCrossingRecords } from './crossingPlanProject'
+import { parseProvincialStreamData, parseProvincialStreamSource } from './provincialStreamData'
+import { streamPlanningReportSection, constraintPlanningReportSection } from './streamReports'
+import { crossingReportHtml } from './crossingPlan'
 import { hasCompleteCoverage } from './analysisResult'
 import { distance, positionAt } from './engine'
 import { parseEngineering } from './engineeringProject'
@@ -373,6 +378,7 @@ function parseAlignment(raw: unknown): Alignment {
     template: parseTemplate(r.template),
     overrides,
     ...(r.engineering === undefined ? {} : { engineering: parseEngineering(r.engineering, parseTemplate) }),
+    ...(r.crossingRecords === undefined ? {} : { crossingRecords: parseCrossingRecords(r.crossingRecords) }),
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
@@ -525,6 +531,10 @@ function parseContext(raw: unknown): ContextFeature {
     ...(r.kind === 'avoid' && r.routeCostPerM !== undefined && r.routeCostPerM !== null
       ? { routeCostPerM: number(r.routeCostPerM, 'Zone route cost', 0, 1e6) }
       : {}),
+    ...(r.kind === 'avoid' && r.constraint !== undefined ? { constraint: parseConstraintPolicy(r.constraint) } : {}),
+    ...(r.kind === 'stream' && r.riparianPolicy !== undefined
+      ? { riparianPolicy: parseConstraintPolicy(r.riparianPolicy) }
+      : {}),
     ...(r.kind === 'stream' && r.crossingCost !== undefined
       ? { crossingCost: number(r.crossingCost, 'Stream crossing cost', 0, 1e9) }
       : {}),
@@ -533,6 +543,9 @@ function parseContext(raw: unknown): ContextFeature {
       : {}),
     ...(r.kind === 'stream' && r.streamAssessment !== undefined
       ? { streamAssessment: parseStreamAssessment(r.streamAssessment) }
+      : {}),
+    ...(r.kind === 'stream' && r.streamSource !== undefined
+      ? { streamSource: parseProvincialStreamSource(r.streamSource) }
       : {}),
   }
 }
@@ -635,12 +648,18 @@ export function parseProject(raw: unknown): RoadProject {
     alignments,
     terrain: parseTerrain(r.terrain),
     settings: parseSettings(r.settings),
+    ...(r.sharedCrossingCosts === undefined
+      ? {}
+      : { sharedCrossingCosts: parseCrossingCostItems(r.sharedCrossingCosts) }),
     ...(r.routeSearch !== undefined ? { routeSearch: parseRouteSearchOptions(r.routeSearch) } : {}),
     ...(r.networkPlanning === undefined ? {} : { networkPlanning: parseNetworkPlanning(r.networkPlanning) }),
     ...(r.totalCostPlanning !== undefined ? { totalCostPlanning: parseTotalCostPlanning(r.totalCostPlanning) } : {}),
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
+    ...(r.provincialStreamData === undefined
+      ? {}
+      : { provincialStreamData: parseProvincialStreamData(r.provincialStreamData) }),
     context,
     cables,
     ...(profiles ? { profiles } : {}),
@@ -917,8 +936,11 @@ export function importContextGeoJson(raw: unknown): ContextFeature[] {
           kind: f.properties.kind ?? (isLine ? 'stream' : 'avoid'),
           roadEvidence: f.properties.roadEvidence,
           routeCostPerM: f.properties.routeCostPerM,
+          constraint: f.properties.constraint,
+          riparianPolicy: f.properties.riparianPolicy,
           crossingCost: f.properties.crossingCost,
           crossingGroup: f.properties.crossingGroup,
+          streamSource: f.properties.streamSource,
           // Only this explicit field carries a riparian class: a column called `class` could mean anything.
           streamAssessment:
             f.properties.streamAssessment ??
@@ -1048,9 +1070,12 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
         name: f.name,
         ...(f.roadEvidence ? { roadEvidence: f.roadEvidence } : {}),
         ...(f.routeCostPerM !== undefined ? { routeCostPerM: f.routeCostPerM } : {}),
+        ...(f.constraint !== undefined ? { constraint: f.constraint } : {}),
+        ...(f.riparianPolicy !== undefined ? { riparianPolicy: f.riparianPolicy } : {}),
         ...(f.crossingCost !== undefined ? { crossingCost: f.crossingCost } : {}),
         ...(f.crossingGroup !== undefined ? { crossingGroup: f.crossingGroup } : {}),
         ...(f.streamAssessment !== undefined ? { streamAssessment: f.streamAssessment } : {}),
+        ...(f.streamSource !== undefined ? { streamSource: f.streamSource } : {}),
         ...(f.referenceVerticalDatum !== undefined ? { referenceVerticalDatum: f.referenceVerticalDatum } : {}),
       },
       geometry: f.geometry,
@@ -1440,7 +1465,7 @@ export function projectReportHtml(
         `<tr><td>${fmt(s.chainage)}</td><td>${fmt(s.groundElevation, 2)}</td><td>${fmt(s.designElevation, 2)}</td><td>${fmt(s.gradePercent, 2)}</td><td>${fmt(s.cutAreaM2, 2)}</td><td>${fmt(s.fillAreaM2, 2)}</td><td>${fmt(s.massM3)}</td><td>${html(s.flags.join('; ') || (s.complete ? 'Complete' : 'Partial'))}</td></tr>`,
     )
     .join('')
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f1f5f2}.metric strong{display:block;font-size:23px}.muted{color:#53665e}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}.sections{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.section{margin:0;break-inside:avoid}.section svg{max-height:none}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.chapter{break-before:page}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">PGMAPS · FORESTRY ROAD PLANNING</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p><p class="status"><strong>${hasCompleteCoverage(analysis) ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p><div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Covered construction estimate<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd><dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd><dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Review thresholds</dt><dd>Grade ${fmt(project.settings.maxGradePercent)}%; minimum radius ${fmt(project.settings.minRadius)} m (user assumptions)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd></dl>${fullCostReportSection(active, project)}${drainageReport}${aggregate}<h2>Longitudinal profile</h2>${reportProfile(analysis)}${reportEngineering(analysis)}${reportSections(analysis)}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. No-data or unclosed daylight sections leave an interval incomplete. Mass balance applies entered material reuse and compaction factors, or the default reusable-cut factor for unclassified ground. Base engineering costs use the entered rates, structures, haul scenario, mobilization and contingency where supplied. Review whether zero base rates represent free work or omitted allowances. The separate complete-access comparison distinguishes unknown prices from explicitly entered zero quotes. Geotechnical treatments are not modeled. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry without cable tension, load or anchor analysis. Crossing intersections require review. Entered culverts provide geometry and cover checks, not a hydraulic or fish-passage design.</p>${analysis.warnings.length ? `<h2>Model flags</h2><ul>${analysis.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr><th>Station m</th><th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr><td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}<h2>Station schedule</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table><p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(project.name)} · Road planning report</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1100px;margin:36px auto;padding:0 24px}h1{font-size:28px;line-height:1.2}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:20px 0}.metric{padding:12px;background:#f1f5f2}.metric strong{display:block;font-size:23px}.muted{color:#53665e}table{width:100%;border-collapse:collapse;font-size:11px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}td:last-child{text-align:left}tr{break-inside:avoid}svg{width:100%;max-height:310px}.sections{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.section{margin:0;break-inside:avoid}.section svg{max-height:none}dl{display:grid;grid-template-columns:170px 1fr;gap:5px}dd{margin:0;overflow-wrap:anywhere}@media print{body{margin:0;max-width:none;font-size:10pt}.chapter{break-before:page}.metrics{grid-template-columns:repeat(4,1fr)}h2{break-after:avoid}thead{display:table-header-group}a{color:inherit}}</style></head><body><div class="eyebrow">PGMAPS · FORESTRY ROAD PLANNING</div><h1>${html(project.name)}</h1><p>${html(active?.name ?? 'Selected alignment')}</p><p class="status"><strong>${hasCompleteCoverage(analysis) ? 'Preliminary model · complete sampled earthworks coverage' : 'Partial model · totals cover supported intervals only'}</strong><br>${fmt(analysis.coveragePercent)}% coverage (${fmt(analysis.completeLength)} of ${fmt(analysis.length)} m). ${metadata.kind === 'demo' ? 'Synthetic training terrain: all quantities and locations are illustrative.' : metadata.kind === 'regional' ? 'Coarse regional terrain: corridor screening only; resolution is inadequate for construction quantities.' : 'Source terrain supports preliminary geometry; accuracy is not independently surveyed.'}</p><div class="metrics"><div class="metric">Length<strong>${fmt(analysis.length)} m</strong></div><div class="metric">Cut<strong>${fmt(analysis.cutVolumeM3)} m³</strong></div><div class="metric">Fill<strong>${fmt(analysis.fillVolumeM3)} m³</strong></div><div class="metric">Covered construction estimate<strong>$${fmt(analysis.estimatedCost, 0)}</strong></div></div><h2>Terrain and assumptions</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Native/display spacing</dt><dd>${fmt(metadata.resolutionM, 2)} m; source grid resolution, not vertical accuracy</dd><dt>Horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Geographic alignment; source CRS unspecified'}</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not applicable')}</dd><dt>Sampling interval</dt><dd>${fmt(project.settings.stationInterval)} m requested; exact event stations and computation limits can alter spacing</dd><dt>Review thresholds</dt><dd>Grade ${fmt(project.settings.maxGradePercent)}%; minimum radius ${fmt(project.settings.minRadius)} m (user assumptions)</dd><dt>Cost assumptions</dt><dd>Cut $${fmt(project.settings.cutRate)}/m³; fill $${fmt(project.settings.fillRate)}/m³; surfacing $${fmt(project.settings.surfacingRate)}/m³; clearing $${fmt(project.settings.clearingRate)}/m²; reusable cut factor ${fmt(project.settings.shrinkFactor, 2)}</dd></dl>${fullCostReportSection(active, project)}${streamPlanningReportSection(project, analysis)}${constraintPlanningReportSection(project, analysis)}${crossingReportHtml(project, analysis)}${drainageReport}${aggregate}<h2>Longitudinal profile</h2>${reportProfile(analysis)}${reportEngineering(analysis)}${reportSections(analysis)}<h2>Quantity basis and limitations</h2><p>Cut/fill areas are integrated from sampled cross-sections; interval volumes use average end areas. No-data or unclosed daylight sections leave an interval incomplete. Mass balance applies entered material reuse and compaction factors, or the default reusable-cut factor for unclassified ground. Base engineering costs use the entered rates, structures, haul scenario, mobilization and contingency where supplied. Review whether zero base rates represent free work or omitted allowances. The separate complete-access comparison distinguishes unknown prices from explicitly entered zero quotes. Geotechnical treatments are not modeled. Ground is held separate from designed road elevation.</p><p>This is a preliminary planning record. It does not establish construction suitability, slope stability, drainage capacity, fish passage, permits or cable operating safety. D-lines screen assumed geometry without cable tension, load or anchor analysis. Crossing intersections require review. Entered culverts provide geometry and cover checks, not a hydraulic or fish-passage design.</p>${analysis.warnings.length ? `<h2>Model flags</h2><ul>${analysis.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}<h2>Crossing review</h2>${analysis.crossings.length ? `<table><thead><tr><th>Station m</th><th>Name</th><th>Kind</th></tr></thead><tbody>${analysis.crossings.map((c) => `<tr><td>${fmt(c.chainage)}</td><td>${html(c.name)}</td><td>${html(c.kind)}</td></tr>`).join('')}</tbody></table>` : '<p>No intersections with the supplied context were found. This does not establish the absence of streams or constraints.</p>'}<h2>Station schedule</h2><table><thead><tr><th>Station m</th><th>Ground m</th><th>Design m</th><th>Grade %</th><th>Cut m²</th><th>Fill m²</th><th>Mass m³</th><th>Review flags</th></tr></thead><tbody>${rows}</tbody></table><p class="muted">Project schema: ${project.schema}. Export the project JSON for editable geometry and the CSV for numeric station values. Geographic export coordinates are WGS84 longitude/latitude; design elevations retain the recorded terrain vertical reference.</p></body></html>`
 }
 
 export { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE }

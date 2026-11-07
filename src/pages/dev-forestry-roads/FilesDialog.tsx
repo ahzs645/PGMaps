@@ -20,6 +20,8 @@ export type RoadExport =
   | 'plotbook'
   | 'terrain-landxml'
   | 'terrain-ascii'
+  | 'streams-csv'
+  | 'provincial-evidence'
 
 export function FilesDialog({
   open,
@@ -115,6 +117,8 @@ export function FilesDialog({
               [
                 ['geojson', 'Export GeoJSON'],
                 ['csv', 'Station CSV'],
+                ['streams-csv', 'Stream register CSV'],
+                ['provincial-evidence', 'Fish & watershed GeoJSON'],
                 ['landxml', 'LandXML'],
                 ['stakeout', 'Stakeout CSV'],
                 ['shapefile', 'Shapefile (zip)'],

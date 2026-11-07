@@ -14,9 +14,9 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
     workspace.update((p) => ({ ...p, context: p.context.map((f) => (f.id === id ? { ...f, ...patch } : f)) }))
   return (
     <RoadSection
-      title="Crossing prices"
+      title="Crossing screening allowances"
       summary={streams.length ? `${streams.length} streams` : 'No streams loaded'}
-      help="The stream's own price overrides its cost group, then the route search's default. A cost group is a price label you choose, not a B.C. stream class; that is recorded under Terrain → Streams. These are route-search costs; installed structure quantities are priced separately."
+      help="The stream's own allowance overrides its cost group, then the route search's default. These retained planning allowances are not verified installed prices. A cost group is a price label, independent of the B.C. class under Terrain → Streams. Enter installed items, quote evidence and shared costs under Engineering → Stream crossing estimates."
     >
       <div className="space-y-2">
         {streams.map((f) => (

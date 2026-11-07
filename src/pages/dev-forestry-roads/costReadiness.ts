@@ -3,6 +3,7 @@ import { haulCostLines } from './engineering'
 import { surfacingSupplyCost } from './gravel'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
+import { LEGACY_CULVERT_ASSOCIATION_M } from './crossingPlan'
 
 type BaseRateKey = 'cutRate' | 'fillRate' | 'surfacingRate' | 'clearingRate'
 
@@ -33,9 +34,17 @@ export function crossingsWithoutStructure(analysis: RoadAnalysis, engineering: A
   return analysis.crossings.filter(
     (crossing) =>
       crossing.kind === 'stream' &&
+      !analysis.crossingEstimate?.rows.some(
+        (row) =>
+          row.status === 'current' &&
+          row.record.structure !== 'undecided' &&
+          row.record.featureId === crossing.featureId &&
+          Math.abs(row.chainage - crossing.chainage) <= 0.01,
+      ) &&
       !engineering?.culverts.some(
         (culvert) =>
-          culvert.sourceFeatureId === crossing.featureId && Math.abs(culvert.chainage - crossing.chainage) <= 1,
+          culvert.sourceFeatureId === crossing.featureId &&
+          Math.abs(culvert.chainage - crossing.chainage) <= LEGACY_CULVERT_ASSOCIATION_M,
       ),
   )
 }
@@ -170,16 +179,27 @@ export function assessCostReadiness(
     flags.push({
       id: 'unassigned-crossings',
       label: 'Stream crossings need a structure decision',
-      detail: `${missingCrossings.length} supplied stream crossing(s) have no associated culvert at that station. Review culvert, bridge or other treatment and its cost; the terrain intersection does not design the crossing.`,
+      detail: `${missingCrossings.length} supplied stream crossing(s) have no current structure choice or associated culvert at that station. Review culvert, bridge or other treatment and its cost; the terrain intersection does not design the crossing.`,
     })
-  else if (!engineering?.culverts.length)
+  else if (
+    !engineering?.culverts.length &&
+    !analysis.crossingEstimate?.rows.some((row) => row.status === 'current' && row.record.structure !== 'undecided')
+  )
     flags.push({
       id: 'drainage-inventory',
       label: 'Drainage inventory is not supplied',
       detail:
         'Review cross-drains and stream crossings before accepting zero structure cost. No mapped crossings does not establish that drainage is unnecessary.',
     })
-  const unpricedCulverts = culverts.filter((culvert) => culvert.installedCost === 0)
+  if (analysis.crossingEstimate?.complete === false)
+    flags.push({
+      id: 'incomplete-crossing-estimate',
+      label: 'Stream crossing estimate needs review or prices',
+      detail: analysis.crossingEstimate.warnings.join(' '),
+    })
+  const unpricedCulverts = culverts.filter(
+    (culvert) => culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id),
+  )
   if (unpricedCulverts.length)
     flags.push({
       id: 'zero-culvert-rates',

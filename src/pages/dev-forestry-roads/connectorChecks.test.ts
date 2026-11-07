@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { checkConnector, parseConnectorCheckOptions, type ConnectorCheckOptions } from './connectorChecks'
 import { alignmentLength, horizontalCurveSummary } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
+import { constraintFingerprint } from './constraints'
 import type { Alignment, ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 const origin: Coordinate = [-122, 54],
@@ -339,6 +340,60 @@ describe('final fitted connector gates', () => {
     expect(run(road(), [reserve]).status).toBe('pass')
     expect(codes(run(road(), [reserve], { clearingExtraM: 8 }))).toContain('exclusion-footprint')
   })
+  it('requires a current conditional decision for footprint-only contact, independently of legacy extra cost', () => {
+    const area = exclusion([rectangle(5, 50.35, 7, 50.45)])
+    area.routeCostPerM = 1
+    area.constraint = { treatment: 'conditional', condition: 'Review the clearing footprint.' }
+    const alignment = road(803)
+    const pending = run(alignment, [area])
+    expect(pending.analysis!.crossings.filter((crossing) => crossing.kind === 'avoid')).toHaveLength(0)
+    expect(pending.unknowns.some((issue) => issue.code === 'conditional-footprint-policy')).toBe(true)
+    expect(pending.adoptable).toBe(false)
+    area.constraint.review = {
+      reviewer: 'Fixture reviewer',
+      reviewedOn: '2026-11-07',
+      basis: 'Fixture footprint reviewed',
+      fingerprint: constraintFingerprint(area),
+    }
+    expect(run(alignment, [area]).adoptable).toBe(true)
+    area.geometry = { type: 'Polygon', coordinates: [rectangle(5, 50.3, 7, 50.5)] }
+    expect(run(alignment, [area]).unknowns.some((issue) => issue.code === 'conditional-footprint-policy')).toBe(true)
+  })
+  it('checks the riparian screen against the full footprint when the centreline remains outside it', () => {
+    const stream: ContextFeature = {
+      id: 'beside-road',
+      name: 'Beside road',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [point(32, -10), point(32, 110)] },
+      streamAssessment: { channelWidthM: 1, fish: 'present', communityWatershed: 'outside' },
+    }
+    const pending = run(road(), [stream])
+    expect(pending.analysis!.crossings).toHaveLength(0)
+    expect(pending.unknowns.some((issue) => issue.code === 'riparian-footprint-policy')).toBe(true)
+    stream.riparianPolicy = { treatment: 'conditional', condition: 'Review the preliminary screen and footprint.' }
+    stream.riparianPolicy.review = {
+      reviewer: 'Fixture reviewer',
+      reviewedOn: '2026-11-07',
+      basis: 'Fixture footprint reviewed',
+      fingerprint: constraintFingerprint(stream),
+    }
+    expect(run(road(), [stream]).adoptable).toBe(true)
+    stream.riparianPolicy = { treatment: 'excluded' }
+    expect(codes(run(road(), [stream]))).toContain('riparian-footprint-policy')
+  })
+  it('keeps the conservative map-buffer edge in the final footprint check', () => {
+    const stream: ContextFeature = {
+      id: 'edge',
+      name: 'Screen edge',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [point(57.1, -10), point(57.1, 110)] },
+      streamAssessment: { channelWidthM: 8, fish: 'present', communityWatershed: 'outside' },
+    }
+    // The 3 m road edge is outside the nominal 54 m screen, inside its <0.5% cap allowance.
+    const result = run(road(), [stream])
+    expect(result.unknowns.some((issue) => issue.code === 'riparian-footprint-policy')).toBe(true)
+    expect(result.adoptable).toBe(false)
+  })
   it('rechecks the fitted arc footprint after the original straight grid legs avoided an area', () => {
     const alignment = road()
     alignment.points = [
@@ -383,6 +438,8 @@ describe('final fitted connector gates', () => {
       name: 'Creek',
       kind: 'stream',
       geometry: { type: 'LineString', coordinates: [point(-100, 50), point(100, 50)] },
+      // This fixture isolates the separate geometric/structure-window gate.
+      riparianPolicy: { treatment: 'additional-cost', costPerM: 0 },
     }
     expect(codes(run(road(), [stream], { streamSetbackM: 5 }))).toContain('stream-footprint-setback')
     const unreviewed = run(road(), [stream], { allowStreamCrossings: true, streamSetbackM: 5 })
