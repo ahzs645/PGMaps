@@ -36,7 +36,7 @@ project and survive save/reopen; older projects get neutral defaults.
 | Input                          | Applied behavior                                                                                                                                                                              |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Maximum grade                  | Absolute sampled longitudinal **ground** grade, checked again at ≤1 m steps. It is not the designed formation grade.                                                                          |
-| Minimum radius                 | Used by curve checks and the sketched-corridor optimizer. Raw terrain-cost grid suggestions retain sharp corners until curves are fitted.                                                     |
+| Minimum radius                 | Used by curve checks, the sketched-corridor optimizer and generated roads: a terrain-cost, FSR or block-access road gets this radius at each corner, reduced where tangents are short.        |
 | Terrain slope limit            | Optional 2D gradient from east/west and north/south terrain pairs. The sample distance is editable. Missing neighbour coverage blocks a candidate.                                            |
 | Exclusion clearance            | Exact centreline distance from blocked polygon/line boundaries, in addition to polygon interiors. Cost zones remain passable. Include a suitable prism/clearing allowance yourself.           |
 | Allow priced stream crossings  | On: mapped line intersections incur Crossing $. Off: intersections and the entered stream-clearance corridor are blocked. Assessed riparian exclusion polygons remain blocked in either mode. |
@@ -80,6 +80,18 @@ switchback exceptions, speed/sight distance, vehicle swept paths, footprint-wide
 stream crossing design or regulatory approvals. Enter conservative screening assumptions,
 inspect the final geometry and use the independent profile/curve/drainage checks. A failed
 bounded search does not prove that a professionally designed road is impossible.
+
+## Generated roads are pulled taut
+
+The search moves between grid cells in 45° steps, so its raw path turns at almost every cell. Before
+a route is returned, `routing.ts` pulls it taut: from each kept vertex it extends a straight leg along
+the path while the leg passes the same ≤1 m checks (grade by direction, coverage, terrain slope,
+clearances, streams, headings) and costs no more than `TAUT_COST_TOLERANCE` (1%) above the grid
+legs it replaces, so a deliberate detour round a crossing or cost zone stays. Legs stop at
+`MAX_TAUT_LEG_M` (600 m). If those extra checks reach a search budget, the verified grid path is
+returned unchanged. The host then gives each corner the minimum radius with the same fitting as
+**Fit sharp corners**; fitted arcs cut inside corners, so review the fitted road's profile and
+footprint before relying on it.
 
 ## Propose a connection to a Forest Service Road
 

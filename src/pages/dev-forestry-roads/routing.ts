@@ -133,6 +133,10 @@ const MAX_GRID_SIDE = 96
 const MAX_VISITED = 10_000
 const MAX_TERRAIN_SAMPLES = 450_000
 const MAX_GEOMETRY_CHECKS = 2_000_000
+/** Longest straight leg the taut pass tries when straightening a grid path. */
+const MAX_TAUT_LEG_M = 600
+/** A straighter leg may cost at most 1% more than the grid legs it replaces. */
+const TAUT_COST_TOLERANCE = 1.01
 const moves: XY[] = [
   [1, 0],
   [0, 1],
@@ -743,26 +747,80 @@ export function suggestRoutes(
     throw Error(
       `No terrain-cost path in this bounded area meets the ${settings.maxGradePercent}% sampled ground-grade limit${options.haulGrades ? ` or the directional limits (${haulGradeText(options.haulGrades)})` : ''}${options.startHeading !== null || options.endHeading !== null ? ', the end headings' : ''}, terrain coverage, slope and clearance constraints. This does not rule out a field-designed road or a wider search.`,
     )
-  // Keep the verified grid vertices. Rounding or unconstrained smoothing could
-  // move a route into an obstacle or invalidate the grade/coverage checks.
+  // A grid path turns at every cell, in 45° steps. Pull it taut: from each kept vertex, extend a
+  // straight leg along the path while it passes the same ≤1 m checks (grade, coverage, slope,
+  // clearances, streams, headings) and costs no more than TAUT_COST_TOLERANCE above the grid legs it
+  // replaces, so a deliberate detour round a crossing or zone stays. Legs stop at MAX_TAUT_LEG_M.
+  // Costs, crossings and penalties are re-read from the kept legs; a budget reached here keeps the
+  // verified grid path instead.
+  let legKey = size * size
+  const tautLegs = (path: number[]) => {
+    const last = path.length - 1
+    const at = (i: number): XY => (i === 0 ? [0, 0] : i === last ? target : position(path[i]))
+    const z = (i: number) => (i === 0 ? startElevation : i === last ? endElevation : elevationAt(path[i]))
+    const gridCost = [0]
+    for (let k = 1; k <= last; k++)
+      gridCost.push(gridCost[k - 1] + (edges.get(arcKey(path[k - 1], path[k])) ?? Infinity))
+    const legs: { from: number; to: number; cost: number; key: number }[] = []
+    for (let i = 0; i < last; ) {
+      let best = { to: i + 1, cost: NaN, key: -1 }
+      for (let j = i + 1; j <= last; j++) {
+        const a = at(i),
+          b = at(j)
+        if (j > i + 1 && Math.hypot(b[0] - a[0], b[1] - a[1]) > MAX_TAUT_LEG_M) break
+        if (i === 0 && !headingOk(a, b, options.startHeading)) continue
+        if (j === last && !headingOk(a, b, options.endHeading)) continue
+        const key = legKey++
+        const cost = segmentCost(a, b, z(i), z(j), 1, key)
+        if (!Number.isFinite(cost) || (j > i + 1 && cost > (gridCost[j] - gridCost[i]) * TAUT_COST_TOLERANCE)) {
+          if (j > i + 1) break
+          return null
+        }
+        best = { to: j, cost, key }
+      }
+      if (!Number.isFinite(best.cost)) return null
+      legs.push({ from: i, ...best })
+      i = best.to
+    }
+    return legs
+  }
   const routes = found
     .map(({ path }) => {
+      let legs: ReturnType<typeof tautLegs> = null
+      try {
+        legs = tautLegs(path)
+      } catch {
+        legs = null
+      }
       let searchScore = 0,
         avoidancePenalty = 0,
         lengthM = 0,
         crossings = 0
-      for (let i = 1; i < path.length; i++) {
-        const key = arcKey(path[i - 1], path[i])
-        searchScore += edges.get(key) ?? 0
-        avoidancePenalty += penaltiesOf.get(key) ?? 0
-        crossings += crossingsOf.get(key) ?? 0
-        const a = position(path[i - 1]),
-          b = position(path[i])
-        lengthM += Math.hypot(b[0] - a[0], b[1] - a[1])
+      let kept: number[]
+      if (legs) {
+        kept = [0, ...legs.map((leg) => leg.to)]
+        for (const leg of legs) {
+          searchScore += leg.cost
+          avoidancePenalty += penaltiesOf.get(leg.key) ?? 0
+          crossings += crossingsOf.get(leg.key) ?? 0
+        }
+      } else {
+        kept = path.map((_, i) => i)
+        for (let i = 1; i < path.length; i++) {
+          const key = arcKey(path[i - 1], path[i])
+          searchScore += edges.get(key) ?? 0
+          avoidancePenalty += penaltiesOf.get(key) ?? 0
+          crossings += crossingsOf.get(key) ?? 0
+        }
       }
-      const coordinates = path.map((id) => toCoordinate(position(id)))
+      const coordinates = kept.map((i) => toCoordinate(position(path[i])))
       coordinates[0] = [...start]
       coordinates[coordinates.length - 1] = [...end]
+      for (let i = 1; i < kept.length; i++) {
+        const a = i === 1 ? [0, 0] : position(path[kept[i - 1]]),
+          b = i === kept.length - 1 ? target : position(path[kept[i]])
+        lengthM += Math.hypot(b[0] - a[0], b[1] - a[1])
+      }
       return { coordinates, cost: searchScore - avoidancePenalty, searchScore, avoidancePenalty, lengthM, crossings }
     })
     .sort((a, b) => a.searchScore - b.searchScore)

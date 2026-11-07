@@ -104,6 +104,7 @@ import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
 import { suggestBlockAccess } from './dev-forestry-roads/blockAccess'
+import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
 import { BLOCK_ACCESS_COLORS, type BlockAccessState } from './dev-forestry-roads/BlockAccessPanel'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
 import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
@@ -164,6 +165,15 @@ function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEM
     template: { ...template },
     overrides: [],
   }
+}
+/**
+ * A searched route as a road: its corners get the project's minimum radius, reduced where the
+ * tangents are too short to hold it, so a generated road turns on curves rather than at points.
+ */
+function generatedAlignment(points: Coordinate[], name: string, template: RoadTemplate, minRadiusM: number) {
+  const road = newAlignment(points, name, template)
+  if (minRadiusM > 0) road.points = fitHorizontalRadii(road.points, { kind: 'radius', radiusM: minRadiusM }).points
+  return road
 }
 const boundsOf = (p: RoadProject): [number, number, number, number] => {
   const coords = p.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
@@ -1445,10 +1455,11 @@ export default function DevForestryRoads() {
         },
       )
       const created = result.routes.map((route, rank) =>
-        newAlignment(
+        generatedAlignment(
           route.coordinates,
           `${alignment.name} · terrain-cost ${result.routes.length > 1 ? `#${rank + 1} ` : ''}($${Math.round(route.cost).toLocaleString('en-CA')})`,
           alignment.template,
+          project.settings.minRadius,
         ),
       )
       const next = created[0]
@@ -1535,10 +1546,11 @@ export default function DevForestryRoads() {
     const block = project.context.find((feature) => feature.id === blockAccess.blockId)
     try {
       if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
-      const road = newAlignment(
+      const road = generatedAlignment(
         option.coordinates,
         `${block?.name ?? 'Block'} → ${option.target.name} · block access`.slice(0, 200),
         alignment.template,
+        project.settings.minRadius,
       )
       w.commit(parseProject({ ...project, alignments: [...project.alignments, road], activeAlignmentId: road.id }))
       previewBlockAccess(null)
@@ -1629,10 +1641,11 @@ export default function DevForestryRoads() {
         preference,
         targetFeatureId,
       )
-      const connector = newAlignment(
+      const connector = generatedAlignment(
         result.selected.coordinates,
         `${alignment.name} → ${result.selected.target.name} · FSR connection`.slice(0, 200),
         alignment.template,
+        project.settings.minRadius,
       )
       connector.fsrConnection = {
         targetFeatureId: result.selected.target.featureId,
