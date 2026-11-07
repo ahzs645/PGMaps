@@ -23,6 +23,9 @@ import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
+/** The next search after a road's own surroundings come back empty. */
+const WIDE_SEARCH_KM = 10
+
 export function ExistingRoadsPanel({
   workspace: w,
   bounds,
@@ -97,18 +100,26 @@ export function ExistingRoadsPanel({
     })
     if (features[0]) setSelected(features[0].id)
   }
-  const load = async (fsrOnly = false) => {
+  const [emptySearch, setEmptySearch] = useState<{ fsrOnly: boolean; paddingKm: number } | null>(null)
+  const load = async (fsrOnly = false, paddingKm = 1) => {
     abort.current?.abort()
     const controller = new AbortController()
     abort.current = controller
     setError('')
+    setEmptySearch(null)
     setLoading(true)
     try {
       const extent =
-        bounds ?? existingRoadQueryBounds(w.project.alignments.flatMap((a) => a.points.map((p) => p.coordinate)))
+        paddingKm === 1 && bounds
+          ? bounds
+          : existingRoadQueryBounds(
+              w.project.alignments.flatMap((a) => a.points.map((p) => p.coordinate)),
+              paddingKm,
+            )
       const features = await loadBcExistingRoads(extent, controller.signal, { fsrOnly, activeOnly: fsrOnly })
       if (controller.signal.aborted || projectKey !== latestProjectKey.current) return
       merge(features)
+      setEmptySearch(features.length ? null : { fsrOnly, paddingKm })
       latest.current.setNotice(
         `${features.length} ${fsrOnly ? 'active BC FSR section' : 'BC tenure road line'}${features.length === 1 ? '' : 's'} loaded for review. Enable individual roads before using route reuse.`,
       )
@@ -172,6 +183,25 @@ export function ExistingRoadsPanel({
           }}
         />
         {error && <InlineAlert tone="warning">{error}</InlineAlert>}
+        {emptySearch && (
+          <div className="flex items-center gap-2 text-2xs" role="status">
+            <span className="min-w-0 flex-1 text-muted-foreground">
+              No BC {emptySearch.fsrOnly ? 'FSRs' : 'roads'} within {emptySearch.paddingKm === 1 ? '' : 'about '}
+              {emptySearch.paddingKm} km of your roads.
+            </span>
+            {emptySearch.paddingKm < WIDE_SEARCH_KM && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 shrink-0 text-xs"
+                disabled={loading || !!w.busy}
+                onClick={() => void load(emptySearch.fsrOnly, WIDE_SEARCH_KM)}
+              >
+                Search wider
+              </Button>
+            )}
+          </div>
+        )}
         <p className="text-2xs text-muted-foreground">
           {roads.length} road lines ·{' '}
           {roads.filter((f) => f.roadEvidence?.reuseAllowed && f.roadEvidence.condition !== 'closed').length} enabled

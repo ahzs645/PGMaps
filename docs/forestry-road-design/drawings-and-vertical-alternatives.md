@@ -1,6 +1,6 @@
 # Drawings and vertical alternatives
 
-The **Compare** detail view contains **Vertical alternatives on this road**. It keeps several
+The **Compare** detail view folds **Profiles on this road** under its table. It keeps several
 named profiles under one horizontal road, rather than duplicating the horizontal control points.
 The plan, base section template and widening ranges are shared. A plan edit therefore changes
 the geometry sampled by every sibling profile.

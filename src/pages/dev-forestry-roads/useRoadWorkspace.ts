@@ -26,11 +26,15 @@ export function useRoadWorkspace() {
   const [station, setStation] = useState(0)
   const [featureSelection, setFeatureSelection] = useState<RoadFeatureSelection | null>(null)
   const [busyState, setBusyState] = useState({ message: 'Opening road workspace…', id: 1 })
-  const [busyCancel, setBusyCancel] = useState<{ label: string; onCancel: () => void } | null>(null)
+  const [busyCancel, setBusyCancel] = useState<{ label: string; title?: string; onCancel: () => void } | null>(null)
+  const [busyProgress, setBusyProgress] = useState<{ step: number; total: number } | null>(null)
   const busy = busyState.message
   const setBusy = useCallback((message: string) => {
     setBusyState((previous) => ({ message, id: previous.id + (!previous.message && message ? 1 : 0) }))
-    if (!message) setBusyCancel(null)
+    if (!message) {
+      setBusyCancel(null)
+      setBusyProgress(null)
+    }
   }, [])
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
@@ -336,6 +340,8 @@ export function useRoadWorkspace() {
     busyId: busyState.id,
     busyCancel,
     setBusyCancel,
+    busyProgress,
+    setBusyProgress,
     setBusy,
     notice,
     setNotice,

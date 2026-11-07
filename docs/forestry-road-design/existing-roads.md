@@ -4,7 +4,8 @@ The **Existing roads & reuse** panel loads Forest Tenure Road Section Lines from
 the [BC Data Catalogue](https://catalogue.data.gov.bc.ca/dataset/243c94a1-f275-41dc-bc37-91d8a2b26e10),
 or imports WGS84 GeoJSON linework supplied by a user. The catalogue query covers
 the current map extent when supplied by the workspace, otherwise the road
-alignments plus about 1 km on each side. It retrieves complete section geometry,
+alignments plus about 1 km on each side. When that finds nothing, **Search wider** looks about 10 km out, capped
+at the service's 0.3° query limit, so an empty result says how far it looked. It retrieves complete section geometry,
 which can extend beyond the query box. It does not claim every road is represented.
 
 ## Facts and assumptions

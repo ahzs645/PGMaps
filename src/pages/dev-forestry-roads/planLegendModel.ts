@@ -1,4 +1,5 @@
 /** Legend entries derived from the same visible GeoJSON collections used by the plan renderer. */
+import { shortRoadNames } from './roadNames'
 import type { Alignment, ContextFeature } from './types'
 
 export type PlanLegendShape = 'line' | 'dashed-line' | 'circle' | 'square' | 'area'
@@ -8,6 +9,8 @@ export interface PlanLegendEntry {
   color: string
   shape: PlanLegendShape
   symbol?: string
+  /** Dash and gap in line widths, matching the map's `line-dasharray`. */
+  dash?: [number, number]
 }
 export interface PlanLegendSection {
   id: string
@@ -29,6 +32,14 @@ export interface PlanLegendSources {
   overlay?: GeoJSON.FeatureCollection
   drainage?: GeoJSON.FeatureCollection
   swept?: GeoJSON.FeatureCollection
+}
+
+/** Dashed lines close in colour keep different patterns. Stream and road context differ in hue. */
+export const PLAN_LINE_DASHES: Record<'context' | 'ditch' | 'cable' | 'overlay', [number, number]> = {
+  context: [3, 2],
+  ditch: [1, 1.5],
+  cable: [2, 2],
+  overlay: [3, 1],
 }
 
 export const PLAN_CONTEXT_STYLES: Record<ContextFeature['kind'], { label: string; color: string }> = {
@@ -128,6 +139,7 @@ export function buildPlanLegend({
     }
   }
   const roads = section('roads', 'Roads')
+  const names = new Map(shortRoadNames(alignments.map((road) => road.name)).map((name, i) => [alignments[i].id, name]))
   for (const feature of sources.roads.features) {
     if (geometryShape(feature) !== 'dashed-line') continue
     const p = feature.properties ?? {}
@@ -143,16 +155,16 @@ export function buildPlanLegend({
             ? `Over ${maxGradePercent}% grade`
             : color === '#9ca3af'
               ? 'No terrain under it'
-              : 'Within the grade limit',
+              : 'Active road, within grade',
       })
     } else {
       const alignment = alignments.find((road) => road.id === p.id)
       if (alignment)
         roads.add({
           id: `alternative-${alignment.id}`,
-          color: alignment.color,
+          color: String(p.color),
           shape: 'line',
-          label: `Alternative · ${alignment.name}`,
+          label: names.get(alignment.id)!,
         })
     }
   }
@@ -168,6 +180,7 @@ export function buildPlanLegend({
       label: style.label,
       color: style.color,
       shape: area ? 'area' : 'dashed-line',
+      dash: PLAN_LINE_DASHES.context,
     })
   }
   context.finish()
@@ -186,9 +199,15 @@ export function buildPlanLegend({
     if (sources.formation.features.length)
       earthwork.add({ id: 'formation', label: 'Formation surface', color: '#fef3c7', shape: 'square' })
     if (sources.edges.features.length)
-      earthwork.add({ id: 'edge', label: 'Formation edge', color: '#78716c', shape: 'dashed-line' })
+      earthwork.add({ id: 'edge', label: 'Formation edge', color: '#78716c', shape: 'line' })
     if (sources.ditches.features.length)
-      earthwork.add({ id: 'ditch', label: 'Ditch bottom', color: '#0369a1', shape: 'dashed-line' })
+      earthwork.add({
+        id: 'ditch',
+        label: 'Ditch bottom',
+        color: '#0f766e',
+        shape: 'dashed-line',
+        dash: PLAN_LINE_DASHES.ditch,
+      })
   }
   earthwork.finish()
   const structures = section('structures', 'Structures & cables')
@@ -207,7 +226,13 @@ export function buildPlanLegend({
     })
   }
   if (sources.cable.features.length)
-    structures.add({ id: 'cable', label: 'D-line / cable', color: '#7c3aed', shape: 'dashed-line' })
+    structures.add({
+      id: 'cable',
+      label: 'D-line / cable',
+      color: '#7c3aed',
+      shape: 'dashed-line',
+      dash: PLAN_LINE_DASHES.cable,
+    })
   if (cableSupports)
     structures.add({ id: 'cable-support', label: 'Yarder / tailhold', color: '#7c3aed', shape: 'square', symbol: 'Y' })
   if (cableCursor) structures.add({ id: 'cable-cursor', label: 'D-line position', color: '#6d28d9', shape: 'circle' })
@@ -258,14 +283,14 @@ export function buildPlanLegend({
     if (!shape) continue
     const color = typeof feature.properties?.color === 'string' ? feature.properties.color : '#7c3aed'
     const label = overlayLabel(feature, shape)
-    overlays.add({ id: JSON.stringify([label, color, shape]), label, color, shape })
+    overlays.add({ id: JSON.stringify([label, color, shape]), label, color, shape, dash: PLAN_LINE_DASHES.overlay })
   }
   overlays.finish()
   const controls = section('controls', 'Stations & controls')
   if (sources.section.features.length)
-    controls.add({ id: 'station', label: 'Selected station / cross-section', color: '#e11d48', shape: 'line' })
+    controls.add({ id: 'station', label: 'Selected station', color: '#e11d48', shape: 'line' })
   if (sources.ticks.features.length)
-    controls.add({ id: 'ticks', label: 'Station ticks & chainage labels', color: '#1c1917', shape: 'line' })
+    controls.add({ id: 'ticks', label: 'Station ticks', color: '#1c1917', shape: 'line' })
   if (selection) controls.add({ id: 'selection', label: 'Selected road feature', color: '#e11d48', shape: 'line' })
   if (crossingMarkers)
     controls.add({ id: 'crossing', label: 'Stream crossing review', color: '#0284c7', shape: 'square', symbol: '≈' })
@@ -280,7 +305,7 @@ export function buildPlanLegend({
   if (editing)
     controls.add({ id: 'controls', label: 'Horizontal control points', color: '#d97706', shape: 'circle', symbol: '1' })
   if (insertControls)
-    controls.add({ id: 'insert', label: 'Insert horizontal control', color: '#2563eb', shape: 'circle', symbol: '+' })
+    controls.add({ id: 'insert', label: 'Drag to bend the road', color: '#2563eb', shape: 'circle', symbol: '+' })
   if (draftPoints || sources.draft.features.length)
     controls.add({
       id: 'draft',

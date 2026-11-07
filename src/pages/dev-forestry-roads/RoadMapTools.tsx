@@ -35,7 +35,7 @@ export function RoadMapTools({
           icon: Pencil,
           iconOnly: true,
           disabled,
-          title: 'Edit points · drag start/end controls or add middle controls with +',
+          title: 'Edit points · drag start/end controls, or drag a + to bend the road',
         },
       ]}
     />

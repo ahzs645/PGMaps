@@ -90,7 +90,7 @@ test('edit start/end, add and drag middle controls, and save separate editable p
     'aria-pressed',
     'true',
   )
-  await expect(page.getByTestId('road-edit-help')).toContainText('Click +')
+  await expect(page.getByTestId('road-edit-help')).toContainText('Drag a +')
   await drag(page, 1, 20, 25)
   const movedStart = await save(page)
   const active = (p: RoadProject) => p.alignments.find((a) => a.id === p.activeAlignmentId)!
@@ -108,7 +108,14 @@ test('edit start/end, add and drag middle controls, and save separate editable p
   await drag(page, 3, -20, 20)
   const movedEnd = await save(page)
   expect(active(movedEnd).points[2].coordinate).not.toEqual(active(movedStart).points[2].coordinate)
-  await page.getByRole('button', { name: 'Add control between points 1 and 2', exact: true }).click()
+  // A click never changes the road, however many arrive.
+  const handle = page.getByRole('button', { name: 'Add control between points 1 and 2', exact: true })
+  for (let i = 0; i < 5; i++) await handle.click()
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('Drag the +')
+  expect(active(await save(page)).points).toHaveLength(3)
+  // The keyboard has no way to drag, so Enter adds the point at the middle of the segment.
+  await handle.focus()
+  await page.keyboard.press('Enter')
   const inserted = await save(page)
   expect(active(inserted).points).toHaveLength(4)
   expect(active(inserted).points[0]).toEqual(active(movedEnd).points[0])
@@ -136,4 +143,39 @@ test('edit start/end, add and drag middle controls, and save separate editable p
   await page.getByLabel('Active road', { exact: true }).selectOption(original.id)
   expect((await save(page)).alignments.find((a) => a.id === original.id)).toEqual(original)
   expect(errors).toEqual([])
+})
+
+test('dragging a handle bends the road with a curve, and a small slip adds nothing', async ({ page }) => {
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?example=training')
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+  await page.getByRole('tab', { name: 'Design', exact: true }).click()
+  await page.getByRole('button', { name: 'Edit points', exact: true }).click()
+  const points = page.getByRole('button', { name: /^Horizontal point \d+$/ })
+  const before = await points.count()
+  const pointsOf = (project: Awaited<ReturnType<typeof save>>) =>
+    project.alignments.find((road) => road.id === project.activeAlignmentId)!.points
+  const original = new Set(pointsOf(await save(page)).map((point) => point.id))
+  const handle = page.getByRole('button', { name: /^Add control between points/ }).first()
+  const pull = async (dx: number, dy: number) => {
+    const box = (await handle.boundingBox())!
+    const x = box.x + box.width / 2,
+      y = box.y + box.height / 2
+    await page.mouse.move(x, y)
+    await page.mouse.down()
+    await page.mouse.move(x + dx, y + dy, { steps: 6 })
+    await page.mouse.up()
+  }
+  await pull(3, 2)
+  await expect(points).toHaveCount(before)
+  await pull(30, -30)
+  // The status proves the drop was committed; a stuck drag preview would also draw one more point.
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('Bend added')
+  await expect(points).toHaveCount(before + 1)
+  const added = pointsOf(await save(page)).find((point) => !original.has(point.id))!
+  expect(added.radiusM).toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
+  await expect(points).toHaveCount(before)
 })

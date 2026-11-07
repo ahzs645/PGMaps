@@ -20,6 +20,7 @@ vi.mock('@/components/ui/dialog-shell', () => ({
   DialogShell: ({ children, footer }: { children: ReactNode; footer: ReactNode }) =>
     createElement('div', {}, children, footer),
 }))
+vi.mock('@/components/ui/info-tip', () => ({ InfoTip: () => null }))
 vi.mock('@/components/ui/map-panels', () => ({
   InlineAlert: ({ children }: { children: ReactNode }) => createElement('div', {}, children),
 }))

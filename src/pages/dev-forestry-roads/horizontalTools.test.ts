@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
-import { fitHorizontalRadii } from './horizontalTools'
+import { fitHorizontalRadii, straightPointIds } from './horizontalTools'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, RoadPoint } from './types'
 
@@ -55,5 +55,33 @@ describe('bulk horizontal curves', () => {
     const { points: fitted } = fitHorizontalRadii(set, { kind: 'radius', radiusM: 35 }, { onlySharp: true })
     expect(fitted[1].radiusM).toBe(80)
     expect(fitted[2].radiusM).toBeGreaterThan(0)
+  })
+})
+
+describe('straightPointIds', () => {
+  const point = (id: string, lng: number, lat: number) => ({
+    id,
+    coordinate: [lng, lat] as [number, number],
+    radiusM: 0,
+  })
+
+  it('finds middle points on a straight run and keeps the ends and real turns', () => {
+    const points = [
+      point('a', 0, 0),
+      point('b', 0, 0.001),
+      point('c', 0, 0.002),
+      point('d', 0.001, 0.003),
+      point('e', 0.002, 0.004),
+    ]
+    expect(straightPointIds(points)).toEqual(['b', 'd'])
+  })
+
+  it('does not let a slow curve of small turns disappear', () => {
+    const points = Array.from({ length: 40 }, (_, i) => {
+      const angle = (i * Math.PI) / 80
+      return point(`p${i}`, Math.sin(angle) * 0.01, Math.cos(angle) * 0.01)
+    })
+    const kept = points.length - straightPointIds(points).length
+    expect(kept).toBeGreaterThan(5)
   })
 })

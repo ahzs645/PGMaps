@@ -94,7 +94,7 @@ test('phone terrain preparation, independent imagery and survey evidence survive
 
   await openRoadPanel(page, 'Survey field book')
   const survey = page.getByTestId('road-survey-field-book')
-  await survey.getByRole('button', { name: 'Start at selected station ground', exact: true }).click()
+  await survey.getByRole('button', { name: /^Fill start from station / }).click()
   await page
     .getByRole('textbox',{name:'Traverse CSV (station, bearing°, horizontal m, grade %)', exact: true })
     .fill('station,bearing_deg,horizontal_m,grade_pct\nA,0,50,2\nB,90,50,-2')

@@ -9,7 +9,8 @@ import { MapIconButton } from '@/components/ui/map-icon-button'
 import { AppSelect } from '@/components/ui/select'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
-import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES } from './planLegendModel'
+import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
+import { distinctRoadColors } from './roadColors'
 import {
   distance,
   horizontalCurveSummary,
@@ -70,6 +71,8 @@ interface PlanProps {
   onDraw: (coordinate: Coordinate) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
   onInsertPoint?: (afterId: string, coordinate: Coordinate) => void
+  /** A bend handle was clicked or barely moved, so nothing changed. */
+  onBendHint?: () => void
   onHover: (coordinate: Coordinate | null) => void
   onSelectPoint: (id: string) => void
   selectedPoint: string | null
@@ -135,6 +138,9 @@ function Layers(
     showEarthwork: boolean
     hiddenContextKinds: ContextFeature['kind'][]
     onPointDragStart: (id: string) => void
+    onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
+    /** The road without any drag preview. A handle in use has to stay mounted, so handles follow this. */
+    savedAlignment: Alignment
     onPointDragEnd: (id: string, coordinate: Coordinate) => void
     fitRequest: FitRequest
   },
@@ -270,6 +276,10 @@ function Layers(
       map.off('rotateend', update)
     }
   }, [map, isLoaded])
+  // Remounts the handles after a drag, because a marker stays where it was dropped.
+  const [bendRevision, setBendRevision] = useState(0)
+  /** The browser still sends a click when a drag ends on its handle. */
+  const bendDragged = useRef(false)
   const pixelMetres =
     view && analysis.stations.length ? metresPerPixel(view.zoom, analysis.stations[0].coordinate[1]) : null
   const labelInterval = pixelMetres === null ? null : stationLabelInterval(pixelMetres)
@@ -326,39 +336,38 @@ function Layers(
       return []
     }
   }, [props.alignment, props.terrainOnly, pixelMetres])
-  const allLines = useMemo(
-    () =>
-      fc(
-        props.project.alignments.flatMap((a) => {
-          const result = props.analyses.get(a.id)
-          if (!result) return []
-          if (a.id !== props.alignment.id)
-            return [line(result.centerline, { id: a.id, color: a.color, selected: false })]
-          return result.stations.slice(1).map((p, i) =>
-            line([result.stations[i].coordinate, p.coordinate], {
-              id: a.id,
-              selected: true,
-              chainage: p.chainage,
-              color:
-                props.terrainOnly && a.id === props.alignment.id
-                  ? '#0284c7'
-                  : p.groundElevation === null
-                    ? '#9ca3af'
-                    : p.gradePercent !== null && Math.abs(p.gradePercent) > props.project.settings.maxGradePercent
-                      ? '#dc2626'
-                      : '#d97706',
-            }),
-          )
-        }),
-      ),
-    [
-      props.project.alignments,
-      props.project.settings.maxGradePercent,
-      props.analyses,
-      props.alignment.id,
-      props.terrainOnly,
-    ],
-  )
+  const allLines = useMemo(() => {
+    const colors = distinctRoadColors(props.project.alignments)
+    return fc(
+      props.project.alignments.flatMap((a) => {
+        const result = props.analyses.get(a.id)
+        if (!result) return []
+        if (a.id !== props.alignment.id)
+          return [line(result.centerline, { id: a.id, color: colors.get(a.id)!, selected: false })]
+        return result.stations.slice(1).map((p, i) =>
+          line([result.stations[i].coordinate, p.coordinate], {
+            id: a.id,
+            selected: true,
+            chainage: p.chainage,
+            color:
+              props.terrainOnly && a.id === props.alignment.id
+                ? '#0284c7'
+                : p.groundElevation === null
+                  ? '#9ca3af'
+                  : p.gradePercent !== null && Math.abs(p.gradePercent) > props.project.settings.maxGradePercent
+                    ? '#dc2626'
+                    : '#d97706',
+          }),
+        )
+      }),
+    )
+  }, [
+    props.project.alignments,
+    props.project.settings.maxGradePercent,
+    props.analyses,
+    props.alignment.id,
+    props.terrainOnly,
+  ])
   const corridor = useMemo(() => {
     const reach = props.project.settings.crossSectionHalfWidth
     // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
@@ -667,7 +676,7 @@ function Layers(
           PLAN_CONTEXT_STYLES.avoid.color,
         ],
         'line-width': 2,
-        'line-dasharray': [3, 2],
+        'line-dasharray': PLAN_LINE_DASHES.context,
       },
     })
     add({
@@ -693,7 +702,7 @@ function Layers(
       id: 'road-edges',
       type: 'line',
       source: 'road-edges',
-      paint: { 'line-color': '#78716c', 'line-width': 1.2, 'line-dasharray': [3, 2] },
+      paint: { 'line-color': '#78716c', 'line-width': 1.2 },
     })
     add({
       id: 'road-alignments-halo',
@@ -705,7 +714,7 @@ function Layers(
       id: 'road-ditches',
       type: 'line',
       source: 'road-ditches',
-      paint: { 'line-color': '#0369a1', 'line-width': 1.6, 'line-dasharray': [3, 2] },
+      paint: { 'line-color': '#0f766e', 'line-width': 2, 'line-dasharray': PLAN_LINE_DASHES.ditch },
     })
     add({
       id: 'road-alignments',
@@ -1181,28 +1190,43 @@ function Layers(
         ))}
       {props.mode === 'edit' &&
         props.onInsertPoint &&
-        props.alignment.points.length < 2000 &&
-        props.alignment.points.slice(1).map((end, index) => {
-          const start = props.alignment.points[index]
+        props.savedAlignment.points.length < 2000 &&
+        props.savedAlignment.points.slice(1).map((end, index) => {
+          const start = props.savedAlignment.points[index]
           const length = distance(start.coordinate, end.coordinate)
           if (length <= 0.4) return null
-          const coordinate = positionAt({ ...props.alignment, points: [start, end] }, length / 2).coordinate
+          // A handle needs room beside its neighbours: zoom in to bend a short segment.
+          if (pixelMetres !== null && length / pixelMetres < MIN_BEND_SEGMENT_PX) return null
+          const coordinate = positionAt({ ...props.savedAlignment, points: [start, end] }, length / 2).coordinate
           return (
             <MapMarker
               className="z-10"
-              key={`insert-${start.id}-${end.id}`}
+              key={`insert-${start.id}-${end.id}-${bendRevision}`}
               longitude={coordinate[0]}
               latitude={coordinate[1]}
+              draggable
+              onDrag={({ lng, lat }) => props.onBendPreview(start.id, [lng, lat])}
+              onDragEnd={({ lng, lat }) => {
+                props.onBendPreview(start.id, null)
+                setBendRevision((n) => n + 1)
+                bendDragged.current = true
+                const moved = distance(coordinate, [lng, lat]) / (pixelMetres ?? 1)
+                if (moved >= MIN_BEND_DRAG_PX) props.onInsertPoint?.(start.id, [lng, lat])
+                else props.onBendHint?.()
+              }}
             >
               <MarkerContent>
                 <MapIconButton
                   tone="blue"
                   aria-label={`Add control between points ${index + 1} and ${index + 2}`}
-                  title="Add a middle control, then drag it to shape the road"
-                  className="cursor-cell rounded-full border-dashed"
+                  title="Drag to bend the road here"
+                  className="size-5 cursor-grab touch-none rounded-full border-dashed opacity-70 hover:opacity-100 active:cursor-grabbing"
                   onClick={(event) => {
                     event.stopPropagation()
-                    props.onInsertPoint?.(start.id, coordinate)
+                    // Only a key press arrives with no pointer: it has no way to drag.
+                    if (event.detail === 0) props.onInsertPoint?.(start.id, coordinate)
+                    else if (!bendDragged.current) props.onBendHint?.()
+                    bendDragged.current = false
                   }}
                 >
                   <Plus aria-hidden="true" />
@@ -1344,20 +1368,35 @@ function Layers(
   )
 }
 
+/** On-screen length a segment needs before it offers a bend handle. */
+const MIN_BEND_SEGMENT_PX = 48
+/** A handle moved less than this was a slip, so no point is added. */
+const MIN_BEND_DRAG_PX = 10
+
 export function PlanView(props: PlanProps) {
   const [drag, setDrag] = useState<{ original: Alignment; id: string; coordinate: Coordinate } | null>(null)
-  const previewAlignment = useMemo(
-    () =>
-      drag && drag.original === props.alignment && props.mode === 'edit'
-        ? {
-            ...props.alignment,
-            points: props.alignment.points.map((point) =>
-              point.id === drag.id ? { ...point, coordinate: drag.coordinate } : point,
-            ),
-          }
-        : null,
-    [drag, props.alignment, props.mode],
-  )
+  const [bend, setBend] = useState<{ original: Alignment; afterId: string; coordinate: Coordinate } | null>(null)
+  const newPointRadius = props.project.settings.minRadius
+  const previewAlignment = useMemo(() => {
+    if (props.mode !== 'edit') return null
+    if (drag && drag.original === props.alignment)
+      return {
+        ...props.alignment,
+        points: props.alignment.points.map((point) =>
+          point.id === drag.id ? { ...point, coordinate: drag.coordinate } : point,
+        ),
+      }
+    if (bend && bend.original === props.alignment)
+      return {
+        ...props.alignment,
+        points: props.alignment.points.flatMap((point) =>
+          point.id === bend.afterId
+            ? [point, { id: 'bend-preview', coordinate: bend.coordinate, radiusM: newPointRadius }]
+            : [point],
+        ),
+      }
+    return null
+  }, [drag, bend, props.alignment, props.mode, newPointRadius])
   const previewAnalyses = useMemo(() => {
     if (!previewAlignment) return props.analyses
     const analyses = new globalThis.Map(props.analyses)
@@ -1458,8 +1497,12 @@ export function PlanView(props: PlanProps) {
         <Layers
           {...props}
           alignment={previewAlignment ?? props.alignment}
+          savedAlignment={props.alignment}
           analyses={previewAnalyses}
           onPointDragStart={(id) => props.onSelectPoint(id)}
+          onBendPreview={(afterId, coordinate) =>
+            setBend(coordinate ? { original: props.alignment, afterId, coordinate } : null)
+          }
           onMovePoint={(id, coordinate) => setDrag({ original: props.alignment, id, coordinate })}
           onPointDragEnd={(id, coordinate) => {
             setDrag(null)
@@ -1580,9 +1623,7 @@ export function PlanView(props: PlanProps) {
             className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"
             data-testid="road-edit-help"
           >
-            <span className="min-w-0 flex-1">
-              Drag numbered controls to move the start, end or path. Click + to add a middle control.
-            </span>
+            <span className="min-w-0 flex-1">Drag a number to move that point. Drag a + to bend the road.</span>
             <Button
               size="icon"
               variant="ghost"

@@ -1,5 +1,5 @@
 import { NativeSelect } from '@/components/ui/form-field'
-import type { ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from '../Controls'
@@ -7,7 +7,7 @@ import { formatRoadStation } from '../Charts'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadSettings } from '../types'
-import { assessCostReadiness } from '../costReadiness'
+import { assessCostReadiness, crossingsWithoutStructure } from '../costReadiness'
 import { surfacingSupplyCost } from '../gravel'
 
 const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
@@ -47,6 +47,8 @@ const RATES = [
   ['clearingRate', 'Clearing ($/m²)'],
   ['shrinkFactor', 'Reusable cut factor'],
 ] as const
+
+const RATE_NAMES = { cutRate: 'cut', fillRate: 'fill', surfacingRate: 'surfacing', clearingRate: 'clearing' }
 
 type Check = {
   id: string
@@ -97,7 +99,16 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
     analysis.stations.filter((s) => s.flags.some((f) => /Sharp horizontal PI/i.test(f))).map((s) => s.chainage),
   ).size
   const drainageRecord = project.drainage?.records.find((record) => record.alignmentId === alignment.id)
-  const placeholders = assessCostReadiness(analysis, alignment, settings).placeholderRates.length
+  const redirectedFlow = drainageRecord?.summary.redirected ?? 0
+  const placeholders = assessCostReadiness(analysis, alignment, settings).placeholderRates
+  const [ratesOpen, setRatesOpen] = useState(false)
+  const rates = useRef<HTMLDivElement>(null)
+  const openRates = () => {
+    setRatesOpen(true)
+    requestAnimationFrame(() => rates.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  }
+  const uncrossed = crossingsWithoutStructure(analysis, alignment.engineering)
+  const unpriced = (alignment.engineering?.culverts ?? []).filter((c) => c.unitCost === 0 && c.fixedCost === 0)
   const checks: Check[] = [
     {
       id: 'sections',
@@ -127,31 +138,67 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
     },
     {
       id: 'drainage',
-      label: 'Drainage checked',
-      detail: drainageRecord ? undefined : 'Run it from the Drainage view.',
-      ok: drainageRecord ? true : null,
-      action: drainageRecord ? undefined : { label: 'Open', onClick: () => p.onShowDrainage?.() },
+      label: !drainageRecord
+        ? 'Drainage not checked'
+        : p.drainageStale
+          ? 'Drainage check is out of date'
+          : redirectedFlow
+            ? 'Road turns modelled streams'
+            : 'Drainage checked',
+      detail: !drainageRecord
+        ? 'Run it from the Drainage view.'
+        : p.drainageStale
+          ? 'The road, its culverts or the terrain changed.'
+          : drainageRecord.summary.redirected || drainageRecord.summary.lowPoints
+            ? `${redirectedFlow} of ${drainageRecord.summary.crossings} modelled streams redirected · ${drainageRecord.summary.lowPoints} low points`
+            : undefined,
+      ok: drainageRecord ? !p.drainageStale && !redirectedFlow : null,
+      action:
+        drainageRecord && !p.drainageStale && !redirectedFlow
+          ? undefined
+          : { label: 'Open', onClick: () => p.onShowDrainage?.() },
     },
-    {
-      id: 'crossings',
-      label: stream.length
-        ? `${stream.length} stream crossing${stream.length === 1 ? '' : 's'} to review`
-        : 'No mapped stream crossings',
-      ok: stream.length ? false : true,
-      action: stream.length ? { label: 'Go to', onClick: () => p.workspace.setStation(stream[0].chainage) } : undefined,
-    },
+    uncrossed.length
+      ? {
+          id: 'crossings',
+          label: `${uncrossed.length} mapped stream crossing${uncrossed.length === 1 ? ' needs' : 's need'} a culvert`,
+          detail: `${uncrossed[0].name} at ${formatRoadStation(uncrossed[0].chainage)}${uncrossed.length > 1 ? ` and ${uncrossed.length - 1} more` : ''}`,
+          ok: false,
+          action: { label: 'Add culvert', onClick: () => p.onShowCulverts?.(uncrossed[0].chainage) },
+        }
+      : {
+          id: 'crossings',
+          label: stream.length
+            ? `Mapped stream crossing${stream.length === 1 ? ' has a culvert' : 's have culverts'}`
+            : 'No mapped stream crossings',
+          ok: true,
+        },
+    ...(unpriced.length
+      ? [
+          {
+            id: 'culvert-prices',
+            label: `${unpriced.length} culvert${unpriced.length === 1 ? ' has' : 's have'} no price`,
+            detail: 'They add nothing to the estimate yet.',
+            ok: false,
+            action: { label: 'Set price', onClick: () => p.onShowCulverts?.(unpriced[0].chainage) },
+          },
+        ]
+      : []),
     {
       id: 'rates',
-      label: 'Unit rates entered',
-      detail: placeholders ? `${placeholders} still placeholders` : undefined,
-      ok: !placeholders,
+      label: placeholders.length ? 'Unit rates need checking' : 'Unit rates entered',
+      detail: placeholders.length
+        ? `Still at the default: ${placeholders.map((key) => RATE_NAMES[key]).join(', ')}`
+        : undefined,
+      ok: !placeholders.length,
+      action: placeholders.length ? { label: 'Enter rates', onClick: openRates } : undefined,
     },
   ]
   return (
     <>
       <RoadSection
         title="Ready to review"
-        help="Checks on the active road. They point at what to do next; none of them certifies a road standard."
+        help="Checks on the active road, each with its next step. None of them certifies a road standard. Mapped streams come from your data; modelled streams come from the drainage check's terrain model, so the counts can differ. A rate counts as checked once it differs from the default."
       >
         <ReadinessChecks checks={checks} />
         <SectionReachAlert workspace={p.workspace} />
@@ -206,9 +253,12 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
           ))}
         </div>
       </RoadSection>
+      <div ref={rates} className="scroll-mt-2" />
       <RoadSection
-        title="Earthwork cost assumptions"
-        summary={`$${settings.cutRate} · $${settings.fillRate}`}
+        title="Unit rates"
+        summary={`$${settings.cutRate} cut · $${settings.fillRate} fill`}
+        open={ratesOpen}
+        onOpenChange={setRatesOpen}
         help={
           <>
             Base unit rates in CAD. Engineering inputs add material-specific excavation, structures, haul, borrow and

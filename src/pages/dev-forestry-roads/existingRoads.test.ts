@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { buildBcRoadsQuery, importExistingRoads, loadBcExistingRoads, parseBcExistingRoads } from './existingRoads'
+import {
+  buildBcRoadsQuery,
+  existingRoadQueryBounds,
+  importExistingRoads,
+  loadBcExistingRoads,
+  parseBcExistingRoads,
+} from './existingRoads'
 import { parseProject, projectGeoJson } from './project'
 import { createDemoProject } from './terrain'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
@@ -151,5 +157,20 @@ describe('BC existing-road evidence', () => {
       vi.fn().mockResolvedValue(new Response('{}', { headers: { 'content-length': String(11 * 1024 * 1024) } })),
     )
     await expect(loadBcExistingRoads([-122.8, 53.8, -122.7, 53.9])).rejects.toThrow(/too large/)
+  })
+})
+
+describe('existingRoadQueryBounds', () => {
+  it('keeps a wide search inside the BC query limit at northern latitudes', () => {
+    const bounds = existingRoadQueryBounds(
+      [
+        [-122.72, 53.89],
+        [-122.69, 53.9],
+      ],
+      10,
+    )
+    expect(bounds[2] - bounds[0]).toBeLessThanOrEqual(0.3)
+    expect(bounds[3] - bounds[1]).toBeLessThanOrEqual(0.3)
+    expect(() => buildBcRoadsQuery(bounds)).not.toThrow()
   })
 })

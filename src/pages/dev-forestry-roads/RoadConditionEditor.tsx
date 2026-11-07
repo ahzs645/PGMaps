@@ -1,6 +1,7 @@
 import { NativeSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, OptionalNumberField, roadFieldClass } from './Controls'
 import {
@@ -70,6 +71,8 @@ export function RoadConditionEditor({
     assessmentError = cause instanceof Error ? cause.message : 'Could not assess road evidence.'
   }
   const estimate = assessment
+  // A record counts only once its source has an age limit, so that setting cannot stay folded away.
+  const needsAgeLimit = !!estimate?.records.some(({ status }) => status === 'policy-unset')
   const add = () => {
     try {
       const observation: RoadConditionObservation = {
@@ -103,74 +106,41 @@ export function RoadConditionEditor({
       aria-label={`Dated condition evidence for ${roadName}`}
       data-testid="road-condition-editor"
     >
-      <h4 className="text-xs font-semibold">Dated condition evidence</h4>
-      <p className="text-2xs text-muted-foreground">
-        Link an inspection or dated image, record the observed component and a reviewer, then set how long this evidence
-        may inform planning. Record dates and tenure awards do not establish construction age.
-      </p>
+      <div className="flex items-center gap-1">
+        <h4 className="min-w-0 flex-1 text-xs font-semibold">Condition evidence</h4>
+        <InfoTip label="About condition evidence">
+          Link an inspection or dated image, then set how long it may inform planning. Record dates and tenure awards do
+          not establish construction age. Loaded-truck capacity, crossing approval and access permission are not
+          established by this estimate, and a recorded reviewer is a user-entered attribution, not verified credentials.
+        </InfoTip>
+      </div>
       <fieldset className="space-y-2" disabled={disabled}>
-        <Field label="Assess condition as of">
-          <input
-            className={roadFieldClass}
-            type="date"
-            value={asOf}
-            readOnly={!onChangeAsOf}
-            onChange={(event) => {
-              if (event.target.value) onChangeAsOf?.(event.target.value)
-            }}
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <OptionalNumberField
-            label="Inspection evidence max age (days)"
-            value={policy.maxInspectionAgeDays}
-            min={0}
-            max={MAX_CONDITION_EVIDENCE_AGE_DAYS}
-            step={1}
-            placeholder="not configured"
-            onChange={(value) =>
-              onChangePolicy({ ...policy, maxInspectionAgeDays: value === null ? null : Math.round(value) })
-            }
-          />
-          <OptionalNumberField
-            label="Imagery evidence max age (days)"
-            value={policy.maxImageryAgeDays}
-            min={0}
-            max={MAX_CONDITION_EVIDENCE_AGE_DAYS}
-            step={1}
-            placeholder="not configured"
-            onChange={(value) =>
-              onChangePolicy({ ...policy, maxImageryAgeDays: value === null ? null : Math.round(value) })
-            }
-          />
-        </div>
-        <p className="text-2xs text-muted-foreground">
-          These are your planning applicability windows. An unset window leaves that source unassessed; it does not
-          prescribe an inspection schedule or predict deterioration.
-        </p>
         {assessmentError && <InlineAlert tone="warning">{assessmentError}</InlineAlert>}
         {estimate && (
           <div
-            className="space-y-1 rounded border bg-muted/20 p-2 text-2xs"
+            className="space-y-1 text-2xs"
             data-testid="road-condition-estimate"
             data-estimated-condition={estimate.condition}
             data-evidence-basis={estimate.basis}
           >
-            <p className="font-semibold">Planning estimate: {ROAD_CONDITION_LABELS[estimate.condition]}</p>
-            <p>{estimate.explanation}</p>
+            <p>
+              <span className="font-semibold">{ROAD_CONDITION_LABELS[estimate.condition]}</span>
+              <span className="text-muted-foreground">
+                {' '}
+                · {estimate.usedObservationIds.length} record{estimate.usedObservationIds.length === 1 ? '' : 's'}
+                {estimate.evidenceAgeDays
+                  ? ` · ${estimate.evidenceAgeDays.youngest}–${estimate.evidenceAgeDays.oldest} days old`
+                  : ''}
+                {estimate.expiresAt ? ` · valid to ${estimate.expiresAt}` : ''}
+              </span>
+            </p>
+            {observations.length > 0 && <p className="text-muted-foreground">{estimate.explanation}</p>}
             {estimate.hasOpenClosureEvidence && (
-              <p>
+              <InlineAlert tone="warning">
                 Unresolved closure records: {estimate.unresolvedClosureObservationIds.join(', ')}. Road reuse remains
                 blocked.
-              </p>
+              </InlineAlert>
             )}
-            <p className="text-muted-foreground">
-              As of {estimate.asOf} · {estimate.usedObservationIds.length} applicable records · {estimate.basis}
-              {estimate.evidenceAgeDays
-                ? ` · ${estimate.evidenceAgeDays.youngest}–${estimate.evidenceAgeDays.oldest} days old`
-                : ''}
-              {estimate.expiresAt ? ` · earliest window ends ${estimate.expiresAt}` : ''}
-            </p>
             {estimate.components
               .filter((component) => component.observationIds.length)
               .map((component) => (
@@ -181,19 +151,15 @@ export function RoadConditionEditor({
                   {component.hasConflicts ? ' · conflicting evidence' : ''}
                 </p>
               ))}
-            <p className="text-muted-foreground">
-              Loaded-truck capacity, crossing approval and access permission are not established by this estimate. A
-              recorded reviewer is a user-entered attribution, not verified professional credentials.
-            </p>
-            {onUseEstimate && (
+            {onUseEstimate && estimate.condition !== 'unknown' && (
               <Button
                 size="sm"
                 variant="outline"
                 className="mt-1 w-full"
-                disabled={estimate.condition === 'unknown' || estimate.hasConflicts}
+                disabled={estimate.hasConflicts}
                 onClick={() => onUseEstimate(estimate)}
               >
-                Use estimate as planning condition
+                Use as planning condition
               </Button>
             )}
           </div>
@@ -250,9 +216,7 @@ export function RoadConditionEditor({
           </ul>
         )}
         <details className="rounded border">
-          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">
-            Add an inspection or imagery observation
-          </summary>
+          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Add an inspection or imagery</summary>
           <div className="space-y-2 border-t p-2">
             <div className="grid grid-cols-2 gap-2">
               <Field label="Evidence source">
@@ -374,25 +338,71 @@ export function RoadConditionEditor({
                 ))}
               </NativeSelect>
             </Field>
-            <p className="text-2xs text-muted-foreground">
-              A newer date alone does not replace conflicting evidence. Replacements apply to the same component and
-              asset and take effect only when the new record is applicable and reviewed. Imagery cannot clear a bridge
-              or culvert as serviceable. Links are saved; their contents are not downloaded or analysed.
-            </p>
             {entryError && <InlineAlert tone="warning">{entryError}</InlineAlert>}
-            <Button
-              size="sm"
-              className="w-full"
-              onClick={add}
-              disabled={observations.length >= MAX_ROAD_CONDITION_OBSERVATIONS}
-            >
-              Add dated evidence
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                size="sm"
+                className="min-w-0 flex-1"
+                onClick={add}
+                disabled={observations.length >= MAX_ROAD_CONDITION_OBSERVATIONS}
+              >
+                Add dated evidence
+              </Button>
+              <InfoTip label="About adding evidence">
+                A newer date alone does not replace conflicting evidence. Replacements apply to the same component and
+                asset and take effect only when the new record is applicable and reviewed. Imagery cannot clear a bridge
+                or culvert as serviceable. Links are saved; their contents are not downloaded or analysed.
+              </InfoTip>
+            </div>
             {observations.length >= MAX_ROAD_CONDITION_OBSERVATIONS && (
               <p className="text-2xs text-muted-foreground">
                 The road has reached its {MAX_ROAD_CONDITION_OBSERVATIONS}-observation limit.
               </p>
             )}
+          </div>
+        </details>
+        {needsAgeLimit && (
+          <InlineAlert tone="warning">Set a maximum age below so your records count towards the estimate.</InlineAlert>
+        )}
+        <details className="rounded border" open={needsAgeLimit || undefined}>
+          <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Assessment date & evidence age</summary>
+          <div className="space-y-2 border-t p-2">
+            <Field label="Assess condition as of">
+              <input
+                className={roadFieldClass}
+                type="date"
+                value={asOf}
+                readOnly={!onChangeAsOf}
+                onChange={(event) => {
+                  if (event.target.value) onChangeAsOf?.(event.target.value)
+                }}
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-2">
+              <OptionalNumberField
+                label="Inspection evidence max age (days)"
+                value={policy.maxInspectionAgeDays}
+                min={0}
+                max={MAX_CONDITION_EVIDENCE_AGE_DAYS}
+                step={1}
+                placeholder="not set"
+                hint="How long an inspection may inform planning. Unset leaves that source unassessed; it does not prescribe an inspection schedule or predict deterioration."
+                onChange={(value) =>
+                  onChangePolicy({ ...policy, maxInspectionAgeDays: value === null ? null : Math.round(value) })
+                }
+              />
+              <OptionalNumberField
+                label="Imagery evidence max age (days)"
+                value={policy.maxImageryAgeDays}
+                min={0}
+                max={MAX_CONDITION_EVIDENCE_AGE_DAYS}
+                step={1}
+                placeholder="not set"
+                onChange={(value) =>
+                  onChangePolicy({ ...policy, maxImageryAgeDays: value === null ? null : Math.round(value) })
+                }
+              />
+            </div>
           </div>
         </details>
       </fieldset>

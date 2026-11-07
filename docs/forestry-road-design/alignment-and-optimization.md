@@ -274,7 +274,9 @@ mean is 25 samples over the window at nodes half a window apart, interpolated bi
 
 **Design → Find the best route** (`RouteFinder.tsx`, `routeComparison.ts`) takes the ends of the
 active road, plus its interior points simplified to at most 8 as a guide, and designs one road per
-goal. Nothing changes until **Use** or **Keep all**, which add roads; the active road is never edited.
+goal. Your road is never edited. Clicking a row adds that road and makes it active, so every chart
+and table shows it; **Compare all** adds the rest and opens Compare. The switcher above the summary
+tiles then flips between roads from any tab or view.
 
 | Goal                   | Horizontal line                                                                                                    | Profile                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
@@ -284,12 +286,19 @@ goal. Nothing changes until **Use** or **Keep all**, which add roads; the active
 | Fewest drainage issues | Corridor search, `balanced`, charged for ground that carries flow                                                  | Total cost                    |
 
 Lowest cost then refines the plan and profile for up to 10 trials when the line has at most 12
-interior controls. Two goals that land on the same line share one row.
+interior controls. Refinement sees only the build price, so its result is kept only when the total,
+drainage allowance included, comes down.
+
+**Rows are named by what was measured, not by the search that made them** (`assignGoals`). Each goal
+goes to the road leading it among those that meet every limit, your road included, with ties to the
+cheaper. One road can hold several goals, and a road leading nothing is left out. A road that breaks
+a limit or found no line shows only when no other road holds its goal. Goals that failed for the
+same reason share one line. Your road shows the goals it already leads.
 
 **A goal that finds no corridor** retries at twice the half-width, up to ±600 m, when no line
 fitted, then follows a simplified terrain-cost grid route as a new guide. If the corridor still
 finds nothing it keeps that grid route with curves fitted to its corners, and the row says so. A
-goal with no route at all shows its own row; the others carry on.
+goal with no route at all does not stop the others.
 
 **Drainage has two parts.** The drainage goal steers: flow is modelled on 4 m cells over the corridor
 plus 150 m, and ground carrying five times the stream threshold costs about 20 m of road per metre,

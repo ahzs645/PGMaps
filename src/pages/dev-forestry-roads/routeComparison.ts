@@ -13,6 +13,7 @@ import { runDrainage, type DrainageSettings } from './drainageRun'
 import { alignmentLength } from './engine'
 import { fillDepressions, flowAccumulation, flowDirections } from './hydrology'
 import { MAX_JOINT_MOVABLE_POINTS, refinePlanAndProfile } from './jointOptimizer'
+import { derivedRoadName } from './roadNames'
 import { suggestRoutes, type RouteSearchOptions } from './routing'
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import { fitHorizontalRadii } from './horizontalTools'
@@ -41,7 +42,7 @@ export const ROUTE_GOALS: {
     label: 'Lowest cost',
     objective: 'balanced',
     color: '#16a34a',
-    help: 'Prices the shortest, balanced and contour lines with fitted profiles, keeps the cheapest that meets the limits, then nudges its plan and re-prices it.',
+    help: 'Prices the shortest, balanced and gentlest lines, then keeps whichever road costs least, drainage included.',
   },
   {
     id: 'shortest',
@@ -121,12 +122,14 @@ export interface RouteRow {
   /** Why this row cannot be recommended; empty when it meets every limit. */
   blockers: string[]
   notes: string[]
-  /** Set when the row leads a measure among the rows that meet every limit. */
+  /** The goals this road actually won, measured across every road that meets the limits. */
   best: RouteGoal[]
 }
 export interface RouteComparison {
   rows: RouteRow[]
   drainageChecked: boolean
+  /** Asked-for goals the current road already wins, so no new road is shown for them. */
+  currentLeads: RouteGoal[]
 }
 export interface RouteComparisonInput {
   base: Alignment
@@ -142,9 +145,15 @@ export interface RouteComparisonInput {
   gridAt: (at: Coordinate) => { toGrid: ToGrid; toLonLat: ToLonLat }
   id?: () => string
 }
+export interface RouteComparisonProgress {
+  /** What is happening now, in terms of the roads rather than the engine. */
+  message: string
+  step: number
+  total: number
+}
 export interface RouteComparisonControl {
   signal?: AbortSignal
-  onStep?: (message: string) => void
+  onStep?: (progress: RouteComparisonProgress) => void
 }
 
 /** Douglas-Peucker on a local metric frame, tightened until at most `maxPoints` remain. */
@@ -252,19 +261,50 @@ function metrics(
   }
 }
 
-function markBest(rows: RouteRow[]) {
-  const eligible = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
-  const lead = (goal: RouteGoal, value: (row: RouteRow) => number | null) => {
-    const ranked = eligible.filter((row) => value(row) !== null).sort((a, b) => value(a)! - value(b)!)
-    if (ranked[0]) ranked[0].best.push(goal)
+const MEASURES: Record<RouteGoal, (row: RouteRow) => number | null> = {
+  cost: (row) => row.totalCost,
+  shortest: (row) => row.lengthM,
+  gentle: (row) => row.maxGradePercent,
+  drainage: (row) => (row.drainage ? row.drainage.crossings * 10_000 + row.drainage.crossDrains : null),
+}
+
+/**
+ * Names roads by what they measured, not by the search that produced them: a search for the shortest
+ * line can return the cheapest road, and a goal's own search can lose to another's. Each asked-for goal
+ * goes to the road leading it among those that meet every limit, ties to the cheaper. A road leading
+ * nothing is dropped, and so is one that breaks a limit or failed once another road holds its goal.
+ */
+export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
+  const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
+  for (const goal of goals) {
+    const measure = MEASURES[goal]
+    const leader = usable
+      .filter((row) => measure(row) !== null)
+      .sort((a, b) => measure(a)! - measure(b)! || a.totalCost! - b.totalCost!)[0]
+    leader?.best.push(goal)
   }
-  lead('cost', (row) => row.totalCost)
-  lead('shortest', (row) => row.lengthM)
-  lead('gentle', (row) => row.maxGradePercent)
-  lead('drainage', (row) => (row.drainage ? row.drainage.crossings * 10_000 + row.drainage.crossDrains : null))
+  const held = new Set(rows.flatMap((row) => row.best))
+  const kept = rows.filter(
+    (row) =>
+      row.goal === 'current' || row.best.length > 0 || (!usable.includes(row) && !held.has(row.goal as RouteGoal)),
+  )
+  for (const row of kept) {
+    if (row.goal === 'current' || !row.best.length) continue
+    const won = ROUTE_GOALS.filter((goal) => row.best.includes(goal.id))
+    row.goal = won[0].id
+    row.color = won[0].color
+    row.label = won.map((goal) => goal.label).join(' · ')
+    if (row.alignment) row.alignment.color = won[0].color
+  }
+  return kept
 }
 
 const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+const LINE_NAME: Record<'shortest' | 'balanced' | 'contour', string> = {
+  shortest: 'shortest',
+  balanced: 'balanced',
+  contour: 'gentlest',
+}
 
 export async function compareRoutes(
   input: RouteComparisonInput,
@@ -276,9 +316,19 @@ export async function compareRoutes(
   const aborted = () => {
     if (signal?.aborted) throw new DOMException('Route comparison cancelled.', 'AbortError')
   }
+  const askedFor = ROUTE_GOALS.filter((goal) => options.goals.includes(goal.id))
+  // Lowest cost tries three lines, then a plan refinement; every other goal searches, then fits a
+  // profile. Every road, the current one included, then has its drainage screened.
+  const total =
+    askedFor.reduce((sum, goal) => sum + (goal.id === 'cost' ? 4 : 2), 0) +
+    askedFor.length +
+    1 +
+    (options.goals.includes('drainage') ? 1 : 0)
+  let done = 0
   const step = async (message: string) => {
     aborted()
-    onStep?.(message)
+    done = Math.min(total, done + 1)
+    onStep?.({ message, step: done, total })
     await tick()
     aborted()
   }
@@ -368,7 +418,7 @@ export async function compareRoutes(
             minRadiusM: settings.minRadius,
           },
         ).points,
-        note: 'Grid route with fitted curves: the corridor search found no line.',
+        note: 'Built from a grid route, so check its curves.',
       }
     }
     try {
@@ -389,7 +439,7 @@ export async function compareRoutes(
     goal: (typeof ROUTE_GOALS)[number],
     objectives: readonly ('earthwork' | 'total')[],
   ) => {
-    const name = `${base.name} · ${goal.label.toLowerCase()}`
+    const name = derivedRoadName(base.name, goal.label.toLowerCase())
     const candidate: Alignment = found.result
       ? corridorCandidate(found.result, base.template, name, id)
       : {
@@ -430,7 +480,7 @@ export async function compareRoutes(
         found = await horizontal(goal.objective, false)
         found = { ...found, note: 'Could not steer around modelled streams; this is the balanced line.' }
       }
-      await step(`${goal.label}: fitting a profile…`)
+      await step(`${goal.label}: fitting a profile`)
       return { candidate: fitProfile(found, goal, ['total']).candidate, notes: found.note ? [found.note] : [] }
     }
     // Lowest cost has to be measured, not assumed from a preference: price every line, drainage
@@ -438,17 +488,11 @@ export async function compareRoutes(
     const priced: { fit: ReturnType<typeof fitProfile>; total: number; note: string | null }[] = []
     let failure: unknown
     for (const objective of ['shortest', 'balanced', 'contour'] as const) {
-      await step(`${goal.label}: pricing the ${objective} line…`)
+      await step(`${goal.label}: pricing the ${LINE_NAME[objective]} line`)
       try {
         const found = await horizontal(objective, false)
         const fit = fitProfile(found, goal, ['earthwork', 'total'])
-        let allowance = 0
-        try {
-          allowance = screen(fit.candidate, analyse(fit.candidate)).allowance
-        } catch {
-          aborted()
-        }
-        priced.push({ fit, total: fit.cost + allowance, note: found.note })
+        priced.push({ fit, total: totalOf(fit.candidate), note: found.note })
       } catch (cause) {
         aborted()
         failure = cause
@@ -459,7 +503,7 @@ export async function compareRoutes(
     let candidate = priced[0].fit.candidate
     const notes = priced[0].note ? [priced[0].note] : []
     if (candidate.points.length > 2 && candidate.points.length - 2 <= MAX_JOINT_MOVABLE_POINTS) {
-      await step(`${goal.label}: refining plan and profile…`)
+      await step(`${goal.label}: refining the cheapest line`)
       try {
         const refined = await refinePlanAndProfile(candidate, terrain, settings, context, {
           stepM: 5,
@@ -469,13 +513,25 @@ export async function compareRoutes(
           signal,
           yieldControl: tick,
         })
-        candidate = refined.alignment
+        // Refinement sees only the build price. A cheaper build that lands on a stream costs more.
+        if (totalOf(refined.alignment) < priced[0].total) candidate = refined.alignment
       } catch (cause) {
         aborted()
         notes.push(cause instanceof Error ? `Refinement skipped: ${cause.message}` : 'Refinement skipped.')
       }
     }
     return { candidate, notes }
+  }
+
+  /** Build plus drainage allowance: the same total a row shows. */
+  const totalOf = (alignment: Alignment) => {
+    const analysis = analyse(alignment)
+    try {
+      return analysis.estimatedCost + screen(alignment, analysis).allowance
+    } catch {
+      aborted()
+      return analysis.estimatedCost
+    }
   }
 
   const screen = (alignment: Alignment, analysis: RoadAnalysis): DrainageScreen => {
@@ -505,7 +561,7 @@ export async function compareRoutes(
     {
       id: base.id,
       goal: 'current',
-      label: 'Current road',
+      label: 'Your road',
       color: '#ea580c',
       alignment: base,
       coordinates: baseAnalysis.centerline,
@@ -516,9 +572,8 @@ export async function compareRoutes(
       best: [],
     },
   ]
-  const goals = ROUTE_GOALS.filter((goal) => options.goals.includes(goal.id))
-  if (goals.some((goal) => goal.id === 'drainage')) {
-    await step('Modelling flow from the terrain…')
+  if (askedFor.some((goal) => goal.id === 'drainage')) {
+    await step('Modelling where water flows')
     wetness = flowPenalty(
       terrain,
       guide,
@@ -528,8 +583,8 @@ export async function compareRoutes(
       options.drainage.streamThresholdHa * STEERED_STREAM_FACTOR,
     )
   }
-  for (const goal of goals) {
-    await step(`${goal.label}: searching the corridor…`)
+  for (const goal of askedFor) {
+    await step(`${goal.label}: searching for a line`)
     const row: RouteRow = {
       id: id(),
       goal: goal.id,
@@ -563,7 +618,7 @@ export async function compareRoutes(
   let drainageChecked = true
   for (const row of rows) {
     if (!row.alignment) continue
-    await step(`${row.label}: screening drainage…`)
+    await step(`${row.label}: checking drainage`)
     try {
       const analysis = row.goal === 'current' ? baseAnalysis : analyse(row.alignment)
       row.drainage = screen(row.alignment, analysis)
@@ -576,18 +631,21 @@ export async function compareRoutes(
     }
   }
   // The cheapest line is often another goal's line: one row, not two identical ones.
-  const shown: RouteRow[] = []
-  const lines = new Map<string, RouteRow>()
-  for (const row of rows) {
-    const key = row.alignment && row.goal !== 'current' ? JSON.stringify(row.coordinates) : null
-    const twin = key ? lines.get(key) : undefined
-    if (twin) {
-      twin.notes.push(`Also the ${row.label.toLowerCase()} line.`)
-      continue
-    }
-    if (key) lines.set(key, row)
-    shown.push(row)
-  }
-  markBest(shown)
-  return { rows: shown, drainageChecked }
+  const lines = new Set<string>()
+  const distinct = rows.filter((row) => {
+    if (!row.alignment || row.goal === 'current') return true
+    const key = JSON.stringify(row.coordinates)
+    if (lines.has(key)) return false
+    lines.add(key)
+    return true
+  })
+  const shown = assignGoals(distinct, options.goals)
+  const currentLeads = shown.find((row) => row.goal === 'current')?.best ?? []
+  for (const row of shown)
+    if (row.goal !== 'current' && row.alignment)
+      row.alignment.name = derivedRoadName(
+        base.name,
+        ROUTE_GOALS.find((goal) => goal.id === row.goal)!.label.toLowerCase(),
+      )
+  return { rows: shown, drainageChecked, currentLeads }
 }

@@ -56,18 +56,14 @@ test('legend follows alternative road colours, context visibility, earthworks an
 }, info) => {
   await prepare(page)
   const content = await expandLegend(page)
-  await expect(content).toContainText('Alternative · Contour alternative · training')
+  await expect(content).toContainText('Contour alternative')
   for (const text of ['Streams', 'Existing roads', 'Harvest areas', 'Review areas'])
     await expect(content.getByText(text, { exact: true })).toHaveCount(1)
   const source = (await mapData(page))!.roads.find((road) => road?.id === 'demo-contour')!
   expect(source.color).toBe('#2563eb')
   await expect(
-    content
-      .getByText('Alternative · Contour alternative · training', { exact: true })
-      .locator('..')
-      .locator('span[style]')
-      .first(),
-  ).toHaveCSS('background-color', 'rgb(37, 99, 235)')
+    content.getByText('Contour alternative', { exact: true }).locator('..').locator('svg line'),
+  ).toHaveAttribute('stroke', '#2563eb')
   await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show harvest areas context', exact: true }).uncheck()
   await expect(content.getByText('Harvest areas', { exact: true })).toHaveCount(0)
@@ -75,7 +71,7 @@ test('legend follows alternative road colours, context visibility, earthworks an
   await page.getByRole('checkbox', { name: 'Earthworks', exact: true }).uncheck()
   await expect(content.locator('[data-legend-section="earthwork"]')).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'Labels', exact: true }).uncheck()
-  await expect(content.getByText('Station ticks & chainage labels', { exact: true })).toHaveCount(0)
+  await expect(content.getByText('Station ticks', { exact: true })).toHaveCount(0)
   await page.getByRole('checkbox', { name: 'Contours', exact: true }).uncheck()
   await page.getByRole('button', { name: 'Close map settings', exact: true }).click()
   await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
@@ -149,6 +145,9 @@ test('phone map tools use icons, centre insert-control plus and remember the hid
   await edit.click()
   await expect(edit).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByTestId('road-edit-help')).toBeVisible()
+  // A narrow screen hides handles until a segment has room, so zoom in to reach one.
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Zoom in', exact: true }).first().click()
   const insert = page.getByRole('button', { name: 'Add control between points 1 and 2', exact: true })
   const circle = (await insert.boundingBox())!
   const plus = (await insert.locator('svg').boundingBox())!

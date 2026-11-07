@@ -49,6 +49,12 @@ export interface SidebarProps {
   onPreviewRoutes?: (lines: RoutePreviewLine[] | null) => void
   onShowCompare?: () => void
   onShowDrainage?: () => void
+  onSelectRoad?: (id: string) => void
+  onShowCulverts?: (chainage?: number) => void
+  /** The saved drainage check no longer matches the road, its culverts or the terrain. */
+  drainageStale?: boolean
+  /** Rises each time the culvert inputs are asked for. */
+  engineeringRequest?: number
   onConnectFsr?: (
     options: RouteSearchOptions,
     preference: 'nearest' | 'lowest-cost',
@@ -162,6 +168,7 @@ export function DesignSidebar(p: SidebarProps) {
               previewActive={p.templatePreviewActive}
               aggregateOpen={aggregateOpen}
               onAggregateOpenChange={setAggregateOpen}
+              culvertRequest={p.engineeringRequest}
             />
           </div>
           <div hidden={tab !== 'review'}>

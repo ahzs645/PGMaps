@@ -13,16 +13,23 @@ export const MAX_FSR_QUERY_SPAN = 0.5
 export const FSR_FILE_TYPE_CODE = 'B40'
 export type BcRoadQueryOptions = { fsrOnly?: boolean; activeOnly?: boolean }
 
-export function existingRoadQueryBounds(coordinates: Coordinate[]): RoadQueryBounds {
+export function existingRoadQueryBounds(coordinates: Coordinate[], paddingKm = 1): RoadQueryBounds {
   if (!coordinates.length) throw Error('Place a road or select a map extent before loading existing roads.')
   const latitude = coordinates.reduce((sum, c) => sum + c[1], 0) / coordinates.length
-  const longitudePadding = 0.009 / Math.max(0.2, Math.cos((latitude * Math.PI) / 180))
-  return [
-    Math.min(...coordinates.map((c) => c[0])) - longitudePadding,
-    Math.min(...coordinates.map((c) => c[1])) - 0.009,
-    Math.max(...coordinates.map((c) => c[0])) + longitudePadding,
-    Math.max(...coordinates.map((c) => c[1])) + 0.009,
-  ]
+  const padding = paddingKm * 0.009
+  const longitudePadding = padding / Math.max(0.2, Math.cos((latitude * Math.PI) / 180))
+  const west = Math.min(...coordinates.map((c) => c[0])) - longitudePadding,
+    south = Math.min(...coordinates.map((c) => c[1])) - padding,
+    east = Math.max(...coordinates.map((c) => c[0])) + longitudePadding,
+    north = Math.max(...coordinates.map((c) => c[1])) + padding
+  // A wide search stays inside the query limit, centred on the roads.
+  const span = (low: number, high: number): [number, number] => {
+    const half = Math.min(high - low, MAX_ROAD_QUERY_SPAN * 0.98) / 2
+    return paddingKm > 1 ? [(low + high) / 2 - half, (low + high) / 2 + half] : [low, high]
+  }
+  const [w, e] = span(west, east),
+    [s, n] = span(south, north)
+  return [w, s, e, n]
 }
 
 export function buildBcRoadsQuery(bounds: RoadQueryBounds, options: BcRoadQueryOptions = {}): string {

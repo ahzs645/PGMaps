@@ -1,4 +1,5 @@
 import { NativeSelect } from '@/components/ui/form-field'
+import { derivedRoadName } from './roadNames'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -60,7 +61,11 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           : structuredClone(alignment)
       if (resultTarget === 'road') {
         candidate.id = uid()
-        candidate.name = `${alignment.name} · optimized profile`.slice(0, 200)
+        candidate.name = derivedRoadName(
+          alignment.name,
+          'optimized profile',
+          project.alignments.map((road) => road.name),
+        )
         candidate.points = candidate.points.map((point) => ({ ...point, id: uid() }))
         candidate.overrides = candidate.overrides.map((override) => ({ ...override, id: uid() }))
       }

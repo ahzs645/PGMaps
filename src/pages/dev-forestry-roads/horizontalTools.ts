@@ -97,3 +97,25 @@ export function fitHorizontalRadii(
   })
   return { points: next, report }
 }
+
+/** Below this a point changes the road's direction by nothing a plan could show. */
+const STRAIGHT_DEFLECTION_DEGREES = 0.5
+
+/** Middle points that do not turn the road: leftovers of editing, safe to remove. */
+export function straightPointIds(points: readonly RoadPoint[]) {
+  const ids: string[] = []
+  // Each test uses the last point kept, so a run of near-straight points cannot add up to a real turn.
+  let previous = points[0]
+  for (let i = 1; i < points.length - 1; i++) {
+    const point = points[i],
+      next = points[i + 1]
+    const scale = Math.cos((point.coordinate[1] * Math.PI) / 180)
+    const bearing = (a: RoadPoint, b: RoadPoint) =>
+      Math.atan2((b.coordinate[0] - a.coordinate[0]) * scale, b.coordinate[1] - a.coordinate[1])
+    const turn = Math.abs(bearing(previous, point) - bearing(point, next)) % (2 * Math.PI)
+    const deflection = (Math.min(turn, 2 * Math.PI - turn) * 180) / Math.PI
+    if (deflection < STRAIGHT_DEFLECTION_DEGREES) ids.push(point.id)
+    else previous = point
+  }
+  return ids
+}

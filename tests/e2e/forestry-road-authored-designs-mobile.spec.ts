@@ -87,6 +87,7 @@ for (const viewport of [
 
     await showCompare(page)
     const editor = page.getByTestId('road-vertical-alternatives')
+    await editor.getByRole('button', { name: /Profiles on this road/ }).tap()
     await editor.getByLabel('New profile name', { exact: true }).fill('Mobile raised profile')
     await editor.getByRole('button', { name: 'Add profile', exact: true }).tap()
     await expect(editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true })).toContainText(

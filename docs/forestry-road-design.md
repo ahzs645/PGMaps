@@ -483,13 +483,17 @@ be read without opening it (`RoadSection` with `summary`, `SidebarParts.tsx`). K
 adding to it: a number or a button belongs in the panel, a paragraph belongs in an `InfoTip`, and a
 warning someone must see stays an `InlineAlert`.
 
-- **Terrain:** the source and its three loads, then streams and no-go areas. Import options,
-  terrain preparation, imagery, the field book and existing roads fold.
+- **Terrain:** the source and its three loads, then [streams, constraints and terrain
+  profiles](forestry-road-design/streams-and-constraints.md). Import options, terrain preparation,
+  imagery, the field book and existing roads fold.
 - **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
   that open elsewhere are tiles at the end.
 - **Section:** the eight template numbers. Components and curve rules fold.
 - **Engineering:** four input tabs. The aggregate source sits under Haul.
-- **Review:** **Ready to review**, a checklist of the active road with a link to whatever needs doing.
+- **Review:** **Ready to review**, a checklist of the active road. Every failing row has an action that
+  leads to what clears it. A stream crossing clears on a culvert at that station, a culvert needs a price,
+  and a drainage check that no longer matches the road reads as out of date. Mapped streams come from
+  project data and modelled streams from the check, so their counts can differ.
   Flags, limits, rates and D-lines fold.
 
 ## Editing the road path
@@ -499,7 +503,10 @@ then **Finish road**. **Inspect** selects roads and stations. **Edit points** sh
 numbered controls for the start, end and middle points. **Select start** and **Select end** in
 Horizontal points also enter edit mode and reveal their numeric coordinates.
 
-In edit mode, click a **+** between two control points to insert a middle control, then drag it
+In edit mode, drag a **+** off the road to add a middle control where you drop it, with a curve at the
+minimum radius. A click adds nothing, so a point always changes the road; Enter on a focused **+** adds one at
+the segment's middle for keyboard use. Handles show only where a segment has 48 px on screen, so zoom in to bend a
+short one. **Remove straight points** under Horizontal points clears points that do not turn the road. Then drag it
 to shape the pathway. The + sits on the control leg; changing controls can alter fitted curves,
 so inspect the curve warnings afterwards. The map previews the drag; releasing it updates the
 profile, sections and quantities and records one Undo action. Click **Duplicate road** before

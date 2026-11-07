@@ -6,7 +6,15 @@ export type RoadToast = {
   id: string
   message: string
   action?: ReactNode
-} & ({ tone: 'loading' } | { tone: 'error'; onDismiss: () => void })
+} & (
+  | {
+      tone: 'loading'
+      /** The job as a whole, when `message` is its current step. */
+      title?: string
+      progress?: { step: number; total: number }
+    }
+  | { tone: 'error'; onDismiss: () => void }
+)
 
 /** Loading stays visible until the job finishes; errors can be dismissed. */
 export function RoadNotifications({ items }: { items: RoadToast[] }) {
@@ -19,7 +27,7 @@ export function RoadNotifications({ items }: { items: RoadToast[] }) {
         <div
           key={item.id}
           data-testid={`workspace-toast-${item.tone}`}
-          className="pointer-events-auto space-y-1 rounded-xl border bg-background p-3 text-sm text-foreground shadow-xl"
+          className="pointer-events-auto space-y-2 rounded-xl border bg-background p-3 text-sm text-foreground shadow-xl"
         >
           <div className="flex items-center gap-3">
             {item.tone === 'loading' ? (
@@ -27,12 +35,21 @@ export function RoadNotifications({ items }: { items: RoadToast[] }) {
             ) : (
               <CircleAlert aria-hidden="true" className="size-4 shrink-0 text-destructive" />
             )}
-            <p
-              role={item.tone === 'error' ? 'alert' : 'status'}
-              className="min-w-0 flex-1 break-words text-xs leading-5"
-            >
-              {item.message}
-            </p>
+            <div className="min-w-0 flex-1">
+              {item.tone === 'loading' && item.title && <p className="text-xs font-semibold leading-5">{item.title}</p>}
+              <p
+                role={item.tone === 'error' ? 'alert' : 'status'}
+                className={`break-words text-xs leading-5 ${item.tone === 'loading' && item.title ? 'text-muted-foreground' : ''}`}
+              >
+                {item.message}
+              </p>
+            </div>
+            {item.tone === 'loading' && item.progress && (
+              <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
+                {item.progress.step} of {item.progress.total}
+              </span>
+            )}
+            {item.action}
             {item.tone === 'error' && (
               <Button
                 type="button"
@@ -46,7 +63,21 @@ export function RoadNotifications({ items }: { items: RoadToast[] }) {
               </Button>
             )}
           </div>
-          {item.action && <div className="pl-7">{item.action}</div>}
+          {item.tone === 'loading' && item.progress && (
+            <div
+              role="progressbar"
+              aria-label={item.title ?? item.message}
+              aria-valuemin={0}
+              aria-valuemax={item.progress.total}
+              aria-valuenow={item.progress.step}
+              className="h-1 overflow-hidden rounded-full bg-muted"
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${(item.progress.step / item.progress.total) * 100}%` }}
+              />
+            </div>
+          )}
         </div>
       ))}
     </section>

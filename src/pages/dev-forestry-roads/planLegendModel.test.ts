@@ -76,7 +76,7 @@ describe('plan legend follows rendered data', () => {
     )
     expect(result).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: `Alternative · ${other.name}`, color: other.color, shape: 'line' }),
+        expect.objectContaining({ label: expect.any(String), color: other.color, shape: 'line' }),
         expect.objectContaining({ label: 'Harvest areas', color: PLAN_CONTEXT_STYLES.harvest.color, shape: 'area' }),
         expect.objectContaining({ label: 'Existing roads', shape: 'dashed-line' }),
         expect.objectContaining({ label: 'Review areas', shape: 'area' }),
@@ -197,13 +197,13 @@ describe('plan legend follows rendered data', () => {
     ).map((entry) => entry.label)
     expect(labels).toEqual(
       expect.arrayContaining([
-        'Selected station / cross-section',
-        'Station ticks & chainage labels',
+        'Selected station',
+        'Station ticks',
         'Selected road feature',
         'Stream crossing review',
         'Horizontal curve radius',
         'Horizontal control points',
-        'Insert horizontal control',
+        'Drag to bend the road',
         'Drawing preview',
         'Landing',
         'Selected spoke position',

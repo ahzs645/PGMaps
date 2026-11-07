@@ -118,6 +118,7 @@ for (const viewport of [
     await buffer.fill('50')
     await buffer.press('Tab')
     await fits(page)
+    await panel.getByRole('button', { name: /Catchments & watersheds/ }).tap()
     await panel.getByRole('button', { name: 'Select pour point on plan', exact: true }).tap()
     await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-focused-pane', 'plan')
     const state = await mapState(page)

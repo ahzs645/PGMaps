@@ -311,7 +311,11 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     await dragControl(page, 3, -20, 15)
     const movedEnd = await save(page)
     expect(active(movedEnd).points[2].coordinate).not.toEqual(active(movedStart).points[2].coordinate)
-    await page.getByRole('button', { name: 'Add control between points 1 and 2', exact: true }).tap()
+    const handle = await page
+      .getByRole('button', { name: 'Add control between points 1 and 2', exact: true })
+      .boundingBox()
+    const from = { x: handle!.x + handle!.width / 2, y: handle!.y + handle!.height / 2 }
+    await touchDrag(page, from, { x: from.x + 20, y: from.y - 25 })
     const inserted = await save(page)
     expect(active(inserted).points).toHaveLength(4)
     await dragControl(page, 2, 0, -25)

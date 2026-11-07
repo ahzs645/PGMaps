@@ -4,6 +4,7 @@ import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
 import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { createEngineeringDesign } from './engineeringTypes'
@@ -234,6 +235,7 @@ export function EngineeringControls({
   previewActive = false,
   aggregateOpen = false,
   onAggregateOpenChange,
+  culvertRequest,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -242,8 +244,17 @@ export function EngineeringControls({
   previewActive?: boolean
   aggregateOpen?: boolean
   onAggregateOpenChange?: (open: boolean) => void
+  culvertRequest?: number
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
+  const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
+  if (culvertRequest !== seenCulvertRequest) {
+    setSeenCulvertRequest(culvertRequest)
+    if (culvertRequest) {
+      setTab('culverts')
+      onAggregateOpenChange?.(false)
+    }
+  }
   const [haulOpen, setHaulOpen] = useState(false)
   const activeTab = aggregateOpen ? 'haul' : tab
   const changeHaulOpen = (open: boolean) => {
@@ -1010,20 +1021,18 @@ export function EngineeringControls({
             Add culvert at station
           </Button>
           <div className="my-2 space-y-1">
-            {analysis.crossings
-              .filter((c) => c.kind === 'stream')
-              .map((c) => (
-                <Button
-                  key={c.id}
-                  size="sm"
-                  variant="ghost"
-                  className="h-auto w-full justify-start whitespace-normal text-left"
-                  disabled={design.culverts.length >= 100}
-                  onClick={() => newCulvert(c.chainage, c.name, c.featureId)}
-                >
-                  + {c.name} · {formatRoadStation(c.chainage)}
-                </Button>
-              ))}
+            {crossingsWithoutStructure(analysis, design).map((c) => (
+              <Button
+                key={c.id}
+                size="sm"
+                variant="ghost"
+                className="h-auto w-full justify-start whitespace-normal text-left"
+                disabled={design.culverts.length >= 100}
+                onClick={() => newCulvert(c.chainage, c.name, c.featureId)}
+              >
+                Add culvert at {c.name} · {formatRoadStation(c.chainage)}
+              </Button>
+            ))}
           </div>
           {design.culverts.map((c, index) => {
             const result = analysis.engineering?.culverts.find((x) => x.id === c.id)

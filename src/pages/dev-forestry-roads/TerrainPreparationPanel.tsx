@@ -1,6 +1,7 @@
 import { NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { formatRoadStation } from './Charts'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { burnRoad } from './designSurface'
@@ -592,7 +593,7 @@ export function TerrainPreparationPanel({
           </div>
           <Button
             size="sm"
-            variant="ghost"
+            variant="outline"
             className="w-full"
             onClick={() => {
               try {
@@ -604,7 +605,7 @@ export function TerrainPreparationPanel({
               }
             }}
           >
-            Start at selected station ground
+            Fill start from station {formatRoadStation(w.station)}
           </Button>
           <Field label="Traverse CSV (station, bearing°, horizontal m, grade %)">
             <textarea

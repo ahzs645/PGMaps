@@ -6,7 +6,27 @@ import {
   TERRAIN_ELEVATION_COLORS,
   type TerrainDisplay,
 } from './terrainDisplay'
-import type { PlanLegendSection } from './planLegendModel'
+import type { PlanLegendEntry, PlanLegendSection } from './planLegendModel'
+
+/** Thick enough to read the colour, drawn with the dash the map uses. */
+function LineSwatch({ entry }: { entry: PlanLegendEntry }) {
+  const width = 3
+  return (
+    <svg width="24" height="8" viewBox="0 0 24 8" aria-hidden="true" className="shrink-0">
+      <line
+        x1="0"
+        x2="24"
+        y1="4"
+        y2="4"
+        stroke={entry.color}
+        strokeWidth={width}
+        strokeDasharray={
+          entry.shape === 'dashed-line' ? (entry.dash ?? [3, 2]).map((part) => part * width).join(' ') : undefined
+        }
+      />
+    </svg>
+  )
+}
 
 export function PlanLegend({
   sections,
@@ -50,6 +70,11 @@ export function PlanLegend({
                         className="h-3 w-4 rounded-sm border border-dashed"
                         style={{ borderColor: entry.color, backgroundColor: `${entry.color}2e` }}
                       />
+                    ) : entry.shape === 'square' && !entry.symbol ? (
+                      <span
+                        className="size-3 rounded-sm"
+                        style={{ backgroundColor: entry.color, boxShadow: 'inset 0 0 0 1px rgb(0 0 0 / 0.25)' }}
+                      />
                     ) : entry.symbol ? (
                       <span
                         className="flex h-4 w-5 items-center justify-center text-3xs font-semibold"
@@ -57,6 +82,8 @@ export function PlanLegend({
                       >
                         {entry.symbol}
                       </span>
+                    ) : entry.shape === 'line' || entry.shape === 'dashed-line' ? (
+                      <LineSwatch entry={entry} />
                     ) : undefined
                   }
                 />

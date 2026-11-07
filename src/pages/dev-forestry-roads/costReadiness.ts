@@ -28,6 +28,18 @@ const quantity = (value: number) => value.toLocaleString('en-CA', { maximumFract
  * Zero may mean unpriced, included elsewhere or deliberately excluded; the model cannot
  * distinguish those cases. This assessment never adds a cost or extrapolates missing sections.
  */
+/** Stream crossings with no culvert recorded at that station. */
+export function crossingsWithoutStructure(analysis: RoadAnalysis, engineering: Alignment['engineering']) {
+  return analysis.crossings.filter(
+    (crossing) =>
+      crossing.kind === 'stream' &&
+      !engineering?.culverts.some(
+        (culvert) =>
+          culvert.sourceFeatureId === crossing.featureId && Math.abs(culvert.chainage - crossing.chainage) <= 1,
+      ),
+  )
+}
+
 export function assessCostReadiness(
   analysis: RoadAnalysis,
   alignment: Alignment,
@@ -153,14 +165,7 @@ export function assessCostReadiness(
   }
 
   const culverts = result?.culverts ?? []
-  const missingCrossings = analysis.crossings.filter(
-    (crossing) =>
-      crossing.kind === 'stream' &&
-      !engineering?.culverts.some(
-        (culvert) =>
-          culvert.sourceFeatureId === crossing.featureId && Math.abs(culvert.chainage - crossing.chainage) <= 1,
-      ),
-  )
+  const missingCrossings = crossingsWithoutStructure(analysis, engineering)
   if (missingCrossings.length)
     flags.push({
       id: 'unassigned-crossings',

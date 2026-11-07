@@ -93,7 +93,8 @@ temporary arrays (about 67 MB at the budget), in addition to queues, heaps and o
 
 ## Pour points, watersheds and portable review
 
-**Drain to a point** selects an arbitrary location on the plan (tap on phones). Choose existing
+**Catchments & watersheds**, folded under the Drainage view, holds the pour point and watershed
+tools. A pour point selects an arbitrary location on the plan (tap on phones). Choose existing
 ground or the design surface and a snap radius. **Greatest contributing area** is the legacy
 snap policy. **Lowest elevation** instead selects the lowest supported cell on the chosen
 surface before depression conditioning. Both search within the same metric radius and use

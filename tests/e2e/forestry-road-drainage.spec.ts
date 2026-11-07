@@ -63,10 +63,10 @@ test('drainage compares flow on the existing and design surfaces and reaches the
   // A changed input stales the run and takes it off the plan until it is re-run.
   await panel.getByLabel('Rainfall (mm/h)', { exact: true }).fill('60')
   await panel.getByLabel('Rainfall (mm/h)', { exact: true }).press('Tab')
-  await expect(panel.getByText('changed since this run')).toBeVisible()
+  await expect(panel.getByText('The road or these inputs changed')).toBeVisible()
   await expect.poll(() => drainageRoles(page)).toEqual([])
   await panel.getByRole('button', { name: 'Re-run drainage', exact: true }).click()
-  await expect(panel.getByText('changed since this run')).toHaveCount(0)
+  await expect(panel.getByText('The road or these inputs changed')).toHaveCount(0)
   await expect.poll(() => drainageRoles(page)).toEqual(expect.arrayContaining(['stream-design']))
   // A run belongs to its road: a new alternative starts without one, and the original keeps its own.
   await page.getByRole('button', { name: 'Duplicate active alignment', exact: true }).click()

@@ -8,7 +8,7 @@ load rating. No age is inferred from a tenure award, record creation, retrieval 
 ## Recording and reviewing evidence
 
 1. Select the exact road section under **Terrain → Existing roads & reuse** and locate it on the plan.
-2. Open **Add an inspection or imagery observation**. Record the inspection date or image acquisition
+2. Open **Add an inspection or imagery**. Record the inspection date or image acquisition
    date, the source URL, findings and notes. A link retrieval date is not an observation date. Record
    visibility, season, intended use, inspected limits and missing coverage in the notes.
 3. Choose **Overall road**, **Road surface**, **Road drainage**, **Bridge** or **Culvert**. Give a

@@ -100,6 +100,7 @@ import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scen
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
+import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
 import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
@@ -405,7 +406,7 @@ export default function DevForestryRoads() {
           .map((road) => ({
             type: 'Feature' as const,
             geometry: road.geometry,
-            properties: { kind: 'reviewed-existing-road', color: '#0284c7', selected: true, label: road.name },
+            properties: { kind: 'reviewed-existing-road', color: '#db2777', selected: true, label: road.name },
           })),
         ...(mapFsrTarget
           ? [
@@ -777,6 +778,23 @@ export default function DevForestryRoads() {
       setStation(0)
     },
     [update, setStation, busy],
+  )
+  /** Brings the Terrain tab's existing-road review forward, on one road when given. */
+  const openRoadReview = (id?: string) => {
+    setWorkflowTab('terrain')
+    setCollapsed(false)
+    setControlsOpen(true)
+    setRoadReviewRequest((previous) => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
+  }
+  const [engineeringRequest, setEngineeringRequest] = useState(0)
+  /** Opens the culvert inputs, at a station when a crossing asked for it. */
+  const showCulverts = useCallback(
+    (chainage?: number) => {
+      setWorkflowTab('engineering')
+      setEngineeringRequest((n) => n + 1)
+      if (chainage !== undefined) setStation(chainage)
+    },
+    [setStation],
   )
   const movePoint = useCallback(
     (id: string, coordinate: Coordinate) => {
@@ -1728,7 +1746,7 @@ export default function DevForestryRoads() {
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
-            <h1 className="text-lg font-semibold tracking-tight">Forest road design</h1>
+            <h1 className="truncate text-lg font-semibold tracking-tight">Forest road design</h1>
             <p
               role="status"
               aria-live="polite"
@@ -1750,6 +1768,15 @@ export default function DevForestryRoads() {
               : `${project.terrain.resolutionM.toFixed(1)} m TERRAIN`}
           </span>
         </div>
+        <RoadSwitcher
+          className="order-last w-full md:order-none md:w-auto md:flex-[2_1_0]"
+          alignments={project.alignments}
+          analyses={w.analyses}
+          activeId={project.activeAlignmentId}
+          disabled={!!w.busy}
+          onSelect={selectAlignment}
+          onCompare={() => setDetail('compare')}
+        />
         <div className="flex flex-wrap items-center gap-1">
           {tinyHeight && (
             <Button
@@ -1888,6 +1915,10 @@ export default function DevForestryRoads() {
         workspace={w}
         open={networkOpen}
         onOpenChange={setNetworkOpen}
+        onReviewRoad={(id) => {
+          setNetworkOpen(false)
+          openRoadReview(id)
+        }}
         portalContainer={ref.current}
         onPreview={(next) => {
           setNetworkPreview(next ? { project, source, overlay: next } : null)
@@ -1950,12 +1981,7 @@ export default function DevForestryRoads() {
           setSelectedPoint(null)
           setFitRevision((revision) => revision + 1)
         }}
-        onReviewRoads={(id) => {
-          setWorkflowTab('terrain')
-          setCollapsed(false)
-          setControlsOpen(true)
-          setRoadReviewRequest((previous) => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
-        }}
+        onReviewRoads={openRoadReview}
       />
       <FilesDialog
         open={filesOpen}
@@ -2026,9 +2052,17 @@ export default function DevForestryRoads() {
                   id: `road-busy-${w.busyId}`,
                   tone: 'loading' as const,
                   message: w.busy,
+                  title: w.busyCancel?.title,
+                  progress: w.busyProgress ?? undefined,
                   action: w.busyCancel ? (
-                    <Button size="sm" variant="ghost" onClick={w.busyCancel.onCancel}>
-                      {w.busyCancel.label}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 shrink-0 px-2 text-xs"
+                      aria-label={w.busyCancel.label}
+                      onClick={w.busyCancel.onCancel}
+                    >
+                      Cancel
                     </Button>
                   ) : undefined,
                 },
@@ -2214,6 +2248,10 @@ export default function DevForestryRoads() {
                 onPreviewRoutes={setRouteLines}
                 onShowCompare={() => setDetail('compare')}
                 onShowDrainage={() => setDetail('drainage')}
+                onSelectRoad={selectAlignment}
+                onShowCulverts={showCulverts}
+                engineeringRequest={engineeringRequest}
+                drainageStale={drainageStale}
                 templatePreviewActive={!!templatePreview}
                 onPreviewTemplate={(template, name) => {
                   setPegPreview(null)
@@ -2434,15 +2472,16 @@ export default function DevForestryRoads() {
                               if (busy || costPreview || alignment.points.length >= 2000) return
                               const index = alignment.points.findIndex((point) => point.id === afterId)
                               if (index < 0 || index === alignment.points.length - 1) return
-                              const point = { id: uid(), coordinate, radiusM: 0 }
+                              const point = { id: uid(), coordinate, radiusM: project.settings.minRadius }
                               updateAlignment((road) => ({
                                 ...road,
                                 points: [...road.points.slice(0, index + 1), point, ...road.points.slice(index + 1)],
                               }))
                               setSelectedPoint(point.id)
                               setMode('edit')
-                              w.setNotice('Middle control added. Drag it to choose the road pathway.')
+                              w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
                             }}
+                            onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
                             onHover={setHover}
                             onSelectPoint={setSelectedPoint}
                             selectedPoint={selectedPoint}
@@ -2728,6 +2767,7 @@ export default function DevForestryRoads() {
                                 {detail === 'drainage' && !terrainProfile && (
                                   <DrainagePanel
                                     run={drainageEntry?.run ?? null}
+                                    onShowCulverts={showCulverts}
                                     stale={drainageStale}
                                     settings={drainageSettings}
                                     onSettings={changeDrainageSettings}

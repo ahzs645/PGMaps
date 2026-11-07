@@ -1,6 +1,6 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Copy, Plus, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -20,6 +20,7 @@ import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import { RouteFinder } from '../RouteFinder'
+import { straightPointIds } from '../horizontalTools'
 import type { SidebarProps } from '../DesignSidebarBody'
 
 const id = () => crypto.randomUUID()
@@ -116,6 +117,7 @@ export function DesignTab(p: SidebarProps) {
         onPegRoad={() => p.onMode('road')}
         onPreview={p.onPreviewRoutes}
         onShowCompare={p.onShowCompare}
+        onSelectRoad={p.onSelectRoad}
       />
       <RouteFinding {...p} full={full} />
       <HorizontalPoints {...p} />
@@ -483,6 +485,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
 function HorizontalPoints(p: SidebarProps) {
   const { project, alignment, updateAlignment, source } = p.workspace
   const point = alignment.points.find((x) => x.id === p.selectedPoint)
+  const straight = useMemo(() => straightPointIds(alignment.points), [alignment.points])
   // A point picked on the map shows its fields, wherever this section was left.
   const [open, setOpen] = useState(false)
   const [shownPoint, setShownPoint] = useState(point?.id)
@@ -500,11 +503,27 @@ function HorizontalPoints(p: SidebarProps) {
   return (
     <RoadSection
       title="Horizontal points"
-      summary={`${alignment.points.length} points · ${alignment.points.filter((x) => x.radiusM > 0).length} curves`}
+      summary={`${alignment.points.length} points · ${alignment.points.filter((x) => x.radiusM > 0).length} curves${straight.length ? ` · ${straight.length} straight` : ''}`}
       open={open}
       onOpenChange={setOpen}
       help="Select a control point to type its position, radius and spirals, or use the bulk tools to fit every corner at once. Sharp corners need a fitted radius before the road is a design."
     >
+      {straight.length > 0 && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mb-2 h-7 w-full text-xs"
+          onClick={() => {
+            updateAlignment((a) => ({ ...a, points: a.points.filter((x) => !straight.includes(x.id)) }))
+            p.onPoint(null)
+            p.workspace.setNotice(
+              `Removed ${straight.length} point${straight.length === 1 ? '' : 's'} that did not shape the road.`,
+            )
+          }}
+        >
+          Remove {straight.length} straight point{straight.length === 1 ? '' : 's'}
+        </Button>
+      )}
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1">
         <NativeSelect
           aria-label="Selected horizontal point"

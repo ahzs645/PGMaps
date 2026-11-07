@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ExternalLink } from '@/components/ui/text-button'
@@ -96,6 +97,7 @@ export function NetworkPlanningDialog({
   onPreview,
   onAdopt,
   portalContainer,
+  onReviewRoad,
 }: {
   workspace: RoadWorkspace
   open: boolean
@@ -103,6 +105,8 @@ export function NetworkPlanningDialog({
   onPreview: (overlay: GeoJSON.FeatureCollection | null) => void
   onAdopt: (alignment: Alignment) => void
   portalContainer?: HTMLElement | null
+  /** Takes a road the network cannot use yet to where it can be reviewed. */
+  onReviewRoad?: (id: string) => void
 }) {
   const [tab, setTab] = useState<'setup' | 'results'>('setup')
   const [review, setReview] = useState<Review | null>(null)
@@ -478,11 +482,13 @@ export function NetworkPlanningDialog({
             ) : (
               <>
                 <div className="rounded-lg border p-3">
-                  <h3 className="mb-2 text-sm font-semibold">Existing roads to connect to</h3>
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    Select road sections explicitly. Review their reuse, access and condition inputs under Terrain →
-                    Review existing roads before including them.
-                  </p>
+                  <div className="mb-2 flex items-center gap-1">
+                    <h3 className="text-sm font-semibold">Existing roads to connect to</h3>
+                    <InfoTip label="About existing roads">
+                      Select road sections explicitly. Review their reuse, access and condition inputs under Terrain →
+                      Review existing roads before including them.
+                    </InfoTip>
+                  </div>
                   <div className="max-h-44 space-y-2 overflow-y-auto">
                     {w.project.context
                       .filter((feature) => feature.kind === 'existing-road')
@@ -490,7 +496,7 @@ export function NetworkPlanningDialog({
                         const reason = networkSeedReason(road),
                           eligible = reason === null
                         return (
-                          <label key={road.id} className="flex items-start gap-2 text-sm">
+                          <label key={road.id} className="flex items-start gap-2 text-sm" data-network-road={road.id}>
                             <input
                               type="checkbox"
                               className="mt-1"
@@ -508,6 +514,19 @@ export function NetworkPlanningDialog({
                               {road.name}
                               {reason && <span className="block text-xs text-muted-foreground">{reason}</span>}
                             </span>
+                            {reason && onReviewRoad && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="ml-auto h-7 shrink-0 text-xs"
+                                onClick={(event) => {
+                                  event.preventDefault()
+                                  onReviewRoad(road.id)
+                                }}
+                              >
+                                Review road
+                              </Button>
+                            )}
                           </label>
                         )
                       })}
@@ -518,37 +537,16 @@ export function NetworkPlanningDialog({
                     )}
                   </div>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <NumberField
-                    label="Network grid cell (m)"
-                    value={planning.cellM}
-                    min={1}
-                    max={1000}
-                    step={1}
-                    onChange={(cellM) => patch({ cellM })}
-                    hint="A coarser grid reduces computation and changes the available routes. The result records the actual grid spacing."
-                  />
-                  <NumberField
-                    label="Search margin (m)"
-                    value={planning.marginM}
-                    min={0}
-                    max={10000}
-                    step={25}
-                    onChange={(marginM) => patch({ marginM })}
-                  />
-                  <NumberField
-                    label="Uniform cell weight"
-                    value={planning.baseWeight}
-                    min={0.001}
-                    max={1000000}
-                    step={1}
-                    onChange={(baseWeight) => patch({ baseWeight })}
-                    hint="Relative resistance per metre for simple weights. This is not a construction price. Import a raster scenario for spatially varying weights."
-                  />
-                </div>
                 <div className="space-y-3 rounded-lg border p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="text-sm font-semibold">Landing targets ({planning.targets.length})</h3>
+                    <h3 className="flex items-center gap-1 text-sm font-semibold">
+                      Landing targets ({planning.targets.length})
+                      <InfoTip label="About landing targets">
+                        Targets in stage 1 are connected first, and later stages reuse the network before them. Every
+                        rejected or unreachable target is reported. A run supports up to {MAX_NETWORK_TARGETS} targets
+                        across {MAX_NETWORK_STAGES} stages.
+                      </InfoTip>
+                    </h3>
                     <Button
                       variant="outline"
                       size="sm"
@@ -558,11 +556,6 @@ export function NetworkPlanningDialog({
                       Clear targets
                     </Button>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Targets in stage 1 are connected first. Later stages reuse the preceding projected network. Every
-                    rejected or unreachable target is reported. A run supports up to {MAX_NETWORK_TARGETS} targets
-                    across {MAX_NETWORK_STAGES} stages.
-                  </p>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="New target name">
                       <input
@@ -707,37 +700,82 @@ export function NetworkPlanningDialog({
                         onChange={(seed) => patch({ randomSeed: Math.round(seed) })}
                       />
                     </div>
-                    <p className="my-2 text-xs text-muted-foreground">
-                      Uses loaded harvest polygons, preserves holes and rejects unusable terrain. Generated points are
-                      candidates; access and landing suitability need review. Generation replaces the target list.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void generate()}
-                      disabled={!w.project.context.some((feature) => feature.kind === 'harvest')}
-                    >
-                      Generate polygon landing candidates
-                    </Button>
+                    <div className="mt-2 flex items-center gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => void generate()}
+                        disabled={!w.project.context.some((feature) => feature.kind === 'harvest')}
+                      >
+                        Generate polygon landing candidates
+                      </Button>
+                      <InfoTip label="About generated landings">
+                        Uses loaded harvest polygons, preserves holes and rejects unusable terrain. Generated points are
+                        candidates; access and landing suitability need review. Generation replaces the target list.
+                      </InfoTip>
+                    </div>
                   </details>
                 </div>
               </>
             )}
-            <NetworkOptions value={planning.options} projectMode={planning.mode === 'project'} onChange={options} />
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={compare}
-                onChange={(event) => setCompare(event.target.checked)}
-              />
-              <span>Compare all four methods using the same inputs and stages</span>
-            </label>
-            <p className="text-xs text-muted-foreground">
-              The objectives are relative network weights. They do not include engineered cut/fill, culverts,
-              rehabilitation, loaded haul or construction quantities. Use Complete route cost comparison for those
-              entered costs.
-            </p>
+            <div className="flex items-start gap-1">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={compare}
+                  onChange={(event) => setCompare(event.target.checked)}
+                />
+                <span>Compare all four methods using the same inputs and stages</span>
+              </label>
+              <InfoTip label="About network objectives">
+                Objectives are relative network weights. They do not include engineered cut/fill, culverts,
+                rehabilitation, loaded haul or construction quantities. Use Complete route cost comparison for those
+                entered costs.
+              </InfoTip>
+            </div>
+            <details className="rounded-lg border p-3" data-testid="network-method-settings">
+              <summary className="cursor-pointer text-sm font-semibold">
+                Method & grid
+                <span className="ml-2 font-normal text-muted-foreground">
+                  {NETWORK_METHODS.find((method) => method.value === planning.options.method)!.label}
+                  {planning.mode === 'project' ? ` · ${planning.cellM} m cells` : ''}
+                </span>
+              </summary>
+              <div className="mt-3 space-y-3">
+                {planning.mode === 'project' && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <NumberField
+                      label="Network grid cell (m)"
+                      value={planning.cellM}
+                      min={1}
+                      max={1000}
+                      step={1}
+                      onChange={(cellM) => patch({ cellM })}
+                      hint="A coarser grid reduces computation and changes the available routes. The result records the actual grid spacing."
+                    />
+                    <NumberField
+                      label="Search margin (m)"
+                      value={planning.marginM}
+                      min={0}
+                      max={10000}
+                      step={25}
+                      onChange={(marginM) => patch({ marginM })}
+                    />
+                    <NumberField
+                      label="Uniform cell weight"
+                      value={planning.baseWeight}
+                      min={0.001}
+                      max={1000000}
+                      step={1}
+                      onChange={(baseWeight) => patch({ baseWeight })}
+                      hint="Relative resistance per metre for simple weights. This is not a construction price. Import a raster scenario for spatially varying weights."
+                    />
+                  </div>
+                )}
+                <NetworkOptions value={planning.options} projectMode={planning.mode === 'project'} onChange={options} />
+              </div>
+            </details>
           </fieldset>
         </div>
         <div hidden={tab !== 'results'} className="space-y-4">
@@ -1035,8 +1073,7 @@ function NetworkOptions({
   onChange: (next: Partial<RoadsOptions>) => void
 }) {
   return (
-    <div className="space-y-3 rounded-lg border p-3">
-      <h3 className="text-sm font-semibold">Network method and weights</h3>
+    <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Network method">
           <NativeSelect
@@ -1095,15 +1132,15 @@ function NetworkOptions({
           />
         )}
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className="flex items-center gap-1 text-xs text-muted-foreground">
         {NETWORK_METHODS.find((method) => method.value === value.method)!.detail}
+        <InfoTip label="About network methods">
+          {value.method === 'snap' &&
+            'The straight-line method ignores the neighbourhood and landing-order choices, though they still apply to the other methods when comparing all four. '}
+          Project runs preserve elevation separately from road weights and prevent paths cutting blocked cell corners.
+          Grade limits apply to the raster route, not a designed vertical alignment.
+        </InfoTip>
       </p>
-      {value.method === 'snap' && (
-        <p className="text-xs text-muted-foreground">
-          The straight-line method ignores the neighbourhood and landing-order choices. Those settings still apply to
-          the applicable methods when comparing all four.
-        </p>
-      )}
       {value.weightFunction === 'grade' && (
         <div className="grid gap-3 sm:grid-cols-3">
           <NumberField
@@ -1201,10 +1238,6 @@ function NetworkOptions({
           <span>Prevent diagonal paths cutting blocked-cell corners</span>
         </label>
       )}
-      <p className="text-xs text-muted-foreground">
-        Project runs preserve elevation separately from road weights and prevent paths cutting blocked cell corners.
-        Grade limits apply to the raster route, not a designed vertical alignment.
-      </p>
     </div>
   )
 }

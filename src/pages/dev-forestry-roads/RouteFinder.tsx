@@ -6,6 +6,7 @@ import { MapPin } from 'lucide-react'
 import { NumberField } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { parseProject } from './project'
+import { distinctRoadColors } from './roadColors'
 import {
   compareRoutes,
   DEFAULT_CROSS_DRAIN_COST,
@@ -35,12 +36,7 @@ const money = (n: number) =>
     : `$${Math.round(n).toLocaleString('en-CA', { maximumFractionDigits: 0 })}`
 const whole = (n: number) => Math.round(n).toLocaleString('en-CA')
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
-const GOAL_LABEL: Record<RouteGoal, string> = {
-  cost: 'Cheapest',
-  shortest: 'Shortest',
-  gentle: 'Gentlest',
-  drainage: 'Best drainage',
-}
+const GOAL_LABEL = Object.fromEntries(ROUTE_GOALS.map((goal) => [goal.id, goal.label])) as Record<RouteGoal, string>
 /** The engine's messages describe its budgets; a row needs to say what to try next. */
 const failure = (message: string, limit: number) =>
   /budget|No verified candidate|No terrain-cost/.test(message)
@@ -54,12 +50,14 @@ export function RouteFinder({
   onPegRoad,
   onPreview,
   onShowCompare,
+  onSelectRoad,
 }: {
   workspace: RoadWorkspace
   full: boolean
   onPegRoad: () => void
   onPreview?: (lines: RoutePreviewLine[] | null) => void
   onShowCompare?: () => void
+  onSelectRoad?: (id: string) => void
 }) {
   const { project, source, alignment, analysis } = w
   const [goals, setGoals] = useState<RouteGoal[]>(['cost', 'shortest', 'gentle', 'drainage'])
@@ -71,8 +69,7 @@ export function RouteFinder({
     inputs: string
     source: typeof source
   } | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
-  const [kept, setKept] = useState<string[]>([])
+  const [hovered, setHovered] = useState<string | null>(null)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
   const route = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
@@ -80,24 +77,27 @@ export function RouteFinder({
   const roadKey = JSON.stringify([alignment.id, alignment.points.map((p) => p.coordinate), alignment.vertical.length])
   // By value: keeping a road rewrites the project, and that must not expire the other results.
   const inputs = useMemo(() => JSON.stringify([project.settings, project.context]), [project.settings, project.context])
+  const inProject = useMemo(() => new Set(project.alignments.map((road) => road.id)), [project.alignments])
   const stale =
     !!run &&
-    (run.inputs !== inputs || run.source !== source || (roadKey !== run.roadKey && !kept.includes(alignment.id)))
+    (run.inputs !== inputs ||
+      run.source !== source ||
+      (roadKey !== run.roadKey && !run.comparison.rows.some((row) => row.alignment?.id === alignment.id)))
   const showLines = !!run && !stale
   const lines = useMemo(
     () =>
       showLines
         ? run!.comparison.rows
-            .filter((row) => row.goal !== 'current' && row.alignment && !kept.includes(row.alignment.id))
+            .filter((row) => row.goal !== 'current' && row.alignment && !inProject.has(row.alignment.id))
             .map((row) => ({
               id: row.id,
               label: row.label,
               color: row.color,
-              selected: row.id === selected,
+              selected: row.id === hovered,
               coordinates: row.coordinates,
             }))
         : null,
-    [showLines, run, selected, kept],
+    [showLines, run, hovered, inProject],
   )
   useEffect(() => onPreview?.(lines), [lines, onPreview])
   useEffect(() => () => onPreview?.(null), [onPreview])
@@ -110,11 +110,9 @@ export function RouteFinder({
     const controller = new AbortController()
     abort.current = controller
     setRun(null)
-    setSelected(null)
-    setKept([])
     w.setError('')
-    w.setBusy('Comparing routes…')
-    w.setBusyCancel({ label: 'Cancel route comparison', onCancel: () => controller.abort() })
+    w.setBusy('Starting…')
+    w.setBusyCancel({ label: 'Cancel route comparison', title: 'Comparing routes', onCancel: () => controller.abort() })
     try {
       const comparison = await compareRoutes(
         {
@@ -139,10 +137,16 @@ export function RouteFinder({
             drainage: project.drainage?.settings ?? DEFAULT_DRAINAGE_SETTINGS,
           },
         },
-        { signal: controller.signal, onStep: (message) => w.setBusy(message) },
+        {
+          signal: controller.signal,
+          onStep: ({ message, step, total }) => {
+            w.setBusy(message)
+            w.setBusyProgress({ step, total })
+          },
+        },
       )
       setRun({ comparison, roadKey, inputs, source })
-      w.setNotice('Routes ready. Your road has not changed.')
+      w.setNotice('Routes ready. Click one to open its profile and sections.')
     } catch (cause) {
       if (controller.signal.aborted) w.setNotice('Route comparison cancelled. No road was changed.')
       else w.setError(cause instanceof Error ? cause.message : 'Could not compare routes.')
@@ -152,39 +156,55 @@ export function RouteFinder({
     }
   }
 
-  const keep = (rows: RouteRow[]) => {
-    const roads = rows.flatMap((row) => (row.alignment ? [row.alignment] : []))
-    if (!roads.length) return
+  /** Adds roads to the project, and opens `open` so every chart and table shows it. */
+  const add = (rows: RouteRow[], open: RouteRow) => {
+    const roads = rows.flatMap((row) => (row.alignment && !inProject.has(row.alignment.id) ? [row.alignment] : []))
     if (project.alignments.length + roads.length > MAX_ROADS) {
       w.setError(`A project holds at most ${MAX_ROADS} roads. Delete one first.`)
-      return
+      return false
     }
+    if (!roads.length) return true
     w.commit(
       parseProject({
         ...project,
         alignments: [...project.alignments, ...roads],
-        activeAlignmentId: roads[0].id,
+        activeAlignmentId: open.alignment!.id,
       }),
     )
     w.setStation(0)
-    setKept((now) => [...now, ...roads.map((road) => road.id)])
-    w.setNotice(roads.length === 1 ? `Added ${roads[0].name}.` : `Added ${roads.length} roads to compare.`)
+    return true
+  }
+  const view = (row: RouteRow) => {
+    if (!row.alignment) return
+    if (inProject.has(row.alignment.id)) onSelectRoad?.(row.alignment.id)
+    else add([row], row)
   }
 
   const rows = run?.comparison.rows ?? []
   const current = rows.find((row) => row.goal === 'current')
-  const usable = rows.filter((row) => row.goal !== 'current' && row.alignment && !kept.includes(row.alignment.id))
+  const designed = rows.filter((row) => row.goal !== 'current' && row.alignment)
+  const limit = project.settings.maxGradePercent
+  // Goals that failed for one reason read as one line, not one row each.
+  const failures = new Map<string, RouteRow[]>()
+  for (const row of rows.filter((row) => !row.alignment)) {
+    const message = failure(row.blockers[0] ?? '', limit)
+    failures.set(message, [...(failures.get(message) ?? []), row])
+  }
+  const colors = distinctRoadColors([
+    ...project.alignments,
+    ...designed.filter((row) => !inProject.has(row.alignment!.id)).map((row) => row.alignment!),
+  ])
   return (
     <RoadSection
       title="Find the best route"
       data-testid="road-route-finder"
       help={
         <>
-          Takes the ends of the active road and designs one road per goal: corridor search, fitted curves and profile,
-          then a price from the same engine as the rest of this page. Each road is also screened for stream crossings
-          and cross-drains, priced as a placeholder allowance you can change.
+          Designs a road between the same two ends for each goal, then measures every road. Each goal goes to the road
+          that actually leads it, so one road can win several and a road that leads nothing is left out.
           <br />
-          Planning comparison only. Searches are bounded, so a better line can exist.
+          Prices are build cost plus a placeholder allowance per stream crossing and cross-drain. Planning comparison
+          only: searches are bounded, so a better line can exist.
         </>
       }
     >
@@ -289,32 +309,51 @@ export function RouteFinder({
         )}
         {showLines && (
           <div className="space-y-1" data-testid="road-route-results">
-            {rows.map((row) => (
-              <RouteResult
-                key={row.id}
-                row={row}
-                current={current}
-                limit={project.settings.maxGradePercent}
-                selected={row.id === selected}
-                kept={!!row.alignment && kept.includes(row.alignment.id)}
-                onSelect={() => setSelected(row.id === selected ? null : row.id)}
-                onKeep={() => keep([row])}
-              />
+            {rows
+              .filter((row) => row.alignment)
+              .map((row) => (
+                <RouteResult
+                  key={row.id}
+                  row={row}
+                  color={colors.get(row.alignment!.id) ?? row.color}
+                  current={current}
+                  viewing={row.alignment?.id === alignment.id}
+                  onView={() => view(row)}
+                  onHover={(on) => setHovered(on ? row.id : null)}
+                />
+              ))}
+            {[...failures].map(([message, goals]) => (
+              <div
+                key={message}
+                className="rounded-md border border-dashed px-2 py-1.5 text-xs"
+                data-route-row={goals[0].goal}
+              >
+                <p className="font-medium">{goals.map((row) => row.label).join(' · ')}</p>
+                <p className="text-2xs leading-4 text-muted-foreground">{message}</p>
+              </div>
             ))}
+            {!designed.length && !failures.size && (
+              <p className="text-2xs leading-4 text-muted-foreground">No new road beat yours on these goals.</p>
+            )}
             <div className="flex items-center gap-2 pt-1">
-              {usable.length > 1 && (
-                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={() => keep(usable)}>
-                  Keep all {usable.length}
-                </Button>
-              )}
-              {kept.length > 0 && onShowCompare && (
-                <Button size="sm" variant="outline" className="h-7 flex-1 text-xs" onClick={onShowCompare}>
-                  Open Compare
+              <p className="min-w-0 flex-1 text-2xs leading-4 text-muted-foreground">Click a road to open it.</p>
+              {designed.length > 0 && onShowCompare && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={() => {
+                    if (add(designed, designed.find((row) => row.alignment!.id === alignment.id) ?? designed[0]))
+                      onShowCompare()
+                  }}
+                >
+                  Compare all
                 </Button>
               )}
               <InfoTip label="About these prices">
-                Build is the engineering estimate at this project's rates. Total adds the drainage allowance. New roads
-                carry your template but no culverts, materials or haul inputs, so add those before relying on the gap.
+                Build is the engineering estimate at this project's rates, the same figure Compare shows. The drainage
+                part is the placeholder allowance from Search settings. New roads carry your template but no culverts,
+                materials or haul inputs, so add those before relying on the gap.
               </InfoTip>
             </div>
           </div>
@@ -326,100 +365,87 @@ export function RouteFinder({
 
 function RouteResult({
   row,
+  color,
   current,
-  limit,
-  selected,
-  kept,
-  onSelect,
-  onKeep,
+  viewing,
+  onView,
+  onHover,
 }: {
   row: RouteRow
+  color: string
   current?: RouteRow
-  limit: number
-  selected: boolean
-  kept: boolean
-  onSelect: () => void
-  onKeep: () => void
+  viewing: boolean
+  onView: () => void
+  onHover: (on: boolean) => void
 }) {
-  if (!row.alignment)
-    return (
-      <div className="rounded-md border border-dashed px-2 py-1.5 text-xs" data-route-row={row.goal}>
-        <p className="font-medium">{row.label}</p>
-        <p className="text-2xs leading-4 text-muted-foreground">{failure(row.blockers[0] ?? '', limit)}</p>
-      </div>
-    )
   const saving =
     current?.totalCost && row.totalCost !== null && row !== current
       ? Math.round(((row.totalCost - current.totalCost) / current.totalCost) * 100)
       : null
   return (
-    <div
-      className={`rounded-md border px-2 py-1.5 text-xs ${selected ? 'border-primary bg-muted/50' : ''}`}
+    <button
+      className={`block w-full rounded-md border px-2 py-1.5 text-left text-xs transition-colors hover:bg-muted/50 ${viewing ? 'border-primary bg-primary/5' : ''}`}
       data-route-row={row.goal}
+      aria-pressed={viewing}
+      aria-label={`Open ${row.label}`}
+      onClick={onView}
+      onMouseEnter={() => onHover(true)}
+      onMouseLeave={() => onHover(false)}
+      onFocus={() => onHover(true)}
+      onBlur={() => onHover(false)}
     >
-      <div className="flex items-start gap-1.5">
-        <button className="min-w-0 flex-1 text-left" onClick={onSelect} aria-pressed={selected}>
-          <span className="flex items-center gap-1.5">
-            <span className="size-2 shrink-0 rounded-full" style={{ background: row.color }} aria-hidden="true" />
-            <span className="min-w-0 truncate font-medium">{row.label}</span>
-            <span className="ml-auto shrink-0 font-semibold tabular-nums">
-              {row.totalCost !== null ? money(row.totalCost) : '—'}
-            </span>
-          </span>
-          <span className="mt-0.5 block text-2xs leading-4 text-muted-foreground tabular-nums">
-            {whole(row.lengthM!)} m · {row.maxGradePercent!.toFixed(1)}% · {whole(row.earthworksM3!)} m³
-            {row.drainage && (
-              <>
-                {' · '}
-                {plural(row.drainage.crossings, 'stream')} · {plural(row.drainage.crossDrains, 'drain')}
-              </>
-            )}
-            {saving !== null && saving !== 0 && (
-              <span className={saving < 0 ? ' text-emerald-700 dark:text-emerald-400' : ''}>
-                {' · '}
-                {saving > 0 ? '+' : ''}
-                {saving}%
-              </span>
-            )}
-          </span>
-          {row.best.length > 0 && (
-            <span className="mt-1 flex flex-wrap gap-1">
-              {row.best.map((goal) => (
-                <span
-                  key={goal}
-                  className="rounded bg-emerald-100 px-1 text-2xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-                >
-                  {GOAL_LABEL[goal]}
-                </span>
-              ))}
+      <span className="flex items-start gap-1.5">
+        <span className="mt-1 size-2 shrink-0 rounded-full" style={{ background: color }} aria-hidden="true" />
+        <span className="min-w-0 flex-1 font-medium">{row.label}</span>
+        <span className="shrink-0 text-right font-semibold tabular-nums">
+          {row.totalCost !== null ? money(row.totalCost) : '—'}
+          {saving !== null && saving !== 0 && (
+            <span
+              className={`ml-1 font-normal ${saving < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}
+            >
+              {saving > 0 ? '+' : '−'}
+              {Math.abs(saving)}%
             </span>
           )}
-          {row.blockers.map((blocker) => (
-            <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-amber-700 dark:text-amber-400">
-              {blocker}
-            </span>
-          ))}
-          {row.notes.map((note) => (
-            <span key={note} className="mt-0.5 block text-2xs leading-4 text-muted-foreground">
-              {note}
-            </span>
-          ))}
-        </button>
-        {row.goal !== 'current' &&
-          (kept ? (
-            <span className="pt-0.5 text-2xs text-muted-foreground">Added</span>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-6 shrink-0 px-1.5 text-2xs"
-              aria-label={`Use ${row.label}`}
-              onClick={onKeep}
+        </span>
+      </span>
+      <span className="mt-0.5 block text-2xs leading-4 text-muted-foreground tabular-nums">
+        {whole(row.lengthM!)} m · {row.maxGradePercent!.toFixed(1)}% · {whole(row.earthworksM3!)} m³
+        {row.drainage && (
+          <>
+            {' · '}
+            {plural(row.drainage.crossings, 'stream')} · {plural(row.drainage.crossDrains, 'drain')}
+          </>
+        )}
+      </span>
+      {row.drainage && row.constructionCost !== null && (
+        <span className="block text-2xs leading-4 text-muted-foreground tabular-nums">
+          {money(row.constructionCost)} build + {money(row.drainage.allowance)} drainage
+        </span>
+      )}
+      {row.goal === 'current' && row.best.length > 0 && (
+        <span className="mt-1 flex flex-wrap gap-1">
+          {row.best.map((goal) => (
+            <span
+              key={goal}
+              className="rounded bg-emerald-100 px-1 text-2xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
             >
-              Use
-            </Button>
+              {GOAL_LABEL[goal]}
+            </span>
           ))}
-      </div>
-    </div>
+        </span>
+      )}
+      {row.blockers.map((blocker) => (
+        <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-amber-700 dark:text-amber-400">
+          {blocker}
+        </span>
+      ))}
+      {row.notes.map((note) => (
+        <span key={note} className="mt-0.5 block text-2xs leading-4 text-muted-foreground">
+          {note}
+        </span>
+      ))}
+      {viewing && <span className="mt-0.5 block text-2xs font-medium text-primary">Viewing</span>}
+    </button>
   )
 }
