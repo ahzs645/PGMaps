@@ -618,7 +618,9 @@ export async function loadLidarTerrain(
     resolutionM: 1,
     epsg: 3157,
     verticalReference: 'CGVD2013 (CGG2013), EPSG:6647; metres',
-    sourceUrl: new URL('dtm-1m.tif', base).href,
+    // Provenance must be HTTPS. A local http dev server reads the same checksum-verified bytes,
+    // so it records the published location instead of its own address.
+    sourceUrl: new URL('dtm-1m.tif', new URL(base).protocol === 'https:' ? base : LIDAR_BASE).href,
     sha256: hash,
   }
   loaded.set(terrainKey(metadata), { source, bounds })
