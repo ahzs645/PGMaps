@@ -201,6 +201,7 @@ export function CompareAlternatives({
           settings={project?.settings}
           context={project?.context}
           referenceSurfaces={referenceSurfaces}
+          sharedCrossingCosts={project?.sharedCrossingCosts}
           onChange={onAlignmentChange}
         />
       )}

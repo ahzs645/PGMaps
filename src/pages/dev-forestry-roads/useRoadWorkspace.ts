@@ -269,6 +269,7 @@ export function useRoadWorkspace() {
         safeAnalyzeRoad(a, source, project.settings, project.context, {
           referenceSurfaces,
           verticalReference: project.terrain.verticalReference,
+          sharedCrossingCosts: project.sharedCrossingCosts,
         }),
       ]),
     )
@@ -280,6 +281,7 @@ export function useRoadWorkspace() {
     source,
     referenceSurfaces,
     project.terrain.verticalReference,
+    project.sharedCrossingCosts,
   ])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!

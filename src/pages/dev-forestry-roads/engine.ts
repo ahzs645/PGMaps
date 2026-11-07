@@ -32,6 +32,8 @@ import {
   validateComponentTransitions,
 } from './templates'
 import { calculateEngineering } from './engineering'
+import { estimateCrossings } from './crossingPlan'
+import type { CrossingCostItem } from './crossingPlanTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { assembledSection } from './assembledSection'
 import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
@@ -1336,7 +1338,11 @@ export function analyzeRoad(
   terrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
-  options?: { referenceSurfaces?: Record<string, TerrainSource>; verticalReference?: string },
+  options?: {
+    referenceSurfaces?: Record<string, TerrainSource>
+    verticalReference?: string
+    sharedCrossingCosts?: readonly CrossingCostItem[]
+  },
 ): RoadAnalysis {
   validate(alignment, settings)
   const path = compile(alignment),
@@ -1559,6 +1565,18 @@ export function analyzeRoad(
     })
     result.warnings = [...new Set([...result.warnings, ...engineering.warnings])]
   }
+  const crossingEstimate = estimateCrossings(alignment, result, context, options?.sharedCrossingCosts)
+  result.crossingEstimate = crossingEstimate
+  if (result.engineering) {
+    const costs = result.engineering.costs
+    costs.structures += crossingEstimate.incrementalSubtotal
+    costs.subtotal += crossingEstimate.incrementalSubtotal
+    costs.contingency = costs.subtotal * (alignment.engineering!.haul.contingencyPercent / 100)
+    costs.total = costs.subtotal + costs.contingency
+    result.estimatedCost = costs.total
+    result.engineering.complete = result.engineering.complete && crossingEstimate.complete
+  } else result.estimatedCost += crossingEstimate.incrementalSubtotal
+  result.warnings = [...new Set([...result.warnings, ...crossingEstimate.warnings])]
   return result
 }
 

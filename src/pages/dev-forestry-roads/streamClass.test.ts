@@ -5,6 +5,7 @@ import {
   effectiveClass,
   parseStreamAssessment,
   RIPARIAN_WIDTHS,
+  RIPARIAN_RULES,
   streamStatus,
   suggestRiparianClass,
   type StreamAssessment,
@@ -95,6 +96,7 @@ describe('streamStatus', () => {
       ...provisional,
       reviewedClass: 'S3' as const,
       reviewedFingerprint: assessmentFingerprint(provisional, line),
+      reviewedRules: `${RIPARIAN_RULES.id}@${RIPARIAN_RULES.consolidatedTo}`,
     }
     expect(streamStatus(reviewed, line)).toBe('reviewed')
     expect(streamStatus({ ...reviewed, channelWidthM: 6 }, line)).toBe('needs-review')

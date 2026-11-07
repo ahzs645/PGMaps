@@ -4,7 +4,7 @@ import type { FullCostCandidateResult, FullCostLedger } from './fullCostComparis
 
 export const MAX_FULL_COST_SIGNATURE_BYTES = 8 * 1024 * 1024
 /** Bump when quantity, eligibility or cost semantics change so older totals require recalculation. */
-export const FULL_COST_MODEL_VERSION = 'connected-access-2026-10-v3-content'
+export const FULL_COST_MODEL_VERSION = 'connected-access-2026-11-v4-crossings'
 const MAX_RECORD_ALLOCATIONS = 1000
 const MAX_RECORD_PATH_IDS = 75000
 const MAX_RECORD_COST_ITEMS = 4000
@@ -148,6 +148,7 @@ export function fullCostInputSignature(alignment: Alignment, project: RoadProjec
     modelVersion: FULL_COST_MODEL_VERSION,
     alignment: geometry,
     settings: project.settings,
+    sharedCrossingCosts: project.sharedCrossingCosts,
     totalCostPlanning: (project as RoadProject & { totalCostPlanning?: unknown }).totalCostPlanning,
     context: project.context,
     terrain,

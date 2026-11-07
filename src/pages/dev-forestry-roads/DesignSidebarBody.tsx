@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ClipboardCheck, HardHat, Mountain, Route, SlidersHorizontal } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
 import { EngineeringControls } from './EngineeringControls'
+import { StreamCrossingsPanel } from './StreamCrossingsPanel'
 import { DesignTab } from './sidebar/DesignTab'
 import { ReviewTab } from './sidebar/ReviewTab'
 import { SectionTab } from './sidebar/SectionTab'
@@ -126,7 +127,11 @@ export function DesignSidebar(p: SidebarProps) {
             ]}
           />
         </div>
-        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain" data-testid="road-sidebar-content">
+        <div
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          data-testid="road-sidebar-content"
+          data-map-sidebar-scroll="true"
+        >
           <div hidden={tab !== 'terrain'}>
             <TerrainTab
               {...p}
@@ -160,6 +165,7 @@ export function DesignSidebar(p: SidebarProps) {
             <SectionTab {...p} onTab={setTab} />
           </div>
           <div hidden={tab !== 'engineering'}>
+            <StreamCrossingsPanel workspace={p.workspace} />
             <EngineeringControls
               workspace={p.workspace}
               onPreviewTemplate={p.onPreviewTemplate}

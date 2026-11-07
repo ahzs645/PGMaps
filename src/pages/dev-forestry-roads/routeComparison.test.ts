@@ -12,7 +12,7 @@ import {
 } from './routeComparison'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, localMetricGrid } from './terrain'
-import type { Alignment, Coordinate, TerrainSource } from './types'
+import type { Alignment, ContextFeature, Coordinate, TerrainSource } from './types'
 
 const M = 111_194.93
 const origin: Coordinate = [-122.8, 53.9]
@@ -176,6 +176,40 @@ describe('assignGoals', () => {
 })
 
 describe('compareRoutes', () => {
+  it('rechecks a blocked conditional area on the fitted current road before assigning goals', async () => {
+    const base = road([at(0, 0), at(100, 0)])
+    const area: ContextFeature = {
+      id: 'condition',
+      name: 'Pending site review',
+      kind: 'avoid',
+      routeCostPerM: 1,
+      constraint: { treatment: 'conditional', condition: 'Review the site.' },
+      geometry: { type: 'Polygon', coordinates: [[at(40, -10), at(60, -10), at(60, 10), at(40, 10), at(40, -10)]] },
+    }
+    const { rows } = await compareRoutes({ ...input(base, []), context: [area] })
+    expect(rows[0].blockers.join(' ')).toContain('Pending site review: conditional review pending')
+    expect(rows[0].best).toEqual([])
+  })
+
+  it('keeps an unpriced crossing explicit in the final road comparison', async () => {
+    const base = road([at(0, 0), at(100, 0)])
+    const stream: ContextFeature = {
+      id: 'crossing',
+      name: 'Unpriced creek',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [at(50, -30), at(50, 30)] },
+      riparianPolicy: { treatment: 'additional-cost', costPerM: 0 },
+    }
+    const original = input(base, [])
+    const { rows } = await compareRoutes({
+      ...original,
+      context: [stream],
+      baseAnalysis: safeAnalyzeRoad(base, hillside, original.settings, [stream]),
+    })
+    expect(rows[0].blockers.join(' ')).toContain('Crossing estimates are incomplete')
+    expect(rows[0].best).toEqual([])
+  })
+
   it('reports progress that only moves forward and ends full', async () => {
     const seen: { step: number; total: number }[] = []
     await compareRoutes(input(road([at(0, 0), at(600, 40)]), ['shortest', 'gentle']), {

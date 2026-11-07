@@ -73,6 +73,7 @@ export function JointOptimizationControls({
           objective: 'total',
           referenceSurfaces: workspace.referenceSurfaces,
           verticalReference: project.terrain.verticalReference,
+          sharedCrossingCosts: project.sharedCrossingCosts,
         },
         signal,
         yieldControl,

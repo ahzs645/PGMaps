@@ -13,6 +13,8 @@ import {
 } from './fullCostRecord'
 import type { FullCostCandidateResult } from './fullCostComparison'
 import type { Alignment, RoadProject } from './types'
+import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports'
+import { newCrossingCostItem } from './crossingPlan'
 
 function fixture() {
   const project = { ...createDemoProject(), totalCostPlanning: createTotalCostPlanningDefaults('2026-10-28') }
@@ -77,6 +79,33 @@ function fixture() {
 const attach = (alignment: Alignment, record: FullCostReviewRecord) => ({ ...alignment, fullCostRecord: record })
 
 describe('saved complete-access cost snapshots', () => {
+  it('exports the historical shared crossing quote after project prices change', () => {
+    const { project, alignment, result } = fixture()
+    const quoted: RoadProject = {
+      ...project,
+      sharedCrossingCosts: [
+        {
+          ...newCrossingCostItem('shared'),
+          unitRate: 50,
+          source: 'Original survey quote',
+          sourceUrl: 'https://example.com/original-quote',
+          priceDate: '2026-11-07',
+        },
+      ],
+    }
+    const saved = attach(alignment, createFullCostRecord(alignment, quoted, result))
+    const changed = {
+      ...quoted,
+      sharedCrossingCosts: [{ ...quoted.sharedCrossingCosts![0], unitRate: 500, source: 'Later quote' }],
+    }
+    const evidence = fullCostExportEvidence(saved, changed)!
+    expect(evidence.inputStatus).toBe('stale')
+    expect(evidence.reviewedInputs.sharedCrossingCosts).toEqual(quoted.sharedCrossingCosts)
+    const report = fullCostReportSection(saved, changed)
+    expect(report).toContain('Original survey quote')
+    expect(report).toContain('2026-11-07')
+    expect(report).not.toContain('Later quote')
+  })
   it('round-trips a checked ledger and its source path while canonical object key order is irrelevant', () => {
     const { project, alignment, result } = fixture()
     const record = createFullCostRecord(alignment, project, result)

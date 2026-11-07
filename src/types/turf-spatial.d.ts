@@ -8,6 +8,13 @@ declare module '@turf/buffer' {
   ): Feature<Polygon | MultiPolygon, GeoJsonProperties> | undefined
 }
 
+// Turf 6.5 ships this signature in dist/js/index.d.ts, but omits a types condition from exports.
+declare module '@turf/boolean-intersects' {
+  import type { Feature, Geometry } from 'geojson'
+
+  export default function booleanIntersects(feature1: Feature | Geometry, feature2: Feature | Geometry): boolean
+}
+
 declare module '@turf/intersect' {
   import type { Feature, GeoJsonProperties, MultiPolygon, Polygon } from 'geojson'
 

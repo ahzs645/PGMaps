@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
+import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -562,6 +564,7 @@ export default function DevForestryRoads() {
     const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, project.context, {
       referenceSurfaces: w.referenceSurfaces,
       verticalReference: project.terrain.verticalReference,
+      sharedCrossingCosts: project.sharedCrossingCosts,
     })
     if (!terrainProfile) return result
     const completeLength = result.stations.slice(1).reduce((length, station, index) => {
@@ -606,6 +609,7 @@ export default function DevForestryRoads() {
     project.settings,
     project.context,
     project.terrain.verticalReference,
+    project.sharedCrossingCosts,
     terrainProfile,
     w.referenceSurfaces,
   ])
@@ -1250,7 +1254,17 @@ export default function DevForestryRoads() {
           w.setNotice('Terrain surface exported with its source grid coordinates and datum notes.')
         })
       } else if (kind === 'project') downloadText(serializeProject(safe), `${basename}.road.json`, 'application/json')
-      else if (kind === 'geojson')
+      else if (kind === 'streams-csv')
+        downloadText(streamRegisterCsv(safe, w.analyses), `${basename}-streams.csv`, 'text/csv;charset=utf-8')
+      else if (kind === 'provincial-evidence') {
+        if (!safe.provincialStreamData)
+          throw Error('Load provincial stream evidence before exporting its source records.')
+        downloadText(
+          JSON.stringify(provincialEvidenceGeoJson(safe.provincialStreamData), null, 2),
+          `${basename}-provincial-stream-evidence.geojson`,
+          'application/geo+json',
+        )
+      } else if (kind === 'geojson')
         downloadText(
           JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
           `${basename}.geojson`,

@@ -127,6 +127,7 @@ export function RouteFinder({
           analysisOptions: {
             referenceSurfaces: w.referenceSurfaces,
             verticalReference: project.terrain.verticalReference,
+            sharedCrossingCosts: project.sharedCrossingCosts,
           },
           options: {
             goals,

@@ -15,6 +15,8 @@ import {
 } from './engine'
 import { parseConnectorCheckOptions, type ConnectorCheckOptions } from './connectorCheckOptions'
 import { sectionCrossfall, templateAt } from './templates'
+import { resolveConstraint } from './constraints'
+import { conservativeRiparianRadiusM, riparianArea } from './riparian'
 import type {
   Alignment,
   ContextFeature,
@@ -436,7 +438,7 @@ export function checkConnector({
     let vertices = 0
     const constraints = context
       .filter(
-        (feature) => (feature.kind === 'avoid' && !Number.isFinite(feature.routeCostPerM)) || feature.kind === 'stream',
+        (feature) => (feature.kind === 'avoid' && resolveConstraint(feature).blocked) || feature.kind === 'stream',
       )
       .map((feature) => {
         const rings =
@@ -460,6 +462,9 @@ export function checkConnector({
           throw Error(`Constraint ${feature.name} has invalid topology; repair it before adoption.`)
         return {
           feature,
+          policy: resolveConstraint(feature),
+          riparianRadiusM:
+            feature.kind === 'stream' ? conservativeRiparianRadiusM(riparianArea(feature)?.outerRadiusM ?? 0) : 0,
           shape,
           bounds: boxOf(coordinates.flat()),
           vertices: coordinates.reduce((sum, ring) => sum + ring.length, 0),
@@ -629,7 +634,7 @@ export function checkConnector({
       (sampler.length +
         settings.crossSectionHalfWidth +
         options.clearingExtraM +
-        Math.max(options.exclusionClearanceM, options.streamSetbackM)) /
+        Math.max(options.exclusionClearanceM, options.streamSetbackM, ...constraints.map((c) => c.riparianRadiusM))) /
       R
     const scaleError = Math.max(
       Math.abs(Math.cos(origin[1] * RAD - latitudeChange) / cos - 1),
@@ -665,7 +670,10 @@ export function checkConnector({
         (Math.max(Math.abs(al - bl), Math.abs(ar - br)) * maxK * ds) / 4
       for (const constraint of constraints) {
         const stream = constraint.feature.kind === 'stream'
-        const clearance = stream ? options.streamSetbackM : options.exclusionClearanceM
+        const riparianBlocked = stream && constraint.policy.blocked
+        const clearance = stream
+          ? Math.max(options.streamSetbackM, riparianBlocked ? constraint.riparianRadiusM : 0)
+          : options.exclusionClearanceM
         const allowance = curvePad + Math.max(0.01, (width + clearance + ds) * scaleError)
         if (!overlaps(box, constraint.bounds, clearance + allowance)) continue
         metrics.geometryOperations += constraint.vertices + ring.length
@@ -674,6 +682,20 @@ export function checkConnector({
         const gap = DistanceOp.distance(polygon, constraint.shape) as number
         if (!Number.isFinite(gap)) throw Error('A final road/constraint distance could not be resolved.')
         if (gap > clearance + allowance + EPS) continue
+        const hitsPolicy = stream
+          ? riparianBlocked && gap <= constraint.riparianRadiusM + allowance + EPS
+          : constraint.policy.policy.treatment === 'conditional'
+        if (constraint.policy.blocked && hitsPolicy) {
+          const conditional = constraint.policy.policy.treatment === 'conditional'
+          add(
+            conditional ? 'unknown' : 'failure',
+            stream ? 'riparian-footprint-policy' : 'conditional-footprint-policy',
+            `${constraint.feature.name}: the full road prism/clearing strip reaches the ${stream ? `${constraint.riparianRadiusM.toFixed(1)} m preliminary riparian screen` : 'constraint area'}; ${conditional ? `conditional review is ${constraint.policy.reviewStatus}` : 'the area is excluded'}. A structure window does not override this policy.`,
+            a.chainage,
+            constraint.feature.id,
+          )
+          continue
+        }
         if (stream && options.allowStreamCrossings) {
           const approved = approvals.some(
             (window) =>

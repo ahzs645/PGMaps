@@ -35,6 +35,8 @@ import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
+import { ProvincialStreamLayers } from './ProvincialStreamLayers'
+import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { preparationMarginFeatures } from './preparationFootprint'
 import type {
   Alignment,
@@ -469,15 +471,18 @@ function Layers(
   )
   const context = useMemo(
     () =>
-      fc(
-        props.project.context
+      fc([
+        ...riparianMapFeatures(
+          props.project.context.filter((feature) => !props.hiddenContextKinds.includes(feature.kind)),
+        ),
+        ...props.project.context
           .filter((feature) => !props.hiddenContextKinds.includes(feature.kind))
           .map((feature) => ({
-            type: 'Feature',
+            type: 'Feature' as const,
             geometry: feature.geometry,
             properties: { ...feature, geometry: undefined },
           })),
-      ),
+      ]),
     [props.project.context, props.hiddenContextKinds],
   )
   const ditches = useMemo(() => {
@@ -651,10 +656,14 @@ function Layers(
       paint: {
         'fill-color': [
           'match',
-          ['get', 'kind'],
-          'harvest',
-          PLAN_CONTEXT_STYLES.harvest.color,
-          PLAN_CONTEXT_STYLES.avoid.color,
+          ['get', 'riparianBand'],
+          'reserve',
+          RIPARIAN_MAP_COLORS.reserve,
+          'management',
+          RIPARIAN_MAP_COLORS.management,
+          'uncertain',
+          RIPARIAN_MAP_COLORS.uncertain,
+          ['match', ['get', 'kind'], 'harvest', PLAN_CONTEXT_STYLES.harvest.color, PLAN_CONTEXT_STYLES.avoid.color],
         ],
         'fill-opacity': 0.18,
       },
@@ -666,14 +675,24 @@ function Layers(
       paint: {
         'line-color': [
           'match',
-          ['get', 'kind'],
-          'stream',
-          PLAN_CONTEXT_STYLES.stream.color,
-          'existing-road',
-          PLAN_CONTEXT_STYLES['existing-road'].color,
-          'harvest',
-          PLAN_CONTEXT_STYLES.harvest.color,
-          PLAN_CONTEXT_STYLES.avoid.color,
+          ['get', 'riparianBand'],
+          'reserve',
+          RIPARIAN_MAP_COLORS.reserve,
+          'management',
+          RIPARIAN_MAP_COLORS.management,
+          'uncertain',
+          RIPARIAN_MAP_COLORS.uncertain,
+          [
+            'match',
+            ['get', 'kind'],
+            'stream',
+            PLAN_CONTEXT_STYLES.stream.color,
+            'existing-road',
+            PLAN_CONTEXT_STYLES['existing-road'].color,
+            'harvest',
+            PLAN_CONTEXT_STYLES.harvest.color,
+            PLAN_CONTEXT_STYLES.avoid.color,
+          ],
         ],
         'line-width': 2,
         'line-dasharray': PLAN_LINE_DASHES.context,
@@ -1061,6 +1080,7 @@ function Layers(
   return (
     <>
       <TerrainRasterLayers layers={props.project.terrain.backgrounds ?? []} />
+      <ProvincialStreamLayers data={props.project.provincialStreamData} />
       {props.overlay?.features
         .filter((feature): feature is GeoJSON.Feature<GeoJSON.Point> => feature.geometry.type === 'Point')
         .map((feature, index) => (
@@ -1402,10 +1422,19 @@ export function PlanView(props: PlanProps) {
     const analyses = new globalThis.Map(props.analyses)
     analyses.set(
       previewAlignment.id,
-      safeAnalyzeRoad(previewAlignment, props.source, props.project.settings, props.project.context),
+      safeAnalyzeRoad(previewAlignment, props.source, props.project.settings, props.project.context, {
+        sharedCrossingCosts: props.project.sharedCrossingCosts,
+      }),
     )
     return analyses
-  }, [previewAlignment, props.analyses, props.source, props.project.settings, props.project.context])
+  }, [
+    previewAlignment,
+    props.analyses,
+    props.source,
+    props.project.settings,
+    props.project.context,
+    props.project.sharedCrossingCosts,
+  ])
   const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
   const [showContours, setShowContours] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
