@@ -333,8 +333,15 @@ export async function compareRoutes(
     aborted()
   }
   const guide = simplifyGuide(base.points.map((p) => p.coordinate))
-  const analyse = (alignment: Alignment) =>
-    safeAnalyzeRoad(alignment, terrain, settings, context, input.analysisOptions)
+  // The same candidate is priced, refined, screened and listed; analyse and screen it once each.
+  const analyses = new WeakMap<Alignment, RoadAnalysis>()
+  const analyse = (alignment: Alignment) => {
+    const known = analyses.get(alignment)
+    if (known) return known
+    const analysis = safeAnalyzeRoad(alignment, terrain, settings, context, input.analysisOptions)
+    analyses.set(alignment, analysis)
+    return analysis
+  }
   const searchOptions = (halfWidth: number) => ({
     corridorHalfWidthM: Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth),
     groundWindowM: options.groundWindowM,
@@ -534,7 +541,15 @@ export async function compareRoutes(
     }
   }
 
+  const screens = new WeakMap<Alignment, DrainageScreen>()
   const screen = (alignment: Alignment, analysis: RoadAnalysis): DrainageScreen => {
+    const known = screens.get(alignment)
+    if (known) return known
+    const result = screenOnce(alignment, analysis)
+    screens.set(alignment, result)
+    return result
+  }
+  const screenOnce = (alignment: Alignment, analysis: RoadAnalysis): DrainageScreen => {
     const grid = input.gridAt(alignment.points[0].coordinate)
     const run = runDrainage({
       terrain,

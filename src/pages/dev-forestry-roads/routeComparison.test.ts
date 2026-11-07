@@ -185,6 +185,7 @@ describe('compareRoutes', () => {
     expect(seen.at(-1)!.step).toBe(seen.at(-1)!.total)
   }, 30_000)
 
+  // Four designed roads with drainage screens: about 18 s here and three to four times that on CI runners.
   it('prices every goal, measures the cheapest and leaves the road untouched', async () => {
     const base = road([at(0, 0), at(600, 40)])
     const before = structuredClone(base)
@@ -209,7 +210,7 @@ describe('compareRoutes', () => {
     expect(rows.flatMap((row) => row.best)).toContain('cost')
     expect(cheapest.totalCost).toBeLessThanOrEqual(rows.find((row) => row.best.includes('cost'))!.totalCost!)
     expect(new Set(rows.map((row) => JSON.stringify(row.coordinates))).size).toBe(rows.length)
-  }, 60_000)
+  }, 180_000)
 
   it('never recommends a road over the grade limit', async () => {
     const base = road([at(0, 0), at(0, 300)], 'Straight up')
