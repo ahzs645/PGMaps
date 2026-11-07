@@ -1,0 +1,133 @@
+{
+  "checkedAt": "2026-11-07T17:31:54.539Z",
+  "bounds": [
+    -122.725,
+    53.885,
+    -122.695,
+    53.9
+  ],
+  "sourceCounts": {
+    "streams": 6,
+    "fish": 0,
+    "watersheds": 0
+  },
+  "streamPartIds": [
+    "bc-fwa-15683805-0",
+    "bc-fwa-15686134-0",
+    "bc-fwa-15689940-0",
+    "bc-fwa-15690291-0",
+    "bc-fwa-15690336-0",
+    "bc-fwa-15690746-0"
+  ],
+  "streamSourceRecords": [
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15683805",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1400,
+      "blueLineKey": "356144930",
+      "watershedCode": "999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999-999999",
+      "streamOrder": 1,
+      "featureCode": "WA24111170",
+      "featureSource": "OP"
+    },
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15686134",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1000,
+      "blueLineKey": "356166366",
+      "watershedCode": "100-562248-575329-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000",
+      "streamOrder": 1,
+      "featureCode": "GA24850150",
+      "featureSource": "linear stream -"
+    },
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15689940",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1000,
+      "blueLineKey": "356230351",
+      "watershedCode": "100-562248-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000",
+      "streamOrder": 1,
+      "featureCode": "GA24850150",
+      "featureSource": "linear stream -"
+    },
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15690291",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1000,
+      "blueLineKey": "356332389",
+      "watershedCode": "100-562248-575329-118434-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000",
+      "streamOrder": 1,
+      "featureCode": "GA24850150",
+      "featureSource": "linear stream -"
+    },
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15690336",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1000,
+      "blueLineKey": "356160725",
+      "watershedCode": "100-563967-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000",
+      "streamOrder": 1,
+      "featureCode": "GA24850150",
+      "featureSource": "linear stream -"
+    },
+    {
+      "dataset": "bc-fwa",
+      "sourceId": "15690746",
+      "retrievedAt": "2026-11-07T17:31:54.539Z",
+      "queryBounds": [
+        -122.725,
+        53.885,
+        -122.695,
+        53.9
+      ],
+      "edgeType": 1000,
+      "blueLineKey": "356357889",
+      "watershedCode": "100-566657-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000-000000",
+      "streamOrder": 1,
+      "featureCode": "GA24850150",
+      "featureSource": "linear stream -"
+    }
+  ],
+  "status": "complete-bounded-query",
+  "notes": [
+    "All source ID pages fetched; each scoped ID inventory re-read and matched.",
+    "Empty fish and watershed inventories were returned as objectIds: null by ArcGIS.",
+    "This check used Node HTTP requests. Browser CORS and rendered map acceptance remain separate.",
+    "A zero count does not establish absence of fish or a legal outside-watershed determination."
+  ]
+}

@@ -7,7 +7,12 @@ export function alternativeCostStatus(
 ): 'complete' | 'infeasible' | 'incomplete' | 'unavailable' {
   if (!analysis.stations.length) return 'unavailable'
   if (analysis.engineering?.haul.optimizationStatus === 'infeasible') return 'infeasible'
-  if (!hasCompleteCoverage(analysis) || analysis.engineering?.complete === false) return 'incomplete'
+  if (
+    !hasCompleteCoverage(analysis) ||
+    analysis.engineering?.complete === false ||
+    analysis.crossingEstimate?.complete === false
+  )
+    return 'incomplete'
   return 'complete'
 }
 export const alternativeCostLabel = (analysis: RoadAnalysis) => {

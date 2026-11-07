@@ -136,6 +136,8 @@ describe('route search costs, headings and alternatives', () => {
       id: 's',
       name: 'Creek',
       kind: 'stream',
+      // This test isolates crossing prices; riparian use is explicitly allowed for this fixture.
+      riparianPolicy: { treatment: 'additional-cost', costPerM: 0 },
       geometry: { type: 'LineString', coordinates: [point(200, -60), point(200, 60)] },
     }
     const cheap = suggestRoutes(start, end, flat, settings, [stream], { crossingCost: 1 }).routes[0]
@@ -187,6 +189,7 @@ describe('forester-entered route constraints', () => {
       id: 's',
       name: 'Creek',
       kind: 'stream',
+      riparianPolicy: { treatment: 'additional-cost', costPerM: 0 },
       geometry: { type: 'LineString', coordinates: [point(200, -40), point(200, 40)] },
     }
     const result = suggestRoutes(start, end, flat, settings, [stream], {

@@ -4,8 +4,12 @@ import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { Field, OptionalNumberField, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
+import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
+import type { ConstraintPolicy } from './constraints'
+import { riparianArea } from './riparian'
 import {
   assessmentFingerprint,
   effectiveClass,
@@ -27,6 +31,7 @@ import {
 } from './streamClass'
 import type { ContextFeature } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { ProvincialStreamsPanel, ProvincialStreamSourceView } from './ProvincialStreamsPanel'
 
 type Filter = 'all' | 'unassessed' | 'no-fish' | 'no-width' | 'this-road' | 'needs-review'
 const FILTERS: Record<Filter, string> = {
@@ -82,6 +87,27 @@ export function StreamsPanel({
         f.id === id ? { ...f, streamAssessment: { ...EMPTY_STREAM_ASSESSMENT, ...f.streamAssessment, ...patch } } : f,
       ),
     }))
+  const visible = streams.filter(matches)
+  const renderStream = (f: ContextFeature) => {
+    const riparian = effectiveClass(f.streamAssessment)
+    const width = f.streamAssessment?.channelWidthM
+    const count = crossings.get(f.id) ?? 0
+    return (
+      <button
+        key={f.id}
+        className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+        data-stream-row={f.id}
+        onClick={() => setOpenId(f.id)}
+      >
+        <span className="block truncate font-medium">{f.name}</span>
+        <span className="block text-2xs leading-4 text-muted-foreground">
+          {riparian ?? 'No class'} · {STREAM_STATUS_LABELS[status(f)].toLowerCase()}
+          {width != null ? ` · ${width} m` : ''}
+          {count ? ` · ${count} road crossing${count === 1 ? '' : 's'}` : ''}
+        </span>
+      </button>
+    )
+  }
   return (
     <RoadSection
       title="Streams"
@@ -103,6 +129,12 @@ export function StreamsPanel({
           onBack={() => setOpenId(null)}
           onProfile={() => onProfile(open.id)}
           onChange={(patch) => save(open.id, patch)}
+          onPolicyChange={(riparianPolicy) =>
+            w.update((x) => ({
+              ...x,
+              context: x.context.map((f) => (f.id === open.id ? { ...f, riparianPolicy } : f)),
+            }))
+          }
           onRemove={() => {
             setOpenId(null)
             w.update((x) => ({ ...x, context: x.context.filter((c) => c.id !== open.id) }))
@@ -110,6 +142,7 @@ export function StreamsPanel({
         />
       ) : (
         <div className="space-y-2" data-testid="road-streams">
+          <ProvincialStreamsPanel workspace={w} />
           <div className="grid grid-cols-2 gap-1">
             <Button variant="outline" size="sm" className="text-xs" aria-label="Draw stream" onClick={onDraw}>
               Draw stream
@@ -139,26 +172,13 @@ export function StreamsPanel({
               ))}
             </NativeSelect>
           )}
-          {streams.filter(matches).map((f) => {
-            const riparian = effectiveClass(f.streamAssessment)
-            const width = f.streamAssessment?.channelWidthM
-            const count = crossings.get(f.id) ?? 0
-            return (
-              <button
-                key={f.id}
-                className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
-                data-stream-row={f.id}
-                onClick={() => setOpenId(f.id)}
-              >
-                <span className="block truncate font-medium">{f.name}</span>
-                <span className="block text-2xs leading-4 text-muted-foreground">
-                  {riparian ?? 'No class'} · {STREAM_STATUS_LABELS[status(f)].toLowerCase()}
-                  {width != null ? ` · ${width} m` : ''}
-                  {count ? ` · ${count} road crossing${count === 1 ? '' : 's'}` : ''}
-                </span>
-              </button>
-            )
-          })}
+          {visible.length > 50 ? (
+            <VirtualResultList items={visible} getKey={(f) => f.id} estimateSize={52} label="Streams">
+              {renderStream}
+            </VirtualResultList>
+          ) : (
+            visible.map(renderStream)
+          )}
         </div>
       )}
     </RoadSection>
@@ -171,6 +191,7 @@ function StreamDetails({
   onBack,
   onProfile,
   onChange,
+  onPolicyChange,
   onRemove,
 }: {
   stream: ContextFeature
@@ -178,6 +199,7 @@ function StreamDetails({
   onBack: () => void
   onProfile: () => void
   onChange: (patch: Partial<StreamAssessment>) => void
+  onPolicyChange: (policy: ConstraintPolicy) => void
   onRemove: () => void
 }) {
   const assessment = stream.streamAssessment ?? EMPTY_STREAM_ASSESSMENT
@@ -188,10 +210,12 @@ function StreamDetails({
   const decision = choice || assessment.reviewedClass || suggestion.riparianClass || ''
   const shown = effectiveClass(stream.streamAssessment)
   const widths = shown ? RIPARIAN_WIDTHS[shown] : null
+  const screening = riparianArea(stream)
   const importedDiffers =
     !!assessment.importedClass && !!shown && assessment.importedClass.replace('-', '') !== shown.replace('-', '')
   return (
     <div className="space-y-2" data-testid="road-stream-details">
+      <ProvincialStreamSourceView stream={stream} />
       <div className="flex items-center gap-1">
         <Button size="icon" variant="ghost" className="size-6" aria-label="Back to streams" onClick={onBack}>
           <ChevronLeft className="size-4" />
@@ -297,19 +321,26 @@ function StreamDetails({
             ))}
           </NativeSelect>
         </Field>
-        {((assessment.channelWidthM ?? 0) > 20 || assessment.oneKmAverageWidthM != null) && (
-          <OptionalNumberField
-            label="1 km average width (m)"
-            value={assessment.oneKmAverageWidthM ?? null}
-            min={0.01}
-            max={100000}
-            step={1}
-            placeholder="not measured"
-            hint="The greater of stream or active flood plain width, averaged over 1 km. 100 m or more makes the stream S1-A."
-            onChange={(oneKmAverageWidthM) => onChange({ oneKmAverageWidthM })}
-          />
-        )}
+        <OptionalNumberField
+          label="1 km average width (m)"
+          value={assessment.oneKmAverageWidthM ?? null}
+          min={0.01}
+          max={100000}
+          step={1}
+          placeholder="not measured"
+          hint="The greater of stream or active flood plain width, averaged over 1 km. 100 m or more makes the stream S1-A."
+          onChange={(oneKmAverageWidthM) => onChange({ oneKmAverageWidthM })}
+        />
       </div>
+      <details className="rounded border" data-testid="stream-riparian-policy">
+        <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Riparian map & route treatment</summary>
+        <div className="space-y-2 border-t p-2">
+          <p className="text-2xs text-muted-foreground">
+            {screening?.note} These areas are preliminary horizontal screening buffers, not surveyed legal boundaries.
+          </p>
+          <ConstraintPolicyEditor feature={stream} onChange={onPolicyChange} />
+        </div>
+      </details>
       <details className="rounded border">
         <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Record a review</summary>
         <div className="space-y-2 border-t p-2">

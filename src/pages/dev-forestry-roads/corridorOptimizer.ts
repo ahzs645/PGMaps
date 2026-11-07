@@ -5,6 +5,7 @@
  * formation grades. No geology, hydraulic adequacy or road approval is inferred.
  */
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
+import { routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 export type RoadOptimizationObjective = 'shortest' | 'balanced' | 'contour'
@@ -20,6 +21,8 @@ export interface RoadOptimizationOptions {
   groundWindowM?: number
   /** Metres of road a stream contact is worth to the search. Default 150. */
   streamContactCostM?: number
+  /** Converts explicit CAD/m zone penalties to equivalent route metres; default 100 CAD/m. */
+  constraintCostBasePerM?: number
   /** Extra metres of road per metre travelled here, such as over modelled flow lines. Never negative. */
   groundPenalty?: (coordinate: Coordinate) => number
   /** Smaller budgets can be used in tests or on constrained devices. */
@@ -314,7 +317,7 @@ function* search(
     turn = Math.min(TURN * 2, step / settings.minRadius)
   const turnRadius = step / turn
   const segments: Segment[] = [],
-    polygons: Array<{ rings: XY[][]; box: number[] }> = []
+    polygons: Array<{ rings: XY[][]; box: number[]; costPerM: number | null }> = []
   let vertices = 0,
     operations = 0,
     calls = 0,
@@ -329,7 +332,10 @@ function* search(
         'Corridor geometry budget reached; narrow the corridor, shorten or simplify the guide, or crop supplied constraints.',
       )
   }
-  for (const feature of context) {
+  const constraintCostBase = options.constraintCostBasePerM ?? 100
+  if (!Number.isFinite(constraintCostBase) || constraintCostBase <= 0)
+    throw Error('Constraint cost conversion needs a positive base cost per metre.')
+  for (const feature of routingContext(context)) {
     if (feature.kind !== 'stream' && feature.kind !== 'avoid') continue
     const raw = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates : [feature.geometry.coordinates]
     const paths = raw.map((path) =>
@@ -353,8 +359,9 @@ function* search(
     if (feature.geometry.type === 'Polygon') {
       if (paths.some((p) => p.length < 3)) throw Error('Exclusion rings need at least three vertices.')
       for (const ring of paths) if (norm(delta(ring[0], ring[ring.length - 1])) > EPS) ring.push([...ring[0]])
-      if (feature.kind === 'avoid') polygons.push({ rings: paths, box: b })
+      if (feature.kind === 'avoid') polygons.push({ rings: paths, box: b, costPerM: feature.routeCostPerM ?? null })
     }
+    if (feature.kind === 'avoid' && feature.routeCostPerM !== undefined) continue
     for (const path of paths)
       for (let i = 1; i < path.length; i++)
         segments.push({
@@ -405,11 +412,23 @@ function* search(
     if (p[0] < box[0] || p[1] < box[1] || p[0] > box[2] || p[1] > box[3] || guideOffset(p) + margin > width + EPS)
       return false
     return !polygons.some((poly) => {
+      if (poly.costPerM !== null) return false
       if (!overlaps(poly.box, [...p, ...p])) return false
       geometryBudget(poly.rings.reduce((s, r) => s + r.length, 0))
       return inRing(p, poly.rings[0]) && !poly.rings.slice(1).some((hole) => inRing(p, hole))
     })
   }
+  const zonePenaltyAt = (p: XY) =>
+    polygons.reduce((sum, poly) => {
+      if (poly.costPerM === null || !overlaps(poly.box, [...p, ...p])) return sum
+      geometryBudget(poly.rings.reduce((n, ring) => n + ring.length, 0))
+      return (
+        sum +
+        (inRing(p, poly.rings[0]) && !poly.rings.slice(1).some((hole) => inRing(p, hole))
+          ? poly.costPerM / constraintCostBase
+          : 0)
+      )
+    }, 0)
   const segmentAllowed = (a: XY, b: XY, sagitta: number, contacts: Set<string>, enforce = true) => {
     if (!segments.length) return true
     const area = bounds(a, b, clearance + sagitta + EPS)
@@ -506,6 +525,7 @@ function* search(
           cost += ds * (1 + weights.grade * (grade / limit) ** 2) + weights.vertical * Math.abs(dz)
         }
         cost += ds * weights.guide * (guideOffset(at) / width) ** 2
+        cost += ds * zonePenaltyAt([(previous[0] + at[0]) / 2, (previous[1] + at[1]) / 2])
         if (options.groundPenalty) cost += ds * options.groundPenalty(frame.fromXY(at))
         length += ds
         if (collect) {

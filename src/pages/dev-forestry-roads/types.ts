@@ -1,4 +1,7 @@
 import type { StreamAssessment } from './streamClass'
+import type { CrossingCostItem, CrossingEstimate, StreamCrossingRecord } from './crossingPlanTypes'
+import type { ConstraintPolicy } from './constraints'
+import type { ProvincialStreamData, ProvincialStreamSource } from './provincialStreamData'
 import type { LocalRaster } from '../dev-forestry/types'
 import type { ElevationSource } from '../dev-forestry/terrain'
 import type { AlignmentEngineering, EngineeringAnalysis } from './engineeringTypes'
@@ -164,6 +167,8 @@ export interface Alignment {
   template: RoadTemplate
   overrides: WidthOverride[]
   engineering?: AlignmentEngineering
+  /** Per-physical-crossing planning choices and entered price evidence, including retired records. */
+  crossingRecords?: StreamCrossingRecord[]
   /** Optional vertical standards and control points; unset values are not checked. */
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
@@ -207,12 +212,18 @@ export interface ContextFeature {
   referenceVerticalDatum?: string
   /** On an avoid polygon: route search may cross it at this extra CAD per metre instead of being blocked. */
   routeCostPerM?: number
+  /** Explicit route treatment. If absent, the legacy routeCostPerM convention still applies. */
+  constraint?: ConstraintPolicy
+  /** Treatment of the preliminary horizontal riparian area; defaults to conditional, pending review. */
+  riparianPolicy?: ConstraintPolicy
   /** A feature price overrides its group's price, which overrides the route-search default. */
   crossingCost?: number
   /** A named price group for route search. Not a riparian class: that is on `streamAssessment`. */
   crossingGroup?: string
   /** Evidence and class for a stream reach. Absent means unassessed, never a class. */
   streamAssessment?: StreamAssessment
+  /** Raw provincial identity and retrieval scope; never substitutes for the stream assessment. */
+  streamSource?: ProvincialStreamSource
   /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
   roadEvidence?: ExistingRoadEvidence
 }
@@ -301,6 +312,10 @@ export interface RoadProject {
   totalCostPlanning?: TotalCostPlanning
   /** Portable inputs and compact, fingerprinted drainage evidence; full grids are recomputed. */
   drainage?: DrainageProjectState
+  /** Scoped provincial fish/watershed evidence; FWA arcs are retained in context. */
+  provincialStreamData?: ProvincialStreamData
+  /** Charged once in each alternative's estimate, never once per stream. */
+  sharedCrossingCosts?: CrossingCostItem[]
   context: ContextFeature[]
   cables: CableLine[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]
@@ -368,6 +383,7 @@ export interface RoadAnalysis {
   coveragePercent: number
   warnings: string[]
   engineering?: EngineeringAnalysis
+  crossingEstimate?: CrossingEstimate
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
 }

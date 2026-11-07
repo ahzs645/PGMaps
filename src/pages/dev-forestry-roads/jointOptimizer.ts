@@ -88,8 +88,11 @@ export async function refinePlanAndProfile(
       const analysis = analyzeRoad(candidate, terrain, settings, context, {
         referenceSurfaces: o.profile.referenceSurfaces,
         verticalReference: o.profile.verticalReference,
+        sharedCrossingCosts: o.profile.sharedCrossingCosts,
       })
       if (!hasCompleteCoverage(analysis)) blockers.push('Incomplete terrain/daylight coverage.')
+      if (analysis.crossingEstimate?.complete === false)
+        blockers.push('Stream crossing estimates need review or prices.')
       if (analysis.engineering && !analysis.engineering.complete)
         blockers.push('The engineering material, haul or structure prescription is incomplete or infeasible.')
       if (analysis.maxGradePercent > settings.maxGradePercent + 1e-6)

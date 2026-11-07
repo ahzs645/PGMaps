@@ -50,6 +50,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         context: project.context,
         referenceSurfaces: workspace.referenceSurfaces,
         verticalReference: project.terrain.verticalReference,
+        sharedCrossingCosts: project.sharedCrossingCosts,
       })
       let candidate =
         resultTarget === 'vertical'
@@ -74,6 +75,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       const after = safeAnalyzeRoad(candidate, source, project.settings, project.context, {
         referenceSurfaces: workspace.referenceSurfaces,
         verticalReference: project.terrain.verticalReference,
+        sharedCrossingCosts: project.sharedCrossingCosts,
       })
       workspace.commit(
         parseProject({

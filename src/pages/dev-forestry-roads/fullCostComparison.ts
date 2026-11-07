@@ -156,7 +156,7 @@ export function analyzeFullCostConnector(
   terrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
-  options?: { referenceSurfaces?: Record<string, TerrainSource>; verticalReference?: string },
+  options?: Parameters<typeof analyzeRoad>[4],
 ): RoadAnalysis {
   const engineering = alignment.engineering ?? createEngineeringDesign()
   const advanced = hasMaterialPolicies(alignment)
@@ -556,6 +556,13 @@ export function compareFullCostCandidates(
     const reject = (status: 'infeasible' | 'unpriced', message: string) => {
       result.status = status
       result.blockers.push(message)
+    }
+    if (input.analysis.crossingEstimate?.complete === false) {
+      reject(
+        'unpriced',
+        'Stream crossing structures, geometry reviews or entered price evidence are incomplete. Known subtotals are not complete construction prices.',
+      )
+      return result
     }
     if (!input.checks.adoptable) {
       input.checks.failures.forEach((issue) => reject('infeasible', issue.message))

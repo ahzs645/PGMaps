@@ -228,7 +228,8 @@ export function assessmentFingerprint(assessment: StreamAssessment, coordinates:
 export function streamStatus(assessment: StreamAssessment | undefined, coordinates: unknown): StreamStatus {
   if (!assessment) return 'unassessed'
   if (assessment.reviewedClass)
-    return assessment.reviewedFingerprint === assessmentFingerprint(assessment, coordinates)
+    return assessment.reviewedFingerprint === assessmentFingerprint(assessment, coordinates) &&
+      assessment.reviewedRules === `${RIPARIAN_RULES.id}@${RIPARIAN_RULES.consolidatedTo}`
       ? 'reviewed'
       : 'needs-review'
   const touched =

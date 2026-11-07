@@ -17,6 +17,7 @@ import {
   setVerticalAlternativeCostMode,
 } from './verticalAlternatives'
 import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource } from './types'
+import type { CrossingCostItem } from './crossingPlanTypes'
 
 const COLORS = ['#0d9488', '#9333ea', '#d97706', '#2563eb', '#db2777', '#65a30d']
 const EMPTY_CONTEXT: ContextFeature[] = []
@@ -26,6 +27,7 @@ export function VerticalAlternativesEditor({
   settings,
   context = EMPTY_CONTEXT,
   referenceSurfaces,
+  sharedCrossingCosts,
   onChange,
 }: {
   alignment: Alignment
@@ -33,6 +35,7 @@ export function VerticalAlternativesEditor({
   settings?: RoadSettings
   context?: ContextFeature[]
   referenceSurfaces?: Record<string, TerrainSource>
+  sharedCrossingCosts?: CrossingCostItem[]
   onChange: (alignment: Alignment) => void
 }) {
   const [name, setName] = useState('')
@@ -45,14 +48,17 @@ export function VerticalAlternativesEditor({
         let error: string | null = null
         if (terrain && settings) {
           try {
-            analysis = analyzeRoad(entry.alignment, terrain, settings, context, { referenceSurfaces })
+            analysis = analyzeRoad(entry.alignment, terrain, settings, context, {
+              referenceSurfaces,
+              sharedCrossingCosts,
+            })
           } catch (e) {
             error = e instanceof Error ? e.message : 'Analysis unavailable.'
           }
         }
         return { ...entry, analysis, error }
       }),
-    [alignment, terrain, settings, context, referenceSurfaces],
+    [alignment, terrain, settings, context, referenceSurfaces, sharedCrossingCosts],
   )
   const change = (action: () => Alignment) => {
     try {

@@ -45,6 +45,7 @@ const barrier = (kind: 'avoid' | 'stream', coordinates: Coordinate[]): ContextFe
   id: kind,
   name: kind,
   kind,
+  ...(kind === 'stream' ? { riparianPolicy: { treatment: 'additional-cost' as const, costPerM: 0 } } : {}),
   geometry: { type: 'LineString', coordinates },
 })
 
