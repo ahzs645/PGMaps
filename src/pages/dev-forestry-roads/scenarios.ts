@@ -20,22 +20,35 @@ import {
 } from './terrain'
 import type { Alignment, ContextFeature, Coordinate, RoadProject, TerrainMetadata, TerrainSource } from './types'
 
+/**
+ * What a scenario brings besides its terrain and draft roads. Mapped context is fetched live from BC
+ * services when the scenario loads, so it records what that area held when checked (November 2026);
+ * the load notice states what actually arrived, and a failed source is reported, never invented.
+ */
+export type ScenarioContent = 'mapped' | 'synthetic' | 'none'
+export interface ScenarioContents {
+  roads: ScenarioContent
+  cutblocks: ScenarioContent
+}
+
 export const ROAD_SCENARIOS = [
   {
     id: 'bc-lidar',
     name: 'Prince George · native LiDAR',
     terrain: 'Verified 1 m ground DTM',
-    detail: 'A draft road on the published BC tile, with nearby public road tenures and harvest openings.',
+    detail: 'A draft road on the published 1 km BC LiDAR tile. No mapped roads or cutblocks fall inside the tile.',
     focus: 'Sections, terrain coverage and preliminary earthworks',
     kind: 'lidar',
+    contents: { roads: 'none', cutblocks: 'none' },
   },
   {
     id: 'tabor-access',
     name: 'Tabor Mountain · access alternatives',
     terrain: 'Regional DEM · screening only',
-    detail: 'Two draft approaches across a forested hillside, with public roads and nearby cutblocks.',
-    focus: 'Compare new access against existing-road evidence',
+    detail: 'Two draft approaches across a forested hillside, with a mapped cutblock nearby and no mapped roads.',
+    focus: 'Compare access alternatives and reach a block',
     kind: 'regional',
+    contents: { roads: 'none', cutblocks: 'mapped' },
     centre: [-122.5537, 53.796] as Coordinate,
   },
   {
@@ -43,9 +56,10 @@ export const ROAD_SCENARIOS = [
     name: 'Kamloops · dry Interior',
     terrain: 'Regional DEM · screening only',
     detail:
-      'A deliberately steep starting corridor, with public road and harvest context. Draft grades need a different route.',
+      'A deliberately steep starting corridor, with mapped roads and cutblocks. Draft grades need a different route.',
     focus: 'Grade-limit challenge: test constraints and route feasibility',
     kind: 'regional',
+    contents: { roads: 'mapped', cutblocks: 'mapped' },
     centre: [-120.47, 50.84] as Coordinate,
   },
   {
@@ -53,18 +67,20 @@ export const ROAD_SCENARIOS = [
     name: 'Vernon · upland access',
     terrain: 'Regional DEM · screening only',
     detail:
-      'An upland starting corridor whose rough ground challenges the grade limit, with mapped road tenure context.',
+      'An upland starting corridor whose rough ground challenges the grade limit, with mapped roads and no cutblocks.',
     focus: 'Grade-limit challenge and existing-access review',
     kind: 'regional',
+    contents: { roads: 'mapped', cutblocks: 'none' },
     centre: [-119.12, 50.35] as Coordinate,
   },
   {
     id: 'smithers-northwest',
     name: 'Smithers · Northwest hillside',
     terrain: 'Regional DEM · screening only',
-    detail: 'A northern landscape with two editable corridors and public forestry context.',
+    detail: 'A northern landscape with two editable corridors, mapped roads and cutblocks.',
     focus: 'Compare route behaviour on another map',
     kind: 'regional',
+    contents: { roads: 'mapped', cutblocks: 'mapped' },
     centre: [-127.023, 54.8107] as Coordinate,
   },
   {
@@ -75,14 +91,17 @@ export const ROAD_SCENARIOS = [
       'Two connectors and three selectable synthetic FSR sections, with dated evidence, a gravel source and waste site.',
     focus: 'Choose an FSR from Road start, then compare haul, rehabilitation and condition',
     kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
   {
     id: 'training-hillside',
     name: 'Training · hillside and drainage',
     terrain: 'Synthetic ground · offline',
-    detail: 'Two roads, a drainage line, a review area, a turnout and landing. All context is synthetic.',
+    detail:
+      'Two roads, a drainage line, a review area, a harvest block, a turnout and landing. All context is synthetic.',
     focus: 'Learn the connected plan, profile and section views',
     kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
   {
     id: 'training-road-reuse',
@@ -91,6 +110,7 @@ export const ROAD_SCENARIOS = [
     detail: 'An assumed serviceable access road and a rehabilitation section, with a synthetic harvest block.',
     focus: 'Toggle road reuse and review condition assumptions',
     kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
   {
     id: 'training-local-gravel',
@@ -100,8 +120,9 @@ export const ROAD_SCENARIOS = [
       'The same road with and without a zero-acquisition local stockpile. Processing, loading and haul still cost.',
     focus: 'Compare enabled supply, finite capacity and purchased surfacing',
     kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
-] as const
+] as const satisfies readonly ({ contents: ScenarioContents } & Record<string, unknown>)[]
 
 export type RoadScenarioId = (typeof ROAD_SCENARIOS)[number]['id']
 export const REGIONAL_SCENARIO_ORIENTATIONS = 24

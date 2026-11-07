@@ -3,10 +3,11 @@ import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Trash2, Upload
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import type { LibraryEntry } from './projectLibrary'
 import type { Coordinate } from './types'
-import { ROAD_SCENARIOS, type RoadScenarioId } from './scenarios'
+import { ROAD_SCENARIOS, type RoadScenarioId, type ScenarioContent } from './scenarios'
 
 /** How a new project gets its terrain. Every kind but the BC sample starts with one straight road. */
 export type NewProject = { name: string } & (
@@ -88,6 +89,7 @@ export function ProjectsDialog({
   portalContainer?: HTMLElement | null
 }) {
   const [view, setView] = useState<'list' | 'new' | 'scenarios'>('list')
+  const [cutblockFilter, setCutblockFilter] = useState<'all' | 'with' | 'without'>('all')
   const [confirm, setConfirm] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<NewProject['kind']>('regional')
@@ -246,13 +248,38 @@ export function ProjectsDialog({
               <ArrowLeft className="size-4" />
               All projects
             </Button>
+            <SegmentedControl
+              label="Show scenarios"
+              size="sm"
+              fullWidth={false}
+              value={cutblockFilter}
+              onChange={setCutblockFilter}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'with', label: 'With cutblocks' },
+                { value: 'without', label: 'No cutblocks' },
+              ]}
+            />
             <div className="grid gap-3 sm:grid-cols-2" aria-label="Road scenario library">
-              {ROAD_SCENARIOS.map((scenario) => (
-                <article key={scenario.id} className="flex flex-col gap-2 rounded-lg border p-3">
+              {ROAD_SCENARIOS.filter((scenario) =>
+                cutblockFilter === 'all'
+                  ? true
+                  : (scenario.contents.cutblocks !== 'none') === (cutblockFilter === 'with'),
+              ).map((scenario) => (
+                <article
+                  key={scenario.id}
+                  className="flex flex-col gap-2 rounded-lg border p-3"
+                  data-scenario={scenario.id}
+                  data-cutblocks={scenario.contents.cutblocks}
+                >
                   <div>
                     <h3 className="text-sm font-semibold">{scenario.name}</h3>
                     <p className="mt-0.5 text-xs font-medium text-primary">{scenario.terrain}</p>
                   </div>
+                  <ul className="flex flex-wrap gap-1" aria-label={`${scenario.name} contents`}>
+                    <ContentChip kind="cutblocks" content={scenario.contents.cutblocks} />
+                    <ContentChip kind="roads" content={scenario.contents.roads} />
+                  </ul>
                   <p className="text-xs text-muted-foreground">{scenario.detail}</p>
                   <p className="text-xs text-muted-foreground">{scenario.focus}</p>
                   <Button
@@ -272,9 +299,10 @@ export function ProjectsDialog({
               ))}
             </div>
             <InlineAlert>
-              Every scenario opens as a new editable project. Your current project stays in Projects. Public road
-              tenures and harvest openings load for the real landscapes; missing sources are reported. A mapped road
-              does not establish its age, condition or permission to use it.
+              Every scenario opens as a new editable project. Your current project stays in Projects. Mapped roads and
+              cutblocks load live from BC services for the real landscapes, so the loaded counts can differ from these
+              labels; the load reports what arrived and any source that failed. A mapped road does not establish its
+              age, condition or permission to use it.
             </InlineAlert>
           </>
         ) : (
@@ -373,5 +401,27 @@ export function ProjectsDialog({
         )}
       </fieldset>
     </PanelDialog>
+  )
+}
+
+const CONTENT_LABELS = {
+  cutblocks: { mapped: 'Mapped cutblocks', synthetic: 'Synthetic block', none: 'No cutblocks' },
+  roads: { mapped: 'Mapped roads', synthetic: 'Synthetic roads', none: 'No mapped roads' },
+} as const
+
+/** One fact about a scenario's context; "none" reads muted so the cards with content stand out. */
+function ContentChip({ kind, content }: { kind: keyof typeof CONTENT_LABELS; content: ScenarioContent }) {
+  return (
+    <li
+      className={`rounded-full border px-2 py-0.5 text-3xs font-medium ${
+        content === 'none'
+          ? 'border-dashed text-muted-foreground'
+          : content === 'mapped'
+            ? 'border-emerald-600/30 bg-emerald-600/10 text-emerald-800 dark:text-emerald-300'
+            : 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300'
+      }`}
+    >
+      {CONTENT_LABELS[kind][content]}
+    </li>
   )
 }

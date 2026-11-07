@@ -63,6 +63,11 @@ for (const scenario of ROAD_SCENARIOS) {
       scenario.kind === 'training' ? 'demo' : scenario.kind === 'regional' ? 'regional' : 'geotiff',
     )
     expect(project.scenario?.terrainCoveragePercent).toBe(100)
+    // The library card's content chips must match what loaded, unless the load reported that source failed.
+    const loaded = (kind: string) => project.context.some((feature) => feature.kind === kind)
+    const failed = (source: string) => project.scenario?.contextWarnings.some((warning) => warning.startsWith(source))
+    if (!failed('Harvest openings')) expect(loaded('harvest')).toBe(scenario.contents.cutblocks !== 'none')
+    if (!failed('BC road tenures')) expect(loaded('existing-road')).toBe(scenario.contents.roads !== 'none')
 
     for (const viewport of [
       { width: 390, height: 844 },
