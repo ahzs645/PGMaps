@@ -147,7 +147,8 @@ export function DrainageSensitivityPanel({
                     {record.terrain.name} · {record.createdAt}
                   </p>
                   <ReadoutGrid
-                    minColumnWidth="7rem"
+                    minColumnWidth="18rem"
+                    className="text-xs leading-5"
                     items={[
                       { label: 'Buffer', value: `${number(record.settings.bufferM)} m` },
                       { label: 'Actual grid', value: `${number(record.grid.cellM)} m` },

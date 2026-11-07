@@ -117,6 +117,11 @@ for (const size of [
         exported.runs[1].record.selectedCatchment?.requestedCoordinate,
       )
       await candidate.scrollIntoViewIfNeeded()
+      expect(
+        await candidate
+          .locator('dd')
+          .evaluateAll((values) => values.every((value) => value.scrollWidth <= value.clientWidth + 1)),
+      ).toBe(true)
       await page.screenshot({ path: info.outputPath(`drainage-comparison-${size.name}.png`) })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true)
       await page.getByRole('button', { name: 'Save', exact: true }).click()

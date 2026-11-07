@@ -135,8 +135,9 @@ for (const size of [
       await showMaterialConverter(page)
       const reuse = page.getByRole('spinbutton', { name: `${materialName} reusable fraction`, exact: true })
       await expect(reuse).toHaveValue(String(reusableFraction))
-      await activate(page.getByRole('combobox', { name: `${materialName} factor convention`, exact: true }))
-      await activate(page.getByRole('option', { name: 'Bank / compacted', exact: true }))
+      await page
+        .getByRole('combobox', { name: `${materialName} factor convention`, exact: true })
+        .selectOption('bank-per-compacted')
       await page.getByLabel(`${materialName} entered volume factor`, { exact: true }).fill('1.1')
       await page.getByLabel(`${materialName} factor source (optional)`, { exact: true }).fill(source)
       await expect(page.getByLabel(`${materialName} canonical factor preview`, { exact: true })).toContainText(
@@ -181,7 +182,7 @@ for (const size of [
         await showMaterialConverter(fresh)
         await expect(
           fresh.getByRole('combobox', { name: `${materialName} factor convention`, exact: true }),
-        ).toContainText('Bank / compacted')
+        ).toHaveValue('bank-per-compacted')
         const entered = fresh.getByLabel(`${materialName} entered volume factor`, { exact: true })
         await expect(entered).toHaveValue('1.1')
         await expect(fresh.getByLabel(`${materialName} factor source (optional)`, { exact: true })).toHaveValue(source)

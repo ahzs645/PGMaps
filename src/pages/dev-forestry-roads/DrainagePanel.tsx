@@ -421,7 +421,8 @@ export function DrainagePanel({
             <section className="space-y-2 rounded-md border p-2" aria-label="Selected catchment">
               <h3 className="font-medium">Selected catchment · {run.catchment.feature.properties.surface}</h3>
               <ReadoutGrid
-                minColumnWidth="8rem"
+                minColumnWidth="18rem"
+                className="text-xs leading-5"
                 items={[
                   { label: 'Area', value: `${n(run.catchment.feature.properties.areaHa, 3)} ha` },
                   { label: 'Supported cells', value: n(run.catchment.feature.properties.cells) },
