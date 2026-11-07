@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -297,6 +298,7 @@ test('pegging uses real map points with live leg grade and an undoable new road'
   await page.getByRole('button', { name: 'Finish road', exact: true }).click()
   await expect(feedback).toHaveCount(0)
   await expect(page.getByLabel('Active road').locator('option:checked')).toHaveText('Road 3')
+  await openRoadPanel(page, 'Horizontal points')
   await expect(page.getByLabel('Selected horizontal point').locator('option')).toHaveCount(4)
   await expect.poll(async () => (await mapState(page))?.roadCount).toBe(3)
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
@@ -320,6 +322,8 @@ test('profile controls and one-sided turnout widening change calculated sections
   await expect
     .poll(async () => Number(await pvi.getAttribute('aria-valuenow')))
     .toBeCloseTo(Math.round((originalLevel + 0.1) * 100) / 100, 2)
+  await openRoadPanel(page, 'Vertical alignment')
+  await openRoadPanel(page, 'Vertical alignment')
   await expect(page.getByRole('spinbutton', { name: 'PVI 2 level', exact: true })).toHaveValue(
     String(Math.round((originalLevel + 0.1) * 100) / 100),
   )
@@ -840,6 +844,7 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   await page.getByRole('button', { name: 'Use selected D-line', exact: true }).click()
   await expect(detailPicker(page)).toHaveText('D-line')
   await workflow(page, 'Review').click()
+  await openRoadPanel(page, 'D-line / cable geometry')
   const initialCables = (await mapState(page))!.cables
   const startInset = page.getByRole('spinbutton', { name: 'Start inset (m)', exact: true }).last()
   await startInset.fill('10')

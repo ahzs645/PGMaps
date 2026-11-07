@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)
@@ -73,6 +74,7 @@ async function reviewRoad(page: Page, id: string) {
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
+  await openRoadPanel(page, 'Existing roads & reuse')
   const roads = page.getByTestId('road-existing-roads')
   await roads.getByRole('combobox', { name: 'Review existing road', exact: true }).selectOption(id)
   return roads

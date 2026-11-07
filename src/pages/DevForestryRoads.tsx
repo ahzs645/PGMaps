@@ -91,6 +91,8 @@ import {
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
+import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
+import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
 import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
@@ -312,6 +314,7 @@ export default function DevForestryRoads() {
       nearestFsrConnections(origin, project.context, 10).find((target) => target.featureId === fsrTarget.id) ?? null
     )
   }, [fsrTarget, alignment, source, project.context])
+  const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
     source: TerrainSource
@@ -341,14 +344,18 @@ export default function DevForestryRoads() {
           source,
           project.settings,
           project.context,
-          { ...options, alternatives: 1 },
+          {
+            ...options,
+            alternatives: 1,
+            groundWindowM: resolvedGroundWindow(options, project.terrain.resolutionM),
+          },
         )
         setRoutePreviewState({ ...inputs, route: result.routes[0] })
       } catch (cause) {
         setRoutePreviewState({ ...inputs, error: cause instanceof Error ? cause.message : 'No route preview found.' })
       }
     },
-    [alignment, source, project.settings, project.context, project.routeSearch],
+    [alignment, source, project.settings, project.context, project.routeSearch, project.terrain.resolutionM],
   )
   const routePreview =
     routePreviewState?.guide === alignment &&
@@ -399,6 +406,11 @@ export default function DevForestryRoads() {
               },
             ]
           : []),
+        ...(routeLines ?? []).map((line) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'LineString' as const, coordinates: line.coordinates },
+          properties: { kind: 'route-comparison', color: line.color, selected: line.selected, label: line.label },
+        })),
         ...(routePreview?.route
           ? [
               {
@@ -410,7 +422,17 @@ export default function DevForestryRoads() {
           : []),
       ],
     }),
-    [overlay, networkOverlay, costPreview, routePreview, project.context, mapFsrTarget, reviewedRoad, source],
+    [
+      overlay,
+      networkOverlay,
+      costPreview,
+      routePreview,
+      routeLines,
+      project.context,
+      mapFsrTarget,
+      reviewedRoad,
+      source,
+    ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
   const [templatePreview, setTemplatePreview] = useState<{ template: RoadTemplate; name: string } | null>(null)
@@ -1304,7 +1326,11 @@ export default function DevForestryRoads() {
         source,
         project.settings,
         project.context,
-        { ...options, alternatives: Math.min(options.alternatives, 20 - project.alignments.length) },
+        {
+          ...options,
+          alternatives: Math.min(options.alternatives, 20 - project.alignments.length),
+          groundWindowM: resolvedGroundWindow(options, project.terrain.resolutionM),
+        },
       )
       const created = result.routes.map((route, rank) =>
         newAlignment(
@@ -1429,7 +1455,7 @@ export default function DevForestryRoads() {
         connectionSource,
         project.settings,
         context,
-        options,
+        { ...options, groundWindowM: resolvedGroundWindow(options, connectionTerrain.resolutionM) },
         preference,
         targetFeatureId,
       )
@@ -2145,6 +2171,9 @@ export default function DevForestryRoads() {
                 onLocateRoad={locateRoad}
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
+                onPreviewRoutes={setRouteLines}
+                onShowCompare={() => setDetail('compare')}
+                onShowDrainage={() => setDetail('drainage')}
                 templatePreviewActive={!!templatePreview}
                 onPreviewTemplate={(template, name) => {
                   setPegPreview(null)

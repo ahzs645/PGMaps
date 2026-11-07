@@ -3,6 +3,7 @@ import { alignmentLength, offsetCoordinate } from '../../src/pages/dev-forestry-
 import { createDemoProject, DEMO_ORIGIN } from '../../src/pages/dev-forestry-roads/terrain'
 import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000 })
 test.setTimeout(120_000)
@@ -150,6 +151,7 @@ test('live PVI changes remain framed and increasing the reach resolves the marke
   const sidebar = page.getByRole('complementary', { name: 'Road design controls', exact: true })
   const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
   await workflow.getByRole('tab', { name: 'Design', exact: true }).click()
+  await openRoadPanel(page, 'Vertical alignment')
   for (const name of ['PVI 1 level', 'PVI 2 level']) {
     const input = sidebar.getByRole('spinbutton', { name, exact: true })
     await input.fill('740')
@@ -157,6 +159,7 @@ test('live PVI changes remain framed and increasing the reach resolves the marke
   }
   await expectFitted(preview)
   await expect(preview.locator('[data-unfinished-batter="reach"]')).not.toHaveCount(0)
+  await openRoadPanel(page, 'Vertical alignment')
   const first = sidebar.getByRole('spinbutton', { name: 'PVI 1 level', exact: true })
   await first.focus()
   await first.press('ArrowUp')
@@ -164,6 +167,7 @@ test('live PVI changes remain framed and increasing the reach resolves the marke
   await expect(first).toHaveValue('740.1')
   await expectFitted(preview)
   await workflow.getByRole('tab', { name: 'Review', exact: true }).click()
+  await openRoadPanel(page, 'Limits & sampling')
   const reach = sidebar.getByRole('spinbutton', { name: 'Section reach each side (m)', exact: true })
   await reach.fill('70')
   await reach.press('Tab')

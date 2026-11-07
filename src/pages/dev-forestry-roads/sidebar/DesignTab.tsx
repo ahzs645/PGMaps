@@ -1,10 +1,11 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { NativeSelect } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
-import { Copy, Plus, Trash2 } from 'lucide-react'
+import { Copy, Plus, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
@@ -12,11 +13,13 @@ import { SwitchbackTools } from '../SwitchbackTools'
 import { VerticalDesignControls } from '../VerticalDesignControls'
 import { distance } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
+import { MAX_GROUND_WINDOW_M, resolvedGroundWindow } from '../groundTrend'
 import type { RoadOptimizationObjective } from '../corridorOptimizer'
 import { FsrConnectionControls } from '../FsrConnectionControls'
 import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
+import { RouteFinder } from '../RouteFinder'
 import type { SidebarProps } from '../DesignSidebarBody'
 
 const id = () => crypto.randomUUID()
@@ -43,32 +46,34 @@ export function DesignTab(p: SidebarProps) {
         }
       >
         <div className="space-y-2">
-          <Field label="Active road">
-            <NativeSelect
-              aria-label="Active road"
-              className={roadFieldClass}
-              value={alignment.id}
-              onChange={(e) => {
-                p.workspace.update((x) => ({ ...x, activeAlignmentId: e.target.value }))
-                p.onProfile('')
-                p.onPoint(null)
-              }}
-            >
-              {project.alignments.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </Field>
-          <Field label="Road name">
-            <input
-              className={roadFieldClass}
-              maxLength={200}
-              value={alignment.name}
-              onChange={(e) => updateAlignment((a) => ({ ...a, name: e.target.value }))}
-            />
-          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Active road">
+              <NativeSelect
+                aria-label="Active road"
+                className={roadFieldClass}
+                value={alignment.id}
+                onChange={(e) => {
+                  p.workspace.update((x) => ({ ...x, activeAlignmentId: e.target.value }))
+                  p.onProfile('')
+                  p.onPoint(null)
+                }}
+              >
+                {project.alignments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field label="Road name">
+              <input
+                className={roadFieldClass}
+                maxLength={200}
+                value={alignment.name}
+                onChange={(e) => updateAlignment((a) => ({ ...a, name: e.target.value }))}
+              />
+            </Field>
+          </div>
           <div className="flex gap-1">
             <Button
               size="sm"
@@ -105,54 +110,17 @@ export function DesignTab(p: SidebarProps) {
           </div>
         </div>
       </RoadSection>
-      {p.onPlanNetwork && (
-        <div className="space-y-2 border-t p-3" data-testid="network-planning-controls">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={p.onPlanNetwork}
-            disabled={!!p.workspace.busy}
-          >
-            Plan road network
-          </Button>
-          <p className="text-2xs text-muted-foreground">
-            Connect multiple landings to selected roads, compare network methods and stage future access. Review a
-            projected branch here before designing its curves, profile and sections.
-          </p>
-        </div>
-      )}
-      <div className="space-y-2 border-y p-3" data-testid="full-cost-planning-controls">
-        <Button size="sm" className="w-full" onClick={p.onCompareCompleteCosts} disabled={!!p.workspace.busy}>
-          Compare complete route costs
-        </Button>
-        <p className="text-2xs text-muted-foreground">
-          Compare construction, connected road reuse, rehabilitation and delivered gravel costs. Each candidate must
-          pass final curve, loaded-grade and full road-footprint checks.
-        </p>
-        <FullCostRecordSummary alignment={alignment} project={project} onOpenComparison={p.onCompareCompleteCosts} />
-      </div>
-      <div className="grid grid-cols-2 gap-1 px-3 py-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto min-h-8 whitespace-normal text-xs"
-          onClick={p.onShowExistingRoads}
-        >
-          Review existing roads
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-auto min-h-8 whitespace-normal text-xs"
-          onClick={p.onShowEngineering}
-        >
-          Gravel &amp; aggregate costs
-        </Button>
-      </div>
+      <RouteFinder
+        workspace={p.workspace}
+        full={full}
+        onPegRoad={() => p.onMode('road')}
+        onPreview={p.onPreviewRoutes}
+        onShowCompare={p.onShowCompare}
+      />
       <RouteFinding {...p} full={full} />
-      <CrossingCostControls workspace={p.workspace} />
       <HorizontalPoints {...p} />
+      <VerticalAlignment {...p} />
+      <VerticalDesignControls workspace={p.workspace} />
       <SwitchbackTools
         key={alignment.id}
         workspace={p.workspace}
@@ -163,9 +131,70 @@ export function DesignTab(p: SidebarProps) {
           p.onMode('inspect')
         }}
       />
-      <VerticalAlignment {...p} />
-      <VerticalDesignControls workspace={p.workspace} />
+      <CrossingCostControls workspace={p.workspace} />
+      <div className="grid grid-cols-2 gap-1 p-3" data-testid="road-design-tools">
+        {p.onPlanNetwork && (
+          <div data-testid="network-planning-controls" className="contents">
+            <ToolButton
+              icon={FolderTree}
+              label="Plan road network"
+              onClick={p.onPlanNetwork}
+              disabled={!!p.workspace.busy}
+              help="Connect several landings to selected roads, compare network methods and stage future access."
+            />
+          </div>
+        )}
+        <div data-testid="full-cost-planning-controls" className="contents">
+          <ToolButton
+            icon={MapIcon}
+            label="Compare complete route costs"
+            onClick={p.onCompareCompleteCosts}
+            disabled={!!p.workspace.busy}
+            help="Construction, connected road reuse, rehabilitation and delivered gravel together. Each candidate must pass final curve, loaded-grade and road-footprint checks."
+          />
+        </div>
+        <ToolButton icon={Mountain} label="Review existing roads" onClick={p.onShowExistingRoads} />
+        <ToolButton icon={Truck} label="Gravel & aggregate costs" onClick={p.onShowEngineering} />
+        <div className="col-span-2">
+          <FullCostRecordSummary alignment={alignment} project={project} onOpenComparison={p.onCompareCompleteCosts} />
+        </div>
+      </div>
     </>
+  )
+}
+
+/** A tool that opens somewhere else: its name on a tile, and what it does behind an (i). */
+function ToolButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled,
+  help,
+}: {
+  icon: LucideIcon
+  label: string
+  onClick?: () => void
+  disabled?: boolean
+  help?: string
+}) {
+  return (
+    <div className="relative">
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-auto min-h-12 w-full flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs"
+        onClick={onClick}
+        disabled={disabled}
+      >
+        <Icon className="size-3.5" aria-hidden="true" />
+        {label}
+      </Button>
+      {help && (
+        <InfoTip label={`About ${label.toLowerCase()}`} className="absolute right-0.5 top-0.5">
+          {help}
+        </InfoTip>
+      )}
+    </div>
   )
 }
 
@@ -205,8 +234,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
   const validWidth = Number.isFinite(halfWidth) && halfWidth >= 25 && halfWidth <= 1000
   return (
     <CollapsibleSection
-      label="Find a route"
-      summary="Terrain-cost search · corridor optimizer"
+      label="Search tools"
+      summary="Grid, corridor, FSR"
       summaryWhenCollapsedOnly
       toggleProps={{ 'data-testid': 'road-route-tools' }}
       contentClassName="space-y-3 px-3 pb-3"
@@ -270,6 +299,15 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             hint="Centreline distance outside blocked exclusion polygons and lines. Set this to cover the expected road/clearing width and your project-specific setback. Cost zones stay passable."
             onChange={(exclusionBufferM) => setRoute((current) => ({ ...current, exclusionBufferM }))}
           />
+          <NumberField
+            label="Ground trend (m)"
+            ariaLabel="Route search ground trend metres"
+            value={resolvedGroundWindow(route, project.terrain.resolutionM)}
+            max={MAX_GROUND_WINDOW_M}
+            step={2}
+            hint="Grades are judged on ground averaged over this width, so micro-relief in a 1 m DTM does not block a route. Sections and quantities always use the source terrain."
+            onChange={(groundWindowM) => setRoute((current) => ({ ...current, groundWindowM }))}
+          />
           <OptionalNumberField
             label="Search margin (m)"
             value={route.searchMarginM}
@@ -315,7 +353,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
                 min={5}
                 max={100}
                 step={5}
-                hint="Portion of base road cost retained near eligible existing roads. Include rehabilitation in this assumption; the search does not estimate condition."
+                hint="Portion of base road cost retained near eligible existing roads. Include rehabilitation in this assumption. Mark roads eligible after reviewing access and condition; proximity does not verify a connection."
                 onChange={(percent) => setRoute((current) => ({ ...current, existingRoadCostFactor: percent / 100 }))}
               />
               <NumberField
@@ -327,10 +365,6 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
                 onChange={(roadSnapDistanceM) => setRoute((current) => ({ ...current, roadSnapDistanceM }))}
               />
             </div>
-            <p className="text-2xs text-muted-foreground">
-              Mark individual roads eligible after reviewing access and condition. Proximity is a cost preference; it
-              does not verify a connection.
-            </p>
           </>
         )}
         <div className="grid grid-cols-3 gap-1">
@@ -380,11 +414,6 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             Live route preview
           </label>
         )}
-        {livePreview && (
-          <p className="text-2xs text-muted-foreground">
-            Preview refreshes after a short pause while you type or use the arrow keys. Save an alternative to keep it.
-          </p>
-        )}
         <Button variant="outline" size="sm" className="w-full" disabled={p.full} onClick={() => p.onSuggest(route)}>
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
         </Button>
@@ -403,14 +432,10 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           <InfoTip label="About the corridor optimizer">
             Peg two endpoints and any guide points first; the sketched shape is the centre of the search corridor. It
             uses the current grade and minimum-radius settings as screening inputs, and every result is a new, editable
-            road alternative. Not a certified road design: inspect each candidate's profile, curves, crossings and
-            earthworks.
+            road alternative. It uses grade, radius and mapped exclusions only; the slope, stream and reuse settings
+            above apply to the terrain-cost and FSR searches. Not a certified road design.
           </InfoTip>
         </div>
-        <p className="text-2xs text-muted-foreground">
-          The corridor optimizer uses grade, radius and mapped exclusions. The terrain-slope, stream-crossing, setback
-          and reuse settings above apply to terrain-cost and FSR searches.
-        </p>
         {!validCorridorSettings && (
           <InlineAlert tone="warning">
             Corridor search requires grade 1–30% and radius 5–1,000 m. Adjust the shared fields above to enable it.
@@ -458,6 +483,13 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
 function HorizontalPoints(p: SidebarProps) {
   const { project, alignment, updateAlignment, source } = p.workspace
   const point = alignment.points.find((x) => x.id === p.selectedPoint)
+  // A point picked on the map shows its fields, wherever this section was left.
+  const [open, setOpen] = useState(false)
+  const [shownPoint, setShownPoint] = useState(point?.id)
+  if (point?.id !== shownPoint) {
+    setShownPoint(point?.id)
+    if (point) setOpen(true)
+  }
   const movePoint = (axis: 0 | 1, value: number) =>
     updateAlignment((a) => ({
       ...a,
@@ -468,6 +500,9 @@ function HorizontalPoints(p: SidebarProps) {
   return (
     <RoadSection
       title="Horizontal points"
+      summary={`${alignment.points.length} points · ${alignment.points.filter((x) => x.radiusM > 0).length} curves`}
+      open={open}
+      onOpenChange={setOpen}
       help="Select a control point to type its position, radius and spirals, or use the bulk tools to fit every corner at once. Sharp corners need a fitted radius before the road is a design."
     >
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-1">
@@ -641,6 +676,11 @@ function VerticalAlignment(p: SidebarProps) {
   return (
     <RoadSection
       title="Vertical alignment"
+      summary={
+        alignment.vertical.length
+          ? `${alignment.vertical.length} PVIs · ${analysis.maxGradePercent.toFixed(1)}%`
+          : 'Following the ground'
+      }
       help="Drag the diamonds in the profile, double-click the profile to add a PVI, or edit the points here. Levels are formation centre elevations; curve lengths are metres. Follow ground removes every PVI."
     >
       <div className="flex gap-1">
@@ -665,27 +705,29 @@ function VerticalAlignment(p: SidebarProps) {
       )}
       <SectionReachAlert workspace={p.workspace} />
       {alignment.vertical.length > 0 && (
-        <div className="mt-2 space-y-1.5">
-          {alignment.vertical.map((v, i) => (
-            <div key={v.id} className="rounded border px-2 pb-2 pt-1">
-              <div className="flex items-center justify-between">
-                <button className="text-xs font-medium" onClick={() => p.workspace.setStation(v.chainage)}>
-                  PVI {i + 1} · {formatRoadStation(v.chainage)}
-                </button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-5 touch:size-9"
-                  aria-label={`Remove PVI ${i + 1}`}
-                  onClick={() => updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))}
+        <div className="mt-2" data-testid="road-pvi-list">
+          <div className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_1.5rem] gap-1 px-0.5 pb-1 text-2xs text-muted-foreground">
+            <span />
+            <span>Station</span>
+            <span>Level</span>
+            <span>Curve m</span>
+            <span />
+          </div>
+          <div className="space-y-1">
+            {alignment.vertical.map((v, i) => (
+              <div key={v.id} className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_1.5rem] items-center gap-1">
+                <button
+                  className="text-left text-2xs font-medium tabular-nums text-muted-foreground hover:text-foreground"
+                  title={`Go to ${formatRoadStation(v.chainage)}`}
+                  aria-label={`PVI ${i + 1} · ${formatRoadStation(v.chainage)}`}
+                  onClick={() => p.workspace.setStation(v.chainage)}
                 >
-                  <Trash2 className="size-3" />
-                </Button>
-              </div>
-              <div className="grid grid-cols-3 items-end gap-1">
+                  {i + 1}
+                </button>
                 {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
                   <NumberField
                     key={key}
+                    hideLabel
                     label={key === 'chainage' ? 'Station' : key === 'elevation' ? 'Level' : 'Curve length (m)'}
                     ariaLabel={
                       key === 'chainage'
@@ -708,9 +750,18 @@ function VerticalAlignment(p: SidebarProps) {
                     }
                   />
                 ))}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6 touch:size-9"
+                  aria-label={`Remove PVI ${i + 1}`}
+                  onClick={() => updateAlignment((a) => ({ ...a, vertical: a.vertical.filter((x) => x.id !== v.id) }))}
+                >
+                  <Trash2 className="size-3" />
+                </Button>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </RoadSection>

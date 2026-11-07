@@ -58,7 +58,7 @@ never used as proof of FSR identity. The official [Forest Tenure service](https:
 publishes the file-type fields, while the [FTA map's road legend](https://delivery.maps.gov.bc.ca/arcgis/rest/services/fta/15000/MapServer/2)
 also distinguishes Forest Service Road from Road Permit and SUP Road categories.
 
-**Find a route** can load nearby FSRs automatically and compare connections from
+**Search tools** can load nearby FSRs automatically and compare connections from
 the active road's start or end point. `loadNearestBcFsrs` queries active FSR sections
 within 2 km, then 5 km, then 10 km. Automatic connection stops at the first radius
 with a mapped candidate; **Find nearby FSRs** expands until at least three choices

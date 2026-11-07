@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15000 })
 test.setTimeout(240000)
@@ -99,6 +100,7 @@ for (const viewport of [
     await fits(page, '[data-testid="road-vertical-alternatives"]')
 
     await showSidebar(page, 'Design')
+    await openRoadPanel(page, 'Vertical alignment')
     const level = page.getByRole('spinbutton', { name: 'PVI 1 level', exact: true })
     await level.fill(String(original.vertical[0].elevation + 1))
     await level.press('Tab')

@@ -4,6 +4,7 @@
  * straight chords. Ground grades are a reconnaissance screen, NOT designed
  * formation grades. No geology, hydraulic adequacy or road approval is inferred.
  */
+import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 export type RoadOptimizationObjective = 'shortest' | 'balanced' | 'contour'
@@ -15,6 +16,12 @@ export interface RoadOptimizationOptions {
   /** Optional directional ground limits in the start -> end direction. */
   maxUphillGradePercent?: number
   maxDownhillGradePercent?: number
+  /** Read ground grades over this moving window instead of 1 m samples. See `groundTrend.ts`. */
+  groundWindowM?: number
+  /** Metres of road a stream contact is worth to the search. Default 150. */
+  streamContactCostM?: number
+  /** Extra metres of road per metre travelled here, such as over modelled flow lines. Never negative. */
+  groundPenalty?: (coordinate: Coordinate) => number
   /** Smaller budgets can be used in tests or on constrained devices. */
   maxStates?: number
   maxTerrainSamples?: number
@@ -75,6 +82,11 @@ const BINS = 32,
   STEP = 1,
   LEAD = 2
 const EPS = 1e-7
+/**
+ * Every guide distance counts one operation per guide point, at each metre of each trial, so this
+ * has to outlast `maxStates`: at 15 million a default corridor on a five-point draft stopped first.
+ */
+const MAX_GEOMETRY_OPERATIONS = 200_000_000
 const profiles = {
   shortest: { grade: 0.05, vertical: 0.5, turn: 0.1, guide: 0.1 },
   balanced: { grade: 1.5, vertical: 12, turn: 0.4, guide: 0.15 },
@@ -238,12 +250,19 @@ function goalConnections(at: XY, heading: number, end: XY, minRadius: number): P
 
 function* search(
   guide: Coordinate[],
-  terrain: TerrainSource,
+  sourceTerrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[],
   options: RoadOptimizationOptions,
   control: CorridorRunControl = {},
 ): Generator<CorridorProgress, RoadOptimizationResult> {
+  const groundWindowM = options.groundWindowM ?? 0,
+    streamContactCostM = options.streamContactCostM ?? 150
+  if (!Number.isFinite(groundWindowM) || groundWindowM < 0 || groundWindowM > MAX_GROUND_WINDOW_M)
+    throw Error(`Ground window must be 0–${MAX_GROUND_WINDOW_M} m.`)
+  if (!Number.isFinite(streamContactCostM) || streamContactCostM < 0)
+    throw Error('Stream contact cost must not be negative.')
+  const terrain = groundTrendTerrain(sourceTerrain, groundWindowM)
   if (!Array.isArray(guide) || guide.length < 2 || guide.length > 100 || !guide.every(validCoordinate))
     throw Error('Sketch between 2 and 100 valid road points.')
   if (!Object.prototype.hasOwnProperty.call(profiles, options.objective))
@@ -270,8 +289,8 @@ function* search(
     maxSamples > 5000000
   )
     throw Error('Invalid search budget.')
-  const maxGeometry = options.maxGeometryOperations ?? 15000000
-  if (!Number.isInteger(maxGeometry) || maxGeometry < 1 || maxGeometry > 15000000)
+  const maxGeometry = options.maxGeometryOperations ?? MAX_GEOMETRY_OPERATIONS
+  if (!Number.isInteger(maxGeometry) || maxGeometry < 1 || maxGeometry > MAX_GEOMETRY_OPERATIONS)
     throw Error('Invalid geometry search budget.')
   const frame = corridorFrame(guide[0]),
     sketch = guide.map(frame.toXY),
@@ -487,6 +506,7 @@ function* search(
           cost += ds * (1 + weights.grade * (grade / limit) ** 2) + weights.vertical * Math.abs(dz)
         }
         cost += ds * weights.guide * (guideOffset(at) / width) ** 2
+        if (options.groundPenalty) cost += ds * options.groundPenalty(frame.fromXY(at))
         length += ds
         if (collect) {
           points.push(at)
@@ -498,7 +518,7 @@ function* search(
       }
       cost += piece.length * weights.turn * Math.abs(piece.curvature) * settings.minRadius
     }
-    cost += contacts.size * 150
+    cost += contacts.size * streamContactCostM
     return {
       cost,
       points,
@@ -542,6 +562,9 @@ function* search(
     const length = Math.max(minimum, Math.sqrt(c))
     return length + (length > EPS ? c / length : 0) + weights.vertical * Math.abs(dz)
   }
+  // A ground penalty the bound cannot see leaves the plain search circling the start; lean on the
+  // bound instead. The result stays verified, and this search never claimed a global optimum.
+  const headingWeight = options.groundPenalty ? 2 : 1
   const records: RecordNode[] = [],
     best = new Map<number, number>(),
     heap = new Queue()
@@ -551,7 +574,7 @@ function* search(
     const id = records.length
     records.push(record)
     best.set(record.key, id)
-    heap.push({ id, f: record.cost + lowerBound(record.at) })
+    heap.push({ id, f: record.cost + lowerBound(record.at) * headingWeight })
   }
   const headings = [
     Math.atan2(end[1], end[0]),
@@ -654,7 +677,9 @@ function* search(
   const radii = controls.filter((p) => p.radiusM > 0).map((p) => p.radiusM)
   const warnings = [
     'Horizontal reconnaissance candidate only. Design PIs/vertical curves, full cut/fill footprint, drainage, sight distance, stability and field verification still require review.',
-    'Ground-grade limits are applied at ≤1 m sampling; this is not a continuous-surface or survey-accuracy guarantee.',
+    groundWindowM
+      ? `Ground-grade limits are applied to a ${groundWindowM} m ground trend sampled at ≤1 m, not to the source cells; this is not a survey-accuracy guarantee.`
+      : 'Ground-grade limits are applied at ≤1 m sampling; this is not a continuous-surface or survey-accuracy guarantee.',
     'Interior sketch points guide the corridor; they are not compulsory waypoints.',
   ]
   if (status === 'budget-limited')

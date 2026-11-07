@@ -98,16 +98,16 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 
 ### Sketched corridor optimizer
 
-| Limit                                   | Value                                                                 | Enforced in                                     | When exceeded                                 |
-| --------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
-| Guide points                            | 2–100                                                                 | `corridorOptimizer.ts` `search`                 | Error                                         |
-| Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                      | `corridorOptimizer.ts`                          | Error                                         |
-| Corridor half-width                     | 25–1,000 m (default 180 m)                                            | `corridorOptimizer.ts`, `sidebar/DesignTab.tsx` | Error or button disabled                      |
-| Ground-grade limit                      | 1–30 %, taken from the road's grade limit                             | `corridorOptimizer.ts`                          | Error                                         |
-| Minimum radius                          | 5–1,000 m, taken from the road settings                               | `corridorOptimizer.ts`                          | Error                                         |
-| Search states                           | 50,000 (`maxStates`)                                                  | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
-| Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 15,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
-| Candidate length                        | the lesser of 15 km and 3 × sketch length + 4 × half-width            | `corridorOptimizer.ts`                          | Branch not searched                           |
+| Limit                                   | Value                                                                  | Enforced in                                     | When exceeded                                 |
+| --------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------- | --------------------------------------------- |
+| Guide points                            | 2–100                                                                  | `corridorOptimizer.ts` `search`                 | Error                                         |
+| Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                       | `corridorOptimizer.ts`                          | Error                                         |
+| Corridor half-width                     | 25–1,000 m (default 180 m)                                             | `corridorOptimizer.ts`, `sidebar/DesignTab.tsx` | Error or button disabled                      |
+| Ground-grade limit                      | 1–30 %, taken from the road's grade limit                              | `corridorOptimizer.ts`                          | Error                                         |
+| Minimum radius                          | 5–1,000 m, taken from the road settings                                | `corridorOptimizer.ts`                          | Error                                         |
+| Search states                           | 50,000 (`maxStates`)                                                   | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
+| Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 200,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
+| Candidate length                        | the lesser of 15 km and 3 × sketch length + 4 × half-width             | `corridorOptimizer.ts`                          | Branch not searched                           |
 
 Geometry operations include guide-distance and corridor checks even with no supplied constraints.
 If that budget is reached, narrow the corridor, shorten/simplify the guide or crop constraints.
@@ -252,6 +252,70 @@ against the road grade limit, uphill and downhill alike in the UI. Its turns are
 at or above the minimum radius (`nominalTurnRadiusM` in the report). Exclusions apply to the
 centreline only, with no clearance in the UI. There are no spirals and no vertical design.
 
+## Ground trend
+
+`groundTrend.ts`. A 1 m DTM carries relief no road follows: stump holes, skid ruts and windthrow
+mounds. Compared between neighbouring 1 m samples, that reads as 30 % or more on a hillside a road
+crosses at 6 %. On the published LiDAR tile, the route and corridor searches found nothing at
+limits from 10 % to 15 % between the ends of the default 5.7 % road, even though it exists.
+
+So a search reads grades from a moving mean: **Ground trend**, 12 m by default on cells of 3 m or
+finer and off on coarser terrain, which has already averaged the relief away. It is saved as
+`routeSearch.groundWindowM`; null picks the default for the terrain (`resolvedGroundWindow`). Each
+mean is 25 samples over the window at nodes half a window apart, interpolated bilinearly.
+
+- Missing ground still comes from the source, sample by sample. The trend cannot average away a gap.
+- A window that partly leaves the data uses the samples it has, so an end near a tile edge still works.
+- Only searches read it. Designed profiles, sections and quantities use the source terrain.
+- It is a screen: a sharp real bench narrower than the window is also smoothed, and shows up later
+  in the profile and sections.
+
+## Find the best route
+
+**Design → Find the best route** (`RouteFinder.tsx`, `routeComparison.ts`) takes the ends of the
+active road, plus its interior points simplified to at most 8 as a guide, and designs one road per
+goal. Nothing changes until **Use** or **Keep all**, which add roads; the active road is never edited.
+
+| Goal                   | Horizontal line                                                                                                    | Profile                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Lowest cost            | Prices the shortest, balanced and contour lines, drainage allowance included; keeps the cheapest within the limits | Cheaper of cut/fill and total |
+| Shortest               | Corridor search, `shortest`                                                                                        | Total cost                    |
+| Gentlest               | Corridor search, `contour`                                                                                         | Total cost                    |
+| Fewest drainage issues | Corridor search, `balanced`, charged for ground that carries flow                                                  | Total cost                    |
+
+Lowest cost then refines the plan and profile for up to 10 trials when the line has at most 12
+interior controls. Two goals that land on the same line share one row.
+
+**A goal that finds no corridor** retries at twice the half-width, up to ±600 m, when no line
+fitted, then follows a simplified terrain-cost grid route as a new guide. If the corridor still
+finds nothing it keeps that grid route with curves fitted to its corners, and the row says so. A
+goal with no route at all shows its own row; the others carry on.
+
+**Drainage has two parts.** The drainage goal steers: flow is modelled on 4 m cells over the corridor
+plus 150 m, and ground carrying five times the stream threshold costs about 20 m of road per metre,
+more for larger catchments, so a crossing is worth about 240 m. Smaller gullies are left to culverts:
+pricing every 1 ha flow line on a LiDAR hillside exhausted the search. A goal that cannot steer
+reports it and uses the balanced line.
+
+Every row, the current road included, is then screened with `runDrainage` on cells of at least 2 m
+and a buffer of at most 150 m. That is coarser than the Drainage view, and the counts can differ:
+run the view on the road you pick. Low points within 40 m of each other are one cross-drain site.
+
+**Total** is the base engineering estimate plus a drainage allowance: stream crossings without a
+culvert at **Stream crossing ($)**, default $8,000, and cross-drain sites at **Cross-drain ($)\*\*,
+default $1,500. Both are placeholders. The allowance is a planning figure in the comparison only; it
+does not enter the road's estimate, because no culvert has been sized or placed.
+
+**A row with a blocker cannot lead.** Grades over the limit, incomplete sections and sharp corners
+keep a road out of the Cheapest, Shortest, Gentlest and Best drainage tags, however low its price. A
+road with no designed profile follows the ground, so it can look cheap while breaking the limit.
+
+**Comparing like with like.** New roads carry the active road's template only. If the current road
+has culverts, materials or haul inputs, its estimate includes them and theirs does not.
+
+Time on the published LiDAR road: about 25 s with all four goals, about half of it the Lowest cost
+refinement. A hard pair of ends can take over a minute before reporting no route; Cancel stops it.
+
 ## Reading optimizer and route results
 
 **"Optimized" means lowest under one objective, inside the search you set.** The profile
@@ -314,9 +378,9 @@ engineering assumptions and sampling, and review the geometric and material flag
 | "Curve at point _n_ overlaps an adjacent curve"                           | Two trims share a short leg                                                                                  | Reduce one radius or lengthen the leg                                  |
 | "Spirals at point _n_ are longer than its deflection allows"              | Ls / R at least Δ                                                                                            | Shorten the spirals or raise the radius                                |
 | Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent                                                     | Inspect the crossfall rotation rate and lengthen the tangent if needed |
-| Design speed requires more e than the maximum                           | Radius below V²/(127(e + f)); geometry is capped and flagged                                                  | Increase radius, reduce speed or review the sourced criteria          |
+| Design speed requires more e than the maximum                             | Radius below V²/(127(e + f)); geometry is capped and flagged                                                 | Increase radius, reduce speed or review the sourced criteria           |
 | "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Shorten the curve or use **Set every curve from K**                    |
-| Optimized profile fails a standard                                      | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints |
+| Optimized profile fails a standard                                        | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints   |
 | Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
@@ -363,12 +427,12 @@ generation disabled. Missing prices, permissions, capacity or connectivity remai
 base estimate replaces an unpriced network ledger. Adoption recomputes the final trial and saves
 the normal `FullCostReviewRecord`.
 
-| Limit | Enforcing constant or validation | Behavior |
-| --- | --- | --- |
-| 12 interior horizontal controls | `jointOptimizer.ts`, `MAX_JOINT_MOVABLE_POINTS` | Reject; simplify/split first |
-| 32 evaluations, UI 20 | `MAX_JOINT_EVALUATIONS`, `JointOptimizationControls.tsx` | Return best checked trial with budget-limited notice |
-| Plan step 0.1–100 m; 1–5 rounds | `refinePlanAndProfile` | Reject invalid input |
-| 100 curvature ranges; 500 combined PVI/control/range events | `project.ts` parser; `verticalOptimizer.ts` marks | Reject rather than discard constraints |
+| Limit                                                       | Enforcing constant or validation                         | Behavior                                             |
+| ----------------------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------- |
+| 12 interior horizontal controls                             | `jointOptimizer.ts`, `MAX_JOINT_MOVABLE_POINTS`          | Reject; simplify/split first                         |
+| 32 evaluations, UI 20                                       | `MAX_JOINT_EVALUATIONS`, `JointOptimizationControls.tsx` | Return best checked trial with budget-limited notice |
+| Plan step 0.1–100 m; 1–5 rounds                             | `refinePlanAndProfile`                                   | Reject invalid input                                 |
+| 100 curvature ranges; 500 combined PVI/control/range events | `project.ts` parser; `verticalOptimizer.ts` marks        | Reject rather than discard constraints               |
 
 The coordinate-descent search halves its plan step each round and never claims a global optimum.
 Profile section/transition budgets still apply to each trial. Cancellation abandons the run without

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -98,6 +99,7 @@ test('formation-level keyboard changes redraw the profile before blur', async ({
   await openTraining(page)
   const profile = page.getByTestId('road-profile-chart').locator('path[stroke="#0d9488"]')
   const before = await profile.getAttribute('d')
+  await openRoadPanel(page, 'Vertical alignment')
   const level = page.getByRole('spinbutton', { name: 'PVI 1 level', exact: true })
   const initial = Number(await level.inputValue())
   await level.focus()
@@ -158,6 +160,7 @@ test('live route costs refresh before blur and an impossible constraint clears t
 
 test('the library loads a complete offline scenario with its matching terrain and context', async ({ page }) => {
   await openTraining(page)
+  await openRoadPanel(page, 'Vertical alignment')
   const level = page.getByRole('spinbutton', { name: 'PVI 1 level', exact: true })
   const original = await level.inputValue()
   await level.fill('900')
@@ -222,6 +225,7 @@ test('uploaded roads retain explicit condition evidence in a portable project an
       }),
     ),
   })
+  await openRoadPanel(page, 'Existing roads & reuse')
   const panel = page.getByTestId('road-existing-roads')
   await expect(panel.getByTestId('road-existing-road-evidence')).toContainText('Construction year: unknown')
   const reuse = panel.getByRole('checkbox', { name: 'Allow this road in the reuse cost scenario', exact: true })
@@ -444,6 +448,7 @@ test('an explicitly selected farther FSR is highlighted and connected without fa
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
+  await openRoadPanel(page, 'Existing roads & reuse')
   const existing = page.getByTestId('road-existing-roads')
   await existing.getByRole('combobox', { name: 'Review existing road', exact: true }).selectOption(fartherId!)
   await existing.getByRole('combobox', { name: 'Planning condition', exact: true }).selectOption('closed')

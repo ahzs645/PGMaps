@@ -4,6 +4,7 @@
  * edge, and never uses missing elevations as zero. This is neither an equipment
  * feasibility model nor a continuous/global road-optimization algorithm.
  */
+import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 type XY = [number, number]
@@ -45,6 +46,8 @@ export interface RouteSearchOptions {
   reuseExistingRoads: boolean
   existingRoadCostFactor: number
   roadSnapDistanceM: number
+  /** Ground grades are read over this moving window. 0 uses source samples; null lets the host pick. See `groundTrend.ts`. */
+  groundWindowM: number | null
 }
 /**
  * The defaults keep the original relative weighting (a crossing worth 80 m of level road). They are
@@ -66,6 +69,7 @@ export const DEFAULT_ROUTE_OPTIONS: RouteSearchOptions = {
   reuseExistingRoads: false,
   existingRoadCostFactor: 0.4,
   roadSnapDistanceM: 8,
+  groundWindowM: null,
 }
 export interface RouteCandidate {
   coordinates: Coordinate[]
@@ -225,6 +229,8 @@ export function parseRouteSearchOptions(input?: unknown): RouteSearchOptions {
     throw Error('Use a search margin between 20 and 1,000 m, or leave it automatic.')
   if (!finiteRange(options.existingRoadCostFactor, 0.05, 1) || !finiteRange(options.roadSnapDistanceM, 1, 50))
     throw Error('Use an existing-road cost factor of 0.05–1 and a proximity distance of 1–50 m.')
+  if (options.groundWindowM !== null && !finiteRange(options.groundWindowM, 0, MAX_GROUND_WINDOW_M))
+    throw Error(`Use a ground window from 0 to ${MAX_GROUND_WINDOW_M} m.`)
   if (!finiteRange(options.alternatives, 1, 5) || !Number.isInteger(options.alternatives))
     throw Error('Use 1–5 whole route alternatives.')
   if (typeof options.allowStreamCrossings !== 'boolean' || typeof options.reuseExistingRoads !== 'boolean')
@@ -255,12 +261,13 @@ export function suggestRoute(
 export function suggestRoutes(
   start: Coordinate,
   end: Coordinate,
-  terrain: TerrainSource,
+  sourceTerrain: TerrainSource,
   settings: RoadSettings,
   context: ContextFeature[] = [],
   input: Partial<RouteSearchOptions> = {},
 ): { routes: RouteCandidate[]; message: string; visited: number } {
   const options = parseRouteSearchOptions(input)
+  const terrain = groundTrendTerrain(sourceTerrain, options.groundWindowM ?? 0)
   const wanted = Math.max(1, Math.min(5, Math.round(options.alternatives)))
   if (
     ![start, end].every(
@@ -664,7 +671,7 @@ export function suggestRoutes(
   const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
   return {
     routes,
-    message: `Terrain-cost route suggestion${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Exclusions use ${options.exclusionBufferM} m centreline clearance; stream crossings are ${options.allowStreamCrossings ? 'priced' : `blocked with ${options.streamBufferM} m clearance`}.${options.maxTerrainSlopePercent === null ? '' : ` Sampled terrain gradient ≤${options.maxTerrainSlopePercent}% over ±${options.terrainSlopeSampleM} m.`}${reusableRoads.length ? ` Reviewed road corridors within ${options.roadSnapDistanceM} m use ${options.existingRoadCostFactor}× road cost; proximity does not establish connection or usability.` : ''} Cost zones add their entered costs. Curves, earthworks and engineering feasibility require review.`,
+    message: `Terrain-cost route suggestion${options.groundWindowM ? ` over a ${options.groundWindowM} m ground trend` : ''}${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Exclusions use ${options.exclusionBufferM} m centreline clearance; stream crossings are ${options.allowStreamCrossings ? 'priced' : `blocked with ${options.streamBufferM} m clearance`}.${options.maxTerrainSlopePercent === null ? '' : ` Sampled terrain gradient ≤${options.maxTerrainSlopePercent}% over ±${options.terrainSlopeSampleM} m.`}${reusableRoads.length ? ` Reviewed road corridors within ${options.roadSnapDistanceM} m use ${options.existingRoadCostFactor}× road cost; proximity does not establish connection or usability.` : ''} Cost zones add their entered costs. Curves, earthworks and engineering feasibility require review.`,
     visited: totalVisited,
   }
 }

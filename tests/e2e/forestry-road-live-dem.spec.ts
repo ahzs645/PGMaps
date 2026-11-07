@@ -4,7 +4,7 @@ import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 
 // Opt-in real-data workflow. See docs/forestry-road-workflow-check.md for the download command.
 const demPath = process.env.PGMAPS_ROAD_DEM_PATH
@@ -148,6 +148,7 @@ for (const [site, u, v] of [
     expect(horizontal.alignments.find((a) => a.id === original.id)).toEqual(original)
     expect(horizontal.alignments).toHaveLength(before.alignments.length + 1)
 
+    await openRoadPanel(page, 'Optimize vertical profile')
     await page.getByRole('button', { name: 'Optimize profile (K 4)', exact: true }).click()
     await expect(page.getByLabel('Road name', { exact: true })).toHaveValue(/optimized profile$/, { timeout: 60000 })
     const optimized = await save(page, info.outputPath('optimized.road.json'))

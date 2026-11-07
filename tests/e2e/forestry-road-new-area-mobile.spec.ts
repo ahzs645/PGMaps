@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 
 const demPath = process.env.PGMAPS_ROAD_NEW_AREA_DEM
 test.skip(!demPath, 'Supply a real GeoTIFF for the opt-in new-area mobile journey.')
@@ -297,6 +297,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
 
     await page.getByRole('button', { name: 'Duplicate active alignment', exact: true }).tap()
     const duplicate = await save(page)
+    await openRoadPanel(page, 'Horizontal points')
     await page.getByRole('button', { name: 'Select start', exact: true }).tap()
     await dragControl(page, 1, 20, 20)
     const movedStart = await save(page)
@@ -354,6 +355,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     await review.getByRole('button', { name: 'Use candidate as new road', exact: true }).tap()
     const horizontal = await save(page, info.outputPath('04-horizontal.road.json'))
     expect(horizontal.alignments.find((a) => a.id === originalRoad.id)).toEqual(originalRoad)
+    await openRoadPanel(page, 'Optimize vertical profile')
     await page.getByRole('button', { name: 'Optimize profile (K 4)', exact: true }).tap()
     await expect(page.getByLabel('Road name', { exact: true })).toHaveValue(/optimized profile$/, { timeout: 60000 })
     const optimized = await save(page, info.outputPath('05-optimized.road.json'))

@@ -42,6 +42,10 @@ trusted and what the check assumes. The method is specified in the
 - **Compare with mapped streams and the field.** The check does not read the project's context
   streams or any provincial stream layer. A stream the DEM does not resolve is not reported.
 
+The route finder's drainage counts are a coarser screen of the same check, for ranking roads; see
+[Find the best route](alignment-and-optimization.md#find-the-best-route). Run this view on the road
+you choose.
+
 ## Limits and budgets
 
 | Limit                        | Value                                                                  | Enforced in                                                       | What happens when exceeded                                              |

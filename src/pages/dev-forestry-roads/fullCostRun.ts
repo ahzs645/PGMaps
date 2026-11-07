@@ -2,6 +2,7 @@
 import { alignmentLength, distance, horizontalGeometry, positionAt } from './engine'
 import { fitHorizontalRadii } from './horizontalTools'
 import { nearestExistingRoadPoint } from './fsrNetwork'
+import { resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS, suggestRoutes } from './routing'
 import { createEngineeringDesign } from './engineeringTypes'
 import { checkConnector, CONNECTOR_ENDPOINT_TOLERANCE_M, type ConnectorCheckResult } from './connectorChecks'
@@ -361,6 +362,7 @@ export async function runFullCostComparison(
         ...project.routeSearch,
         alternatives: 2,
         reuseExistingRoads: false,
+        groundWindowM: resolvedGroundWindow(project.routeSearch, project.terrain.resolutionM),
       })
       for (const route of routes.routes) {
         if (candidates.length >= MAX_FULL_COST_CANDIDATES) break

@@ -9,6 +9,7 @@ import { TerrainTab } from './sidebar/TerrainTab'
 import { ExistingRoadsPanel } from './ExistingRoadsPanel'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { RouteSearchOptions } from './routing'
+import type { RoutePreviewLine } from './RouteFinder'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource } from './types'
@@ -45,6 +46,9 @@ export interface SidebarProps {
   onRemoveAlignment: () => void
   onSuggest: (options: RouteSearchOptions) => void
   onPreviewRoute?: (options: RouteSearchOptions | null) => void
+  onPreviewRoutes?: (lines: RoutePreviewLine[] | null) => void
+  onShowCompare?: () => void
+  onShowDrainage?: () => void
   onConnectFsr?: (
     options: RouteSearchOptions,
     preference: 'nearest' | 'lowest-cost',
@@ -78,12 +82,19 @@ export function DesignSidebar(p: SidebarProps) {
     p.onWorkflowTabChange?.(next)
   }
   const [aggregateOpen, setAggregateOpen] = useState(false)
+  const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
+  const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)
+  if (p.roadReviewRequest !== reviewRequest) {
+    setReviewRequest(p.roadReviewRequest)
+    if (p.roadReviewRequest) setExistingRoadsOpen(true)
+  }
   useEffect(() => {
     if (p.roadReviewRequest) requestAnimationFrame(() => existingRoads.current?.scrollIntoView({ block: 'start' }))
   }, [p.roadReviewRequest])
   const showExistingRoads = () => {
     setTab('terrain')
+    setExistingRoadsOpen(true)
     requestAnimationFrame(() => existingRoads.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
   return (
@@ -111,16 +122,22 @@ export function DesignSidebar(p: SidebarProps) {
         </div>
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain" data-testid="road-sidebar-content">
           <div hidden={tab !== 'terrain'}>
-            <TerrainTab {...p} />
-            <div ref={existingRoads}>
-              <ExistingRoadsPanel
-                key={p.roadReviewRequest?.sequence ?? 0}
-                initialSelectedRoadId={p.roadReviewRequest?.id}
-                workspace={p.workspace}
-                onLocateRoad={p.onLocateRoad}
-                onReviewRoad={tab === 'terrain' ? p.onReviewRoad : undefined}
-              />
-            </div>
+            <TerrainTab
+              {...p}
+              existingRoads={
+                <div ref={existingRoads}>
+                  <ExistingRoadsPanel
+                    key={p.roadReviewRequest?.sequence ?? 0}
+                    initialSelectedRoadId={p.roadReviewRequest?.id}
+                    workspace={p.workspace}
+                    onLocateRoad={p.onLocateRoad}
+                    onReviewRoad={tab === 'terrain' ? p.onReviewRoad : undefined}
+                    open={existingRoadsOpen}
+                    onOpenChange={setExistingRoadsOpen}
+                  />
+                </div>
+              }
+            />
           </div>
           <div hidden={tab !== 'design'}>
             <DesignTab

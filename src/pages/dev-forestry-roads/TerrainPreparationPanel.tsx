@@ -163,7 +163,8 @@ export function TerrainPreparationPanel({
     <>
       <RoadSection
         title="Prepare and combine terrain"
-        help="Combine checked grids in the same CRS/datum; preserve source spacing and no-data. Derived terrain becomes the original ground for subsequent designs. Download the project to retain the source evidence."
+        summary={metadata.preparation ? `${metadata.preparation.sources.length} sources` : ''}
+        help="Combine checked grids in the same CRS/datum; preserve source spacing and no-data. Derived terrain becomes the original ground for subsequent designs. Pad and road-surface actions change analytical ground; Undo restores it. Download the project to retain the source evidence."
       >
         <fieldset disabled={working || !!w.busy} className="min-w-0 space-y-2" data-testid="road-terrain-preparation">
           <Field label="Overlapping ground grids">
@@ -461,14 +462,11 @@ export function TerrainPreparationPanel({
           >
             Merge this road into ground for a junction
           </Button>
-          <p className="text-2xs text-muted-foreground">
-            Pad and road-surface actions change analytical ground. Undo restores the previous terrain; use a separate
-            road for the connecting design.
-          </p>
         </fieldset>
       </RoadSection>
       <RoadSection
         title="Canopy and image backgrounds"
+        summary={metadata.backgrounds?.length ? `${metadata.backgrounds.length}` : ''}
         help="Independent display layers with their own CRS, opacity and visibility. A canopy height image or orthophoto never replaces bare-earth analytical ground."
       >
         <fieldset disabled={working || !!w.busy} className="space-y-2" data-testid="road-terrain-backgrounds">
@@ -570,6 +568,7 @@ export function TerrainPreparationPanel({
       </RoadSection>
       <RoadSection
         title="Survey field book"
+        summary=""
         help="Projected grid metres and grid bearings. A closed traverse can use Bowditch corrections proportional to horizontal leg length, including vertical closure. Signed side-shot offsets are negative left. This reduces entered observations; it does not establish survey accuracy."
       >
         <fieldset disabled={working || !!w.busy} className="min-w-0 space-y-2" data-testid="road-survey-field-book">

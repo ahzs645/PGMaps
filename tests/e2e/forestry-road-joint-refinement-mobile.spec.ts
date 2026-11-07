@@ -4,6 +4,7 @@ import { parseProject } from '../../src/pages/dev-forestry-roads/project'
 import { createDemoProject, demoTerrain, DEMO_ORIGIN } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -124,11 +125,13 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
   const originalAnalysis = analyzeRoad(original, demoTerrain, before.settings)
   expect(originalAnalysis.coveragePercent).toBeGreaterThan(99.99999)
   await designControls(page)
+  await openRoadPanel(page, 'Optimize vertical profile')
   await numberField(page, 'Curve K', '1')
   await numberField(page, 'PVI spacing (m)', '50')
   await numberField(page, 'Search ± (m)', '1')
   await numberField(page, 'Level step (m)', '0.5')
   await page.getByLabel('Profile search band centre', { exact: true }).selectOption('ground')
+  await openRoadPanel(page, 'Joint refinement')
   await numberField(page, 'Plan step (m)', '5')
   await numberField(page, 'Refinement rounds', '1')
   await page.getByLabel('Joint refinement objective', { exact: true }).selectOption('engineering')

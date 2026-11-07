@@ -14,7 +14,8 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
     workspace.update((p) => ({ ...p, context: p.context.map((f) => (f.id === id ? { ...f, ...patch } : f)) }))
   return (
     <RoadSection
-      title="Crossing cost classes"
+      title="Crossing prices"
+      summary={streams.length ? `${streams.length} streams` : 'No streams loaded'}
       help="The stream's own price overrides its named class, then the route search's default. These are route-search costs; installed structure quantities are priced separately."
     >
       <div className="space-y-2">

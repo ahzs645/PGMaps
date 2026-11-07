@@ -1,3 +1,4 @@
+import { InfoTip } from '@/components/ui/info-tip'
 import { NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from './Controls'
@@ -46,11 +47,13 @@ export function SectionAssemblyEditor({
   )
   return (
     <div className="space-y-3 border-t pt-3" data-testid="road-section-assembly">
-      <p className="text-xs font-semibold">Section assembly</p>
-      <p className="text-2xs text-muted-foreground">
-        Components follow the formation/ditch in list order. Keys excavate below ground and replace it with fill. Wall
-        geometry does not assess structural capacity.
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold">Section assembly</p>
+        <InfoTip label="About section assembly">
+          Components follow the formation/ditch in list order. Keys excavate below ground and replace it with fill. Wall
+          geometry does not assess structural capacity.
+        </InfoTip>
+      </div>
       <div className="flex flex-wrap gap-1">
         <Button
           size="sm"
@@ -297,11 +300,13 @@ export function SectionAssemblyEditor({
           onChange({ ...template, components: [...components, { ...component, id: crypto.randomUUID() }] })
         }
       />
-      <p className="text-xs font-semibold">Surface course stack</p>
-      <p className="text-2xs text-muted-foreground">
-        An explicit stack replaces the legacy surface-depth quantity. Courses lie above the designed subgrade; material
-        demand is kept per layer.
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-semibold">Surface course stack</p>
+        <InfoTip label="About surface courses">
+          An explicit stack replaces the legacy surface-depth quantity. Courses lie above the designed subgrade;
+          material demand is kept per layer.
+        </InfoTip>
+      </div>
       <div className="flex flex-wrap gap-1">
         <Button
           size="sm"

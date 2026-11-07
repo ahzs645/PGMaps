@@ -1,7 +1,7 @@
 import JSZip from 'jszip'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { dialogsClosed } from './road-dialogs'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
@@ -49,11 +49,13 @@ test('vertical standards, control points and the profile optimizer', async ({ pa
   await page.getByLabel('Min crest K', { exact: true }).fill('4')
   await page.getByLabel('Min sag K', { exact: true }).press('Tab')
   // A control at the selected station draws on the profile with its tolerance.
+  await openRoadPanel(page, 'Control points')
   await page.getByRole('button', { name: 'Control at selected station', exact: true }).click()
   await expect(page.getByTestId('road-profile-chart').locator('[data-vertical-control]')).toHaveCount(1)
 
   const before = await estimate(page)
   const count = await roads(page).count()
+  await openRoadPanel(page, 'Optimize vertical profile')
   await page.getByLabel('Search ± (m)', { exact: true }).fill('12')
   await page.getByLabel('Search ± (m)', { exact: true }).press('Tab')
   await page.getByLabel('Tie both ends to ground', { exact: true }).uncheck()
@@ -69,6 +71,7 @@ test('vertical standards, control points and the profile optimizer', async ({ pa
 
 test('bulk curves, ranked route alternatives and design exports', async ({ page }) => {
   const errors = await prepare(page)
+  await openRoadPanel(page, 'Horizontal points')
   await page.getByRole('button', { name: 'Best fit every corner', exact: true }).click()
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText(/Set \d+ curves?/)
 
@@ -132,6 +135,7 @@ test('station table interval and columns, saved layouts and cost status', async 
 test('shapefile and plot book exports, template components, spirals and LAS terrain', async ({ page }) => {
   const errors = await prepare(page)
   // Bulk curves, then spirals on every curve.
+  await openRoadPanel(page, 'Horizontal points')
   await page.getByRole('button', { name: 'Best fit every corner', exact: true }).click()
   await page.getByLabel('Spirals (m)', { exact: true }).fill('15')
   await page.getByLabel('Spirals (m)', { exact: true }).press('Tab')
@@ -140,6 +144,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
 
   const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
   await workflow.getByRole('tab', { name: 'Section' }).click()
+  await openRoadPanel(page, 'Template components')
   const tree = page.getByTestId('road-template-components')
   await tree.getByRole('button', { name: 'Ditch · standard-right', exact: true }).click()
   await tree.getByLabel(/^Bottom width \(m\)/).fill('0.4')

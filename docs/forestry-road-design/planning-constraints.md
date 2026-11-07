@@ -30,7 +30,7 @@ is only a numerical route filter.
 
 ## How the controls work
 
-Open **Design → Find a route**. Route assumptions are stored as optional `routeSearch` in the
+Open **Design → Search tools**. Route assumptions are stored as optional `routeSearch` in the
 project and survive save/reopen; older projects get neutral defaults.
 
 | Input                          | Applied behavior                                                                                                                                                                              |
@@ -72,7 +72,7 @@ bounded search does not prove that a professionally designed road is impossible.
 
 ## Propose a connection to a Forest Service Road
 
-**Design → Find a route → Connect to a Forest Service Road** starts at the chosen **Road start**
+**Design → Search tools → Connect to a Forest Service Road** starts at the chosen **Road start**
 or **Road end** (default end). The host loads a bounded nearby BC FSR network, then
 `fsrConnections.ts` evaluates exact nearest points on its mapped segments. Generic tenure or
 permit roads do not become FSR targets merely because they appear in the same catalogue.

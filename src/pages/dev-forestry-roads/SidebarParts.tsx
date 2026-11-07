@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { formatRoadStation } from './Charts'
 import { isBeyondReachFlag } from './engine'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -9,19 +9,57 @@ import type { RoadWorkspace } from './useRoadWorkspace'
 /** Largest section reach `parseProject` accepts. */
 export const MAX_SECTION_REACH_M = 100
 
-/** A sidebar section with its explanation behind an (i) in the heading, not printed under it. */
+/**
+ * A sidebar section with its explanation behind an (i) in the heading, not printed under it.
+ * `summary` folds it to one row that states the section's current values; content stays mounted.
+ */
 export function RoadSection({
   title,
   help,
   actions,
+  summary,
+  defaultOpen = false,
+  open,
+  onOpenChange,
+  toggleTestId,
   children,
   ...props
 }: {
   title: string
   help?: ReactNode
   actions?: ReactNode
+  summary?: ReactNode
+  defaultOpen?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  toggleTestId?: string
   children: ReactNode
 } & Record<`data-${string}`, string>) {
+  if (summary !== undefined)
+    return (
+      <div {...props}>
+        <CollapsibleSection
+          label={title}
+          summary={summary}
+          summaryWhenCollapsedOnly
+          defaultOpen={defaultOpen}
+          open={open}
+          onOpenChange={onOpenChange}
+          contentClassName="space-y-2 px-3 pb-3"
+          toggleProps={toggleTestId ? { 'data-testid': toggleTestId } : undefined}
+          actions={
+            (help || actions) && (
+              <>
+                {actions}
+                {help && <InfoTip label={`About ${title.toLowerCase()}`}>{help}</InfoTip>}
+              </>
+            )
+          }
+        >
+          {children}
+        </CollapsibleSection>
+      </div>
+    )
   return (
     <SidebarSection
       title={title}

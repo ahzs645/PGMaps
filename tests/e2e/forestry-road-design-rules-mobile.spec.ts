@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -50,6 +50,7 @@ for (const size of [
     await page.goto('/dev/forestry/road-design?example=training')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     await workflow(page, 'Section')
+    await openRoadPanel(page, 'Superelevation & widening')
     await fill(page, 'Design speed (km/h)', '20')
     await fill(page, 'Road criteria name', 'Mobile design criteria')
     await fill(page, 'Road criteria source', 'Entered training worksheet, October 2026')
@@ -60,6 +61,7 @@ for (const size of [
     await expect(page.getByText('Widening table · 1 entries', { exact: true })).toBeVisible()
     await page.screenshot({ path: info.outputPath('curve-criteria.png') })
     await workflow(page, 'Design')
+    await openRoadPanel(page, 'Crossing prices')
     await fill(page, 'New crossing class', 'major')
     await fill(page, 'Class crossing cost ($)', '12000')
     await page.getByRole('button', { name: 'Save crossing class', exact: true }).tap()
@@ -71,7 +73,9 @@ for (const size of [
     await page.getByRole('button', { name: 'Curvature range', exact: true }).tap()
     await fill(page, 'Range sag K', '7')
     await fill(page, 'Range crest K', '4')
+    await openRoadPanel(page, 'Optimize vertical profile')
     await page.getByLabel('Profile search band centre', { exact: true }).selectOption('design')
+    await openRoadPanel(page, 'Joint refinement')
     await expect(page.getByRole('button', { name: 'Refine plan and profile', exact: true })).toBeVisible()
     await page.screenshot({ path: info.outputPath('vertical-criteria.png') })
     const project = await save(page),

@@ -54,7 +54,8 @@ export function FsrConnectionControls({
           screens up to three targets. A chosen FSR is the only destination searched; failure leaves your road
           unchanged. This creates a preliminary terrain-cost alignment, without fitting final curves or designing a
           formation profile. Its search score is not a complete access cost. Final geometry, prism clearances,
-          directional loaded grades, road access and material haul must pass the complete comparison before adoption.
+          directional loaded grades, road access and material haul must pass the complete comparison before adoption. BC
+          discovery expands through 2, 5 and 10 km; imported networks use their loaded extent.
         </InfoTip>
       </div>
       <Field label="Connect from">
@@ -161,11 +162,6 @@ export function FsrConnectionControls({
       >
         {automatic ? 'Find FSR connection' : 'Connect to selected FSR'}
       </Button>
-      <p className="text-2xs text-muted-foreground">
-        Creates a preliminary alignment using the terrain-cost constraints above. Fit curves and design the formation,
-        then run the final checks and complete route cost comparison before treating it as a feasible, priced access
-        route. BC discovery expands through 2, 5 and 10 km; imported networks use their loaded extent.
-      </p>
       {p.onCompareCompleteCosts && (
         <Button size="sm" variant="outline" className="w-full" onClick={p.onCompareCompleteCosts}>
           Review final checks & complete costs

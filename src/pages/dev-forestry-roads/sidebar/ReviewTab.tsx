@@ -1,12 +1,13 @@
 import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
-import { ArrowRight, Trash2 } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass } from '../Controls'
 import { formatRoadStation } from '../Charts'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadSettings } from '../types'
+import { assessCostReadiness } from '../costReadiness'
 import { surfacingSupplyCost } from '../gravel'
 
 const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
@@ -47,42 +48,128 @@ const RATES = [
   ['shrinkFactor', 'Reusable cut factor'],
 ] as const
 
+type Check = {
+  id: string
+  label: string
+  /** One short line of what was found. Absent when `ok` says it all. */
+  detail?: string
+  ok: boolean | null
+  action?: { label: string; onClick: () => void }
+}
+
+/** The first thing a reviewer needs: is this road ready, and if not, where to go next. */
+function ReadinessChecks({ checks }: { checks: Check[] }) {
+  return (
+    <ul className="divide-y rounded-md border" data-testid="road-readiness-checks">
+      {checks.map((check) => (
+        <li key={check.id} className="flex items-center gap-2 px-2 py-1.5 text-xs" data-check={check.id}>
+          {check.ok === true ? (
+            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" aria-label="Passed" />
+          ) : check.ok === false ? (
+            <AlertTriangle className="size-3.5 shrink-0 text-amber-600" aria-label="Needs attention" />
+          ) : (
+            <Circle className="size-3.5 shrink-0 text-muted-foreground" aria-label="Not checked yet" />
+          )}
+          <span className="min-w-0 flex-1">
+            <span className="block font-medium">{check.label}</span>
+            {check.detail && <span className="block text-2xs leading-4 text-muted-foreground">{check.detail}</span>}
+          </span>
+          {check.action && (
+            <Button size="sm" variant="ghost" className="h-6 shrink-0 px-1.5 text-2xs" onClick={check.action.onClick}>
+              {check.action.label}
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
 export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }) {
   const { project, alignment, analysis, update } = p.workspace
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
   const setting = (key: keyof RoadSettings, value: number) =>
     update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))
+  const settings = project.settings
+  const stream = analysis.crossings.filter((c) => c.kind === 'stream')
+  const sharp = new Set(
+    analysis.stations.filter((s) => s.flags.some((f) => /Sharp horizontal PI/i.test(f))).map((s) => s.chainage),
+  ).size
+  const drainageRecord = project.drainage?.records.find((record) => record.alignmentId === alignment.id)
+  const placeholders = assessCostReadiness(analysis, alignment, settings).placeholderRates.length
+  const checks: Check[] = [
+    {
+      id: 'sections',
+      label: 'Sections complete',
+      detail: `${analysis.coveragePercent.toFixed(1)}%`,
+      ok: analysis.coveragePercent >= 99.95,
+    },
+    {
+      id: 'profile',
+      label: 'Designed profile',
+      detail: alignment.vertical.length ? undefined : 'The formation follows the ground.',
+      ok: alignment.vertical.length > 1,
+      action: alignment.vertical.length > 1 ? undefined : { label: 'Design', onClick: () => p.onTab('design') },
+    },
+    {
+      id: 'grade',
+      label: `Grade within ${settings.maxGradePercent}%`,
+      detail: `Steepest ${analysis.maxGradePercent.toFixed(1)}%`,
+      ok: analysis.maxGradePercent <= settings.maxGradePercent + 1e-6,
+    },
+    {
+      id: 'curves',
+      label: 'Curves fitted',
+      detail: sharp ? `${sharp} sharp corner${sharp === 1 ? '' : 's'}` : undefined,
+      ok: !sharp,
+      action: sharp ? { label: 'Design', onClick: () => p.onTab('design') } : undefined,
+    },
+    {
+      id: 'drainage',
+      label: 'Drainage checked',
+      detail: drainageRecord ? undefined : 'Run it from the Drainage view.',
+      ok: drainageRecord ? true : null,
+      action: drainageRecord ? undefined : { label: 'Open', onClick: () => p.onShowDrainage?.() },
+    },
+    {
+      id: 'crossings',
+      label: stream.length
+        ? `${stream.length} stream crossing${stream.length === 1 ? '' : 's'} to review`
+        : 'No mapped stream crossings',
+      ok: stream.length ? false : true,
+      action: stream.length ? { label: 'Go to', onClick: () => p.workspace.setStation(stream[0].chainage) } : undefined,
+    },
+    {
+      id: 'rates',
+      label: 'Unit rates entered',
+      detail: placeholders ? `${placeholders} still placeholders` : undefined,
+      ok: !placeholders,
+    },
+  ]
   return (
     <>
       <RoadSection
-        title="Screening & sampling"
-        help="These thresholds are project inputs, not a claim of compliance with a road standard."
+        title="Ready to review"
+        help="Checks on the active road. They point at what to do next; none of them certifies a road standard."
       >
-        <div className="grid grid-cols-2 items-end gap-2">
-          {SCREENING.map(([key, label, min, max, hint]) => (
-            <NumberField
-              key={key}
-              label={label}
-              hint={hint}
-              value={project.settings[key]}
-              min={min}
-              max={max}
-              step={1}
-              onChange={(value) => setting(key, value)}
-            />
-          ))}
-        </div>
+        <ReadinessChecks checks={checks} />
         <SectionReachAlert workspace={p.workspace} />
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-2 w-full whitespace-normal"
+          onClick={p.onCompareCompleteCosts}
+        >
+          Review connected access & complete route costs
+        </Button>
       </RoadSection>
       <RoadSection
         title="Crossings & review flags"
+        summary={`${analysis.crossings.length + analysis.warnings.length}`}
+        defaultOpen={analysis.warnings.length > 0}
         help="Stream intersections flag crossing sites. Engineering → Drainage adds culvert dimensions, inverts, cover checks and costs at these stations. Hydraulic capacity needs more site inputs."
       >
-        <p className="mb-2 text-xs">
-          <span className="font-medium tabular-nums">{analysis.coveragePercent.toFixed(1)}%</span> of the road has
-          complete earthwork sections.
-        </p>
         {analysis.crossings.map((c) => (
           <button
             key={c.id}
@@ -100,8 +187,34 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
         ))}
       </RoadSection>
       <RoadSection
+        title="Limits & sampling"
+        summary={`${settings.maxGradePercent}% · R${settings.minRadius}`}
+        help="These thresholds are project inputs, not a claim of compliance with a road standard."
+      >
+        <div className="grid grid-cols-2 items-end gap-2">
+          {SCREENING.map(([key, label, min, max, hint]) => (
+            <NumberField
+              key={key}
+              label={label}
+              hint={hint}
+              value={settings[key]}
+              min={min}
+              max={max}
+              step={1}
+              onChange={(value) => setting(key, value)}
+            />
+          ))}
+        </div>
+      </RoadSection>
+      <RoadSection
         title="Earthwork cost assumptions"
-        help="Base unit rates in CAD. Engineering inputs add material-specific excavation, structures, haul, borrow and waste, mobilization and contingency. Unassigned excavation uses this cut rate."
+        summary={`$${settings.cutRate} · $${settings.fillRate}`}
+        help={
+          <>
+            Base unit rates in CAD. Engineering inputs add material-specific excavation, structures, haul, borrow and
+            waste, mobilization and contingency. Unassigned excavation uses this cut rate.
+          </>
+        }
       >
         <div className="grid grid-cols-2 gap-2">
           {RATES.map(([key, label]) => (
@@ -110,7 +223,7 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
               label={label}
               hint={
                 key === 'surfacingRate'
-                  ? 'Base surfacing rate. An enabled aggregate source supplies its entered capacity at its delivered rate; only the remainder uses this base rate. Open Engineering → Aggregate source to review the source.'
+                  ? 'Base surfacing rate. An enabled aggregate source supplies its entered capacity at its delivered rate; only the remainder uses this base rate.'
                   : undefined
               }
               value={project.settings[key]}
@@ -120,33 +233,26 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
             />
           ))}
         </div>
-        <p className="mt-2 text-2xs text-muted-foreground" data-testid="road-review-aggregate-summary">
+        <p className="text-2xs text-muted-foreground" data-testid="road-review-aggregate-summary">
           {aggregateSource?.enabled ? (
             <>
-              Active aggregate source: <span className="font-medium">{aggregateSource.name}</span> ·{' '}
-              {aggregate.suppliedM3.toFixed(1)} m³ at ${aggregate.rate.toFixed(2)}/m³. The base surfacing rate applies
-              to the remaining {aggregate.fallbackM3.toFixed(1)} m³.
+              <span className="font-medium">{aggregateSource.name}</span> · {aggregate.suppliedM3.toFixed(1)} m³ at $
+              {aggregate.rate.toFixed(2)}/m³ · {aggregate.fallbackM3.toFixed(1)} m³ at the base rate
             </>
           ) : (
-            <>No aggregate source is enabled. The base surfacing rate applies to all covered surfacing volume.</>
-          )}{' '}
-          Open Engineering → Aggregate source to change the source.
+            <>No aggregate source: the base surfacing rate applies.</>
+          )}
         </p>
         <Button
           variant="ghost"
           size="sm"
-          className="mt-2 h-7 w-full justify-between px-2 text-xs"
+          className="h-7 w-full justify-between px-2 text-xs"
           onClick={() => p.onTab('engineering')}
         >
           Materials, drainage, aggregate & haul inputs
           <ArrowRight className="size-3" />
         </Button>
       </RoadSection>
-      <div className="p-3">
-        <Button size="sm" variant="outline" className="w-full whitespace-normal" onClick={p.onCompareCompleteCosts}>
-          Review connected access & complete route costs
-        </Button>
-      </div>
       <CableLines {...p} />
     </>
   )
@@ -159,6 +265,7 @@ function CableLines(p: SidebarProps) {
   return (
     <RoadSection
       title="D-line / cable geometry"
+      summary={`${project.cables.length}`}
       help="Positive offsets inset the supports; negative offsets extend the span. Heights follow the selected yarder and tailhold ends. An assumed parabolic sag screens clearance; it does not calculate tension or payload."
     >
       <Button variant="outline" size="sm" className="w-full" onClick={() => p.onMode('cable')}>

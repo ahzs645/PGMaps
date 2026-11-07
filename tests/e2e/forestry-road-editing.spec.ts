@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(120000)
@@ -82,6 +83,7 @@ test('edit start/end, add and drag middle controls, and save separate editable p
   const duplicated = await save(page)
   expect(duplicated.alignments).toHaveLength(2)
   expect(duplicated.activeAlignmentId).not.toBe(original.id)
+  await openRoadPanel(page, 'Horizontal points')
   await page.getByRole('button', { name: 'Select start', exact: true }).click()
   await expect(tools.getByRole('button', { name: 'Edit points', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('button', { name: 'Horizontal point 1', exact: true })).toHaveAttribute(

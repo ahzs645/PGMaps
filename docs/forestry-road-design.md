@@ -474,6 +474,23 @@ a browser without a saved project gets it, or one replacing the training example
 (exports, optimizer results, restores) replace the header subtitle for eight
 seconds in a polite live region instead of occupying a dismissible row.
 
+## The sidebar
+
+The sidebar states actions and current values; explanations sit behind (i) buttons. Each tab keeps
+its panels mounted but hidden, and each folded section's row shows its live values, so a section can
+be read without opening it (`RoadSection` with `summary`, `SidebarParts.tsx`). Keep to that when
+adding to it: a number or a button belongs in the panel, a paragraph belongs in an `InfoTip`, and a
+warning someone must see stays an `InlineAlert`.
+
+- **Terrain:** the source and its three loads, then streams and no-go areas. Import options,
+  terrain preparation, imagery, the field book and existing roads fold.
+- **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
+  that open elsewhere are tiles at the end.
+- **Section:** the eight template numbers. Components and curve rules fold.
+- **Engineering:** four input tabs. The aggregate source sits under Haul.
+- **Review:** **Ready to review**, a checklist of the active road with a link to whatever needs doing.
+  Flags, limits, rates and D-lines fold.
+
 ## Editing the road path
 
 Design → **Peg road** starts a new alignment: click the start, any middle guide points and the end,

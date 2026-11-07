@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { openRoadPanel } from './road-sidebar'
 
 for (const device of [
   { name: 'desktop', width: 1512, height: 982, touch: false },
@@ -32,6 +33,7 @@ for (const device of [
       await showControls(page)
       const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
       await workflow.getByRole('tab', { name: 'Section', exact: true }).click()
+      await openRoadPanel(page, 'Template components')
       const editor = page.getByTestId('road-template-components').getByTestId('road-section-assembly')
       await editor.getByRole('button', { name: 'Add component', exact: true }).click()
       await editor.getByLabel('Component 1 name', { exact: true }).fill('Survey bench')

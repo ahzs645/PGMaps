@@ -2,7 +2,7 @@ import { NativeSelect } from '@/components/ui/form-field'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
-import { Copy, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
@@ -198,7 +198,6 @@ export function EngineeringControls({
     ([...templateFields, ...sideFields].some(({ key }) => candidate[key] !== selected.template[key]) ||
       JSON.stringify(candidate.components) !== JSON.stringify(selected.template.components) ||
       JSON.stringify(candidate.layers) !== JSON.stringify(selected.template.layers))
-  const at = nearestStation(analysis.stations, w.station)
   const edit = (change: (e: AlignmentEngineering) => AlignmentEngineering) =>
     w.updateAlignment((a) => ({ ...a, engineering: change(a.engineering ?? createEngineeringDesign()) }))
   const patch = <K extends 'assignments' | 'materials' | 'strata' | 'culverts' | 'sites'>(
@@ -319,32 +318,9 @@ export function EngineeringControls({
             { value: 'haul', label: 'Haul' },
           ]}
         />
-        <div className="space-y-1.5 rounded border bg-muted/20 p-2" data-testid="road-aggregate-summary">
-          <p className="text-2xs text-muted-foreground">
-            {design.surfacingSupply?.enabled ? (
-              <>
-                Aggregate: <span className="font-medium text-foreground">{design.surfacingSupply.name}</span> ·{' '}
-                {aggregate.suppliedM3.toFixed(1)} m³ at ${aggregate.rate.toFixed(2)}/m³ ·{' '}
-                {aggregate.fallbackM3.toFixed(1)} m³ at the base rate.
-              </>
-            ) : (
-              <>Aggregate uses the base surfacing rate (${project.settings.surfacingRate.toFixed(2)}/m³).</>
-            )}
-          </p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              setTab('haul')
-              setHaulOpen(true)
-            }}
-          >
-            Aggregate source
-          </Button>
-        </div>
-        <Button size="sm" variant="outline" className="w-full" onClick={onQuantities}>
+        <Button size="sm" variant="ghost" className="h-7 w-full justify-between px-2 text-xs" onClick={onQuantities}>
           Show quantities & cost breakdown
+          <ArrowRight className="size-3" />
         </Button>
       </div>
       {activeTab === 'templates' && (
@@ -1063,6 +1039,32 @@ export function EngineeringControls({
       )}
       {activeTab === 'haul' && (
         <>
+          <div className="p-3">
+            <div className="space-y-1.5 rounded border bg-muted/20 p-2" data-testid="road-aggregate-summary">
+              <p className="text-2xs text-muted-foreground">
+                {design.surfacingSupply?.enabled ? (
+                  <>
+                    Aggregate: <span className="font-medium text-foreground">{design.surfacingSupply.name}</span> ·{' '}
+                    {aggregate.suppliedM3.toFixed(1)} m³ at ${aggregate.rate.toFixed(2)}/m³ ·{' '}
+                    {aggregate.fallbackM3.toFixed(1)} m³ at the base rate.
+                  </>
+                ) : (
+                  <>Aggregate uses the base surfacing rate (${project.settings.surfacingRate.toFixed(2)}/m³).</>
+                )}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setTab('haul')
+                  setHaulOpen(true)
+                }}
+              >
+                Aggregate source
+              </Button>
+            </div>
+          </div>
           <div className="m-3 space-y-2 rounded-lg border p-3">
             <label className="mb-3 flex items-center gap-2 text-xs">
               <input
@@ -1284,11 +1286,6 @@ export function EngineeringControls({
             />
           </RoadSettingsDialog>
         </>
-      )}
-      {at && (
-        <p className="px-3 py-2 text-2xs text-muted-foreground">
-          Editing {alignment.name} · selected station {formatRoadStation(at.chainage)}
-        </p>
       )}
     </div>
   )

@@ -339,7 +339,7 @@ export async function loadRoadScenario(
     return {
       project,
       source: demoTerrain,
-      notice: `Opened ${scenario.name}. Terrain, roads, blocks, condition and material assumptions are synthetic teaching inputs.${id === 'training-local-gravel' ? ' Compare the identical roads in Review or disable the local supply in Engineering. Acquisition is zero; processing, loading, haul and placement remain costed.' : id === 'training-road-reuse' ? ' Existing-road reuse is enabled for the individually reviewed synthetic road sections; turn it off in Find a route to compare.' : ''}`,
+      notice: `Opened ${scenario.name}. Terrain, roads, blocks, condition and material assumptions are synthetic teaching inputs.${id === 'training-local-gravel' ? ' Compare the identical roads in Review or disable the local supply in Engineering. Acquisition is zero; processing, loading, haul and placement remain costed.' : id === 'training-road-reuse' ? ' Existing-road reuse is enabled for the individually reviewed synthetic road sections; turn it off in Search tools to compare.' : ''}`,
     }
   }
   onProgress?.(`Loading ${scenario.name} terrain…`)

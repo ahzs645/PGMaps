@@ -29,10 +29,14 @@ export function ExistingRoadsPanel({
   onLocateRoad,
   onReviewRoad,
   initialSelectedRoadId,
+  open,
+  onOpenChange,
 }: {
   workspace: RoadWorkspace
   bounds?: RoadQueryBounds
   initialSelectedRoadId?: string
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   /** Highlight and fit this section when the reviewer explicitly asks to locate it. */
   onLocateRoad?: (road: ContextFeature) => void
   /** Update the review highlight without moving the camera; null clears it on unmount. */
@@ -117,7 +121,10 @@ export function ExistingRoadsPanel({
   return (
     <RoadSection
       title="Existing roads & reuse"
-      help="Load BC Forest Tenure road sections near the project, or import your own GeoJSON road network. A tenure can represent an unbuilt road. Permit status and award/retirement dates cannot establish road age or current condition. Review access, structures and rehabilitation before enabling a road for the optimizer."
+      summary={`${roads.length} · ${roads.filter((f) => f.roadEvidence?.reuseAllowed && f.roadEvidence.condition !== 'closed').length} reusable`}
+      open={open}
+      onOpenChange={onOpenChange}
+      help="Load BC Forest Tenure road sections near the project, or import your own GeoJSON road network. The FSR button loads active Forest Service Road sections for the current area. A tenure can represent an unbuilt road. Permit status and award/retirement dates cannot establish road age or current condition. Review access, structures and rehabilitation before enabling a road for the optimizer."
     >
       <div className="space-y-2" data-testid="road-existing-roads">
         <div className="grid grid-cols-2 gap-2">
@@ -137,10 +144,6 @@ export function ExistingRoadsPanel({
         >
           Load BC FSRs in this area
         </Button>
-        <p className="text-2xs text-muted-foreground">
-          Province-wide FSR records are available through the BC catalogue. This loads active FSR sections for the
-          current area; Find a route can search for the nearest mapped FSR.
-        </p>
         <input
           ref={input}
           type="file"

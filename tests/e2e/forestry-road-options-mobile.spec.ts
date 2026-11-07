@@ -3,6 +3,7 @@ import { expect, test, type Page, type Browser, type TestInfo } from '@playwrigh
 import { analyzeRoad } from '../../src/pages/dev-forestry-roads/engine'
 import { terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
+import { openRoadPanel } from './road-sidebar'
 
 const baselinePath = process.env.PGMAPS_ROAD_OPTIONS_PROJECT
 test.skip(!baselinePath, 'Supply an exported horizontal baseline project for the opt-in mobile options comparison.')
@@ -89,6 +90,7 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
         await input.fill(value)
         await input.press('Tab')
       }
+      await openRoadPanel(page, 'Optimize vertical profile')
       await page.getByRole('checkbox', { name: 'Tie both ends to ground', exact: true }).check()
       await page.getByRole('combobox', { name: 'Profile optimization objective', exact: true }).selectOption(objective)
       await expect(page.getByRole('combobox', { name: 'Profile optimization objective', exact: true })).toHaveValue(

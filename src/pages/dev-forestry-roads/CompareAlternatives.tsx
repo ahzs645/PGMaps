@@ -39,6 +39,20 @@ export function compareMetric(
   }
 }
 
+/** Alternatives share their parent's long name; the table has room only for what differs. */
+function sharedPrefix(names: string[]) {
+  if (names.length < 2) return ''
+  let size = names[0].length
+  for (const name of names) {
+    let i = 0
+    while (i < size && name[i] === names[0][i]) i++
+    size = i
+  }
+  const shared = names[0].slice(0, size)
+  return names.includes(shared) ? shared : shared.slice(0, shared.lastIndexOf(' · ') + 3)
+}
+const shortName = (name: string, prefix: string) => name.slice(prefix.length).replace(/^ · /, '') || 'Original'
+
 export function CompareAlternatives({
   alignments,
   analyses,
@@ -72,6 +86,7 @@ export function CompareAlternatives({
       ),
     [alignments, project],
   )
+  const prefix = sharedPrefix(alignments.map((a) => a.name))
   return (
     <div className="h-full space-y-2 overflow-auto" data-testid="road-compare">
       <label className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
@@ -112,7 +127,7 @@ export function CompareAlternatives({
               >
                 <td className="max-w-56 truncate text-left">
                   <button className="underline" onClick={() => onSelect(a.id)} title={a.name}>
-                    {a.name}
+                    {shortName(a.name, prefix)}
                   </button>
                 </td>
                 {METRICS.map((m) => {

@@ -332,6 +332,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       </CollapsibleSection>
       <RoadSection
         title="Optimize vertical profile"
+        summary={search.objective === 'total' ? 'Total cost' : 'Cut and fill'}
         help={
           <>
             Searches PVI levels around the ground for the cheapest cut and fill at the entered rates, inside the grade
@@ -444,6 +445,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       <JointOptimizationControls workspace={workspace} profile={{ ...search, k }} />
       <RoadSection
         title="Control points"
+        summary={controls.length ? `${controls.length} set` : 'None set'}
         help="Elevations and grades the profile must hold, each with a tolerance. Leave a target empty to check only the other."
       >
         <div className="space-y-2">

@@ -1,6 +1,7 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { NativeSelect } from '@/components/ui/form-field'
+import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { formatRoadStation } from './Charts'
@@ -187,16 +188,19 @@ export function SwitchbackTools({
   return (
     <CollapsibleSection
       label="Add a switchback"
-      summary="Two curves at the road end"
-      summaryWhenCollapsedOnly
       contentClassName="space-y-2 px-3 pb-3"
       toggleProps={{ 'data-testid': 'road-switchback-toggle' }}
+      actions={
+        <InfoTip label="About switchbacks">
+          Extends a copy of this road with two 90° circular turns; the sizes and grade are starting sketches. The active
+          profile continues at the entered grade, so round the new grade break. Existing template, material and
+          structure ranges keep their stations. Saved connections and cost approvals are cleared on the copy. The
+          swept-path check covers wheels against the formation; body clearance to batters and trees, earthworks
+          overlapping between the legs, and traction still need review.
+        </InfoTip>
+      }
     >
       <div className="space-y-2" data-testid="road-switchback-tools">
-        <p className="text-xs text-muted-foreground">
-          Extend a copy of this road with two 90° circular turns. Starter dimensions and grade are editable sketch
-          assumptions.
-        </p>
         <Field label="Switchback turn">
           <NativeSelect
             className={roadFieldClass}
@@ -340,20 +344,6 @@ export function SwitchbackTools({
         {project.alignments.length >= 20 && (
           <p className="text-xs text-muted-foreground">The project already has 20 road alternatives.</p>
         )}
-        <p className="text-2xs text-muted-foreground">
-          Inspect the new road in plan, profile and section. The swept-path check covers wheels against the formation
-          for the whole 180° turn; body clearance to cut batters and trees, overlapping earthworks between the legs, and
-          traction on grade still need review.
-        </p>
-        <details className="text-2xs text-muted-foreground">
-          <summary className="cursor-pointer">Profile and engineering inputs</summary>
-          <p className="mt-1">
-            The active profile is extended at the entered grade. Round the new join grade break as needed. Existing
-            template/material/structure ranges retain their stations; review their coverage on the added length. Saved
-            endpoint connections and cost approvals are cleared on the new alternative. Other named profiles remain with
-            the original road.
-          </p>
-        </details>
       </div>
     </CollapsibleSection>
   )

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -164,6 +164,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   expect(sketched.settings.minRadius).toBe(25)
   await page.screenshot({ path: info.outputPath('desktop-sketched.png') })
 
+  await openRoadPanel(page, 'Horizontal points')
   await page.getByRole('button', { name: 'Select start', exact: true }).click()
   await drag(page, 1, 5, 0)
   await page.getByRole('button', { name: 'Select end', exact: true }).click()
@@ -216,6 +217,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await review.getByRole('button', { name: 'Use candidate as new road', exact: true }).click()
   const horizontal = await save(page, info.outputPath('horizontal.road.json'))
   expect(horizontal.alignments.find((a) => a.id === original.id)).toEqual(original)
+  await openRoadPanel(page, 'Optimize vertical profile')
   await page.getByRole('button', { name: 'Optimize profile (K 4)', exact: true }).click()
   await expect(page.getByLabel('Road name', { exact: true })).toHaveValue(/optimized profile$/, { timeout: 60000 })
   const optimized = await save(page, info.outputPath('optimized.road.json'))

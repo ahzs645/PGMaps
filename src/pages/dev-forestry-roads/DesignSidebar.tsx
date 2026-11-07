@@ -13,6 +13,7 @@ import {
   type RoadOptimizationResult,
 } from './corridorOptimizer'
 import { corridorCandidate } from './corridorCandidate'
+import { resolvedGroundWindow } from './groundTrend'
 import { parseProject } from './project'
 import type { Alignment, RoadProject, TerrainSource } from './types'
 export type { FileKind } from './DesignSidebarBody'
@@ -42,7 +43,11 @@ export function DesignSidebar(props: SidebarProps) {
     const original = w.project,
       source = w.source,
       alignment = w.alignment
-    const options: RoadOptimizationOptions = { objective, corridorHalfWidthM }
+    const options: RoadOptimizationOptions = {
+      objective,
+      corridorHalfWidthM,
+      groundWindowM: resolvedGroundWindow(original.routeSearch, original.terrain.resolutionM),
+    }
     setReview(null)
     w.setError('')
     w.setBusy('Searching the sketched corridor…')

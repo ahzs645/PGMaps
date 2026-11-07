@@ -138,8 +138,9 @@ export function JointOptimizationControls({
   }
   return (
     <RoadSection
-      title="Refine plan and profile"
-      help="Moves interior plan controls while redesigning the profile and repricing each complete candidate. Endpoints stay fixed. Templates, materials, controls and rates are retained by chainage; review their location after a plan shift. Complete access uses the reviewed network ledger with no unpriced fallback."
+      title="Joint refinement"
+      summary={`${workspace.alignment.points.length - 2} controls`}
+      help="Moves interior plan controls while redesigning the profile and repricing each complete candidate. Endpoints stay fixed. Templates, materials, controls and rates are retained by chainage; review their location after a plan shift. Complete access uses the reviewed network ledger with no unpriced fallback. At most 20 trials and 12 interior controls, so a better route can remain unexplored."
     >
       <div className="grid grid-cols-2 gap-2">
         <NumberField label="Plan step (m)" value={stepM} min={0.1} max={100} onChange={setStep} />
@@ -172,10 +173,6 @@ export function JointOptimizationControls({
           Cancel refinement
         </Button>
       )}
-      <p className="mt-1 text-2xs text-muted-foreground">
-        At most 20 trials and 12 interior plan controls. Every trial is checked; search limits can leave a better route
-        unexplored.
-      </p>
     </RoadSection>
   )
 }

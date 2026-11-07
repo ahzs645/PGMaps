@@ -59,7 +59,7 @@ describe('verified sketched-corridor search', () => {
     expect(() =>
       optimizeRoadCorridor([point(0, 0), point(200, 0)], flat, settings, [], {
         ...options,
-        maxGeometryOperations: 15000001,
+        maxGeometryOperations: 200000001,
       }),
     ).toThrow(/Invalid geometry search budget/)
   })

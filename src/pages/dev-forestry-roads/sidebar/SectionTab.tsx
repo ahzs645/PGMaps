@@ -34,7 +34,7 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
         title="Road cross-section"
         help="Formation geometry is a crown, a cut-side ditch and batters that run out to meet the ground. Flatter batters (a larger H:V) reach further, so a high fill or deep cut needs more section reach. The surfacing layer is a separate quantity. Batters and costs are editable planning assumptions."
       >
-        <div className="grid grid-cols-2 items-end gap-2">
+        <div className="grid grid-cols-2 items-end gap-x-2 gap-y-1.5">
           {TEMPLATE_FIELDS.map(([key, label, min, max]) => (
             <NumberField
               key={key}
@@ -56,7 +56,7 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
           <ArrowRight className="size-3" />
         </Button>
       </RoadSection>
-      <RoadSection title="Template components">
+      <RoadSection title="Template components" summary={`${alignment.template.components?.length ?? 0} added`}>
         <TemplateComponents
           template={alignment.template}
           materials={alignment.engineering?.materials}
@@ -65,7 +65,11 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
         />
       </RoadSection>
-      <RoadSection title="Superelevation & widening" help={CURVE_DESIGN_HELP}>
+      <RoadSection
+        title="Superelevation & widening"
+        summary={alignment.curveDesign ? `${alignment.curveDesign.designSpeedKmh} km/h` : 'Off'}
+        help={CURVE_DESIGN_HELP}
+      >
         <CurveDesignControls workspace={p.workspace} />
       </RoadSection>
       <Widenings {...p} />

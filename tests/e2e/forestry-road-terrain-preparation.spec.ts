@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
+import { openRoadPanel } from './road-sidebar'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 390, height: 844 }, hasTouch: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)
@@ -85,11 +86,13 @@ test('phone terrain preparation, independent imagery and survey evidence survive
   await expect
     .poll(() => mapBackgrounds(page))
     .toEqual([expect.objectContaining({ visible: 'visible', type: 'raster' })])
+  await openRoadPanel(page, 'Canopy and image backgrounds')
   await backgrounds.getByLabel('canopy.tif opacity (%)', { exact: true }).fill('45')
   await backgrounds.getByRole('checkbox', { name: 'canopy.tif', exact: true }).uncheck()
   await expect.poll(() => mapBackgrounds(page)).toEqual([expect.objectContaining({ visible: 'none' })])
   await backgrounds.getByRole('checkbox', { name: 'canopy.tif', exact: true }).check()
 
+  await openRoadPanel(page, 'Survey field book')
   const survey = page.getByTestId('road-survey-field-book')
   await survey.getByRole('button', { name: 'Start at selected station ground', exact: true }).click()
   await page
