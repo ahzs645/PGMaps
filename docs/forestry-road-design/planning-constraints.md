@@ -64,7 +64,18 @@ Existing node, sample and geometry budgets still apply; gradient checks consume 
 terrain reads per sampled location. Finite coverage and every hard constraint remain required
 when a road receives a reuse discount.
 
-The search does not enforce direction-specific loaded-haul grades, short-pitch lengths,
+**Grades by haul direction** (`haulGrades`, optional) sets which way loaded trucks travel along
+the searched route and up to three limits: loaded uphill (adverse), loaded downhill (favourable)
+and empty uphill. The empty truck climbs back up what the loaded one came down, so that direction
+is held to the stricter of the loaded-downhill and empty-uphill limits. `directionalGradeLimit` in
+`routing.ts` applies them to each signed sample; they only tighten the maximum grade, never relax
+it. Direction runs from the route's start to its end: the road start for a terrain-cost search,
+the endpoint for an FSR connection, and the block landing for block access, where loaded travel
+is always from the landing to the FSR. Edge costs are cached per directed arc for this reason.
+Limits accept `MIN_HAUL_GRADE_PERCENT`–`MAX_HAUL_GRADE_PERCENT` (0.5–60%); both are computation
+bounds, not recommended grades.
+
+The search does not enforce short-pitch lengths,
 switchback exceptions, speed/sight distance, vehicle swept paths, footprint-wide stability,
 stream crossing design or regulatory approvals. Enter conservative screening assumptions,
 inspect the final geometry and use the independent profile/curve/drainage checks. A failed

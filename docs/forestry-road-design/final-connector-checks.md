@@ -31,7 +31,10 @@ estimate. Previewing a candidate is not adopting it.
 `connectorCheckOptions.ts` holds the portable criteria and validates their types/ranges.
 Loaded travel is explicitly `start-to-end` or `end-to-start`. An uphill formation grade
 in the loaded direction is compared with the adverse limit; downhill is compared with the
-favourable limit. Both limits and direction begin unknown. They are not inferred from an
+favourable limit. An optional empty adverse limit (`maxEmptyAdverseGradePercent`) checks the
+same downhill grades again, because the empty truck climbs them on the way back; on gravel that
+climb can bind before the loaded favourable limit does. Material haul pricing applies it to the
+empty return of incoming aggregate and outgoing waste. Both limits and direction begin unknown. They are not inferred from an
 absolute ground-grade threshold. The independent formation still uses the ordinary
 vertical-curve and station-range checks; missing PVIs do not become a designed profile.
 The returned fixed start-to-end uphill/downhill extrema also let material-haul evaluation check loaded inbound aggregate or fill separately from outbound timber or waste. Optional maximum cut depth includes original-ground removal to the design or prepared ground,

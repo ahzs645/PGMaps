@@ -626,6 +626,13 @@ export function compareFullCostCandidates(
           'infeasible',
           `${kind === 'waste' ? 'Outgoing waste' : 'Incoming aggregate'} travel on the new connector exceeds the entered loaded ${actualAdverse > adverse + EPS ? 'adverse' : 'favourable'} grade limit.`,
         )
+      // The empty return climbs what the loaded trip descended.
+      const emptyLimit = planning.connectorChecks.maxEmptyAdverseGradePercent
+      if (emptyLimit !== null && actualFavourable > emptyLimit + EPS)
+        reject(
+          'infeasible',
+          `The empty return from ${kind === 'waste' ? 'outgoing waste' : 'incoming aggregate'} haul climbs more than the entered empty adverse grade limit.`,
+        )
     }
     if (result.blockers.length) return result
     if (engineering.culverts.some((culvert) => !culvert.complete)) {

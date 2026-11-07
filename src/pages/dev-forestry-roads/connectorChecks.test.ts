@@ -29,6 +29,7 @@ const criteria: ConnectorCheckOptions = {
   loadedDirection: 'start-to-end',
   maxAdverseGradePercent: 10,
   maxFavourableGradePercent: 12,
+  maxEmptyAdverseGradePercent: null,
   clearingExtraM: 0,
   exclusionClearanceM: 0,
   streamSetbackM: 0,
@@ -321,6 +322,16 @@ describe('final fitted connector gates', () => {
     expect(codes(run(alignment, [], { loadedDirection: 'end-to-start', maxFavourableGradePercent: 7 }))).toContain(
       'favourable-loaded-grade',
     )
+  })
+  it('holds the empty return climb to its own limit', () => {
+    const alignment = road()
+    alignment.vertical.at(-1)!.elevation = 808
+    // Loaded trucks come down the 8% climb, so the empty ones go up it.
+    const empty = { loadedDirection: 'end-to-start' as const, maxAdverseGradePercent: 6 }
+    expect(run(alignment, [], empty).status).toBe('pass')
+    expect(codes(run(alignment, [], { ...empty, maxEmptyAdverseGradePercent: 7 }))).toContain('adverse-empty-grade')
+    expect(codes(run(alignment, [], { ...empty, maxEmptyAdverseGradePercent: 9 }))).not.toContain('adverse-empty-grade')
+    expect(codes(run(alignment, [], { maxEmptyAdverseGradePercent: 7 }))).not.toContain('adverse-empty-grade')
   })
   it('rejects a daylight footprint intersecting a narrow polygon between stations even when the centreline is clear', () => {
     const alignment = road(803),

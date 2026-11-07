@@ -256,6 +256,13 @@ export function FullCostSetupEditor({
             max={100}
             onChange={(maxFavourableGradePercent) => checks({ maxFavourableGradePercent })}
           />
+          <OptionalNumberField
+            label="Empty adverse grade limit (%)"
+            value={planning.connectorChecks.maxEmptyAdverseGradePercent}
+            min={0.1}
+            max={100}
+            onChange={(maxEmptyAdverseGradePercent) => checks({ maxEmptyAdverseGradePercent })}
+          />
           <NumberField
             label="Extra clearing each side (m)"
             value={planning.connectorChecks.clearingExtraM}

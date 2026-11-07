@@ -9,6 +9,8 @@ export interface ConnectorCheckOptions {
   loadedDirection: 'start-to-end' | 'end-to-start' | null
   maxAdverseGradePercent: number | null
   maxFavourableGradePercent: number | null
+  /** An empty truck climbs where the loaded one descends; null leaves that climb to the favourable limit. */
+  maxEmptyAdverseGradePercent: number | null
   clearingExtraM: number
   exclusionClearanceM: number
   streamSetbackM: number
@@ -22,6 +24,7 @@ export const DEFAULT_CONNECTOR_CHECK_OPTIONS: ConnectorCheckOptions = {
   loadedDirection: null,
   maxAdverseGradePercent: null,
   maxFavourableGradePercent: null,
+  maxEmptyAdverseGradePercent: null,
   clearingExtraM: 0,
   exclusionClearanceM: 0,
   streamSetbackM: 0,
@@ -57,9 +60,10 @@ export function parseConnectorCheckOptions(input?: unknown): ConnectorCheckOptio
   for (const [label, n] of [
     ['adverse', value.maxAdverseGradePercent],
     ['favourable', value.maxFavourableGradePercent],
+    ['empty adverse', value.maxEmptyAdverseGradePercent],
   ] as const)
     if (n !== null && !bounded(n, 0.1, 100))
-      throw Error(`Enter a ${label} loaded grade limit from 0.1% to 100%, or leave it unknown.`)
+      throw Error(`Enter a ${label} grade limit from 0.1% to 100%, or leave it unknown.`)
   for (const [label, n] of [
     ['clearing allowance', value.clearingExtraM],
     ['exclusion clearance', value.exclusionClearanceM],

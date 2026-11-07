@@ -608,6 +608,14 @@ export function checkConnector({
               `Loaded downhill formation grade ${(-loadedGrade).toFixed(2)}% exceeds the entered ${options.maxFavourableGradePercent}% favourable limit.`,
               s,
             )
+          // The return trip climbs the same grade empty, which can be the binding limit on gravel.
+          if (-loadedGrade > (options.maxEmptyAdverseGradePercent ?? Infinity) + EPS)
+            add(
+              'failure',
+              'adverse-empty-grade',
+              `Empty uphill formation grade ${(-loadedGrade).toFixed(2)}% exceeds the entered ${options.maxEmptyAdverseGradePercent}% empty adverse limit.`,
+              s,
+            )
         }
       }
     }

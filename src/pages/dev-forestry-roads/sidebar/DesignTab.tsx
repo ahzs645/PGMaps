@@ -7,6 +7,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
+import { HaulGradeFields } from '../HaulGradeFields'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
 import { SwitchbackTools } from '../SwitchbackTools'
@@ -411,6 +412,10 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             onChange={(endHeading) => setRoute((r) => ({ ...r, endHeading }))}
           />
         </div>
+        <HaulGradeFields
+          value={route.haulGrades}
+          onChange={(haulGrades) => setRoute((current) => ({ ...current, haulGrades }))}
+        />
         {onPreviewRoute && (
           <label className="flex items-center gap-2 text-xs">
             <input type="checkbox" checked={livePreview} onChange={(event) => setLivePreview(event.target.checked)} />

@@ -21,6 +21,47 @@ type Segment = {
 /** A blocked exclusion, or a passable zone that adds `costPerM` CAD per metre travelled inside it. */
 type Polygon = { rings: XY[][]; bounds: [number, number, number, number]; costPerM: number | null; penaltyPerM: number }
 
+/**
+ * Grade limits by direction of travel along the searched route, from its start to its end. An empty
+ * truck climbs where the loaded truck descends, so the return direction is checked against both the
+ * loaded-downhill and empty-uphill limits. Null leaves a direction to the overall grade limit.
+ */
+export interface HaulGradeLimits {
+  loadedDirection: 'start-to-end' | 'end-to-start'
+  maxLoadedUphillPercent: number | null
+  maxLoadedDownhillPercent: number | null
+  maxEmptyUphillPercent: number | null
+}
+/** The grade limit for one signed start-to-end grade. Directional limits only ever tighten `absoluteLimit`. */
+export function directionalGradeLimit(
+  signedGradePercent: number,
+  absoluteLimit: number,
+  haul: HaulGradeLimits | null,
+): number {
+  if (!haul) return absoluteLimit
+  const loaded = haul.loadedDirection === 'start-to-end' ? signedGradePercent : -signedGradePercent
+  const limit =
+    loaded > 0
+      ? (haul.maxLoadedUphillPercent ?? Infinity)
+      : Math.min(haul.maxLoadedDownhillPercent ?? Infinity, haul.maxEmptyUphillPercent ?? Infinity)
+  return Math.min(absoluteLimit, limit)
+}
+/** "Loaded uphill ≤8%, empty uphill ≤18%": the limits a search applied, for its message and reports. */
+export function haulGradeText(haul: HaulGradeLimits | null): string {
+  if (!haul) return ''
+  const parts = [
+    ['loaded uphill', haul.maxLoadedUphillPercent],
+    ['loaded downhill', haul.maxLoadedDownhillPercent],
+    ['empty uphill', haul.maxEmptyUphillPercent],
+  ]
+    .filter((entry): entry is [string, number] => entry[1] !== null)
+    .map(([label, limit]) => `${label} ≤${limit}%`)
+  const direction = haul.loadedDirection === 'start-to-end' ? 'start to end' : 'end to start'
+  return parts.length ? `Loaded travel ${direction}: ${parts.join(', ')}.` : ''
+}
+export const MIN_HAUL_GRADE_PERCENT = 0.5
+export const MAX_HAUL_GRADE_PERCENT = 60
+
 export interface RouteSearchOptions {
   /** CAD per metre of road on level ground; steeper sampled grades cost up to 4× this. */
   baseCostPerM: number
@@ -49,6 +90,8 @@ export interface RouteSearchOptions {
   roadSnapDistanceM: number
   /** Ground grades are read over this moving window. 0 uses source samples; null lets the host pick. See `groundTrend.ts`. */
   groundWindowM: number | null
+  /** Direction-specific grade limits; null applies the overall grade limit both ways. */
+  haulGrades: HaulGradeLimits | null
 }
 /**
  * The defaults keep the original relative weighting (a crossing worth 80 m of level road). They are
@@ -71,6 +114,7 @@ export const DEFAULT_ROUTE_OPTIONS: RouteSearchOptions = {
   existingRoadCostFactor: 0.4,
   roadSnapDistanceM: 8,
   groundWindowM: null,
+  haulGrades: null,
 }
 export interface RouteCandidate {
   coordinates: Coordinate[]
@@ -243,6 +287,24 @@ export function parseRouteSearchOptions(input?: unknown): RouteSearchOptions {
   for (const heading of [options.startHeading, options.endHeading])
     if (heading !== null && !finiteRange(heading, 0, 360))
       throw Error('Use headings between 0° and 360°, or leave them off.')
+  const haul = options.haulGrades
+  if (haul !== null) {
+    if (typeof haul !== 'object' || Array.isArray(haul))
+      throw Error('Directional grade limits must be an object, or off.')
+    if (haul.loadedDirection !== 'start-to-end' && haul.loadedDirection !== 'end-to-start')
+      throw Error('Choose whether loaded trucks travel from the route start to its end or the reverse.')
+    for (const limit of [haul.maxLoadedUphillPercent, haul.maxLoadedDownhillPercent, haul.maxEmptyUphillPercent])
+      if (limit !== null && limit !== undefined && !finiteRange(limit, MIN_HAUL_GRADE_PERCENT, MAX_HAUL_GRADE_PERCENT))
+        throw Error(
+          `Use directional grade limits from ${MIN_HAUL_GRADE_PERCENT}% to ${MAX_HAUL_GRADE_PERCENT}%, or leave them empty.`,
+        )
+    options.haulGrades = {
+      loadedDirection: haul.loadedDirection,
+      maxLoadedUphillPercent: haul.maxLoadedUphillPercent ?? null,
+      maxLoadedDownhillPercent: haul.maxLoadedDownhillPercent ?? null,
+      maxEmptyUphillPercent: haul.maxEmptyUphillPercent ?? null,
+    }
+  }
   const groups = options.crossingGroups
   if (groups === null || typeof groups !== 'object' || Array.isArray(groups) || Object.keys(groups ?? {}).length > 100)
     throw Error('Crossing groups must be an object of at most 100 named prices.')
@@ -485,6 +547,9 @@ export function suggestRoutes(
   const edges = new Map<number, number>()
   const fineBlocked = new Set<number>()
   const edgeKey = (a: number, b: number) => Math.min(a, b) * size + Math.max(a, b)
+  // Costs depend on travel direction once grades are directional, so they are cached per directed arc.
+  // `edgeKey` stays undirected for telling alternatives apart.
+  const arcKey = (from: number, to: number) => from * size + to
   const crossingsOf = new Map<number, number>()
   const penaltiesOf = new Map<number, number>()
   const segmentCost = (a: XY, b: XY, zA: number, zB: number, maxStep: number, key = -1): number => {
@@ -532,11 +597,13 @@ export function suggestRoutes(
       const point: XY = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]
       const elevation = i === count ? zB : read(point)
       if (!Number.isFinite(elevation) || !terrainSlopeOk(point)) return Infinity
-      const grade = (Math.abs(elevation - previous) / distance) * 100
-      if (grade > settings.maxGradePercent + 1e-6) return Infinity
+      // Signed from the route start toward its end, so a directional limit knows which way is uphill.
+      const signed = ((elevation - previous) / distance) * 100,
+        grade = Math.abs(signed)
+      const limit = directionalGradeLimit(signed, settings.maxGradePercent, options.haulGrades)
+      if (grade > limit + 1e-6) return Infinity
       const middle: XY = [a[0] + (b[0] - a[0]) * (f - 0.5 / count), a[1] + (b[1] - a[1]) * (f - 0.5 / count)]
-      cost +=
-        distance * options.baseCostPerM * reuseFactorAt(middle) * (1 + 3 * (grade / settings.maxGradePercent) ** 2)
+      cost += distance * options.baseCostPerM * reuseFactorAt(middle) * (1 + 3 * (grade / limit) ** 2)
       if (zones.length) {
         cost += distance * zoneCostAt(middle)
         avoidancePenalty += distance * avoidancePenaltyAt(middle)
@@ -616,16 +683,17 @@ export function suggestRoutes(
           if (nextCol < 0 || nextCol >= columns || nextRow < 0 || nextRow >= rows) continue
           const next = nextRow * columns + nextCol
           if (closed[next]) continue
-          const key = edgeKey(node, next)
-          if (fineBlocked.has(key)) continue
+          const key = edgeKey(node, next),
+            arc = arcKey(node, next)
+          if (fineBlocked.has(arc)) continue
           const q = position(next)
           if (node === startId && !headingOk(p, q, options.startHeading)) continue
           if (next === endId && !headingOk(p, q, options.endHeading)) continue
-          let cost = edges.get(key)
+          let cost = edges.get(arc)
           if (cost === undefined) {
             const nextElevation = elevationAt(next)
-            cost = segmentCost(p, q, z, nextElevation, Math.min(5, Math.max(0.5, spacing / 5)), key)
-            edges.set(key, cost)
+            cost = segmentCost(p, q, z, nextElevation, Math.min(5, Math.max(0.5, spacing / 5)), arc)
+            edges.set(arc, cost)
           }
           if (!Number.isFinite(cost)) continue
           const nextCost = costs[node] + cost * (1 + 0.6 * (used.get(key) ?? 0))
@@ -650,7 +718,7 @@ export function suggestRoutes(
         const a = path[i - 1],
           b = path[i]
         if (!Number.isFinite(segmentCost(position(a), position(b), elevationAt(a), elevationAt(b), 1))) {
-          fineBlocked.add(edgeKey(a, b))
+          fineBlocked.add(arcKey(a, b))
           rejected = true
         }
       }
@@ -673,7 +741,7 @@ export function suggestRoutes(
   }
   if (!found.length)
     throw Error(
-      `No terrain-cost path in this bounded area meets the ${settings.maxGradePercent}% sampled ground-grade limit${options.startHeading !== null || options.endHeading !== null ? ', the end headings' : ''}, terrain coverage, slope and clearance constraints. This does not rule out a field-designed road or a wider search.`,
+      `No terrain-cost path in this bounded area meets the ${settings.maxGradePercent}% sampled ground-grade limit${options.haulGrades ? ` or the directional limits (${haulGradeText(options.haulGrades)})` : ''}${options.startHeading !== null || options.endHeading !== null ? ', the end headings' : ''}, terrain coverage, slope and clearance constraints. This does not rule out a field-designed road or a wider search.`,
     )
   // Keep the verified grid vertices. Rounding or unconstrained smoothing could
   // move a route into an obstacle or invalidate the grade/coverage checks.
@@ -684,7 +752,7 @@ export function suggestRoutes(
         lengthM = 0,
         crossings = 0
       for (let i = 1; i < path.length; i++) {
-        const key = edgeKey(path[i - 1], path[i])
+        const key = arcKey(path[i - 1], path[i])
         searchScore += edges.get(key) ?? 0
         avoidancePenalty += penaltiesOf.get(key) ?? 0
         crossings += crossingsOf.get(key) ?? 0
@@ -701,7 +769,7 @@ export function suggestRoutes(
   const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
   return {
     routes,
-    message: `Terrain-cost route suggestion${options.groundWindowM ? ` over a ${options.groundWindowM} m ground trend` : ''}${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit. Exclusions use ${options.exclusionBufferM} m centreline clearance; stream crossings are ${options.allowStreamCrossings ? 'priced' : `blocked with ${options.streamBufferM} m clearance`}.${options.maxTerrainSlopePercent === null ? '' : ` Sampled terrain gradient ≤${options.maxTerrainSlopePercent}% over ±${options.terrainSlopeSampleM} m.`}${reusableRoads.length ? ` Reviewed road corridors within ${options.roadSnapDistanceM} m use ${options.existingRoadCostFactor}× road cost; proximity does not establish connection or usability.` : ''} Additional-cost zones add their entered allowances. Avoidance penalties rank the search separately from these costs${routes.some((r) => r.avoidancePenalty > 0) ? ` (CAD-equivalent ${routes.map((r) => money(r.avoidancePenalty)).join(', ')})` : ''}. Curves, earthworks and engineering feasibility require review.`,
+    message: `Terrain-cost route suggestion${options.groundWindowM ? ` over a ${options.groundWindowM} m ground trend` : ''}${routes.length > 1 ? `s: ${routes.length} ranked alternatives (${routes.map((r) => money(r.cost)).join(', ')})` : ` (${money(routes[0].cost)})`} on a ${spacing.toFixed(1)} m search grid; ${totalVisited.toLocaleString('en-CA')} nodes explored. Segments were checked at ≤1 m spacing against a ${settings.maxGradePercent}% ground-grade limit.${options.haulGrades ? ` ${haulGradeText(options.haulGrades)}` : ''} Exclusions use ${options.exclusionBufferM} m centreline clearance; stream crossings are ${options.allowStreamCrossings ? 'priced' : `blocked with ${options.streamBufferM} m clearance`}.${options.maxTerrainSlopePercent === null ? '' : ` Sampled terrain gradient ≤${options.maxTerrainSlopePercent}% over ±${options.terrainSlopeSampleM} m.`}${reusableRoads.length ? ` Reviewed road corridors within ${options.roadSnapDistanceM} m use ${options.existingRoadCostFactor}× road cost; proximity does not establish connection or usability.` : ''} Additional-cost zones add their entered allowances. Avoidance penalties rank the search separately from these costs${routes.some((r) => r.avoidancePenalty > 0) ? ` (CAD-equivalent ${routes.map((r) => money(r.avoidancePenalty)).join(', ')})` : ''}. Curves, earthworks and engineering feasibility require review.`,
     visited: totalVisited,
   }
 }
