@@ -1,0 +1,453 @@
+{
+  "description": "JS/GDAL numerical contract. Pixel points are zero-based centres. Add0.5toeachpixelaxiswheninstallingGDALGCPs. EPSG3857 projected units are not ground distance.",
+  "fixtures": [
+    {
+      "name": "similarity",
+      "project": {
+        "schema": "pgmaps-georeference-v1",
+        "pixelConvention": "pixel-centres-x-right-y-down",
+        "fitCrs": "EPSG:3857",
+        "source": {
+          "id": "synthetic-similarity",
+          "url": null,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "width": 1600,
+          "height": 1100,
+          "frame": {
+            "kind": "original-image",
+            "description": "Synthetic numerical contract fixture; no external source."
+          }
+        },
+        "transform": "similarity",
+        "points": [
+          {
+            "id": "P0",
+            "pixel": [100, 100],
+            "coordinate": [-124.99573300240043, 53.998283911082005],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P1",
+            "pixel": [1500, 100],
+            "coordinate": [-124.94542734648972, 54.00382794343485],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P2",
+            "pixel": [100, 1000],
+            "coordinate": [-124.9896693742326, 53.97927019397484],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P3",
+            "pixel": [1500, 1000],
+            "coordinate": [-124.93936371832193, 53.984816758216716],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P4",
+            "pixel": [800, 300],
+            "coordinate": [-124.96923270151889, 53.99683178058846],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P5",
+            "pixel": [400, 700],
+            "coordinate": [-124.98091080021247, 53.98679749503594],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P6",
+            "pixel": [1200, 750],
+            "coordinate": [-124.95182784288909, 53.98891017715007],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P7",
+            "pixel": [800, 900],
+            "coordinate": [-124.96519028274037, 53.98415649167716],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P8",
+            "pixel": [600, 450],
+            "coordinate": [-124.97540861909722, 53.992871167251046],
+            "enabled": true,
+            "role": "control"
+          }
+        ]
+      },
+      "matrix3857": [
+        [4.000000000000531, 0.7500000000006879, -13914936.349159198],
+        [0.7500000000006879, -4.000000000000531, 7170156.293999949]
+      ],
+      "diagnostics": {
+        "warnings": [
+          "Residuals describe agreement with chosen points, not independently verified ground accuracy.",
+          "No enabled held-out checks: fitted residuals cannot validate the placement."
+        ],
+        "controlCount": 9,
+        "checkCount": 0,
+        "excludedCount": 0,
+        "minimumControls": 2,
+        "fitCrs": "EPSG:3857",
+        "inverseMethod": "analytical",
+        "folded": false,
+        "sampledFoldChecks": 0,
+        "inverseSampleFailures": 0
+      },
+      "probes": [
+        {
+          "pixel": [-0.5, -0.5],
+          "projected": [-13914938.724159196, 7170157.918999949],
+          "coordinate": [-125.00002133498799, 54.00000858026684],
+          "inverse": {
+            "pixel": [-0.4999999995388862, -0.49999999971032594],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 5.529184303351826e-13
+          }
+        },
+        {
+          "pixel": [799.5, 549.5],
+          "projected": [-13911326.224159196, 7168557.918999949],
+          "coordinate": [-124.96756969534917, 53.99155946108912],
+          "inverse": {
+            "pixel": [799.500000000213, 549.5000000005405],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 3.455740189594891e-14
+          }
+        },
+        {
+          "pixel": [1599.5, 1099.5],
+          "projected": [-13907713.724159194, 7166957.918999949],
+          "coordinate": [-124.93511805571033, 53.98310862719307],
+          "inverse": {
+            "pixel": [1599.5000000000916, 1099.5000000001164],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 5.529184303351826e-13
+          }
+        },
+        {
+          "pixel": [412.5, 876.25],
+          "projected": [-13912629.161659196, 7166960.668999949],
+          "coordinate": [-124.9792741820542, 53.983123153534976],
+          "inverse": {
+            "pixel": [412.4999999999472, 876.2499999994493],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 3.9097237153302933e-13
+          }
+        }
+      ]
+    },
+    {
+      "name": "affine",
+      "project": {
+        "schema": "pgmaps-georeference-v1",
+        "pixelConvention": "pixel-centres-x-right-y-down",
+        "fitCrs": "EPSG:3857",
+        "source": {
+          "id": "synthetic-affine",
+          "url": null,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "width": 1600,
+          "height": 1100,
+          "frame": {
+            "kind": "original-image",
+            "description": "Synthetic numerical contract fixture; no external source."
+          }
+        },
+        "transform": "affine",
+        "points": [
+          {
+            "id": "P0",
+            "pixel": [100, 100],
+            "coordinate": [-124.99604741274987, 53.998521527613164],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P1",
+            "pixel": [1500, 100],
+            "coordinate": [-124.94574175683918, 54],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P2",
+            "pixel": [100, 1000],
+            "coordinate": [-124.99281347772704, 53.98426213502687],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P3",
+            "pixel": [1500, 1000],
+            "coordinate": [-124.94250782181635, 53.98574111378814],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P4",
+            "pixel": [800, 300],
+            "coordinate": [-124.97017593256722, 53.99609249469858],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P5",
+            "pixel": [400, 700],
+            "coordinate": [-124.98311167265855, 53.989332700712026],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P6",
+            "pixel": [1200, 750],
+            "coordinate": [-124.9541859205099, 53.98938551585585],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P7",
+            "pixel": [800, 900],
+            "coordinate": [-124.96801997588533, 53.986586220929915],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P8",
+            "pixel": [600, 450],
+            "coordinate": [-124.97682346566971, 53.99350489070311],
+            "enabled": true,
+            "role": "control"
+          }
+        ]
+      },
+      "matrix3857": [
+        [4.000000000000758, 0.400000000000908, -13914936.349159196],
+        [0.19999999999926332, -2.9999999999972227, 7170156.293999946]
+      ],
+      "diagnostics": {
+        "warnings": [
+          "Residuals describe agreement with chosen points, not independently verified ground accuracy.",
+          "No enabled held-out checks: fitted residuals cannot validate the placement."
+        ],
+        "controlCount": 9,
+        "checkCount": 0,
+        "excludedCount": 0,
+        "minimumControls": 3,
+        "fitCrs": "EPSG:3857",
+        "inverseMethod": "analytical",
+        "folded": false,
+        "sampledFoldChecks": 0,
+        "inverseSampleFailures": 0
+      },
+      "probes": [
+        {
+          "pixel": [-0.5, -0.5],
+          "projected": [-13914938.549159197, 7170157.693999946],
+          "coordinate": [-125.00001976293625, 54.000007392229975],
+          "inverse": {
+            "pixel": [-0.499999999752049, -0.49999999935857886],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 5.068299578104979e-13
+          }
+        },
+        {
+          "pixel": [799.5, 549.5],
+          "projected": [-13911518.549159195, 7168667.693999947],
+          "coordinate": [-124.96929738021936, 53.99213920466041],
+          "inverse": {
+            "pixel": [799.4999999996032, 549.4999999996696],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 0
+          }
+        },
+        {
+          "pixel": [1599.5, 1099.5],
+          "projected": [-13908098.549159193, 7167177.693999948],
+          "coordinate": [-124.93857499750246, 53.98426953005131],
+          "inverse": {
+            "pixel": [1599.5000000002537, 1099.4999999997153],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 2.5341497890524894e-13
+          }
+        },
+        {
+          "pixel": [412.5, 876.25],
+          "projected": [-13912935.849159196, 7167610.043999949],
+          "coordinate": [-124.98202920274119, 53.98655320925402],
+          "inverse": {
+            "pixel": [412.4999999997972, 876.2500000005148],
+            "converged": true,
+            "iterations": 0,
+            "residualProjectedMetres": 2.8332655967440596e-13
+          }
+        }
+      ]
+    },
+    {
+      "name": "thin-plate-spline",
+      "project": {
+        "schema": "pgmaps-georeference-v1",
+        "pixelConvention": "pixel-centres-x-right-y-down",
+        "fitCrs": "EPSG:3857",
+        "source": {
+          "id": "synthetic-thin-plate-spline",
+          "url": null,
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "width": 1600,
+          "height": 1100,
+          "frame": {
+            "kind": "original-image",
+            "description": "Synthetic numerical contract fixture; no external source."
+          }
+        },
+        "transform": "thin-plate-spline",
+        "points": [
+          {
+            "id": "P0",
+            "pixel": [100, 100],
+            "coordinate": [-124.99600807887231, 53.99861300637616],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P1",
+            "pixel": [1500, 100],
+            "coordinate": [-124.94571381695991, 53.999922530416875],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P2",
+            "pixel": [100, 1000],
+            "coordinate": [-124.99267155663537, 53.984680969508005],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P3",
+            "pixel": [1500, 1000],
+            "coordinate": [-124.94240701156285, 53.98538641760222],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P4",
+            "pixel": [800, 300],
+            "coordinate": [-124.96962067838159, 53.99598082085333],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P5",
+            "pixel": [400, 700],
+            "coordinate": [-124.98246733555884, 53.98958578852201],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P6",
+            "pixel": [1200, 750],
+            "coordinate": [-124.9535819279653, 53.988916112950825],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P7",
+            "pixel": [800, 900],
+            "coordinate": [-124.9672034884053, 53.986393571154736],
+            "enabled": true,
+            "role": "control"
+          },
+          {
+            "id": "P8",
+            "pixel": [600, 450],
+            "coordinate": [-124.97611893150236, 53.99353122662477],
+            "enabled": true,
+            "role": "control"
+          }
+        ]
+      },
+      "matrix3857": null,
+      "diagnostics": {
+        "warnings": [
+          "Residuals describe agreement with chosen points, not independently verified ground accuracy.",
+          "No enabled held-out checks: fitted residuals cannot validate the placement.",
+          "TPS extrapolation and inverse convergence are not guaranteed outside the controls; sampling cannot prove that every fold was detected."
+        ],
+        "controlCount": 9,
+        "checkCount": 0,
+        "excludedCount": 0,
+        "minimumControls": 6,
+        "fitCrs": "EPSG:3857",
+        "inverseMethod": "damped-newton",
+        "folded": false,
+        "sampledFoldChecks": 169,
+        "inverseSampleFailures": 0
+      },
+      "probes": [
+        {
+          "pixel": [-0.5, -0.5],
+          "projected": [-13914948.298266497, 7170174.835729675],
+          "coordinate": [-125.0001073406572, 54.000097903272746],
+          "inverse": {
+            "pixel": [-0.5000000002004299, -0.4999999999809006],
+            "converged": true,
+            "iterations": 2,
+            "residualProjectedMetres": 1.0442675293295996e-12
+          }
+        },
+        {
+          "pixel": [799.5, 549.5],
+          "projected": [-13911432.214970134, 7168638.744602419],
+          "coordinate": [-124.9685218270036, 53.991986317927676],
+          "inverse": {
+            "pixel": [799.4999999997985, 549.4999999993992],
+            "converged": true,
+            "iterations": 2,
+            "residualProjectedMetres": 2.123750936462128e-13
+          }
+        },
+        {
+          "pixel": [1599.5, 1099.5],
+          "projected": [-13908101.608537959, 7167117.032311765],
+          "coordinate": [-124.93860248036951, 53.98394910408517],
+          "inverse": {
+            "pixel": [1599.5000000110233, 1099.500000005828],
+            "converged": true,
+            "iterations": 1,
+            "residualProjectedMetres": 4.894748504879897e-8
+          }
+        },
+        {
+          "pixel": [412.5, 876.25],
+          "projected": [-13912869.250617642, 7167654.336050595],
+          "coordinate": [-124.98143093786341, 53.98678715346089],
+          "inverse": {
+            "pixel": [412.4999999994297, 876.2500000005081],
+            "converged": true,
+            "iterations": 2,
+            "residualProjectedMetres": 6.33180194827754e-13
+          }
+        }
+      ]
+    }
+  ]
+}

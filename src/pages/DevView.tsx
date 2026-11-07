@@ -29,6 +29,7 @@ import { MapImagePreview } from './dev-view/MapImagePreview'
 import { SourceImagePreview } from './dev-view/SourceImagePreview'
 import { LibraryFilters } from './dev-view/LibraryFilters'
 import { OrganizationSummary } from './dev-view/OrganizationSummary'
+import { georeferenceLink } from './dev-georeference/links'
 import {
   EMPTY_FILTERS,
   isRaster,
@@ -468,6 +469,11 @@ export default function DevView() {
                 <Button variant="outline" size="sm" onClick={() => setDetails(true)}>
                   Map notes & sources
                 </Button>
+                {!!selected.downloads.length && (
+                  <Button variant="outline" size="sm" onClick={() => navigate(georeferenceLink(source, selected.id))}>
+                    Adjust alignment
+                  </Button>
+                )}
                 {!!selected.fullSheets.length && (
                   <Button variant="outline" size="sm" onClick={() => setSheetOpen(true)}>
                     <FileImage />
@@ -640,6 +646,7 @@ export default function DevView() {
         facets={catalogue?.facets}
         onClose={() => setPreview(null)}
         onMap={openMap}
+        onGeoreference={(item) => navigate(georeferenceLink(source, item.id))}
         onSheet={() => {
           setPreview(null)
           setSheetOpen(true)
@@ -649,7 +656,12 @@ export default function DevView() {
           setDetails(true)
         }}
       />
-      <SourceImagePreview item={sourcePreview} facets={catalogue?.facets} onClose={() => setSourcePreview(null)} />
+      <SourceImagePreview
+        item={sourcePreview}
+        facets={catalogue?.facets}
+        onClose={() => setSourcePreview(null)}
+        onGeoreference={(item) => navigate(georeferenceLink(source, undefined, item.id))}
+      />
       <Dialog open={details} onOpenChange={setDetails}>
         <DialogContent elevated className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>

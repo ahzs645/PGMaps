@@ -48,14 +48,26 @@ export async function handle(request, env) {
     const checksum = request.headers.get('X-Content-SHA256') || ''
     if (!Number.isSafeInteger(length) || length < 1 || length > 95_000_000 || !/^[a-f0-9]{64}$/.test(checksum))
       return reply('A bounded length and SHA256 are required', 400)
+    const ifMatch = key.endsWith('/catalog.json') ? request.headers.get('If-Match') : null
+    let onlyIf
+    if (ifMatch !== null) {
+      // GET exposes httpEtag in quotes; R2Conditional.etagMatches takes the raw etag.
+      const match = /^"([\x21\x23-\x7e\x80-\xff]*)"$/.exec(ifMatch)
+      if (!match) return reply('If-Match requires one strong quoted ETag', 400)
+      onlyIf = { etagMatches: match[1] }
+    }
     const object = await env.MAPS.put(key, request.body, {
       sha256: checksum,
       httpMetadata: { contentType: request.headers.get('Content-Type') || 'application/octet-stream' },
       customMetadata: { sha256: checksum },
+      ...(onlyIf ? { onlyIf } : {}),
     })
+    // A failed R2 conditional put returns null without storing the supplied body.
+    // Do not echo the request's stale validator or read metadata in a separate race.
+    if (object === null) return reply('Catalog changed; reload it before publishing again', 412)
     return Response.json(
       { uploaded: true, bytes: object.size, sha256: checksum, etag: object.httpEtag },
-      { headers: { ...COMMON, 'Cache-Control': 'no-store' } },
+      { headers: { ...COMMON, 'Cache-Control': 'no-store', ETag: object.httpEtag } },
     )
   }
   const key = objectKey(url.pathname)

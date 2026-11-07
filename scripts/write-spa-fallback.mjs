@@ -22,6 +22,8 @@ const spaRoutes = [
   'projects',
   'dev',
   'dev/view',
+  'dev/georeference',
+  'dev/view/edit',
   'dev/lidar',
   ...[
     'canopy',

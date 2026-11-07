@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { webcrypto, timingSafeEqual } from 'node:crypto'
+import { createHash, webcrypto, timingSafeEqual } from 'node:crypto'
 import { handle, objectKey } from './worker.mjs'
 
 const subtle = webcrypto.subtle
@@ -12,6 +12,7 @@ const capability = 'x'.repeat(43),
 function object(extra = {}) {
   return {
     size: 100,
+    etag: 'version-one',
     httpEtag: '"version-one"',
     customMetadata: { sha256: 'a'.repeat(64) },
     writeHttpMetadata: (h) => h.set('Content-Type', 'application/vnd.pmtiles'),
@@ -80,6 +81,7 @@ test('Uploading requires an owner token, bounded length and checksum; the body s
         puts++
         assert.ok(body instanceof ReadableStream)
         assert.equal(options.sha256, 'a'.repeat(64))
+        assert.equal(options.onlyIf, undefined)
         return { size: 3, httpEtag: '"uploaded"' }
       },
     },
@@ -120,4 +122,118 @@ test('Uploading requires an owner token, bounded length and checksum; the body s
     ).status,
     400,
   )
+})
+
+function catalogUpload(body, etag, extraHeaders = {}) {
+  return new Request(base + `/__upload/${capability}/catalog.json`, {
+    method: 'PUT',
+    body,
+    headers: {
+      Authorization: 'Bearer test-owner-token',
+      'Content-Length': String(Buffer.byteLength(body)),
+      'Content-Type': 'application/json',
+      'X-Content-SHA256': createHash('sha256').update(body).digest('hex'),
+      ...(etag !== undefined ? { 'If-Match': etag } : {}),
+      ...extraHeaders,
+    },
+  })
+}
+
+// R2 evaluates the precondition atomically at commit, and returns null on failure.
+function catalogBucket() {
+  let current = { etag: 'version-one', body: '{"maps":[]}' }
+  let writes = 0
+  const conditions = []
+  return {
+    conditions,
+    get current() {
+      return current
+    },
+    head: async () => assert.fail('Catalog updates must not HEAD then write unconditionally'),
+    get: async () =>
+      object({
+        etag: current.etag,
+        httpEtag: `"${current.etag}"`,
+        body: current.body,
+        size: Buffer.byteLength(current.body),
+      }),
+    put: async (key, body, options) => {
+      assert.equal(key, `collections/${capability}/catalog.json`)
+      const text = await new Response(body).text()
+      assert.equal(options.sha256, createHash('sha256').update(text).digest('hex'))
+      conditions.push(options.onlyIf)
+      if (options.onlyIf && options.onlyIf.etagMatches !== current.etag) return null
+      // No await between checking the current value and committing its replacement.
+      writes++
+      current = { etag: `version-${writes + 1}`, body: text }
+      return object({ etag: current.etag, httpEtag: `"${current.etag}"`, size: Buffer.byteLength(text) })
+    },
+  }
+}
+
+test('Catalog CAS uses the live quoted ETag and rejects stale updates without changing the object', async () => {
+  const bucket = catalogBucket()
+  const env = { UPLOAD_TOKEN: 'test-owner-token', MAPS: bucket }
+  const read = () => handle(new Request(base + `/c/${capability}/catalog.json`), env)
+  const original = await read()
+  const originalEtag = original.headers.get('ETag')
+  assert.equal(originalEtag, '"version-one"')
+
+  const first = await handle(catalogUpload('{"maps":["first"]}', originalEtag), env)
+  assert.equal(first.status, 200)
+  assert.equal(first.headers.get('ETag'), '"version-2"')
+  assert.equal((await first.json()).etag, '"version-2"')
+  assert.deepEqual(bucket.conditions[0], { etagMatches: 'version-one' })
+
+  const stale = await handle(catalogUpload('{"maps":["stale"]}', originalEtag), env)
+  assert.equal(stale.status, 412)
+  assert.equal(stale.headers.get('Cache-Control'), 'no-store')
+  assert.equal(stale.headers.get('ETag'), null)
+  assert.equal(stale.headers.get('X-Content-SHA256'), null)
+  assert.equal(bucket.current.body, '{"maps":["first"]}')
+
+  const latest = await read()
+  assert.equal(latest.headers.get('ETag'), '"version-2"')
+  assert.equal(await latest.text(), '{"maps":["first"]}')
+  const rebased = await handle(catalogUpload('{"maps":["first","rebased"]}', latest.headers.get('ETag')), env)
+  assert.equal(rebased.status, 200)
+  assert.equal(rebased.headers.get('ETag'), '"version-3"')
+  assert.deepEqual(bucket.conditions[2], { etagMatches: 'version-2' })
+})
+
+test('Two simultaneous catalog edits based on the same revision cannot both overwrite it', async () => {
+  const bucket = catalogBucket()
+  const env = { UPLOAD_TOKEN: 'test-owner-token', MAPS: bucket }
+  const bodies = ['{"maps":["a"]}', '{"maps":["b"]}']
+  const responses = await Promise.all(bodies.map((body) => handle(catalogUpload(body, '"version-one"'), env)))
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 412])
+  assert.equal(bucket.current.body, bodies[responses.findIndex((response) => response.status === 200)])
+  assert.deepEqual(bucket.conditions, [{ etagMatches: 'version-one' }, { etagMatches: 'version-one' }])
+})
+
+test('Unsupported catalog validators cannot silently fall back to an unconditional upload', async () => {
+  let puts = 0
+  const env = { UPLOAD_TOKEN: 'test-owner-token', MAPS: { put: async () => puts++ } }
+  for (const etag of ['version-one', 'W/"version-one"', '*', '"one", "two"', '']) {
+    const response = await handle(catalogUpload('{"maps":[]}', etag), env)
+    assert.equal(response.status, 400)
+  }
+  assert.equal(puts, 0)
+})
+
+test('Conditional catalog uploads retain owner authentication and bounded checksummed streaming', async () => {
+  let puts = 0
+  const env = { UPLOAD_TOKEN: 'test-owner-token', MAPS: { put: async () => puts++ } }
+  for (const [headers, status] of [
+    [{ Authorization: 'Bearer wrong-owner' }, 404],
+    [{ 'Content-Length': '95000001' }, 400],
+    [{ 'Content-Length': '0' }, 400],
+    [{ 'X-Content-SHA256': 'invalid' }, 400],
+  ]) {
+    assert.equal((await handle(catalogUpload('{"maps":[]}', '"version-one"', headers), env)).status, status)
+  }
+  assert.equal(puts, 0)
+  const preflight = await handle(new Request(base + `/__upload/${capability}/catalog.json`, { method: 'OPTIONS' }), env)
+  assert.equal(preflight.headers.get('Access-Control-Allow-Methods'), 'GET, HEAD, OPTIONS')
+  assert.equal(preflight.headers.get('Access-Control-Allow-Headers').includes('Authorization'), false)
 })
