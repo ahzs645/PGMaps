@@ -134,6 +134,14 @@ Felt-style "layers, legend, table" pages. `/dev/data` is the reference.
   closes when its anchor has no size (a hidden mobile copy). Neither piece
   belongs inside a modal dialog: the portal sits outside the dialog's focus
   trap.
+  A `FullscreenPanel` stacks above the portal's level and keeps Tab inside itself,
+  so a popover opened from one needs `container` set to that panel.
+- `ToolbarPopover` (`toolbar-popover.tsx`): an icon button that opens a small
+  panel of form controls, with a count of the settings in force, so a narrow
+  toolbar stays on one row at any pane width. `ActiveFilterChip` shows one such
+  setting beside the closed button and clears it. It sets `container` itself when
+  its button is in a `FullscreenPanel`. The road design station table is the
+  reference.
 - `FileDropTarget` (`file-drop-target.tsx`): wraps a map. While files are
   dragged over it, it shows a "drop to add" overlay, then hands the parent a
   `File[]`. Dragged text and links are ignored.
@@ -255,7 +263,11 @@ track grows to the longest cell in any column.
   A pane's optional `hidden` keeps its content mounted while visible neighbours
   take its space. Active pointer resizing is shared through `pane-resize.ts`;
   the application's `Map` adapter defers WebGL buffer reallocation until release,
-  scaling its existing frame during the drag to avoid white flashes.
+  scaling its existing frame during the drag to avoid white flashes. Scaling
+  stretches the picture and leaves HTML markers where they were until release, so
+  a map whose markers must track it through a drag passes `deferResize={false}`;
+  `resizeMap` redraws in the same frame, so it does not flash. The road design plan
+  does this.
 - Plot text is nonselectable through the application stylesheet (`svg`, `canvas`,
   `.recharts-wrapper`, `[data-chart-container]`), covering existing and future charts.
   Keep ordinary readouts, tables and form fields copyable.
@@ -410,6 +422,10 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   chrome, so bare HTML there has no card. `MarkerTooltip` uses this surface too.
 - Phone peek text: `mobilePeekTitle` / `mobilePeekSubtitle` on
   `MapSectionLayout`, parts separated with `·`.
+- Icon markers: `MapIconButton` (`map-icon-button.tsx`) is the square button a
+  `MapMarker` draws, with `tone` colours. Give it an SVG icon rather than a text
+  glyph: a glyph's position comes from its font's metrics, so it does not centre,
+  and it sizes the box to itself.
 
 ## Settled map observation and HTML-marker clustering
 

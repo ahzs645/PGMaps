@@ -77,7 +77,7 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   expect(errors).toEqual([])
 })
 
-test('panels close and restore, and divider drags preserve the map drawing buffer', async ({ page }) => {
+test('panels close and restore, and the map keeps its canvas through a divider drag', async ({ page }) => {
   const errors = await prepare(page)
   const canvas = page.locator('[data-testid="road-plan-view"] canvas.maplibregl-canvas')
   const originalCanvas = await canvas.elementHandle()
@@ -88,9 +88,9 @@ test('panels close and restore, and divider drags preserve the map drawing buffe
   await page.mouse.down()
   await page.mouse.move(box.x + 100, box.y + 20, { steps: 8 })
   await expect.poll(() => canvas.evaluate((el) => el.clientWidth)).not.toBe(before.css)
-  expect(await canvas.evaluate((el) => el.width)).toBe(before.width)
-  await page.mouse.up()
+  // The drawing buffer follows during the drag: scaling the old frame would strand the HTML markers.
   await expect.poll(() => canvas.evaluate((el) => el.width)).not.toBe(before.width)
+  await page.mouse.up()
   const profile = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
   const height = (await profile.boundingBox())!.height
   await page.getByRole('button', { name: 'Close detail view panel', exact: true }).click()

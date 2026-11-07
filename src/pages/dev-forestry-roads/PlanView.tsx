@@ -1,10 +1,11 @@
 import type { RoadSelectionRange } from './roadSelection'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
-import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, X } from 'lucide-react'
+import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
+import { MapIconButton } from '@/components/ui/map-icon-button'
 import { AppSelect } from '@/components/ui/select'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
@@ -531,11 +532,16 @@ function Layers(
                 offsetCoordinate(chosen.coordinate, chosen.bearing - 90, props.project.settings.crossSectionHalfWidth),
                 offsetCoordinate(chosen.coordinate, chosen.bearing + 90, props.project.settings.crossSectionHalfWidth),
               ]),
+              { type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: chosen.coordinate } },
             ]
           : [],
       ),
     [chosen, props.project.settings.crossSectionHalfWidth],
   )
+  const latestSection = useRef(section)
+  useLayoutEffect(() => {
+    latestSection.current = section
+  }, [section])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -592,7 +598,7 @@ function Layers(
       cable,
       structures,
       draft,
-      section,
+      section: latestSection.current,
       ticks,
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
@@ -727,7 +733,20 @@ function Layers(
       id: 'road-section',
       type: 'line',
       source: 'road-section',
+      filter: ['==', ['geometry-type'], 'LineString'],
       paint: { 'line-color': '#e11d48', 'line-width': 2 },
+    })
+    add({
+      id: 'road-section-point',
+      type: 'circle',
+      source: 'road-section',
+      filter: ['==', ['geometry-type'], 'Point'],
+      paint: {
+        'circle-color': '#e11d48',
+        'circle-radius': 4,
+        'circle-stroke-color': '#ffffff',
+        'circle-stroke-width': 2,
+      },
     })
     add({
       id: 'road-structures',
@@ -910,6 +929,7 @@ function Layers(
     ])
       map.moveLayer(id)
     for (const id of ['road-selection-highlight', 'road-selection-point']) if (map.getLayer(id)) map.moveLayer(id)
+    map.moveLayer('road-section-point')
   }, [
     map,
     isLoaded,
@@ -922,7 +942,6 @@ function Layers(
     cable,
     structures,
     draft,
-    section,
     ticks,
     display,
     props.terrainLayer,
@@ -933,6 +952,14 @@ function Layers(
     props.drainage,
     props.swept,
   ])
+
+  // The selected station changes on every frame of a scrub. Each setData is a trip through
+  // MapLibre's worker, so sending only this source keeps the other fourteen from queueing ahead of
+  // it. The dot and its section line share the source so they land on the same frame.
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    ;(map.getSource('road-section') as GeoJSONSource | undefined)?.setData(section)
+  }, [map, isLoaded, section])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1168,18 +1195,18 @@ function Layers(
               latitude={coordinate[1]}
             >
               <MarkerContent>
-                <button
-                  type="button"
+                <MapIconButton
+                  tone="blue"
                   aria-label={`Add control between points ${index + 1} and ${index + 2}`}
                   title="Add a middle control, then drag it to shape the road"
-                  className="flex size-6 cursor-cell items-center justify-center rounded-full border border-dashed border-blue-600 bg-background/95 p-0 leading-none text-blue-700 shadow"
+                  className="cursor-cell rounded-full border-dashed"
                   onClick={(event) => {
                     event.stopPropagation()
                     props.onInsertPoint?.(start.id, coordinate)
                   }}
                 >
-                  <Plus className="size-3.5" aria-hidden="true" />
-                </button>
+                  <Plus aria-hidden="true" />
+                </MapIconButton>
               </MarkerContent>
             </MapMarker>
           )
@@ -1190,7 +1217,7 @@ function Layers(
             <div
               data-testid="road-active-map-station"
               data-chainage={chosen.chainage}
-              className="pointer-events-none relative size-3 rounded-full border-2 border-white bg-rose-600 shadow"
+              className="pointer-events-none relative size-3"
             >
               {props.showLabels && (
                 <span
@@ -1223,14 +1250,14 @@ function Layers(
         .map((crossing) => (
           <MapMarker key={crossing.id} longitude={crossing.coordinate[0]} latitude={crossing.coordinate[1]}>
             <MarkerContent>
-              <button
+              <MapIconButton
+                tone="sky"
                 title={`${crossing.name} — crossing review`}
                 aria-label={`Select crossing ${crossing.name}`}
                 onClick={() => props.onStation(crossing.chainage)}
-                className="rounded border border-sky-700 bg-sky-50 px-1 text-xs text-sky-800"
               >
-                ≈
-              </button>
+                <Waves aria-hidden="true" />
+              </MapIconButton>
             </MarkerContent>
           </MapMarker>
         ))}
@@ -1396,6 +1423,8 @@ export function PlanView(props: PlanProps) {
       <Map
         center={center}
         zoom={14}
+        // Markers are placed in pixels, so scaling the canvas during a pane drag leaves them behind.
+        deferResize={false}
         controls={
           <>
             <div className="absolute right-2 top-2 z-30 flex gap-1">

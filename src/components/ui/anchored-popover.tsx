@@ -59,6 +59,7 @@ export function AnchoredPopover({
   role,
   ariaLabel,
   panelRef: externalPanelRef,
+  container,
 }: {
   anchorRef: RefObject<HTMLElement>
   open: boolean
@@ -72,6 +73,8 @@ export function AnchoredPopover({
   role?: string
   ariaLabel?: string
   panelRef?: RefObject<HTMLDivElement>
+  /** Portal target when `document.body` will not do, such as an expanded `FullscreenPanel`. */
+  container?: Element | null
 }) {
   const ownPanelRef = useRef<HTMLDivElement>(null)
   const panelRef = externalPanelRef ?? ownPanelRef
@@ -127,6 +130,6 @@ export function AnchoredPopover({
     >
       {children}
     </div>,
-    document.body,
+    container ?? document.body,
   )
 }

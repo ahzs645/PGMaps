@@ -1,6 +1,8 @@
+import { ChevronDown } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { downloadText } from '@/lib/download'
 import { formatRoadStation } from './Charts'
 import {
@@ -19,6 +21,69 @@ const span = (value: CurveReviewRange | null, unit: string) =>
   value
     ? `${number(value.min)}${value.max - value.min > 1e-5 ? ` to ${number(value.max)}` : ''} ${unit}`
     : 'Unavailable'
+
+/** The selected curve's figures, shortest first; the full name of a shortened label is its tooltip. */
+function curveReadout(curve: ReturnType<typeof buildCurveReview>[number]): ReadoutItem[] {
+  const spirals = curve.spiralInLengthM > 0 || curve.spiralOutLengthM > 0
+  const criteria =
+    curve.requiredSuperelevationPercent !== null ||
+    curve.cappedSuperelevationPercent !== null ||
+    curve.insideWideningM !== null
+  const percent = (value: number | null) => (value === null ? 'Not entered' : `${number(value)}%`)
+  return [
+    { label: 'Arc', value: `${number(curve.length)} m` },
+    { label: 'Inside formation radius', value: span(curve.innerFormationRadiusM, 'm') },
+    ...(spirals
+      ? [
+          {
+            label: 'Spirals in / out',
+            value: `${number(curve.spiralInLengthM)} / ${number(curve.spiralOutLengthM)} m`,
+          },
+          { label: 'Total length', value: `${number(curve.fullLength)} m` },
+        ]
+      : []),
+    {
+      label: 'Min. daylight radius',
+      title: 'Minimum inside daylight radius',
+      value:
+        curve.minimumInnerDaylightRadiusM === null ? 'Unresolved' : `${number(curve.minimumInnerDaylightRadiusM)} m`,
+    },
+    {
+      label: 'Sections',
+      title: 'Complete calculated sections',
+      value: `${curve.completeSampleCount} of ${curve.sampleCount}`,
+    },
+    { label: 'CL grade', title: 'Centreline design grade', value: span(curve.centrelineGradePercent, '%') },
+    { label: 'Inner edge', title: 'Inner-edge grade screen', value: span(curve.innerEdgeGradePercent, '%') },
+    { label: 'Inside width', title: 'Inside formation width', value: span(curve.insideWidthM, 'm') },
+    { label: 'Outside width', title: 'Outside formation width', value: span(curve.outsideWidthM, 'm') },
+    { label: 'Inside x-fall', title: 'Actual inside crossfall', value: span(curve.insideCrossfallPercent, '%') },
+    { label: 'Outside x-fall', title: 'Actual outside crossfall', value: span(curve.outsideCrossfallPercent, '%') },
+    // The review's warning already says when no criteria are entered, so these rows would only repeat it.
+    ...(criteria
+      ? [
+          {
+            label: 'Required e',
+            title: 'Required e from speed and friction',
+            value: percent(curve.requiredSuperelevationPercent),
+          },
+          {
+            label: 'Capped target',
+            title: 'Capped rotation target',
+            value: percent(curve.cappedSuperelevationPercent),
+          },
+          {
+            label: 'Widening in / out',
+            title: 'Criteria widening, inside / outside',
+            value:
+              curve.insideWideningM === null
+                ? 'Not entered'
+                : `${number(curve.insideWideningM)} / ${number(curve.outsideWideningM)} m`,
+          },
+        ]
+      : []),
+  ]
+}
 
 /** A shared-station review of the geometry actually fitted, including qualified tight-turn screens. */
 export function CurveReviewPanel({
@@ -62,6 +127,7 @@ export function CurveReviewPanel({
         <Button
           size="sm"
           variant="outline"
+          className="h-7 px-2"
           disabled={!rows.length}
           onClick={() => downloadText(curveReviewCsv(alignment, rows, terrain), 'road-curve-review.csv', 'text/csv')}
         >
@@ -142,19 +208,23 @@ export function CurveReviewPanel({
             aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
           >
-            <span>
-              {active.id} · {active.direction} turn · {number(active.deflectionDegrees, 1)}° full deflection
+            <span className="min-w-0 truncate">
+              {active.id} · {active.direction} turn · {number(active.deflectionDegrees, 1)}°
             </span>
-            <span>{expanded ? 'Hide −' : 'Details +'}</span>
+            <ChevronDown
+              aria-hidden="true"
+              className={`size-4 shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+            />
           </button>
           {expanded && (
-            <div className="space-y-3 border-t p-2 text-xs" data-testid="road-selected-curve-review">
+            <div className="space-y-2 border-t p-2 text-xs" data-testid="road-selected-curve-review">
               <div className="flex flex-wrap gap-1" aria-label="Curve geometry stations">
                 {active.events.map((event) => (
                   <Button
                     key={event.label}
                     size="sm"
                     variant="outline"
+                    className="h-7 px-2 tabular-nums"
                     aria-label={`${active.id} ${event.label} station`}
                     onClick={() => onStation(event.chainage)}
                   >
@@ -162,79 +232,21 @@ export function CurveReviewPanel({
                   </Button>
                 ))}
               </div>
-              <p className="text-2xs text-muted-foreground">
-                {active.events.length === 4
-                  ? 'TS/ST bound the full curve; SC/CS bound the circular arc. Full deflection includes both spirals.'
-                  : 'BC/EC bound the circular curve. No spirals are fitted.'}{' '}
-                Arc {number(active.length)} m · entry/exit spirals {number(active.spiralInLengthM)} /{' '}
-                {number(active.spiralOutLengthM)} m · total {number(active.fullLength)} m.
-              </p>
-              <dl className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-2">
-                {[
-                  ['Inside formation width', span(active.insideWidthM, 'm')],
-                  ['Outside formation width', span(active.outsideWidthM, 'm')],
-                  ['Inside formation radius', span(active.innerFormationRadiusM, 'm')],
-                  [
-                    'Minimum inside daylight radius',
-                    active.minimumInnerDaylightRadiusM === null
-                      ? 'Unresolved'
-                      : `${number(active.minimumInnerDaylightRadiusM)} m`,
-                  ],
-                  ['Centreline design grade', span(active.centrelineGradePercent, '%')],
-                  ['Inner-edge grade screen', span(active.innerEdgeGradePercent, '%')],
-                  [
-                    'Required e · speed/friction',
-                    active.requiredSuperelevationPercent === null
-                      ? 'Not entered'
-                      : `${number(active.requiredSuperelevationPercent)}%`,
-                  ],
-                  [
-                    'Capped rotation target',
-                    active.cappedSuperelevationPercent === null
-                      ? 'Not entered'
-                      : `${number(active.cappedSuperelevationPercent)}%`,
-                  ],
-                  ['Actual inside crossfall', span(active.insideCrossfallPercent, '%')],
-                  ['Actual outside crossfall', span(active.outsideCrossfallPercent, '%')],
-                  [
-                    'Criteria widening · inside/outside',
-                    active.insideWideningM === null
-                      ? 'Not entered'
-                      : `${number(active.insideWideningM)} / ${number(active.outsideWideningM)} m`,
-                  ],
-                  ['Complete calculated sections', `${active.completeSampleCount} of ${active.sampleCount}`],
-                ].map(([label, value]) => (
-                  <div key={label} className="min-w-0">
-                    <dt className="text-3xs text-muted-foreground">{label}</dt>
-                    <dd className="break-words font-mono">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="text-2xs text-muted-foreground">
-                Widths, radii, grades and crossfalls use {active.circularSampleCount} calculated sections on the
-                circular arc. Crossfall is positive falling away from the centreline. The capped target can differ from
-                actual crossfall because the section retains its template crown. Entered widening is additional to the
-                resolved template and local widening ranges.
-              </p>
-              <div className="space-y-1 text-2xs">
-                {active.warnings.map((warning) => (
-                  <p key={warning} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
-                    {warning}
-                  </p>
-                ))}
-                {active.innerEdgeGradeReason && (
-                  <p className="text-muted-foreground">Inner-edge screen unavailable: {active.innerEdgeGradeReason}</p>
-                )}
-              </div>
-              <details className="text-2xs text-muted-foreground">
-                <summary className="cursor-pointer">Calculation basis and switchback limits</summary>
-                <p className="mt-1">{INNER_EDGE_GRADE_BASIS}</p>
-                <p className="mt-1">{CURVE_REVIEW_BASIS}</p>
-                <p className="mt-1">
-                  Criteria: {alignment.curveDesign?.criteriaName || 'Not named'} ·{' '}
-                  {alignment.curveDesign?.criteriaSource || 'No source recorded'}.
-                </p>
-              </details>
+              <ReadoutGrid items={curveReadout(active)} minColumnWidth="10rem" />
+              {(active.warnings.length > 0 || active.innerEdgeGradeReason) && (
+                <div className="space-y-1 text-2xs">
+                  {active.warnings.map((warning) => (
+                    <p key={warning} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
+                      {warning}
+                    </p>
+                  ))}
+                  {active.innerEdgeGradeReason && (
+                    <p className="text-muted-foreground">
+                      Inner-edge screen unavailable: {active.innerEdgeGradeReason}
+                    </p>
+                  )}
+                </div>
+              )}
               {(() => {
                 // The turn this curve belongs to; a switchback's two curves share one.
                 const runs = swept?.maneuvers.filter((t) => t.curveIds.includes(active.id)) ?? []
@@ -257,13 +269,33 @@ export function CurveReviewPanel({
                           }`}
                     </p>
                     {onOpenSwept && (
-                      <Button size="sm" variant="outline" onClick={onOpenSwept}>
+                      <Button size="sm" variant="outline" className="h-7 px-2" onClick={onOpenSwept}>
                         {runs.length ? 'Swept path' : 'Check a vehicle'}
                       </Button>
                     )}
                   </div>
                 )
               })()}
+              <details className="text-2xs text-muted-foreground">
+                <summary className="cursor-pointer">How this is calculated</summary>
+                <p className="mt-1">
+                  {active.events.length === 4
+                    ? 'TS/ST bound the full curve; SC/CS bound the circular arc. Full deflection includes both spirals.'
+                    : 'BC/EC bound the circular curve. No spirals are fitted.'}
+                </p>
+                <p className="mt-1">
+                  Widths, radii, grades and crossfalls use {active.circularSampleCount} calculated sections on the
+                  circular arc. Crossfall is positive falling away from the centreline. The capped target can differ
+                  from actual crossfall because the section retains its template crown. Entered widening is additional
+                  to the resolved template and local widening ranges.
+                </p>
+                <p className="mt-1">{INNER_EDGE_GRADE_BASIS}</p>
+                <p className="mt-1">{CURVE_REVIEW_BASIS}</p>
+                <p className="mt-1">
+                  Criteria: {alignment.curveDesign?.criteriaName || 'Not named'} ·{' '}
+                  {alignment.curveDesign?.criteriaSource || 'No source recorded'}.
+                </p>
+              </details>
             </div>
           )}
         </section>

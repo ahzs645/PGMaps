@@ -75,6 +75,8 @@ Do not generalize this policy to app-owned files explicitly preserved by `script
 - `designSurface.ts` burns ditch bottoms and uphill fill toes as continuous minimum lines after rasterizing the strips. Without that pass, a V ditch narrower than a cell aliases into a pond at every station. The regression test is the road at 17° to the grid in `hydrology.test.ts`.
 - `@kninnug/constrainautor` stays pinned at an exact version. `tinSurface.ts` replaces its internal flip set for a roughly 9× speed-up on large breakline sets, so check that code before upgrading it.
 - Point clouds go through `pointCloud.worker.ts`, and only the grid returns to the page. `whitebox-wasm` is imported dynamically, never from page code that loads with the route, so its 4.5 MB and 17.6 MB WASM files stay lazy.
+- The selected station's dot and section line are the two features of the `road-section` source, and that source gets its own `setData` effect in `PlanView.tsx`. A scrub changes it every frame: back in the main source effect it re-sent all 15 GeoJSON sources per station and the line trailed an HTML dot by the worker's queue. The dot's HTML marker now only carries the label.
+- `PlanView.tsx` passes `deferResize={false}`. The default scales the canvas during a pane drag, which leaves pixel-placed HTML markers behind until release.
 - Keep `engine.ts`, `surfaceGrid.ts`, `designSurface.ts`, `hydrology.ts`, `drainageRun.ts`, `tinSurface.ts`, `lasSurface.ts`, `verticalOptimizer.ts`, `routing.ts` and `pointCloud.ts` free of DOM access. Take terrain and projections as arguments so the unit tests can run them.
 
 ## LiDAR snapshots

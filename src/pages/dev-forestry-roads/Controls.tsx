@@ -42,6 +42,8 @@ export function NumberField({
   disabled = false,
   hideLabel = false,
   hint,
+  precision = 6,
+  inputClassName = roadFieldClass,
 }: {
   label: string
   ariaLabel?: string
@@ -53,6 +55,9 @@ export function NumberField({
   disabled?: boolean
   hideLabel?: boolean
   hint?: ReactNode
+  /** Decimals shown; an untouched field keeps its full stored value. */
+  precision?: number
+  inputClassName?: string
 }) {
   return (
     <SharedNumberField
@@ -63,11 +68,11 @@ export function NumberField({
       min={min}
       max={max}
       step={step}
-      precision={6}
+      precision={precision}
       stepMode="increment"
       disabled={disabled}
       hideLabel={hideLabel}
-      inputClassName={roadFieldClass}
+      inputClassName={inputClassName}
       hintAction={hintAction(label, hint)}
     />
   )

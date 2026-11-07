@@ -1,3 +1,4 @@
+import { Plus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -20,6 +21,11 @@ export interface SweptPathProps {
 }
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
+/** A schedule cell's input reads as table text until it is hovered or focused, like a spreadsheet cell. */
+const cellInput =
+  'w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-right text-base leading-4 tabular-nums text-foreground [appearance:textfield] hover:border-input focus:border-ring focus:bg-background focus:outline-none md:text-2xs [&::-webkit-inner-spin-button]:appearance-none'
+/** Only this column stays put when the table scrolls sideways, so a row can always be identified. */
+const pinned = 'sticky left-0 z-[1]'
 export function DesignSchedules({
   alignment,
   analysis,
@@ -112,23 +118,34 @@ export function DesignSchedules({
         )}
         {tab === 'vertical' && !terrainOnly && (
           <div className="flex h-full min-h-0 flex-col gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-fit"
-              disabled={!onVerticalChange || at?.designElevation == null || alignment.vertical.length >= 500}
-              onClick={() => {
-                if (at?.designElevation == null) return
-                onVerticalChange?.(
-                  [
-                    ...alignment.vertical.filter((v) => Math.abs(v.chainage - at.chainage) > 0.001),
-                    { id: crypto.randomUUID(), chainage: at.chainage, elevation: at.designElevation, curveLength: 0 },
-                  ].sort((a, b) => a.chainage - b.chainage),
-                )
-              }}
-            >
-              Add control at selected station
-            </Button>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-7 w-fit px-2"
+                disabled={!onVerticalChange || at?.designElevation == null || alignment.vertical.length >= 500}
+                onClick={() => {
+                  if (at?.designElevation == null) return
+                  onVerticalChange?.(
+                    [
+                      ...alignment.vertical.filter((v) => Math.abs(v.chainage - at.chainage) > 0.001),
+                      {
+                        id: crypto.randomUUID(),
+                        chainage: at.chainage,
+                        elevation: at.designElevation,
+                        curveLength: 0,
+                      },
+                    ].sort((a, b) => a.chainage - b.chainage),
+                  )
+                }}
+              >
+                <Plus aria-hidden="true" />
+                Add control at selected station
+              </Button>
+              <span className="shrink-0 text-2xs text-muted-foreground">
+                {alignment.vertical.length} control{alignment.vertical.length === 1 ? '' : 's'}
+              </span>
+            </div>
             <div className="min-h-0 flex-1 overflow-auto">
               <EngineeringTable data-testid="road-vertical-control-table">
                 <thead className="sticky top-0 z-10">
@@ -144,7 +161,12 @@ export function DesignSchedules({
                       ['Status', ''],
                       ['', ''],
                     ].map(([label, unit], i) => (
-                      <ColumnHeader key={i} label={label} unit={unit} />
+                      <ColumnHeader
+                        key={i}
+                        label={label}
+                        unit={unit}
+                        className={i === 0 ? `${pinned} z-20 text-left` : undefined}
+                      />
                     ))}
                   </tr>
                 </thead>
@@ -157,40 +179,54 @@ export function DesignSchedules({
                       ? (100 * (v.elevation - previous.elevation)) / (v.chainage - previous.chainage)
                       : null
                     const outgoing = next ? (100 * (next.elevation - v.elevation)) / (next.chainage - v.chainage) : null
+                    const status = curve?.valid ? 'Fitted' : v.curveLength > 0 ? 'Unfitted' : 'Tangent'
                     return (
-                      <tr key={v.id} aria-selected={Math.abs(v.chainage - station) < 0.001}>
-                        <td className="p-2">
-                          <button className="underline" onClick={() => onStation(v.chainage)}>
+                      <tr key={v.id} className="group" aria-selected={Math.abs(v.chainage - station) < 0.001}>
+                        <td
+                          className={`${pinned} bg-background text-left group-aria-selected:bg-rose-100 dark:group-aria-selected:bg-rose-950`}
+                        >
+                          <button
+                            className="font-mono underline decoration-dotted"
+                            onClick={() => onStation(v.chainage)}
+                          >
                             V{index + 1}
                           </button>
                         </td>
                         {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
-                          <td key={key} className="min-w-28 p-1">
+                          <td key={key} className="min-w-20 !p-0.5">
                             <NumberField
                               label={`Schedule PVI ${index + 1} ${key}`}
+                              hideLabel
                               value={v[key]}
                               min={key === 'elevation' ? -12000 : 0}
                               max={key === 'elevation' ? 12000 : key === 'curveLength' ? 10000 : 100000}
+                              precision={2}
+                              inputClassName={cellInput}
                               disabled={!onVerticalChange}
                               onChange={(value) => update(v.id, { [key]: value })}
                             />
                           </td>
                         ))}
-                        <td className="p-2">{fmt(incoming)}</td>
-                        <td className="p-2">{fmt(outgoing)}</td>
-                        <td className="p-2">{fmt(curve?.k)}</td>
-                        <td className="p-2">
-                          {curve?.valid ? 'Fitted' : v.curveLength > 0 ? 'Unfitted' : 'Tangent break'}
+                        <td>{fmt(incoming)}</td>
+                        <td>{fmt(outgoing)}</td>
+                        <td>{fmt(curve?.k)}</td>
+                        <td
+                          className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                          title={status === 'Tangent' ? 'Tangent break: no vertical curve' : undefined}
+                        >
+                          {status}
                         </td>
-                        <td className="p-2">
+                        <td className="!p-0.5 text-center">
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="ghost"
+                            className="size-6 text-muted-foreground hover:text-destructive [&_svg]:size-3.5"
                             disabled={!onVerticalChange}
                             aria-label={`Remove schedule PVI ${index + 1}`}
+                            title={`Remove V${index + 1}`}
                             onClick={() => onVerticalChange?.(alignment.vertical.filter((p) => p.id !== v.id))}
                           >
-                            Remove
+                            <X aria-hidden="true" />
                           </Button>
                         </td>
                       </tr>

@@ -369,8 +369,9 @@ autosave; explicit source recovery is still required.
 Every pane boundary is a `ResizableSplit` separator (`src/components/ui/resizable-split.tsx`):
 drag it, or focus it and use the arrow keys (Shift for larger steps); double-click
 restores the default. The controls sidebar and the connected views share one more
-boundary. Maps keep their drawing buffer during pointer resizing and resize it
-once on release to avoid flashing. Chart labels cannot be selected by dragging.
+boundary. The plan map resizes and redraws on every frame of a drag, in the frame
+it is presented, so its markers follow without a blank frame. Chart labels cannot
+be selected by dragging.
 Each layout stores its own sizes in `localStorage` under
 `pgmaps-road-panes:<layout>:<split>` (`pgmaps-road-panes:sidebar` for the sidebar);
 storage that refuses writes leaves the defaults in place. The workspace fills its
