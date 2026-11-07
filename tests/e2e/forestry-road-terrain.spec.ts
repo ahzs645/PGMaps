@@ -136,7 +136,9 @@ test('source gaps remain visible across station selection, charts and the terrai
     buffer: Buffer.from(JSON.stringify(project)),
   })
   // The autosave notice changes the available chart height; settle it before comparing pixels.
-  await expect(page.getByTestId('road-workspace-header')).toContainText('Training session saved')
+  await expect(
+    page.getByTestId('road-workspace-header').getByRole('img', { name: /^Training session saved/ }),
+  ).toBeAttached()
   await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByTestId('road-plan-view')).toContainText(raster.name)
   const station = page.getByRole('spinbutton', { name: 'Selected station metres', exact: true })
@@ -148,8 +150,7 @@ test('source gaps remain visible across station selection, charts and the terrai
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '200')
   expect(await page.getByTestId('road-section-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
   expect(await page.getByTestId('road-profile-chart').locator('[data-terrain-gap]').count()).toBeGreaterThan(0)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: '3D', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
   await expect(page.getByTestId('road-terrain-preview')).toHaveAttribute('data-station', '200')
   await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   await station.fill('600')

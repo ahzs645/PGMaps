@@ -50,8 +50,7 @@ const status = (page: Page) => page.getByTestId('road-workspace-header').getByRo
 
 test('drainage compares flow on the existing and design surfaces and reaches the plan', async ({ page }) => {
   const errors = await prepare(page)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Drainage', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
   const panel = page.getByTestId('road-drainage')
   await panel.getByLabel('Stream from (ha)', { exact: true }).fill('0.5')
   await panel.getByRole('button', { name: 'Run drainage check', exact: true }).click()
@@ -126,6 +125,7 @@ test('LAZ import classifies ground in the browser and builds a TIN with breaklin
     .map((n) => Number(n.replace(/,/g, '')))
   expect(ground / total).toBeGreaterThan(0.4)
   expect(ground / total).toBeLessThan(0.6)
-  await expect(page.getByTestId('road-planning-basis')).toContainText('TERRAIN')
+  // Imported LiDAR is not a warning, so the header carries no terrain badge.
+  await expect(page.getByTestId('road-planning-basis')).toHaveCount(0)
   expect(errors).toEqual([])
 })

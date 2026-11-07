@@ -46,9 +46,7 @@ async function saveProject(page: Page): Promise<RoadProject> {
 async function chooseLayout(page: Page, name: string) {
   await page
     .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true })
-    .click()
-  await page.getByRole('option', { name, exact: true }).click()
+    .getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: name })
 }
 
 async function openSwitchbackTools(page: Page) {
@@ -361,8 +359,7 @@ for (const viewport of [
       await press(
         page.getByRole('tablist', { name: 'Visible road pane', exact: true }).getByRole('tab', { name: 'Detail' }),
       )
-      await press(page.getByRole('combobox', { name: 'Road detail view', exact: true }))
-      await press(page.getByRole('option', { name: 'Swept path', exact: true }))
+      await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Swept path' })
       const panel = page.getByTestId('road-swept-path')
       await press(panel.getByRole('button', { name: 'Check a design vehicle', exact: true }))
       const turn = panel.getByTestId('road-swept-turn').filter({ hasText: 'switchback' })

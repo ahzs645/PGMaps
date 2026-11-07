@@ -227,8 +227,7 @@ test('short workspace keeps controls internally scrollable, reaches all engineer
   await expectContained(page)
 
   await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: '3D', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
   await expect(page.getByTestId('road-terrain-preview').locator('svg[role="group"]')).toBeVisible()
   await expectContained(page)
   await page.screenshot({ path: info.outputPath('short-terrain-preview.png') })

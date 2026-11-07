@@ -1,3 +1,4 @@
+import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
@@ -6,7 +7,6 @@ import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from 
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { MapIconButton } from '@/components/ui/map-icon-button'
-import { AppSelect } from '@/components/ui/select'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
@@ -1550,12 +1550,11 @@ export function PlanView(props: PlanProps) {
         className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
-        <AppSelect
+        <RoadSelect
           value={terrainLayer}
           onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
-          triggerAriaLabel="Terrain display"
-          contentClassName="z-workspace-popover text-xs"
-          triggerClassName="h-8 w-24 min-w-0 bg-background/95 text-xs shadow-sm sm:w-32"
+          ariaLabel="Terrain display"
+          className="h-8 w-24 min-w-0 bg-background/95 sm:w-32"
           options={[
             { value: 'hillshade', label: 'Hillshade' },
             { value: 'slope', label: 'Slope' },

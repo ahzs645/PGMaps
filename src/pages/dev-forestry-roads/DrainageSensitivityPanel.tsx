@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { AppSelect } from '@/components/ui/select'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { EngineeringTable } from '@/components/ui/engineering-table'
 import {
@@ -15,7 +14,7 @@ import {
   drainageComparisonId,
   snapPolicyLabel,
 } from './drainageSensitivity'
-import { Field, roadFieldClass } from './Controls'
+import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 
 const number = (v: number, digits = 3) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -95,12 +94,12 @@ export function DrainageSensitivityPanel({
           <>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] items-end gap-2">
               <Field label="Comparison baseline">
-                <AppSelect
+                <RoadSelect
                   value={drainageComparisonId(baseline)}
                   onValueChange={setSelectedBaseline}
                   options={records.map((r) => ({ value: drainageComparisonId(r), label: r.label }))}
-                  triggerAriaLabel="Comparison baseline"
-                  triggerClassName="h-9 w-full text-xs"
+                  ariaLabel="Comparison baseline"
+                  className="h-9 w-full"
                 />
               </Field>
               <Button

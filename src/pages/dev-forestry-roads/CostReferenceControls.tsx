@@ -1,5 +1,4 @@
-import { AppSelect } from '@/components/ui/select'
-import { Field } from './Controls'
+import { Field, RoadSelect } from './Controls'
 
 export function ReferenceSelect({
   label,
@@ -14,13 +13,12 @@ export function ReferenceSelect({
 }) {
   return (
     <Field label={label}>
-      <AppSelect
+      <RoadSelect
         value={value}
         onValueChange={onChange}
         options={options}
-        triggerAriaLabel={label}
-        triggerClassName="h-auto min-h-9 text-xs"
-        contentClassName="z-workspace-menu text-xs"
+        ariaLabel={label}
+        className="h-auto min-h-9"
       />
     </Field>
   )

@@ -51,8 +51,10 @@ test('compares your road with designed routes, opens one and switches between th
   await expect(switcher).toBeVisible()
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   await expect(switcher).toBeVisible()
-  await switcher.getByRole('button').first().click()
-  await expect(switcher.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true')
+  const viewing = switcher.getByRole('combobox', { name: 'Viewing road', exact: true })
+  const firstRoad = (await viewing.locator('option').first().getAttribute('value'))!
+  await viewing.selectOption(firstRoad)
+  await expect(viewing).toHaveValue(firstRoad)
   await page.getByRole('tab', { name: 'Design', exact: true }).click()
   await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveValue(original)
 

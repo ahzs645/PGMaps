@@ -28,12 +28,10 @@ async function importProject(page: Page, bytes: Buffer) {
 async function showDrainage(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Drainage', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
 }
 async function choose(page: Page, control: string, value: string) {
-  await page.getByRole('combobox', { name: control, exact: true }).click()
-  await page.getByRole('option', { name: value, exact: true }).click()
+  await page.getByRole('combobox', { name: control, exact: true }).selectOption({ label: value })
 }
 async function download(page: Page, name: string): Promise<Buffer> {
   const pending = page.waitForEvent('download')
@@ -146,12 +144,12 @@ for (const size of [
         await expect(fresh.getByRole('article', { name: 'Comparison Preserved basin', exact: true })).toContainText(
           'Preserve depressions',
         )
-        await expect(fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true })).toContainText(
-          'Lowest elevation',
-        )
-        await expect(fresh.getByRole('combobox', { name: 'Depression treatment', exact: true })).toContainText(
-          'Preserve depressions',
-        )
+        await expect(
+          fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true }).locator('option:checked'),
+        ).toHaveText('Lowest elevation')
+        await expect(
+          fresh.getByRole('combobox', { name: 'Depression treatment', exact: true }).locator('option:checked'),
+        ).toHaveText('Preserve depressions')
         const again = JSON.parse((await download(fresh, 'Export comparison evidence')).toString()) as ReturnType<
           typeof drainageComparisonsExport
         >

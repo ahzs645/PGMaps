@@ -134,32 +134,33 @@ export function DesignTab(p: SidebarProps) {
         }}
       />
       <CrossingCostControls workspace={p.workspace} />
-      <div className="grid grid-cols-2 gap-1 p-3" data-testid="road-design-tools">
-        {p.onPlanNetwork && (
-          <div data-testid="network-planning-controls" className="contents">
+      <div className="space-y-1 p-3" data-testid="road-design-tools">
+        {/* Equal rows, so every card is the size of the tallest label. */}
+        <div className="grid auto-rows-fr grid-cols-2 gap-1">
+          {p.onPlanNetwork && (
+            <div data-testid="network-planning-controls" className="contents">
+              <ToolButton
+                icon={FolderTree}
+                label="Plan road network"
+                onClick={p.onPlanNetwork}
+                disabled={!!p.workspace.busy}
+                help="Connect several landings to selected roads, compare network methods and stage future access."
+              />
+            </div>
+          )}
+          <div data-testid="full-cost-planning-controls" className="contents">
             <ToolButton
-              icon={FolderTree}
-              label="Plan road network"
-              onClick={p.onPlanNetwork}
+              icon={MapIcon}
+              label="Compare complete route costs"
+              onClick={p.onCompareCompleteCosts}
               disabled={!!p.workspace.busy}
-              help="Connect several landings to selected roads, compare network methods and stage future access."
+              help="Construction, connected road reuse, rehabilitation and delivered gravel together. Each candidate must pass final curve, loaded-grade and road-footprint checks."
             />
           </div>
-        )}
-        <div data-testid="full-cost-planning-controls" className="contents">
-          <ToolButton
-            icon={MapIcon}
-            label="Compare complete route costs"
-            onClick={p.onCompareCompleteCosts}
-            disabled={!!p.workspace.busy}
-            help="Construction, connected road reuse, rehabilitation and delivered gravel together. Each candidate must pass final curve, loaded-grade and road-footprint checks."
-          />
+          <ToolButton icon={Mountain} label="Review existing roads" onClick={p.onShowExistingRoads} />
+          <ToolButton icon={Truck} label="Gravel & aggregate costs" onClick={p.onShowEngineering} />
         </div>
-        <ToolButton icon={Mountain} label="Review existing roads" onClick={p.onShowExistingRoads} />
-        <ToolButton icon={Truck} label="Gravel & aggregate costs" onClick={p.onShowEngineering} />
-        <div className="col-span-2">
-          <FullCostRecordSummary alignment={alignment} project={project} onOpenComparison={p.onCompareCompleteCosts} />
-        </div>
+        <FullCostRecordSummary alignment={alignment} project={project} onOpenComparison={p.onCompareCompleteCosts} />
       </div>
     </>
   )
@@ -180,11 +181,11 @@ function ToolButton({
   help?: string
 }) {
   return (
-    <div className="relative">
+    <div className="relative flex">
       <Button
         variant="outline"
         size="sm"
-        className="h-auto min-h-12 w-full flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs"
+        className="h-auto min-h-12 w-full flex-1 flex-col gap-1 whitespace-normal px-2 py-1.5 text-center text-xs"
         onClick={onClick}
         disabled={disabled}
       >
@@ -436,6 +437,9 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             uses the current grade and minimum-radius settings as screening inputs, and every result is a new, editable
             road alternative. It uses grade, radius and mapped exclusions only; the slope, stream and reuse settings
             above apply to the terrain-cost and FSR searches. Not a certified road design.
+            <br />
+            <b>Shortest</b> penalises grade least. <b>Balanced</b> weighs grade, length and curves.{' '}
+            <b>Contour-friendly</b> favours gentler terrain.
           </InfoTip>
         </div>
         {!validCorridorSettings && (
@@ -451,12 +455,12 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
               value={objective}
               onChange={(e) => setObjective(e.target.value as RoadOptimizationObjective)}
             >
-              <option value="shortest">Shortest (less grade penalty)</option>
-              <option value="balanced">Balanced (grade, length, curves)</option>
-              <option value="contour">Contour-friendly (gentler terrain)</option>
+              <option value="shortest">Shortest</option>
+              <option value="balanced">Balanced</option>
+              <option value="contour">Contour-friendly</option>
             </NativeSelect>
           </Field>
-          <Field label="Half-width (m)">
+          <Field label="Width each side (m)">
             <input
               aria-label="Corridor half-width metres"
               type="number"

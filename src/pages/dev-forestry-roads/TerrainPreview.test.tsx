@@ -14,9 +14,6 @@ vi.mock('@pgmaps/geo-toolkit/visualizations/react', () => ({
   ChartViewport: ({ children }: { children: (height: number) => ReactNode }) => children(240),
   SizedChart: ({ children }: { children: (width: number) => ReactNode }) => children(600),
 }))
-vi.mock('@/components/ui/select', () => ({
-  AppSelect: () => createElement('select'),
-}))
 vi.mock('./TerrainGround', () => ({
   TerrainGround: (props: {
     faces: TerrainFace[]

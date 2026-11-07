@@ -42,8 +42,7 @@ async function saveProject(page: Page): Promise<RoadProject> {
 }
 
 async function choose(page: Page, label: string, option: string) {
-  await page.getByRole('combobox', { name: label, exact: true }).click()
-  await page.getByRole('option', { name: option, exact: true }).click()
+  await page.getByRole('combobox', { name: label, exact: true }).selectOption({ label: option })
 }
 
 async function openCosts(page: Page) {
@@ -126,8 +125,8 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   await openCosts(page)
   const coveredTotal = await page.getByTestId('road-cost-total').innerText()
   await page.getByTestId('road-bc-cost-toggle').click()
-  await page.getByRole('combobox', { name: 'BC natural resource region', exact: true }).click()
-  await expect(page.getByRole('option')).toHaveText([
+  const region = page.getByRole('combobox', { name: 'BC natural resource region', exact: true })
+  await expect(region.locator('option')).toHaveText([
     'Choose a region',
     'Cariboo',
     'Kootenay-Boundary',
@@ -138,7 +137,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
     'South Coast',
     'West Coast',
   ])
-  await page.getByRole('option', { name: 'Cariboo', exact: true }).click()
+  await region.selectOption({ label: 'Cariboo' })
   const interiorDownload = page.getByRole('button', { name: 'Download Interior comparison JSON', exact: true })
   await expect(interiorDownload).toBeDisabled()
   await choose(page, 'Interior road group', '4 · Cariboo supply blocks / Prince George G–H')

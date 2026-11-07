@@ -34,8 +34,7 @@ async function showCompare(page: Page) {
     .getByRole('tablist', { name: 'Visible road pane', exact: true })
     .getByRole('tab', { name: 'Detail', exact: true })
     .tap()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).tap()
-  await page.getByRole('option', { name: 'Compare', exact: true }).tap()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Compare' })
   await expect(page.getByTestId('road-vertical-alternatives')).toBeVisible()
 }
 async function showSidebar(page: Page, tab: 'Design' | 'Section') {
@@ -46,9 +45,8 @@ async function showSidebar(page: Page, tab: 'Design' | 'Section') {
     .getByRole('tab', { name: tab, exact: true })
     .tap()
 }
-async function choose(page: Page, control: Locator, label: string) {
-  await control.tap()
-  await page.getByRole('option', { name: label, exact: true }).tap()
+async function choose(_page: Page, control: Locator, label: string) {
+  await control.selectOption({ label })
 }
 async function fits(page: Page, selector: string) {
   const result = await page.locator(selector).evaluate((element) => {
@@ -90,9 +88,9 @@ for (const viewport of [
     await editor.getByRole('button', { name: /Profiles on this road/ }).tap()
     await editor.getByLabel('New profile name', { exact: true }).fill('Mobile raised profile')
     await editor.getByRole('button', { name: 'Add profile', exact: true }).tap()
-    await expect(editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true })).toContainText(
-      'Mobile raised profile',
-    )
+    await expect(
+      editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }).locator('option:checked'),
+    ).toHaveText('Mobile raised profile')
     await choose(
       page,
       editor.getByRole('combobox', { name: 'Vertical alternative engineering mode', exact: true }),

@@ -1,3 +1,4 @@
+import { RoadSelect } from './dev-forestry-roads/Controls'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { NativeSelect } from '@/components/ui/form-field'
@@ -25,7 +26,6 @@ import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStream
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
-import { AppSelect } from '@/components/ui/select'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { TabBar } from '@/components/ui/tab-bar'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
@@ -140,9 +140,10 @@ const summaryValue = (full: string, mobile: string) => (
   </span>
 )
 const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
-function fitContextRoad(map: MapLibreMap, road: ContextFeature) {
-  if (road.geometry.type !== 'LineString') return
-  const points = road.geometry.coordinates
+function fitContextFeature(map: MapLibreMap, feature: ContextFeature) {
+  const points =
+    feature.geometry.type === 'LineString' ? feature.geometry.coordinates : feature.geometry.coordinates.flat()
+  if (!points.length) return
   resizeMap(map)
   map.fitBounds(
     [
@@ -307,6 +308,7 @@ export default function DevForestryRoads() {
     endpoint: 'start' | 'end'
   } | null>(null)
   const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
+  const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
   const previewFsrTarget = useCallback(
     (id: string | null, endpoint: 'start' | 'end') => {
       if (id) setReviewedRoad(null)
@@ -410,6 +412,16 @@ export default function DevForestryRoads() {
             geometry: road.geometry,
             properties: { kind: 'reviewed-existing-road', color: '#db2777', selected: true, label: road.name },
           })),
+        // A focused constraint is outlined ring by ring: the overlay draws lines, not fills.
+        ...project.context
+          .filter((area) => area.id === focusedConstraintId && area.geometry.type === 'Polygon')
+          .flatMap((area) =>
+            (area.geometry as GeoJSON.Polygon).coordinates.map((ring) => ({
+              type: 'Feature' as const,
+              geometry: { type: 'LineString' as const, coordinates: ring },
+              properties: { kind: 'focused-constraint', color: '#0f172a', selected: true, label: area.name },
+            })),
+          ),
         ...(mapFsrTarget
           ? [
               {
@@ -445,6 +457,7 @@ export default function DevForestryRoads() {
       mapFsrTarget,
       reviewedRoad,
       source,
+      focusedConstraintId,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -474,30 +487,44 @@ export default function DevForestryRoads() {
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const planMap = useRef<MapLibreMap | null>(null)
-  const pendingLocateRoad = useRef<ContextFeature | null>(null)
+  const pendingLocate = useRef<ContextFeature | null>(null)
   const onPlanReady = useCallback((map: MapLibreMap | null) => {
     planMap.current = map
-    if (map && pendingLocateRoad.current) {
-      fitContextRoad(map, pendingLocateRoad.current)
-      pendingLocateRoad.current = null
+    if (map && pendingLocate.current) {
+      fitContextFeature(map, pendingLocate.current)
+      pendingLocate.current = null
     }
   }, [])
+  /** Brings the plan forward and fits it to a context feature, once the plan map exists. */
+  const showOnPlan = useCallback(
+    (feature: ContextFeature) => {
+      if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((panel) => panel !== 'plan'))
+      setFocusPane('plan')
+      if (focusMode) setControlsOpen(false)
+      pendingLocate.current = feature
+      requestAnimationFrame(() => {
+        if (planMap.current && pendingLocate.current) {
+          fitContextFeature(planMap.current, pendingLocate.current)
+          pendingLocate.current = null
+        }
+      })
+    },
+    [hiddenPanels, setHiddenPanels, focusMode],
+  )
   const locateRoad = useCallback(
     (road: ContextFeature) => {
       if (targetPoint?.featureId !== road.id) setFsrTarget(null)
       setReviewedRoad({ id: road.id, source })
-      if (hiddenPanels.includes('plan')) setHiddenPanels(hiddenPanels.filter((panel) => panel !== 'plan'))
-      setFocusPane('plan')
-      if (focusMode) setControlsOpen(false)
-      pendingLocateRoad.current = road
-      requestAnimationFrame(() => {
-        if (planMap.current && pendingLocateRoad.current) {
-          fitContextRoad(planMap.current, pendingLocateRoad.current)
-          pendingLocateRoad.current = null
-        }
-      })
+      showOnPlan(road)
     },
-    [source, hiddenPanels, setHiddenPanels, focusMode, targetPoint],
+    [source, targetPoint, showOnPlan],
+  )
+  const locateConstraint = useCallback(
+    (area: ContextFeature) => {
+      setFocusedConstraintId(area.id)
+      showOnPlan(area)
+    },
+    [showOnPlan],
   )
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -645,6 +672,10 @@ export default function DevForestryRoads() {
     const timer = window.setTimeout(() => setNotice(''), 8000)
     return () => window.clearTimeout(timer)
   }, [notice, setNotice])
+  // Routine saves, including a training session's, are a dot; only a save that failed is spelled out.
+  const trainingSave = !!w.saving?.startsWith('Training session saved')
+  const saveNotice =
+    !!w.saving && !trainingSave && w.saving !== 'Saved on this device' && w.saving !== 'Saving locally…'
   const planningBasis = [
     'Concept planning',
     project.terrain.verticalReference,
@@ -1770,20 +1801,23 @@ export default function DevForestryRoads() {
               {w.notice}
             </p>
           </div>
-          <span
-            title={planningBasis}
-            data-testid="road-planning-basis"
-            className={`road-source-badge hidden cursor-help rounded-full border px-2 py-1 text-3xs sm:block ${project.terrain.kind === 'demo' ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400' : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'}`}
-          >
-            {project.terrain.kind === 'demo'
-              ? compact
-                ? 'SYNTHETIC'
-                : 'SYNTHETIC TRAINING'
-              : `${project.terrain.resolutionM.toFixed(1)} m TERRAIN`}
-          </span>
+          {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
+          {project.terrain.kind !== 'geotiff' && (
+            <span
+              title={planningBasis}
+              data-testid="road-planning-basis"
+              className="road-source-badge hidden cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
+            >
+              {project.terrain.kind === 'demo'
+                ? compact
+                  ? 'SYNTHETIC'
+                  : 'SYNTHETIC TRAINING'
+                : `${Math.round(project.terrain.resolutionM)} m SCREENING`}
+            </span>
+          )}
         </div>
         <RoadSwitcher
-          className="order-last w-full md:order-none md:w-auto md:flex-[2_1_0]"
+          className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
           alignments={project.alignments}
           analyses={w.analyses}
           activeId={project.activeAlignmentId}
@@ -1820,16 +1854,18 @@ export default function DevForestryRoads() {
             onSaved={setSavedLayouts}
             portalContainer={ref.current}
           />
-          <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
-            {w.saving}
-          </span>
-          {/* Narrower headers keep the autosave state as a dot whose title and label carry the text. */}
+          {/* On narrow headers a failed save is a dot too; its title and label carry the text. */}
+          {saveNotice && (
+            <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
+              {w.saving}
+            </span>
+          )}
           {w.saving && (
             <span
               role="img"
               aria-label={w.saving}
               title={w.saving}
-              className="mx-1 size-2 shrink-0 rounded-full bg-muted-foreground/60 xl:hidden"
+              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-muted-foreground/60'} ${saveNotice ? 'xl:hidden' : ''}`}
             />
           )}
           <Button
@@ -2257,6 +2293,8 @@ export default function DevForestryRoads() {
                 fsrDiscovery={fsrDiscovery}
                 onPreviewFsrTarget={previewFsrTarget}
                 onLocateRoad={locateRoad}
+                onLocateConstraint={locateConstraint}
+                focusedConstraintId={focusedConstraintId}
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
                 onPreviewRoutes={setRouteLines}
@@ -2602,8 +2640,8 @@ export default function DevForestryRoads() {
                           }
                           actions={
                             <>
-                              <AppSelect
-                                className="min-w-0"
+                              <RoadSelect
+                                className="min-w-0 h-8 w-32"
                                 value={detail}
                                 onValueChange={(value) => setDetail(value as typeof detail)}
                                 options={[
@@ -2619,9 +2657,7 @@ export default function DevForestryRoads() {
                                   { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
                                   { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
                                 ]}
-                                triggerAriaLabel="Road detail view"
-                                triggerClassName="h-8 w-32 max-w-full text-xs"
-                                contentClassName="z-workspace-menu text-xs"
+                                ariaLabel="Road detail view"
                               />
                               {detail === 'section' && !terrainProfile && (
                                 <Button

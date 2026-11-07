@@ -2,11 +2,10 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
-import { AppSelect } from '@/components/ui/select'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
-import { Field, NumberField } from './Controls'
+import { Field, NumberField, RoadSelect } from './Controls'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
 import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
@@ -149,7 +148,7 @@ export function DrainagePanel({
           label="Depression treatment"
           hint="Fill all retains the existing routing method. Preserve keeps natural sinks. A depth limit fills an entire connected depression only when its spill depth is within that limit; deeper basins remain. Potential ponding is still reported for every policy."
         >
-          <AppSelect
+          <RoadSelect
             value={settings.depressionPolicy?.mode ?? 'fill-all'}
             onValueChange={(mode) =>
               set({
@@ -170,8 +169,8 @@ export function DrainagePanel({
               { value: 'preserve', label: 'Preserve depressions' },
               { value: 'depth-limited', label: 'Fill shallow basins' },
             ]}
-            triggerAriaLabel="Depression treatment"
-            triggerClassName="h-9 w-full text-xs"
+            ariaLabel="Depression treatment"
+            className="h-9 w-full"
           />
         </Field>
         {settings.depressionPolicy?.mode === 'depth-limited' && (
@@ -188,7 +187,7 @@ export function DrainagePanel({
           label="Working grid"
           hint="Automatic uses the source resolution with a 1 m minimum. A requested cell size can coarsen the analysis; it cannot add terrain detail. The cell budget may make the actual grid coarser still."
         >
-          <AppSelect
+          <RoadSelect
             value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
             onValueChange={(value) =>
               set({ workingResolutionM: value === 'automatic' ? undefined : (run?.cellM ?? 5) })
@@ -197,8 +196,8 @@ export function DrainagePanel({
               { value: 'automatic', label: 'Use source resolution' },
               { value: 'custom', label: 'Set working resolution' },
             ]}
-            triggerAriaLabel="Working grid"
-            triggerClassName="h-9 w-full text-xs"
+            ariaLabel="Working grid"
+            className="h-9 w-full"
           />
         </Field>
         {settings.workingResolutionM !== undefined && (
@@ -538,15 +537,15 @@ export function DrainagePanel({
             <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] items-end gap-2">
               <label className="space-y-1">
                 <span className="block">Catchment surface</span>
-                <AppSelect
+                <RoadSelect
                   value={pointSurface}
                   onValueChange={(surface) => setPointOptionsAndApply({ surface: surface as PourPoint['surface'] })}
                   options={[
                     { value: 'existing', label: 'Existing ground' },
                     { value: 'design', label: 'Design surface' },
                   ]}
-                  triggerAriaLabel="Catchment surface"
-                  triggerClassName="h-9 w-full text-xs"
+                  ariaLabel="Catchment surface"
+                  className="h-9 w-full"
                 />
               </label>
               <NumberField
@@ -561,7 +560,7 @@ export function DrainagePanel({
                 label="Outlet snap policy"
                 hint="Both policies search cell centres within the entered radius, resolving ties by nearest distance then cell ID. Lowest elevation uses the chosen surface before depression filling. A zero radius selects the containing cell."
               >
-                <AppSelect
+                <RoadSelect
                   value={pointPolicy}
                   onValueChange={(snapPolicy) =>
                     setPointOptionsAndApply({ snapPolicy: snapPolicy as PourPoint['snapPolicy'] })
@@ -570,8 +569,8 @@ export function DrainagePanel({
                     { value: 'max-accumulation', label: 'Greatest contributing area' },
                     { value: 'lowest-elevation', label: 'Lowest elevation' },
                   ]}
-                  triggerAriaLabel="Outlet snap policy"
-                  triggerClassName="h-9 w-full text-xs"
+                  ariaLabel="Outlet snap policy"
+                  className="h-9 w-full"
                 />
               </Field>
               <Button

@@ -42,6 +42,9 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             1 m LiDAR DTM. Regional DEM is coarse reconnaissance terrain; the training example is synthetic.
             <br />
             Vertical reference: {project.terrain.verticalReference}.
+            <br />
+            Concept planning only: earthworks use average end areas, and construction needs field and engineering
+            review.
             {project.scenario && (
               <>
                 <br />
@@ -115,7 +118,12 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         onImport={() => p.onFile('context')}
         onProfile={p.onProfile}
       />
-      <ConstraintsPanel workspace={p.workspace} onDraw={() => p.onMode('avoid')} />
+      <ConstraintsPanel
+        workspace={p.workspace}
+        onDraw={() => p.onMode('avoid')}
+        onLocate={p.onLocateConstraint}
+        focusedId={p.focusedConstraintId}
+      />
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection
         title="Import options"

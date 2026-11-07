@@ -67,6 +67,9 @@ export interface SidebarProps {
   onPreviewFsrTarget?: (featureId: string | null, endpoint: 'start' | 'end') => void
   fsrDiscovery?: { guide: Alignment; source: TerrainSource; origin: Coordinate; scope: string } | null
   onLocateRoad?: (road: ContextFeature) => void
+  /** Shows a constraint on the plan; the sidebar marks `focusedConstraintId` as the one shown. */
+  onLocateConstraint?: (area: ContextFeature) => void
+  focusedConstraintId?: string | null
   onReviewRoad?: (road: ContextFeature | null) => void
   onShowExistingRoads?: () => void
   onShowEngineering?: () => void
@@ -127,8 +130,9 @@ export function DesignSidebar(p: SidebarProps) {
             ]}
           />
         </div>
+        {/* A stable gutter: opening a section must not bring in a scrollbar that narrows and shifts everything. */}
         <div
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
           data-testid="road-sidebar-content"
           data-map-sidebar-scroll="true"
         >

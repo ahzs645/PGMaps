@@ -1,9 +1,9 @@
+import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
-import { AppSelect } from '@/components/ui/select'
-import { Plus, Minus, RotateCcw } from 'lucide-react'
+import { Grid3x3, Minus, PaintBucket, Plus, RotateCcw, TriangleRight } from 'lucide-react'
 import { TerrainGround, type TerrainFace as Face } from './TerrainGround'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ROAD_CHART_COLORS, formatRoadStation } from './Charts'
@@ -412,7 +412,7 @@ export function TerrainPreview({
       data-batter-face-count={sourceGeometry?.earthwork.length ?? 0}
       aria-label={`${sourceLabel} 3D preview`}
     >
-      <div className="flex shrink-0 items-center justify-between gap-2 overflow-x-auto border-b px-2 py-1.5 [&>*]:shrink-0">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-1 gap-y-1 border-b px-1.5 py-1 [&>*]:shrink-0">
         <SegmentedControl
           value={mode}
           onChange={(value) => setMode(value as 'orbit' | 'follow')}
@@ -427,10 +427,9 @@ export function TerrainPreview({
         {!terrainOnly && !!analysis.engineering?.culverts.length && (
           <label className="flex min-w-0 items-center gap-1 text-3xs text-muted-foreground">
             Structure
-            <AppSelect
-              triggerAriaLabel="3D structure"
-              contentClassName="z-workspace-popover text-xs"
-              triggerClassName="h-7 max-w-48 text-xs"
+            <RoadSelect
+              ariaLabel="3D structure"
+              className="h-7 max-w-48"
               value={selectedCulvert?.id ?? ''}
               options={[
                 { value: '', label: 'Select a culvert', disabled: true },
@@ -449,7 +448,7 @@ export function TerrainPreview({
             />
           </label>
         )}
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center">
           <Button
             size="icon"
             variant="ghost"
@@ -474,7 +473,7 @@ export function TerrainPreview({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs"
+            className="size-7 px-0 text-xs"
             aria-label="Rotate terrain left"
             onClick={() => setYaw((value) => value - 15)}
           >
@@ -483,65 +482,64 @@ export function TerrainPreview({
           <Button
             size="sm"
             variant="ghost"
-            className="h-7 px-2 text-xs"
+            className="size-7 px-0 text-xs"
             aria-label="Rotate terrain right"
             onClick={() => setYaw((value) => value + 15)}
           >
             ↷
           </Button>
+          {/* Display toggles are icons so the bar fits one row; pressed ones keep a tint. */}
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
-            className="h-7 px-2 text-2xs"
+            className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+            aria-label="Mesh"
+            title="Show the triangle mesh"
             aria-pressed={wireframe}
             onClick={() => setWireframe((value) => !value)}
           >
-            Mesh
+            <Grid3x3 className="size-3.5" />
           </Button>
           <Button
-            size="sm"
+            size="icon"
             variant="ghost"
-            className="h-7 px-2 text-2xs"
+            className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
             aria-label="Fill small gaps in 3D display"
             aria-pressed={fillGaps}
             title="Estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain."
             onClick={() => setFillGaps((value) => !value)}
           >
-            Fill gaps
+            <PaintBucket className="size-3.5" />
           </Button>
           {!terrainOnly && (
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
-              className="h-7 px-2 text-2xs"
+              className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+              aria-label="Batters"
+              title="Show cut and fill batters"
               aria-pressed={showEarthwork}
               onClick={() => setShowEarthwork((value) => !value)}
             >
-              Batters
+              <TriangleRight className="size-3.5" />
             </Button>
           )}
-          <label className="flex items-center gap-1 text-3xs text-muted-foreground">
-            Colour
-            <AppSelect
-              triggerAriaLabel="Terrain colour"
-              contentClassName="z-workspace-popover text-xs"
-              triggerClassName="h-7 w-24 text-xs"
-              value={groundColour}
-              onValueChange={(value) => setGroundColour(value as GroundColour)}
-              options={GROUND_COLOURS}
-            />
-          </label>
-          <label className="flex items-center gap-1 text-3xs text-muted-foreground">
-            Vertical
-            <AppSelect
-              triggerAriaLabel="Terrain vertical exaggeration"
-              contentClassName="z-workspace-popover text-xs"
-              triggerClassName="h-7 w-16 text-xs"
-              value={String(exaggeration)}
-              onValueChange={(value) => setExaggeration(Number(value))}
-              options={[1, 2, 4].map((value) => ({ value: String(value), label: `×${value}` }))}
-            />
-          </label>
+          <RoadSelect
+            title="Terrain colour"
+            ariaLabel="Terrain colour"
+            className="h-7 w-20 px-2"
+            value={groundColour}
+            onValueChange={(value) => setGroundColour(value as GroundColour)}
+            options={GROUND_COLOURS}
+          />
+          <RoadSelect
+            title="Vertical exaggeration"
+            ariaLabel="Terrain vertical exaggeration"
+            className="h-7 w-12 px-1.5"
+            value={String(exaggeration)}
+            onValueChange={(value) => setExaggeration(Number(value))}
+            options={[1, 2, 4].map((value) => ({ value: String(value), label: `×${value}` }))}
+          />
         </div>
       </div>
       {sourceGeometry && groundColour !== 'plain' && (

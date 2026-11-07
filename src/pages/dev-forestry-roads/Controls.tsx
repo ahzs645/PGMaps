@@ -1,9 +1,61 @@
 import type { ReactNode } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
-import { FormField, NumberField as SharedNumberField, NullableNumberField } from '@/components/ui/form-field'
+import {
+  FormField,
+  NativeSelect,
+  NumberField as SharedNumberField,
+  NullableNumberField,
+} from '@/components/ui/form-field'
+import { cn } from '@/lib/utils'
 
 export const roadFieldClass =
   'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs'
+
+export interface RoadSelectOption {
+  value: string
+  label: string
+  disabled?: boolean
+  title?: string
+}
+
+/**
+ * The road page's dropdown: always the browser's own select, so it opens as the platform menu (a wheel on
+ * phones), works with the keyboard as people expect and is never clipped by a pane. Classes size the field.
+ */
+export function RoadSelect({
+  value,
+  onValueChange,
+  options,
+  ariaLabel,
+  className,
+  disabled,
+  title,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  options: readonly RoadSelectOption[]
+  ariaLabel: string
+  className?: string
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <NativeSelect
+      aria-label={ariaLabel}
+      title={title}
+      className={cn(roadFieldClass, 'py-1', className)}
+      value={value}
+      disabled={disabled}
+      onChange={(event) => onValueChange(event.target.value)}
+    >
+      {options.map((option) => (
+        <option key={option.value} value={option.value} disabled={option.disabled} title={option.title}>
+          {option.label}
+        </option>
+      ))}
+    </NativeSelect>
+  )
+}
 
 function hintAction(label: string, hint?: ReactNode) {
   return hint ? (

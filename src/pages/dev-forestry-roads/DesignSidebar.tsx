@@ -15,6 +15,7 @@ import {
 import { corridorCandidate } from './corridorCandidate'
 import { resolvedGroundWindow } from './groundTrend'
 import { parseProject } from './project'
+import { terrainDisplayName } from './terrainName'
 import type { Alignment, RoadProject, TerrainSource } from './types'
 export type { FileKind } from './DesignSidebarBody'
 export type SidebarProps = Omit<BodyProps, 'onOptimize'>
@@ -25,6 +26,14 @@ type Review = {
   source: TerrainSource
   options: RoadOptimizationOptions
 }
+/** Measure, field, and whether less is better (null: neither, as with length). */
+const COMPARED = [
+  ['Length (m)', 'lengthM', null],
+  ['Steepest ground grade (%)', 'maxSampledGroundPitchPercent', true],
+  ['Ground climbed (m)', 'groundAscentM', true],
+  ['Ground descended (m)', 'groundDescentM', true],
+  ['Excess rise and fall (m)', 'excessVerticalM', true],
+] as const
 const value = (v: number, decimals = 1) =>
   Number.isFinite(v) ? v.toLocaleString('en-CA', { maximumFractionDigits: decimals }) : '—'
 
@@ -154,7 +163,7 @@ export function DesignSidebar(props: SidebarProps) {
               <Button variant="outline" onClick={report}>
                 Download optimization report
               </Button>
-              <Button variant="outline" onClick={() => setReview(null)}>
+              <Button variant="ghost" onClick={() => setReview(null)}>
                 Discard candidate
               </Button>
             </div>
@@ -168,51 +177,72 @@ export function DesignSidebar(props: SidebarProps) {
           <CorridorPreview review={review} />
           <div className="mt-4 overflow-x-auto">
             <EngineeringTable rowHeaders>
-              <caption className="whitespace-normal pb-2 text-left text-sm">
-                Ground profile comparison with the input guide’s straight legs
-              </caption>
+              <caption className="whitespace-normal pb-2 text-left text-sm font-medium">Ground along each line</caption>
               <thead>
                 <tr>
                   <ColumnHeader label="Measure" className="text-left" />
-                  <ColumnHeader label="Guide" />
+                  <ColumnHeader label="Your guide" />
                   <ColumnHeader label="Candidate" />
+                  <ColumnHeader label="Change" />
                 </tr>
               </thead>
               <tbody>
-                {(
-                  [
-                    ['Length (m)', 'lengthM'],
-                    ['Maximum sampled ground grade (%)', 'maxSampledGroundPitchPercent'],
-                    ['Ground ascent (m)', 'groundAscentM'],
-                    ['Ground descent (m)', 'groundDescentM'],
-                    ['Excess rise/fall (m)', 'excessVerticalM'],
-                  ] as const
-                ).map(([label, key]) => (
-                  <tr key={key}>
-                    <th scope="row">{label}</th>
-                    <td>{review.result.baseline.complete ? value(review.result.baseline[key]) : 'Incomplete'}</td>
-                    <td>{value(review.result[key])}</td>
-                  </tr>
-                ))}
+                {COMPARED.map(([label, key, lowerIsBetter]) => {
+                  const guide = review.result.baseline.complete ? review.result.baseline[key] : null
+                  const candidate = review.result[key]
+                  const change = guide === null ? null : candidate - guide
+                  const better =
+                    change !== null && lowerIsBetter !== null && Math.abs(change) >= 0.05
+                      ? change < 0 === lowerIsBetter
+                      : null
+                  return (
+                    <tr key={key}>
+                      <th scope="row">{label}</th>
+                      <td>{guide === null ? 'Incomplete' : value(guide)}</td>
+                      <td>{value(candidate)}</td>
+                      <td
+                        data-change={better === null ? 'neutral' : better ? 'better' : 'worse'}
+                        className={
+                          better === null
+                            ? 'text-muted-foreground'
+                            : better
+                              ? 'text-emerald-700 dark:text-emerald-400'
+                              : 'text-amber-700 dark:text-amber-400'
+                        }
+                      >
+                        {change === null
+                          ? '—'
+                          : `${change > 0 ? '+' : change < 0 ? '−' : '±'}${value(Math.abs(change))}`}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </EngineeringTable>
           </div>
-          <p className="mt-3 text-xs">
-            Minimum fitted radius:{' '}
-            {review.result.minimumRadiusM === null ? 'Straight route' : value(review.result.minimumRadiusM) + ' m'} ·{' '}
-            {value(review.result.explored, 0)} explored states · ≤{review.result.sampleStepM} m terrain checks ·{' '}
-            {review.result.searchStatus}.
+          <p className="mt-3 text-xs text-muted-foreground" data-testid="road-optimization-run">
+            {review.result.minimumRadiusM === null
+              ? 'Straight, no curves'
+              : `Tightest curve R${value(review.result.minimumRadiusM)} m`}{' '}
+            · {value(review.result.explored, 0)} states searched · ground checked every ≤{review.result.sampleStepM} m ·{' '}
+            {review.result.searchStatus}
           </p>
-          <p className="mt-2 text-xs">
-            {review.original.terrain.name} · source cells {value(review.original.terrain.resolutionM, 2)} m. Sampling
-            more finely does not improve source accuracy.
+          <p className="mt-1 text-xs text-muted-foreground" title={review.original.terrain.name}>
+            {terrainDisplayName(review.original.terrain.name)} · {value(review.original.terrain.resolutionM, 2)} m cells
           </p>
-          <p className="mt-2 text-xs">
-            Adoption preserves the fitted horizontal curves. Vertical design, culverts, template assignments and
-            widenings are not copied to different stations; the original road keeps them.
-          </p>
-          <details className="mt-3 text-xs">
-            <summary>Checks and design limitations</summary>
+          {review.original.terrain.kind !== 'geotiff' && (
+            <InlineAlert tone="warning" className="mt-2">
+              {review.original.terrain.kind === 'demo'
+                ? 'Synthetic ground: a training result, not a site route.'
+                : 'Coarse screening terrain: grades between its cells are interpolated, so check the route on LiDAR or your own DEM.'}
+            </InlineAlert>
+          )}
+          <details className="mt-3 rounded-md border px-3 py-2 text-xs">
+            <summary className="cursor-pointer font-medium">What adopting keeps, and what this does not check</summary>
+            <p className="mt-2">
+              Adopting adds the candidate as a new road with its fitted horizontal curves. Vertical design, culverts,
+              template assignments and widenings stay on your original road; they are not copied to different stations.
+            </p>
             {review.result.warnings.map((warning) => (
               <p key={warning} className="mt-2">
                 {warning}
@@ -236,38 +266,75 @@ function CorridorPreview({ review }: { review: Review }) {
   const a = guide.map(frame.toXY),
     b = review.result.coordinates.map(frame.toXY),
     all = [...a, ...b]
-  const x0 = Math.min(...all.map((p) => p[0])),
-    x1 = Math.max(...all.map((p) => p[0]))
-  const y0 = Math.min(...all.map((p) => p[1])),
-    y1 = Math.max(...all.map((p) => p[1]))
-  const scale = Math.min(600 / Math.max(1, x1 - x0), 220 / Math.max(1, y1 - y0))
+  // Frame the whole search corridor, so the band shows how much room the search had.
+  const half = review.options.corridorHalfWidthM
+  const x0 = Math.min(...all.map((p) => p[0])) - half,
+    x1 = Math.max(...all.map((p) => p[0])) + half
+  const y0 = Math.min(...all.map((p) => p[1])) - half,
+    y1 = Math.max(...all.map((p) => p[1])) + half
+  const scale = Math.min(620 / Math.max(1, x1 - x0), 240 / Math.max(1, y1 - y0))
+  const sx = (p: number[]) => 320 + (p[0] - (x0 + x1) / 2) * scale,
+    sy = (p: number[]) => 130 - (p[1] - (y0 + y1) / 2) * scale
   const path = (points: number[][]) =>
-    points
-      .map(
-        (p, i) =>
-          (i ? 'L' : 'M') +
-          (320 + (p[0] - (x0 + x1) / 2) * scale).toFixed(2) +
-          ',' +
-          (130 - (p[1] - (y0 + y1) / 2) * scale).toFixed(2),
-      )
-      .join(' ')
+    points.map((p, i) => (i ? 'L' : 'M') + sx(p).toFixed(1) + ',' + sy(p).toFixed(1)).join(' ')
+  const ends = [
+    ['Start', b[0]],
+    ['End', b.at(-1)!],
+  ] as const
   return (
     <figure className="rounded-lg border bg-muted/20 p-2">
       <svg
         viewBox="0 0 640 260"
-        className="w-full"
+        className="max-h-72 w-full"
         role="img"
         aria-label="North-up comparison of sketched guide and verified curved candidate"
       >
+        <path
+          d={path(a)}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2 * half * scale}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          opacity={0.07}
+          data-testid="road-optimization-corridor"
+        />
         <path d={path(a)} fill="none" stroke="currentColor" strokeWidth={2} strokeDasharray="7 5" opacity={0.5} />
-        <path d={path(b)} fill="none" stroke="#2563eb" strokeWidth={3} />
+        <path d={path(b)} fill="none" stroke="#2563eb" strokeWidth={3} strokeLinejoin="round" />
+        {ends.map(([label, point]) => (
+          <g key={label}>
+            <circle cx={sx(point)} cy={sy(point)} r={5} fill="#2563eb" stroke="white" strokeWidth={2} />
+            {/* Start reads to the left of its dot and End to the right, so neither sits on the line. */}
+            <text
+              x={sx(point) + (label === 'Start' ? -9 : 9)}
+              y={sy(point) + 4}
+              textAnchor={label === 'Start' ? 'end' : 'start'}
+              fill="currentColor"
+              fontSize={11}
+            >
+              {label}
+            </text>
+          </g>
+        ))}
         <text x={12} y={20} fill="currentColor" fontSize={12}>
           N ↑
         </text>
       </svg>
-      <figcaption className="text-xs">
-        Dashed: input guide. Blue: actual tangent/arc centreline. Local metric view, north up. The search corridor
-        extends {value(review.options.corridorHalfWidthM, 0)} m to either side of the guide.
+      <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 px-1 pt-1 text-2xs text-muted-foreground">
+        <span className="inline-flex items-center gap-1.5">
+          <svg width="22" height="4" aria-hidden="true">
+            <line x1="0" x2="22" y1="2" y2="2" stroke="currentColor" strokeWidth="2" strokeDasharray="5 3" />
+          </svg>
+          Your guide
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-[3px] w-[22px] rounded bg-[#2563eb]" aria-hidden="true" />
+          Candidate centreline
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="h-2.5 w-[22px] rounded-sm bg-foreground/10" aria-hidden="true" />
+          Search corridor · {value(half, 0)} m each side
+        </span>
       </figcaption>
     </figure>
   )

@@ -102,8 +102,7 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
 
 test('station table interval and columns, saved layouts and cost status', async ({ page }) => {
   const errors = await prepare(page)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Stations', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Stations' })
   const table = page.getByTestId('road-station-table')
   const all = await table.locator('tbody tr').count()
   await page.getByRole('button', { name: 'Filter stations', exact: true }).click()
@@ -121,15 +120,14 @@ test('station table interval and columns, saved layouts and cost status', async 
   await page.keyboard.press('Escape')
 
   const picker = page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout' })
-  await picker.click()
-  await page.getByRole('option', { name: 'Save or manage layouts…', exact: true }).click()
+  await picker.selectOption({ label: 'Save or manage layouts…' })
   const dialog = page.getByTestId('road-layouts-dialog')
   await dialog.getByLabel('Name for the current layout').fill('Wide plan')
   await dialog.getByRole('button', { name: 'Save current layout', exact: true }).click()
-  await expect(picker).toHaveText(/Wide plan/)
+  await expect(picker.locator('option:checked')).toHaveText(/Wide plan/)
   await page.reload()
   await expect(page.getByTestId('road-profile-chart')).toBeVisible()
-  await expect(picker).toHaveText(/Wide plan/)
+  await expect(picker.locator('option:checked')).toHaveText(/Wide plan/)
 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
   await expect(page.getByTestId('road-cost-status')).toContainText(
@@ -153,7 +151,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   await workflow.getByRole('tab', { name: 'Section' }).click()
   await openRoadPanel(page, 'Template components')
   const tree = page.getByTestId('road-template-components')
-  await tree.getByRole('button', { name: 'Ditch · standard-right', exact: true }).click()
+  await tree.getByRole('button', { name: 'Right ditch', exact: true }).click()
   await tree.getByLabel(/^Bottom width \(m\)/).fill('0.4')
   await tree.getByLabel(/^Bottom width \(m\)/).press('Tab')
   await expect(tree.getByRole('button', { name: 'Use base value', exact: true })).toBeVisible()
@@ -179,6 +177,7 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()
   await (await chooser).setFiles({ name: 'ground.las', mimeType: 'application/octet-stream', buffer: lasFile() })
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('points are ground')
-  await expect(page.getByTestId('road-planning-basis')).toContainText('TERRAIN')
+  // Imported LiDAR is not a warning, so the header carries no terrain badge.
+  await expect(page.getByTestId('road-planning-basis')).toHaveCount(0)
   expect(errors).toEqual([])
 })

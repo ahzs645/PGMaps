@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { InfoTip } from '@/components/ui/info-tip'
 import { NumberField } from './Controls'
 import { sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
@@ -48,6 +49,7 @@ const COMPONENTS: Record<Kind, { name: string; rule: string; fields: (side: Side
     ],
   },
 }
+const SHORT: Record<Kind, string> = { lane: 'Lane', ditch: 'Ditch', slope: 'Slope' }
 const ATTRIBUTE = {
   crossfallPercent: 'CrossfallPercent',
   surfaceDepth: 'SurfaceDepth',
@@ -78,39 +80,63 @@ export function TemplateComponents({
       : (template[field.key] as number)
   const overridden = (field: Field) => field.base !== undefined && template[field.key] !== undefined
   const component = COMPONENTS[selected.kind]
+  const fixed = (n: number, digits = 1) => n.toFixed(digits).replace(/\.0+$/, '')
+  /** The values that identify a component at a glance, so the grid doubles as a summary. */
+  const glance = (kind: Kind, side: Side) => {
+    if (kind === 'lane')
+      return `${fixed(template[`${side}Width`])} m · ${fixed(sideValue(template, side, 'CrossfallPercent'))}%`
+    if (kind === 'ditch') {
+      const width = sideValue(template, side, 'DitchWidth'),
+        depth = sideValue(template, side, 'DitchDepth')
+      return width > 0 && depth > 0 ? `${fixed(width)} × ${fixed(depth)} m` : 'None'
+    }
+    return `C ${fixed(sideValue(template, side, 'CutSlope'), 2)} · F ${fixed(sideValue(template, side, 'FillSlope'), 2)}`
+  }
+  const label = (kind: Kind, side: Side) => `${side === 'left' ? 'Left' : 'Right'} ${SHORT[kind].toLowerCase()}`
   return (
     <div className="space-y-2" data-testid="road-template-components">
-      <div className="grid grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-2">
-        <ul role="tree" aria-label="Template components" className="space-y-1 text-xs">
+      <TemplateSketch template={template} selected={selected} />
+      <div
+        role="group"
+        aria-label="Template components"
+        className="grid grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-1 text-xs"
+      >
+        <div className="contents">
+          <span />
           {(['left', 'right'] as const).map((side) => (
-            <li key={side} role="treeitem" aria-expanded>
-              <span className="font-medium capitalize">{side} side</span>
-              <ul role="group" className="ml-2 border-l pl-2">
-                {(Object.keys(COMPONENTS) as Kind[]).map((kind) => (
-                  <li key={kind} role="treeitem" aria-selected={selected.side === side && selected.kind === kind}>
-                    <button
-                      className={`w-full truncate rounded px-1 text-left ${selected.side === side && selected.kind === kind ? 'bg-primary/10 text-primary' : 'hover:bg-muted'}`}
-                      aria-label={`${COMPONENTS[kind].name}-${side}`}
-                      title={`${COMPONENTS[kind].name}-${side}`}
-                      onClick={() => setSelected({ side, kind })}
-                    >
-                      {/* The group already names the side; the short name fits a narrow sidebar. */}
-                      {COMPONENTS[kind].name.split(' · ')[0]}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </li>
+            <span key={side} className="text-center text-3xs font-medium uppercase text-muted-foreground">
+              {side}
+            </span>
           ))}
-        </ul>
-        <TemplateSketch template={template} selected={selected} />
+        </div>
+        {(Object.keys(COMPONENTS) as Kind[]).map((kind) => (
+          <div key={kind} className="contents">
+            <span className="pr-1 font-medium">{SHORT[kind]}</span>
+            {(['left', 'right'] as const).map((side) => {
+              const active = selected.side === side && selected.kind === kind
+              return (
+                <button
+                  key={side}
+                  type="button"
+                  aria-label={label(kind, side)}
+                  aria-pressed={active}
+                  title={kind === 'slope' ? 'Cut · fill slope, H:V' : undefined}
+                  onClick={() => setSelected({ side, kind })}
+                  className={`w-full truncate rounded-md border px-2 py-1 text-center tabular-nums transition-colors touch:py-2 ${active ? 'border-primary bg-primary/10 font-medium text-primary' : 'hover:bg-muted'}`}
+                >
+                  {glance(kind, side)}
+                </button>
+              )
+            })}
+          </div>
+        ))}
       </div>
-      <div className="rounded border p-2">
-        <p className="text-xs font-medium">
-          {component.name}-{selected.side}
-        </p>
-        <p className="mb-2 text-2xs leading-4 text-muted-foreground">{component.rule}</p>
-        <div className="grid grid-cols-2 gap-2">
+      <div className="rounded-md border p-2">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-medium">{label(selected.kind, selected.side)}</p>
+          <InfoTip label={`About the ${SHORT[selected.kind].toLowerCase()}`}>{component.rule}</InfoTip>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
           {component.fields(selected.side).map((field) => (
             <div key={field.key}>
               <NumberField

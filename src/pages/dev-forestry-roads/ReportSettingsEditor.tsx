@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { AppSelect } from '@/components/ui/select'
-import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
+import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   createReportChapter,
   createRoadReportSettings,
@@ -80,22 +79,22 @@ export function ReportSettingsEditor({
         analysis.
       </p>
       <Field label="Paper size">
-        <AppSelect
+        <RoadSelect
           value={settings.paper}
           onValueChange={(paper) => update({ ...settings, paper: paper as 'A3' | 'A4' })}
           options={[
             { value: 'A3', label: 'A3 landscape' },
             { value: 'A4', label: 'A4 landscape' },
           ]}
-          triggerAriaLabel="Report paper size"
+          ariaLabel="Report paper size"
         />
       </Field>
       <Field label="Chapter to edit">
-        <AppSelect
+        <RoadSelect
           value={chapter.id}
           onValueChange={setSelected}
           options={settings.chapters.map((c, i) => ({ value: c.id, label: `${i + 1}. ${c.title}` }))}
-          triggerAriaLabel="Report chapter to edit"
+          ariaLabel="Report chapter to edit"
         />
       </Field>
       <div className="rounded border p-3 space-y-3">
@@ -224,11 +223,11 @@ export function ReportSettingsEditor({
       </div>
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 items-end">
         <Field label="New chapter type">
-          <AppSelect
+          <RoadSelect
             value={kind}
             onValueChange={(next) => setKind(next as ReportChapterKind)}
             options={REPORT_CHAPTER_KINDS.map((value) => ({ value, label: KIND_LABELS[value] }))}
-            triggerAriaLabel="New report chapter type"
+            ariaLabel="New report chapter type"
           />
         </Field>
         <Button size="sm" variant="outline" onClick={add} disabled={settings.chapters.length >= MAX_REPORT_CHAPTERS}>
@@ -249,7 +248,7 @@ export function ReportSettingsEditor({
         ))}
       </fieldset>
       <Field label="Curve table placement">
-        <AppSelect
+        <RoadSelect
           value={settings.curveTablePosition}
           onValueChange={(position) =>
             update({ ...settings, curveTablePosition: position as RoadReportSettings['curveTablePosition'] })
@@ -259,7 +258,7 @@ export function ReportSettingsEditor({
             { value: 'chapter', label: 'Add a curve-table chapter' },
             { value: 'plan-sheet', label: 'Inset at top right of each plan' },
           ]}
-          triggerAriaLabel="Curve table placement"
+          ariaLabel="Curve table placement"
         />
       </Field>
       <DrawingLabelField

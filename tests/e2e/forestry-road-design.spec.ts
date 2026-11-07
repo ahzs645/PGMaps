@@ -126,9 +126,8 @@ function detailPicker(page: Page) {
   return page.getByRole('combobox', { name: 'Road detail view', exact: true })
 }
 async function showDetail(page: Page, name: string) {
-  await detailPicker(page).click()
-  await page.getByRole('option', { name, exact: true }).click()
-  await expect(detailPicker(page)).toHaveText(name)
+  await detailPicker(page).selectOption({ label: name })
+  await expect(detailPicker(page).locator('option:checked')).toHaveText(name)
 }
 function engineeringInput(page: Page, name: string) {
   return page.getByRole('tablist', { name: 'Engineering inputs', exact: true }).getByRole('tab', { name, exact: true })
@@ -209,8 +208,7 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   const fromMap = await page.getByTestId('road-active-map-station').getAttribute('data-chainage')
   await expect(profile).toHaveAttribute('data-station', fromMap!)
 
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Slope', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Slope' })
   await expect.poll(async () => (await mapState(page))?.imageHash).not.toBe(initial.imageHash)
   await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByTestId('road-plan-view').getByText('Slope 0°', { exact: true })).toBeVisible()
@@ -220,11 +218,9 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   await expect.poll(async () => (await mapState(page))?.contoursVisible).toBe('none')
   await page.getByLabel('Contours', { exact: true }).check()
   await page.keyboard.press('Escape')
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Elevation', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Elevation' })
   await expect(page.getByTestId('road-plan-view').getByText(/^Elevation -?\d+–-?\d+ m$/)).toBeVisible()
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Hillshade', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Hillshade' })
 
   await showDetail(page, 'Section')
   await page.screenshot({
@@ -267,8 +263,7 @@ test('station, real map layers, profile, section, schedule and terrain remain li
 test('pegging uses real map points with live leg grade and an undoable new road', async ({ page }) => {
   const errors = await prepare(page)
   const beforeDrawing = (await saveProject(page)).project
-  await page.getByRole('combobox', { name: 'Road view layout', exact: true }).click()
-  await page.getByRole('option', { name: 'Plan · profile · section · pegging', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: 'Plan · profile · section · pegging' })
   await page.getByRole('button', { name: 'Peg road', exact: true }).click()
   const feedback = page.getByTestId('pegging-feedback')
   await expect(feedback).toContainText('0 points')
@@ -427,9 +422,7 @@ test('stream terrain profiles show ground-only data and cannot edit the road ver
   const rectangle = (await plot.boundingBox())!
   await page.mouse.dblclick(rectangle.x + rectangle.width * 0.55, rectangle.y + rectangle.height * 0.45)
   expect((await saveProject(page)).project.alignments).toEqual(original.alignments)
-  await detailPicker(page).click()
-  await expect(page.getByRole('option', { name: 'Mass haul', exact: true })).toHaveAttribute('data-disabled', '')
-  await page.keyboard.press('Escape')
+  await expect(detailPicker(page).locator('option', { hasText: 'Mass haul' })).toBeDisabled()
   await showDetail(page, 'Stations')
   await expect(page.getByTestId('road-station-table')).toContainText('Gnd grade')
   await expect(page.getByTestId('road-station-table')).not.toContainText('Formation')
@@ -760,8 +753,10 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   const secondStructure = (await saveProject(page)).project.alignments.find(
     (a) => a.id === saved.project.activeAlignmentId,
   )!.engineering!.culverts[1]
-  await page.getByRole('combobox', { name: '3D structure', exact: true }).click()
-  await page.getByRole('option').filter({ hasText: secondStructure.name }).click()
+  const structures = page.getByRole('combobox', { name: '3D structure', exact: true })
+  await structures.selectOption(
+    (await structures.locator('option').filter({ hasText: secondStructure.name }).getAttribute('value'))!,
+  )
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain B', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
@@ -846,7 +841,7 @@ test('numeric pegging and radial D-lines preserve physical map positions, invali
   await expect.poll(async () => (await mapState(page))?.overlay?.features.length).toBe(0)
   await page.getByRole('button', { name: 'Run radial screen', exact: true }).click()
   await page.getByRole('button', { name: 'Use selected D-line', exact: true }).click()
-  await expect(detailPicker(page)).toHaveText('D-line')
+  await expect(detailPicker(page).locator('option:checked')).toHaveText('D-line')
   await workflow(page, 'Review').click()
   await openRoadPanel(page, 'D-line / cable geometry')
   const initialCables = (await mapState(page))!.cables

@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { AppSelect } from '@/components/ui/select'
 import { InfoTip } from '@/components/ui/info-tip'
-import { NumberField } from './Controls'
+import { NumberField, RoadSelect } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
@@ -330,7 +329,7 @@ export function CostBreakdown({
                 </span>
               </InfoTip>
             </span>
-            <AppSelect
+            <RoadSelect
               value={preset?.id ?? 'custom'}
               onValueChange={(id) => {
                 const next = RATE_PRESETS.find((p) => p.id === id)
@@ -340,9 +339,8 @@ export function CostBreakdown({
                 ...RATE_PRESETS.map((p) => ({ value: p.id, label: p.label })),
                 { value: 'custom', label: 'Custom · this project', disabled: true },
               ]}
-              triggerAriaLabel="Rate preset"
-              triggerClassName="h-8 text-xs"
-              contentClassName="z-workspace-menu text-xs"
+              ariaLabel="Rate preset"
+              className="h-8"
             />
           </label>
           <BCCostReferences portalContainer={portalContainer} />

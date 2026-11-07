@@ -128,8 +128,7 @@ test('panels close and restore, and the map keeps its canvas through a divider d
     ['Map only', 'plan', false, false],
     ['Linked overview', 'linked', true, true],
   ] as const) {
-    await page.getByRole('combobox', { name: 'Road view layout', exact: true }).click()
-    await page.getByRole('option', { name: label, exact: true }).click()
+    await page.getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: label })
     await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-layout', layout)
     expect(await page.locator('[data-pane="profile"]').isVisible()).toBe(profileVisible)
     expect(await page.locator('[data-pane="detail"]').isVisible()).toBe(detailVisible)
@@ -143,16 +142,14 @@ test('map settings use styled controls and terrain supports zoom, pan and a comp
   const fit = (await page.getByRole('button', { name: 'Fit road alignments', exact: true }).boundingBox())!
   const zoom = (await page.getByRole('button', { name: 'Zoom in', exact: true }).boundingBox())!
   expect(fit.y + fit.height).toBeLessThanOrEqual(zoom.y)
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Slope', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Slope' })
   await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByLabel('Terrain slope in degrees')).toBeVisible()
   await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Contours', exact: true }).uncheck()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog', { name: 'Map display settings', exact: true })).toHaveCount(0)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: '3D', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
   const preview = page.getByTestId('road-terrain-preview')
   const ground = page.getByTestId('road-ground-canvas')
   await expect(ground).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
@@ -194,16 +191,14 @@ test('map settings use styled controls and terrain supports zoom, pan and a comp
 
 test('engineering settings locate features across the connected views', async ({ page }) => {
   const errors = await prepare(page)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Pegs', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Pegs' })
   const help = page.getByRole('button', { name: 'About peg measurements', exact: true })
   await expect(page.getByRole('tooltip')).toHaveCount(0)
   await help.focus()
   await expect(page.getByRole('tooltip')).toContainText('HD and grade describe straight peg-to-peg legs')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('tooltip')).toHaveCount(0)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Section', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Section' })
 
   await page
     .getByRole('tablist', { name: 'Road workflow', exact: true })
@@ -243,11 +238,9 @@ test('engineering settings locate features across the connected views', async ({
       }),
     )
     .toBe(true)
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Mass haul', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Mass haul' })
   await expect(page.getByTestId('road-mass-chart').getByTestId('road-chart-selection')).toBeVisible()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: '3D', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
   await expect(page.getByTestId('road-terrain-preview').locator('polygon[fill="#e11d48"]')).not.toHaveCount(0)
   await page.getByRole('button', { name: 'Clear selection', exact: true }).click()
   await expect(page.getByTestId('road-chart-selection')).toHaveCount(0)
@@ -329,8 +322,7 @@ test('a preset always shows its own panels, whichever control picks it', async (
   const errors = await prepare(page)
   const picker = page.getByRole('combobox', { name: 'Road view layout', exact: true })
   const pick = async (label: string) => {
-    await picker.click()
-    await page.getByRole('option', { name: label, exact: true }).click()
+    await picker.selectOption({ label })
   }
   const openDialog = async () => {
     await page.getByRole('button', { name: 'Screen presets & panels', exact: true }).click()
@@ -345,12 +337,12 @@ test('a preset always shows its own panels, whichever control picks it', async (
   await dialog.getByRole('checkbox', { name: 'Show profile panel', exact: true }).check()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(profile).toBeVisible()
-  await expect(picker).toHaveText('Map only · edited')
+  await expect(picker.locator('option:checked')).toHaveText('Map only · edited')
 
   // The picker offers the plain preset while edited, and choosing it restores the preset.
   await pick('Map only')
   await expect(profile).toBeHidden()
-  await expect(picker).toHaveText('Map only')
+  await expect(picker.locator('option:checked')).toHaveText('Map only')
 
   // The same holds for the dialog's card, and after leaving and returning.
   const again = await openDialog()

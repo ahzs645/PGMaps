@@ -169,8 +169,9 @@ for (const size of [
       )
       await activate(page.getByRole('button', { name: 'Haul & cost settings', exact: true }))
       const dialog = page.getByRole('dialog', { name: 'Haul & cost settings', exact: true })
-      await activate(dialog.getByRole('combobox', { name: 'Material allocation method', exact: true }))
-      await activate(page.getByRole('option', { name: 'Economic material flow', exact: true }))
+      await dialog
+        .getByRole('combobox', { name: 'Material allocation method', exact: true })
+        .selectOption({ label: 'Economic material flow' })
       await activate(dialog.getByRole('button', { name: 'Add fill requirement', exact: true }))
       await dialog.getByLabel('Permit substitution by quality', { exact: true }).check()
       await dialog.getByRole('spinbutton', { name: 'Requirement 1 minimum quality', exact: true }).fill('80')

@@ -1,10 +1,9 @@
 import { useMemo, useState } from 'react'
-import { AppSelect } from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { Field, roadFieldClass } from './Controls'
+import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { analyzeRoad } from './engine'
 import { alternativeCostLabel, alternativeCostStatus } from './alternativeCosts'
 import {
@@ -105,7 +104,7 @@ export function VerticalAlternativesEditor({
         </p>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Field label="Engineering inputs across profiles">
-            <AppSelect
+            <RoadSelect
               value={alignment.verticalAlternativeCostMode ?? 'shared'}
               onValueChange={(mode) =>
                 change(() => setVerticalAlternativeCostMode(alignment, mode as 'shared' | 'independent'))
@@ -114,16 +113,16 @@ export function VerticalAlternativesEditor({
                 { value: 'shared', label: 'Shared materials, haul and structures' },
                 { value: 'independent', label: 'Independent engineering per profile' },
               ]}
-              triggerAriaLabel="Vertical alternative engineering mode"
+              ariaLabel="Vertical alternative engineering mode"
             />
           </Field>
           {active && (
             <Field label="Active vertical alternative">
-              <AppSelect
+              <RoadSelect
                 value={active.id}
                 onValueChange={(id) => change(() => activateVerticalAlternative(alignment, id))}
                 options={(alignment.verticalAlternatives ?? []).map((v) => ({ value: v.id, label: v.name }))}
-                triggerAriaLabel="Active vertical alternative"
+                ariaLabel="Active vertical alternative"
               />
             </Field>
           )}

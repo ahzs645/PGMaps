@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { LayoutDashboard, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
-import { AppSelect } from '@/components/ui/select'
-import { roadFieldClass } from './Controls'
+import { roadFieldClass, RoadSelect } from './Controls'
 import {
   ROAD_LAYOUT_OPTIONS,
   ROAD_PANE_SPLITS,
@@ -130,7 +129,7 @@ export function LayoutPicker({
   return (
     <>
       <span className={compact ? 'hidden' : 'contents'}>
-        <AppSelect
+        <RoadSelect
           value={edited ? EDITED : current.selection}
           onValueChange={(value) => {
             if (value === MANAGE) setOpen(true)
@@ -142,9 +141,8 @@ export function LayoutPicker({
             ...saved.map((s) => ({ value: `saved:${s.id}`, label: `★ ${s.name}` })),
             { value: MANAGE, label: 'Save or manage layouts…' },
           ]}
-          triggerAriaLabel="Road view layout"
-          triggerClassName="h-8 w-[min(15rem,60vw)] text-xs"
-          contentClassName="text-xs"
+          ariaLabel="Road view layout"
+          className="h-8 w-[min(15rem,60vw)]"
         />
       </span>
       <Button

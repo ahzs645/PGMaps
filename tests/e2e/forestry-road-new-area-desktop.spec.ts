@@ -233,8 +233,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await station.press('Tab')
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', '50')
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '50')
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: '3D', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: '3D' })
   await expect(page.getByTestId('road-ground-canvas')).toHaveAttribute('data-face-count', /^[1-9][0-9]*$/)
   await page.screenshot({ path: info.outputPath('desktop-optimized-3d.png') })
 

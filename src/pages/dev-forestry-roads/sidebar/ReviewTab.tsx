@@ -211,28 +211,31 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
           Review connected access & complete route costs
         </Button>
       </RoadSection>
-      <RoadSection
-        title="Crossings & review flags"
-        summary={`${analysis.crossings.length + analysis.warnings.length}`}
-        defaultOpen={analysis.warnings.length > 0}
-        help="Stream intersections flag crossing sites. Engineering → Drainage adds culvert dimensions, inverts, cover checks and costs at these stations. Hydraulic capacity needs more site inputs."
-      >
-        {analysis.crossings.map((c) => (
-          <button
-            key={c.id}
-            className="mb-1 block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
-            onClick={() => p.workspace.setStation(c.chainage)}
-          >
-            {c.name} · {formatRoadStation(c.chainage)}
-            <span className="block text-muted-foreground">{c.kind} crossing · field review</span>
-          </button>
-        ))}
-        {analysis.warnings.map((w, i) => (
-          <p key={i} className="mb-1 border-l-2 border-amber-500 pl-2 text-xs">
-            {w}
-          </p>
-        ))}
-      </RoadSection>
+      {/* Empty, it would only repeat the checklist's "No mapped stream crossings". */}
+      {analysis.crossings.length + analysis.warnings.length > 0 && (
+        <RoadSection
+          title="Crossings & review flags"
+          summary={`${analysis.crossings.length + analysis.warnings.length}`}
+          defaultOpen={analysis.warnings.length > 0}
+          help="Stream intersections flag crossing sites. Engineering → Drainage adds culvert dimensions, inverts, cover checks and costs at these stations. Hydraulic capacity needs more site inputs."
+        >
+          {analysis.crossings.map((c) => (
+            <button
+              key={c.id}
+              className="mb-1 block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+              onClick={() => p.workspace.setStation(c.chainage)}
+            >
+              {c.name} · {formatRoadStation(c.chainage)}
+              <span className="block text-muted-foreground">{c.kind} crossing · field review</span>
+            </button>
+          ))}
+          {analysis.warnings.map((w, i) => (
+            <p key={i} className="mb-1 border-l-2 border-amber-500 pl-2 text-xs">
+              {w}
+            </p>
+          ))}
+        </RoadSection>
+      )}
       <RoadSection
         title="Limits & sampling"
         summary={`${settings.maxGradePercent}% · R${settings.minRadius}`}

@@ -3,10 +3,22 @@ import { Button } from '@/components/ui/button'
 import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
 import { resolveConstraint } from './constraints'
 import { RoadSection } from './SidebarParts'
+import type { ContextFeature } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 /** Explicit planning treatments; harvest blocks remain map context. */
-export function ConstraintsPanel({ workspace: w, onDraw }: { workspace: RoadWorkspace; onDraw: () => void }) {
+export function ConstraintsPanel({
+  workspace: w,
+  onDraw,
+  onLocate,
+  focusedId,
+}: {
+  workspace: RoadWorkspace
+  onDraw: () => void
+  /** Click an area's name to show it on the plan. */
+  onLocate?: (area: ContextFeature) => void
+  focusedId?: string | null
+}) {
   const areas = w.project.context.filter((f) => f.kind === 'avoid' || f.kind === 'harvest')
   const blocked = areas.filter((f) => f.kind === 'avoid' && resolveConstraint(f).blocked).length
   return (
@@ -26,9 +38,21 @@ export function ConstraintsPanel({ workspace: w, onDraw }: { workspace: RoadWork
           Draw constraint
         </Button>
         {areas.map((feature) => (
-          <div key={feature.id} className="space-y-2 rounded border p-2">
+          <div
+            key={feature.id}
+            className={`space-y-2 rounded border p-2 ${feature.id === focusedId ? 'border-primary bg-primary/5' : ''}`}
+          >
             <div className="flex items-center gap-1">
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">{feature.name}</span>
+              <button
+                type="button"
+                className="min-w-0 flex-1 truncate rounded text-left text-xs font-medium hover:text-primary disabled:cursor-default disabled:hover:text-current"
+                aria-pressed={feature.id === focusedId}
+                title={onLocate ? `Show ${feature.name} on the plan` : feature.name}
+                disabled={!onLocate}
+                onClick={() => onLocate?.(feature)}
+              >
+                {feature.name}
+              </button>
               <Button
                 size="icon"
                 variant="ghost"

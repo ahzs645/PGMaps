@@ -19,8 +19,7 @@ async function prepare(page: Page) {
 async function showDrainage(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).tap()
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).tap()
-  await page.getByRole('option', { name: 'Drainage', exact: true }).tap()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Drainage' })
   await expect(page.getByTestId('road-drainage')).toBeVisible()
 }
 /** Read the actual MapLibre source and projected active-road coordinates; do not inject app state. */

@@ -121,10 +121,7 @@ async function detail(page: Page) {
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Detail', exact: true }).click()
   const select = page.getByRole('combobox', { name: 'Road detail view', exact: true })
-  if (!(await select.innerText()).includes('Drainage')) {
-    await select.click()
-    await page.getByRole('option', { name: 'Drainage', exact: true }).click()
-  }
+  if ((await select.inputValue()) !== 'drainage') await select.selectOption({ label: 'Drainage' })
 }
 
 async function field(page: Page, label: string, value: number) {

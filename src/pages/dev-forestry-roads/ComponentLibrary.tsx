@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { downloadText } from '@/lib/download'
 import { parseSectionComponents } from './sectionAssembly'
 import type { SectionComponent } from './types'
@@ -30,12 +31,14 @@ export function ComponentLibrary({
   }
   return (
     <details className="rounded border p-2">
-      <summary className="cursor-pointer text-xs">Reusable component library</summary>
-      <p className="my-2 text-2xs text-muted-foreground">
-        Keep individual components on this device or transfer their definitions as JSON. Material and reference IDs must
-        exist in the receiving project.
-      </p>
-      <div className="flex flex-wrap gap-1">
+      <summary className="cursor-pointer text-xs font-medium">
+        Component library{library.length ? ` · ${library.length} saved` : ''}
+      </summary>
+      <div className="mt-2 flex flex-wrap items-center gap-1">
+        <InfoTip label="About the component library">
+          Keep individual components on this device or transfer their definitions as JSON. Material and reference IDs
+          must exist in the receiving project.
+        </InfoTip>
         <Button
           size="sm"
           variant="outline"

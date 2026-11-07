@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { CableChart } from './Charts'
+import { terrainDisplayName } from './terrainName'
 import { NumberField } from './Controls'
 import {
   analyzeRadialDeflection,
@@ -15,6 +17,30 @@ import {
 import type { RadialDeflectionResult, RadialDeflectionSettings, RadialSpoke } from './radialDeflection'
 import type { CableLine, Coordinate, TerrainSource } from './types'
 
+/** Where the tailholds go, then the cable between them; the legend names each group, so labels stay short. */
+const SETTING_GROUPS = [
+  [
+    'Tailhold fan',
+    [
+      ['radiusM', 'Tailhold radius (m)', 10, MAX_RADIAL_RADIUS_M, 10],
+      ['startBearingDeg', 'Start bearing (°)', 0, 360, 5],
+      ['sweepDeg', 'Clockwise sweep (°)', 0, 360, 5],
+      ['bearingStepDeg', 'Bearing step (°)', 1, 180, 1],
+    ],
+  ],
+  [
+    'Cable',
+    [
+      ['yarderHeightM', 'Yarder height (m)', 0, 100, 0.5],
+      ['tailholdHeightM', 'Tailhold height (m)', 0, 100, 0.5],
+      ['deflectionPercent', 'Assumed sag (%)', 0, 30, 0.5],
+      ['minimumClearanceM', 'Clearance (m)', 0, 100, 0.5],
+    ],
+  ],
+] as const satisfies readonly (readonly [
+  string,
+  readonly (readonly [keyof RadialDeflectionSettings, string, number, number, number])[],
+])[]
 const EMPTY: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 const number = (value: number | null, digits = 1) => (value === null ? 'Unknown' : value.toFixed(digits))
 const statusText = (spoke: RadialSpoke) =>
@@ -115,58 +141,59 @@ export function RadialDeflectionPanel({
   }
 
   return (
-    <section className="h-full min-h-0 overflow-y-auto overscroll-contain p-1" data-testid="radial-deflection-panel">
-      <div className="mb-2 text-xs">
-        <p className="font-medium">Landing-centered D-line exploration</p>
-        <p className="text-2xs text-muted-foreground">
-          {center ? (
-            <>
-              {centerLabel ? `${centerLabel} · ` : ''}
-              {center[1].toFixed(5)}°, {center[0].toFixed(5)}°
-            </>
-          ) : (
-            'Select a covered road station as the proposed landing.'
-          )}
-        </p>
-        {sourceLabel && <p className="truncate text-3xs text-muted-foreground">{sourceLabel}</p>}
-      </div>
-      <details
-        open={settingsOpen}
-        onToggle={(event) => setSettingsOpen(event.currentTarget.open)}
-        className="mb-2 rounded border p-2"
-      >
-        <summary className="cursor-pointer text-xs font-medium">
-          Exploration settings · {settings.radiusM} m radius · {settings.deflectionPercent}% assumed sag
-        </summary>
-        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          {(
-            [
-              ['radiusM', 'Tailhold radius (m)', 10, MAX_RADIAL_RADIUS_M, 10],
-              ['startBearingDeg', 'Start bearing (°)', 0, 360, 5],
-              ['sweepDeg', 'Clockwise sweep (°)', 0, 360, 5],
-              ['bearingStepDeg', 'Bearing step (°)', 1, 180, 1],
-              ['yarderHeightM', 'Yarder height (m)', 0, 100, 0.5],
-              ['tailholdHeightM', 'Tailhold height (m)', 0, 100, 0.5],
-              ['deflectionPercent', 'Assumed sag (%)', 0, 30, 0.5],
-              ['minimumClearanceM', 'Required clearance (m)', 0, 100, 0.5],
-            ] as const
-          ).map(([field, label, min, max, step]) => (
-            <NumberField
-              key={field}
-              label={label}
-              value={settings[field]}
-              min={min}
-              max={max}
-              step={step}
-              onChange={(value) => change(field, value)}
-            />
-          ))}
+    <section
+      className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
+      data-testid="radial-deflection-panel"
+    >
+      <div className="mb-2 flex items-start justify-between gap-2 text-xs">
+        <div className="min-w-0">
+          <p className="font-medium">{center ? `Landing${centerLabel ? ` at ${centerLabel}` : ''}` : 'No landing'}</p>
+          <p className="truncate text-2xs text-muted-foreground" title={sourceLabel}>
+            {center
+              ? `${center[1].toFixed(5)}°, ${center[0].toFixed(5)}°`
+              : 'Select a covered road station as the proposed landing.'}
+            {sourceLabel && ` · ${terrainDisplayName(sourceLabel)}`}
+          </p>
         </div>
-        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-          Bearings run clockwise from north. Up to {MAX_RADIAL_SPOKES} candidate tailholds at the chosen radius; spacing
-          increases if needed. Test another radius to explore nearer supports.
-        </p>
-      </details>
+        <InfoTip label="About the landing screen">
+          Geometric screen using the active terrain and an assumed parabolic sag. Green means sampled clearance meets
+          the entered threshold. It does not establish cable tension, payload, anchors or operating safety. Unknown
+          terrain is never treated as clear. The fan is temporary until a D-line is adopted.
+        </InfoTip>
+      </div>
+      <CollapsibleSection
+        label="Settings"
+        summary={`${settings.radiusM} m radius · ${settings.bearingStepDeg}° step · ${settings.deflectionPercent}% sag`}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        className="mb-2 rounded-md border"
+        contentClassName="space-y-3 px-3 pb-3"
+        actions={
+          <InfoTip label="About the settings">
+            Bearings run clockwise from north. Up to {MAX_RADIAL_SPOKES} candidate tailholds at the chosen radius;
+            spacing increases if needed. Test another radius to explore nearer supports.
+          </InfoTip>
+        }
+      >
+        {SETTING_GROUPS.map(([group, fields]) => (
+          <fieldset key={group} className="min-w-0">
+            <legend className="mb-1 text-3xs font-medium uppercase tracking-wide text-muted-foreground">{group}</legend>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {fields.map(([field, label, min, max, step]) => (
+                <NumberField
+                  key={field}
+                  label={label}
+                  value={settings[field]}
+                  min={min}
+                  max={max}
+                  step={step}
+                  onChange={(value) => change(field, value)}
+                />
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </CollapsibleSection>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <Button size="sm" disabled={!center} onClick={run}>
           Run radial screen
@@ -265,11 +292,6 @@ export function RadialDeflectionPanel({
           </div>
         </>
       )}
-      <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-        Geometric screen using the active terrain and an assumed parabolic sag. Green means sampled clearance meets the
-        entered threshold. It does not establish cable tension, payload, anchors or operating safety. Unknown terrain is
-        never treated as clear. The fan is temporary until a D-line is adopted.
-      </p>
     </section>
   )
 }

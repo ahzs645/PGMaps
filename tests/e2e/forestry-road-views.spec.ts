@@ -71,9 +71,7 @@ async function prepare(page: Page) {
 async function chooseLayout(page: Page, name: string) {
   await page
     .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true })
-    .click()
-  await page.getByRole('option', { name, exact: true }).click()
+    .getByRole('combobox', { name: 'Road view layout', exact: true }).selectOption({ label: name })
 }
 
 async function saveProject(page: Page): Promise<RoadProject> {
@@ -215,8 +213,7 @@ test('an off-screen shared station is revealed and profile bands keep the same c
     .poll(async () => Number(await page.getByLabel('Selected station metres', { exact: true }).inputValue()))
     .toBeCloseTo(target, 0)
   expect(await rangeOf(bands)).toEqual(await rangeOf(chart))
-  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).click()
-  await page.getByRole('option', { name: 'Mass haul', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Road detail view', exact: true }).selectOption({ label: 'Mass haul' })
   const mass = page.getByTestId('road-mass-chart')
   await expect(mass).toBeVisible()
   await expect.poll(async () => rangeOf(mass)).toEqual(await rangeOf(chart))
@@ -236,8 +233,7 @@ test('terrain aspect and context visibility change actual map sources without mo
   const initial = (await mapState(page))!
   expect(initial.terrainHash).not.toBe(0)
   expect(initial.contextKinds).toContain('stream')
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Aspect', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Aspect' })
   await page.getByRole('button', { name: 'Expand legend', exact: true }).click()
   await expect(page.getByText('Aspect · downslope direction', { exact: true })).toBeVisible()
   await expect.poll(async () => (await mapState(page))?.terrainHash).not.toBe(initial.terrainHash)
@@ -249,8 +245,7 @@ test('terrain aspect and context visibility change actual map sources without mo
   await page.getByRole('checkbox', { name: 'Show streams context', exact: true }).check()
   await expect.poll(async () => (await mapState(page))!.contextKinds).toEqual(initial.contextKinds)
   await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).click()
-  await page.getByRole('option', { name: 'Hillshade', exact: true }).click()
+  await page.getByRole('combobox', { name: 'Terrain display', exact: true }).selectOption({ label: 'Hillshade' })
   await expect.poll(async () => (await mapState(page))?.terrainHash).toEqual(initial.terrainHash)
   expect(await saveProject(page)).toEqual(original)
   expect(errors).toEqual([])
@@ -468,7 +463,10 @@ test('header picker, no footer or status row, profile controls on the chart, sec
 }, testInfo) => {
   const errors = await prepare(page)
   await expect(
-    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout', exact: true }),
+    page
+      .getByTestId('road-workspace-header')
+      .getByRole('combobox', { name: 'Road view layout', exact: true })
+      .locator('option:checked'),
   ).toHaveText(/Linked overview/)
   await expect(page.getByText(/Concept planning/)).toHaveCount(0)
   await expect(page.getByText(/average end areas/)).toHaveCount(0)
@@ -548,7 +546,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   await expect(page.getByTestId('road-rate-source')).toContainText('not taken from a published cost survey')
   await about.click()
   await expect(page.getByTestId('road-rate-source')).toHaveCount(0)
-  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).locator('option:checked')).toHaveText(
     /PG Maps placeholder rates/,
   )
   const money = (text: string | null) => Number(text!.replace(/[$,]/g, ''))
@@ -564,7 +562,9 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   const raised = money(await total.textContent())
   expect(raised).toBeGreaterThan(before)
   await expect(dialog.getByTestId('road-cost-change')).toContainText('since opened')
-  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(/Custom/)
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).locator('option:checked')).toHaveText(
+    /Custom/,
+  )
   await page.screenshot({ path: testInfo.outputPath('cost-breakdown.png') })
   await page.keyboard.press('Escape')
   await expect.poll(headline).toBeCloseTo(raised, -1)
@@ -572,8 +572,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
 
   // The preset restores every base rate.
   await tile.click()
-  await dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).click()
-  await page.getByRole('option', { name: 'PG Maps placeholder rates', exact: true }).click()
+  await dialog.getByRole('combobox', { name: 'Rate preset', exact: true }).selectOption({ label: 'PG Maps placeholder rates' })
   await expect.poll(async () => money(await total.textContent())).toBeCloseTo(before, -1)
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)
