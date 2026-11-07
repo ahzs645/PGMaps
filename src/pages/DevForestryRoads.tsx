@@ -99,11 +99,13 @@ import {
 } from './dev-forestry-roads/terrain'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
-import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
+import { DEFAULT_ROUTE_OPTIONS, suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
+import { suggestBlockAccess } from './dev-forestry-roads/blockAccess'
+import { BLOCK_ACCESS_COLORS, type BlockAccessState } from './dev-forestry-roads/BlockAccessPanel'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
 import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
@@ -330,6 +332,13 @@ export default function DevForestryRoads() {
     )
   }, [fsrTarget, alignment, source, project.context])
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
+  // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
+  const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
+  useEffect(() => {
+    if (mode !== 'avoid') setPolygonKind('avoid')
+  }, [mode])
+  const [blockAccess, setBlockAccess] = useState<BlockAccessState | null>(null)
+  const drawnArea = polygonKind === 'harvest' ? 'harvest block' : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
     source: TerrainSource
@@ -875,10 +884,11 @@ export default function DevForestryRoads() {
       setActiveCable(next.id)
       setDetail('cable')
     } else if (mode === 'stream' || mode === 'avoid') {
+      const kind = mode === 'avoid' ? polygonKind : mode
       const feature = {
         id: uid(),
-        name: `${mode === 'stream' ? 'Stream' : 'Avoidance area'} ${project.context.length + 1}`,
-        kind: mode,
+        name: `${kind === 'stream' ? 'Stream' : kind === 'harvest' ? 'Harvest block' : 'Avoidance area'} ${project.context.length + 1}`,
+        kind,
         geometry:
           mode === 'stream'
             ? { type: 'LineString' as const, coordinates: draft }
@@ -1483,6 +1493,64 @@ export default function DevForestryRoads() {
         )
     }
     return { context, scope: networkScope }
+  }
+  const previewBlockAccess = (state: BlockAccessState | null) => {
+    setBlockAccess(state)
+    setRouteLines(
+      state?.result.options.map((option, i) => ({
+        id: `block-access-${i}`,
+        label: `${i + 1}. ${option.target.name}`,
+        color: BLOCK_ACCESS_COLORS[i % BLOCK_ACCESS_COLORS.length],
+        selected: i === state.selected,
+        coordinates: option.coordinates,
+      })) ?? null,
+    )
+  }
+  const findBlockAccess = (blockId: string) =>
+    void run('Finding access from the block to nearby FSRs…', async (signal) => {
+      const block = project.context.find((feature) => feature.id === blockId)
+      if (!block || block.geometry.type !== 'Polygon') throw Error('Choose a harvest block drawn as an area.')
+      const ring = block.geometry.coordinates[0]
+      const centre: Coordinate = [
+        ring.reduce((sum, point) => sum + point[0], 0) / ring.length,
+        ring.reduce((sum, point) => sum + point[1], 0) / ring.length,
+      ]
+      previewBlockAccess(null)
+      const discovered = await findFsrContext(centre, signal, 3)
+      if (signal.aborted || !discovered) return
+      w.setBusy('Screening access routes from the block…')
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      if (signal.aborted) return
+      const options = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
+      const result = suggestBlockAccess(block, source, project.settings, discovered.context, {
+        ...options,
+        groundWindowM: resolvedGroundWindow(options, project.terrain.resolutionM),
+      })
+      previewBlockAccess({ blockId, geometry: JSON.stringify(block.geometry), source, result, selected: 0 })
+      setFocusedConstraintId(blockId)
+      w.setNotice(`${result.message} ${discovered.scope}`)
+    })
+  const adoptBlockAccess = () => {
+    if (!blockAccess) return
+    const option = blockAccess.result.options[blockAccess.selected]
+    const block = project.context.find((feature) => feature.id === blockAccess.blockId)
+    try {
+      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      const road = newAlignment(
+        option.coordinates,
+        `${block?.name ?? 'Block'} → ${option.target.name} · block access`.slice(0, 200),
+        alignment.template,
+      )
+      w.commit(parseProject({ ...project, alignments: [...project.alignments, road], activeAlignmentId: road.id }))
+      previewBlockAccess(null)
+      setActiveProfile(null)
+      setFitRevision((n) => n + 1)
+      w.setNotice(
+        `Added the access road to ${option.target.name}. Check its profile, curves and junction, and run the final checks before relying on it.`,
+      )
+    } catch (error) {
+      w.setError(error instanceof Error ? error.message : 'Could not add the access road.')
+    }
   }
   const discoverFsrs = (endpoint: 'start' | 'end') =>
     void run('Finding nearby FSR choices…', async (signal) => {
@@ -2298,6 +2366,15 @@ export default function DevForestryRoads() {
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
                 onPreviewRoutes={setRouteLines}
+                blockAccess={blockAccess}
+                onFindBlockAccess={findBlockAccess}
+                onSelectBlockAccess={(selected) => blockAccess && previewBlockAccess({ ...blockAccess, selected })}
+                onAdoptBlockAccess={adoptBlockAccess}
+                onClearBlockAccess={() => previewBlockAccess(null)}
+                onDrawBlock={() => {
+                  setPolygonKind('harvest')
+                  setMode('avoid')
+                }}
                 onShowCompare={() => setDetail('compare')}
                 onShowDrainage={() => setDetail('drainage')}
                 onSelectRoad={selectAlignment}
@@ -2382,7 +2459,9 @@ export default function DevForestryRoads() {
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                     data-testid="pegging-feedback"
                   >
-                    <strong>{mode === 'road' ? 'Peg road' : `Draw ${mode}`}</strong>
+                    <strong>
+                      {mode === 'road' ? 'Peg road' : mode === 'avoid' ? `Draw ${drawnArea}` : `Draw ${mode}`}
+                    </strong>
                     <span>Click plan to add points · {draft.length} points</span>
                     <span className="font-mono">
                       Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
@@ -2397,7 +2476,7 @@ export default function DevForestryRoads() {
                       </strong>
                     </span>
                     <Button size="sm" onClick={finishDraw} disabled={draft.length < (mode === 'avoid' ? 3 : 2)}>
-                      Finish {mode}
+                      Finish {mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}
                     </Button>
                     <Button
                       size="sm"

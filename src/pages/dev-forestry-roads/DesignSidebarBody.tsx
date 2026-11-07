@@ -10,6 +10,7 @@ import { TerrainTab } from './sidebar/TerrainTab'
 import { ExistingRoadsPanel } from './ExistingRoadsPanel'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { RouteSearchOptions } from './routing'
+import type { BlockAccessState } from './BlockAccessPanel'
 import type { RoutePreviewLine } from './RouteFinder'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -48,6 +49,13 @@ export interface SidebarProps {
   onSuggest: (options: RouteSearchOptions) => void
   onPreviewRoute?: (options: RouteSearchOptions | null) => void
   onPreviewRoutes?: (lines: RoutePreviewLine[] | null) => void
+  /** Block access: proposed roads from a harvest block to nearby FSRs, previewed on the plan. */
+  blockAccess?: BlockAccessState | null
+  onFindBlockAccess?: (blockId: string) => void
+  onSelectBlockAccess?: (index: number) => void
+  onAdoptBlockAccess?: () => void
+  onClearBlockAccess?: () => void
+  onDrawBlock?: () => void
   onShowCompare?: () => void
   onShowDrainage?: () => void
   onSelectRoad?: (id: string) => void

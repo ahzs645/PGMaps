@@ -8,6 +8,7 @@ import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from '../Controls'
 import { HaulGradeFields } from '../HaulGradeFields'
+import { BlockAccessPanel } from '../BlockAccessPanel'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
 import { SwitchbackTools } from '../SwitchbackTools'
@@ -434,6 +435,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           full={p.full}
         />
       )}
+      <BlockAccessPanel {...p} full={p.full} />
       <div className="space-y-2 border-t pt-3" data-testid="road-corridor-optimizer">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold">Optimize sketched road corridor</p>

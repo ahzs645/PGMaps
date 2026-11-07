@@ -125,6 +125,29 @@ The picker limit is `MAX_FSR_CHOICES` (10) in `fsrConnections.ts`. A manual choi
 automatic comparison still runs at most three. Discovery expands to seek three choices, bounded
 by the same 2/5/10 km radii and source transfer limits.
 
+## Access a harvest block
+
+**Design → Search tools → Access a harvest block** picks a harvest polygon (drawn with **Draw
+block**, or loaded as mapped cutblocks) and proposes roads to the nearest FSR sections.
+`blockAccess.ts` samples the block edge at no less than 10 m spacing and at most 400 points, keeps
+the edge point closest to each FSR section as that section's landing, and runs one terrain-cost
+search from each landing to its FSR footpoint. On real terrain the host first loads active BC FSRs
+near the block centre, as **Find nearby FSRs** does. Options are ranked by search score and drawn
+on the plan in their list colours; each reports its length, search cost and the steepest loaded
+and empty uphill ground grades sampled every metre on the ground the search used. **Add as road**
+creates a separate alignment from the chosen option.
+
+| Limit                              | Value                 | Enforced in                                 | When exceeded             |
+| ---------------------------------- | --------------------- | ------------------------------------------- | ------------------------- |
+| FSR sections tried per block       | 4                     | `blockAccess.ts` `MAX_BLOCK_ACCESS_OPTIONS` | Nearest four only         |
+| Edge samples per block             | 400, at ≥10 m spacing | `blockAccess.ts` `MAX_EDGE_SAMPLES`         | Spacing widens            |
+| Block already within 2 m of an FSR | —                     | `suggestBlockAccess`                        | That section is skipped   |
+| No section yields a passing route  | —                     | `suggestBlockAccess`                        | Error listing each reason |
+
+A landing on the nearest edge is a starting proposal, not a chosen landing site: move the road's
+first point to the real landing and re-run the checks. The search score is not a complete access
+cost, and an option does not establish the junction, the FSR's condition or access rights.
+
 ## Interface scope
 
 The shared grade/radius fields accept the project ranges in both Design and Review. Corridor
