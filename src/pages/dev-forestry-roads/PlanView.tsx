@@ -265,15 +265,31 @@ function Layers(
       return null
     }
   }, [activeCable, props.cableDistance])
-  // Labels and ticks follow the zoom: an overview shows a few stations, zooming in adds more.
+  // Labels and ticks follow the zoom: an overview shows a few stations, zooming in adds more. They
+  // follow it during the gesture too, read once a frame and only re-rendered when the eighth-of-a-zoom
+  // step or the whole-degree bearing changes; waiting for zoomend left a deep zoom's labels piled up.
   const [view, setView] = useState<{ zoom: number; bearing: number } | null>(null)
   useEffect(() => {
     if (!map || !isLoaded) return
-    const update = () => setView({ zoom: Math.round(map.getZoom() * 8) / 8, bearing: map.getBearing() })
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const zoom = Math.round(map.getZoom() * 8) / 8,
+        bearing = Math.round(map.getBearing())
+      setView((previous) => (previous?.zoom === zoom && previous.bearing === bearing ? previous : { zoom, bearing }))
+    }
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update)
+    }
     update()
+    map.on('zoom', schedule)
+    map.on('rotate', schedule)
     map.on('zoomend', update)
     map.on('rotateend', update)
     return () => {
+      cancelAnimationFrame(frame)
+      map.off('zoom', schedule)
+      map.off('rotate', schedule)
       map.off('zoomend', update)
       map.off('rotateend', update)
     }
@@ -1184,30 +1200,45 @@ function Layers(
           )
         })}
       {props.mode === 'edit' &&
-        props.alignment.points.map((p, index) => (
-          <MapMarker
-            key={p.id}
-            className="z-10"
-            longitude={p.coordinate[0]}
-            latitude={p.coordinate[1]}
-            draggable
-            onDragStart={() => props.onPointDragStart(p.id)}
-            onDrag={({ lng, lat }) => props.onMovePoint(p.id, [lng, lat])}
-            onDragEnd={({ lng, lat }) => props.onPointDragEnd(p.id, [lng, lat])}
-            onClick={() => props.onSelectPoint(p.id)}
-          >
-            <MarkerContent>
-              <button
-                aria-label={`Horizontal point ${index + 1}`}
-                title={`${index === 0 ? 'Start' : index === props.alignment.points.length - 1 ? 'End' : `Control ${index + 1}`} · drag to move`}
-                aria-pressed={props.selectedPoint === p.id}
-                className={`size-7 cursor-grab touch-none rounded-full border-2 bg-background text-3xs font-bold shadow active:cursor-grabbing ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}
-              >
-                {index + 1}
-              </button>
-            </MarkerContent>
-          </MapMarker>
-        ))}
+        props.alignment.points.map((p, index, points) => {
+          // A point closer than a handle's width to a neighbour shrinks to a dot, so a dense
+          // generated road stays readable; ends and the selected point keep their numbered handle.
+          const gap = Math.min(
+            index > 0 ? distance(points[index - 1].coordinate, p.coordinate) : Infinity,
+            index < points.length - 1 ? distance(p.coordinate, points[index + 1].coordinate) : Infinity,
+          )
+          const compact =
+            pixelMetres !== null &&
+            gap / pixelMetres < MIN_HANDLE_SPACING_PX &&
+            index > 0 &&
+            index < points.length - 1 &&
+            props.selectedPoint !== p.id
+          return (
+            <MapMarker
+              key={p.id}
+              className="z-10"
+              longitude={p.coordinate[0]}
+              latitude={p.coordinate[1]}
+              draggable
+              onDragStart={() => props.onPointDragStart(p.id)}
+              onDrag={({ lng, lat }) => props.onMovePoint(p.id, [lng, lat])}
+              onDragEnd={({ lng, lat }) => props.onPointDragEnd(p.id, [lng, lat])}
+              onClick={() => props.onSelectPoint(p.id)}
+            >
+              <MarkerContent>
+                <button
+                  aria-label={`Horizontal point ${index + 1}`}
+                  title={`${index === 0 ? 'Start' : index === props.alignment.points.length - 1 ? 'End' : `Control ${index + 1}`} · drag to move`}
+                  aria-pressed={props.selectedPoint === p.id}
+                  data-compact={compact || undefined}
+                  className={`cursor-grab touch-none rounded-full border-2 bg-background font-bold shadow active:cursor-grabbing ${compact ? 'size-3 border-amber-600 touch:size-4' : `size-7 text-3xs ${props.selectedPoint === p.id ? 'border-rose-500 text-rose-600' : 'border-amber-600 text-amber-700'}`}`}
+                >
+                  {compact ? null : index + 1}
+                </button>
+              </MarkerContent>
+            </MapMarker>
+          )
+        })}
       {props.mode === 'edit' &&
         props.onInsertPoint &&
         props.savedAlignment.points.length < 2000 &&
@@ -1390,6 +1421,8 @@ function Layers(
 
 /** On-screen length a segment needs before it offers a bend handle. */
 const MIN_BEND_SEGMENT_PX = 48
+/** Numbered handles are 28 px; closer than this to a neighbour, a point shows as a dot. */
+const MIN_HANDLE_SPACING_PX = 34
 /** A handle moved less than this was a slip, so no point is added. */
 const MIN_BEND_DRAG_PX = 10
 

@@ -148,10 +148,17 @@ test('phone map tools use icons, centre insert-control plus and remember the hid
   await page.getByRole('button', { name: 'Zoom in', exact: true }).first().click()
   await page.getByRole('button', { name: 'Zoom in', exact: true }).first().click()
   const insert = page.getByRole('button', { name: 'Add control between points 1 and 2', exact: true })
-  const circle = (await insert.boundingBox())!
-  const plus = (await insert.locator('svg').boundingBox())!
-  expect(Math.abs(circle.x + circle.width / 2 - plus.x - plus.width / 2)).toBeLessThanOrEqual(0.5)
-  expect(Math.abs(circle.y + circle.height / 2 - plus.y - plus.height / 2)).toBeLessThanOrEqual(0.5)
+  // Measure the circle and its plus in one frame: handles now follow a zoom while it animates.
+  const [dx, dy] = await insert.evaluate((element) => {
+    const circle = element.getBoundingClientRect(),
+      plus = element.querySelector('svg')!.getBoundingClientRect()
+    return [
+      circle.x + circle.width / 2 - plus.x - plus.width / 2,
+      circle.y + circle.height / 2 - plus.y - plus.height / 2,
+    ]
+  })
+  expect(Math.abs(dx)).toBeLessThanOrEqual(0.5)
+  expect(Math.abs(dy)).toBeLessThanOrEqual(0.5)
   await page.getByRole('button', { name: 'Hide editing hint', exact: true }).click()
   await expect(page.getByTestId('road-edit-help')).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Show editing hint', exact: true })).toBeVisible()
