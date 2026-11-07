@@ -1,12 +1,15 @@
 import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Trash2, Upload } from 'lucide-react'
+import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, OptionalNumberField, roadFieldClass } from '../Controls'
+import { Field, roadFieldClass } from '../Controls'
 import { RoadSection } from '../SidebarParts'
+import { ConstraintsPanel } from '../ConstraintsPanel'
+import { StreamsPanel } from '../StreamsPanel'
+import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
 import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
 import { NumberField } from '../Controls'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
@@ -27,9 +30,8 @@ const LIDAR_LINKS = [
 ] as const
 
 export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoads: ReactNode }) {
-  const { project, update } = p.workspace
+  const { project } = p.workspace
   const busy = !!p.workspace.busy
-  const features = project.context.length + (project.profiles ?? []).length
   return (
     <>
       <RoadSection
@@ -107,113 +109,14 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           Import GeoTIFF, LAS or LAZ
         </Button>
       </RoadSection>
-      <RoadSection
-        title="Streams & no-go areas"
-        summary={features ? `${features} on map` : 'None'}
-        defaultOpen
-        help="Import GeoJSON or a zipped shapefile; a GeoJSON kind of stream, avoid, existing-road or harvest sets how each feature is used. Click a line to sample it as a terrain profile. An avoidance area with a zone cost lets the route search cross it at that extra cost per metre; empty blocks it."
-      >
-        <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            className="px-1 text-xs"
-            aria-label="Draw stream"
-            title="Draw stream"
-            onClick={() => p.onMode('stream')}
-          >
-            Stream
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="px-1 text-xs"
-            aria-label="Draw avoidance area"
-            title="Draw avoidance area"
-            onClick={() => p.onMode('avoid')}
-          >
-            No-go area
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="px-1 text-xs"
-            aria-label="Draw terrain profile"
-            title="Draw terrain profile"
-            onClick={() => p.onMode('profile')}
-          >
-            Profile
-          </Button>
-        </div>
-        <Button variant="outline" size="sm" className="w-full" onClick={() => p.onFile('context')}>
-          <Upload className="mr-2 size-3" />
-          Import streams / constraints
-        </Button>
-        {(project.context.length > 0 || (project.profiles ?? []).length > 0) && (
-          <div className="mt-2 space-y-1">
-            {project.context.map((feature) => (
-              <div key={feature.id} className="flex items-center gap-1 rounded border px-2 py-1">
-                <button
-                  className="min-w-0 flex-1 truncate text-left text-xs"
-                  disabled={feature.geometry.type !== 'LineString'}
-                  onClick={() => p.onProfile(feature.id)}
-                >
-                  {feature.name} <span className="text-muted-foreground">· {feature.kind}</span>
-                </button>
-                {feature.kind === 'avoid' && feature.geometry.type === 'Polygon' && (
-                  <div className="w-20" title="Empty blocks the route search; a value lets it cross at this extra cost">
-                    <OptionalNumberField
-                      label={`${feature.name} zone cost per metre`}
-                      hideLabel
-                      placeholder="blocked"
-                      value={feature.routeCostPerM ?? null}
-                      min={0}
-                      max={1e6}
-                      step={10}
-                      onChange={(cost) =>
-                        update((x) => ({
-                          ...x,
-                          context: x.context.map((c) => {
-                            if (c.id !== feature.id) return c
-                            const { routeCostPerM: _old, ...rest } = c
-                            void _old
-                            return cost === null ? rest : { ...rest, routeCostPerM: cost }
-                          }),
-                        }))
-                      }
-                    />
-                  </div>
-                )}
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6"
-                  aria-label={`Remove context ${feature.name}`}
-                  onClick={() => update((x) => ({ ...x, context: x.context.filter((c) => c.id !== feature.id) }))}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
-              </div>
-            ))}
-            {(project.profiles ?? []).map((profile) => (
-              <div key={profile.id} className="flex items-center gap-1 rounded border px-2 py-1">
-                <button className="flex-1 text-left text-xs" onClick={() => p.onProfile(profile.id)}>
-                  {profile.name}
-                </button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="size-6"
-                  aria-label={`Remove profile ${profile.name}`}
-                  onClick={() => update((x) => ({ ...x, profiles: x.profiles?.filter((v) => v.id !== profile.id) }))}
-                >
-                  <Trash2 className="size-3" />
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </RoadSection>
+      <StreamsPanel
+        workspace={p.workspace}
+        onDraw={() => p.onMode('stream')}
+        onImport={() => p.onFile('context')}
+        onProfile={p.onProfile}
+      />
+      <ConstraintsPanel workspace={p.workspace} onDraw={() => p.onMode('avoid')} />
+      <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection
         title="Import options"
         summary={`${SURFACES[p.pointCloud.surface]}${p.verticalReference ? ' · datum set' : ''}`}

@@ -16,7 +16,7 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
     <RoadSection
       title="Crossing prices"
       summary={streams.length ? `${streams.length} streams` : 'No streams loaded'}
-      help="The stream's own price overrides its named class, then the route search's default. These are route-search costs; installed structure quantities are priced separately."
+      help="The stream's own price overrides its cost group, then the route search's default. A cost group is a price label you choose, not a B.C. stream class; that is recorded under Terrain → Streams. These are route-search costs; installed structure quantities are priced separately."
     >
       <div className="space-y-2">
         {streams.map((f) => (
@@ -24,9 +24,9 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
             <p className="break-words text-xs font-medium">{f.name}</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs">
-                Class
+                Cost group
                 <input
-                  aria-label={`${f.name} crossing class`}
+                  aria-label={`${f.name} cost group`}
                   className={roadFieldClass}
                   maxLength={100}
                   value={f.crossingGroup ?? ''}
@@ -69,16 +69,16 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
         ))}
         <div className="grid grid-cols-2 gap-2">
           <label className="text-xs">
-            New class
+            New cost group
             <input
-              aria-label="New crossing class"
+              aria-label="New cost group"
               className={roadFieldClass}
               maxLength={100}
               value={group}
               onChange={(e) => setGroup(e.target.value)}
             />
           </label>
-          <OptionalNumberField label="Class crossing cost ($)" min={0} max={1e9} value={price} onChange={setPrice} />
+          <OptionalNumberField label="Cost group price ($)" min={0} max={1e9} value={price} onChange={setPrice} />
         </div>
         <Button
           size="sm"
@@ -96,7 +96,7 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
             setPrice(null)
           }}
         >
-          Save crossing class
+          Save cost group
         </Button>
       </div>
     </RoadSection>

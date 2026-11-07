@@ -25,7 +25,7 @@ export interface RouteSearchOptions {
   baseCostPerM: number
   /** CAD per stream crossing. With the base cost this sets how far the route detours to avoid one. */
   crossingCost: number
-  /** Named crossing classes; explicit feature prices take precedence. */
+  /** Named cost groups, not riparian classes; explicit feature prices take precedence. */
   crossingGroups?: Record<string, number>
   /** Degrees clockwise from north; the route leaves the start / reaches the end within ±45°. */
   startHeading: number | null

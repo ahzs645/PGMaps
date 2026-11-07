@@ -1,3 +1,4 @@
+import type { StreamAssessment } from './streamClass'
 import type { LocalRaster } from '../dev-forestry/types'
 import type { ElevationSource } from '../dev-forestry/terrain'
 import type { AlignmentEngineering, EngineeringAnalysis } from './engineeringTypes'
@@ -208,7 +209,10 @@ export interface ContextFeature {
   routeCostPerM?: number
   /** A feature price overrides its group's price, which overrides the route-search default. */
   crossingCost?: number
+  /** A named price group for route search. Not a riparian class: that is on `streamAssessment`. */
   crossingGroup?: string
+  /** Evidence and class for a stream reach. Absent means unassessed, never a class. */
+  streamAssessment?: StreamAssessment
   /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
   roadEvidence?: ExistingRoadEvidence
 }

@@ -1,4 +1,5 @@
 /** Versioned, bounded project and interchange formats; no network or DOM access. */
+import { parseStreamAssessment } from './streamClass'
 import { hasCompleteCoverage } from './analysisResult'
 import { distance, positionAt } from './engine'
 import { parseEngineering } from './engineeringProject'
@@ -530,6 +531,9 @@ function parseContext(raw: unknown): ContextFeature {
     ...(r.kind === 'stream' && r.crossingGroup !== undefined
       ? { crossingGroup: text(r.crossingGroup, 'Stream crossing group', 100) }
       : {}),
+    ...(r.kind === 'stream' && r.streamAssessment !== undefined
+      ? { streamAssessment: parseStreamAssessment(r.streamAssessment) }
+      : {}),
   }
 }
 function validateContextBudget(context: ContextFeature[]) {
@@ -915,6 +919,12 @@ export function importContextGeoJson(raw: unknown): ContextFeature[] {
           routeCostPerM: f.properties.routeCostPerM,
           crossingCost: f.properties.crossingCost,
           crossingGroup: f.properties.crossingGroup,
+          // Only this explicit field carries a riparian class: a column called `class` could mean anything.
+          streamAssessment:
+            f.properties.streamAssessment ??
+            (typeof f.properties.riparianClass === 'string'
+              ? { importedClass: f.properties.riparianClass }
+              : undefined),
           referenceVerticalDatum: f.properties.referenceVerticalDatum,
           geometry: { type: isLine ? 'LineString' : 'Polygon', coordinates: part },
         }),
@@ -1040,6 +1050,7 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
         ...(f.routeCostPerM !== undefined ? { routeCostPerM: f.routeCostPerM } : {}),
         ...(f.crossingCost !== undefined ? { crossingCost: f.crossingCost } : {}),
         ...(f.crossingGroup !== undefined ? { crossingGroup: f.crossingGroup } : {}),
+        ...(f.streamAssessment !== undefined ? { streamAssessment: f.streamAssessment } : {}),
         ...(f.referenceVerticalDatum !== undefined ? { referenceVerticalDatum: f.referenceVerticalDatum } : {}),
       },
       geometry: f.geometry,

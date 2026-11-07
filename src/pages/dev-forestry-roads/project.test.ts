@@ -396,3 +396,43 @@ describe('road exports', () => {
     expect(html).toContain('default-src')
   })
 })
+
+describe('stream assessments in saved and exchanged files', () => {
+  const line = {
+    type: 'Feature',
+    properties: { kind: 'stream', name: 'Reach 1' },
+    geometry: { type: 'LineString', coordinates: [[-122.7, 53.9], [-122.69, 53.91]] }, // prettier-ignore
+  }
+  const importOne = (properties: Record<string, unknown>) =>
+    importContextGeoJson({
+      type: 'FeatureCollection',
+      features: [{ ...line, properties: { ...line.properties, ...properties } }],
+    })[0]
+
+  it('keeps an assessment through a project file', () => {
+    const project = createDemoProject()
+    const streamAssessment = { channelWidthM: 2.4, fish: 'presumed' as const, communityWatershed: 'outside' as const }
+    project.context = project.context.map((f) => (f.kind === 'stream' ? { ...f, streamAssessment } : f))
+    const reopened = parseProject(JSON.parse(serializeProject(project)))
+    expect(reopened.context.find((f) => f.kind === 'stream')?.streamAssessment).toEqual(streamAssessment)
+  })
+
+  it('opens an older project with its streams unassessed', () => {
+    const project = createDemoProject()
+    expect(parseProject(project).context.find((f) => f.kind === 'stream')?.streamAssessment).toBeUndefined()
+  })
+
+  it('keeps a source class apart from any decision, and only from an explicit field', () => {
+    expect(importOne({ riparianClass: 'S2' }).streamAssessment).toMatchObject({
+      importedClass: 'S2',
+      channelWidthM: null,
+      fish: 'unresolved',
+    })
+    expect(importOne({ class: 'S2' }).streamAssessment).toBeUndefined()
+  })
+
+  it('keeps an assessment through GeoJSON', () => {
+    const streamAssessment = { channelWidthM: 7, fish: 'present', communityWatershed: 'unresolved' }
+    expect(importOne({ streamAssessment }).streamAssessment).toEqual(streamAssessment)
+  })
+})

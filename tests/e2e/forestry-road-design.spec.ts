@@ -408,7 +408,11 @@ test('stream terrain profiles show ground-only data and cannot edit the road ver
   const errors = await prepare(page)
   const original = (await saveProject(page)).project
   await workflow(page, 'Terrain').click()
-  await page.getByRole('button', { name: 'Synthetic drainage · stream', exact: true }).click()
+  await page
+    .getByTestId('road-streams')
+    .getByRole('button', { name: /Synthetic drainage/ })
+    .click()
+  await page.getByRole('button', { name: 'View terrain profile', exact: true }).click()
   const profilePanel = page.getByRole('region', { name: 'Terrain profile · elevation & distance', exact: true })
   await expect(profilePanel).toBeVisible()
   const plot = page.getByTestId('road-profile-chart')
