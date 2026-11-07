@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { acceptsFill, haulDirectionAllowed, parseAllocationPolicy, validateAllocationPolicy } from './allocationPolicy'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { createEngineeringDesign, type AlignmentEngineering, type HaulSite } from './engineeringTypes'
+import { createMaterialVolumeFactorProvenance } from './materialFactors'
 
 function design(): AlignmentEngineering {
   const e = createEngineeringDesign()
@@ -36,6 +37,32 @@ function site(
 }
 
 describe('economic material flow', () => {
+  it('conserves reusable bank, unusable bank and compacted fill after an inverse factor entry', () => {
+    const e = design()
+    const evidence = createMaterialVolumeFactorProvenance(0.8, 'bank-per-compacted')
+    Object.assign(e.materials[0], {
+      reusableFraction: 0.8,
+      compactionFactor: evidence.canonicalFactor,
+      volumeFactorProvenance: evidence,
+    })
+    e.sites = [site('spoil', 'waste', 5, 1, 0, 36)]
+    const cut = parcel('cut', 0)
+    cut.cut = [{ materialId: 'rock', bank: 100, usable: 100, unusable: 20, factor: evidence.canonicalFactor }]
+    const result = solveMaterialAllocation(e, [cut, parcel('fill', 10, 80)], () => 0)
+    expect(result.status).toBe('optimal')
+    const used = result.movements.filter((m) => m.kind === 'cut-to-fill')
+    const wasteBank = result.movements.filter((m) => m.kind === 'waste').reduce((sum, m) => sum + m.bankVolumeM3!, 0)
+    const usedBank = used.reduce((sum, m) => sum + m.bankVolumeM3!, 0)
+    expect(100 * e.materials[0].reusableFraction * e.materials[0].compactionFactor).toBe(100)
+    expect(usedBank).toBeCloseTo(64)
+    expect(usedBank * evidence.canonicalFactor).toBeCloseTo(80)
+    expect(wasteBank).toBeCloseTo(36) // 16 reusable bank left over + 20 unusable bank.
+    expect(usedBank + wasteBank).toBeCloseTo(100)
+    expect(result.movements.some((m) => m.kind === 'borrow')).toBe(false)
+    e.sites[0].capacityM3 = 35.9
+    expect(solveMaterialAllocation(e, [cut, parcel('fill', 10, 80)], () => 0).status).toBe('infeasible')
+  })
+
   it('solves a 40-interval construction model including tiny event parcels without exhausting phase pivots', () => {
     const e = design()
     e.haul.directionRanges = [{ id: 'forward', start: 0, end: 400, direction: 'forward' }]

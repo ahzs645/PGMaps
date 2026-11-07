@@ -3,6 +3,7 @@ import { burnRoad } from './designSurface'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import {
   analyzeDrainage,
+  conditionDrainageSurface,
   downstream,
   extractStreams,
   fillDepressions,
@@ -10,6 +11,7 @@ import {
   flowDirections,
   fullPipeCapacity,
   minimumDiameter,
+  MISSING,
   OUTLET,
   rationalPeakFlow,
 } from './hydrology'
@@ -94,6 +96,123 @@ describe('depression filling and D8 flow', () => {
     // The valley's whole area leaves at the thalweg outlet.
     expect(line.properties.areaHa).toBeCloseTo((41 * 60) / 10_000, 9)
     expect(line.geometry.coordinates.at(-1)![1]).toBe(0)
+  })
+})
+
+describe('explicit depression conditioning', () => {
+  it('keeps the legacy full-fill routes while reporting physical spill depths without epsilon', () => {
+    const grid = gridOf(21, 21, (x, y) => (Math.abs(x - 10) <= 2 && Math.abs(y - 10) <= 2 ? 99.875 : 100))
+    const legacy = fillDepressions(grid)
+    const result = conditionDrainageSurface(grid)
+    expect(result.surface.values).toEqual(legacy.filled.values)
+    expect(result.directions).toEqual(flowDirections(legacy.filled))
+    expect(result.depth[10 * 21 + 10]).toBe(0.125)
+    expect(result.diagnostics.policy).toEqual({ mode: 'fill-all' })
+    expect(result.diagnostics.retainedDepressionCells).toBe(0)
+    expect(result.diagnostics.interiorSinkCells).toBe(0)
+  })
+
+  it('preserves real ponding evidence when preservation or a zero cap leaves the surface untouched', () => {
+    const grid = gridOf(5, 5, (x, y) => (x === 2 && y === 2 ? 5 : 10))
+    const preserved = conditionDrainageSurface(grid, { mode: 'preserve' })
+    const zero = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 0 })
+    expect(preserved.surface.values).toEqual(grid.values)
+    expect(zero.surface.values).toEqual(preserved.surface.values)
+    expect(zero.directions).toEqual(preserved.directions)
+    expect(preserved.depth[12]).toBe(5)
+    expect(preserved.directions[12]).toBe(OUTLET)
+    expect(preserved.diagnostics).toMatchObject({ filledCells: 0, retainedDepressionCells: 1 })
+    expect(flowAccumulation(preserved.directions, grid)[12]).toBe(9)
+  })
+
+  it('fills a separate shallow basin and retains a deeper basin under the same depth limit', () => {
+    const grid = gridOf(9, 5, (x, y) => (y === 2 && x === 2 ? 9.5 : y === 2 && x === 6 ? 5 : 10))
+    const result = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 1 })
+    const shallow = 2 * 9 + 2,
+      deep = 2 * 9 + 6
+    expect(result.surface.values[shallow]).toBe(10)
+    expect(result.surface.values[deep]).toBe(5)
+    expect(result.directions[deep]).toBe(OUTLET)
+    expect(result.diagnostics).toMatchObject({
+      potentialDepressionCells: 2,
+      filledCells: 1,
+      retainedDepressionCells: 1,
+      maxAppliedFillDepthM: 0.5,
+    })
+    let outlet = shallow
+    for (let step = 0; step < grid.values.length; step++) {
+      const next = downstream(result.directions, grid.width, outlet)
+      if (next < 0) break
+      expect(result.surface.values[next]).toBeLessThanOrEqual(result.surface.values[outlet])
+      outlet = next
+    }
+    expect(result.directions[outlet]).toBe(OUTLET)
+    expect(outlet).not.toBe(deep)
+    expect(
+      outlet < grid.width ||
+        outlet >= grid.values.length - grid.width ||
+        outlet % grid.width === 0 ||
+        outlet % grid.width === 8,
+    ).toBe(true)
+  })
+
+  it('routes open flats without filling them under preservation and every depth cap', () => {
+    const grid = gridOf(9, 9, (x, y) => (x === 4 && y === 0 ? 9 : 10))
+    const preserved = conditionDrainageSurface(grid, { mode: 'preserve' })
+    const zero = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 0 })
+    const positive = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 0.1 })
+    expect(preserved.surface.values).toEqual(grid.values)
+    expect(preserved.diagnostics).toMatchObject({ potentialDepressionCells: 0, filledCells: 0, interiorSinkCells: 0 })
+    expect(zero.directions).toEqual(preserved.directions)
+    expect(positive.directions).toEqual(preserved.directions)
+    const acc = flowAccumulation(preserved.directions, grid)
+    expect(outletArea(preserved.directions, acc)).toBe(81)
+  })
+
+  it('retains an entire connected depression if any of it exceeds the cap', () => {
+    const grid = gridOf(7, 7, (x, y) => (y === 3 && x === 2 ? 9.5 : y === 3 && x === 3 ? 5 : 10))
+    const result = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 1 })
+    expect(result.surface.values).toEqual(grid.values)
+    expect(result.diagnostics).toMatchObject({ filledCells: 0, retainedDepressionCells: 2 })
+    expect(downstream(result.directions, 7, 3 * 7 + 2)).toBe(3 * 7 + 3)
+    expect(result.directions[3 * 7 + 3]).toBe(OUTLET)
+  })
+
+  it('routes a filled flat without exceeding an exactly met cap or introducing cycles', () => {
+    const grid = gridOf(21, 21, (x, y) => (Math.abs(x - 10) <= 4 && Math.abs(y - 10) <= 4 ? 99.875 : 100))
+    const policy = { mode: 'depth-limited' as const, maxDepthM: 0.125 }
+    const result = conditionDrainageSurface(grid, policy)
+    expect(result.diagnostics.maxAppliedFillDepthM).toBe(0.125)
+    expect(result.diagnostics.interiorSinkCells).toBe(0)
+    for (let i = 0; i < grid.values.length; i++) {
+      expect(result.surface.values[i] - grid.values[i]).toBeLessThanOrEqual(policy.maxDepthM)
+      const j = downstream(result.directions, grid.width, i)
+      if (j >= 0) expect(result.surface.values[j]).toBeLessThanOrEqual(result.surface.values[i])
+    }
+    const accumulation = flowAccumulation(result.directions, grid)
+    expect(outletArea(result.directions, accumulation)).toBe(grid.values.length)
+    expect(conditionDrainageSurface(grid, policy).directions).toEqual(result.directions)
+  })
+
+  it('keeps no-data cells missing and treats adjacent ground as potential open exits', () => {
+    const grid = gridOf(5, 5, (x, y) => (x === 2 && y === 2 ? 5 : 10))
+    grid.values[13] = NaN
+    const result = conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: 1 })
+    expect(result.directions[13]).toBe(MISSING)
+    expect(Number.isNaN(result.depth[13])).toBe(true)
+    expect(result.depth[12]).toBe(0)
+    expect(result.surface.values[12]).toBe(5)
+    const accumulation = flowAccumulation(result.directions, grid)
+    expect(accumulation[13]).toBe(0)
+    expect(outletArea(result.directions, accumulation)).toBe(24)
+  })
+
+  it('rejects an invalid conditioning depth, epsilon, and inconsistent raster dimensions', () => {
+    const grid = gridOf(3, 3, () => 10)
+    expect(() => conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: NaN })).toThrow(/depth/)
+    expect(() => conditionDrainageSurface(grid, { mode: 'depth-limited', maxDepthM: -1 })).toThrow(/depth/)
+    expect(() => fillDepressions(grid, { epsilon: -1 })).toThrow(/epsilon/)
+    expect(() => fillDepressions({ ...grid, width: 4 })).toThrow(/dimensions/)
   })
 })
 

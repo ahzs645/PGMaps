@@ -11,11 +11,12 @@
 import { carveCulvert, roadFrame, type CulvertChannel } from './designSurface'
 import { cellCentre, cloneSurfaceGrid, type SurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import type { Coordinate, Culvert, RoadAnalysis } from './types'
+import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
 
 /** D8 neighbour order: E, SE, S, SW, W, NW, N, NE (rows run south). */
 const D_ROW = [0, 1, 1, 1, 0, -1, -1, -1]
 const D_COL = [1, 1, 0, -1, -1, -1, 0, 1]
-/** Flow leaves the grid (edge or missing neighbour) at this cell. */
+/** Flow terminates here: an edge/no-data outlet, or a retained interior sink. */
 export const OUTLET = -1
 /** The cell itself is missing. */
 export const MISSING = -2
@@ -86,6 +87,9 @@ export interface FilledSurface {
  */
 export function fillDepressions(grid: SurfaceGrid, { epsilon = 1e-5 }: { epsilon?: number } = {}): FilledSurface {
   const { width: w, height: h } = grid
+  if (!Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1 || grid.values.length !== w * h)
+    throw Error('The drainage surface must have positive integer dimensions and one elevation per cell.')
+  if (!Number.isFinite(epsilon) || epsilon < 0) throw Error('The drainage epsilon must be finite and nonnegative.')
   const n = w * h,
     z = new Float64Array(grid.values),
     closed = new Uint8Array(n)
@@ -96,12 +100,13 @@ export function fillDepressions(grid: SurfaceGrid, { epsilon = 1e-5 }: { epsilon
   for (let row = 0; row < h; row++)
     for (let col = 0; col < w; col++) {
       const i = row * w + col
-      if (Number.isNaN(z[i])) {
+      if (!Number.isFinite(z[i])) {
+        z[i] = NaN
         closed[i] = 1
         continue
       }
       let seed = row === 0 || col === 0 || row === h - 1 || col === w - 1
-      for (let k = 0; !seed && k < 8; k++) if (Number.isNaN(z[(row + D_ROW[k]) * w + col + D_COL[k]])) seed = true
+      for (let k = 0; !seed && k < 8; k++) if (!Number.isFinite(z[(row + D_ROW[k]) * w + col + D_COL[k]])) seed = true
       if (seed) {
         closed[i] = 1
         heap.push(i, z[i])
@@ -146,7 +151,7 @@ export function flowDirections(filled: SurfaceGrid): Int8Array {
     for (let col = 0; col < w; col++) {
       const i = row * w + col,
         zi = z[i]
-      if (Number.isNaN(zi)) {
+      if (!Number.isFinite(zi)) {
         dirs[i] = MISSING
         continue
       }
@@ -157,7 +162,7 @@ export function flowDirections(filled: SurfaceGrid): Int8Array {
           q = col + D_COL[k]
         if (r < 0 || q < 0 || r >= h || q >= w) continue
         const zj = z[r * w + q]
-        if (Number.isNaN(zj)) continue
+        if (!Number.isFinite(zj)) continue
         const drop = (zi - zj) * (k & 1 ? Math.SQRT1_2 : 1)
         if (drop > best) {
           best = drop
@@ -167,6 +172,127 @@ export function flowDirections(filled: SurfaceGrid): Int8Array {
       dirs[i] = dir
     }
   return dirs
+}
+
+export interface ConditioningDiagnostics {
+  policy: DepressionPolicy
+  /** Cells below their physical spill level, independent of the routing policy. */
+  potentialDepressionCells: number
+  /** Cells raised for routing; the full-fill policy also raises otherwise level cells by epsilon. */
+  filledCells: number
+  maxAppliedFillDepthM: number
+  /** Depression cells left below their spill level by the selected policy. */
+  retainedDepressionCells: number
+  /** Terminal cells away from grid/no-data edges; includes unresolved closed flats. */
+  interiorSinkCells: number
+}
+
+function isOpenCell(grid: SurfaceGrid, i: number): boolean {
+  const row = Math.floor(i / grid.width),
+    col = i % grid.width
+  if (row === 0 || col === 0 || row === grid.height - 1 || col === grid.width - 1) return true
+  for (let k = 0; k < 8; k++)
+    if (!Number.isFinite(grid.values[(row + D_ROW[k]) * grid.width + col + D_COL[k]])) return true
+  return false
+}
+
+/** Route equal-height cells toward existing lower exits, without changing elevations or opening closed flats. */
+function routeDrainingFlats(grid: SurfaceGrid, dirs: Int8Array): void {
+  const { width: w, height: h, values: z } = grid
+  const queue = new Int32Array(z.length),
+    reached = new Uint8Array(z.length)
+  let head = 0,
+    tail = 0
+  for (let i = 0; i < z.length; i++) {
+    if (dirs[i] === MISSING || (dirs[i] < 0 && !isOpenCell(grid, i))) continue
+    reached[i] = 1
+    queue[tail++] = i
+  }
+  while (head < tail) {
+    const i = queue[head++],
+      row = Math.floor(i / w),
+      col = i % w
+    for (let k = 0; k < 8; k++) {
+      const r = row + D_ROW[k],
+        c = col + D_COL[k]
+      if (r < 0 || c < 0 || r >= h || c >= w) continue
+      const j = r * w + c
+      if (reached[j] || dirs[j] !== OUTLET || z[j] !== z[i]) continue
+      reached[j] = 1
+      dirs[j] = (k + 4) % 8
+      queue[tail++] = j
+    }
+  }
+}
+
+/**
+ * Separate physical spill-depth evidence from the elevations used for D8 routing.
+ * Depth-limited filling accepts an entire 8-connected positive-depth depression only when its
+ * maximum required fill is within the cap. Deeper connected depressions remain untouched.
+ * Accepted basins route over exactly level spill surfaces; no epsilon can exceed the cap or
+ * create an uphill escape from a retained basin. Nested connected depressions are conservative:
+ * a deep cell retains the whole connected component. A zero cap is identical to preservation.
+ */
+export function conditionDrainageSurface(grid: SurfaceGrid, policyValue?: DepressionPolicy, epsilon?: number) {
+  const policy = parseDepressionPolicy(policyValue)
+  const potential = fillDepressions(grid, { epsilon: 0 })
+  let surface = grid
+  if (policy.mode === 'fill-all') surface = fillDepressions(grid, { epsilon }).filled
+  else if (policy.mode === 'depth-limited' && policy.maxDepthM > 0) {
+    const values = new Float64Array(grid.values),
+      visited = new Uint8Array(values.length)
+    const queue = new Int32Array(values.length),
+      w = grid.width
+    for (let start = 0; start < values.length; start++) {
+      if (visited[start] || !(potential.depth[start] > 0)) continue
+      let head = 0,
+        tail = 1,
+        maxDepth = 0
+      queue[0] = start
+      visited[start] = 1
+      while (head < tail) {
+        const i = queue[head++],
+          row = Math.floor(i / w),
+          col = i % w
+        maxDepth = Math.max(maxDepth, potential.depth[i])
+        for (let k = 0; k < 8; k++) {
+          const r = row + D_ROW[k],
+            c = col + D_COL[k]
+          if (r < 0 || c < 0 || r >= grid.height || c >= w) continue
+          const j = r * w + c
+          if (visited[j] || !(potential.depth[j] > 0)) continue
+          visited[j] = 1
+          queue[tail++] = j
+        }
+      }
+      if (maxDepth <= policy.maxDepthM)
+        for (let q = 0; q < tail; q++) values[queue[q]] = potential.filled.values[queue[q]]
+    }
+    surface = cloneSurfaceGrid(grid, values)
+  }
+  const directions = flowDirections(surface)
+  if (policy.mode !== 'fill-all') routeDrainingFlats(surface, directions)
+  const diagnostics: ConditioningDiagnostics = {
+    policy,
+    potentialDepressionCells: 0,
+    filledCells: 0,
+    maxAppliedFillDepthM: 0,
+    retainedDepressionCells: 0,
+    interiorSinkCells: 0,
+  }
+  for (let i = 0; i < grid.values.length; i++) {
+    if (!Number.isFinite(grid.values[i])) continue
+    const applied = surface.values[i] - grid.values[i],
+      physical = potential.depth[i]
+    if (physical > 0) diagnostics.potentialDepressionCells++
+    if (applied > 0) {
+      diagnostics.filledCells++
+      diagnostics.maxAppliedFillDepthM = Math.max(diagnostics.maxAppliedFillDepthM, applied)
+    }
+    if (physical > applied) diagnostics.retainedDepressionCells++
+    if (directions[i] === OUTLET && !isOpenCell(grid, i)) diagnostics.interiorSinkCells++
+  }
+  return { surface, depth: potential.depth, directions, diagnostics }
 }
 
 /** Downstream cell of `i`, or −1 at an outlet or a missing cell. */
@@ -377,8 +503,9 @@ export interface SurfaceDrainage {
   ponding: PondingSummary
   /** Contributing area per cell, m². */
   accumulation: Float64Array
-  /** Fill depth per cell, m. */
+  /** Potential depth to physical spill level, m, regardless of the conditioning policy. */
   depth: Float64Array
+  conditioning: ConditioningDiagnostics
   /** Ephemeral D8 routes for pour-point and watershed analysis; never serialized as a project grid. */
   directions: Int8Array
 }
@@ -407,6 +534,7 @@ export interface DrainageInput {
   runoffCoefficient: number
   manningN: number
   streamThresholdM2: number
+  depressionPolicy?: DepressionPolicy
   epsilon?: number
   /** Ponding shallower than this is ignored (fill on flats and burn noise), m. Default 0.05. */
   pondDepthM?: number
@@ -421,9 +549,12 @@ export interface DrainageInput {
 }
 
 function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: string) {
-  const { filled, depth } = fillDepressions(grid, { epsilon: input.epsilon })
-  const dirs = flowDirections(filled),
-    accumulation = flowAccumulation(dirs, grid)
+  const {
+    depth,
+    directions: dirs,
+    diagnostics: conditioning,
+  } = conditionDrainageSurface(grid, input.depressionPolicy, input.epsilon)
+  const accumulation = flowAccumulation(dirs, grid)
   const streams = extractStreams(accumulation, dirs, grid, input.toLonLat, {
     thresholdM2: input.streamThresholdM2,
     idPrefix,
@@ -438,7 +569,10 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
       ponding.maxDepthM = Math.max(ponding.maxDepthM, depth[i])
     }
   ponding.areaM2 = ponding.cells * cellArea
-  return { dirs, drainage: { streams, ponding, accumulation, depth, directions: dirs } satisfies SurfaceDrainage }
+  return {
+    dirs,
+    drainage: { streams, ponding, accumulation, depth, directions: dirs, conditioning } satisfies SurfaceDrainage,
+  }
 }
 
 /**
@@ -617,15 +751,17 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
     if (!footprint[i] || !(accD[i] >= minLowArea)) continue
     const j = downstream(after.dirs, w, i)
     if (j >= 0 && footprint[j]) continue
+    const interiorSink = j < 0 && !isOpenCell(design, i)
+    if (interiorSink && !(depthD[i] > minDepth)) continue
     const place = locate(i),
       channel = channelOf[i] ? channels[channelOf[i] - 1].id : null
     candidates.push({
-      kind: 'outlet',
+      kind: interiorSink ? 'pond' : 'outlet',
       side: place.offset < 0 ? 'left' : 'right',
       chainage: place.chainage,
       coordinate: lonLat(i),
       areaHa: accD[i] / 10_000,
-      depthM: 0,
+      depthM: interiorSink ? depthD[i] : 0,
       culvertId: channel ?? nearestCulvert(place.chainage),
       throughCulvert: channel !== null,
     })

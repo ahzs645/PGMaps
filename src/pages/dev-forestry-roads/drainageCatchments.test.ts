@@ -31,6 +31,7 @@ describe('cell-exact D8 catchments', () => {
       identity,
     )
     expect(result.outletCell).toBe(4)
+    expect(result.snapPolicy).toBe('max-accumulation')
     expect(result.snappedCoordinate).toEqual([1, 1])
     expect(result.snappedDistanceM).toBeCloseTo(Math.hypot(0.3, 0.5))
     expect(result.feature.properties.cells).toBe(9)
@@ -43,6 +44,59 @@ describe('cell-exact D8 catchments', () => {
   it('does not include cells whose paths bypass the selected point', () => {
     const mask = upstreamMask(grid, allToCentre, 0)
     expect([...mask]).toEqual([1, 0, 0, 0, 0, 0, 0, 0, 0])
+  })
+
+  it('selects original low ground independently of the maximum-accumulation cell', () => {
+    const acc = flowAccumulation(allToCentre, grid)
+    const elevations = new Float64Array([10, 20, 20, 20, 12, 20, 20, 20, 20])
+    const result = delineateCatchment(
+      grid,
+      allToCentre,
+      acc,
+      { coordinate: [1, 1], snapRadiusM: 2, surface: 'design', snapPolicy: 'lowest-elevation' },
+      identity,
+      identity,
+      elevations,
+    )
+    expect(result.outletCell).toBe(0)
+    expect(result.snapPolicy).toBe('lowest-elevation')
+    expect(result.requestedCoordinate).toEqual([1, 1])
+    expect(result.snappedCoordinate).toEqual([0, 2])
+    expect(result.selectedElevationM).toBe(10)
+    expect(result.snappedDistanceM).toBe(Math.SQRT2)
+    const maxArea = snapPourPoint(grid, allToCentre, acc, [1, 1], 2, { elevations })
+    expect(maxArea.cell).toBe(4)
+    expect(maxArea.selectedElevationM).toBe(12)
+  })
+
+  it.each(['max-accumulation', 'lowest-elevation'] as const)('%s ties prefer distance and then cell ID', (policy) => {
+    const acc = new Float64Array(9).fill(1),
+      elevations = new Float64Array(9).fill(5)
+    expect(snapPourPoint(grid, allToCentre, acc, [0.5, 1], 2, { policy, elevations }).cell).toBe(3)
+    expect(snapPourPoint(grid, allToCentre, acc, [1.2, 1], 2, { policy, elevations }).cell).toBe(4)
+    // Radius zero keeps the containing cell and records the actual distance to its centre.
+    expect(snapPourPoint(grid, allToCentre, acc, [1.2, 1], 0, { policy, elevations })).toMatchObject({
+      cell: 4,
+      snapPolicy: policy,
+      selectedElevationM: 5,
+    })
+    expect(snapPourPoint(grid, allToCentre, acc, [1.2, 1], 0, { policy, elevations }).distanceM).toBeCloseTo(0.2)
+  })
+
+  it('requires a matching original surface for elevation snapping and excludes missing elevation cells', () => {
+    const acc = new Float64Array(9).fill(1),
+      elevations = new Float64Array(9).fill(5)
+    elevations[4] = NaN
+    expect(snapPourPoint(grid, allToCentre, acc, [1, 1], 2, { policy: 'lowest-elevation', elevations }).cell).toBe(1)
+    expect(() => snapPourPoint(grid, allToCentre, acc, [1, 1], 1, { policy: 'lowest-elevation' })).toThrow(
+      /unconditioned/,
+    )
+    expect(() => snapPourPoint(grid, allToCentre, acc, [1, 1], 1, { elevations: new Float64Array(8) })).toThrow(
+      /same grid/,
+    )
+    expect(() => snapPourPoint(grid, allToCentre, acc, [1, 1], 1, { policy: 'wrong' as never })).toThrow(/policy/)
+    expect(() => snapPourPoint(grid, allToCentre, acc, [NaN, 1], 1)).toThrow(/finite/)
+    expect(() => snapPourPoint(grid, allToCentre, acc, [1, 1], 0, { elevations })).toThrow(/no sampled terrain/)
   })
 
   it('keeps holes at missing cells and warns of no-data truncation', () => {

@@ -15,6 +15,17 @@ export interface TemplateAssignment {
   /** Linear transition from/to the base section inside the assigned range. */
   transitionM: number
 }
+export type MaterialVolumeFactorConvention = 'compacted-per-bank' | 'bank-per-compacted'
+
+/** Entered conversion evidence; calculations continue to use compactionFactor. */
+export interface MaterialVolumeFactorProvenance {
+  convention: MaterialVolumeFactorConvention
+  enteredFactor: number
+  canonicalFactor: number
+  /** Optional user-entered citation, test result or assumption; not independently verified. */
+  source?: string
+}
+
 export interface GroundMaterial {
   id: string
   name: string
@@ -24,6 +35,7 @@ export interface GroundMaterial {
   reusableFraction: number
   /** Compacted fill volume per reusable bank volume. */
   compactionFactor: number
+  volumeFactorProvenance?: MaterialVolumeFactorProvenance
   /** Stripping here means excavated shallow material only, not undercut below fill. */
   purpose?: 'earthwork' | 'stripping'
   /** Entered geotechnical batter slopes H:V; unset inherits the template. */

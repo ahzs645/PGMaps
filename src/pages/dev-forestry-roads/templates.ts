@@ -1,6 +1,7 @@
 import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate, SectionComponent } from './types'
 import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
+import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -240,6 +241,8 @@ export function validateEngineering(e: AlignmentEngineering): void {
       (m.purpose === 'stripping' && m.reusableFraction !== 0)
     )
       throw new Error('Material rates/factors are invalid. Stripping must have zero reusable fraction.')
+    if (m.volumeFactorProvenance !== undefined)
+      parseMaterialVolumeFactorProvenance(m.volumeFactorProvenance, m.compactionFactor)
   }
   for (let i = 0; i < e.strata.length; i++) {
     const a = e.strata[i]

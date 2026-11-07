@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { createEngineeringDesign } from './engineeringTypes'
+import { createMaterialVolumeFactorProvenance, materialCompactionFactorPatch } from './materialFactors'
 import { downloadText } from '@/lib/download'
 import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
@@ -24,6 +25,8 @@ import type {
   AlignmentEngineering,
   Culvert,
   GroundMaterial,
+  MaterialVolumeFactorConvention,
+  MaterialVolumeFactorProvenance,
   HaulSettings,
   HaulSite,
   RoadTemplate,
@@ -58,6 +61,109 @@ function Fields<T extends object>({
     </div>
   )
 }
+
+function MaterialFactorEditor({
+  material,
+  onChange,
+}: {
+  material: GroundMaterial
+  onChange: (patch: Partial<GroundMaterial>) => void
+}) {
+  const [convention, setConvention] = useState<MaterialVolumeFactorConvention>(
+    material.volumeFactorProvenance?.convention ?? 'compacted-per-bank',
+  )
+  const [entered, setEntered] = useState(
+    String(material.volumeFactorProvenance?.enteredFactor ?? material.compactionFactor),
+  )
+  const [source, setSource] = useState(material.volumeFactorProvenance?.source ?? '')
+  let preview: MaterialVolumeFactorProvenance | undefined
+  let error: string | undefined
+  try {
+    preview = createMaterialVolumeFactorProvenance(Number(entered), convention, source)
+  } catch (cause) {
+    error = cause instanceof Error ? cause.message : 'Enter a valid volume factor.'
+  }
+  const recorded = material.volumeFactorProvenance
+  return (
+    <>
+      <NumberField
+        label={`${material.name} compacted / bank factor`}
+        value={material.compactionFactor}
+        min={0.1}
+        max={2}
+        step={0.05}
+        hint="Compacted fill volume per reusable bank volume. Usable compacted cut equals bank cut × reusable fraction × this factor. Editing this value clears a recorded conversion when the factor changes."
+        onChange={(factor) => onChange(materialCompactionFactorPatch(material, factor))}
+      />
+      <RoadSection
+        title={`${material.name} factor conversion`}
+        summary={recorded ? `${recorded.enteredFactor} → ${recorded.canonicalFactor.toPrecision(8)}` : 'Optional'}
+        toggleTestId={`material-factor-converter-${material.id}`}
+        help="Choose the ratio stated by your source. Bank / compacted is inverted to compacted / bank before applying. Reusable fraction stays separate. The quoted RoadEng fill-factor example corresponds to bank / compacted only when its cut factor is 1; this is not a general RoadEng importer. Source notes are entered evidence, not verification."
+      >
+        <Field label={`${material.name} factor convention`}>
+          <NativeSelect
+            className={roadFieldClass}
+            value={convention}
+            onChange={(event) => setConvention(event.target.value as MaterialVolumeFactorConvention)}
+          >
+            <option value="compacted-per-bank">Compacted / bank</option>
+            <option value="bank-per-compacted">Bank / compacted</option>
+          </NativeSelect>
+        </Field>
+        <Field label={`${material.name} entered volume factor`}>
+          <input
+            className={roadFieldClass}
+            inputMode="decimal"
+            value={entered}
+            onChange={(event) => setEntered(event.target.value)}
+          />
+        </Field>
+        <Field
+          label={`${material.name} factor source (optional)`}
+          hint="Record the document, page, test result or assumption that states the entered ratio. This note travels with the material in project and road-library JSON."
+        >
+          <input
+            className={roadFieldClass}
+            maxLength={500}
+            value={source}
+            onChange={(event) => setSource(event.target.value)}
+          />
+        </Field>
+        <output aria-label={`${material.name} canonical factor preview`} className="block text-xs tabular-nums">
+          {preview ? `${preview.canonicalFactor.toPrecision(12)} compacted / bank` : 'No valid conversion'}
+        </output>
+        {error && (
+          <p role="alert" className="text-xs text-destructive">
+            {error}
+          </p>
+        )}
+        <Button
+          size="sm"
+          variant="outline"
+          aria-label={`Apply ${material.name} factor conversion`}
+          disabled={!preview}
+          onClick={() => {
+            if (preview) onChange({ compactionFactor: preview.canonicalFactor, volumeFactorProvenance: preview })
+          }}
+        >
+          Apply factor conversion
+        </Button>
+        {recorded && (
+          <Field label={`${material.name} recorded conversion`} hint={recorded.source ?? 'No source note entered.'}>
+            <span className="text-xs tabular-nums" data-testid={`material-factor-record-${material.id}`}>
+              {recorded.enteredFactor}{' '}
+              {recorded.convention === 'bank-per-compacted' ? 'bank / compacted' : 'compacted / bank'}
+              {' = '}
+              {recorded.canonicalFactor.toPrecision(12)} compacted / bank
+            </span>
+          </Field>
+        )}
+      </RoadSection>
+    </>
+  )
+}
+
 function Name({
   value,
   label,
@@ -768,16 +874,10 @@ export function EngineeringControls({
                       max: m.purpose === 'stripping' ? 0 : 1,
                       step: 0.05,
                     },
-                    {
-                      key: 'compactionFactor',
-                      label: `${m.name} compacted / bank factor`,
-                      min: 0.1,
-                      max: 2,
-                      step: 0.05,
-                    },
                   ]}
                   onChange={(p) => patch('materials', m.id, p)}
                 />
+                <MaterialFactorEditor material={m} onChange={(p) => patch('materials', m.id, p)} />
                 <div className="grid grid-cols-2 gap-2">
                   <OptionalNumberField
                     label={`${m.name} quality (0–100)`}

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { resolvedCableLine } from './cableGeometry'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
+import { createMaterialVolumeFactorProvenance, materialCompactionFactorPatch } from './materialFactors'
+import { validateEngineering } from './templates'
 import {
   engineeringCsv,
   importRoadLibrary,
@@ -215,6 +217,40 @@ function readCsv(csv: string): Record<string, string>[] {
 }
 
 describe('engineering project persistence and portable libraries', () => {
+  it('round-trips optional factor convention evidence in projects and reusable material libraries', () => {
+    const project = projectFixture()
+    const material = project.alignments[0].engineering!.materials[1]
+    material.volumeFactorProvenance = createMaterialVolumeFactorProvenance(
+      0.8,
+      'bank-per-compacted',
+      'Entered assumption: tutorial review, cut factor 1',
+    )
+    material.compactionFactor = material.volumeFactorProvenance.canonicalFactor
+    const restored = parseProject(serializeProject(project))
+    expect(restored.alignments[0].engineering!.materials[1]).toEqual(material)
+    const library = serializeRoadLibrary(project.alignments[0])
+    expect(importRoadLibrary(project.alignments[0], library, 'replace').engineering!.materials[1]).toEqual(material)
+    // Files without this optional record keep their previous interpretation.
+    expect(parseProject(serializeProject(projectFixture())).alignments[0].engineering!.materials[1]).not.toHaveProperty(
+      'volumeFactorProvenance',
+    )
+  })
+
+  it('rejects stale factor evidence at import, save and runtime validation, then permits a direct edit', () => {
+    const project = projectFixture()
+    const engineering = project.alignments[0].engineering!
+    const material = engineering.materials[1]
+    material.volumeFactorProvenance = createMaterialVolumeFactorProvenance(0.8, 'bank-per-compacted')
+    expect(() => parseProject(project)).toThrow(/inconsistent/)
+    expect(() => serializeProject(project)).toThrow(/inconsistent/)
+    expect(() => validateEngineering(engineering)).toThrow(/inconsistent/)
+    Object.assign(material, materialCompactionFactorPatch(material, 1))
+    expect(() => serializeProject(project)).not.toThrow()
+    expect(
+      parseProject(serializeProject(project)).alignments[0].engineering!.materials[1].volumeFactorProvenance,
+    ).toBeUndefined()
+  })
+
   it('round-trips every engineering input, independent side setting, cable control and ground-only profile', () => {
     const project = projectFixture()
     const restored = parseProject(serializeProject(project))

@@ -34,7 +34,7 @@ trusted and what the check assumes. The method is specified in the
   [the Rational method](#rational-method-and-pipe-capacity)).
 - **Re-run after every change.** Full raster runs are not saved or updated by edits; the project
   retains settings and compact review evidence. A run goes stale
-  when that road's alignment (culverts and other engineering inputs included), the road settings,
+  when the recorded calculation version is older, that road's alignment (culverts and other engineering inputs included), the road settings,
   the terrain or any drainage input changes; edits to other alternatives leave it current
   (`DevForestryRoads.tsx`, `drainageStale`). A stale run stays in the panel with an amber notice,
   is not drawn on the plan, and the plan header reads "Drainage out of date · re-run it to show
@@ -48,51 +48,60 @@ you choose.
 
 ## Limits and budgets
 
-| Limit                        | Value                                                                  | Enforced in                                                       | What happens when exceeded                                              |
-| ---------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Surface grid                 | 4,194,304 cells                                                        | `drainageRun.ts`, `runDrainage` (`maxCells`); `sampleSurfaceGrid` | Cell grows by 1.25× until the grid fits; the footer shows the cell      |
-| Finest cell                  | 1 m, or the terrain's native resolution if coarser                     | `drainageRun.ts`, `Math.max(1, resolutionM)`                      | A 0.5 m source is resampled to 1 m                                      |
-| Upslope buffer               | 250 m default; 20–2,000 m                                              | `drainageRun.ts` `DEFAULT_DRAINAGE_SETTINGS`; `DrainagePanel.tsx` | Entries outside the range are clamped to it without a message           |
-| Stream threshold             | 1 ha default; 0.05–500 ha                                              | same                                                              | Clamped                                                                 |
-| Rainfall intensity           | 50 mm/h default; 1–500 mm/h                                            | same                                                              | Clamped                                                                 |
-| Runoff coefficient C         | 0.35 default; 0.05–1                                                   | same                                                              | Clamped                                                                 |
-| Pipe Manning n               | 0.024 default; 0.009–0.05                                              | same                                                              | Clamped                                                                 |
-| Flat-routing gradient        | ε = 0.00001 m per cell                                                 | `hydrology.ts`, `fillDepressions`                                 | Fixed                                                                   |
-| Stream stub length           | First-order reaches under 5 cells that end at a confluence             | `hydrology.ts`, `extractStreams` (`minLengthM`)                   | Dropped from the drawn streams                                          |
-| Culvert search distance      | 15 m of chainage                                                       | `hydrology.ts`, `analyzeDrainage` (`culvertSearchM`)              | A culvert further away is not associated with the crossing or low point |
-| Diversion threshold          | 20 m along the road                                                    | `hydrology.ts`, `analyzeDrainage` (`divertThresholdM`)            | Carried further without a culvert: reported as redirected               |
-| Crossing re-entry            | 50 m of existing-ground path outside the footprint                     | `hydrology.ts`, `analyzeDrainage` (`followCells`)                 | A stream that leaves and re-enters within 50 m counts as one crossing   |
-| Low point                    | 0.05 ha (500 m²) draining to it                                        | `hydrology.ts`, `analyzeDrainage` (`lowPointMinAreaM2`)           | Smaller outlets and sags are not listed                                 |
-| Low-point spacing            | 10 m of chainage, same side and kind                                   | `hydrology.ts`, `analyzeDrainage`                                 | Only the largest is kept                                                |
-| New ponding                  | Fill deeper than 0.05 m                                                | `hydrology.ts`, `analyzeDrainage` (`pondDepthM`)                  | Shallower ponding is ignored                                            |
-| Culvert apron                | Up to 10 m past each barrel end                                        | `designSurface.ts`, `burnRoad` / `carveCulvert` (`apronM`)        | Stops earlier where the ground falls below the invert                   |
-| Culvert channel reach        | Barrel half-length + 200 m each way, while in the footprint            | `designSurface.ts`, `carveCulvert`                                | Channel ends                                                            |
-| Missing invert               | Lower end ground − 0.3 m, flat                                         | `designSurface.ts`, `carveCulvert`                                | Warning: "inverts missing; channel set 0.3 m below the lower end"       |
-| Assumed pipe slope           | 2 % when inverts are missing, flat or adverse                          | `hydrology.ts`, `analyzeDrainage` (`defaultSlope`)                | Slope shown with `*`                                                    |
-| Standard diameters           | 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.4, 3.0 m | `hydrology.ts`, `STANDARD_CULVERT_DIAMETERS_M`                    | No size carries Q: minimum shown as "> 3.0"                             |
-| Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°             | `engineeringProject.ts`, `parseEngineering`                       | Project refused                                                         |
-| Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                    | `designSurface.ts`, `burnRoad`; `hydrology.ts`                    | Warning: "outside the road or the surface grid; not checked"            |
-| Pour-point snap radius | 0–2,000 m | `drainageCatchments.ts`, `snapPourPoint` | Invalid requests reject; no supported cell reports an error |
-| Catchment/watershed grid | 4,194,304 cells | `drainageCatchments.ts`, `MAX_CATCHMENT_CELLS` | Rejects rather than truncates cells |
-| Polygon boundaries | 200,000 raw edges per basin and 200,000 combined watershed vertices | `MAX_CATCHMENT_BOUNDARY_EDGES` | Rejects; increase minimum basin area or coarsen the analysis |
-| Watersheds | 1,000 qualifying outlet basins | `MAX_WATERSHEDS` | Rejects; increase the minimum area |
-| Portable evidence | 20 road records, 5,000 features per record, 200,000 vertices | `drainageEvidence.ts`, `MAX_DRAINAGE_RECORDS`, `MAX_DRAINAGE_EVIDENCE_VERTICES` | Invalid or oversized evidence is rejected |
+| Limit                        | Value                                                                                                                  | Enforced in                                                                     | What happens when exceeded                                                             |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Surface grid                 | 4,194,304 cells                                                                                                        | `drainageRun.ts`, `runDrainage` (`maxCells`); `sampleSurfaceGrid`               | Cell grows by 1.25× until the grid fits; the footer shows the cell                     |
+| Finest cell                  | Maximum of 1 m, source resolution and optional requested working cell                                                  | `drainageRun.ts`, `runDrainage`                                                 | A coarser request reduces detail; a finer request never upsamples the source           |
+| Requested working cell       | 1–100,000 m, optional                                                                                                  | `drainageEvidence.ts`, `parseDrainageSettings`; `drainageRun.ts`                | Invalid settings reject; actual cells may grow to fit the cell budget                  |
+| Depression policy            | Fill all (legacy default), preserve, or fill shallow connected basins                                                  | `drainagePolicies.ts`; `hydrology.ts`, `fillDepressions`                        | The policy is recorded and changes invalidate evidence                                 |
+| Maximum basin fill           | 0–1,000 m for depth-limited routing                                                                                    | `drainagePolicies.ts`, `parseDepressionPolicy`                                  | Deeper connected basins remain unfilled; zero preserves all positive-depth depressions |
+| Upslope buffer               | 250 m default; 20–2,000 m                                                                                              | `drainageRun.ts` `DEFAULT_DRAINAGE_SETTINGS`; `DrainagePanel.tsx`               | Entries outside the range are clamped to it without a message                          |
+| Stream threshold             | 1 ha default; 0.05–500 ha                                                                                              | same                                                                            | Clamped                                                                                |
+| Rainfall intensity           | 50 mm/h default; 1–500 mm/h                                                                                            | same                                                                            | Clamped                                                                                |
+| Runoff coefficient C         | 0.35 default; 0.05–1                                                                                                   | same                                                                            | Clamped                                                                                |
+| Pipe Manning n               | 0.024 default; 0.009–0.05                                                                                              | same                                                                            | Clamped                                                                                |
+| Flat routing                 | Full-fill: ε = 0.00001 m per cell; preserve/depth-limited: unchanged equal-height flats route to real lower/open exits | `hydrology.ts`, `fillDepressions`, `routeDrainingFlats`                         | Closed unfilled flats remain sinks                                                     |
+| Stream stub length           | First-order reaches under 5 cells that end at a confluence                                                             | `hydrology.ts`, `extractStreams` (`minLengthM`)                                 | Dropped from the drawn streams                                                         |
+| Culvert search distance      | 15 m of chainage                                                                                                       | `hydrology.ts`, `analyzeDrainage` (`culvertSearchM`)                            | A culvert further away is not associated with the crossing or low point                |
+| Diversion threshold          | 20 m along the road                                                                                                    | `hydrology.ts`, `analyzeDrainage` (`divertThresholdM`)                          | Carried further without a culvert: reported as redirected                              |
+| Crossing re-entry            | 50 m of existing-ground path outside the footprint                                                                     | `hydrology.ts`, `analyzeDrainage` (`followCells`)                               | A stream that leaves and re-enters within 50 m counts as one crossing                  |
+| Low point                    | 0.05 ha (500 m²) draining to it                                                                                        | `hydrology.ts`, `analyzeDrainage` (`lowPointMinAreaM2`)                         | Smaller outlets and sags are not listed                                                |
+| Low-point spacing            | 10 m of chainage, same side and kind                                                                                   | `hydrology.ts`, `analyzeDrainage`                                               | Only the largest is kept                                                               |
+| New ponding                  | Fill deeper than 0.05 m                                                                                                | `hydrology.ts`, `analyzeDrainage` (`pondDepthM`)                                | Shallower ponding is ignored                                                           |
+| Culvert apron                | Up to 10 m past each barrel end                                                                                        | `designSurface.ts`, `burnRoad` / `carveCulvert` (`apronM`)                      | Stops earlier where the ground falls below the invert                                  |
+| Culvert channel reach        | Barrel half-length + 200 m each way, while in the footprint                                                            | `designSurface.ts`, `carveCulvert`                                              | Channel ends                                                                           |
+| Missing invert               | Lower end ground − 0.3 m, flat                                                                                         | `designSurface.ts`, `carveCulvert`                                              | Warning: "inverts missing; channel set 0.3 m below the lower end"                      |
+| Assumed pipe slope           | 2 % when inverts are missing, flat or adverse                                                                          | `hydrology.ts`, `analyzeDrainage` (`defaultSlope`)                              | Slope shown with `*`                                                                   |
+| Standard diameters           | 0.3, 0.4, 0.5, 0.6, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.4, 3.0 m                                                 | `hydrology.ts`, `STANDARD_CULVERT_DIAMETERS_M`                                  | No size carries Q: minimum shown as "> 3.0"                                            |
+| Culverts per road            | 100; diameter 0.1–20 m; length 0.2–500 m; skew −80° to 80°                                                             | `engineeringProject.ts`, `parseEngineering`                                     | Project refused                                                                        |
+| Culvert off the road or grid | Chainage outside 0 to road length, or no cell found                                                                    | `designSurface.ts`, `burnRoad`; `hydrology.ts`                                  | Warning: "outside the road or the surface grid; not checked"                           |
+| Pour-point snap radius       | 0–2,000 m                                                                                                              | `drainageCatchments.ts`, `snapPourPoint`                                        | Invalid requests reject; no supported cell reports an error                            |
+| Catchment/watershed grid     | 4,194,304 cells                                                                                                        | `drainageCatchments.ts`, `MAX_CATCHMENT_CELLS`                                  | Rejects rather than truncates cells                                                    |
+| Polygon boundaries           | 200,000 raw edges per basin and 200,000 combined watershed vertices                                                    | `MAX_CATCHMENT_BOUNDARY_EDGES`                                                  | Rejects; increase minimum basin area or coarsen the analysis                           |
+| Watersheds                   | 1,000 qualifying outlet basins                                                                                         | `MAX_WATERSHEDS`                                                                | Rejects; increase the minimum area                                                     |
+| Portable evidence            | 20 road records, 5,000 features per record, 200,000 vertices                                                           | `drainageEvidence.ts`, `MAX_DRAINAGE_RECORDS`, `MAX_DRAINAGE_EVIDENCE_VERTICES` | Invalid or oversized evidence is rejected                                              |
+| Saved sensitivity runs       | 12 per project; numeric summaries with at most 100 culvert pairs each                                                  | `drainageEvidence.ts`, `MAX_DRAINAGE_COMPARISONS`, `parseDrainageComparisons`   | Remove a saved comparison before adding another; no raster or polygon copies           |
 
-**Runtime.** The check runs on the page's main thread and cannot be cancelled. On the published
-LiDAR road (1.29 million 1 m cells) it takes about 2–4 s, during which the page does not
-respond. Time grows roughly with the cell count, so a run near the 4,194,304-cell budget takes
-several times longer. A finished run keeps contributing area and fill depth for both surfaces,
+**Runtime.** The check runs on the page's main thread and cannot be cancelled. The previous
+full-fill implementation took about 2–4 s on the published LiDAR road (1.29 million 1 m cells);
+that historical measurement has not been repeated for the policy-aware implementation. The new
+physical spill-depth calculation adds a flood pass, and non-default policies also route flats.
+The page does not respond while the check runs. A finished run keeps contributing area and fill depth for both surfaces,
 34 bytes a cell including both D8 direction grids: about 44 MB on the LiDAR road and 143 MB at the budget. Peak memory during the
-run is higher.
+run is higher. Full-fill now needs at least another 16 bytes per cell of live spill-surface/depth
+temporary arrays (about 67 MB at the budget), in addition to queues, heaps and other working arrays.
 
 ## Pour points, watersheds and portable review
 
 **Drain to a point** selects an arbitrary location on the plan (tap on phones). Choose existing
-ground or the design surface and a snap radius. Snapping chooses the supported cell with the
-greatest contributing area inside that metric radius, then the nearest cell if areas tie.
+ground or the design surface and a snap radius. **Greatest contributing area** is the legacy
+snap policy. **Lowest elevation** instead selects the lowest supported cell on the chosen
+surface before depression conditioning. Both search within the same metric radius and use
+nearest distance, then cell index, to break equal-score ties.
 Zero radius selects the cell containing the point. No location outside supported terrain is
 silently substituted. The result reports both the requested and snapped location, snap distance,
-cell count and area.
+cell index, policy, cell count and area. Lowest-elevation snapping on the design surface reads
+the road/culvert-modified ground, not the original bare-earth surface or a filled spill height.
 
 The catchment is the exact union of cells whose D8 paths reach the selected cell. Polygonization
 retains holes and disconnected components touching at a diagonal; it removes only collinear
@@ -102,20 +111,50 @@ hierarchy of nested stream catchments. A catchment or basin touching the sample 
 terrain is labelled as potentially truncated. Absence of boundary contact does not establish
 surveyed watershed accuracy.
 
-Project `drainage` stores rainfall, C, n, threshold, buffer, point/snap/surface and optional basin
+Project `drainage` stores rainfall, C, n, threshold, buffer, depression treatment, requested working
+resolution, point/snap policy/surface and optional basin
 threshold, plus one compact review record per road. The record includes run date, dependency
-fingerprint, terrain/datum/resolution, sampled grid metadata, crossing/diversion/culvert metrics,
+fingerprint, calculation version, terrain/datum/resolution, sampled grid metadata, crossing/diversion/culvert metrics,
 catchment and watershed polygons, review locations and warnings. Full accumulation, fill-depth,
 direction grids and stream linework remain in memory and are recomputed. Editing geometry,
 terrain, criteria or drainage inputs invalidates current use. Imported embedded terrain and
 checksummed published terrain retain reproducible source evidence; unchecksummed regional
 terrain must be rerun after reopening even if its metadata matches.
 
+Older evidence keeps its original input hash and remains in saved projects and historical reports.
+It must be rerun for current exports: legacy ponding depth included the numerical full-fill routing
+increment, while current ponding uses physical spill depth. A small depth change can cross the
+0.05 m reporting threshold, so the application does not silently assign a new calculation version
+to an old record.
+
 **Export drainage GeoJSON** carries review geometry and provenance. **Export drainage evidence**
 retains the full compact record and inputs. Stale records cannot be exported as current. The
 standard road report includes an escaped drainage chapter with status and the retained inputs,
 crossing metrics and per-culvert peak/capacity checks. The generic road shapefile/plot book do not
 pretend to contain a full drainage raster.
+
+### Compare a baseline with changed assumptions
+
+1. Select the outlet and run drainage. Enter a **Comparison label** and **Save comparison run**.
+2. Change one assumption: upslope buffer, requested cell size, depression policy, snap radius/policy,
+   or existing/design surface. Terrain-source changes can also be compared where the source is available.
+3. Rerun, save a second comparison, and choose the baseline. The cards show actual resolution,
+   catchment area, absolute/percentage difference, outlet movement and boundary contact. Expand
+   **Outlet and crossing evidence** for requested/selected coordinates, outlet cell, saved warnings
+   and per-culvert existing/design catchments and design-area changes. A saved request without
+   a resolved catchment is shown as **Outlet not resolved**, not as an omitted selection.
+4. Export comparison evidence or save the project JSON. Reopening the project retains the snapshots.
+
+These are deliberately saved historical results, not a confidence interval or automatic accuracy
+estimate. The comparison lists all changed inputs, so a buffer comparison that also became coarser
+is visible. Deltas for different requested outlets or roads are withheld. A different snapped outlet
+is reported beside the delta because the new area includes its movement. Boundary/no-data contact
+and unchecksummed terrain remain warnings. Results with changed inputs cannot be saved as a new
+comparison until recomputed; the explicitly historical comparison export remains available.
+
+The finite sample extent cannot recover upslope terrain absent from the source. A larger area that
+has stopped changing is not proof that the watershed is complete. Comparison records do not claim
+equivalence with the RoadEng tutorial's filling or outlet-selection algorithms.
 
 ## Built-in assumptions
 
@@ -142,11 +181,19 @@ pretend to contain a full drainage raster.
 
 ### Routing
 
-- **Depressions are filled.** Priority-Flood with ε raises every pit to its spill level, plus
-  0.00001 m per cell across the filled area so that water always has a downhill neighbour. Real
-  wetlands, lakes and ponds that store water are treated as if they spill. On a flat (a
-  hydro-flattened lake, a valley floor, a wide fill) the flow path follows that tiny gradient
-  towards the spill point; its position on the flat means nothing.
+- **Depression treatment is explicit.** The default retains Priority-Flood with ε = 0.00001 m
+  per cell, routing filled pits towards their spill. **Preserve depressions** retains their
+  storage/sinks. **Fill shallow basins** fills a connected depression only when the complete
+  basin fits within the entered maximum spill depth; it does not clip each cell's height and
+  accidentally connect a deep basin to its outlet. Flat routing is numerical, not a surveyed
+  channel. Equal-height open flats route to existing lower or boundary exits without raising
+  their elevations. Closed flat bottoms can retain multiple terminal cells, so a catchment at
+  one sink may cover only part of the whole depression; the run reports this limitation.
+  These choices are not a rainfall-duration/storage-routing model.
+- **Potential ponding remains visible under every policy.** Spill-depth storage diagnostics
+  are separate from the chosen routing surface. Preserving a pit does not turn its ponding
+  depth into zero or establish that it is safe to ignore. Full-fill routing can connect real
+  wetlands and lakes as if they spill; preserving them can reduce downstream contributing area.
 - **D8 sends each cell's water to one neighbour,** the steepest of eight. Water never splits.
   On open hillsides this concentrates diffuse runoff into parallel lines aligned with the grid,
   and stream positions depend on DEM detail and noise.
@@ -253,7 +300,7 @@ false ponds or false breaks.
 | Minimum diameter "> 3.0"                                          | Peak exceeds a 3 m pipe at that slope; likely a bridge or open-bottom structure site | Treat as a major crossing for a qualified professional; the check cannot size it     |
 | Results did not change after an edit                              | The run is stale; runs are not recalculated                                          | Re-run. The plan hides a stale run until you do                                      |
 | Plan header reads "Drainage out of date · re-run it to show flow" | The road, road settings, terrain or a drainage input changed since the run           | Re-run on the Drainage view                                                          |
-| Full streams absent after reload                                 | Only inputs and compact evidence are saved; full grids are recomputed | Review saved evidence and re-run; regional live terrain always needs a fresh run |
+| Full streams absent after reload                                  | Only inputs and compact evidence are saved; full grids are recomputed                | Review saved evidence and re-run; regional live terrain always needs a fresh run     |
 | Streams in odd parallel lines on a planar slope                   | D8 on smooth ground                                                                  | Raise the stream threshold; read streams on such slopes as approximate               |
 
 ## What it does not do

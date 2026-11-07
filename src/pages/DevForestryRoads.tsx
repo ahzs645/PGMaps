@@ -60,7 +60,14 @@ import {
   createDrainageEvidence,
   drainageInputFingerprint,
   drainageEvidenceGeoJson,
+  drainageEvidenceNeedsRecompute,
+  parseDrainageComparisons,
 } from './dev-forestry-roads/drainageEvidence'
+import {
+  createDrainageComparison,
+  drainageComparisonId,
+  drainageComparisonsExport,
+} from './dev-forestry-roads/drainageSensitivity'
 import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
@@ -198,7 +205,10 @@ export default function DevForestryRoads() {
   >('section')
   const [fallbackDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
   const drainageSettings = project.drainage?.settings ?? fallbackDrainageSettings
-  const [drainagePicking, setDrainagePicking] = useState<Pick<PourPoint, 'surface' | 'snapRadiusM'> | null>(null)
+  const [drainagePicking, setDrainagePicking] = useState<Pick<
+    PourPoint,
+    'surface' | 'snapRadiusM' | 'snapPolicy'
+  > | null>(null)
   const drainageInput = useMemo(
     () => ({
       alignment,
@@ -900,7 +910,9 @@ export default function DevForestryRoads() {
     !!(drainageEntry || drainageEvidence) &&
     (drainageEntry
       ? drainageEntry.inputs.fingerprint !== drainageFingerprint || drainageEntry.inputs.source !== source
-      : drainageEvidence?.fingerprint !== drainageFingerprint || project.terrain.kind === 'regional')
+      : !drainageEvidence ||
+        drainageEvidence.fingerprint !== drainageFingerprint ||
+        drainageEvidenceNeedsRecompute(drainageEvidence, project.terrain))
   /** Drawn on the plan only while current, so an outdated run never reads as the present road. */
   const drainageOnPlan =
     !drainageStale && !terrainProfile ? (drainageEntry?.run.plan ?? drainageEvidence?.features) : undefined
@@ -934,6 +946,34 @@ export default function DevForestryRoads() {
       )
     } catch (error) {
       w.setError(error instanceof Error ? error.message : 'Could not export drainage evidence.')
+    }
+  }
+  const saveDrainageComparison = (label: string) => {
+    try {
+      if (!drainageEvidence || drainageStale)
+        throw Error('Run drainage with the current inputs before saving a comparison.')
+      const snapshot = createDrainageComparison(drainageEvidence, label)
+      const comparisons = parseDrainageComparisons([
+        ...(project.drainage?.comparisons ?? []).filter((r) => project.alignments.some((a) => a.id === r.alignmentId)),
+        snapshot,
+      ])
+      update((p) => ({ ...p, drainage: { ...p.drainage!, comparisons } }))
+      w.setNotice(`Saved drainage comparison: ${snapshot.label}.`)
+    } catch (error) {
+      w.setError(error instanceof Error ? error.message : 'Could not save drainage comparison.')
+    }
+  }
+  const exportDrainageComparisons = (baselineId: string) => {
+    try {
+      const records = (project.drainage?.comparisons ?? []).filter((r) => r.alignmentId === alignment.id)
+      const content = drainageComparisonsExport(records, baselineId)
+      downloadText(
+        JSON.stringify(content, null, 2),
+        `${project.name.replace(/[^a-z0-9_-]+/gi, '-')}-drainage-comparisons.json`,
+        'application/json',
+      )
+    } catch (error) {
+      w.setError(error instanceof Error ? error.message : 'Could not export drainage comparisons.')
     }
   }
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
@@ -2724,6 +2764,27 @@ export default function DevForestryRoads() {
                                     }
                                     evidence={drainageEvidence}
                                     onExport={exportDrainage}
+                                    comparisons={(project.drainage?.comparisons ?? []).filter(
+                                      (record) => record.alignmentId === alignment.id,
+                                    )}
+                                    totalComparisonRecords={
+                                      (project.drainage?.comparisons ?? []).filter((r) =>
+                                        project.alignments.some((a) => a.id === r.alignmentId),
+                                      ).length
+                                    }
+                                    onSaveComparison={saveDrainageComparison}
+                                    onRemoveComparison={(id) =>
+                                      update((p) => ({
+                                        ...p,
+                                        drainage: {
+                                          ...p.drainage!,
+                                          comparisons: (p.drainage?.comparisons ?? []).filter(
+                                            (record) => drainageComparisonId(record) !== id,
+                                          ),
+                                        },
+                                      }))
+                                    }
+                                    onExportComparisons={exportDrainageComparisons}
                                     onStation={(chainage) => {
                                       w.setStation(chainage)
                                       if (focusMode) setFocusPane('plan')

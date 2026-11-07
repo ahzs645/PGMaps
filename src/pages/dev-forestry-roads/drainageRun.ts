@@ -5,6 +5,7 @@
  */
 import { burnRoad } from './designSurface'
 import { analyzeDrainage, type DrainageAnalysis } from './hydrology'
+import { parseDepressionPolicy, type DepressionPolicy } from './drainagePolicies'
 import { corridorBounds, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import type { Culvert, RoadAnalysis, TerrainSource } from './types'
 import {
@@ -25,6 +26,10 @@ export interface DrainageSettings {
   streamThresholdHa: number
   /** Ground sampled beyond the catch lines, so upslope catchments are not cut off, m. */
   bufferM: number
+  /** Omitted retains the legacy full Priority-Flood conditioning. */
+  depressionPolicy?: DepressionPolicy
+  /** Optional coarser working grid; never finer than the source or the 1 m sampling floor. */
+  workingResolutionM?: number
 }
 /** Forested-hillside planning defaults: C 0.35, corrugated steel pipe n 0.024. */
 export const DEFAULT_DRAINAGE_SETTINGS: DrainageSettings = {
@@ -40,6 +45,15 @@ export interface DrainageRun extends DrainageAnalysis {
   cells: number
   changedCells: number
   settings: DrainageSettings
+  /** Actual sampling decisions, including automatic coarsening to fit the cell budget. */
+  resolution: {
+    sourceM: number
+    requestedM?: number
+    minimumM: number
+    actualM: number
+    maxCells: number
+    coarsenedForBudget: boolean
+  }
   /** Features for the plan, each with a `role` (see PlanView's `drainage` prop). */
   plan: GeoJSON.FeatureCollection
   grid: DrainageGrid
@@ -72,10 +86,23 @@ export function runDrainage({
   /** Omitted skips watershed partitioning. Zero includes every raster outlet basin within the output budget. */
   watershedMinAreaHa?: number
 }): DrainageRun {
+  if (!Number.isFinite(resolutionM) || resolutionM <= 0 || resolutionM > 100_000)
+    throw Error('The source resolution must be greater than zero and at most 100,000 m.')
+  if (
+    settings.workingResolutionM !== undefined &&
+    (!Number.isFinite(settings.workingResolutionM) ||
+      settings.workingResolutionM <= 0 ||
+      settings.workingResolutionM > 100_000)
+  )
+    throw Error('The working resolution must be greater than zero and at most 100,000 m.')
+  if (!Number.isInteger(maxCells) || maxCells < 1 || maxCells > 4_194_304)
+    throw Error('The drainage cell budget must be from 1 to 4,194,304 cells.')
+  const depressionPolicy = parseDepressionPolicy(settings.depressionPolicy)
+  const minimumM = Math.max(1, resolutionM, settings.workingResolutionM ?? 0)
   if (!analysis.stations.some((s) => s.designElevation !== null))
     throw Error('The road has no design elevations on this terrain, so there is no design surface to route over.')
   const bounds = corridorBounds(analysis, toGrid, settings.bufferM)
-  const existing = sampleSurfaceGrid(terrain, bounds, toLonLat, { cellM: Math.max(1, resolutionM), maxCells })
+  const existing = sampleSurfaceGrid(terrain, bounds, toLonLat, { cellM: minimumM, maxCells })
   const burned = burnRoad(existing, analysis, toGrid, { culverts })
   const result = analyzeDrainage({
     existing,
@@ -90,10 +117,32 @@ export function runDrainage({
     runoffCoefficient: settings.runoffCoefficient,
     manningN: settings.manningN,
     streamThresholdM2: settings.streamThresholdHa * 10_000,
+    depressionPolicy,
   })
   result.warnings.push(
     'Contributing areas stop at the sampled buffer and terrain-data edges. Increase the upslope buffer and compare catchments before relying on the flow estimate.',
   )
+  if (existing.cellM > minimumM)
+    result.warnings.push(
+      `The working grid was coarsened from ${minimumM.toFixed(2)} m to ${existing.cellM.toFixed(2)} m to fit the ${maxCells.toLocaleString('en-CA')}-cell budget.`,
+    )
+  if (settings.workingResolutionM !== undefined && settings.workingResolutionM < Math.max(1, resolutionM))
+    result.warnings.push(
+      'The requested working resolution was limited by the source resolution and the 1 m sampling floor.',
+    )
+  if (depressionPolicy.mode !== 'fill-all')
+    result.warnings.push(
+      depressionPolicy.mode === 'preserve'
+        ? 'Depressions remain unfilled for flow routing. Interior sinks retain contributing area; reported ponding is potential depth to spill, not simulated water storage.'
+        : `Only connected depressions requiring at most ${depressionPolicy.maxDepthM} m of fill were conditioned. Deeper depressions remain sinks; reported ponding is potential depth to spill.`,
+    )
+  if (
+    depressionPolicy.mode !== 'fill-all' &&
+    result.existing.conditioning.interiorSinkCells + result.design.conditioning.interiorSinkCells > 0
+  )
+    result.warnings.push(
+      'Retained closed flats can have multiple terminal cells. A selected sink catchment may cover only part of a closed flat depression; inspect nearby sinks and ponding before treating it as the whole basin.',
+    )
   let missingCells = 0
   for (const value of existing.values) if (!Number.isFinite(value)) missingCells++
   if (missingCells)
@@ -117,7 +166,15 @@ export function runDrainage({
   }
   const catchmentSurface = pourPoint?.surface === 'existing' ? result.existing : result.design
   const catchment = pourPoint
-    ? delineateCatchment(grid, catchmentSurface.directions, catchmentSurface.accumulation, pourPoint, toGrid, toLonLat)
+    ? delineateCatchment(
+        grid,
+        catchmentSurface.directions,
+        catchmentSurface.accumulation,
+        pourPoint,
+        toGrid,
+        toLonLat,
+        pourPoint.surface === 'existing' ? existing.values : burned.surface.values,
+      )
     : undefined
   const watersheds =
     watershedMinAreaHa === undefined
@@ -138,7 +195,16 @@ export function runDrainage({
           {
             type: 'Feature' as const,
             geometry: { type: 'Point' as const, coordinates: catchment.snappedCoordinate },
-            properties: { role: 'pour-point', areaHa: catchment.feature.properties.areaHa },
+            properties: {
+              role: 'pour-point',
+              areaHa: catchment.feature.properties.areaHa,
+              snapPolicy: catchment.snapPolicy,
+              snappedDistanceM: catchment.snappedDistanceM,
+              outletCell: catchment.outletCell,
+              ...(catchment.selectedElevationM === undefined
+                ? {}
+                : { selectedElevationM: catchment.selectedElevationM }),
+            },
           },
         ]
       : []),
@@ -172,7 +238,15 @@ export function runDrainage({
     cellM: existing.cellM,
     cells: existing.width * existing.height,
     changedCells: burned.changedCells,
-    settings,
+    settings: { ...settings, depressionPolicy },
+    resolution: {
+      sourceM: resolutionM,
+      ...(settings.workingResolutionM === undefined ? {} : { requestedM: settings.workingResolutionM }),
+      minimumM,
+      actualM: existing.cellM,
+      maxCells,
+      coarsenedForBudget: existing.cellM > minimumM,
+    },
     grid,
     catchment,
     watersheds,

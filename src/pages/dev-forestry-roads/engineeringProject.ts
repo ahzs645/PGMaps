@@ -3,6 +3,7 @@ import type { AlignmentEngineering, RoadTemplate } from './types'
 import { validateEngineering } from './templates'
 import { parseAllocationPolicy } from './allocationPolicy'
 import { parseSitePreparation } from './sectionAssembly'
+import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error(`${label} must be an object.`)
@@ -60,13 +61,17 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
     const v = record(raw, 'Ground material'),
       color = name(v.color, 'Material color', 7)
     if (!/^#[a-f0-9]{6}$/i.test(color)) throw Error('Material colors must use #RRGGBB.')
+    const compactionFactor = numeric(v.compactionFactor, 'Compaction factor', 0.1, 2)
     return {
       id: key(v.id, 'Material ID'),
       name: name(v.name, 'Material name'),
       color,
       cutRate: numeric(v.cutRate, 'Material excavation rate', 0, 10000),
       reusableFraction: numeric(v.reusableFraction, 'Reusable material fraction', 0, 1),
-      compactionFactor: numeric(v.compactionFactor, 'Compaction factor', 0.1, 2),
+      compactionFactor,
+      ...(v.volumeFactorProvenance === undefined
+        ? {}
+        : { volumeFactorProvenance: parseMaterialVolumeFactorProvenance(v.volumeFactorProvenance, compactionFactor) }),
       ...(v.quality === undefined ? {} : { quality: numeric(v.quality, 'Material quality', 0, 100) }),
       ...(v.cutSlope === undefined ? {} : { cutSlope: numeric(v.cutSlope, 'Material cut slope H:V', 0.1, 10) }),
       ...(v.fillSlope === undefined ? {} : { fillSlope: numeric(v.fillSlope, 'Material fill slope H:V', 0.1, 10) }),

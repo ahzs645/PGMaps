@@ -1089,8 +1089,9 @@ fall below the minimum radius.
 Detail view → **Drainage** asks how the road changes where water goes. It compares flow
 on the ground as it is with flow on the ground the road leaves behind.
 
-1. **Sample** (`surfaceGrid.ts`): the active terrain is sampled at its native resolution
-   (at least 1 m, grown to stay within 4.19 million cells). The area covered is the
+1. **Sample** (`surfaceGrid.ts`): the active terrain is sampled at its native resolution or
+   an explicitly requested coarser working resolution (at least 1 m, grown to stay within
+   4.19 million cells). The actual cell size is recorded. The area covered is the
    catch-line corridor plus an upslope buffer, 250 m by default, so catchments above the
    road can be included. Drainage uses a local UTM ground-metre grid, including for
    imported Web Mercator rasters; projected Web Mercator distances and areas would
@@ -1106,9 +1107,11 @@ on the ground as it is with flow on the ground the road leaves behind.
      pits that read as ponds every station.
    - Each culvert becomes a one-cell channel at its inverts across the footprint, plus up
      to 10 m of apron. A missing invert is taken as the lower end ground minus 0.3 m.
-3. **Route** (`hydrology.ts`): on both surfaces, depressions are filled (Priority-Flood with
-   ε), D8 directions are set, contributing area is accumulated and streams are extracted
-   from the entered threshold (1 ha by default).
+3. **Route** (`hydrology.ts`): both surfaces use the selected depression policy: legacy
+   full Priority-Flood, preservation, or whole-basin depth-limited filling. Potential spill
+   storage remains a separate diagnostic under every policy. D8 directions are set,
+   contributing area is accumulated and streams are extracted from the entered threshold
+   (1 ha by default).
 4. **Compare** (`analyzeDrainage`):
    - _Stream crossings._ For every existing-ground stream that enters the footprint, it
      finds where the same water leaves on the design surface. Water carried more than
@@ -1135,8 +1138,11 @@ crossing and culvert metrics, catchment/watershed polygons and warnings). Full g
 since they recompute in seconds and hold tens of megabytes. Older projects use browser input
 defaults (`pgmaps-road-drainage-settings`). Unchecksummed regional terrain requires a fresh run
 after reopening. Drain-to-point supports an arbitrary plan location and metric snap radius;
-optional watershed partitioning returns exact unions of D8 basin cells with boundary/no-data
-truncation flags. The [drainage guide](forestry-road-design/drainage.md) specifies the polygon,
+the snap policy explicitly chooses greatest contributing area or lowest pre-fill elevation.
+Optional watershed partitioning returns exact unions of D8 basin cells with boundary/no-data
+truncation flags. Users can save up to 12 compact numeric comparison runs, select a baseline,
+compare contributing/culvert areas and actual outlets, and export historical comparison evidence.
+The [drainage guide](forestry-road-design/drainage.md) specifies the polygon,
 portable-evidence and cell budgets, exports and interpretation limits.
 Selecting a drainage-table station updates linked views; focused mobile layouts also
 open the plan so the location and flow overlay can be inspected immediately.

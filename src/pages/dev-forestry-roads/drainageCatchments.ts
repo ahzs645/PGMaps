@@ -2,6 +2,7 @@
 import { downstream, MISSING } from './hydrology'
 import { cellCentre, cellIndexAt, type SurfaceGrid, type ToLonLat } from './surfaceGrid'
 import type { Coordinate } from './types'
+import { parseSnapPolicy, type SnapPolicy } from './drainagePolicies'
 
 export const MAX_CATCHMENT_CELLS = 4_194_304
 export const MAX_CATCHMENT_BOUNDARY_EDGES = 200_000
@@ -24,12 +25,17 @@ export interface PourPoint {
   coordinate: Coordinate
   snapRadiusM: number
   surface: 'existing' | 'design'
+  /** Omitted preserves maximum contributing-area snapping. */
+  snapPolicy?: SnapPolicy
 }
 export interface CatchmentResult {
   requestedCoordinate: Coordinate
   snappedCoordinate: Coordinate
   snappedDistanceM: number
   outletCell: number
+  snapPolicy: SnapPolicy
+  /** Elevation on the chosen unconditioned existing/design surface, when supplied. */
+  selectedElevationM?: number
   feature: CatchmentFeature
 }
 
@@ -50,15 +56,17 @@ function validateGrid(grid: DrainageGrid, dirs: Int8Array) {
   return n
 }
 
-/** Snap to greatest contributing area inside a metric circle; equal areas prefer nearest, then cell ID. */
+/** Snap inside a metric circle; equal scores prefer nearest, then the lowest row-major cell ID. */
 export function snapPourPoint(
   grid: DrainageGrid,
   directions: Int8Array,
   accumulation: Float64Array,
   xy: [number, number],
   radiusM: number,
-): { cell: number; distanceM: number } {
+  { policy: policyValue, elevations }: { policy?: SnapPolicy; elevations?: Float64Array } = {},
+): { cell: number; distanceM: number; snapPolicy: SnapPolicy; selectedElevationM?: number } {
   const n = validateGrid(grid, directions)
+  const snapPolicy = parseSnapPolicy(policyValue)
   if (
     accumulation.length !== n ||
     !xy.every(Number.isFinite) ||
@@ -67,37 +75,48 @@ export function snapPourPoint(
     radiusM > 2_000
   )
     throw Error('Choose a finite pour point and a snap radius from 0 to 2,000 m.')
+  if ((elevations && elevations.length !== n) || (snapPolicy === 'lowest-elevation' && !elevations))
+    throw Error('Lowest-elevation snapping requires the unconditioned surface elevations on the same grid.')
+  const supported = (i: number) =>
+    directions[i] !== MISSING &&
+    Number.isFinite(accumulation[i]) &&
+    accumulation[i] >= 0 &&
+    (!elevations || Number.isFinite(elevations[i]))
+  const result = (cell: number, distanceM: number) => ({
+    cell,
+    distanceM,
+    snapPolicy,
+    ...(elevations ? { selectedElevationM: elevations[cell] } : {}),
+  })
   const containing = cellIndexAt(grid as SurfaceGrid, ...xy)
   if (!radiusM) {
-    if (containing < 0 || directions[containing] === MISSING)
+    if (containing < 0 || !supported(containing))
       throw Error('The pour point has no sampled terrain. Select a supported point or increase the snap radius.')
     const centre = cellCentre(grid as SurfaceGrid, containing)
-    return { cell: containing, distanceM: Math.hypot(centre[0] - xy[0], centre[1] - xy[1]) }
+    return result(containing, Math.hypot(centre[0] - xy[0], centre[1] - xy[1]))
   }
   const col0 = Math.max(0, Math.ceil((xy[0] - radiusM - grid.origin[0]) / grid.cellM))
   const col1 = Math.min(grid.width - 1, Math.floor((xy[0] + radiusM - grid.origin[0]) / grid.cellM))
   const row0 = Math.max(0, Math.ceil((grid.origin[1] - xy[1] - radiusM) / grid.cellM))
   const row1 = Math.min(grid.height - 1, Math.floor((grid.origin[1] - xy[1] + radiusM) / grid.cellM))
   let cell = -1,
-    bestArea = -Infinity,
+    bestScore = -Infinity,
     distanceM = Infinity
   for (let row = row0; row <= row1; row++)
     for (let col = col0; col <= col1; col++) {
       const i = row * grid.width + col
-      if (directions[i] === MISSING || !Number.isFinite(accumulation[i])) continue
+      if (!supported(i)) continue
       const d = Math.hypot(grid.origin[0] + col * grid.cellM - xy[0], grid.origin[1] - row * grid.cellM - xy[1])
       if (d > radiusM + 1e-9) continue
-      if (
-        accumulation[i] > bestArea ||
-        (accumulation[i] === bestArea && (d < distanceM || (d === distanceM && i < cell)))
-      ) {
+      const score = snapPolicy === 'lowest-elevation' ? -elevations![i] : accumulation[i]
+      if (score > bestScore || (score === bestScore && (d < distanceM || (d === distanceM && i < cell)))) {
         cell = i
-        bestArea = accumulation[i]
+        bestScore = score
         distanceM = d
       }
     }
   if (cell < 0) throw Error('No supported flow cell lies within the pour-point snap radius.')
-  return { cell, distanceM }
+  return result(cell, distanceM)
 }
 
 /** Exactly the cells whose D8 paths pass through outletCell, including that cell. */
@@ -258,8 +277,13 @@ export function delineateCatchment(
   point: PourPoint,
   toGrid: (coordinate: Coordinate) => [number, number],
   toLonLat: ToLonLat,
+  /** Original selected surface values, before depression conditioning. */
+  elevations?: Float64Array,
 ): CatchmentResult {
-  const snapped = snapPourPoint(grid, dirs, accumulation, toGrid(point.coordinate), point.snapRadiusM)
+  const snapped = snapPourPoint(grid, dirs, accumulation, toGrid(point.coordinate), point.snapRadiusM, {
+    policy: point.snapPolicy,
+    elevations,
+  })
   const feature = catchmentPolygon(grid, dirs, upstreamMask(grid, dirs, snapped.cell), snapped.cell, toLonLat, {
     surface: point.surface,
   })
@@ -268,6 +292,8 @@ export function delineateCatchment(
     snappedCoordinate: feature.properties.outlet,
     snappedDistanceM: snapped.distanceM,
     outletCell: snapped.cell,
+    snapPolicy: snapped.snapPolicy,
+    ...(snapped.selectedElevationM === undefined ? {} : { selectedElevationM: snapped.selectedElevationM }),
     feature,
   }
 }

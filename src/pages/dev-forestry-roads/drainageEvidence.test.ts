@@ -6,6 +6,7 @@ import {
   drainageInputFingerprint,
   drainageReportHtml,
   parseDrainageProjectState,
+  parseDrainageEvidence,
   parseDrainageSettings,
   type DrainageFingerprintInput,
 } from './drainageEvidence'
@@ -75,6 +76,20 @@ function evidence() {
   return { run, record: createDrainageEvidence(run, input, '2026-10-30T20:00:00.000Z') }
 }
 describe('portable drainage evidence', () => {
+  it('keeps the pre-policy fingerprint and supports legacy evidence without new metadata', () => {
+    expect(drainageInputFingerprint(input)).toBe('drainage-v1-62450e784c7ab5c6')
+    const { record } = evidence()
+    delete record.roadFingerprint
+    delete record.selectedCatchment
+    delete record.terrain.fingerprint
+    delete record.algorithmVersion
+    const restored = parseDrainageEvidence(JSON.parse(JSON.stringify(record)))
+    expect(restored).toEqual(record)
+    expect(drainageEvidenceNeedsRecompute(restored, input.terrain)).toBe(true)
+    expect(() => drainageEvidenceGeoJson(restored, drainageInputFingerprint(input))).toThrow(/out of date/)
+    expect(drainageReportHtml(restored, drainageInputFingerprint(input))).toContain('Historical / out of date')
+    expect(drainageReportHtml(restored, drainageInputFingerprint(input))).toContain('Legacy calculation')
+  })
   it('retains inputs and exact catchment/review geometry without serializing accumulation or grid values', () => {
     const { record } = evidence()
     const state = {
@@ -85,7 +100,7 @@ describe('portable drainage evidence', () => {
     }
     const restored = parseDrainageProjectState(JSON.parse(JSON.stringify(state)))
     expect(restored).toEqual(state)
-    expect(JSON.stringify(record)).not.toMatch(/accumulation|directions|"values"/)
+    expect(JSON.stringify(record)).not.toMatch(/"accumulation"|"directions"|"values"/)
     expect(record.features.features.some((f) => f.properties?.role === 'catchment')).toBe(true)
     expect(record.terrain.verticalReference).toBe('Synthetic')
     expect(record.fingerprint).toBe(drainageInputFingerprint(input))
@@ -136,6 +151,23 @@ describe('portable drainage evidence', () => {
     const invalid = JSON.parse(JSON.stringify(record))
     invalid.features.features[0].geometry.coordinates = [999, 99]
     expect(() => parseDrainageProjectState({ settings: input.settings, records: [invalid] })).toThrow()
+  })
+  it('invalidates current evidence after changing the fill, snap or working-grid policy', () => {
+    const { record } = evidence()
+    const variants: DrainageFingerprintInput[] = [
+      { ...input, settings: { ...input.settings, depressionPolicy: { mode: 'preserve' } } },
+      { ...input, settings: { ...input.settings, depressionPolicy: { mode: 'depth-limited', maxDepthM: 0.5 } } },
+      { ...input, settings: { ...input.settings, workingResolutionM: 5 } },
+      { ...input, pourPoint: { ...input.pourPoint!, snapPolicy: 'lowest-elevation' } },
+    ]
+    for (const changed of variants) {
+      const fingerprint = drainageInputFingerprint(changed)
+      expect(fingerprint).not.toBe(record.fingerprint)
+      expect(() => drainageEvidenceGeoJson(record, fingerprint)).toThrow(/out of date/)
+    }
+    expect(record.selectedCatchment).toMatchObject({ requestedCoordinate: origin, snapPolicy: 'max-accumulation' })
+    expect(record.selectedCatchment?.outletCell).toBeGreaterThanOrEqual(0)
+    expect(drainageReportHtml(record, record.fingerprint)).toContain('Selected outlet')
   })
   it('requires a fresh live run for regional terrain even when metadata fingerprints match', () => {
     const { run } = evidence()

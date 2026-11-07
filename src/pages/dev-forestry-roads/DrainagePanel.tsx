@@ -4,11 +4,15 @@ import { AppSelect } from '@/components/ui/select'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
-import { NumberField } from './Controls'
+import { Field, NumberField } from './Controls'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
-import { parseDrainageSettings, type DrainageEvidence } from './drainageEvidence'
+import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
 import type { PourPoint } from './drainageCatchments'
+import { DrainageSensitivityPanel } from './DrainageSensitivityPanel'
+import { depressionPolicyLabel, snapPolicyLabel } from './drainageSensitivity'
+
+type PourPointOptions = Pick<PourPoint, 'surface' | 'snapRadiusM' | 'snapPolicy'>
 
 export const DRAINAGE_SETTINGS_KEY = 'pgmaps-road-drainage-settings'
 /**
@@ -46,6 +50,11 @@ export function DrainagePanel({
   onWatershedMinAreaChange,
   evidence,
   onExport,
+  comparisons = [],
+  totalComparisonRecords = 0,
+  onSaveComparison,
+  onRemoveComparison,
+  onExportComparisons,
 }: {
   run: DrainageRun | null
   stale: boolean
@@ -56,21 +65,28 @@ export function DrainagePanel({
   onStation: (chainage: number) => void
   pourPoint?: PourPoint
   onPourPointChange?: (point: PourPoint | undefined) => void
-  onPickPourPoint?: (options: Pick<PourPoint, 'surface' | 'snapRadiusM'>) => void
+  onPickPourPoint?: (options: PourPointOptions) => void
   pourPointPicking?: boolean
   watershedMinAreaHa?: number
   onWatershedMinAreaChange?: (minimumAreaHa: number | undefined) => void
   evidence?: DrainageEvidence
   onExport?: (kind: 'geojson' | 'evidence') => void
+  comparisons?: DrainageComparisonSnapshot[]
+  totalComparisonRecords?: number
+  onSaveComparison?: (label: string) => void
+  onRemoveComparison?: (id: string) => void
+  onExportComparisons?: (baselineId: string) => void
 }) {
-  const [pointOptions, setPointOptions] = useState<Pick<PourPoint, 'surface' | 'snapRadiusM'>>({
+  const [pointOptions, setPointOptions] = useState<PourPointOptions>({
     surface: 'design',
     snapRadiusM: 10,
+    snapPolicy: 'max-accumulation',
   })
   const pointSurface = pourPoint?.surface ?? pointOptions.surface
   const pointRadius = pourPoint?.snapRadiusM ?? pointOptions.snapRadiusM
-  const setPointOptionsAndApply = (patch: Partial<Pick<PourPoint, 'surface' | 'snapRadiusM'>>) => {
-    setPointOptions({ surface: pointSurface, snapRadiusM: pointRadius, ...patch })
+  const pointPolicy = (pourPoint ? pourPoint.snapPolicy : pointOptions.snapPolicy) ?? 'max-accumulation'
+  const setPointOptionsAndApply = (patch: Partial<PourPointOptions>) => {
+    setPointOptions({ surface: pointSurface, snapRadiusM: pointRadius, snapPolicy: pointPolicy, ...patch })
     if (pourPoint) onPourPointChange?.({ ...pourPoint, ...patch })
   }
   const set = (patch: Partial<DrainageSettings>) => onSettings({ ...settings, ...patch })
@@ -125,6 +141,72 @@ export function DrainagePanel({
           step={10}
           onChange={(v) => set({ bufferM: v })}
         />
+        <Field
+          label="Depression treatment"
+          hint="Fill all retains the existing routing method. Preserve keeps natural sinks. A depth limit fills an entire connected depression only when its spill depth is within that limit; deeper basins remain. Potential ponding is still reported for every policy."
+        >
+          <AppSelect
+            value={settings.depressionPolicy?.mode ?? 'fill-all'}
+            onValueChange={(mode) =>
+              set({
+                depressionPolicy:
+                  mode === 'depth-limited'
+                    ? {
+                        mode,
+                        maxDepthM:
+                          settings.depressionPolicy?.mode === 'depth-limited'
+                            ? settings.depressionPolicy.maxDepthM
+                            : 0.5,
+                      }
+                    : { mode: mode as 'fill-all' | 'preserve' },
+              })
+            }
+            options={[
+              { value: 'fill-all', label: 'Fill all depressions' },
+              { value: 'preserve', label: 'Preserve depressions' },
+              { value: 'depth-limited', label: 'Fill shallow basins' },
+            ]}
+            triggerAriaLabel="Depression treatment"
+            triggerClassName="h-9 w-full text-xs"
+          />
+        </Field>
+        {settings.depressionPolicy?.mode === 'depth-limited' && (
+          <NumberField
+            label="Maximum basin fill (m)"
+            value={settings.depressionPolicy.maxDepthM}
+            min={0}
+            max={1000}
+            step={0.05}
+            onChange={(maxDepthM) => set({ depressionPolicy: { mode: 'depth-limited', maxDepthM } })}
+          />
+        )}
+        <Field
+          label="Working grid"
+          hint="Automatic uses the source resolution with a 1 m minimum. A requested cell size can coarsen the analysis; it cannot add terrain detail. The cell budget may make the actual grid coarser still."
+        >
+          <AppSelect
+            value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
+            onValueChange={(value) =>
+              set({ workingResolutionM: value === 'automatic' ? undefined : (run?.cellM ?? 5) })
+            }
+            options={[
+              { value: 'automatic', label: 'Use source resolution' },
+              { value: 'custom', label: 'Set working resolution' },
+            ]}
+            triggerAriaLabel="Working grid"
+            triggerClassName="h-9 w-full text-xs"
+          />
+        </Field>
+        {settings.workingResolutionM !== undefined && (
+          <NumberField
+            label="Requested grid cell (m)"
+            value={settings.workingResolutionM}
+            min={1}
+            max={100000}
+            step={1}
+            onChange={(workingResolutionM) => set({ workingResolutionM })}
+          />
+        )}
         <div className="flex items-end">
           <Button size="sm" className="w-full" disabled={busy} onClick={onRun}>
             {run ? 'Re-run drainage' : 'Run drainage check'}
@@ -134,9 +216,7 @@ export function DrainagePanel({
       {onPickPourPoint && (
         <section className="space-y-2 rounded-md border p-2" aria-label="Catchment and watershed tools">
           <h3 className="font-medium">Drain to a point</h3>
-          <p className="text-muted-foreground">
-            Choose a point on the plan. Snapping selects the greatest contributing area within the entered distance.
-          </p>
+          <p className="text-muted-foreground">Choose a point on the plan and the outlet selection policy.</p>
           <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] items-end gap-2">
             <label className="space-y-1">
               <span className="block">Catchment surface</span>
@@ -159,12 +239,31 @@ export function DrainagePanel({
               step={1}
               onChange={(snapRadiusM) => setPointOptionsAndApply({ snapRadiusM })}
             />
+            <Field
+              label="Outlet snap policy"
+              hint="Both policies search cell centres within the entered radius, resolving ties by nearest distance then cell ID. Lowest elevation uses the chosen surface before depression filling. A zero radius selects the containing cell."
+            >
+              <AppSelect
+                value={pointPolicy}
+                onValueChange={(snapPolicy) =>
+                  setPointOptionsAndApply({ snapPolicy: snapPolicy as PourPoint['snapPolicy'] })
+                }
+                options={[
+                  { value: 'max-accumulation', label: 'Greatest contributing area' },
+                  { value: 'lowest-elevation', label: 'Lowest elevation' },
+                ]}
+                triggerAriaLabel="Outlet snap policy"
+                triggerClassName="h-9 w-full text-xs"
+              />
+            </Field>
             <Button
               size="sm"
               className="h-auto min-h-9 min-w-0 whitespace-normal py-2 touch:min-h-10"
               variant={pourPointPicking ? 'default' : 'outline'}
               disabled={busy}
-              onClick={() => onPickPourPoint({ surface: pointSurface, snapRadiusM: pointRadius })}
+              onClick={() =>
+                onPickPourPoint({ surface: pointSurface, snapRadiusM: pointRadius, snapPolicy: pointPolicy })
+              }
             >
               {pourPointPicking
                 ? 'Cancel point selection'
@@ -271,11 +370,23 @@ export function DrainagePanel({
           </Button>
         </div>
       )}
+      {onSaveComparison && onRemoveComparison && onExportComparisons && (
+        <DrainageSensitivityPanel
+          records={comparisons}
+          totalRecords={totalComparisonRecords}
+          evidence={evidence}
+          stale={stale}
+          busy={busy}
+          onSave={onSaveComparison}
+          onRemove={onRemoveComparison}
+          onExport={onExportComparisons}
+        />
+      )}
       {!run && (
         <p className="text-muted-foreground">
-          Burns the road prism and its culverts into the terrain, then routes flow (filled depressions, D8) on the
-          existing ground and on that design surface. Streams the road turns, ditch low points without a culvert and new
-          ponding then show on the plan.
+          Burns the road prism and its culverts into the terrain, then routes flow with the selected depression policy
+          (D8) on the existing ground and on that design surface. Streams the road turns, ditch low points without a
+          culvert and new ponding then show on the plan.
         </p>
       )}
       {run && (
@@ -302,6 +413,10 @@ export function DrainagePanel({
               { label: 'Undersized', value: `${n(undersized.length)} of ${n(run.culverts.length)}` },
             ]}
           />
+          <p className="text-muted-foreground">
+            {depressionPolicyLabel(run.settings)} · {n(run.cellM, 2)} m actual cells. Ponding shows potential storage to
+            the spill level, independent of routing treatment.
+          </p>
           {run.catchment && (
             <section className="space-y-2 rounded-md border p-2" aria-label="Selected catchment">
               <h3 className="font-medium">Selected catchment · {run.catchment.feature.properties.surface}</h3>
@@ -311,6 +426,9 @@ export function DrainagePanel({
                   { label: 'Area', value: `${n(run.catchment.feature.properties.areaHa, 3)} ha` },
                   { label: 'Supported cells', value: n(run.catchment.feature.properties.cells) },
                   { label: 'Snap distance', value: `${n(run.catchment.snappedDistanceM, 1)} m` },
+                  { label: 'Outlet cell', value: String(run.catchment.outletCell) },
+                  { label: 'Snap policy', value: snapPolicyLabel({ snapPolicy: run.catchment.snapPolicy }) },
+                  { label: 'Selected outlet', value: run.catchment.snappedCoordinate.map((v) => n(v, 6)).join(', ') },
                 ]}
               />
               <p
