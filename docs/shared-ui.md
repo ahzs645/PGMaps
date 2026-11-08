@@ -223,7 +223,8 @@ const table = useMapTable({ sources, selectedRowId, onSelectRow: selectSite })
   `attributeTableColumns`, which starts source ids (OBJECTID, GlobalID) hidden.
 - **Button:** `MapSectionLayout table={…}` puts it in the map's top-left corner. If
   the page already has a map toolbar there, pass `inlineButton: true` and render
-  `table.button` in that toolbar. Never position it per page.
+  `table.button` in that toolbar, with `buttonClassName` to match the toolbar's control
+  height (`h-8 min-w-8` beside 32 px controls). Never position it per page.
 - **Camera:** rows fly by default. Pass `flyOnSelect: false` when `onSelectRow`
   already moves the camera, so the two do not fight.
 - **URL:** pass `url: false` on a page that writes its URL outside the router

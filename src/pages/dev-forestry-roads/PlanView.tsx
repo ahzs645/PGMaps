@@ -1548,6 +1548,8 @@ export function PlanView(props: PlanProps) {
   const table = useMapTable({
     sources: tableSources,
     inlineButton: true,
+    // Match the 32 px plan controls: a taller button covered the attribution on short maps.
+    buttonClassName: 'h-8 min-w-8',
     url: false,
     selectedRowId: selectedHistoryFeature?.id ?? null,
     defaultSourceId:

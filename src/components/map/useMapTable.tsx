@@ -153,6 +153,8 @@ export interface MapTableOptions {
   flyOnSelect?: boolean
   /** The page renders `table.button` in its own map toolbar instead of the standard corner. */
   inlineButton?: boolean
+  /** Sizes an inline Table button to the toolbar it sits in, e.g. `h-8 min-w-8` beside 32 px controls. */
+  buttonClassName?: string
   /** The table's own words, for a page in another language. */
   labels?: MapFeatureTableLabels
   /** Accessible name of the Table button, for a page in another language. */
@@ -210,6 +212,7 @@ export function useMapTable({
   state: sharedState,
   flyOnSelect = true,
   inlineButton = false,
+  buttonClassName,
   labels,
   buttonLabel,
   buttonText,
@@ -373,7 +376,7 @@ export function useMapTable({
     deferResize: resizing,
     button:
       sources.length > 0 && !activeSource ? (
-        <MapTableButton label={buttonLabel} text={buttonText} onClick={() => open()} />
+        <MapTableButton label={buttonLabel} text={buttonText} className={buttonClassName} onClick={() => open()} />
       ) : null,
     inlineButton,
     flyTarget: fly,
