@@ -10,6 +10,18 @@ The editor displays the declared **native source pixel frame**, even when the re
 
 Use **Import edit file** to reopen a `.georeference.json`, or **Resume local draft** when available. Local originals must be selected again; the edit file does not embed their pixels. Source dimensions and recorded SHA-256 identity are checked on reload and native export. Keep the exact original file alongside the edit project.
 
+The selected map shown after filtering is the map that **Load selected map** opens. An empty search has no load action. Local drafts are stored separately for each exact source identity, dimensions and pixel frame. Opening a map or its published project does not replace an existing local draft. Resume the listed draft to continue it; if another tab changes that draft, download your working edit file before switching sources.
+
+## Reopen a recovered correction
+
+Where a collection includes a saved alignment project, **Adjust alignment** opens that project and its verified original image. The editor checks the project hash, original source hash and current published raster hash before loading pixels. If that association cannot be verified, it explains the failure and offers an explicit fresh project from the current raster.
+
+Recovered corrections display **Recovered placement** and their recorded evidence. Their native BC Albers (EPSG:3005) matrix is preserved for comparison and export. This accommodates earlier weighted fits, shoreline constraints and inherited map grids without pretending they were ordinary point-pair fits. Recorded points identify their provenance; inherited grid references are not independent ground checks.
+
+Choose **Start a new fit from controls** to change the placement. This keeps the recovery evidence but switches to the normal editable fitting methods. Sparse recovered evidence may need additional controls before a new fit is possible. A new fit requires a new geographic review. Undo can restore the preserved placement.
+
+Recovered files use `pgmaps-georeference-v2`. Older readers reject this version rather than silently refitting its points. The downloadable project and its exact original image are both needed for reproducible editing; the project alone does not embed image pixels.
+
 ## Match landmarks and review the warp
 
 1. Click a landmark in the source image, then its matching position on the reference map. Zoom before picking small features.
@@ -31,11 +43,11 @@ Residuals describe agreement with the selected points, not survey accuracy. Pref
 
 ## Download and continue editing
 
-| Action                            | What you receive                                                                                                                                                              |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Download edit file**            | A portable `pgmaps-georeference-v1` JSON containing source identity, native dimensions, point roles, transformation, and notes. Reimport it to continue editing.              |
-| **Download rectified GeoTIFF**    | A Cloud Optimized GeoTIFF warped from the exact native source with GDAL, exported in EPSG:3857. Save the edit file too; a raster alone does not preserve the editing session. |
-| **Download preview + world file** | A ZIP with a sampled PNG, its EPSG:3857 world/projection files, and the edit project. This is a reading preview, not the full-resolution source product.                      |
+| Action                            | What you receive                                                                                                                                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Download edit file**            | Portable JSON containing source identity, native dimensions, point roles, transformation, and notes. Recovered v2 files also retain the native matrix and evidence. Reimport it to continue editing. |
+| **Download rectified GeoTIFF**    | A Cloud Optimized GeoTIFF warped from the exact native source with GDAL, exported in EPSG:3857. Save the edit file too; a raster alone does not preserve the editing session.                        |
+| **Download preview + world file** | A ZIP with a sampled PNG, its EPSG:3857 world/projection files, and the edit project. This is a reading preview, not the full-resolution source product.                                             |
 
 Browser native export loads GDAL only when requested. It checks the original file and proposed output before writing. Current limits include a 256 MiB input file, 64 million native/output pixels, and a working-memory budget that can reject a smaller raster. Larger jobs use the same edit file with the [owner CLI](georeferencing-cli.md).
 

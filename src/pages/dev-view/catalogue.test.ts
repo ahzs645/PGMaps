@@ -26,6 +26,7 @@ describe('Shared map catalogue boundary', () => {
     expect(result.featured).toHaveLength(1)
     expect(result.items[0].assets[0].url).toBe('https://maps.example.test/collection/tiles/one.pmtiles')
     expect(result.items[0].downloads[0].url).toContain('/collection/raw/one.tif')
+    expect(result.items[0].georeferenceProject).toBeUndefined()
   })
   it.each([
     'javascript:alert(1)',
@@ -61,6 +62,53 @@ describe('Shared map catalogue boundary', () => {
   })
   it('preserves XYZ template placeholders', () =>
     expect(httpsURL('https://tiles.example.test/{z}/{x}/{y}.webp')).toContain('/{z}/{x}/{y}.webp'))
+})
+
+describe('Published alignment project references', () => {
+  const reference = {
+    url: 'reviews/original-project.json',
+    sha256: 'A'.repeat(64),
+    sourceSha256: 'B'.repeat(64),
+    nativeSha256: 'C'.repeat(64),
+    label: 'Recovered controls',
+    summary: 'Original pixel controls and reserved checks.',
+  }
+  function parse(value: unknown) {
+    return parseCatalogue({ schema: 'raster-catalog-v1', items: [{ ...item, georeferenceProject: value }] }, origin)
+  }
+  it('preserves the immutable project and original/current identities, resolving relative URLs', () => {
+    expect(parse(reference).items[0].georeferenceProject).toEqual({
+      ...reference,
+      url: 'https://maps.example.test/collection/reviews/original-project.json',
+      sha256: 'a'.repeat(64),
+      sourceSha256: 'b'.repeat(64),
+      nativeSha256: 'c'.repeat(64),
+    })
+  })
+  it.each([
+    null,
+    false,
+    [],
+    'reviews/project.json',
+    {},
+    { ...reference, sha256: '' },
+    { ...reference, sourceSha256: null },
+    { ...reference, nativeSha256: 'c'.repeat(63) },
+  ])('rejects malformed published metadata instead of silently starting an empty project: %j', (value) =>
+    expect(() => parse(value)).toThrow(/saved alignment project/),
+  )
+  it.each([
+    '',
+    'http://maps.example.test/project.json',
+    'https://localhost/project.json',
+    'https://user:secret@maps.example.test/project.json',
+  ])('rejects an unsafe project URL: %s', (url) => {
+    expect(() => parse({ ...reference, url })).toThrow(/public HTTPS/)
+  })
+  it.each([{ label: 12 }, { summary: false }, { label: 'x'.repeat(1001) }, { summary: 'x'.repeat(6001) }])(
+    'rejects invalid optional project descriptions',
+    (update) => expect(() => parse({ ...reference, ...update })).toThrow(/saved alignment project/),
+  )
 })
 
 describe('Library and map share links', () => {

@@ -103,8 +103,17 @@ export function createBrowserExportPlan(
     [width - 1, 0],
     [0, height - 1],
   ]
-  const gcps =
-    project.transform === 'thin-plate-spline'
+  const native = fitted.nativeMatrix
+  const nativeCrs = native?.crs ?? FIT_CRS
+  const gcps = native
+    ? anchors.map((pixel) => ({
+        pixel: toGdalPixel(pixel),
+        projected: [
+          native.matrix[0][0] * pixel[0] + native.matrix[0][1] * pixel[1] + native.matrix[0][2],
+          native.matrix[1][0] * pixel[0] + native.matrix[1][1] * pixel[1] + native.matrix[1][2],
+        ] as Point,
+      }))
+    : project.transform === 'thin-plate-spline'
       ? project.points
           .filter((p) => p.enabled && p.role === 'control')
           .map((p) => ({
@@ -154,17 +163,17 @@ export function createBrowserExportPlan(
 
   // VRT keeps the original samples, alpha, mask, and nodata without copying a
   // full intermediate TIFF or losing an external .msk while remounting a File.
-  const translateArgs = ['-of', 'VRT', '-a_srs', FIT_CRS]
+  const translateArgs = ['-of', 'VRT', '-a_srs', nativeCrs]
   for (const gcp of gcps) translateArgs.push('-gcp', ...gcp.pixel.map(String), ...gcp.projected.map(String))
   const method =
-    project.transform === 'thin-plate-spline'
+    !native && project.transform === 'thin-plate-spline'
       ? ['-to', 'SRC_METHOD=GCP_TPS', '-tps']
       : ['-to', 'SRC_METHOD=GCP_POLYNOMIAL', '-order', '1']
   const warpArgs = [
     '-overwrite',
     ...method,
     '-s_srs',
-    FIT_CRS,
+    nativeCrs,
     '-t_srs',
     FIT_CRS,
     '-tr',

@@ -12,6 +12,7 @@ function zoomView(previous: View, factor: number, nativeWidth: number): View {
 }
 export function SourceImagePane({
   source,
+  readOnly = false,
   points,
   selectedId,
   pending,
@@ -20,6 +21,7 @@ export function SourceImagePane({
   onSelect,
 }: {
   source: LoadedSource | null
+  readOnly?: boolean
   points: ControlPair[]
   selectedId: string | null
   pending: Pixel | null
@@ -153,7 +155,7 @@ export function SourceImagePane({
     }
     if (press.current && !press.current.moved) {
       const pixel = toPixel(event.clientX, event.clientY)
-      if (pixel) onPick(pixel)
+      if (pixel && !readOnly) onPick(pixel)
     }
     press.current = null
   }
@@ -161,7 +163,7 @@ export function SourceImagePane({
     <section className="min-w-0 overflow-hidden rounded-lg border bg-card" aria-label="Source image editor">
       <div className="flex min-h-14 items-center justify-between gap-2 border-b p-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">1. Pick on the image</h2>
+          <h2 className="text-sm font-semibold">{readOnly ? '1. Inspect the source image' : '1. Pick on the image'}</h2>
           <p className="truncate text-xs text-muted-foreground">
             {source
               ? `${source.descriptor.width.toLocaleString()} × ${source.descriptor.height.toLocaleString()} native pixels · drag to pan`
@@ -188,7 +190,11 @@ export function SourceImagePane({
       </div>
       <svg
         ref={svg}
-        aria-label="Source image; click a landmark to create a control pair"
+        aria-label={
+          readOnly
+            ? 'Source image with recovered point positions'
+            : 'Source image; click a landmark to create a control pair'
+        }
         role="img"
         data-testid="georeference-source"
         className="h-[26rem] w-full select-none bg-muted/40 sm:h-[34rem]"
@@ -234,10 +240,12 @@ export function SourceImagePane({
             onPointerDown={(event) => {
               event.stopPropagation()
               onSelect(point.id)
-              movingPoint.current = point.id
-              svg.current?.setPointerCapture(event.pointerId)
+              if (!readOnly) {
+                movingPoint.current = point.id
+                svg.current?.setPointerCapture(event.pointerId)
+              }
             }}
-            style={{ cursor: 'move' }}
+            style={{ cursor: readOnly ? 'pointer' : 'move' }}
           >
             <circle
               cx={point.pixel[0]}

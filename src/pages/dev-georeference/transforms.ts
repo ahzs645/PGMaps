@@ -1,3 +1,5 @@
+import proj4 from 'proj4'
+import { BC_ALBERS } from '@/lib/geo/projectedCrs'
 import {
   parseProject,
   validateCoordinate,
@@ -67,7 +69,7 @@ export interface TransformationDiagnostics {
   checkCount: number
   excludedCount: number
   minimumControls: number
-  fitCrs: 'EPSG:3857'
+  fitCrs: 'EPSG:3857' | 'EPSG:3005'
   inverseMethod: 'analytical' | 'damped-newton'
   /** Sampled orientation reversals; absence is not a proof of global injectivity. */
   folded: boolean
@@ -82,6 +84,9 @@ export interface FittedTransformation {
   inverseDetailed(coordinate: Coordinate): InverseResult
   /** Native pixel-centre to EPSG:3857; absent for TPS. */
   matrix3857?: [[number, number, number], [number, number, number]]
+  /** Native archived matrix; export must use its own CRS before projecting the raster. */
+  nativeMatrix?: { crs: 'EPSG:3005'; matrix: Matrix2x3 }
+  recovered?: boolean
   residuals: PointResidual[]
   stats: { control: ResidualStatistics; check: ResidualStatistics }
   diagnostics: TransformationDiagnostics
@@ -353,13 +358,96 @@ function residualStatistics(residuals: PointResidual[], role: PointRole): Residu
   }
 }
 
+/** Reopen an archived model exactly, without replacing a constrained/weighted fit with a new least-squares fit. */
+function recoveredTransformation(project: GeoreferenceProject): FittedTransformation {
+  const recovered = project.recoveredPlacement!
+  const matrix = recovered.matrix
+  const inverse = inverseMatrix(matrix)
+  const forward = (pixel: Pixel): Coordinate => {
+    finitePoint(pixel)
+    return validateCoordinate(proj4(BC_ALBERS, 'EPSG:4326', applyMatrix(matrix, pixel)))
+  }
+  const forwardProjected = (pixel: Pixel): Point => lngLatToMercator(forward(pixel))
+  const inverseDetailed = (coordinate: Coordinate): InverseResult => {
+    const valid = validateCoordinate(coordinate)
+    const native = proj4('EPSG:4326', BC_ALBERS, valid) as Point
+    finitePoint(native)
+    const pixel = applyMatrix(inverse, native)
+    finitePoint(pixel)
+    const expected = lngLatToMercator(valid)
+    const actual = forwardProjected(pixel)
+    return {
+      pixel,
+      converged: true,
+      iterations: 0,
+      residualProjectedMetres: Math.hypot(actual[0] - expected[0], actual[1] - expected[1]),
+    }
+  }
+  const active = project.points.filter((point) => point.enabled)
+  const residuals = active.map((point): PointResidual => {
+    const predicted = forward(point.pixel)
+    const actual = lngLatToMercator(predicted)
+    const target = lngLatToMercator(point.coordinate)
+    const error: Point = [actual[0] - target[0], actual[1] - target[1]]
+    return {
+      id: point.id,
+      role: point.role,
+      pixel: [...point.pixel],
+      coordinate: [...point.coordinate],
+      predicted,
+      usedInFit: false,
+      projectedError: error,
+      projectedMetres: Math.hypot(...error),
+      groundMetres: groundDistance(point.coordinate, predicted),
+    }
+  })
+  const diagnostics: TransformationDiagnostics = {
+    warnings: [
+      'This is the recovered native placement. The displayed points are archived evidence, not a newly fitted model.',
+      'Archived shoreline constraints, inherited grid relationships and weights remain in the recovery evidence. Point residuals alone do not reproduce that evidence.',
+      'Recovery preserves the recorded placement and its limitations; it does not certify ground accuracy.',
+    ],
+    controlCount: active.filter((point) => point.role === 'control').length,
+    checkCount: active.filter((point) => point.role === 'check').length,
+    excludedCount: project.points.length - active.length,
+    minimumControls: 0,
+    fitCrs: 'EPSG:3005',
+    inverseMethod: 'analytical',
+    folded: false,
+    sampledFoldChecks: 0,
+    inverseSampleFailures: 0,
+  }
+  for (let row = 0; row <= 8; row += 1) {
+    for (let column = 0; column <= 8; column += 1) {
+      const pixel: Pixel = [-0.5 + (column * project.source.width) / 8, -0.5 + (row * project.source.height) / 8]
+      const position = forward(pixel)
+      const roundTrip = inverseDetailed(position)
+      if (!roundTrip.pixel || Math.hypot(roundTrip.pixel[0] - pixel[0], roundTrip.pixel[1] - pixel[1]) > 0.01) {
+        throw new TransformationError('Recovered placement cannot be inverted across its declared source frame.')
+      }
+      diagnostics.sampledFoldChecks += 1
+    }
+  }
+  return {
+    forward,
+    forwardProjected,
+    inverse: (coordinate) => inverseDetailed(coordinate).pixel,
+    inverseDetailed,
+    nativeMatrix: { crs: recovered.crs, matrix },
+    recovered: true,
+    residuals,
+    stats: { control: residualStatistics(residuals, 'control'), check: residualStatistics(residuals, 'check') },
+    diagnostics,
+  }
+}
+
 /** Fits only enabled controls. Check points are reported separately and never affect the model. */
 export function fitTransformation(input: GeoreferenceProject): FittedTransformation {
   const project = parseProject(input)
   const active = project.points.filter((point) => point.enabled)
   const controls = active.filter((point) => point.role === 'control')
   const minimum = MINIMUM_CONTROLS[project.transform]
-  if (controls.length < minimum) {
+  if (!project.recoveredPlacement?.active && controls.length < minimum) {
     throw new TransformationError(`${project.transform} needs at least ${minimum} enabled control pairs.`)
   }
   for (let i = 0; i < active.length; i += 1) {
@@ -382,6 +470,7 @@ export function fitTransformation(input: GeoreferenceProject): FittedTransformat
   if (Math.max(...longitudes) - Math.min(...longitudes) > 180) {
     throw new TransformationError('Dateline-crossing controls need a common unwrapped geographic frame.')
   }
+  if (project.recoveredPlacement?.active) return recoveredTransformation(project)
   const pixels = controls.map((point) => point.pixel)
   const world = controls.map((point) => lngLatToMercator(point.coordinate))
   const sourceFrame = normalization(pixels, 'Source')
