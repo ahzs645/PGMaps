@@ -4,8 +4,8 @@ import { expect, test, type Download, type Page } from '@playwright/test'
 import { decode, encode } from 'fast-png'
 import JSZip from 'jszip'
 import proj4 from 'proj4'
-import type { GeoreferenceProject, Point } from '../../src/pages/dev-georeference/model'
-import type { RasterRecord } from '../../src/pages/dev-view/catalogue'
+import { parseProject, type GeoreferenceProject, type Point } from '../../src/pages/dev-georeference/model'
+import { parseCatalogue, type RasterRecord } from '../../src/pages/dev-view/catalogue'
 import { BC_ALBERS } from '../../src/lib/geo/projectedCrs'
 
 // These launch settings are local to this map suite; the shared config still owns
@@ -259,7 +259,7 @@ function addRecoveredProject(fixture: ReturnType<typeof collectionFixture>) {
       method: 'Archived affine placement',
       summary: 'Synthetic recorded placement retained in its native projection.',
       evidence: [{ label: 'Synthetic recorded evidence' }],
-      recoveredAt: '2026-11-08T00:00:00Z',
+      recoveredAt: '2026-11-08',
     },
     notes: 'Original recovered assumptions.',
   }
@@ -280,6 +280,23 @@ async function pickCollectionMap(page: Page, title: string, id: string) {
   await expect(page.getByRole('combobox', { name: 'Map to edit', exact: true })).toHaveValue(id)
   await page.getByRole('button', { name: 'Load selected map', exact: true }).click()
 }
+
+test('recovery browser fixtures satisfy the saved project and catalogue schemas', () => {
+  const fixture = collectionFixture()
+  const recovered = addRecoveredProject(fixture)
+  const record = parseCatalogue(fixture.catalogue, catalogueUrl).items[0]
+  const reference = record.georeferenceProject!
+  const body = fixture.projects.get(reference.url)!
+  expect(parseProject(body)).toEqual(recovered)
+  expect(reference.sha256).toBe(digest(body))
+  expect(reference.nativeSha256).toBe(record.downloads[0].sha256)
+  expect(reference.sourceSha256).toBe(recovered.source.sha256)
+  expect(record.id).toBe(recovered.source.id)
+  const source = fixture.images.get(recovered.source.url!)!
+  expect(digest(source)).toBe(reference.sourceSha256)
+  const image = decode(source)
+  expect([image.width, image.height]).toEqual([recovered.source.width, recovered.source.height])
+})
 
 test('filtered map selection loads its displayed source and keeps independent local drafts', async ({
   page,
