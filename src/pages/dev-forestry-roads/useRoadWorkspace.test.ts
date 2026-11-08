@@ -19,8 +19,11 @@ vi.mock('./terrain', async (importOriginal) => {
   }
 })
 vi.mock('./existingRoads', () => ({ loadBcExistingRoads: vi.fn(async () => []) }))
-vi.mock('../dev-forestry/bcVisualInventory', () => ({
-  fetchHarvestedAreas: vi.fn(async () => ({ areas: [], truncated: false })),
+// Scenarios load cutblocks through harvestHistory; an unmocked loader made a real network request
+// and, with its retry, pushed startup past waitFor's one-second limit.
+vi.mock('./harvestHistory', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./harvestHistory')>()),
+  loadBcHarvestHistory: vi.fn(async () => []),
 }))
 
 const DATABASE = 'pgmaps-forestry-roads-v1'
@@ -65,7 +68,8 @@ async function openWorkspace() {
   await act(async () => {
     renderer = create(createElement(Harness))
   })
-  await vi.waitFor(() => expect(workspace.ready).toBe(true))
+  // Startup loads and analyses the default scenario; CI runners need more than waitFor's 1 s default.
+  await vi.waitFor(() => expect(workspace.ready).toBe(true), { timeout: 5000 })
 }
 
 beforeEach(() => {
