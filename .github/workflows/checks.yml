@@ -27,11 +27,10 @@ jobs:
           submodules: recursive
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm run toolkit:build
-      - run: npm --prefix vendor/json-url run build
+      - run: npm run ci:prepare
       - run: npm run data:sync-from-bcdatamapper
       - run: npx tsc -b
       - run: npm run lint -- --max-warnings=0
