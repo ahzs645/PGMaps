@@ -1238,14 +1238,18 @@ function LayerPicker<TLayerId extends string>({
       if (target.closest('[data-layer-picker-root]')) return
       onClose()
     }
+    // Capture, and mark the key handled: the phone card closes itself on an unhandled Escape, so
+    // one press would otherwise close the layer list and the whole card behind it.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      onClose()
     }
     window.addEventListener('pointerdown', handlePointerDown)
-    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keydown', handleKeyDown, true)
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown)
-      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keydown', handleKeyDown, true)
     }
   }, [onClose])
 
