@@ -105,6 +105,24 @@ describe('FSR inventory and closest mapped centreline', () => {
     expect(query.searchParams.get('geometryType')).toBe('esriGeometryPoint')
     expect(query.searchParams.get('units')).toBe('esriSRUnit_Meter')
   })
+  it('excludes recorded deactivation until explicitly reviewed for rehabilitation, and rejects changed scope', () => {
+    const deactivated = road('old-access', 0.001)
+    deactivated.roadEvidence!.deactivation = {
+      status: 'deactivated',
+      basis: 'source-record',
+      reference: 'Example completion report',
+    }
+    expect(nearestFsrConnections(origin, [deactivated])).toEqual([])
+    deactivated.roadEvidence = {
+      ...deactivated.roadEvidence!,
+      condition: 'rehabilitation',
+      conditionBasis: 'assumed',
+      reuseAllowed: true,
+    }
+    expect(nearestFsrConnections(origin, [deactivated])).toMatchObject([{ featureId: 'old-access' }])
+    deactivated.roadEvidence.geometryReviewRequired = true
+    expect(nearestFsrConnections(origin, [deactivated])).toEqual([])
+  })
   it('returns an explicit empty local result and obeys cancellation', async () => {
     vi.stubGlobal(
       'fetch',

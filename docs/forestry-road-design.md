@@ -116,9 +116,14 @@ road-design criteria or universally appropriate LiDAR processing parameters.
 
 ## Terrain choices
 
-The **Projects** dialog includes a built-in library of nine scenarios: the native Prince George
+Historical cutblocks, harvest ages, nearby-road candidates and physical road
+deactivation evidence are covered in the [cutblock history guide](forestry-road-design/cutblock-history.md).
+The **Terrain → Cutblocks & harvest history** panel keeps this evidence separate
+from constraint areas and from road-tenure dates.
+
+The **Projects** dialog includes a built-in library of ten scenarios: the native Prince George
 LiDAR tile; regional Tabor Mountain, Kamloops, Vernon and Smithers maps; and offline hillside,
-existing-road-reuse, local-gravel and connected full-cost access training scenes. `scenarios.ts` loads terrain and public
+existing-road-reuse, local-gravel, connected full-cost access and harvest-history training scenes. `scenarios.ts` loads terrain and public
 road/harvest context together, checks the sampled section corridor before opening, and retains
 load-time source warnings in `RoadProject.scenario`. Each load starts a new editable project.
 The regional draft screen tests bounded orientations/lengths and samples starting profile controls;

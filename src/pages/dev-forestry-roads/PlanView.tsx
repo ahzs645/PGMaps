@@ -11,6 +11,9 @@ import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
 import { distinctRoadColors } from './roadColors'
+import { ROAD_HISTORY_STYLES } from './roadHistory'
+import { contextHistoryProperties, historyTableSources } from './historyPresentation'
+import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import {
   distance,
   horizontalCurveSummary,
@@ -95,7 +98,10 @@ interface PlanProps {
   onOverlaySelect?: (properties: GeoJSON.GeoJsonProperties) => void
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
+  /** Inspect the source/history of a mapped cutblock or existing road. */
+  onContextSelect?: (feature: ContextFeature) => void
 }
+const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
 const line = (
   coordinates: Coordinate[],
@@ -164,6 +170,7 @@ function Layers(
     onCableDistance,
     onOverlaySelect,
     onSelectCulvert,
+    onContextSelect,
     pourPointPicking,
     onPourPoint,
   } = props
@@ -496,10 +503,14 @@ function Layers(
           .map((feature) => ({
             type: 'Feature' as const,
             geometry: feature.geometry,
-            properties: { ...feature, geometry: undefined },
+            properties: {
+              ...feature,
+              geometry: undefined,
+              ...contextHistoryProperties(feature, props.project.harvestHistoryYear ?? new Date().getFullYear()),
+            },
           })),
       ]),
-    [props.project.context, props.hiddenContextKinds],
+    [props.project.context, props.project.harvestHistoryYear, props.hiddenContextKinds],
   )
   const ditches = useMemo(() => {
     if (props.terrainOnly) return fc([])
@@ -679,7 +690,11 @@ function Layers(
           RIPARIAN_MAP_COLORS.management,
           'uncertain',
           RIPARIAN_MAP_COLORS.uncertain,
-          ['match', ['get', 'kind'], 'harvest', PLAN_CONTEXT_STYLES.harvest.color, PLAN_CONTEXT_STYLES.avoid.color],
+          [
+            'coalesce',
+            ['get', 'historyColor'],
+            ['match', ['get', 'kind'], 'harvest', PLAN_CONTEXT_STYLES.harvest.color, PLAN_CONTEXT_STYLES.avoid.color],
+          ],
         ],
         'fill-opacity': 0.18,
       },
@@ -688,6 +703,7 @@ function Layers(
       id: 'road-context-line',
       type: 'line',
       source: 'road-context',
+      filter: ['!=', ['get', 'kind'], 'existing-road'],
       paint: {
         'line-color': [
           'match',
@@ -699,21 +715,31 @@ function Layers(
           'uncertain',
           RIPARIAN_MAP_COLORS.uncertain,
           [
-            'match',
-            ['get', 'kind'],
-            'stream',
-            PLAN_CONTEXT_STYLES.stream.color,
-            'existing-road',
-            PLAN_CONTEXT_STYLES['existing-road'].color,
-            'harvest',
-            PLAN_CONTEXT_STYLES.harvest.color,
-            PLAN_CONTEXT_STYLES.avoid.color,
+            'coalesce',
+            ['get', 'historyColor'],
+            [
+              'match',
+              ['get', 'kind'],
+              'stream',
+              PLAN_CONTEXT_STYLES.stream.color,
+              'harvest',
+              PLAN_CONTEXT_STYLES.harvest.color,
+              PLAN_CONTEXT_STYLES.avoid.color,
+            ],
           ],
         ],
         'line-width': 2,
         'line-dasharray': PLAN_LINE_DASHES.context,
       },
     })
+    for (const [key, style] of Object.entries(ROAD_HISTORY_STYLES))
+      add({
+        id: `road-history-${key}`,
+        type: 'line',
+        source: 'road-context',
+        filter: ['all', ['==', ['get', 'kind'], 'existing-road'], ['==', ['get', 'historyKey'], key]],
+        paint: { 'line-color': style.color, 'line-width': 2.5, 'line-dasharray': style.dasharray },
+      })
     add({
       id: 'road-corridor',
       type: 'fill',
@@ -948,6 +974,7 @@ function Layers(
       'road-contours',
       'road-context-fill',
       'road-context-line',
+      ...ROAD_HISTORY_LAYER_IDS,
       'road-corridor',
       'road-corridor-reach',
       'road-formation',
@@ -1041,7 +1068,20 @@ function Layers(
         if (selected && onCableDistance) {
           onCableDistance(cableDistanceAt(selected.start, selected.end, [e.lngLat.lng, e.lngLat.lat]))
         }
-      } else if (mode === 'inspect' && analysis.stations.length) {
+      } else if (mode === 'inspect') {
+        if (onContextSelect) {
+          const contextHit = map
+            .queryRenderedFeatures(e.point, {
+              layers: [...ROAD_HISTORY_LAYER_IDS, 'road-context-fill'],
+            })
+            .find((feature) => ['existing-road', 'harvest'].includes(String(feature.properties?.kind)))
+          const feature = props.project.context.find((candidate) => candidate.id === contextHit?.properties?.id)
+          if (feature) {
+            onContextSelect(feature)
+            return
+          }
+        }
+        if (!analysis.stations.length) return
         const nearest = analysis.stations.reduce((best, s) =>
           distance(s.coordinate, [e.lngLat.lng, e.lngLat.lat]) < distance(best.coordinate, [e.lngLat.lng, e.lngLat.lat])
             ? s
@@ -1089,6 +1129,8 @@ function Layers(
     resolvedCables,
     onOverlaySelect,
     onSelectCulvert,
+    onContextSelect,
+    props.project.context,
     pourPointPicking,
     onPourPoint,
   ])
@@ -1488,9 +1530,43 @@ export function PlanView(props: PlanProps) {
     }
   }
   const [hiddenContextKinds, setHiddenContextKinds] = useState<ContextFeature['kind'][]>([])
+  const [selectedHistoryRowId, setSelectedHistoryRowId] = useState<string | null>(null)
+  const selectedHistoryFeature = props.project.context.find(
+    (feature) => feature.id === selectedHistoryRowId && !hiddenContextKinds.includes(feature.kind),
+  )
   const contextKinds = (Object.keys(CONTEXT_LABELS) as ContextFeature['kind'][]).filter((kind) =>
     props.project.context.some((feature) => feature.kind === kind),
   )
+  const tableSources = useMemo(
+    () =>
+      historyTableSources(
+        props.project.context.filter((feature) => !hiddenContextKinds.includes(feature.kind)),
+        props.project.harvestHistoryYear ?? new Date().getFullYear(),
+      ),
+    [props.project.context, props.project.harvestHistoryYear, hiddenContextKinds],
+  )
+  const table = useMapTable({
+    sources: tableSources,
+    inlineButton: true,
+    url: false,
+    selectedRowId: selectedHistoryFeature?.id ?? null,
+    defaultSourceId:
+      selectedHistoryFeature?.kind === 'existing-road'
+        ? 'road-history'
+        : selectedHistoryFeature?.kind === 'harvest'
+          ? 'cutblock-history'
+          : tableSources[0]?.id,
+    buttonLabel: 'Open cutblock and road history table',
+    onSelectRow: (feature: ContextFeature) => {
+      setSelectedHistoryRowId(feature.id)
+      props.onContextSelect?.(feature)
+    },
+  })
+  const selectContext = (feature: ContextFeature) => {
+    setSelectedHistoryRowId(feature.id)
+    table.follow(feature.kind === 'existing-road' ? 'road-history' : 'cutblock-history')
+    props.onContextSelect?.(feature)
+  }
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
     setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
@@ -1556,8 +1632,10 @@ export function PlanView(props: PlanProps) {
         }
         showLoadingOverlay={false}
       >
+        <MapTableBridge table={table} />
         <Layers
           {...props}
+          onContextSelect={selectContext}
           alignment={previewAlignment ?? props.alignment}
           savedAlignment={props.alignment}
           analyses={previewAnalyses}
@@ -1578,11 +1656,21 @@ export function PlanView(props: PlanProps) {
           hiddenContextKinds={hiddenContextKinds}
         />
         <MapScaleBar position="bottom-left" className="road-map-scale left-2 bottom-2" />
+        {table.layout.bottomPane && (
+          <div
+            className="absolute inset-x-0 bottom-0 z-30 max-h-[70%] overflow-hidden border-t bg-background"
+            style={{ height: table.layout.bottomPaneHeight }}
+            data-testid="road-history-table"
+          >
+            {table.layout.bottomPane}
+          </div>
+        )}
       </Map>
       <div
         className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
+        {table.button}
         <RoadSelect
           value={terrainLayer}
           onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}

@@ -107,7 +107,7 @@ import { suggestBlockAccess } from './dev-forestry-roads/blockAccess'
 import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
 import { BLOCK_ACCESS_COLORS, type BlockAccessState } from './dev-forestry-roads/BlockAccessPanel'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
-import { refreshedRoadEvidence } from './dev-forestry-roads/existingRoadEvidence'
+import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
@@ -320,6 +320,7 @@ export default function DevForestryRoads() {
   } | null>(null)
   const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
   const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
+  const [cutblockReviewRequest, setCutblockReviewRequest] = useState<{ id: string; sequence: number }>()
   const previewFsrTarget = useCallback(
     (id: string | null, endpoint: 'start' | 'end') => {
       if (id) setReviewedRoad(null)
@@ -898,6 +899,11 @@ export default function DevForestryRoads() {
         id: uid(),
         name: `${kind === 'stream' ? 'Stream' : kind === 'harvest' ? 'Harvest block' : 'Avoidance area'} ${project.context.length + 1}`,
         kind,
+        ...(kind === 'harvest'
+          ? {
+              harvestEvidence: { source: 'user' as const, status: 'proposed' as const, yearMethod: 'unknown' as const },
+            }
+          : {}),
         geometry:
           mode === 'stream'
             ? { type: 'LineString' as const, coordinates: draft }
@@ -1488,12 +1494,7 @@ export default function DevForestryRoads() {
       const merged = new Map(context.map((feature) => [feature.id, feature]))
       for (const road of network.roads) {
         const previous = merged.get(road.id)
-        merged.set(road.id, {
-          ...road,
-          roadEvidence: road.roadEvidence
-            ? refreshedRoadEvidence(road.roadEvidence, previous?.roadEvidence)
-            : previous?.roadEvidence,
-        })
+        merged.set(road.id, refreshExistingRoadFeature(road, previous))
       }
       context = parseProject({ ...project, context: [...merged.values()] }).context
       w.commit({ ...project, context })
@@ -2373,8 +2374,10 @@ export default function DevForestryRoads() {
                 fsrDiscovery={fsrDiscovery}
                 onPreviewFsrTarget={previewFsrTarget}
                 onLocateRoad={locateRoad}
+                onOpenRoadHistory={openRoadReview}
                 onLocateConstraint={locateConstraint}
                 focusedConstraintId={focusedConstraintId}
+                cutblockReviewRequest={cutblockReviewRequest}
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
                 onPreviewRoutes={setRouteLines}
@@ -2599,6 +2602,19 @@ export default function DevForestryRoads() {
                             onMapReady={onPlanReady}
                             selectedCulvertId={currentCulvertId}
                             onSelectCulvert={selectCulvert}
+                            onContextSelect={(feature) => {
+                              if (feature.kind === 'existing-road') openRoadReview(feature.id)
+                              else if (feature.kind === 'harvest') {
+                                setFocusedConstraintId(feature.id)
+                                setCutblockReviewRequest((previous) => ({
+                                  id: feature.id,
+                                  sequence: (previous?.sequence ?? 0) + 1,
+                                }))
+                                setWorkflowTab('terrain')
+                                setCollapsed(false)
+                                setControlsOpen(true)
+                              }
+                            }}
                             project={displayProject}
                             alignment={displayedAlignment}
                             analyses={displayAnalyses}

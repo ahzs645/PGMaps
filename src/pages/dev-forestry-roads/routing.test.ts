@@ -257,6 +257,24 @@ describe('forester-entered route constraints', () => {
     expect(
       suggestRoutes(start, end, flat, settings, [closed], { reuseExistingRoads: true }).routes[0].cost,
     ).toBeCloseTo(ordinary.cost)
+    const deactivated: ContextFeature = {
+      ...road,
+      roadEvidence: {
+        ...road.roadEvidence!,
+        deactivation: { status: 'deactivated', basis: 'source-record', reference: 'Example completion report' },
+      },
+    }
+    expect(
+      suggestRoutes(start, end, flat, settings, [deactivated], { reuseExistingRoads: true }).routes[0].cost,
+    ).toBeCloseTo(ordinary.cost)
+    deactivated.roadEvidence!.condition = 'rehabilitation'
+    expect(
+      suggestRoutes(start, end, flat, settings, [deactivated], { reuseExistingRoads: true }).routes[0].cost,
+    ).toBeCloseTo(reuse.cost)
+    deactivated.roadEvidence!.geometryReviewRequired = true
+    expect(
+      suggestRoutes(start, end, flat, settings, [deactivated], { reuseExistingRoads: true }).routes[0].cost,
+    ).toBeCloseTo(ordinary.cost)
     const constrained = suggestRoutes(start, end, flat, settings, [road, box(150, -20, 250, 20)], {
       reuseExistingRoads: true,
     }).routes[0]

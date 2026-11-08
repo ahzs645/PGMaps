@@ -6,6 +6,7 @@
  */
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
 import { routingContext } from './riparian'
+import { deactivatedRoadNeedsReview } from './roadHistory'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 type XY = [number, number]
@@ -392,7 +393,9 @@ export function suggestRoutes(
       options.reuseExistingRoads &&
       feature.kind === 'existing-road' &&
       feature.roadEvidence?.reuseAllowed === true &&
-      feature.roadEvidence.condition !== 'closed'
+      feature.roadEvidence.condition !== 'closed' &&
+      !feature.roadEvidence.geometryReviewRequired &&
+      !deactivatedRoadNeedsReview(feature.roadEvidence)
     if (!['stream', 'avoid'].includes(feature.kind) && !reusable) continue
     const paths = feature.geometry.type === 'Polygon' ? feature.geometry.coordinates : [feature.geometry.coordinates]
     const converted = paths.map((path) => path.map((p) => toXY([p[0], p[1]])))

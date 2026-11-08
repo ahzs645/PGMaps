@@ -226,6 +226,8 @@ export interface ContextFeature {
   streamSource?: ProvincialStreamSource
   /** Catalogue facts and separately entered planning assumptions; tenure dates are not road age. */
   roadEvidence?: ExistingRoadEvidence
+  /** Reported or estimated harvest timing and provenance; never stand age or road condition. */
+  harvestEvidence?: import('./harvestHistory').HarvestEvidence
 }
 export interface ExistingRoadEvidence {
   source: 'bc-ften' | 'user' | 'scenario'
@@ -240,6 +242,8 @@ export interface ExistingRoadEvidence {
   awardDate?: string
   retirementDate?: string
   constructionYear?: number
+  /** Physical event evidence. Never derived from administrative award/retirement dates. */
+  deactivation?: import('./roadHistory').RoadDeactivationEvidence
   condition: 'unknown' | 'serviceable' | 'rehabilitation' | 'closed'
   conditionBasis: 'unreviewed' | 'assumed' | 'field-verified'
   /** Explicit planning opt-in, never inferred from a permit status or a record date. */
@@ -298,6 +302,8 @@ export interface RoadProject {
   name: string
   /** Persistent library loading/coverage evidence, retained when a scenario is saved. */
   scenario?: { id: string; contextWarnings: string[]; terrainCoveragePercent: number }
+  /** Calendar year for reproducible harvest-age displays; absent uses the current year. */
+  harvestHistoryYear?: number
   activeAlignmentId: string
   alignments: Alignment[]
   terrain: TerrainMetadata

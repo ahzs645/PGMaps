@@ -1,4 +1,4 @@
-import { fetchHarvestedAreas } from '../dev-forestry/bcVisualInventory'
+import { loadBcHarvestHistory } from './harvestHistory'
 import type { TileDecoder } from '../dev-forestry/demLoader'
 import type { Bounds } from '../dev-forestry/terrain'
 import { loadBcExistingRoads } from './existingRoads'
@@ -113,6 +113,16 @@ export const ROAD_SCENARIOS = [
     contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
   {
+    id: 'training-harvest-history',
+    name: 'Training · cutblocks and old access roads',
+    terrain: 'Synthetic ground · offline',
+    detail:
+      'Recent, older, estimated and undated cutblocks beside road sections with known and unknown deactivation dates.',
+    focus: 'Compare harvest ages in 2026 and inspect nearby road candidates',
+    kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
+  },
+  {
     id: 'training-local-gravel',
     name: 'Training · nearby free gravel',
     terrain: 'Synthetic ground · offline',
@@ -142,6 +152,110 @@ export function createTrainingScenario(id: RoadScenarioId): RoadProject {
   const project = id === 'training-full-cost-access' ? createFullCostTrainingProject() : createDemoProject()
   project.name = scenario.name
   project.scenario = { id, contextWarnings: [], terrainCoveragePercent: 100 }
+  if (id === 'training-harvest-history') {
+    project.harvestHistoryYear = 2026
+    const origin = project.alignments[0].points[0].coordinate
+    const grid = localMetricGrid(origin),
+      centre = grid.toGrid(origin)
+    const xy = (x: number, y: number) => grid.toLonLat([centre[0] + x, centre[1] + y])
+    const block = (
+      id: string,
+      name: string,
+      x: number,
+      y: number,
+      evidence: NonNullable<ContextFeature['harvestEvidence']>,
+    ): ContextFeature => ({
+      id,
+      name,
+      kind: 'harvest',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [[xy(x, y), xy(x + 200, y), xy(x + 200, y + 150), xy(x, y + 150), xy(x, y)]],
+      },
+      harvestEvidence: evidence,
+    })
+    project.context = [
+      ...project.context.filter((feature) => feature.kind !== 'harvest' && feature.kind !== 'existing-road'),
+      block('history-recent', 'Synthetic block · harvested 2021–2022', 200, 150, {
+        source: 'scenario',
+        status: 'harvested',
+        sourceId: 'teaching-recent',
+        startDate: '2021-09-01',
+        endDate: '2022-02-15',
+        startYear: 2021,
+        endYear: 2022,
+        yearMethod: 'reported-dates',
+      }),
+      block('history-older', 'Synthetic block · harvested 1989–1990', 520, 420, {
+        source: 'scenario',
+        status: 'harvested',
+        sourceId: 'teaching-older',
+        startYear: 1989,
+        endYear: 1990,
+        yearMethod: 'reported-year',
+      }),
+      block('history-estimated', 'Synthetic block · estimated harvest 2008', 850, 300, {
+        source: 'scenario',
+        status: 'harvested',
+        sourceId: 'teaching-estimated',
+        midYear: 2008,
+        yearMethod: 'estimated-midpoint',
+      }),
+      block('history-unknown', 'Synthetic block · harvest date unknown', 1100, 620, {
+        source: 'scenario',
+        status: 'harvested',
+        sourceId: 'teaching-unknown',
+        yearMethod: 'unknown',
+      }),
+      block('history-proposed', 'Synthetic proposed cutblock', 1000, 900, {
+        source: 'scenario',
+        status: 'proposed',
+        yearMethod: 'unknown',
+      }),
+      {
+        id: 'history-road-deactivated',
+        name: 'Synthetic spur · deactivated 2016',
+        kind: 'existing-road',
+        geometry: { type: 'LineString', coordinates: [xy(50, 100), xy(350, 130), xy(620, 450)] },
+        roadEvidence: {
+          source: 'scenario',
+          condition: 'rehabilitation',
+          conditionBasis: 'assumed',
+          reuseAllowed: false,
+          deactivation: {
+            status: 'deactivated',
+            basis: 'scenario',
+            reference: 'Synthetic training assumption',
+            deactivatedOn: '2016-09-15',
+          },
+        },
+      },
+      {
+        id: 'history-road-undated',
+        name: 'Synthetic old access · deactivation date unknown',
+        kind: 'existing-road',
+        geometry: { type: 'LineString', coordinates: [xy(620, 450), xy(900, 280), xy(1150, 600)] },
+        roadEvidence: {
+          source: 'scenario',
+          condition: 'closed',
+          conditionBasis: 'assumed',
+          reuseAllowed: false,
+          deactivation: {
+            status: 'deactivated',
+            basis: 'scenario',
+            reference: 'Synthetic training assumption; event date not supplied',
+          },
+        },
+      },
+      {
+        id: 'history-road-unreviewed',
+        name: 'Synthetic mapped access · status unknown',
+        kind: 'existing-road',
+        geometry: { type: 'LineString', coordinates: [xy(50, 100), xy(200, -50), xy(1000, 0)] },
+        roadEvidence: { source: 'scenario', condition: 'unknown', conditionBasis: 'unreviewed', reuseAllowed: false },
+      },
+    ]
+  }
   if (id === 'training-road-reuse') {
     const points = project.alignments[0].points
     project.context = [
@@ -284,19 +398,6 @@ export function regionalScenarioAlignments(id: string, centre: Coordinate, sourc
   return best
 }
 
-function harvestedContext(areas: Awaited<ReturnType<typeof fetchHarvestedAreas>>): ContextFeature[] {
-  if (areas.truncated) throw Error('The harvest query reached its record limit; narrow the scenario extent.')
-  return areas.areas.flatMap((area) => {
-    const polygons = area.geometry.type === 'Polygon' ? [area.geometry.coordinates] : area.geometry.coordinates
-    return polygons.map((coordinates, part) => ({
-      id: `bc-harvest-${area.openingId}-${part}`,
-      name: `${area.name} · mapped harvest opening`,
-      kind: 'harvest' as const,
-      geometry: { type: 'Polygon' as const, coordinates },
-    }))
-  })
-}
-
 /** Public layers are optional evidence. Report failures explicitly and keep no invented replacements. */
 async function scenarioContext(bounds: Bounds, signal?: AbortSignal) {
   const controller = new AbortController()
@@ -311,9 +412,7 @@ async function scenarioContext(bounds: Bounds, signal?: AbortSignal) {
   try {
     results = await Promise.allSettled([
       loadBcExistingRoads(bounds, controller.signal),
-      fetchHarvestedAreas(bounds, { signal: controller.signal, simplifyDegrees: 0, maxRecords: 200 }).then(
-        harvestedContext,
-      ),
+      loadBcHarvestHistory(bounds, controller.signal),
     ])
   } finally {
     clearTimeout(timeout)

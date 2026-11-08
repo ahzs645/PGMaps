@@ -238,6 +238,19 @@ export function importExistingRoads(raw: unknown): ContextFeature[] {
           ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE)
             ? { lifecycleStatus: recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) }
             : {}),
+          ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) || recordText(f.properties?.FILE_STATUS_CODE)
+            ? {
+                status: [recordText(f.properties?.LIFE_CYCLE_STATUS_CODE), recordText(f.properties?.FILE_STATUS_CODE)]
+                  .filter(Boolean)
+                  .join(' / '),
+              }
+            : {}),
+          ...(recordDate(f.properties?.AWARD_DATE) ? { awardDate: recordDate(f.properties?.AWARD_DATE) } : {}),
+          ...(recordDate(f.properties?.RETIREMENT_DATE)
+            ? { retirementDate: recordDate(f.properties?.RETIREMENT_DATE) }
+            : {}),
+          // Only an explicitly structured physical event is accepted; administrative fields never fill it.
+          ...(f.properties?.deactivation !== undefined ? { deactivation: f.properties.deactivation } : {}),
         },
       },
     }

@@ -6,7 +6,7 @@ import { RoadSection } from './SidebarParts'
 import type { ContextFeature } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
-/** Explicit planning treatments; harvest blocks remain map context. */
+/** Explicit planning treatments; cutblocks have their own history and access panel. */
 export function ConstraintsPanel({
   workspace: w,
   onDraw,
@@ -19,7 +19,7 @@ export function ConstraintsPanel({
   onLocate?: (area: ContextFeature) => void
   focusedId?: string | null
 }) {
-  const areas = w.project.context.filter((f) => f.kind === 'avoid' || f.kind === 'harvest')
+  const areas = w.project.context.filter((f) => f.kind === 'avoid')
   const blocked = areas.filter((f) => f.kind === 'avoid' && resolveConstraint(f).blocked).length
   return (
     <RoadSection
@@ -63,19 +63,15 @@ export function ConstraintsPanel({
                 <Trash2 className="size-3" />
               </Button>
             </div>
-            {feature.kind === 'harvest' ? (
-              <p className="text-2xs text-muted-foreground">Harvest area</p>
-            ) : (
-              <ConstraintPolicyEditor
-                feature={feature}
-                onChange={(constraint) =>
-                  w.update((x) => ({
-                    ...x,
-                    context: x.context.map((c) => (c.id === feature.id ? { ...c, constraint } : c)),
-                  }))
-                }
-              />
-            )}
+            <ConstraintPolicyEditor
+              feature={feature}
+              onChange={(constraint) =>
+                w.update((x) => ({
+                  ...x,
+                  context: x.context.map((c) => (c.id === feature.id ? { ...c, constraint } : c)),
+                }))
+              }
+            />
           </div>
         ))}
       </div>

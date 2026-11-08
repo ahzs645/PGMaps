@@ -1,6 +1,7 @@
 /** Bounded connected-road graph. Source linework is evidence, not a verified topology or access right. */
 import { distance } from './engine'
 import { assessRoadCondition, type RoadConditionObservation, type RoadConditionPolicy } from './roadCondition'
+import { deactivatedRoadNeedsReview } from './roadHistory'
 import type { ContextFeature, Coordinate, ExistingRoadEvidence } from './types'
 import type {
   BridgeLoadRatingEvidence,
@@ -250,6 +251,12 @@ export function evaluateNetworkRoad(input: RoadNetworkInput, policy: RoadNetwork
   let condition = e?.condition ?? 'unknown'
   if (!input.proposed) {
     if (!e?.reuseAllowed) reasons.push('Road reuse is not explicitly approved.')
+    if (deactivatedRoadNeedsReview(e))
+      reasons.push('Recorded road deactivation requires an explicit reviewed rehabilitation assumption.')
+    else if (e?.deactivation?.status === 'deactivated')
+      warnings.push(
+        'This road is recorded as deactivated; reopening is an explicit rehabilitation planning assumption.',
+      )
     if (e?.geometryReviewRequired)
       reasons.push('The source road geometry changed; evidence and network scope must be explicitly reconfirmed.')
     const assessment = assessRoadCondition(e?.observations ?? [], {

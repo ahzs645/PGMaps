@@ -5,7 +5,7 @@ import { createTrainingScenario, loadRoadScenario, ROAD_SCENARIOS, regionalScena
 import { demoTerrain } from './terrain'
 import * as terrain from './terrain'
 import * as existingRoads from './existingRoads'
-import * as harvestInventory from '../dev-forestry/bcVisualInventory'
+import * as harvestInventory from './harvestHistory'
 import { requireScenarioTerrain } from './scenarioCoverage'
 
 afterEach(() => {
@@ -86,7 +86,7 @@ describe('road scenario library', () => {
       alignments: fixture.alignments,
     })
     vi.spyOn(existingRoads, 'loadBcExistingRoads').mockRejectedValue(Error('The road service is offline.'))
-    vi.spyOn(harvestInventory, 'fetchHarvestedAreas').mockResolvedValue({ areas: [], truncated: false })
+    vi.spyOn(harvestInventory, 'loadBcHarvestHistory').mockResolvedValue([])
     const loaded = await loadRoadScenario('bc-lidar')
     expect(loaded.project.context).toEqual([])
     expect(loaded.project.scenario?.contextWarnings).toEqual([

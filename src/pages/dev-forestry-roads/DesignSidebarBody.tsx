@@ -75,9 +75,11 @@ export interface SidebarProps {
   onPreviewFsrTarget?: (featureId: string | null, endpoint: 'start' | 'end') => void
   fsrDiscovery?: { guide: Alignment; source: TerrainSource; origin: Coordinate; scope: string } | null
   onLocateRoad?: (road: ContextFeature) => void
+  onOpenRoadHistory?: (id: string) => void
   /** Shows a constraint on the plan; the sidebar marks `focusedConstraintId` as the one shown. */
   onLocateConstraint?: (area: ContextFeature) => void
   focusedConstraintId?: string | null
+  cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null) => void
   onShowExistingRoads?: () => void
   onShowEngineering?: () => void

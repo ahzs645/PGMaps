@@ -13,6 +13,7 @@ import { sectionStations } from './designExports'
 import { createEngineeringDesign } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { parseRoadEvidence } from './existingRoadEvidence'
+import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseRouteSearchOptions } from './routing'
 import { parseNetworkPlanning } from './roads/planning'
 import { parseTotalCostPlanning } from './fullCostPlanning'
@@ -528,6 +529,9 @@ function parseContext(raw: unknown): ContextFeature {
     ...(r.kind === 'existing-road' && r.roadEvidence !== undefined
       ? { roadEvidence: parseRoadEvidence(r.roadEvidence) }
       : {}),
+    ...(r.kind === 'harvest' && r.harvestEvidence !== undefined
+      ? { harvestEvidence: parseHarvestEvidence(r.harvestEvidence) }
+      : {}),
     ...(r.kind === 'avoid' && r.routeCostPerM !== undefined && r.routeCostPerM !== null
       ? { routeCostPerM: number(r.routeCostPerM, 'Zone route cost', 0, 1e6) }
       : {}),
@@ -633,6 +637,9 @@ export function parseProject(raw: unknown): RoadProject {
   return {
     schema: 'pgmaps-road-project-v1',
     name: text(r.name, 'Project name'),
+    ...(r.harvestHistoryYear === undefined
+      ? {}
+      : { harvestHistoryYear: parseHarvestHistoryYear(r.harvestHistoryYear) }),
     ...(scenario
       ? {
           scenario: {
@@ -820,7 +827,9 @@ export function importRoadLibrary(
   return snapshotActiveVerticalAlternative({ ...saved, engineering })
 }
 
-function features(raw: unknown): Array<{ geometry: Record<string, unknown>; properties: Record<string, unknown> }> {
+function features(
+  raw: unknown,
+): Array<{ id?: unknown; geometry: Record<string, unknown>; properties: Record<string, unknown> }> {
   if (typeof raw === 'string') {
     if (raw.length > 20_000_000) throw Error('Crop GeoJSON imports to at most 20 MB.')
     try {
@@ -847,6 +856,7 @@ function features(raw: unknown): Array<{ geometry: Record<string, unknown>; prop
       throw Error('Per-feature CRS declarations are not supported. Reproject all features to WGS84.')
     if (f.type === 'Feature')
       return {
+        id: f.id,
         geometry: (() => {
           const geometry = object(f.geometry, 'GeoJSON geometry')
           if (geometry.crs !== undefined)
@@ -925,16 +935,20 @@ export function importContextGeoJson(raw: unknown): ContextFeature[] {
         : [g.coordinates]
     if (typeof g.type !== 'string' || !['LineString', 'MultiLineString', 'Polygon', 'MultiPolygon'].includes(g.type))
       throw Error('Context imports require line or polygon geometry.')
-    for (const part of parts)
+    for (const [partIndex, part] of parts.entries())
       result.push(
         parseContext({
-          id: `context-${result.length + 1}`,
+          id:
+            f.properties.kind === 'harvest' && typeof f.id === 'string'
+              ? `${f.id}${parts.length > 1 ? `-part-${partIndex + 1}` : ''}`
+              : `context-${result.length + 1}`,
           name:
             typeof f.properties.name === 'string'
               ? f.properties.name
               : `Imported ${isLine ? 'stream' : 'review area'} ${result.length + 1}`,
           kind: f.properties.kind ?? (isLine ? 'stream' : 'avoid'),
           roadEvidence: f.properties.roadEvidence,
+          harvestEvidence: f.properties.harvestEvidence,
           routeCostPerM: f.properties.routeCostPerM,
           constraint: f.properties.constraint,
           riparianPolicy: f.properties.riparianPolicy,
@@ -1069,6 +1083,7 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
         kind: f.kind,
         name: f.name,
         ...(f.roadEvidence ? { roadEvidence: f.roadEvidence } : {}),
+        ...(f.harvestEvidence ? { harvestEvidence: f.harvestEvidence } : {}),
         ...(f.routeCostPerM !== undefined ? { routeCostPerM: f.routeCostPerM } : {}),
         ...(f.constraint !== undefined ? { constraint: f.constraint } : {}),
         ...(f.riparianPolicy !== undefined ? { riparianPolicy: f.riparianPolicy } : {}),
