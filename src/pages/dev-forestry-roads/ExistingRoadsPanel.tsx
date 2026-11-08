@@ -20,6 +20,14 @@ import { RoadConditionEditor } from './RoadConditionEditor'
 import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
+import { RoadDeactivationEditor } from './RoadDeactivationEditor'
+import {
+  deactivatedRoadNeedsReview,
+  PRINCE_GEORGE_ROAD_MAP_URL,
+  PRINCE_GEORGE_ROAD_NOTICES_URL,
+  roadDeactivationSummary,
+  roadHistoryStyle,
+} from './roadHistory'
 import { DEFAULT_LOCALE } from '@/lib/format'
 
 /** The next search after a road's own surroundings come back empty. */
@@ -58,6 +66,7 @@ export function ExistingRoadsPanel({
   const roads = w.project.context.filter((f) => f.kind === 'existing-road')
   const road = roads.find((f) => f.id === selected) ?? roads[0]
   const evidence = road?.roadEvidence ?? unreviewedRoadEvidence()
+  const historyStyle = roadHistoryStyle(evidence)
   const reviewCallback = useRef(onReviewRoad)
   reviewCallback.current = onReviewRoad
   useEffect(() => {
@@ -83,7 +92,8 @@ export function ExistingRoadsPanel({
   const change = (patch: Partial<ExistingRoadEvidence>) => {
     if (!road) return
     const next = { ...evidence, ...patch }
-    if (next.condition === 'closed' || next.geometryReviewRequired) next.reuseAllowed = false
+    if (next.condition === 'closed' || next.geometryReviewRequired || deactivatedRoadNeedsReview(next))
+      next.reuseAllowed = false
     w.update((p) => ({ ...p, context: p.context.map((f) => (f.id === road.id ? { ...f, roadEvidence: next } : f)) }))
   }
   const merge = (features: ContextFeature[]) => {
@@ -134,7 +144,28 @@ export function ExistingRoadsPanel({
       summary={`${roads.length} · ${roads.filter((f) => f.roadEvidence?.reuseAllowed && f.roadEvidence.condition !== 'closed').length} reusable`}
       open={open}
       onOpenChange={onOpenChange}
-      help="Load BC Forest Tenure road sections near the project, or import your own GeoJSON road network. The FSR button loads active Forest Service Road sections for the current area. A tenure can represent an unbuilt road. Permit status and award/retirement dates cannot establish road age or current condition. Review access, structures and rehabilitation before enabling a road for the optimizer."
+      help={
+        <>
+          <p>
+            Load BC Forest Tenure road sections near the project, or import your own GeoJSON road network. The FSR
+            button loads active Forest Service Road tenures for the current area. A tenure can represent an unbuilt
+            road. Permit status and award/retirement dates do not establish construction age, physical deactivation or
+            current condition. Review access, structures and rehabilitation before enabling reuse.
+          </p>
+          <p className="mt-2">
+            Check{' '}
+            <a className="underline" href={PRINCE_GEORGE_ROAD_NOTICES_URL} target="_blank" rel="noreferrer">
+              Prince George district notices
+            </a>{' '}
+            or the{' '}
+            <a className="underline" href={PRINCE_GEORGE_ROAD_MAP_URL} target="_blank" rel="noreferrer">
+              official district road map
+            </a>
+            . A notice's reported date may differ from the date deactivation was completed. Check the road number,
+            kilometre range and completed versus planned work before entering physical history for a road section.
+          </p>
+        </>
+      }
     >
       <div className="space-y-2" data-testid="road-existing-roads">
         <div className="grid grid-cols-2 gap-2">
@@ -268,7 +299,42 @@ export function ExistingRoadsPanel({
                 <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString(DEFAULT_LOCALE)}</p>
               )}
               {evidence.awardDate && <p>Tenure awarded: {evidence.awardDate}</p>}
-              {evidence.retirementDate && <p>Tenure retired: {evidence.retirementDate}</p>}
+              {evidence.retirementDate && <p>Tenure retired: {evidence.retirementDate} · administrative date</p>}
+              <p data-testid="road-deactivation-summary">
+                {roadDeactivationSummary(evidence.deactivation)}
+                {evidence.deactivation?.status === 'reactivated' && evidence.deactivation.deactivatedOn
+                  ? ` · Previously deactivated: ${evidence.deactivation.deactivatedOn}`
+                  : ''}
+              </p>
+              <p className="flex items-center gap-1.5">
+                <span
+                  aria-hidden="true"
+                  className="inline-block w-5 border-t-2"
+                  style={{
+                    borderColor: historyStyle.color,
+                    borderStyle: historyStyle.key === 'serviceable' ? 'solid' : 'dashed',
+                  }}
+                />
+                {historyStyle.label}
+              </p>
+              {evidence.deactivation?.reference && (
+                <p>
+                  {evidence.deactivation.basis === 'scenario'
+                    ? 'Scenario assumption'
+                    : evidence.deactivation.basis === 'field-observation'
+                      ? 'Field note'
+                      : 'Event source'}
+                  :{' '}
+                  {evidence.deactivation.sourceUrl ? (
+                    <a className="underline" href={evidence.deactivation.sourceUrl} target="_blank" rel="noreferrer">
+                      {evidence.deactivation.reference}
+                    </a>
+                  ) : (
+                    evidence.deactivation.reference
+                  )}
+                </p>
+              )}
+              {evidence.deactivation?.observedOn && <p>Event status observed: {evidence.deactivation.observedOn}</p>}
               <p>
                 Construction year: {evidence.constructionYear ?? 'unknown'}. Record dates do not establish road age.
                 Current condition requires review.
@@ -324,6 +390,18 @@ export function ExistingRoadsPanel({
               placeholder="unknown"
               onChange={(year) => change({ constructionYear: year === null ? undefined : Math.round(year) })}
             />
+            <RoadDeactivationEditor
+              key={`history:${projectKey}:${road.id}`}
+              value={evidence.deactivation}
+              disabled={!!w.busy}
+              onChange={(deactivation) => change({ deactivation, reuseAllowed: false })}
+            />
+            {evidence.deactivation?.status === 'deactivated' && (
+              <p className="text-2xs text-muted-foreground" data-testid="road-deactivation-reuse-guidance">
+                To compare reopening, choose Needs rehabilitation and record a condition basis, then enable reuse. The
+                red map line retains the recorded deactivation; the cost scenario is a rehabilitation assumption.
+              </p>
+            )}
             {evidence.geometryReviewRequired && (
               <div className="space-y-2" data-testid="road-geometry-scope-review">
                 <InlineAlert tone="warning">
@@ -350,7 +428,11 @@ export function ExistingRoadsPanel({
                 className="mt-0.5"
                 type="checkbox"
                 checked={evidence.reuseAllowed}
-                disabled={evidence.condition === 'closed' || evidence.geometryReviewRequired}
+                disabled={
+                  evidence.condition === 'closed' ||
+                  evidence.geometryReviewRequired ||
+                  deactivatedRoadNeedsReview({ ...evidence, reuseAllowed: true })
+                }
                 onChange={(e) => change({ reuseAllowed: e.target.checked })}
               />
               <span>Allow this road in the reuse cost scenario</span>

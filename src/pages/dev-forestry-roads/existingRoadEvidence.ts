@@ -1,6 +1,7 @@
 import type { ContextFeature, ExistingRoadEvidence } from './types'
 import { parseRoadNetworkEvidence } from './roadNetwork'
 import { parseRoadConditionObservations, parseRoadConditionPolicy } from './roadCondition'
+import { deactivatedRoadNeedsReview, parseRoadDeactivation } from './roadHistory'
 
 /** Facts stay separate from planning assumptions, including after portable project restoration. */
 export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
@@ -52,12 +53,15 @@ export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
   if (r.network !== undefined) result.network = parseRoadNetworkEvidence(r.network)
   if (r.observations !== undefined) result.observations = parseRoadConditionObservations(r.observations)
   if (r.conditionPolicy !== undefined) result.conditionPolicy = parseRoadConditionPolicy(r.conditionPolicy)
+  if (r.deactivation !== undefined) result.deactivation = parseRoadDeactivation(r.deactivation)
   if (r.geometryReviewRequired !== undefined) {
     if (typeof r.geometryReviewRequired !== 'boolean') throw Error('Road geometry scope review must be true or false.')
     result.geometryReviewRequired = r.geometryReviewRequired
     if (result.geometryReviewRequired && result.reuseAllowed)
       throw Error('Review the updated road geometry scope before enabling reuse.')
   }
+  if (result.reuseAllowed && deactivatedRoadNeedsReview(result))
+    throw Error('A deactivated road requires an explicit reviewed rehabilitation assumption before enabling reuse.')
   return result
 }
 
@@ -70,7 +74,7 @@ export function refreshedRoadEvidence(
   facts: ExistingRoadEvidence,
   previous?: ExistingRoadEvidence,
 ): ExistingRoadEvidence {
-  return previous
+  const result = previous
     ? {
         ...facts,
         condition: previous.condition,
@@ -80,11 +84,21 @@ export function refreshedRoadEvidence(
         ...(previous.network ? { network: previous.network } : {}),
         ...(previous.observations ? { observations: previous.observations } : {}),
         ...(previous.conditionPolicy ? { conditionPolicy: previous.conditionPolicy } : {}),
+        ...(facts.deactivation || previous.deactivation
+          ? { deactivation: facts.deactivation ?? previous.deactivation }
+          : {}),
         ...(previous.geometryReviewRequired !== undefined
           ? { geometryReviewRequired: previous.geometryReviewRequired }
           : {}),
       }
     : facts
+  // New event evidence invalidates an earlier reuse approval even when the line itself is unchanged.
+  if (
+    (facts.deactivation && JSON.stringify(facts.deactivation) !== JSON.stringify(previous?.deactivation)) ||
+    deactivatedRoadNeedsReview(result)
+  )
+    return { ...result, reuseAllowed: false }
+  return result
 }
 
 /** Preserve review history on refresh, but do not transfer its approved scope onto changed linework. */

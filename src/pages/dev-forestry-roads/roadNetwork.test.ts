@@ -54,6 +54,21 @@ function road(id: string, points: Coordinate[]): RoadNetworkInput {
 }
 const cost = { distanceRatePerM: 1 }
 
+it('requires reviewed rehabilitation for a deactivated road even with an old reuse opt-in', () => {
+  const input = road('old-access', [point(0, 0), point(100, 0)])
+  input.evidence!.deactivation = {
+    status: 'deactivated',
+    basis: 'source-record',
+    reference: 'Example completion report',
+  }
+  const blocked = evaluateNetworkRoad(input, policy())
+  expect(blocked.reasons.some((reason) => reason.includes('deactivation'))).toBe(true)
+  input.evidence!.condition = 'rehabilitation'
+  const reviewed = evaluateNetworkRoad(input, policy())
+  expect(reviewed.reasons).toEqual([])
+  expect(reviewed.warnings.some((warning) => warning.includes('deactivated'))).toBe(true)
+})
+
 const currentRating = (patch: Partial<BridgeLoadRatingEvidence> = {}): BridgeLoadRatingEvidence => ({
   ...createBridgeLoadRatingEvidence(50),
   sourceReference: 'Synthetic bridge load-rating report B-12',

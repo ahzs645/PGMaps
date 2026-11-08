@@ -12,6 +12,7 @@ import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
 import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
 import { NumberField } from '../Controls'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
+import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
 
 const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
 const CLASSIFY: Record<string, string> = {
@@ -122,6 +123,17 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         onDraw={() => p.onMode('avoid')}
         onLocate={p.onLocateConstraint}
         focusedId={p.focusedConstraintId}
+      />
+      <CutblockHistoryPanel
+        workspace={p.workspace}
+        onLocate={p.onLocateConstraint}
+        focusedId={p.focusedConstraintId}
+        reviewRequest={p.cutblockReviewRequest}
+        onDraw={p.onDrawBlock}
+        onReviewRoad={(road) => {
+          p.onLocateRoad?.(road)
+          p.onOpenRoadHistory?.(road.id)
+        }}
       />
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection

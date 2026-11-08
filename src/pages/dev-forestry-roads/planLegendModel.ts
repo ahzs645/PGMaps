@@ -189,6 +189,23 @@ export function buildPlanLegend({
     const style = PLAN_CONTEXT_STYLES[kind]
     if (!style) continue
     const area = feature.geometry.type === 'Polygon' || feature.geometry.type === 'MultiPolygon'
+    const history = feature.properties
+    if (typeof history?.historyKey === 'string' && typeof history.historyColor === 'string') {
+      const dash: [number, number] =
+        Array.isArray(history.historyDash) &&
+        history.historyDash.length === 2 &&
+        history.historyDash.every((value: unknown) => typeof value === 'number' && Number.isFinite(value))
+          ? [history.historyDash[0], history.historyDash[1]]
+          : PLAN_LINE_DASHES.context
+      context.add({
+        id: `history-${kind}-${history.historyKey}`,
+        label: String(history.historyLabel),
+        color: history.historyColor,
+        shape: area ? 'area' : dash[1] === 0 ? 'line' : 'dashed-line',
+        ...(area ? {} : { dash }),
+      })
+      continue
+    }
     context.add({
       id: `context-${kind}-${area ? 'area' : 'line'}`,
       label: style.label,

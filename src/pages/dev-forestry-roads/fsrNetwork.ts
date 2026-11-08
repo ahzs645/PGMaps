@@ -1,6 +1,7 @@
 /** Province-wide source, bounded local discovery and measured centreline connection candidates. */
 import { distance } from './engine'
 import { loadBcFsrsNear } from './existingRoads'
+import { deactivatedRoadNeedsReview } from './roadHistory'
 import type { ContextFeature, Coordinate } from './types'
 
 export const FSR_SEARCH_RADII_M = [2000, 5000, 10000] as const
@@ -59,6 +60,8 @@ export function nearestFsrConnections(origin: Coordinate, context: ContextFeatur
       road.kind !== 'existing-road' ||
       evidence?.roadClass !== 'fsr' ||
       evidence.condition === 'closed' ||
+      evidence.geometryReviewRequired ||
+      deactivatedRoadNeedsReview(evidence) ||
       (evidence.lifecycleStatus && evidence.lifecycleStatus !== 'ACTIVE')
     )
       continue
