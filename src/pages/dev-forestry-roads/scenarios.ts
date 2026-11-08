@@ -5,7 +5,9 @@ import { loadBcExistingRoads } from './existingRoads'
 import { alignmentLength, analyzeRoad, positionAt } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import { parseProject } from './project'
-import { DEFAULT_ROUTE_OPTIONS } from './routing'
+import { blockLandings, nearestBlockEdge, suggestBlockAccess } from './blockAccess'
+import { fitHorizontalRadii } from './horizontalTools'
+import { DEFAULT_ROUTE_OPTIONS, suggestRoutes } from './routing'
 import { requireScenarioTerrain } from './scenarioCoverage'
 import { createFullCostTrainingProject } from './trainingFullCostScenario'
 import {
@@ -45,7 +47,8 @@ export const ROAD_SCENARIOS = [
     id: 'tabor-access',
     name: 'Tabor Mountain · access alternatives',
     terrain: 'Regional DEM · screening only',
-    detail: 'Two draft approaches across a forested hillside, with a mapped cutblock nearby and no mapped roads.',
+    detail:
+      'Opens on a road from the draft start to a mapped cutblock. Two draft approaches cross the hillside; the area has no mapped roads.',
     focus: 'Compare access alternatives and reach a block',
     kind: 'regional',
     contents: { roads: 'none', cutblocks: 'mapped' },
@@ -56,7 +59,7 @@ export const ROAD_SCENARIOS = [
     name: 'Kamloops · dry Interior',
     terrain: 'Regional DEM · screening only',
     detail:
-      'A deliberately steep starting corridor, with mapped roads and cutblocks. Draft grades need a different route.',
+      'Opens on an access road from a mapped road to a cutblock. The deliberately steep draft corridors remain to compare.',
     focus: 'Grade-limit challenge: test constraints and route feasibility',
     kind: 'regional',
     contents: { roads: 'mapped', cutblocks: 'mapped' },
@@ -77,7 +80,7 @@ export const ROAD_SCENARIOS = [
     id: 'smithers-northwest',
     name: 'Smithers · Northwest hillside',
     terrain: 'Regional DEM · screening only',
-    detail: 'A northern landscape with two editable corridors, mapped roads and cutblocks.',
+    detail: 'Opens on a short spur from a mapped road into a cutblock, with two editable draft corridors nearby.',
     focus: 'Compare route behaviour on another map',
     kind: 'regional',
     contents: { roads: 'mapped', cutblocks: 'mapped' },
@@ -129,6 +132,89 @@ export const REGIONAL_SCENARIO_ORIENTATIONS = 24
 export const SCENARIO_PROFILE_STEP_M = 60
 export const REGIONAL_SCENARIO_SCALES = [1, 0.55] as const
 export const SCENARIO_CONTEXT_TIMEOUT_MS = 12_000
+/** Outweighs a grade failure, so drafts that cross mapped roads are chosen only when nothing else fits. */
+const SCENARIO_ROAD_CROSSING_PENALTY = 50_000
+/** Draft centres tried, in metres east and north of the scenario centre, when mapped roads are present. */
+const SCENARIO_DRAFT_OFFSETS_M = [
+  [0, 0],
+  [400, 0],
+  [-400, 0],
+  [0, 400],
+  [0, -400],
+  [400, 400],
+  [-400, -400],
+  [400, -400],
+  [-400, 400],
+] as const
+/** A scenario opens with a proposed access road to its block nearest the drafts. */
+export const MAX_SCENARIO_ACCESS_ROADS = 1
+/** A block this close to a mapped road already has access; it gets no proposed road. */
+export const SCENARIO_ACCESSIBLE_BLOCK_M = 30
+
+/**
+ * Access roads to a scenario's mapped blocks, so it opens on a road that reaches one. Each starts at
+ * the nearest active mapped road (FSR, permit or tenure road) where the area has any, otherwise at the
+ * first draft's start, and ends on the block edge. Searched on the scenario terrain at the default
+ * limits and given the minimum radius at each corner; one that fails or leaves the terrain is skipped.
+ */
+export function scenarioAccessRoads(
+  id: string,
+  context: ContextFeature[],
+  source: TerrainSource,
+  drafts: Alignment[],
+): Alignment[] {
+  const blocks = context.filter((feature) => feature.kind === 'harvest' && feature.geometry.type === 'Polygon')
+  if (!blocks.length || !drafts.length) return []
+  const hasRoads = context.some((feature) => feature.kind === 'existing-road')
+  const middle = positionAt(drafts[0], alignmentLength(drafts[0]) / 2).coordinate
+  const start = drafts[0].points[0].coordinate
+  const ranked = blocks
+    .map((block) => ({ block, distanceM: nearestBlockEdge(block, middle).distanceM }))
+    .sort((a, b) => a.distanceM - b.distanceM)
+  const roads: Alignment[] = []
+  const options = { ...DEFAULT_ROUTE_OPTIONS, groundWindowM: 0 }
+  for (const { block } of ranked) {
+    if (roads.length >= MAX_SCENARIO_ACCESS_ROADS) break
+    if (
+      hasRoads &&
+      (blockLandings(block, context, 1, 'mapped-roads')[0]?.target.distanceM ?? Infinity) < SCENARIO_ACCESSIBLE_BLOCK_M
+    )
+      continue
+    try {
+      let coordinates: Coordinate[]
+      let from: string
+      if (hasRoads) {
+        const best = suggestBlockAccess(block, source, DEFAULT_ROAD_SETTINGS, context, options, 3, 'mapped-roads')
+          .options[0]
+        // Chainage runs from the junction on the mapped road to the landing on the block edge.
+        coordinates = [...best.coordinates].reverse()
+        from = best.target.name
+      } else {
+        const landing = nearestBlockEdge(block, start).coordinate
+        coordinates = suggestRoutes(start, landing, source, DEFAULT_ROAD_SETTINGS, context, options).routes[0]
+          .coordinates
+        from = 'the draft start'
+      }
+      const n = roads.length + 1
+      const alignment: Alignment = {
+        id: `${id}-access-${n}`,
+        name: `Access to ${block.name.split(' · ')[0]} · from ${from}`.slice(0, 200),
+        color: n === 1 ? '#16a34a' : '#9333ea',
+        points: fitHorizontalRadii(
+          coordinates.map((coordinate, point) => ({ id: `${id}-access-${n}-${point}`, coordinate, radiusM: 0 })),
+          { kind: 'radius', radiusM: DEFAULT_ROAD_SETTINGS.minRadius },
+        ).points,
+        template: { ...DEFAULT_TEMPLATE },
+        vertical: [],
+        overrides: [],
+      }
+      if (analyzeRoad(alignment, source, DEFAULT_ROAD_SETTINGS).coveragePercent > 99.999) roads.push(alignment)
+    } catch {
+      // No route at the default limits: the scenario keeps its drafts and the notice says so.
+    }
+  }
+  return roads
+}
 
 export function roadScenario(id: string) {
   const scenario = ROAD_SCENARIOS.find((item) => item.id === id)
@@ -199,9 +285,35 @@ export function createTrainingScenario(id: RoadScenarioId): RoadProject {
 }
 
 /** Deliberately draft geometry. Terrain samples initialize a reviewable profile, never a recommended route. */
-export function regionalScenarioAlignments(id: string, centre: Coordinate, source: TerrainSource): Alignment[] {
+export function regionalScenarioAlignments(
+  id: string,
+  centre: Coordinate,
+  source: TerrainSource,
+  mappedRoads: ContextFeature[] = [],
+): Alignment[] {
   const grid = localMetricGrid(centre)
   const origin = grid.toGrid(centre)
+  // A draft that cuts across mapped roads reads as nonsense, so the orientation screen avoids it.
+  const roadSegments = mappedRoads.flatMap((road) =>
+    road.geometry.type === 'LineString'
+      ? road.geometry.coordinates
+          .slice(1)
+          .map((end, i) => [grid.toGrid(road.geometry.coordinates[i] as Coordinate), grid.toGrid(end as Coordinate)])
+      : [],
+  )
+  const side = (p: number[], q: number[], r: number[]) => (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+  const roadCrossings = (alignment: Alignment) => {
+    const points = alignment.points.map((point) => grid.toGrid(point.coordinate))
+    let count = 0
+    for (let i = 1; i < points.length; i++)
+      for (const [a, b] of roadSegments)
+        if (
+          side(points[i - 1], points[i], a) * side(points[i - 1], points[i], b) < 0 &&
+          side(a, b, points[i - 1]) * side(a, b, points[i]) < 0
+        )
+          count++
+    return count
+  }
   const paths = [
     [
       [-520, 0],
@@ -218,7 +330,7 @@ export function regionalScenarioAlignments(id: string, centre: Coordinate, sourc
       [520, 0],
     ],
   ]
-  const candidate = (angle: number, scale: number) =>
+  const candidate = (angle: number, scale: number, [dx, dy]: readonly number[]) =>
     paths.map((path, index) => {
       const alignment: Alignment = {
         id: `${id}-draft-${index + 1}`,
@@ -227,8 +339,8 @@ export function regionalScenarioAlignments(id: string, centre: Coordinate, sourc
         points: path.map(([x, y], point) => ({
           id: `${id}-${index}-${point}`,
           coordinate: grid.toLonLat([
-            origin[0] + scale * (x * Math.cos(angle) - y * Math.sin(angle)),
-            origin[1] + scale * (x * Math.sin(angle) + y * Math.cos(angle)),
+            origin[0] + dx + scale * (x * Math.cos(angle) - y * Math.sin(angle)),
+            origin[1] + dy + scale * (x * Math.sin(angle) + y * Math.cos(angle)),
           ]),
           radiusM: point > 0 && point < path.length - 1 ? 60 : 0,
         })),
@@ -250,35 +362,49 @@ export function regionalScenarioAlignments(id: string, centre: Coordinate, sourc
   // These are still draft examples: their score omits access permissions and all field evidence.
   let best: Alignment[] | null = null
   let bestScore = Infinity
-  for (const scale of REGIONAL_SCENARIO_SCALES) {
+  // Where mapped roads are dense, the drafts may also shift off the centre to find clear ground.
+  const offsets = roadSegments.length ? SCENARIO_DRAFT_OFFSETS_M : [[0, 0]]
+  search: for (const scale of REGIONAL_SCENARIO_SCALES) {
     let feasible = false
-    for (let direction = 0; direction < REGIONAL_SCENARIO_ORIENTATIONS; direction++) {
-      const alignments = candidate((direction * Math.PI) / REGIONAL_SCENARIO_ORIENTATIONS, scale)
-      if (alignments.some((alignment) => alignment.vertical.some((point) => !Number.isFinite(point.elevation))))
-        continue
-      const results = alignments.map((alignment) => analyzeRoad(alignment, source, DEFAULT_ROAD_SETTINGS))
-      if (
-        results.every(
-          (result) =>
-            result.coveragePercent > 99.999 && result.maxGradePercent <= DEFAULT_ROAD_SETTINGS.maxGradePercent,
+    for (const offset of offsets) {
+      for (let direction = 0; direction < REGIONAL_SCENARIO_ORIENTATIONS; direction++) {
+        const alignments = candidate((direction * Math.PI) / REGIONAL_SCENARIO_ORIENTATIONS, scale, offset)
+        const crossingPenalty = alignments.reduce(
+          (total, alignment) => total + roadCrossings(alignment) * SCENARIO_ROAD_CROSSING_PENALTY,
+          0,
         )
-      )
-        feasible = true
-      const score = results.reduce(
-        (total, result) =>
-          total +
-          (100 - result.coveragePercent) * 1000 +
-          (result.maxGradePercent > DEFAULT_ROAD_SETTINGS.maxGradePercent ? 10_000 : 0) +
-          Math.max(0, result.maxGradePercent - DEFAULT_ROAD_SETTINGS.maxGradePercent) * 100 +
-          result.maxGradePercent,
-        0,
-      )
-      if (score < bestScore) {
-        bestScore = score
-        best = alignments
+        // A candidate whose crossings alone outscore the best so far cannot win; skip its analysis.
+        if (crossingPenalty >= bestScore) continue
+        if (alignments.some((alignment) => alignment.vertical.some((point) => !Number.isFinite(point.elevation))))
+          continue
+        const results = alignments.map((alignment) => analyzeRoad(alignment, source, DEFAULT_ROAD_SETTINGS))
+        if (
+          results.every(
+            (result) =>
+              result.coveragePercent > 99.999 && result.maxGradePercent <= DEFAULT_ROAD_SETTINGS.maxGradePercent,
+          ) &&
+          alignments.every((alignment) => !roadCrossings(alignment))
+        )
+          feasible = true
+        const score =
+          crossingPenalty +
+          results.reduce(
+            (total, result) =>
+              total +
+              (100 - result.coveragePercent) * 1000 +
+              (result.maxGradePercent > DEFAULT_ROAD_SETTINGS.maxGradePercent ? 10_000 : 0) +
+              Math.max(0, result.maxGradePercent - DEFAULT_ROAD_SETTINGS.maxGradePercent) * 100 +
+              result.maxGradePercent,
+            0,
+          )
+        if (score < bestScore) {
+          bestScore = score
+          best = alignments
+        }
       }
+      // Keep the best of the first scale and offset that has a feasible pair, as before offsets existed.
+      if (feasible) break search
     }
-    if (feasible) break
   }
   if (!best) throw Error('No complete draft profile could be initialized on this scenario terrain.')
   return best
@@ -377,14 +503,24 @@ export async function loadRoadScenario(
           signal,
           decodeRegionalTiles,
         )
-  const alignments = loaded.alignments
-    ? loaded.alignments
-    : regionalScenarioAlignments(id, scenario.kind === 'regional' ? scenario.centre : [0, 0], loaded.source)
-  const coverage = requireScenarioTerrain(alignments, loaded.source, DEFAULT_ROAD_SETTINGS.crossSectionHalfWidth)
+  // Roads and blocks load first, so the drafts can keep off mapped roads and an access road can reach a block.
   const bounds = terrainBounds(loaded.metadata)
   if (!bounds) throw Error('The scenario terrain has no geographic footprint.')
   onProgress?.('Loading nearby BC road tenures and harvest openings…')
   const evidence = await scenarioContext(bounds, signal)
+  const mappedRoads = evidence.context.filter((feature) => feature.kind === 'existing-road')
+  const drafts = loaded.alignments
+    ? loaded.alignments
+    : regionalScenarioAlignments(
+        id,
+        scenario.kind === 'regional' ? scenario.centre : [0, 0],
+        loaded.source,
+        mappedRoads,
+      )
+  const coverage = requireScenarioTerrain(drafts, loaded.source, DEFAULT_ROAD_SETTINGS.crossSectionHalfWidth)
+  onProgress?.('Finding access roads to the mapped blocks…')
+  const access = scenarioAccessRoads(id, evidence.context, loaded.source, drafts)
+  const alignments = [...access, ...drafts]
   const project = parseProject({
     schema: 'pgmaps-road-project-v1',
     name: scenario.name,
@@ -399,13 +535,13 @@ export async function loadRoadScenario(
   })
   const roads = project.context.filter((feature) => feature.kind === 'existing-road').length
   const blocks = project.context.filter((feature) => feature.kind === 'harvest').length
-  const gradeChallenge = project.alignments.some(
+  const gradeChallenge = drafts.some(
     (alignment) =>
       analyzeRoad(alignment, loaded.source, project.settings).maxGradePercent > project.settings.maxGradePercent,
   )
   return {
     project,
     source: loaded.source,
-    notice: `${scenario.name}: terrain checked across the road section corridors. Loaded ${roads} mapped road sections and ${blocks} harvest polygons. Draft alignments are unverified; mapped tenure dates do not establish road age or condition.${scenario.kind === 'regional' ? ' Regional terrain is for corridor screening only.' : ''}${gradeChallenge ? ' This starting corridor exceeds the grade limit: use route constraints to review alternatives.' : ''}${evidence.warnings.length ? ` ${evidence.warnings.join(' ')}` : ''}`,
+    notice: `${scenario.name}: terrain checked across the road section corridors. Loaded ${roads} mapped road sections and ${blocks} harvest polygons. Draft alignments are unverified; mapped tenure dates do not establish road age or condition.${access.length ? ` Opened on ${access[0].name}, a proposed access road to a mapped block; the draft approaches remain as alternatives.` : blocks ? ' No access road to the mapped blocks passed the grade and terrain checks; draw or adjust one from the drafts.' : ''}${scenario.kind === 'regional' ? ' Regional terrain is for corridor screening only.' : ''}${gradeChallenge ? ' This starting corridor exceeds the grade limit: use route constraints to review alternatives.' : ''}${evidence.warnings.length ? ` ${evidence.warnings.join(' ')}` : ''}`,
   }
 }

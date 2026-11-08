@@ -1,4 +1,4 @@
-import { nearestFsrConnections } from './fsrNetwork'
+import { nearestExistingRoadPoint, nearestFsrConnections } from './fsrNetwork'
 import type { FsrConnectionTarget } from './fsrConnections'
 import { groundTrendTerrain } from './groundTrend'
 import { parseRouteSearchOptions, suggestRoutes, type RouteCandidate, type RouteSearchOptions } from './routing'
@@ -38,8 +38,34 @@ const outerRing = (block: ContextFeature) => {
   return block.geometry.coordinates[0]
 }
 
-/** Samples the block edge and keeps, per mapped FSR section, the edge point closest to it. */
-export function blockLandings(block: ContextFeature, context: ContextFeature[], limit = MAX_BLOCK_ACCESS_OPTIONS) {
+/**
+ * Which roads a block may connect to: mapped FSR sections only, or any active mapped road (FSR, permit
+ * or tenure road). Closed and retired roads are never targets.
+ */
+export type BlockAccessTargets = 'fsr' | 'mapped-roads'
+
+/** Closest point on every active mapped road, per road, as an FSR target would describe it. */
+function nearestMappedRoads(origin: Coordinate, context: ContextFeature[]): FsrConnectionTarget[] {
+  return context.flatMap((road) => {
+    const evidence = road.roadEvidence
+    if (
+      road.kind !== 'existing-road' ||
+      evidence?.condition === 'closed' ||
+      (evidence?.lifecycleStatus && evidence.lifecycleStatus !== 'ACTIVE')
+    )
+      return []
+    const point = nearestExistingRoadPoint(origin, road)
+    return point ? [{ ...point, featureId: road.id, name: road.name }] : []
+  })
+}
+
+/** Samples the block edge and keeps, per target road, the edge point closest to it. */
+export function blockLandings(
+  block: ContextFeature,
+  context: ContextFeature[],
+  limit = MAX_BLOCK_ACCESS_OPTIONS,
+  targets: BlockAccessTargets = 'fsr',
+) {
   const ring = outerRing(block)
   const xScale = M_PER_DEGREE * Math.cos((ring[0][1] * Math.PI) / 180)
   const lengths = ring.slice(1).map((point, i) => {
@@ -58,13 +84,47 @@ export function blockLandings(block: ContextFeature, context: ContextFeature[], 
   })
   const best = new Map<string, BlockLanding>()
   for (const landing of samples)
-    for (const target of nearestFsrConnections(landing, context, 10)) {
+    for (const target of targets === 'fsr'
+      ? nearestFsrConnections(landing, context, 10)
+      : nearestMappedRoads(landing, context)) {
       const previous = best.get(target.featureId)
       if (!previous || target.distanceM < previous.target.distanceM) best.set(target.featureId, { landing, target })
     }
   return [...best.values()]
     .sort((a, b) => a.target.distanceM - b.target.distanceM || a.target.featureId.localeCompare(b.target.featureId))
     .slice(0, limit)
+}
+
+/** The point on a block's outer edge closest to `point`, and its distance in metres. */
+export function nearestBlockEdge(
+  block: ContextFeature,
+  point: Coordinate,
+): { coordinate: Coordinate; distanceM: number } {
+  const ring = outerRing(block)
+  const xScale = M_PER_DEGREE * Math.cos((point[1] * Math.PI) / 180)
+  const local = (c: GeoJSON.Position) => [(c[0] - point[0]) * xScale, (c[1] - point[1]) * M_PER_DEGREE]
+  let best: { coordinate: Coordinate; distanceM: number } = {
+    coordinate: [ring[0][0], ring[0][1]],
+    distanceM: Infinity,
+  }
+  for (let i = 1; i < ring.length; i++) {
+    const [ax, ay] = local(ring[i - 1]),
+      [bx, by] = local(ring[i])
+    const dx = bx - ax,
+      dy = by - ay,
+      length = dx * dx + dy * dy
+    const t = length ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / length)) : 0
+    const distanceM = Math.hypot(ax + t * dx, ay + t * dy)
+    if (distanceM < best.distanceM)
+      best = {
+        coordinate: [
+          ring[i - 1][0] + t * (ring[i][0] - ring[i - 1][0]),
+          ring[i - 1][1] + t * (ring[i][1] - ring[i - 1][1]),
+        ],
+        distanceM,
+      }
+  }
+  return best
 }
 
 /** Steepest signed grades from start to end, read every metre on the ground the search used. */
@@ -105,6 +165,7 @@ export function suggestBlockAccess(
   context: ContextFeature[],
   input: Partial<RouteSearchOptions> = {},
   limit = MAX_BLOCK_ACCESS_OPTIONS,
+  targets: BlockAccessTargets = 'fsr',
 ): BlockAccessResult {
   const parsed = parseRouteSearchOptions(input)
   const options: RouteSearchOptions = {
@@ -112,10 +173,12 @@ export function suggestBlockAccess(
     alternatives: 1,
     haulGrades: parsed.haulGrades && { ...parsed.haulGrades, loadedDirection: 'start-to-end' },
   }
-  const landings = blockLandings(block, context, limit)
+  const landings = blockLandings(block, context, limit, targets)
   if (!landings.length)
     throw Error(
-      'No mapped FSR sections are loaded near this block. Load BC FSRs or import an identified FSR network first. Closed roads are excluded.',
+      targets === 'fsr'
+        ? 'No mapped FSR sections are loaded near this block. Load BC FSRs or import an identified FSR network first. Closed roads are excluded.'
+        : 'No active mapped roads are loaded near this block. Closed roads are excluded.',
     )
   const ground = groundTrendTerrain(terrain, options.groundWindowM ?? 0)
   const attempts: BlockAccessAttempt[] = []

@@ -104,6 +104,7 @@ import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
 import { suggestBlockAccess } from './dev-forestry-roads/blockAccess'
+import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
 import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
 import { BLOCK_ACCESS_COLORS, type BlockAccessState } from './dev-forestry-roads/BlockAccessPanel'
 import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
@@ -176,7 +177,10 @@ function generatedAlignment(points: Coordinate[], name: string, template: RoadTe
   return road
 }
 const boundsOf = (p: RoadProject): [number, number, number, number] => {
-  const coords = p.alignments.flatMap((a) => a.points.map((p) => p.coordinate))
+  const coords = [
+    ...p.alignments.flatMap((a) => a.points.map((p) => p.coordinate)),
+    ...reachedBlockCoordinates(p.context, p.alignments),
+  ]
   return [
     Math.min(...coords.map((p) => p[0])) - 0.001,
     Math.min(...coords.map((p) => p[1])) - 0.001,
