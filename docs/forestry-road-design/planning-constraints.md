@@ -156,14 +156,22 @@ creates a separate alignment from the chosen option.
 | Block already within 2 m of an FSR | —                     | `suggestBlockAccess`                        | That section is skipped   |
 | No section yields a passing route  | —                     | `suggestBlockAccess`                        | Error listing each reason |
 
-Real-data scenarios load their mapped roads and blocks before placing the draft approaches, so the
-orientation screen in `regionalScenarioAlignments` can keep the drafts off mapped roads: a crossing
-costs more than a grade failure, and where roads are dense the draft centre may shift 400 m.
-`scenarioAccessRoads` then opens the scenario on one access road to the block nearest the drafts:
-from the nearest active mapped road (FSR, permit or tenure road) when the area has any, otherwise from
-the first draft's start, searched at the default limits and given the minimum radius at each corner.
-A block already within 30 m of a mapped road gets no new road. The plan view's fit includes any block
-a road ends within 25 m of.
+Real-data scenarios load their mapped roads and blocks first, each source with its own timeout and
+one retry (`SCENARIO_CONTEXT_RETRIES`), then place a draft corridor whose orientation screen keeps it
+off mapped roads. `scenarioRoads` replaces that corridor with up to two connected options, so no
+scenario opens on a road that joins nothing to nothing:
+
+| Area holds                | Each option runs                                                    |
+| ------------------------- | ------------------------------------------------------------------- |
+| Mapped roads and a block  | From the nearest active mapped road to the block nearest the drafts |
+| A block but no roads      | From either end of the draft corridor to that block                 |
+| Mapped roads but no block | From the two nearest mapped roads to the corridor's far end         |
+| Neither                   | The draft corridor stays                                            |
+
+An option is dropped when it crosses another mapped road (it should start from that road), when four
+consecutive legs are shorter than the minimum radius, or when it has more than four points per
+100 m: both are the grid climbing ground steeper than the grade limit. A block within 30 m of a mapped
+road gets no new road. The plan view's fit includes any block a road ends within 25 m of.
 
 A landing on the nearest edge is a starting proposal, not a chosen landing site: move the road's
 first point to the real landing and re-run the checks. The search score is not a complete access

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { nearestBlockEdge } from './blockAccess'
 import { roadPlanFitCoordinates } from './planFit'
-import { regionalScenarioAlignments, scenarioAccessRoads } from './scenarios'
+import { regionalScenarioAlignments, scenarioRoads } from './scenarios'
 import { createDemoProject } from './terrain'
 import type { Alignment, ContextFeature, Coordinate, TerrainSource } from './types'
 
@@ -58,11 +58,11 @@ describe('scenario drafts and access roads', () => {
     for (const draft of drafts) expect(crossings(draft, roads)).toBe(0)
   })
 
-  it('opens on an access road from the nearest mapped road to the block nearest the drafts', () => {
+  it('opens on access roads from the nearest mapped roads to the block nearest the drafts', () => {
     const drafts = regionalScenarioAlignments('test', centre, flat)
     const mapped = road('west', point(-600, -300), point(-600, 300))
     const target = block(-400, -50)
-    const [access] = scenarioAccessRoads('test', [mapped, target, block(500, 600)], flat, drafts)
+    const [access] = scenarioRoads('test', [mapped, target, block(500, 600)], flat, drafts)
     expect(access.name).toMatch(/^Access to Cutblock -400,-50 · from Road west$/)
     // Chainage starts on the mapped road and ends on the block edge.
     expect(access.points[0].coordinate[0]).toBeCloseTo(point(-600, 0)[0], 5)
@@ -72,12 +72,21 @@ describe('scenario drafts and access roads', () => {
   it('gives a block already on a mapped road no new road, and starts from the drafts where there are no roads', () => {
     const drafts = regionalScenarioAlignments('test', centre, flat)
     const onRoad = block(-400, -50)
-    expect(
-      scenarioAccessRoads('test', [onRoad, road('edge', point(-410, -100), point(-410, 100))], flat, drafts),
-    ).toEqual([])
-    const [access] = scenarioAccessRoads('test', [onRoad], flat, drafts)
-    expect(access.name).toContain('from the draft start')
+    expect(scenarioRoads('test', [onRoad, road('edge', point(-410, -100), point(-410, 100))], flat, drafts)).toEqual([])
+    const [access] = scenarioRoads('test', [onRoad], flat, drafts)
+    expect(access.name).toBe('Access to Cutblock -400,-50 · option 1')
     expect(access.points[0].coordinate).toEqual(drafts[0].points[0].coordinate)
+  })
+
+  it('starts spurs on the nearest mapped road where the area has roads but no block', () => {
+    const drafts = regionalScenarioAlignments('test', centre, flat)
+    const roads = scenarioRoads('test', [road('west', point(-700, -400), point(-700, 400))], flat, drafts)
+    expect(roads.length).toBeGreaterThan(0)
+    for (const spur of roads) {
+      expect(spur.name).toMatch(/^Spur from Road west · option \d$/)
+      expect(spur.points[0].coordinate[0]).toBeCloseTo(point(-700, 0)[0], 5)
+    }
+    expect(scenarioRoads('test', [], flat, drafts)).toEqual([])
   })
 
   it('fits the view to a block the active road reaches', () => {

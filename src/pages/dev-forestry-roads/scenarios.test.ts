@@ -96,6 +96,25 @@ describe('road scenario library', () => {
     expect(loaded.source).toBe(demoTerrain)
   })
 
+  it('retries a public source once, so one slow reply does not cost the scenario its blocks', async () => {
+    const fixture = terrain.createDemoProject()
+    vi.spyOn(terrain, 'loadLidarTerrain').mockResolvedValue({
+      metadata: fixture.terrain,
+      source: demoTerrain,
+      alignments: fixture.alignments,
+    })
+    vi.spyOn(existingRoads, 'loadBcExistingRoads').mockResolvedValue([])
+    const block = fixture.context.find((feature) => feature.kind === 'harvest')!
+    const harvest = vi
+      .spyOn(harvestInventory, 'loadBcHarvestHistory')
+      .mockRejectedValueOnce(Error('The public context request timed out.'))
+      .mockResolvedValueOnce([block])
+    const loaded = await loadRoadScenario('bc-lidar')
+    expect(harvest).toHaveBeenCalledTimes(2)
+    expect(loaded.project.scenario?.contextWarnings).toEqual([])
+    expect(loaded.project.context.map((feature) => feature.id)).toContain(block.id)
+  })
+
   it('refuses real source failures before loading context or manufacturing substitute terrain', async () => {
     vi.spyOn(terrain, 'loadLidarTerrain').mockRejectedValue(Error('Native terrain checksum changed.'))
     const roads = vi.spyOn(existingRoads, 'loadBcExistingRoads')
