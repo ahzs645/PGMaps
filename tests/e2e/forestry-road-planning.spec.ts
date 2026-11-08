@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
 import { choose, optionEntries, optionLabels } from './road-select'
+import { ROAD_SCENARIOS } from '../../src/pages/dev-forestry-roads/scenarios'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -168,7 +169,7 @@ test('the library loads a complete offline scenario with its matching terrain an
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   const dialog = page.getByTestId('road-projects-dialog')
   await dialog.getByRole('button', { name: /Browse \d+ example scenarios/ }).click()
-  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(9)
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(ROAD_SCENARIOS.length)
   await dialog.getByRole('button', { name: 'Load Training · nearby free gravel', exact: true }).click()
   await expect(dialog).not.toBeVisible()
   await expect(level).toHaveValue(original)

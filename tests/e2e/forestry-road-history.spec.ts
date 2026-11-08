@@ -44,11 +44,15 @@ async function prepare(page: Page, baseURL: string) {
 
 async function showControls(page: Page) {
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
-  if (await show.isVisible()) await show.click()
-  await page
-    .getByRole('tablist', { name: 'Road workflow', exact: true })
-    .getByRole('tab', { name: 'Terrain', exact: true })
-    .click()
+  const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
+  // A phone layout settles after loads and reopens: keep opening the controls until the tabs show.
+  await expect
+    .poll(async () => {
+      if (await show.isVisible()) await show.click()
+      return workflow.isVisible()
+    })
+    .toBe(true)
+  await workflow.getByRole('tab', { name: 'Terrain', exact: true }).click()
 }
 
 async function showMap(page: Page, phone: boolean) {
