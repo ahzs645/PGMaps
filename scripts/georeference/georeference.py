@@ -24,8 +24,10 @@ import numpy as np
 from PIL import Image
 import rasterio
 from rasterio.enums import ColorInterp
+from rasterio.warp import transform as reproject_coordinates
 
 SCHEMA = 'pgmaps-georeference-v1'
+RECOVERY_SCHEMA = 'pgmaps-georeference-v2'
 PIXELS = 'pixel-centres-x-right-y-down'
 RADIUS = 6378137.0
 MAX_LAT = 85.0511287798066
@@ -70,9 +72,52 @@ def finite_pair(value, label):
     return value
 
 
+def validate_recovered_placement(project):
+    recovered = project.get('recoveredPlacement')
+    if project.get('schema') == SCHEMA:
+        if recovered is not None:
+            raise ValueError('A recovered placement requires the v2 project schema')
+        return None
+    if not isinstance(recovered, dict) or recovered.get('crs') != 'EPSG:3005' or not isinstance(recovered.get('active'), bool):
+        raise ValueError('Recovered placement must declare EPSG:3005 and active:boolean')
+    matrix = recovered.get('matrix')
+    if not isinstance(matrix, list) or len(matrix) != 2 or any(not isinstance(row, list) or len(row) != 3 or any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in row) for row in matrix):
+        raise ValueError('Recovered placement needs a finite two-by-three pixel-centre matrix')
+    determinant = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
+    if not math.isfinite(determinant) or abs(determinant) <= 1e-10:
+        raise ValueError('Recovered placement matrix must be invertible')
+    for field, limit in [('method', 1000), ('summary', 6000), ('recoveredAt', 30)]:
+        value = recovered.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value) > limit:
+            raise ValueError(f'Recovered {field} must be nonempty text of at most {limit} characters')
+    from datetime import date
+    try:
+        date.fromisoformat(recovered['recoveredAt'])
+    except ValueError as exc:
+        raise ValueError('Recovery date must use YYYY-MM-DD') from exc
+    evidence = recovered.get('evidence')
+    if not isinstance(evidence, list) or len(evidence) > 30:
+        raise ValueError('Recovered evidence must contain at most 30 references')
+    for entry in evidence:
+        if not isinstance(entry, dict) or not isinstance(entry.get('label'), str) or not entry['label'].strip() or len(entry['label']) > 1000:
+            raise ValueError('Recovery evidence needs a nonempty label')
+        if 'sha256' in entry and (not isinstance(entry['sha256'], str) or not SHA.fullmatch(entry['sha256'].lower())):
+            raise ValueError('Evidence hash must be a SHA-256 string')
+        if 'url' in entry:
+            value = entry['url']
+            if not isinstance(value, str) or len(value) > 8192:
+                raise ValueError('Evidence URL must be absolute HTTP(S)')
+            parsed = urlsplit(value)
+            if parsed.scheme not in ('http', 'https') or not parsed.netloc or parsed.username or parsed.password:
+                raise ValueError('Evidence URL must be absolute HTTP(S) without credentials')
+    return recovered
+
+
 def validate_project(project):
-    if project.get('schema') != SCHEMA or project.get('pixelConvention') != PIXELS or project.get('fitCrs') != 'EPSG:3857':
+    if project.get('schema') not in (SCHEMA, RECOVERY_SCHEMA) or project.get('pixelConvention') != PIXELS or project.get('fitCrs') != 'EPSG:3857':
         raise ValueError('Unsupported project schema, pixel convention or fit CRS')
+    recovered = validate_recovered_placement(project)
+    frozen = bool(recovered and recovered['active'])
     source = project.get('source', {})
     if not isinstance(source.get('id'), str) or not source['id'].strip() or len(source['id']) > 256:
         raise ValueError('A stable source.id is required')
@@ -113,6 +158,8 @@ def validate_project(project):
     checksum = checksum or source.get('sha256')
     if checksum is not None and not SHA.fullmatch(checksum):
         raise ValueError('Source SHA256 must be lowercase hexadecimal or null')
+    if recovered and not source.get('sha256'):
+        raise ValueError('Recovered projects require the exact source SHA-256')
     points = project.get('points')
     if not isinstance(points, list) or len(points) > 100:
         raise ValueError('points must be an array with at most100 pairs')
@@ -130,11 +177,15 @@ def validate_project(project):
             raise ValueError('Coordinates must be longitude/latitude within Web Mercator latitude limits')
         if not isinstance(p.get('enabled'), bool) or p.get('role') not in ('control', 'check'):
             raise ValueError('Every point needs explicit enabled:boolean and role:control|check')
+        if 'provenance' in p:
+            provenance = p['provenance']
+            if not isinstance(provenance, dict) or provenance.get('kind') not in ('archived-control', 'inherited-grid', 'manual') or not isinstance(provenance.get('description'), str) or not provenance['description'].strip() or len(provenance['description']) > 2000:
+                raise ValueError('Point provenance requires a supported kind and description')
         if p['enabled']:
             (controls if p['role'] == 'control' else checks).append(p)
     method = project.get('transform')
     minimum = {'similarity': 2, 'affine': 3, 'thin-plate-spline': 6}.get(method)
-    if minimum is None or len(controls) < minimum:
+    if minimum is None or (not frozen and len(controls) < minimum):
         raise ValueError('Transform needs at least2 similarity,3 affine or6 thin-plate-spline control pairs')
     active = controls + checks
     for i, a in enumerate(active):
@@ -144,9 +195,9 @@ def validate_project(project):
             if np.linalg.norm(projected(a['coordinate']) - projected(b['coordinate'])) <= 1e-6:
                 raise ValueError('Enabled points repeat a target coordinate')
     longitudes = [p['coordinate'][0] for p in controls]
-    if max(longitudes) - min(longitudes) > 180:
+    if longitudes and max(longitudes) - min(longitudes) > 180:
         raise ValueError('Dateline-crossing controls require a common unwrapped geographic frame')
-    for field in ('pixel', 'coordinate'):
+    for field in (() if frozen else ('pixel', 'coordinate')):
         a = np.array([p[field] for p in controls], float)
         if len(np.unique(a, axis=0)) != len(a):
             raise ValueError('Repeated control pixels or target coordinates are not allowed')
@@ -161,6 +212,15 @@ class Fit:
         self.project = project
         self.controls, self.checks = validate_project(project)
         self.method = project['transform']
+        self.matrix = None
+        self.native_matrix = None
+        self.native_crs = None
+        recovered = project.get('recoveredPlacement')
+        if recovered and recovered['active']:
+            self.method = 'recovered-affine'
+            self.native_matrix = np.array(recovered['matrix'], float)
+            self.native_crs = recovered['crs']
+            return
         self.p = np.array([p['pixel'] for p in self.controls], float)
         self.q = np.array([projected(p['coordinate']) for p in self.controls])
         self.pc = self.p.mean(axis=0)
@@ -206,7 +266,11 @@ class Fit:
         p = np.asarray(pixel, float)
         scalar = p.ndim == 1
         p = p.reshape(-1, 2)
-        if self.matrix is not None:
+        if self.native_matrix is not None:
+            native = np.c_[p, np.ones(len(p))] @ self.native_matrix.T
+            x, y = reproject_coordinates(self.native_crs, 'EPSG:3857', native[:, 0].tolist(), native[:, 1].tolist())
+            result = np.c_[x, y]
+        elif self.matrix is not None:
             result = np.c_[p, np.ones(len(p))] @ self.matrix.T
         else:
             normalized = (p - self.pc) / self.ps
@@ -223,7 +287,12 @@ class Fit:
                 target = projected(p['coordinate'])
                 rows.append({'id': p['id'], 'projectedResidualM': float(np.linalg.norm(xy - target)), 'groundResidualM': haversine(geographic(xy), p['coordinate'])})
             out[role] = {'count': len(rows), 'points': rows, 'groundRmsM': math.sqrt(sum(r['groundResidualM'] ** 2 for r in rows) / len(rows)) if rows else None}
-        out['fitCrs'] = 'EPSG:3857'
+        out['fitCrs'] = self.native_crs or 'EPSG:3857'
+        out['residualCrs'] = 'EPSG:3857'
+        if self.native_matrix is not None:
+            out['recoveredPlacement'] = True
+            out['pointsRefitted'] = False
+            out['limitation'] = 'The archived native matrix is preserved. Point residuals do not replace the original weighted, shoreline or inherited-grid evidence.'
         out['groundAccuracyCertified'] = False
         return out
 
@@ -273,7 +342,7 @@ def resolve_source(project, override, out, max_bytes, allow_unverified=False):
         if not isinstance(url, str) or not re.match(r'^https?://', url):
             raise ValueError('Supply --source ORIGINAL_FILE or an HTTP(S) source URL in the project')
         path = out / 'source.bin'
-        with httpx.stream('GET', url, follow_redirects=True, timeout=180) as response, path.open('wb') as f:
+        with httpx.stream('GET', url, follow_redirects=True, timeout=180, headers={'User-Agent': 'PGMaps-owner-georeference/1.0'}) as response, path.open('wb') as f:
             response.raise_for_status()
             total = 0
             for chunk in response.iter_bytes():
@@ -337,9 +406,9 @@ def normalize_rgba(source, dest, alpha_band=None):
 def source_vrt(path, rgba, fit):
     source = fit.project['source']
     root = ET.Element('VRTDataset', rasterXSize=str(source['width']), rasterYSize=str(source['height']))
-    if fit.matrix is not None:
-        a = fit.matrix
-        ET.SubElement(root, 'SRS').text = 'EPSG:3857'
+    if fit.native_matrix is not None or fit.matrix is not None:
+        a = fit.native_matrix if fit.native_matrix is not None else fit.matrix
+        ET.SubElement(root, 'SRS').text = fit.native_crs or 'EPSG:3857'
         gt = [a[0, 2] - .5 * (a[0, 0] + a[0, 1]), a[0, 0], a[0, 1], a[1, 2] - .5 * (a[1, 0] + a[1, 1]), a[1, 0], a[1, 1]]
         ET.SubElement(root, 'GeoTransform').text = ', '.join(format(v, '.17g') for v in gt)
     else:
@@ -366,8 +435,10 @@ def run_rectify(args):
         raise ValueError('--out must be a new or empty directory; original products are never overwritten')
     out.mkdir(parents=True, exist_ok=True)
     path, info = resolve_source(project, args.source, out, args.max_source_bytes, args.allow_unverified_source)
-    target_crs = args.target_crs or info['crs'] or 'EPSG:3857'
-    report = {'schema': 'pgmaps-georeference-result-v1', 'sourceId': project['source']['id'], 'sourceSha256': info['sha256'], 'sourceInspection': info, 'sourceFrame': project['source']['frame'], 'projectSha256': sha(args.project), 'transform': fit.method, 'fitCrs': 'EPSG:3857', 'targetCrs': target_crs, 'diagnostics': fit.diagnostics(), 'domainScreen': domain, 'matrix3857': fit.matrix.tolist() if fit.matrix is not None else None, 'originalPreserved': True, 'sourceHashVerified': bool(project['source'].get('sha256') or project['source'].get('geotiff', {}).get('sha256')), 'dryRun': args.dry_run}
+    target_crs = args.target_crs or fit.native_crs or info['crs'] or 'EPSG:3857'
+    report = {'schema': 'pgmaps-georeference-result-v1', 'sourceId': project['source']['id'], 'sourceSha256': info['sha256'], 'sourceInspection': info, 'sourceFrame': project['source']['frame'], 'projectSha256': sha(args.project), 'transform': fit.method, 'fitCrs': fit.native_crs or 'EPSG:3857', 'targetCrs': target_crs, 'diagnostics': fit.diagnostics(), 'domainScreen': domain, 'matrix3857': fit.matrix.tolist() if fit.matrix is not None else None, 'originalPreserved': True, 'sourceHashVerified': bool(project['source'].get('sha256') or project['source'].get('geotiff', {}).get('sha256')), 'dryRun': args.dry_run}
+    if fit.native_matrix is not None:
+        report['recoveredPlacement'] = copy.deepcopy(project['recoveredPlacement'])
     save(out / 'project.json', project)
     if args.dry_run:
         save(out / 'result.json', report)
@@ -496,7 +567,7 @@ def stage_patch(args):
     for name, file, mime, key in [('native', native, 'image/tiff', 'raw'), ('tiles', tiles, 'application/vnd.pmtiles', 'tiles'), ('thumbnail', thumb, 'image/webp', 'previews')]:
         digest = sha(file)
         artifacts[name] = {'path': str(file), 'sha256': digest, 'bytes': file.stat().st_size, 'mime': mime, 'key': f'{key}/{digest}{file.suffix}'}
-    patch = {'schema': 'pgmaps-georeference-catalogue-patch-v1', 'id': args.id, 'expectedNativeSha256': args.expected_native_sha, 'sourceCatalogueSha256': sha(args.catalogue), 'artifacts': artifacts, 'geometry': geometry, 'revision': {'projectSha256': result['projectSha256'], 'sourceId': result['sourceId'], 'sourceSha256': result['sourceSha256'], 'sourceFrame': result['sourceFrame'], 'sourceIdentity': identity, 'sourceBinding': binding, 'transform': result['transform'], 'fitCrs': 'EPSG:3857', 'diagnostics': result['diagnostics'], 'groundAccuracyCertified': False}, 'scope': 'Replace this stable item and featured components sharing its exact old native. Preserve every unrelated record and all original immutable assets.', 'liveActivation': False}
+    patch = {'schema': 'pgmaps-georeference-catalogue-patch-v1', 'id': args.id, 'expectedNativeSha256': args.expected_native_sha, 'sourceCatalogueSha256': sha(args.catalogue), 'artifacts': artifacts, 'geometry': geometry, 'revision': {'projectSha256': result['projectSha256'], 'sourceId': result['sourceId'], 'sourceSha256': result['sourceSha256'], 'sourceFrame': result['sourceFrame'], 'sourceIdentity': identity, 'sourceBinding': binding, 'transform': result['transform'], 'fitCrs': result['fitCrs'], 'diagnostics': result['diagnostics'], 'groundAccuracyCertified': False}, 'scope': 'Replace this stable item and featured components sharing its exact old native. Preserve every unrelated record and all original immutable assets.', 'liveActivation': False}
     save(out / 'catalogue-patch.json', patch)
     return {'staged': True, 'id': args.id, 'expectedNativeSha256': args.expected_native_sha, 'newNativeSha256': artifacts['native']['sha256'], 'tileCount': geometry['tileCount'], 'liveActivation': False}
 
@@ -513,6 +584,11 @@ def mark_unreviewed(record, previous, patch):
     }
     if previous.get('georeferenceRevision') is not None:
         prior['previousRevision'] = copy.deepcopy(previous['georeferenceRevision'])
+    if previous.get('georeferenceProject') is not None:
+        prior['georeferenceProject'] = copy.deepcopy(previous['georeferenceProject'])
+    # Published projects are bound to a specific native hash. Keep the old
+    # project in history, rather than offering it as the new raster's placement.
+    record.pop('georeferenceProject', None)
     record['georeferenceRevision'] = {
         **copy.deepcopy(patch['revision']),
         'reviewStatus': 'manual_adjustment_unreviewed',
@@ -636,7 +712,7 @@ def publish_patch(args):
     config = hidden_config()
     endpoint, share, token = config['endpoint'].rstrip('/'), config['shareId'], config['uploadToken']
     base = f'{endpoint}/c/{share}/'
-    with httpx.Client(timeout=180, follow_redirects=False, headers={'Accept-Encoding': 'identity'}) as client:
+    with httpx.Client(timeout=180, follow_redirects=False, headers={'Accept-Encoding': 'identity', 'User-Agent': 'PGMaps-owner-georeference/1.0'}) as client:
         def get_current():
             r = client.get(base + 'catalog.json', params={'owner_review': __import__('time').time_ns()})
             r.raise_for_status()
@@ -676,10 +752,27 @@ def publish_patch(args):
 def points_command(args):
     p = load(args.project)
     if args.import_csv:
-        rows = list(csv.DictReader(Path(args.import_csv).open(newline='')))
+        recovered = p.get('recoveredPlacement')
+        if recovered and recovered['active']:
+            if not getattr(args, 'start_new_fit', False):
+                raise ValueError('This project preserves a recovered placement. Use --start-new-fit to replace that model with a new fit from edited controls.')
+            recovered['active'] = False
+        with Path(args.import_csv).open(newline='') as csv_file:
+            rows = list(csv.DictReader(csv_file))
         if any(r.get('enabled', '').lower() not in ('true', 'false', '1', '0') for r in rows):
             raise ValueError('CSV enabled must be true, false,1 or0')
-        p['points'] = [{'id': r['id'], 'pixel': [float(r['pixelX']), float(r['pixelY'])], 'coordinate': [float(r['longitude']), float(r['latitude'])], 'enabled': r['enabled'].lower() in ('true', '1'), 'role': r['role']} for r in rows]
+        old_points = {row['id']: row for row in p['points']}
+        updated = []
+        for r in rows:
+            point = {'id': r['id'], 'pixel': [float(r['pixelX']), float(r['pixelY'])], 'coordinate': [float(r['longitude']), float(r['latitude'])], 'enabled': r['enabled'].lower() in ('true', '1'), 'role': r['role']}
+            old = old_points.get(point['id'])
+            if old and all(old.get(key) == value for key, value in point.items()):
+                if old.get('provenance'):
+                    point['provenance'] = copy.deepcopy(old['provenance'])
+            else:
+                point['provenance'] = {'kind': 'manual', 'description': 'Added or changed through the owner CSV point editor.'}
+            updated.append(point)
+        p['points'] = updated
         validate_project(p)
         if not args.output:
             raise ValueError('--output is required for CSV import')
@@ -701,7 +794,7 @@ def parser():
     p = subs.add_parser('validate', help='Validate project controls and fit without loading source bytes')
     p.add_argument('project')
     p = subs.add_parser('points', help='Round-trip point pairs as CSV while preserving project source identity')
-    p.add_argument('--project', required=True);p.add_argument('--export-csv');p.add_argument('--import-csv');p.add_argument('--output')
+    p.add_argument('--project', required=True);p.add_argument('--export-csv');p.add_argument('--import-csv');p.add_argument('--output');p.add_argument('--start-new-fit', action='store_true', help='Explicitly stop using a recovered native matrix before importing edited control points')
     p = subs.add_parser('rectify', help='Create a corrected full-resolution RGBA COG; no live writes')
     p.add_argument('--project', required=True);p.add_argument('--source');p.add_argument('--out', required=True);p.add_argument('--dry-run', action='store_true');p.add_argument('--target-crs');p.add_argument('--resolution', type=float);p.add_argument('--resampling', choices=['nearest', 'bilinear', 'cubic'], default='bilinear');p.add_argument('--alpha-band', type=int);p.add_argument('--allow-unverified-source', action='store_true');p.add_argument('--max-source-bytes', type=int, default=4 * 1024 ** 3);p.add_argument('--max-output-pixels', type=int, default=250_000_000)
     p = subs.add_parser('stage', help='Generate tiles/thumbnail and a reviewable stable-ID/SHA catalogue patch')

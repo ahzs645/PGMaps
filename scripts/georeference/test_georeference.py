@@ -29,7 +29,49 @@ def project(width=32, height=24, method='affine', source_sha=None, frame='geotif
     return {'schema': g.SCHEMA, 'pixelConvention': g.PIXELS, 'fitCrs': 'EPSG:3857', 'source': {'id': 'synthetic-map', 'url': None, 'sha256': source_sha, 'width': width, 'height': height, 'frame': {'kind': frame, 'description': 'Synthetic native pixels'}}, 'transform': method, 'points': [{'id': str(i), 'pixel': p, 'coordinate': g.geographic(world(p)), 'enabled': True, 'role': 'control'} for i, p in enumerate(pixels)]}
 
 
+def recovered_project(source_sha='a' * 64):
+    p = project(source_sha=source_sha, frame='derived-image')
+    p['schema'] = g.RECOVERY_SCHEMA
+    p['points'] = []
+    p['recoveredPlacement'] = {
+        'crs': 'EPSG:3005', 'active': True,
+        'matrix': [[2, .5, 1000000], [.25, -3, 1000000]],
+        'method': 'archived-constrained-affine',
+        'summary': 'Synthetic preserved model without invented control pairs.',
+        'recoveredAt': '2026-11-08',
+        'evidence': [{'label': 'Synthetic archived coefficients', 'sha256': 'b' * 64}],
+    }
+    return p
+
+
 class TestMath(unittest.TestCase):
+    def test_recovered_matrix_never_refits_sparse_or_noisy_evidence(self):
+        p = recovered_project()
+        fit = g.Fit(p)
+        expected = fit.forward([10.5, 12.25])
+        p['points'] = [{'id': 'grid', 'pixel': [10.5, 12.25], 'coordinate': [-126, 54], 'enabled': True, 'role': 'control', 'provenance': {'kind': 'inherited-grid', 'description': 'Inherited from a parent frame.'}}]
+        changed = g.Fit(p)
+        np.testing.assert_array_equal(changed.forward([10.5, 12.25]), expected)
+        self.assertIsNone(changed.matrix)
+        self.assertEqual(changed.diagnostics()['fitCrs'], 'EPSG:3005')
+        self.assertFalse(changed.diagnostics()['pointsRefitted'])
+        p['recoveredPlacement']['active'] = False
+        with self.assertRaisesRegex(ValueError, '3'):
+            g.Fit(p)
+
+    def test_recovery_schema_and_native_matrix_are_required(self):
+        for mutate in (
+            lambda p: p.update(schema=g.SCHEMA),
+            lambda p: p.pop('recoveredPlacement'),
+            lambda p: p['source'].update(sha256=None),
+            lambda p: p['recoveredPlacement'].update(crs='EPSG:3857'),
+            lambda p: p['recoveredPlacement'].update(matrix=[[1, 2, 3], [2, 4, 5]]),
+        ):
+            p = recovered_project()
+            mutate(p)
+            with self.assertRaises(ValueError):
+                g.Fit(p)
+
     def test_similarity_reflects_image_y(self):
         p = project(method='similarity')
         for row in p['points']:
@@ -144,6 +186,7 @@ class TestMath(unittest.TestCase):
         old_review = {'status': 'corrected_provisional', 'ground_accuracy_certified': True, 'label': 'Supported provisional'}
         for record in [catalog['items'][0], catalog['featured'][0]]:
             record.update(confidence='provisional', sourceProductClass='supported_provisional_gis', alignmentReview=copy.deepcopy(old_review), caveat='Previously approved placement.')
+            record['georeferenceProject'] = {'url': 'https://example.invalid/old.json', 'sha256': 'a' * 64, 'sourceSha256': 'b' * 64, 'nativeSha256': '0' * 64}
         original = copy.deepcopy(catalog)
         patch = synthetic_patch()
         patch['revision']['groundAccuracyCertified'] = True
@@ -158,6 +201,8 @@ class TestMath(unittest.TestCase):
             self.assertEqual(previous['confidence'], 'provisional')
             self.assertEqual(previous['alignmentReview'], old_review)
             self.assertEqual(previous['caveat'], 'Previously approved placement.')
+            self.assertEqual(previous['georeferenceProject']['nativeSha256'], '0' * 64)
+            self.assertNotIn('georeferenceProject', record)
             self.assertNotIn('Previously approved', record['caveat'])
         self.assertEqual(changed['items'][1], original['items'][1])
         self.assertEqual(catalog, original)
@@ -187,6 +232,64 @@ class TestRasters(unittest.TestCase):
         args = dict(project=str(self.project_file), source=str(self.source), out=str(self.root / 'corrected'), max_source_bytes=10000000, allow_unverified_source=False, dry_run=False, target_crs=None, alpha_band=None, resampling='nearest', resolution=None, max_output_pixels=1000000)
         args.update(kw)
         return argparse.Namespace(**args)
+
+    def test_recovered_native_matrix_exports_exact_centres_and_original_alpha(self):
+        image = self.root / 'recovered.png'
+        with rasterio.open(self.source) as d:
+            Image.fromarray(np.moveaxis(d.read(), 0, -1)).save(image)
+        p = recovered_project(g.sha(image))
+        g.save(self.project_file, p)
+        fit = g.Fit(p)
+        vrt = self.root / 'native-placement.vrt'
+        g.source_vrt(vrt, image, fit)
+        probes = [[0, 0], [12.25, 8.75], [31, 23]]
+        # Independent GDAL transform checks the pixel-centre/edge conversion
+        # and projection; it does not use Fit.forward to form the source VRT.
+        result = g.command(['gdaltransform', '-t_srs', 'EPSG:3857', vrt], '\n'.join(f'{x + .5} {y + .5}' for x, y in probes) + '\n')
+        actual = np.array([[float(v) for v in row.split()[:2]] for row in result.strip().splitlines()])
+        np.testing.assert_allclose(actual, fit.forward(probes), atol=1e-6)
+        g.run_rectify(self.args(source=str(image)))
+        report = g.load(self.root / 'corrected/result.json')
+        self.assertEqual(report['fitCrs'], 'EPSG:3005')
+        self.assertEqual(report['recoveredPlacement']['matrix'], p['recoveredPlacement']['matrix'])
+        self.assertIsNone(report['matrix3857'])
+        self.assertFalse(report['diagnostics']['pointsRefitted'])
+        with rasterio.open(report['native']['path']) as d:
+            self.assertEqual(d.crs.to_epsg(), 3005)
+            self.assertEqual(d.colorinterp[-1], ColorInterp.alpha)
+            self.assertEqual(d.tags(ns='IMAGE_STRUCTURE')['LAYOUT'], 'COG')
+            self.assertGreater(np.count_nonzero(d.read(4) == 255), 0)
+            self.assertGreater(np.count_nonzero(d.read(4) == 0), 0)
+        self.assertEqual(g.sha(image), p['source']['sha256'])
+
+    def test_recovered_csv_requires_explicit_new_fit_and_tracks_changed_provenance(self):
+        p = recovered_project()
+        p['points'] = project()['points']
+        for row in p['points']:
+            row['provenance'] = {'kind': 'archived-control', 'description': 'Exact archived correspondence.'}
+        g.save(self.project_file, p)
+        csv_path = self.root / 'points.csv'
+        output = self.root / 'edited.json'
+        args = argparse.Namespace(project=str(self.project_file), export_csv=str(csv_path), import_csv=None, output=None, start_new_fit=False)
+        g.points_command(args)
+        args.export_csv = None
+        args.import_csv = str(csv_path)
+        args.output = str(output)
+        with self.assertRaisesRegex(ValueError, '--start-new-fit'):
+            g.points_command(args)
+        self.assertFalse(output.exists())
+        args.start_new_fit = True
+        g.points_command(args)
+        edited = g.load(output)
+        self.assertFalse(edited['recoveredPlacement']['active'])
+        self.assertEqual(edited['points'][0]['provenance'], p['points'][0]['provenance'])
+        text = csv_path.read_text().replace('0,0,0,', '0,0.1,0,', 1)
+        csv_path.write_text(text)
+        g.points_command(args)
+        edited = g.load(output)
+        self.assertEqual(edited['points'][0]['provenance']['kind'], 'manual')
+        self.assertEqual(edited['points'][1]['provenance']['kind'], 'archived-control')
+        self.assertTrue(g.load(self.project_file)['recoveredPlacement']['active'])
 
     def test_native_cog_pixel_frame_overrides_old_georeferencing(self):
         g.run_rectify(self.args())

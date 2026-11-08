@@ -38,6 +38,15 @@ export type SourceImageRecord = {
   dateLabel?: string
   statusNote?: string
 }
+/** Immutable owner-published project, bound to both its original pixels and the current map revision. */
+export type GeoreferenceProjectReference = {
+  url: string
+  sha256: string
+  sourceSha256: string
+  nativeSha256: string
+  label?: string
+  summary?: string
+}
 export type RasterRecord = {
   id: string
   title: string
@@ -52,6 +61,7 @@ export type RasterRecord = {
   sources: SourceLink[]
   fullSheets: Sheet[]
   downloads: { url: string; bytes?: number; sha256?: string }[]
+  georeferenceProject?: GeoreferenceProjectReference
   alignmentReview?: { label: string; summary: string }
   dateLabel?: string
 }
@@ -88,6 +98,45 @@ export function httpsURL(value: unknown, base?: string): string {
     throw Error('Use a public HTTPS URL without embedded credentials.')
   url.hash = ''
   return url.href.replace(/%7B/gi, '{').replace(/%7D/gi, '}')
+}
+export function parseGeoreferenceProjectReference(
+  value: unknown,
+  base?: string,
+): GeoreferenceProjectReference | undefined {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    throw Error('The saved alignment project reference must be an object.')
+  const v = value as Record<string, unknown>
+  const sha = (key: 'sha256' | 'sourceSha256' | 'nativeSha256') => {
+    const hash = v[key]
+    if (typeof hash !== 'string' || !/^[a-f0-9]{64}$/i.test(hash))
+      throw Error(`The saved alignment project needs a valid ${key} checksum.`)
+    return hash.toLowerCase()
+  }
+  const optionalText = (key: 'label' | 'summary', maximum: number) => {
+    const value = v[key]
+    if (value === undefined) return undefined
+    if (typeof value !== 'string' || value.length > maximum)
+      throw Error(`The saved alignment project ${key} must be text of at most ${maximum} characters.`)
+    return value
+  }
+  let url: string
+  try {
+    if (typeof v.url !== 'string' || !v.url.trim()) throw Error('Missing project URL')
+    url = httpsURL(v.url, base)
+  } catch {
+    throw Error('The saved alignment project needs a public HTTPS URL without credentials.')
+  }
+  const label = optionalText('label', 1000)
+  const summary = optionalText('summary', 6000)
+  return {
+    url,
+    sha256: sha('sha256'),
+    sourceSha256: sha('sourceSha256'),
+    nativeSha256: sha('nativeSha256'),
+    ...(label !== undefined ? { label } : {}),
+    ...(summary !== undefined ? { summary } : {}),
+  }
 }
 function bounds(value: unknown): Bounds {
   if (!Array.isArray(value) || value.length !== 4 || !value.every((v) => typeof v === 'number' && Number.isFinite(v)))
@@ -217,6 +266,7 @@ function record(value: unknown, base: string): RasterRecord {
     sources: links,
     fullSheets: sheets,
     downloads,
+    georeferenceProject: parseGeoreferenceProjectReference(v.georeferenceProject, base),
     alignmentReview: review ? { label: text(review.label), summary: text(review.summary) } : undefined,
   }
 }

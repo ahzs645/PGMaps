@@ -90,6 +90,7 @@ function MapInteraction({
 
 export function ReferencePane({
   source,
+  readOnly = false,
   points,
   selectedId,
   preview,
@@ -100,6 +101,7 @@ export function ReferencePane({
   onSelect,
 }: {
   source: LoadedSource | null
+  readOnly?: boolean
   points: ControlPair[]
   selectedId: string | null
   preview: WarpedPreview | null
@@ -221,11 +223,13 @@ export function ReferencePane({
     <section className="min-w-0 overflow-hidden rounded-lg border bg-card" aria-label="Reference map editor">
       <div className="flex min-h-14 flex-wrap items-center justify-between gap-2 border-b p-3">
         <div>
-          <h2 className="text-sm font-semibold">2. Match on the map</h2>
+          <h2 className="text-sm font-semibold">{readOnly ? '2. Compare the placement' : '2. Match on the map'}</h2>
           <p className="text-xs text-muted-foreground">
-            {armed
-              ? 'Click the matching landmark to complete this pair'
-              : 'Drag a numbered marker to refine its target'}
+            {readOnly
+              ? 'Inspect the recorded placement and its reference points'
+              : armed
+                ? 'Click the matching landmark to complete this pair'
+                : 'Drag a numbered marker to refine its target'}
           </p>
         </div>
         <select
@@ -262,7 +266,7 @@ export function ReferencePane({
       <div className="relative h-[26rem] sm:h-[30.5rem]" data-testid="georeference-reference">
         <AppMap styles={styles} center={[-125.4, 53.8]} zoom={6} cooperativeGestures>
           <MapTableBridge table={table} />
-          <MapInteraction bounds={bounds} focus={focus} armed={armed} onPick={onPick} />
+          <MapInteraction bounds={bounds} focus={focus} armed={armed && !readOnly} onPick={onPick} />
           {source?.record?.assets.map((asset, i) => (
             <MapRasterLayer
               key={`${source.descriptor.id}-${i}`}
@@ -309,7 +313,7 @@ export function ReferencePane({
               key={point.id}
               longitude={point.coordinate[0]}
               latitude={point.coordinate[1]}
-              draggable
+              draggable={!readOnly}
               onClick={() => onSelect(point.id)}
               onDragEnd={({ lng, lat }) => onMove(point.id, [lng, lat])}
             >

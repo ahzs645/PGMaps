@@ -1,5 +1,7 @@
 /** Portable control points always address the exact source pixel frame, never its thumbnail. */
 export const GEOREFERENCE_SCHEMA = 'pgmaps-georeference-v1' as const
+/** Older readers must reject recovered native models instead of silently refitting their points. */
+export const GEOREFERENCE_RECOVERY_SCHEMA = 'pgmaps-georeference-v2' as const
 export const PIXEL_CONVENTION = 'pixel-centres-x-right-y-down' as const
 export const FIT_CRS = 'EPSG:3857' as const
 export const MAX_CONTROL_PAIRS = 100
@@ -35,10 +37,27 @@ export interface ControlPair {
   coordinate: Coordinate
   enabled: boolean
   role: PointRole
+  provenance?: {
+    kind: 'archived-control' | 'inherited-grid' | 'manual'
+    description: string
+  }
+}
+
+export type AffineMatrix = [[number, number, number], [number, number, number]]
+
+export interface RecoveredPlacement {
+  /** Exact archived pixel-centre to native projected coordinate matrix, never a Mercator refit. */
+  crs: 'EPSG:3005'
+  matrix: AffineMatrix
+  active: boolean
+  method: string
+  summary: string
+  recoveredAt: string
+  evidence: { label: string; url?: string; sha256?: string }[]
 }
 
 export interface GeoreferenceProject {
-  schema: typeof GEOREFERENCE_SCHEMA
+  schema: typeof GEOREFERENCE_SCHEMA | typeof GEOREFERENCE_RECOVERY_SCHEMA
   pixelConvention: typeof PIXEL_CONVENTION
   fitCrs: typeof FIT_CRS
   source: GeoreferenceSource
@@ -46,6 +65,7 @@ export interface GeoreferenceProject {
   points: ControlPair[]
   title?: string
   notes?: string
+  recoveredPlacement?: RecoveredPlacement
 }
 
 export class GeoreferenceValidationError extends Error {
@@ -126,6 +146,49 @@ export function validateCoordinate(value: unknown, label = 'Coordinate'): Coordi
   return coordinate
 }
 
+function recoveredPlacement(value: unknown): RecoveredPlacement {
+  const raw = object(value, 'Recovered placement')
+  if (raw.crs !== 'EPSG:3005') return fail('Recovered placement must declare its supported EPSG:3005 native CRS.')
+  if (typeof raw.active !== 'boolean') return fail('Recovered placement must declare active.')
+  if (
+    !Array.isArray(raw.matrix) ||
+    raw.matrix.length !== 2 ||
+    raw.matrix.some(
+      (row) => !Array.isArray(row) || row.length !== 3 || row.some((v) => typeof v !== 'number' || !Number.isFinite(v)),
+    )
+  )
+    return fail('Recovered placement needs a finite two-by-three pixel-centre matrix.')
+  const matrix = raw.matrix.map((row) => [...row]) as AffineMatrix
+  const determinant = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0]
+  if (!Number.isFinite(determinant) || Math.abs(determinant) <= 1e-10) {
+    return fail('Recovered placement matrix must be invertible.')
+  }
+  if (!Array.isArray(raw.evidence) || raw.evidence.length > 30)
+    return fail('Recovered evidence must contain at most 30 references.')
+  const evidence = raw.evidence.map((item, index) => {
+    const entry = object(item, `Recovery evidence ${index + 1}`)
+    const sha256 = entry.sha256 === undefined ? undefined : hash(entry.sha256, 'Evidence SHA-256')
+    if (sha256 === null) return fail('An evidence hash must be a SHA-256 string when supplied.')
+    return {
+      label: text(entry.label, 'Evidence label', 1000),
+      ...(entry.url === undefined ? {} : { url: url(entry.url, 'Evidence URL') }),
+      ...(sha256 === undefined ? {} : { sha256 }),
+    }
+  })
+  const recoveredAt = text(raw.recoveredAt, 'Recovery date', 30)
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(recoveredAt) || !Number.isFinite(Date.parse(recoveredAt)))
+    return fail('Recovery date must use YYYY-MM-DD.')
+  return {
+    crs: 'EPSG:3005',
+    matrix,
+    active: raw.active,
+    method: text(raw.method, 'Recovered method', 1000),
+    summary: text(raw.summary, 'Recovered placement summary', 6000),
+    recoveredAt,
+    evidence,
+  }
+}
+
 /** Validates and returns a detached canonical object; it never trusts imported cached fit results. */
 export function parseProject(input: unknown): GeoreferenceProject {
   let value = input
@@ -137,7 +200,14 @@ export function parseProject(input: unknown): GeoreferenceProject {
     }
   }
   const project = object(value, 'Project')
-  if (project.schema !== GEOREFERENCE_SCHEMA) return fail('Unsupported georeferencing project schema.')
+  if (project.schema !== GEOREFERENCE_SCHEMA && project.schema !== GEOREFERENCE_RECOVERY_SCHEMA) {
+    return fail('Unsupported georeferencing project schema.')
+  }
+  if (project.schema === GEOREFERENCE_SCHEMA && project.recoveredPlacement !== undefined) {
+    return fail('A recovered placement requires the v2 project schema; older readers cannot reproduce it.')
+  }
+  const recovered =
+    project.schema === GEOREFERENCE_RECOVERY_SCHEMA ? recoveredPlacement(project.recoveredPlacement) : undefined
   if (project.pixelConvention !== PIXEL_CONVENTION) {
     return fail('The project must declare zero-based pixel centres, x right and y down.')
   }
@@ -165,6 +235,7 @@ export function parseProject(input: unknown): GeoreferenceProject {
       ...(crs !== undefined ? { crs } : {}),
     },
   }
+  if (recovered && !source.sha256) return fail('Recovered projects require the exact source SHA-256.')
   if (rawSource.geotiff !== undefined) {
     const tiff = object(rawSource.geotiff, 'Source GeoTIFF')
     source.geotiff = {
@@ -189,18 +260,27 @@ export function parseProject(input: unknown): GeoreferenceProject {
     if (item.role !== 'control' && item.role !== 'check') {
       return fail(`Point ${id} must be a control or a held-out check.`)
     }
+    let provenance: ControlPair['provenance']
+    if (item.provenance !== undefined) {
+      const raw = object(item.provenance, `Point ${id} provenance`)
+      if (raw.kind !== 'archived-control' && raw.kind !== 'inherited-grid' && raw.kind !== 'manual') {
+        return fail(`Point ${id} has an unsupported provenance kind.`)
+      }
+      provenance = { kind: raw.kind, description: text(raw.description, 'Point provenance description') }
+    }
     return {
       id,
       pixel,
       coordinate: validateCoordinate(item.coordinate, `Point ${id} coordinate`),
       enabled: item.enabled,
       role: item.role,
+      ...(provenance ? { provenance } : {}),
     }
   })
   const title = optionalText(project.title, 'Project title', 1000)
   const notes = optionalText(project.notes, 'Project notes', 20_000)
   return {
-    schema: GEOREFERENCE_SCHEMA,
+    schema: project.schema,
     pixelConvention: PIXEL_CONVENTION,
     fitCrs: FIT_CRS,
     source,
@@ -208,6 +288,7 @@ export function parseProject(input: unknown): GeoreferenceProject {
     points,
     ...(title !== undefined ? { title } : {}),
     ...(notes !== undefined ? { notes } : {}),
+    ...(recovered ? { recoveredPlacement: recovered } : {}),
   }
 }
 
