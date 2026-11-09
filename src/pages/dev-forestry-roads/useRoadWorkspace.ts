@@ -350,6 +350,11 @@ export function useRoadWorkspace() {
   }, [analyses, project.alignments, lastValidInputs])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!
+  // While an edit is invalid the analysis is of the last inputs that calculated, not of `alignment`.
+  const calculatedAlignment = useMemo(() => {
+    const kept = analysis.invalidInput && analysis.stations.length ? lastValidInputs.get(alignment.id) : undefined
+    return kept ? { ...alignment, ...kept } : alignment
+  }, [alignment, analysis, lastValidInputs])
   const undo = () => {
     const previous = history.current.past.pop()
     if (!previous) return
@@ -383,6 +388,8 @@ export function useRoadWorkspace() {
     referenceSurfaces,
     alignment,
     analysis,
+    /** The active road with the inputs `analysis` was calculated from; `alignment` unless an input is invalid. */
+    calculatedAlignment,
     analyses,
     processMs,
     station,

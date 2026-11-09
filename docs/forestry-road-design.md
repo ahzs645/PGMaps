@@ -488,9 +488,24 @@ the section is evaluated at the typed chainage (`roadStationAt`, `stationAt.ts`,
 `createRoadStationSampler`), with the same terrain, template and reference rules as a
 calculated one, and the plan marker, profile, section and readout all show that station.
 A site, culvert or other item added "at the selected station" takes it. Such a station has
-no interval volumes, and its mass ordinate is read off the line between its neighbours. A
-value outside the road is held to the nearer end and the box says so. Pointing at a chart,
-the slider and the arrow keys still select calculated stations.
+no interval volumes, and its mass ordinate is read off the line between its neighbours. It
+carries the flags of the point itself (its section's, a radius below the minimum, an
+avoidance area) and the reasons an incomplete section could not be completed, because the
+engine builds it with the same `stationRecord` as a calculated station. The grade standard
+is judged over runs of calculated stations, so it takes the grade flag, or the lack of one,
+of the neighbour whose grade it has. A vertical-check message stays on the calculated
+station it was raised at. A value outside the road is held to the nearer end and the box
+says so. Pointing at a chart, the slider and the arrow keys still select calculated
+stations.
+
+The views follow each number as it is typed, and the text in the box is never rewritten
+during the entry: it stays as typed until Enter or blur (`StationBox.tsx`). While an input
+is invalid the typed station is evaluated on the road that is shown, the one with its last
+valid inputs (`calculatedAlignment`, `useRoadWorkspace.ts`). A terrain profile has ground
+at its calculated stations only, so there the views show the nearest one; once the entry
+is finished the box takes that station and a note beside the slider says the nearest
+calculated station is shown (`typedStationNote`). The same note appears on a road whose
+section cannot be evaluated at the typed station.
 
 Dense profiles stay readable. When PVIs fall under 44 px apart on screen (an optimized line,
 or a long road zoomed out), the profile drops curve bands and labels, thins station callouts

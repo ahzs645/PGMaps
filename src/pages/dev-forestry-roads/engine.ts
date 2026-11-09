@@ -1286,10 +1286,11 @@ function* segmentCandidates(root: SegmentNode, box: Box): Generator<IndexedSegme
   }
 }
 
-function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType<typeof flattened>) {
+/** Context features in the road's own frame, with their bounding boxes. Enforces the context limits. */
+function projectedContext(context: ContextFeature[], path: Path) {
   if (context.length > 500) throw new Error('Use at most 500 context features per project.')
   let vertices = 0
-  const features = context.map((feature) => {
+  return context.map((feature) => {
     const lines = feature.geometry.type === 'LineString' ? [feature.geometry.coordinates] : feature.geometry.coordinates
     vertices += lines.reduce((n, a) => n + a.length, 0)
     if (vertices > 50_000) throw new Error('Crop context layers to at most 50,000 vertices before importing.')
@@ -1312,6 +1313,24 @@ function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType
       }
     return { feature, rings, box }
   })
+}
+
+/** The names of the avoidance areas a point lies in. */
+function avoidanceLookup(features: ReturnType<typeof projectedContext>) {
+  const avoid = features.filter((f) => f.feature.kind === 'avoid' && f.feature.geometry.type === 'Polygon')
+  return (xy: XY) =>
+    avoid
+      .filter(
+        ({ rings, box }) =>
+          intersects(box, [xy[0], xy[1], xy[0], xy[1]]) &&
+          ringContains(xy, rings[0]) &&
+          !rings.slice(1).some((ring) => ringContains(xy, ring)),
+      )
+      .map((f) => f.feature.name)
+}
+
+function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType<typeof flattened>) {
+  const features = projectedContext(context, path)
   const crossings: Crossing[] = []
   const index = segmentIndex(flat.slice(1).map((b, i) => ({ a: flat[i], b, box: segmentBox(flat[i].xy, b.xy) })))
   let comparisons = 0
@@ -1346,18 +1365,65 @@ function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType
         }
       }
   crossings.sort((a, b) => a.chainage - b.chainage)
-  const avoid = features.filter((f) => f.feature.kind === 'avoid' && f.feature.geometry.type === 'Polygon')
+  return { crossings, avoidAt: avoidanceLookup(features) }
+}
+
+/**
+ * One station before its interval quantities: where it is, its section, and the flags it carries on
+ * its own account (what its section raises, the horizontal checks, the avoidance areas it is in).
+ * `analyzeRoad` and `createRoadStationSampler` both build stations here, so a station evaluated
+ * between two calculated ones says what they say. Grade flags are judged over runs of stations and
+ * vertical checks over the whole profile; `analyzeRoad` adds those afterwards.
+ */
+function stationRecord(
+  index: number,
+  s: number,
+  alignment: Alignment,
+  path: Path,
+  profile: ReturnType<typeof verticalProfile>,
+  terrain: TerrainSource,
+  settings: RoadSettings,
+  references: SectionReferenceSources | undefined,
+  avoidAt: (xy: XY) => string[],
+): RoadStation {
+  const p = location(path, s),
+    groundElevation = finite(terrain.elevationAt(...p.coordinate)),
+    vertical = profile.value(s)
+  const designElevation = vertical?.elevation ?? groundElevation
+  const section = sectionAt(
+    p.coordinate,
+    p.bearing,
+    designElevation,
+    alignment,
+    s,
+    settings.crossSectionHalfWidth,
+    terrain,
+    references,
+  )
+  const flags = [...section.flags]
+  if (p.radius === 0) flags.push('Sharp horizontal PI: curve required')
+  else if (p.radius !== null && p.radius < settings.minRadius) flags.push(`Radius below ${settings.minRadius} m`)
+  const curveCriteria = curveDesignAt(alignment, s)
+  if (curveCriteria) flags.push(...curveCriteria.warnings)
+  for (const name of avoidAt(p.xy)) flags.push(`Avoidance area: ${name}`)
   return {
-    crossings,
-    avoidAt: (xy: XY) =>
-      avoid
-        .filter(
-          ({ rings, box }) =>
-            intersects(box, [xy[0], xy[1], xy[0], xy[1]]) &&
-            ringContains(xy, rings[0]) &&
-            !rings.slice(1).some((ring) => ringContains(xy, ring)),
-        )
-        .map((f) => f.feature.name),
+    index,
+    chainage: s,
+    coordinate: p.coordinate,
+    bearing: p.bearing,
+    groundElevation,
+    designElevation,
+    gradePercent: vertical?.grade ?? null,
+    groundGradePercent: null,
+    curveRadiusM: p.radius,
+    ...effectiveWidths(alignment, s),
+    ...section,
+    flags,
+    // Every flag the section builder raises is a reason the section could not be completed.
+    ...(section.complete ? {} : { incompleteReasons: [...section.flags] }),
+    cutVolumeM3: null,
+    fillVolumeM3: null,
+    massM3: null,
   }
 }
 
@@ -1393,6 +1459,14 @@ export function createRoadStationSampler(
     if (!entry) boundaries.push(range.start - 1e-5)
     if (!exit) boundaries.push(range.end + 1e-5)
   }
+  // Projected on the first station that needs it; most samplers are given no avoidance area.
+  let avoidance: ((xy: XY) => string[]) | undefined
+  const avoidAt = (xy: XY) => {
+    avoidance ??= references?.context?.some((feature) => feature.kind === 'avoid')
+      ? avoidanceLookup(projectedContext(references.context, path))
+      : () => []
+    return avoidance(xy)
+  }
   return {
     length: path.length,
     boundaries: [...new Set(boundaries.filter((s) => s >= 0 && s <= path.length))].sort((a, b) => a - b),
@@ -1400,37 +1474,17 @@ export function createRoadStationSampler(
     at(chainage) {
       if (!Number.isFinite(chainage) || chainage < 0 || chainage > path.length + EPS)
         throw Error('Road section station must lie inside the compiled alignment.')
-      const s = Math.min(path.length, chainage),
-        p = location(path, s)
-      const groundElevation = finite(terrain.elevationAt(...p.coordinate)),
-        vertical = profile.value(s)
-      const designElevation = vertical?.elevation ?? groundElevation
-      const section = sectionAt(
-        p.coordinate,
-        p.bearing,
-        designElevation,
+      return stationRecord(
+        0,
+        Math.min(path.length, chainage),
         alignment,
-        s,
-        settings.crossSectionHalfWidth,
+        path,
+        profile,
         terrain,
+        settings,
         referenceInputs,
+        avoidAt,
       )
-      return {
-        index: 0,
-        chainage: s,
-        coordinate: p.coordinate,
-        bearing: p.bearing,
-        groundElevation,
-        designElevation,
-        gradePercent: vertical?.grade ?? null,
-        groundGradePercent: null,
-        curveRadiusM: p.radius,
-        ...effectiveWidths(alignment, s),
-        ...section,
-        cutVolumeM3: null,
-        fillVolumeM3: null,
-        massM3: null,
-      }
     },
   }
 }
@@ -1515,47 +1569,9 @@ export function analyzeRoad(
   for (let s = interval; s < path.length - EPS && stationValues.length < MAX_STATIONS; s += interval)
     stationValues.push(s)
   const chainages = stationValues.sort((a, b) => a - b).filter((s, i, a) => !i || s - a[i - 1] > 1e-6)
-  const stations: RoadStation[] = chainages.map((s, index) => {
-    const p = location(path, s),
-      groundElevation = finite(terrain.elevationAt(...p.coordinate)),
-      vertical = profile.value(s)
-    const designElevation = vertical?.elevation ?? groundElevation
-    const section = sectionAt(
-      p.coordinate,
-      p.bearing,
-      designElevation,
-      alignment,
-      s,
-      settings.crossSectionHalfWidth,
-      terrain,
-      references,
-    )
-    const flags = [...section.flags]
-    if (p.radius === 0) flags.push('Sharp horizontal PI: curve required')
-    else if (p.radius !== null && p.radius < settings.minRadius) flags.push(`Radius below ${settings.minRadius} m`)
-    const curveCriteria = curveDesignAt(alignment, s)
-    if (curveCriteria) flags.push(...curveCriteria.warnings)
-    for (const name of avoidAt(p.xy)) flags.push(`Avoidance area: ${name}`)
-    return {
-      index,
-      chainage: s,
-      coordinate: p.coordinate,
-      bearing: p.bearing,
-      groundElevation,
-      designElevation,
-      gradePercent: vertical?.grade ?? null,
-      groundGradePercent: null,
-      curveRadiusM: p.radius,
-      ...effectiveWidths(alignment, s),
-      ...section,
-      flags,
-      // Every flag the section builder raises is a reason the section could not be completed.
-      ...(section.complete ? {} : { incompleteReasons: [...section.flags] }),
-      cutVolumeM3: null,
-      fillVolumeM3: null,
-      massM3: null,
-    }
-  })
+  const stations: RoadStation[] = chainages.map((s, index) =>
+    stationRecord(index, s, alignment, path, profile, terrain, settings, references, avoidAt),
+  )
   let cutVolumeM3 = 0,
     fillVolumeM3 = 0,
     surfaceVolumeM3 = 0,
