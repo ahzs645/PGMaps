@@ -546,7 +546,10 @@ export async function compareRoutes(
         detail(doing)
         return { result: await run(), quick: false }
       } catch (cause) {
-        if (failed(cause) === 'no-candidate') {
+        // The search keeps one arrival per cell and heading, so "no line left" is not proof. In the
+        // tube along a grid route, where a line is known to exist, the second search is still worth
+        // its second or two; in a full corridor the next step is more room.
+        if (failed(cause) === 'no-candidate' && (corridor !== 'routed' || drainage)) {
           corridors.set(place, 'empty')
           return null
         }
