@@ -179,3 +179,117 @@ export function constraintRouteIssues(
   }
   return issues
 }
+
+/** One end of a road that a route search cannot start from or reach, and why. */
+export interface BlockedRouteEnd {
+  end: 'start' | 'end'
+  featureId: string
+  /** Which end, the feature by name, how far, and what to change. */
+  message: string
+}
+
+/** Metres from a point to a line of coordinates, on a plane fitted at the point. */
+function metresToLine(at: Coordinate, line: readonly GeoJSON.Position[]) {
+  const scale = (Math.PI / 180) * 6371008.8,
+    east = scale * Math.cos((at[1] * Math.PI) / 180)
+  const xy = line.map((p) => [(p[0] - at[0]) * east, (p[1] - at[1]) * scale])
+  let near = xy.length === 1 ? Math.hypot(xy[0][0], xy[0][1]) : Infinity
+  for (let i = 1; i < xy.length; i++) {
+    const [ax, ay] = xy[i - 1],
+      dx = xy[i][0] - ax,
+      dy = xy[i][1] - ay,
+      size = dx * dx + dy * dy
+    const t = size ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / size)) : 0
+    near = Math.min(near, Math.hypot(ax + t * dx, ay + t * dy))
+  }
+  return near
+}
+
+/** Clearances a search keeps from blocked features beyond their own outline, m. Omitted means none. */
+export interface RouteEndClearance {
+  /** From excluded areas and lines. */
+  excludedM?: number
+  /** From stream lines, when the search may not cross streams. */
+  streamM?: number
+}
+
+/**
+ * The ends of a road that sit inside an area closed to routes: an excluded or unreviewed
+ * conditional area, a stream's riparian screening area, or a clearance a search keeps from either.
+ * A search stops there before it starts, and a stream's screening area is not listed under
+ * Constraints, so each entry names the end, the feature and the distance, and says what to change.
+ */
+export function blockedRouteEnds(
+  start: Coordinate,
+  end: Coordinate,
+  context: readonly ContextFeature[],
+  clearance: RouteEndClearance = {},
+): BlockedRouteEnd[] {
+  const blocked: BlockedRouteEnd[] = []
+  const metres = (value: number) => Math.round(value).toLocaleString('en-CA')
+  // A centimetre of rounding in the distance should not ask for another whole metre.
+  const more = (value: number) => Math.max(1, Math.ceil(value - 0.01)).toLocaleString('en-CA')
+  for (const [name, at] of [
+    ['start', start],
+    ['end', end],
+  ] as const) {
+    const point: GeoJSON.Point = { type: 'Point', coordinates: [at[0], at[1]] }
+    const add = (feature: ContextFeature, message: string) =>
+      blocked.push({ end: name, featureId: feature.id, message: `The road's ${name} is ${message}` })
+    for (const feature of context) {
+      if (feature.kind !== 'avoid' && feature.kind !== 'stream') continue
+      const resolved = resolveConstraint(feature)
+      const pending = resolved.policy.treatment === 'conditional'
+      const outline =
+        feature.geometry.type === 'Polygon'
+          ? feature.geometry.coordinates
+          : [feature.geometry.coordinates as GeoJSON.Position[]]
+      const away = Math.min(...outline.map((line) => metresToLine(at, line)))
+      if (feature.kind === 'stream') {
+        const area = resolved.blocked ? riparianArea(feature) : null
+        if (area && booleanIntersects(point, area.outer))
+          add(
+            feature,
+            `${metres(away)} m from ${feature.name}, inside its ${metres(area.outerRadiusM)} m riparian screening area${pending ? ', which is closed to routes until its review is recorded' : ''}. ` +
+              `Move that end at least ${more(conservativeRiparianRadiusM(area.outerRadiusM) - away)} m further from the stream, or ${pending ? 'record the review or ' : ''}change the stream's route treatment under Terrain → Streams.`,
+          )
+        else if (clearance.streamM !== undefined && away <= clearance.streamM)
+          add(
+            feature,
+            `${metres(away)} m from ${feature.name}, inside the ${clearance.streamM} m clearance this search keeps from streams. ` +
+              `Move that end at least ${more(clearance.streamM - away)} m further away, or lower the stream clearance under Search tools.`,
+          )
+        continue
+      }
+      if (!resolved.blocked) continue
+      const closed = pending ? 'closed to routes until its review is recorded' : 'excluded'
+      const change = `${pending ? 'record the review or ' : ''}change its treatment under Terrain → Constraints`
+      if (feature.geometry.type === 'Polygon' && booleanIntersects(point, feature.geometry))
+        add(feature, `inside ${feature.name}, an area ${closed}. Move that end outside it, or ${change}.`)
+      else if (feature.geometry.type !== 'Polygon' && away < 0.01)
+        add(feature, `on ${feature.name}, a line ${closed}. Move that end off it, or ${change}.`)
+      else if (away <= (clearance.excludedM ?? 0))
+        add(
+          feature,
+          `${metres(away)} m from ${feature.name}, inside the ${clearance.excludedM} m clearance this search keeps from excluded areas. ` +
+            `Move that end at least ${more(clearance.excludedM! - away)} m further away, or lower the exclusion clearance.`,
+        )
+    }
+  }
+  return blocked
+}
+
+/**
+ * What a search says when an end is blocked. `fallback` covers an end the search itself rejects for
+ * a reason these areas do not explain.
+ */
+export function blockedRouteEndMessage(
+  start: Coordinate,
+  end: Coordinate,
+  context: readonly ContextFeature[],
+  clearance: RouteEndClearance,
+  fallback: string,
+) {
+  const blocked = blockedRouteEnds(start, end, context, clearance)
+  return blocked.length ? blocked.map((entry) => entry.message).join(' ') : fallback
+}

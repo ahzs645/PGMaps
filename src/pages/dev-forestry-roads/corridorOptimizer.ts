@@ -6,7 +6,7 @@
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
-import { routingContext } from './riparian'
+import { blockedRouteEndMessage, routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 export type RoadOptimizationObjective = 'shortest' | 'balanced' | 'contour'
@@ -533,13 +533,23 @@ function* search(
   }
   const endpointsZ = [read([0, 0]), read(end)]
   if (!endpointsZ.every(Number.isFinite)) throw Error('Both road endpoints need valid terrain elevations.')
-  if (
-    !pointAllowed([0, 0]) ||
-    !pointAllowed(end) ||
-    !segmentAllowed([0, 0], [0, 0], 0, new Set()) ||
-    !segmentAllowed(end, end, 0, new Set())
-  )
-    throw Error('An endpoint is inside or too close to an exclusion.')
+  const ends: [string, XY][] = [
+    ['start', [0, 0]],
+    ['end', end],
+  ]
+  const closed = ends.filter(([, at]) => !pointAllowed(at) || !segmentAllowed(at, at, 0, new Set()))
+  if (closed.length) {
+    const one = closed.length === 1
+    throw Error(
+      blockedRouteEndMessage(
+        guide[0],
+        guide[guide.length - 1],
+        context,
+        { excludedM: clearance },
+        `The road's ${closed.map(([name]) => name).join(' and ')} ${one ? 'is' : 'are'} inside or too close to a blocked area. Move ${one ? 'that end' : 'the ends'}, or change the treatment of the area beside ${one ? 'it' : 'them'}.`,
+      ),
+    )
+  }
   const weights = profiles[options.objective]
   type Evaluation = {
     cost: number

@@ -417,6 +417,15 @@ says so and gives the profile's reason; one whose search could not start, such a
 30 %, gives that. Lowest cost tries three lines and reports a lost line before a line never found.
 Goals that failed for the same reason share one row.
 
+**An end inside a closed area is named** (`blockedRouteEnds` in `riparian.ts`). The corridor and
+terrain-cost searches stop before they start when an end sits inside an excluded area, an area or
+stream whose conditional review is not recorded, or a clearance the search keeps from either. The
+message gives the end, the feature by name, the distance and what to change: "The road's start is
+49 m from Stream 1, inside its 100 m riparian screening area, which is closed to routes until its
+review is recorded. Move that end at least 52 m further from the stream, or record the review or
+change the stream's route treatment under Terrain → Streams." A stream's screening area is not
+listed under **Constraints**, which is why the stream has to be named.
+
 **The notice counts what came back** (`comparisonSummary`): how many routes, how many of them
 carry a flag, and the goals left without one. With no route at all it is an error that repeats the
 reason, never "ready". "No new road beat yours on these goals" means roads were designed and yours
@@ -572,6 +581,7 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
 | "The corridor search takes a grade limit of 1–30%."                       | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
 | "The corridor search takes a minimum radius of up to 1,000 m."            | Road minimum radius above 1,000 m                                                                            | Lower the minimum radius, or leave it at 0 for none                    |
+| "The road's start is _n_ m from _stream_, inside its riparian screening…" | An end is inside an area closed to routes; an unclassified stream screens 100 m either side                  | Move the end, record the stream's review or change its route treatment |
 | "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps                                                          | Change the grade, bearing or distance                                  |
 
 ## What it does not do

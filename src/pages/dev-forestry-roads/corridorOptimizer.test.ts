@@ -133,14 +133,20 @@ describe('verified sketched-corridor search', () => {
   }, 30000)
   it('rejects endpoint contact and collinear overlap with an exclusion', () => {
     const guide = [point(0, 0), point(200, 0)]
-    expect(() => optimizeRoadCorridor(guide, flat, settings, [box(0, -10, 20, 10)], options)).toThrow(/endpoint/)
-    expect(() => optimizeRoadCorridor(guide, flat, settings, [barrier('avoid', guide)], options)).toThrow(/endpoint/)
+    expect(() => optimizeRoadCorridor(guide, flat, settings, [box(0, -10, 20, 10)], options)).toThrow(
+      "The road's start is inside Excluded, an area excluded. Move that end outside it, or change its treatment under Terrain → Constraints.",
+    )
+    expect(() => optimizeRoadCorridor(guide, flat, settings, [barrier('avoid', guide)], options)).toThrow(
+      /^The road's start is on avoid, a line excluded\. .* The road's end is on avoid, a line excluded\./,
+    )
   })
   it('honours an explicit exclusion clearance', () => {
     const guide = [point(0, 0), point(200, 0)]
     expect(() =>
       optimizeRoadCorridor(guide, flat, settings, [box(-10, 4, 10, 8)], { ...options, avoidanceClearanceM: 5 }),
-    ).toThrow(/endpoint/)
+    ).toThrow(
+      "The road's start is 4 m from Excluded, inside the 5 m clearance this search keeps from excluded areas. Move that end at least 1 m further away, or lower the exclusion clearance.",
+    )
   })
   it('refuses missing endpoint elevations and a continuous no-data barrier', () => {
     const guide = [point(0, 0), point(250, 0)]

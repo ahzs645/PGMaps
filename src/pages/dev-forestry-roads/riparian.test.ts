@@ -4,6 +4,7 @@ import { constraintFingerprint, parseConstraintPolicy, resolveConstraint, type C
 import { corridorFrame, optimizeRoadCorridor } from './corridorOptimizer'
 import { importContextGeoJson, parseProject, projectGeoJson, serializeProject } from './project'
 import {
+  blockedRouteEnds,
   conservativeRiparianRadiusM,
   constraintRouteIssues,
   riparianArea,
@@ -130,6 +131,39 @@ describe('explicit planning constraints', () => {
     expect(high.avoidancePenalty).toBe(0)
     expect(high.lengthM).toBeGreaterThan(low.lengthM)
     expect(high.cost).toBeCloseTo(high.searchScore, 6)
+  })
+})
+
+describe('a road end inside an area closed to routes', () => {
+  // The creek runs along x = 200; unclassified, it screens 100 m either side until its review is recorded.
+  const near =
+    'The road\u2019s start is 50 m from Test creek, inside its 100 m riparian screening area, which is closed to routes until its review is recorded. Move that end at least 51 m further from the stream, or record the review or change the stream\u2019s route treatment under Terrain → Streams.'.replaceAll(
+      '\u2019',
+      "'",
+    )
+  it('names the end, the stream, the distance and what to change', () => {
+    expect(blockedRouteEnds(p(150, 0), p(600, 0), [stream()])).toEqual([
+      { end: 'start', featureId: 'creek', message: near },
+    ])
+    // Both ends, each with its own feature and distance.
+    const both = blockedRouteEnds(p(-300, 0), p(200, 600), [stream(), area()])
+    expect(both.map((entry) => entry.end)).toEqual(['end'])
+    expect(both[0].message).toBe(
+      "The road's end is inside Test area, an area excluded. Move that end outside it, or change its treatment under Terrain → Constraints.",
+    )
+    // A reviewed crossing, a priced area and a clear end block nothing.
+    expect(blockedRouteEnds(p(150, 0), p(600, 0), [review(stream())])).toEqual([])
+    expect(blockedRouteEnds(p(200, 0), p(600, 0), [area({ treatment: 'additional-cost', costPerM: 5 })])).toEqual([])
+    expect(blockedRouteEnds(p(-300, 0), p(600, 0), [stream(), area()])).toEqual([])
+  })
+  it('is what both searches say, instead of an unnamed endpoint and exclusion', () => {
+    expect(() =>
+      optimizeRoadCorridor([p(150, 0), p(600, 0)], flat, settings, [stream()], {
+        objective: 'shortest',
+        corridorHalfWidthM: 80,
+      }),
+    ).toThrow(near)
+    expect(() => suggestRoutes(p(150, 0), p(600, 0), flat, settings, [stream()], { crossingCost: 1 })).toThrow(near)
   })
 })
 
