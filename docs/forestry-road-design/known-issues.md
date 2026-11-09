@@ -29,6 +29,53 @@ that fixes it, and add one, with the file and function, when you find a new defe
   has not tried every line: a second search leaning toward the end found a road in a tube where
   the even search had reported none. **Find the best route** therefore still tries the next step.
 
+## Open
+
+- The gallery's example report (`docs/assets/forestry-roads/native-example-report.html` and
+  `.pdf`) was exported before the 2026-11-09 change below. It still prints "the mass curve stops
+  at the first gap" and "material is not moved across a terrain/daylight gap", and its haul figures
+  were allocated run by run. Re-export it from the workspace (`roadReportHtml`, `project.ts`).
+
+## Fixed on 2026-11-09
+
+- A gap in the terrain data no longer breaks the mass-haul curve or the haul allocation. The mass
+  ordinate is the known earthwork so far and is carried across an incomplete interval instead of
+  reading "unknown after an incomplete section" to the end of the road (`analyzeRoad`, `engine.ts`;
+  `calculateEngineering`, `engineering.ts`). Haul treats the road as continuous: cut beyond a gap
+  reaches fill or a site before it at its full distance, in nearest-source and economic mode
+  (`allocateHaul`; `materialAllocation.ts`; `sparseMaterialAllocation.ts`). A road with usable cut
+  4,190 m³ against fill 4,151 m³ used to borrow 1,692 m³ and waste 1,923 m³, the waste
+  "unallocated" beside an unbounded site. Quantities inside the gap are still unknown, excluded and
+  flagged, and an entered blocked range still stops material. Station CSV, the report and the plot
+  book now carry a mass value at and after a gap, and haul, borrow and waste on a road with gaps
+  differ from older exports.
+- The station table's rows add up to its Cum. tot. row at every reporting interval. A 100 m row
+  holding a gap used to be blanked, so the visible cut rows summed to 2,536 m³ under a total of
+  4,655 m³; it now reports the known part with a flag (`reportingRows`, `StationTable.tsx`). The
+  first row of a narrowed range no longer counts the interval before the range.
+- The station table has surfacing, stripping, borrow and waste volumes per row with totals, and a
+  CSV button that exports the table at its reporting interval. The Station CSV gained four columns
+  after `mass_balance_m3` (`interval_surfacing_volume_m3`, `interval_stripping_bank_m3`,
+  `interval_borrow_compacted_m3`, `interval_waste_bank_m3`), so read it by header, not by position.
+- A curve that does not fit says so where it was typed. A horizontal radius of 2000 used to become
+  1000 without a word (the field's own limit, now the engine's 10,000 m), and an unfitted radius or
+  vertical curve showed only in Stations → Curves or as "Unfitted" in a table. The note under the
+  field gives the tangent needed, what is available and the largest value that fits
+  (`horizontalCurveFits`, `engine.ts`; `curveFit.ts`).
+- Turnout and landing entry: the form states that Start and End include the tapers and shows the
+  full-width range. A typed entry taper of 7.5 m on a 15 m range became 5 without a word, because
+  the field's limit used the raw shared taper; the limit now uses the tapers as applied and says
+  when it holds a value (`limitedTaper`, `wideningEntry.ts`). Duplicate asks for the copy's start
+  instead of stacking it on the original.
+- Delete removes the point selected for editing. Moving or removing a point on a road with a
+  designed profile now says that its PVIs kept their stations; one 30 px drag had taken cut from
+  2,603 to 21,181 m³ with no hint why.
+- Profile tangents too short on screen for their "grade · length" label (under 100 px) now show
+  the grade alone down to 40 px, so a 129 m tangent on a whole-road view is no longer unlabelled.
+- A typed station is kept. 85 used to land on 80 and 716.1 on 720, and a pit added from the
+  selected station took the snapped value. The section is now evaluated at the typed chainage
+  (`roadStationAt`, `stationAt.ts`), and a value past either end says it was held to the road.
+
 ## Fixed on 2026-10-26
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter

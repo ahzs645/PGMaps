@@ -213,6 +213,17 @@ export interface EngineeringStation {
   materialAreas: MaterialSectionArea[]
   usableCutVolumeM3: number | null
   unusableCutVolumeM3: number | null
+  /** Bank cut of stripping materials since the previous station; null where the interval is unknown. */
+  strippingCutVolumeM3?: number | null
+  /**
+   * With a haul allocation adopted: the compacted fill this interval takes from off the road, and
+   * the bank cut it sends off the road or sidecasts, a site found or not. Their sums are the haul
+   * summary's borrow and waste. Null with haul off, with no adopted prescription, or where the
+   * interval is unknown.
+   */
+  borrowVolumeM3?: number | null
+  wasteVolumeM3?: number | null
+  /** Known earthwork so far; carried across an interval whose volumes are unknown. */
   massM3: number | null
 }
 export interface MaterialQuantity {

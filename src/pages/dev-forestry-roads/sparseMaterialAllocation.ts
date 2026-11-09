@@ -3,10 +3,11 @@
  * A fill chain transports bank material at its compacted-volume haul cost; a separate waste
  * chain transports bank volume. This avoids the dense all-source/all-demand transport matrix.
  * Every solved chain is decomposed back to actual source→destination movements and rechecked.
+ * A chain runs the whole road: an arc over road with no parcel (unknown ground) costs its length.
  */
 import { solve, type Constraint, type Model } from 'yalps'
 import { acceptsFill, haulDirectionAllowed, materialDemandKey, requiredFillAt } from './allocationPolicy'
-import type { AlignmentEngineering, FillRequirement, HaulSite } from './engineeringTypes'
+import type { AlignmentEngineering, FillRequirement } from './engineeringTypes'
 import type { AllocationParcel, EconomicAllocation, Flow } from './materialAllocation'
 
 export const MAX_SPARSE_ALLOCATION_VARIABLES = 20_000
@@ -18,7 +19,6 @@ type Demand = { parcel: AllocationParcel; volume: number; layer: string; key: st
 type Supply = { parcel: AllocationParcel; materialId: string; bank: number; factor: number; reusable: boolean }
 type Net = {
   kind: 'fill' | 'waste'
-  run: number
   materialId: string
   factor: number
   supplies: number[]
@@ -87,28 +87,15 @@ export function solveSparseMaterialAllocation(
 ): EconomicAllocation | null {
   if (options.deferExternal) return null
   const sites = e.sites.filter((site) => site.enabled !== false)
-  const runs = new Map<number, { start: number; end: number }>()
-  for (const p of parcels) {
+  for (const p of parcels)
     if (![p.start, p.end, p.chainage, p.fill].every(Number.isFinite) || p.end < p.start || p.fill < 0)
       throw Error('Sparse allocation received an invalid interval or fill quantity.')
-    const run = runs.get(p.run)
-    if (run) {
-      run.start = Math.min(run.start, p.start)
-      run.end = Math.max(run.end, p.end)
-    } else runs.set(p.run, { start: p.start, end: p.end })
-  }
-  const reachable = (site: HaulSite, runId: number) => {
-    const run = runs.get(runId)!,
-      station = Math.round(site.chainage * 1e6) / 1e6
-    return station >= run.start - 1e-7 && station <= run.end + 1e-7
-  }
-  const maximumDistanceM = Math.max(
-    0,
-    ...[...runs].map(
-      ([runId, run]) =>
-        run.end - run.start + Math.max(0, ...sites.filter((s) => reachable(s, runId)).map((s) => s.accessDistanceM)),
-    ),
-  )
+  // The longest haul any movement can make: the whole stretch of road holding parcels and sites,
+  // plus the longest site access. Unknown ground between parcels is road like any other.
+  const stations = [...parcels.flatMap((p) => [p.start, p.end]), ...sites.map((s) => s.chainage)]
+  const maximumDistanceM = stations.length
+    ? Math.max(...stations) - Math.min(...stations) + Math.max(0, ...sites.map((s) => s.accessDistanceM))
+    : 0
   const slope = linearHaulSlope(e, maximumDistanceM, unitHaulCost)
   if (slope === null) return null
 
@@ -201,12 +188,11 @@ export function solveSparseMaterialAllocation(
   const nets: Net[] = [],
     byNet = new Map<string, Net>()
   const network = (kind: Net['kind'], supply: Supply) => {
-    const key = JSON.stringify([kind, supply.parcel.run, supply.materialId, kind === 'fill' ? supply.factor : 1])
+    const key = JSON.stringify([kind, supply.materialId, kind === 'fill' ? supply.factor : 1])
     let net = byNet.get(key)
     if (!net) {
       net = {
         kind,
-        run: supply.parcel.run,
         materialId: supply.materialId,
         factor: kind === 'fill' ? supply.factor : 1,
         supplies: [],
@@ -223,34 +209,18 @@ export function solveSparseMaterialAllocation(
     return net
   }
   supplies.forEach((s, i) => {
-    if (
-      s.reusable &&
-      demands.some((d) => d.parcel.run === s.parcel.run && acceptsFill(s.materialId, d.requirement, e.materials))
-    )
+    if (s.reusable && demands.some((d) => acceptsFill(s.materialId, d.requirement, e.materials)))
       network('fill', s).supplies.push(i)
-    if (
-      sites.some(
-        (site) =>
-          site.kind === 'waste' &&
-          reachable(site, s.parcel.run) &&
-          (!site.materialId || site.materialId === s.materialId),
-      )
-    )
+    if (sites.some((site) => site.kind === 'waste' && (!site.materialId || site.materialId === s.materialId)))
       network('waste', s).supplies.push(i)
   })
   for (let ni = 0; ni < nets.length; ni++) {
     const net = nets[ni]
     net.sinks =
       net.kind === 'fill'
-        ? demands.flatMap((d, i) =>
-            d.parcel.run === net.run && acceptsFill(net.materialId, d.requirement, e.materials) ? [i] : [],
-          )
+        ? demands.flatMap((d, i) => (acceptsFill(net.materialId, d.requirement, e.materials) ? [i] : []))
         : sites.flatMap((site, i) =>
-            site.kind === 'waste' &&
-            reachable(site, net.run) &&
-            (!site.materialId || site.materialId === net.materialId)
-              ? [i]
-              : [],
+            site.kind === 'waste' && (!site.materialId || site.materialId === net.materialId) ? [i] : [],
           )
     net.positions = [
       ...new Set([
@@ -330,7 +300,6 @@ export function solveSparseMaterialAllocation(
     sites.forEach((site, siteIndex) => {
       if (
         site.kind !== 'borrow' ||
-        !reachable(site, d.parcel.run) ||
         !acceptsFill(site.materialId ?? null, d.requirement, e.materials) ||
         !haulDirectionAllowed(e.haul, site.chainage, d.parcel.chainage)
       )

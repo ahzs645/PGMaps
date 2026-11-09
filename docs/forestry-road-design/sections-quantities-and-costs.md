@@ -58,7 +58,7 @@ the optional delivered-cost borrow/waste allocation.
 | Surfacing depth                      | 0–2 m                                                                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
 | Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                   | `templates.ts` `validateEngineering`                                       | Calculation error; add buttons disable at the limit                              |
 | Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                        | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
-| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; an oversized taper is shortened silently                                  |
+| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; the form holds a typed taper to the room left and says so                 |
 | Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                 | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
@@ -110,7 +110,9 @@ runoff is not a calculation station, so the change in crossfall and width there 
 interval.
 
 **Widening ranges.** Overlapping landing and turnout ranges take the larger extra width per side;
-they do not add. Landing extra width is unsurfaced and turnout extra width is surfaced.
+they do not add. Landing extra width is unsurfaced and turnout extra width is surfaced. Start and End
+are the outer ends, tapers included: a pullout meant to be full width from 682.5 to 697.5 with
+7.5 m tapers is entered as Start 675, End 705. The form states the full-width range it builds.
 
 **Volumes.** Earthwork uses average end areas over the centreline chainage between stations. There
 is no prismoidal correction and no curvature correction for asymmetric sections on curves, so on
@@ -120,8 +122,17 @@ integrated with Simpson's rule. Clearing is the horizontal daylight-to-daylight 
 buffer, so it understates a right-of-way that is wider than the earthwork footprint.
 
 **Mass.** Without materials, mass is cut × reusable cut factor (default 0.9) − fill. With
-materials, it is usable compacted cut − fill. The mass curve and the mass column stop at the first
-incomplete interval; later intervals still count in the covered totals.
+materials, it is usable compacted cut − fill. The mass curve and the mass column give the known
+earthwork so far. An incomplete interval adds nothing, so the ordinate is carried across it and
+goes on after it; the diagram hatches the interval and labels the end balance with the road length
+it excludes (`massHaul.ts`). The end ordinate equals the covered balance in the totals.
+
+With haul on, a dashed line is the balance after borrow and waste. It steps at each site's road
+station: up by the compacted volume borrowed, down by the reusable cut wasted (bank m³ × the
+material's compaction factor; unusable cut was never in the curve). It closes on zero when every
+surplus and deficit found a site. The class bars at the foot of the plot mark where free haul,
+overhaul and end haul move material; a movement to or from a site is classed by chainage distance
+plus access, but its bar covers only the road part.
 
 **Materials.** A new material copies the current base cut rate and reusable cut factor, with a
 reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
@@ -133,13 +144,15 @@ fill. See [Physical section assemblies and preparation](section-assemblies.md) f
 prepared-ground surface, material-sensitive batters, component/course quantities and limits.
 
 **Nearest-source haul.** With no material policies and economic mode unset, allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
-nearest remaining usable cut in the same unbroken run of complete sections. It is a repeatable
+nearest remaining usable cut anywhere on the road. It is a repeatable
 scenario, not an optimum. An interval's own cut is at distance zero, so it balances itself first;
 any loading rate you enter is charged on that zero-distance volume too. Distance is chainage
-difference plus the site's entered access distance. A gap in coverage splits the road into
-separate runs, and a site outside a run is never used. Reachability registers the site's chainage
-at the calculation stations' micrometre precision, so an exact road-end site remains reachable
-when the final station rounds down. Haul distances retain the entered chainage. A new site copies
+difference plus the site's entered access distance. A gap in coverage does not split the road: an
+incomplete interval supplies and demands nothing, material is hauled past it at full chainage
+distance, and a site beside or inside it is still used. A site beyond the road end is not on the
+road and is never used. That check registers the site's chainage at the calculation stations'
+micrometre precision, so an exact road-end site remains reachable when the final station rounds
+down. Haul distances retain the entered chainage. A new site copies
 the default borrow or waste rate when you add it and keeps that rate afterwards. Economic mode instead solves the bounded material flow described in [the allocation guide](material-allocation.md), including material quality, construction direction and sidecast constraints.
 
 **Haul in the cost breakdown** (`haulCostLines` in `engineering.ts`). Every haul, borrow, waste and
@@ -225,13 +238,15 @@ payload, or net crew productivity as appropriate. See
 | "Left/Right daylight unresolved: batter runs past the N m section reach" | The formation is too far above (fill) or below (cut) the ground for the batter to close inside the reach; the plan draws it red | Bring the grade line closer to the ground; steepen the batter; **Extend reach to 100 m** |
 | "Left/Right daylight unresolved: extend section or check terrain"        | Ground ran out (no-data) before the batter met it                                                                               | Check terrain coverage; import terrain that covers the corridor                          |
 | "Missing terrain inside the road footprint"                              | A no-data hole under the formation, ditch or batter                                                                             | Fill or replace the terrain; the station stays excluded until then                       |
+| Station table row in amber, flagged "Partial: leaves out N m"            | The row's road holds incomplete sections; the row reports the known part so the rows still add up to the total                  | Fix those sections; choose **Every station** to see which intervals are unknown          |
 | Complete sections below 100 %, tile reads "Covered cut / fill"           | Any of the two flags above, at one or more stations                                                                             | Select flagged stations in the station table; fix before comparing alternatives          |
-| Mass curve ends early                                                    | First incomplete interval                                                                                                       | Fix that interval; quantities after it are still in the totals                           |
+| Mass curve is flat and hatched over a length                             | Incomplete sections there: that earthwork is unknown and left out                                                               | Fix those sections; the end balance states how many metres it excludes                   |
+| Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                           |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
 | "Correct this alignment before calculating: …"                           | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)       | Read the message; quantities are unavailable until it is fixed                           |
-| Both borrow and waste on a road that balances overall                    | Gaps split the runs, or nearest-source order left cut stranded                                                                  | Close the gaps; add sites; treat the allocation as one scenario                          |
-| "Some borrow/waste has no reachable site capacity"                       | No site in that run, or capacity used up                                                                                        | Add sites in the run or raise capacity; until then its haul is not priced                |
+| Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                 |
+| "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                          |
 | Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                      |
 | "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                 |
 | Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                              |
@@ -246,6 +261,7 @@ payload, or net crew productivity as appropriate. See
 - Size culverts hydraulically or check structural cover; see [Drainage](drainage.md).
 - Grade a 3D landing pad, design intersections, or add new template component types.
 - Produce a market quote. The estimate is a scenario built from rates you enter.
-- Bridge a terrain or daylight gap with an assumed quantity.
+- Bridge a terrain or daylight gap with an assumed quantity. Haul passes over the gap; the gap's own
+  cut and fill stay unknown.
 
 See [Scope boundaries](../forestry-road-design.md#scope-boundaries) for the full list.

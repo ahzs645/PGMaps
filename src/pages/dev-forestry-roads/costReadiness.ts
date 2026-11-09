@@ -136,7 +136,7 @@ export function assessCostReadiness(
     flags.push({
       id: 'borrow-screening',
       label: 'Aggregate minimum borrow demand',
-      detail: `${quantity(minimumBorrowCompactedM3)} compacted m³ = covered fill minus assumed usable compacted cut, floored at zero. This screening lower bound assumes all usable cut can reach fill; gaps, unsuitable material or site constraints can increase demand. No supply or haul price is added by this check.`,
+      detail: `${quantity(minimumBorrowCompactedM3)} compacted m³ = covered fill minus assumed usable compacted cut, floored at zero. This screening lower bound assumes all usable cut can reach fill; road with unknown earthwork, unsuitable material or site constraints can increase demand. No supply or haul price is added by this check.`,
     })
   if (result?.haul.enabled && engineering) {
     if (result.haul.unallocatedBorrowM3 > EPS || result.haul.unallocatedWasteM3 > EPS)

@@ -15,6 +15,17 @@ export function historyShortcut(event: KeyInput, apple: boolean): HistoryAction 
   return null
 }
 
+/** Delete, or Backspace (the key marked Delete on Apple keyboards), with no modifier: remove the selection. */
+export function isRemoveKey(event: KeyInput): boolean {
+  return (
+    (event.key === 'Delete' || event.key === 'Backspace') &&
+    !event.metaKey &&
+    !event.ctrlKey &&
+    !event.altKey &&
+    !event.shiftKey
+  )
+}
+
 /** Shortcut text for titles and `aria-keyshortcuts`. */
 export function historyShortcutLabels(apple: boolean) {
   return apple

@@ -442,8 +442,20 @@ under `pgmaps-road-panes:saved-<id>:<split>`, and can be deleted from the same d
 layouts stay on this device.
 
 The station table can report every 20–500 m instead of every calculated station. It reports
-the calculated station nearest each multiple, plus both ends, sums cut and fill since the
-previous row, and ends with a Cum. tot. row of the fully supported intervals. Its Columns
+the calculated station nearest each multiple, plus both ends, and sums cut and fill since the
+previous row. A row whose road holds an interval with unknown earthwork reports the known part,
+in amber, with a flag stating the metres it leaves out; a row is blank only when none of its
+road is known. The Cum. tot. row is therefore the sum of the rows at every interval, and it
+states the total length left out. The first row starts the table and sums nothing.
+
+Besides cut and fill the table reports, per row and in the totals, **surfacing** (m³),
+**stripping** (bank m³: the cut of materials marked as stripping, which is part of the cut
+volume) and, once haul is allocated, **borrow** (compacted m³) and **waste** (bank m³). Borrow
+is the fill an interval takes from off the road and waste the cut it sends off the road or
+sidecasts, whether or not a site had room, so their totals are the haul summary's
+(`calculateEngineering`). The table's CSV button downloads the reported rows at the chosen
+interval with every column and a `total` row (`stationReportCsv`, `stationReport.ts`); the
+Station CSV in Save carries the same four volumes for every calculated station. Its Columns
 menu shows or hides each column, including optional mass, width and coordinate columns, and
 remembers the choice. The cost dialog states the cost status (current; complete or partial)
 and the process time of the last recalculation, which runs on every edit.
@@ -463,6 +475,15 @@ minor ticks at a fifth of the interval once they are 10 px apart. Curve callouts
 selected station, which follows the pointer along the road, always shows its full
 readout (station · grade · ground Z) on the left of travel. The Labels checkbox hides
 labels, ticks and callouts together.
+
+A station typed into the station box is honoured exactly. Between two calculated stations
+the section is evaluated at the typed chainage (`roadStationAt`, `stationAt.ts`, through
+`createRoadStationSampler`), with the same terrain, template and reference rules as a
+calculated one, and the plan marker, profile, section and readout all show that station.
+A site, culvert or other item added "at the selected station" takes it. Such a station has
+no interval volumes, and its mass ordinate is read off the line between its neighbours. A
+value outside the road is held to the nearer end and the box says so. Pointing at a chart,
+the slider and the arrow keys still select calculated stations.
 
 Dense profiles stay readable. When PVIs fall under 44 px apart on screen (an optimized line,
 or a long road zoomed out), the profile drops curve bands and labels, thins station callouts
@@ -540,7 +561,13 @@ warning someone must see stays an `InlineAlert`.
 Design → **Peg road** starts a new alignment: click the start, any middle guide points and the end,
 then **Finish road**. **Inspect** selects roads and stations. **Edit points** shows draggable
 numbered controls for the start, end and middle points. **Select start** and **Select end** in
-Horizontal points also enter edit mode and reveal their numeric coordinates.
+Horizontal points also enter edit mode and reveal their numeric coordinates. In edit mode,
+Delete (or Backspace) removes the selected point, as **Remove selected point** does, unless the
+keys are being typed into a field or a dialog; a road keeps at least two points.
+
+A profile's PVIs are stored by station, so a plan edit leaves the grade line where it was and
+puts different ground under it. Moving or removing a point on a road with PVIs says so in the
+header notice (`profileKeptNotice`, `horizontalTools.ts`).
 
 In edit mode, drag a **+** off the road to add a middle control where you drop it, with a curve at the
 minimum radius. A click adds nothing, so a point always changes the road; Enter on a focused **+** adds one at
@@ -592,7 +619,13 @@ horizontal distance, not slope length.
 Interior PIs may carry circular-curve radii. Tangents and circular fillets are
 used where they fit. A radius that cannot fit its neighbouring tangents or
 would overlap an adjacent curve leaves a sharp PI and an explicit warning;
-the model must not silently adjust the requested radius.
+the model must not silently adjust the requested radius. The selected point's
+radius field takes 0–10,000 m (`MAX_HORIZONTAL_RADIUS_M`); a value outside that is
+held to the range and the note under the field says so. When the radius is not
+fitted, the same note gives the tangent it needs, the leg (or the neighbouring
+curve) that is short, the largest radius that fits as the neighbours stand, and
+the remedies: shorten this curve, shorten a neighbour, or move the points
+(`horizontalCurveFits`, `engine.ts`; `curveFit.ts`).
 
 Station positions and arc lengths use the fitted geometry. Curved pieces are
 also represented by chords no longer than 5 m and no wider than 2 degrees of
@@ -623,7 +656,10 @@ they fit. Overlapping/unfit curves retain the tangents and report the issue.
 `verticalCurveSummary()` reports each requested curve with a validity flag,
 incoming/outgoing grades in percent, and K in metres per percentage point of
 grade change. Zero grade change has no finite K. A requested curve that fails
-the fit/overlap checks is annotated as unfitted.
+the fit/overlap checks is annotated as unfitted, with the reason and the tangent
+left on each side. The PVI list in the sidebar states under that PVI the half
+length it needs, what is available and toward which PVI, the longest curve that
+fits, and the same remedies (`verticalFitNote`, `curveFit.ts`).
 A PVI beyond the shortened route end remains visible as a warning; the model
 does not silently discard a previously entered design control.
 
@@ -725,6 +761,13 @@ that its bottom falls at the entered grade to the inlet invert, to at most 4 m b
 ditch hinge in total (`MAX_DITCH_DIP_DEPTH`). It needs a known inlet invert.
 
 Landing and turnout ranges add width after the station template resolves.
+Start and End are the outer ends of a range, so its tapers lie inside them and the
+whole extra width runs from Start + entry taper to End − exit taper; the form states
+that full-width range. The entry and exit tapers together cannot be longer than the
+range. A typed taper that would be is held to the room the other taper leaves, and
+the form says what it was held to and why (`limitedTaper`, `wideningEntry.ts`); an
+unset end follows the shared Taper, at most half the range. Duplicate asks for the
+copy's start station and refuses one that would run off the road.
 Their extra width tapers in/out; overlapping width overrides use the maximum
 extra width per side rather than stacking widths. Added landing width is
 unsurfaced; added turnout width uses that side's resolved surface depth. The
@@ -750,10 +793,13 @@ no assumed extra buffer. Coverage is supported interval length divided by route
 length. Adding stations can discover gaps or unresolved batters that a coarser
 run missed; more stations do not guarantee a larger supported quantity.
 
-Missing intervals cannot be bridged by an invented continuous mass curve:
-cumulative mass stops at the first gap. Quantities after that gap can still
-contribute to covered subtotals, and their interval quantities remain available.
-A numerical calculation error returns an unavailable analysis with an explicit
+No quantity is invented for a missing interval: its cut, fill, surfacing and
+clearing stay unknown, are left out of every total, and its stations are flagged.
+A gap in the terrain data is not a gap in the road, though. The cumulative mass
+ordinate is the known earthwork so far, so it holds its value across a missing
+interval and carries on after it. The mass-haul diagram draws the line through
+the interval, hatches it, and labels the end balance with the road length it
+excludes. A numerical calculation error returns an unavailable analysis with an explicit
 message, not a plausible complete road with zero quantities.
 
 ### Ground horizons and excavated materials
@@ -815,11 +861,18 @@ costs, shared capacities, construction-direction ranges and sidecast limits. Inf
 unfinished prescriptions do not become complete estimates. See
 [material allocation](forestry-road-design/material-allocation.md) for conservation,
 pricing and solver budgets. In legacy nearest-source mode, fill intervals are visited in
-chainage order and draw from the nearest remaining reusable cut in the same
-continuously supported road section. Material conversion factors are retained
-for every movement. A site or source on the other side of a terrain/daylight gap
-cannot supply that interval. This can produce both borrow and waste even when
-the entire route's net mass balance appears favourable.
+chainage order and draw from the nearest remaining reusable cut anywhere on the
+road. Material conversion factors are retained for every movement.
+
+Both modes treat the road as one continuous haul route. An interval with unknown
+earthwork supplies and demands nothing, and material is hauled past it at its
+full chainage distance, so cut beyond a terrain or daylight gap can reach fill or
+a site before it. A site beside or inside such an interval is used like any
+other; a site beyond the road end is not on the road and is never used. Only a
+construction-direction range the user enters (forward, backward or blocked)
+stops a movement. Nearest-source order can still strand cut and produce both
+borrow and waste on a road whose net balance looks favourable; it never does so
+because of a gap in the data.
 
 Engineering → Haul keeps the allocation enable control visible. Enabling it
 opens **Haul & cost settings**, which groups rates, distances and borrow/waste
@@ -860,11 +913,22 @@ compacted m³; waste movement volume is bank m³. The result stores their volume
 and m³·km summaries separately. Bank-waste work must not be added to a compacted
 haul-work statistic without an explicit conversion basis.
 
+The mass-haul diagram shows the allocation on the curve (`massHaul.ts`). A dashed line is
+the balance after borrow and waste. At each site's road station it steps up by the
+compacted volume borrowed there, or down by the reusable cut wasted there, converted to
+the compacted m³ the curve is drawn in. Unusable cut was never in the curve, so wasting
+it moves nothing. The line ends on zero when every surplus and deficit found a site;
+otherwise it ends on what is unallocated, and the end-balance line says how much. Each
+site is marked and labelled at its station and listed under the chart. Bars at the foot
+of the plot mark the road each haul class moves material over, and the legend gives each
+class its distance range and its compacted and bank volumes. Above zero the net haul
+runs up-station; below zero, down-station.
+
 Unallocated borrow/waste is reported when no reachable site capacity remains.
 Its default supply/disposal unit rate is included in the scenario subtotal, but
 its unknown haul distance, haul work and haul cost are excluded. The haul and
 engineering results remain incomplete. Nothing silently creates an unlimited
-pit, a zero-distance disposal site or a movement across missing terrain.
+pit, a zero-distance disposal site or a quantity for missing terrain.
 
 ### Culvert inventory, geometry and cover
 
@@ -1536,12 +1600,14 @@ the project remains the portable way to preserve work across browsers/devices.
 
 Meaningful unit checks cover analytical flat/cut/fill sections, slopes/ditches,
 short final intervals, circular and vertical curves, side-specific tapers,
-crossings, polygon holes, missing coverage and mass gaps. Engineering fixtures
+crossings, polygon holes, missing coverage and a mass balance carried across
+gaps. Engineering fixtures
 check asymmetric templates and superelevation, exact simultaneous width/depth
 transitions, short stepped assignments, clipped material-area conservation,
 cut-only stripping, material conversion factors, culvert skew/cover/unknowns,
-capacity-limited borrow/waste, separate volume bases and transfers prohibited
-across unsupported gaps. Cable checks cover moved supports, yarder orientation
+capacity-limited borrow/waste, separate volume bases, a nearly balanced road
+hauled across unknown ground without borrowing and wasting at once, and
+transfers stopped by an entered blocked range. Cable checks cover moved supports, yarder orientation
 and sag on the resolved span. Radial fixtures include flat ground, a valley,
 a ridge, support/interior gaps, bearing wrap, budget enforcement and adoption. Actual encoded
 GeoTIFF fixtures check PixelIsArea/PixelIsPoint centres, known bilinear values,

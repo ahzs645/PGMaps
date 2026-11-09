@@ -2,6 +2,11 @@
  * Bounded economic material flow. Variables retain bank units for excavated material and
  * compacted units for borrow. Conversion factors appear in demand equations, never in site
  * capacity equations. Binary site openings account for fixed costs exactly within solver limits.
+ *
+ * The road is one continuous haul route: parcels are the intervals with known earthwork, and any
+ * parcel can reach any other and every site in `e.sites`. Road length without a parcel (unknown
+ * ground) supplies and demands nothing and is crossed at full distance. Only an entered
+ * construction-direction range stops a movement.
  */
 import { solve, type Constraint, type Model } from 'yalps'
 import { acceptsFill, haulDirectionAllowed, materialDemandKey, type requiredFillAt } from './allocationPolicy'
@@ -20,7 +25,6 @@ export interface AllocationParcel {
   start: number
   end: number
   chainage: number
-  run: number
   cut: { materialId: string; bank: number; usable: number; unusable: number; factor: number }[]
   fill: number
   /** Additional layer demands; subgrade components replace part of `fill`. */
@@ -131,14 +135,6 @@ export function solveDenseMaterialAllocation(
   const variables: Record<string, Record<string, number>> = {}
   const binaries: string[] = []
   const flows = new Map<string, Flow>()
-  const runs = new Map<number, { start: number; end: number }>()
-  for (const p of parcels) {
-    const r = runs.get(p.run)
-    if (r) {
-      r.start = Math.min(r.start, p.start)
-      r.end = Math.max(r.end, p.end)
-    } else runs.set(p.run, { start: p.start, end: p.end })
-  }
   const totalFill = demands.reduce((s, d) => s + d.volume, 0)
   const totalBank = supplies.reduce((s, d) => s + d.bank, 0)
   for (const d of demands) constraints[d.key] = { equal: d.volume }
@@ -160,11 +156,6 @@ export function solveDenseMaterialAllocation(
     throw Error(
       `Economic allocation supports at most ${MAX_ALLOCATION_OPENINGS} priced site openings; disable sites or split the road.`,
     )
-  const reachable = (chainage: number, parcel: AllocationParcel) => {
-    const run = runs.get(parcel.run)!
-    const station = Math.round(chainage * 1e6) / 1e6
-    return station >= run.start - EPS && station <= run.end + EPS
-  }
   const add = (flow: Flow, coefficients: Record<string, number>) => {
     const key = `flow:${flows.size}`
     if (flows.size + binaries.length >= MAX_ALLOCATION_VARIABLES)
@@ -181,7 +172,6 @@ export function solveDenseMaterialAllocation(
     if (supply.reusable)
       for (const demand of demands) {
         if (
-          supply.parcel.run !== demand.parcel.run ||
           !acceptsFill(supply.materialId, demand.requirement, e.materials) ||
           !haulDirectionAllowed(e.haul, supply.parcel.chainage, demand.parcel.chainage)
         )
@@ -210,7 +200,6 @@ export function solveDenseMaterialAllocation(
     for (const site of sites) {
       if (
         site.kind !== 'waste' ||
-        !reachable(site.chainage, supply.parcel) ||
         (site.materialId && site.materialId !== supply.materialId) ||
         !haulDirectionAllowed(e.haul, supply.parcel.chainage, site.chainage)
       )
@@ -272,7 +261,6 @@ export function solveDenseMaterialAllocation(
     for (const site of sites) {
       if (
         site.kind !== 'borrow' ||
-        !reachable(site.chainage, demand.parcel) ||
         !acceptsFill(site.materialId ?? null, demand.requirement, e.materials) ||
         !haulDirectionAllowed(e.haul, site.chainage, demand.parcel.chainage)
       )

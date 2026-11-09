@@ -29,7 +29,6 @@ function parcel(id: string, chainage: number, fill = 0, bank = 0, factor = 1, ma
     start: chainage - 5,
     end: chainage + 5,
     chainage,
-    run: 1,
     fill,
     cut: bank ? [{ materialId, bank, usable: bank * factor, unusable: 0, factor }] : [],
   }
@@ -126,7 +125,7 @@ describe('exact sparse chain material allocation', () => {
     })
     expect(solveSparseMaterialAllocation(e, [p], () => 0)!.status).toBe('infeasible')
   })
-  it('reserves high-quality cut and respects construction directions and coverage gaps', () => {
+  it('reserves high-quality cut, respects construction directions and crosses road that has no parcel', () => {
     const e = design()
     e.fillRequirements = [
       { id: 'low', start: 5, end: 15, layer: 'subgrade', minQuality: 0, replaceable: true },
@@ -146,8 +145,15 @@ describe('exact sparse chain material allocation', () => {
     e.haul.directionRanges = [{ id: 'forward', start: 0, end: 25, direction: 'forward' }]
     expect(solveSparseMaterialAllocation(e, backwards, (d) => d)!.status).toBe('infeasible')
     e.haul.directionRanges = []
-    backwards[1].run = 2
-    expect(solveSparseMaterialAllocation(e, backwards, (d) => d)!.status).toBe('infeasible')
+    // Road with no parcel between a cut and a fill is still road: the chain arc costs its length.
+    const apart = [parcel('cut', 75, 0, 1), parcel('fill', 5, 1)]
+    const crossed = solveSparseMaterialAllocation(e, apart, (d) => d)!
+    expect(crossed.status).toBe('optimal')
+    expect(crossed.movements).toHaveLength(1)
+    expect(crossed.movements[0]).toMatchObject({ fromChainage: 75, toChainage: 5, distanceM: 70 })
+    expect(crossed.objectiveCost).toBeCloseTo(70)
+    e.haul.directionRanges = [{ id: 'barrier', start: 30, end: 40, direction: 'blocked' }]
+    expect(solveSparseMaterialAllocation(e, apart, (d) => d)!.status).toBe('infeasible')
   })
   it('keeps sidecast local to original excavation and shares its limit across suitable and unsuitable material', () => {
     const e = design(0)

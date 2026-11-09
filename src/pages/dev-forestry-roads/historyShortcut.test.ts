@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { historyShortcut, isApplePlatform } from './historyShortcut'
+import { historyShortcut, isApplePlatform, isRemoveKey } from './historyShortcut'
 
 const key = (k: string, mods: Partial<Record<'metaKey' | 'ctrlKey' | 'shiftKey' | 'altKey', boolean>> = {}) => ({
   key: k,
@@ -29,6 +29,16 @@ describe('historyShortcut', () => {
     expect(historyShortcut(key('z', { ctrlKey: true, altKey: true }), false)).toBeNull()
     expect(historyShortcut(key('x', { ctrlKey: true }), false)).toBeNull()
     expect(historyShortcut(key('z'), false)).toBeNull()
+  })
+})
+
+describe('isRemoveKey', () => {
+  it('reads Delete and Backspace alone, and leaves chords to the browser', () => {
+    expect(isRemoveKey(key('Delete'))).toBe(true)
+    expect(isRemoveKey(key('Backspace'))).toBe(true)
+    expect(isRemoveKey(key('Backspace', { metaKey: true }))).toBe(false)
+    expect(isRemoveKey(key('Delete', { shiftKey: true }))).toBe(false)
+    expect(isRemoveKey(key('d'))).toBe(false)
   })
 })
 

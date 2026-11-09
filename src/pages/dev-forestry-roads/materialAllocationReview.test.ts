@@ -54,7 +54,6 @@ function parcel(id = 'p', fill = 0, bank = 0): AllocationParcel {
     start: 0,
     end: 100,
     chainage: 50,
-    run: 1,
     fill,
     cut: bank ? [{ materialId: 'rock', bank, usable: bank, unusable: 0, factor: 1 }] : [],
   }

@@ -73,9 +73,10 @@ sizing is outside the implemented scope.
 
 The Haul view exposes free-haul and overhaul assumptions, site access distances,
 borrow/waste events and selectable transfer rows. Material calculations keep
-bank excavation, compacted fill and unusable material separate. Movements cannot
-cross unsupported intervals, and unallocated quantities remain visible. The
-method is a documented deterministic allocation within covered runs.
+bank excavation, compacted fill and unusable material separate. Unsupported
+intervals add no quantity, movements pass over them at full distance, and
+unallocated quantities remain visible. The method is a documented deterministic
+allocation along the whole road.
 
 ![Material-aware haul assumptions, movement table and connected map](assets/forestry-roads/05-material-haul.png)
 

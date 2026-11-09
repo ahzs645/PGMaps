@@ -5,6 +5,7 @@
  */
 import { sectionStations, type ToGrid } from './designExports'
 import { horizontalCurveSummary } from './engine'
+import { unknownEarthworkSpans } from './massHaul'
 import {
   createRoadReportSettings,
   formatDrawingLabel,
@@ -241,6 +242,14 @@ function planProfileSheet(
   const mLow = Math.min(0, ...known),
     mHigh = Math.max(0, ...known)
   const my = (m: number) => mass.top + mass.height - ((m - mLow) / Math.max(1, mHigh - mLow)) * mass.height
+  // Road with unknown earthwork is shaded: the balance is drawn through it, carrying the known work.
+  const unknownEarthwork = unknownEarthworkSpans(inWindow)
+  const unknownBands = unknownEarthwork
+    .map(
+      (span) =>
+        `<rect x="${sx(span.start).toFixed(1)}" y="${mass.top}" width="${Math.max(1.5, sx(span.end) - sx(span.start)).toFixed(1)}" height="${mass.height}" fill="#b45309" fill-opacity="0.2" data-role="unknown-earthwork"/>`,
+    )
+    .join('')
   const grades = inWindow
     .slice(1)
     .filter((s, i) => i % Math.max(1, Math.round(inWindow.length / 10)) === 0 && s.gradePercent !== null)
@@ -258,7 +267,7 @@ function planProfileSheet(
   )}" fill="none" stroke="#a07845" stroke-width="1.6"/><path d="${pathOf(
     inWindow.map((s) => s.designElevation),
     sy,
-  )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 70}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 70} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)</text><rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
+  )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 70}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 70} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)${unknownEarthwork.length ? ' · shaded: earthwork unknown, balance carried across' : ''}</text>${unknownBands}<rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
   const massStart = profileSvg.indexOf(`<text x="${mass.left}" y="${mass.top - 8}"`)
   const profileOnly = profileSvg.slice(0, massStart)
   const massOnly = profileSvg.slice(massStart)

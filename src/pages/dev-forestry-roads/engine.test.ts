@@ -341,7 +341,7 @@ describe('vertical design and station-specific widths', () => {
 })
 
 describe('missing terrain and computation boundaries', () => {
-  it('keeps gaps null, excludes missing intervals, and stops cumulative mass at the first gap', () => {
+  it('keeps gaps null, excludes missing intervals, and carries the known mass balance across the gap', () => {
     const source = {
       elevationAt: (lng: number, lat: number) => {
         const p = local([lng, lat])
@@ -353,12 +353,44 @@ describe('missing terrain and computation boundaries', () => {
     expect(hole.groundElevation).toBeNull()
     expect(hole.cutAreaM2).toBeNull()
     expect(hole.cutVolumeM3).toBeNull()
-    expect(hole.massM3).toBeNull()
     expect(result.coveragePercent).toBeCloseTo(80, 5)
     expect(result.cutVolumeM3).toBeCloseTo(80 * 7, 4)
     expect(result.stations.at(-1)!.cutVolumeM3).not.toBeNull()
-    expect(result.stations.at(-1)!.massM3).toBeNull()
-    expect(result.warnings.some((w) => w.includes('covered subtotals'))).toBe(true)
+    // The two unknown intervals add nothing: the ordinate holds through them, then goes on rising.
+    const mass = (chainage: number) => nearestStation(result.stations, chainage)!.massM3
+    expect(mass(40)).toBeCloseTo(40 * 7 * settings.shrinkFactor, 4)
+    expect(hole.massM3).toBe(mass(40))
+    expect(mass(60)).toBe(mass(40))
+    expect(mass(70)).toBeCloseTo(50 * 7 * settings.shrinkFactor, 4)
+    // The end ordinate is the balance of the covered quantities, which is what the totals report.
+    expect(result.stations.at(-1)!.massM3).toBeCloseTo(result.balanceM3, 6)
+    expect(result.warnings.some((w) => w.includes('covered subtotals') && w.includes('over 20 m of road'))).toBe(true)
+  })
+
+  it('reports surfacing by interval, unknown where the section is, adding up to the road total', () => {
+    const source = {
+      elevationAt: (lng: number, lat: number) => {
+        const p = local([lng, lat])
+        return p.north > 45 && p.north < 55 ? NaN : 800
+      },
+    }
+    const surfaced = alignment(100, 799)
+    surfaced.template.surfaceDepth = 0.25
+    const result = analyzeRoad(surfaced, source, settings)
+    // 6 m wide, 0.25 m deep, 10 m long.
+    expect(nearestStation(result.stations, 30)!.surfaceVolumeM3).toBeCloseTo(15, 6)
+    expect([50, 60].map((s) => nearestStation(result.stations, s)!.surfaceVolumeM3)).toEqual([null, null])
+    expect(result.stations[0].surfaceVolumeM3).toBe(0)
+    expect(result.stations.reduce((sum, s) => sum + (s.surfaceVolumeM3 ?? 0), 0)).toBeCloseTo(result.surfaceVolumeM3, 9)
+    expect(result.surfaceVolumeM3).toBeCloseTo(120, 6)
+  })
+
+  it('starts the mass balance at zero on a road whose first section has no ground', () => {
+    const source = { elevationAt: (lng: number, lat: number) => (local([lng, lat]).north < 5 ? NaN : 800) }
+    const result = analyzeRoad(alignment(100, 799), source, settings)
+    expect(result.stations[0].complete).toBe(false)
+    expect(result.stations.slice(0, 2).map((s) => s.massM3)).toEqual([0, 0])
+    expect(result.stations.at(-1)!.massM3).toBeCloseTo(result.balanceM3, 6)
   })
 
   it('rejects a hole inside the running surface even when the centre and daylight are valid', () => {

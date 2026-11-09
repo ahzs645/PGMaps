@@ -104,6 +104,17 @@ export function fitHorizontalRadii(
 const STRAIGHT_DEFLECTION_DEGREES = 0.5
 
 /** Middle points that do not turn the road: leftovers of editing, safe to remove. */
+/**
+ * Said after a plan edit on a road with a designed profile. PVIs are stored by station, so moving,
+ * adding or removing a point leaves the grade line where it was and puts different ground under
+ * it. Null when the road follows the ground.
+ */
+export function profileKeptNotice(pviCount: number, edit = 'Point moved'): string | null {
+  return pviCount > 0
+    ? `${edit}. The profile's ${pviCount} PVI${pviCount === 1 ? ' keeps its station' : 's keep their stations'}, so the grade line now runs over different ground: check the profile and the cut and fill.`
+    : null
+}
+
 export function straightPointIds(points: readonly RoadPoint[]) {
   const ids: string[] = []
   // Each test uses the last point kept, so a run of near-straight points cannot add up to a real turn.

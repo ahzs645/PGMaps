@@ -108,7 +108,8 @@ import {
 } from './dev-forestry-roads/drainageSensitivity'
 import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
-import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
+import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
+import { roadStationAt } from './dev-forestry-roads/stationAt'
 import {
   engineeringCsv,
   parseProject,
@@ -144,7 +145,7 @@ import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
-import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
+import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/horizontalTools'
 import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
@@ -165,6 +166,7 @@ import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 import {
   historyShortcut,
   historyShortcutLabels,
+  isRemoveKey,
   isApplePlatform,
   keepsNativeUndo,
 } from './dev-forestry-roads/historyShortcut'
@@ -707,6 +709,8 @@ export default function DevForestryRoads() {
     [showOnPlan],
   )
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
+  // A station typed into the station box is held exactly; every other selection takes a calculated station.
+  const [typedStation, setTypedStation] = useState<{ station: number; entered: number } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
   const operation = useRef<AbortController | null>(null)
@@ -860,7 +864,34 @@ export default function DevForestryRoads() {
     () => new Map([...w.analyses, [displayedAlignment.id, displayedAnalysis]]),
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
-  const at = nearestStation(displayedAnalysis.stations, w.station)
+  // Any other selection (a chart, the slider, a table row) takes a calculated station again.
+  if (typedStation && typedStation.station !== w.station) setTypedStation(null)
+  const typedHere = typedStation?.station === w.station && !terrainProfile ? typedStation : null
+  const stationSampler = useMemo(() => {
+    if (!typedHere) return null
+    try {
+      return createRoadStationSampler(displayedAlignment, source, project.settings, {
+        context: project.context,
+        referenceSurfaces: w.referenceSurfaces,
+        verticalReference: project.terrain.verticalReference,
+      })
+    } catch {
+      // An alignment that cannot be compiled has no section to evaluate; the nearest station stands in.
+      return null
+    }
+  }, [
+    typedHere,
+    displayedAlignment,
+    source,
+    project.settings,
+    project.context,
+    project.terrain.verticalReference,
+    w.referenceSurfaces,
+  ])
+  const at = useMemo(
+    () => roadStationAt(displayedAnalysis, w.station, stationSampler ? (s) => stationSampler.at(s) : undefined),
+    [displayedAnalysis, w.station, stationSampler],
+  )
   const station = at?.chainage ?? 0
   // The header subtitle shows the latest notice briefly, in place of a status row.
   const { notice, setNotice } = w
@@ -886,10 +917,18 @@ export default function DevForestryRoads() {
       : 'Native DEM sampling; missing ground stays missing',
     'earthworks use average end areas; field and engineering review required for construction.',
   ].join(' · ')
+  /** Selects exactly the station typed, held to the road, and returns it. */
+  const selectTypedStation = (entered: number) => {
+    const bounded = Math.max(0, Math.min(displayedAnalysis.length, entered))
+    setTypedStation({ station: bounded, entered })
+    setStation(bounded)
+    return bounded
+  }
+  const stationEntryText = stationEntry && Math.abs(stationEntry.value - station) < 0.001 ? stationEntry.text : null
   const finishStationEntry = () => {
-    if (stationEntry?.value === station && stationEntry.text.trim()) {
-      const value = Number(stationEntry.text)
-      if (Number.isFinite(value)) setStation(Math.max(0, Math.min(displayedAnalysis.length, value)))
+    if (stationEntryText?.trim()) {
+      const value = Number(stationEntryText)
+      if (Number.isFinite(value)) selectTypedStation(value)
     }
     setStationEntry(null)
   }
@@ -1045,8 +1084,10 @@ export default function DevForestryRoads() {
     (id: string, coordinate: Coordinate) => {
       if (busy) return
       updateAlignment((a) => ({ ...a, points: a.points.map((p) => (p.id === id ? { ...p, coordinate } : p)) }))
+      const kept = profileKeptNotice(alignment.vertical.length)
+      if (kept) setNotice(kept)
     },
-    [updateAlignment, busy],
+    [updateAlignment, busy, alignment.vertical.length, setNotice],
   )
   const commitValidated = (next: RoadProject) => {
     if (busy) return false
@@ -2203,12 +2244,32 @@ export default function DevForestryRoads() {
   // ⌘Z / Ctrl+Z undo outside text fields; while drawing they take back the last point first.
   const [applePlatform] = useState(isApplePlatform)
   const shortcutKeys = historyShortcutLabels(applePlatform)
-  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length })
+  // Delete removes the point selected for editing, as the sidebar's Remove selected point does.
+  const removablePoint =
+    mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
+      ? (selectedPoint ?? null)
+      : null
+  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length, removablePoint })
   useEffect(() => {
-    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length }
+    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length, removablePoint }
   })
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.defaultPrevented && isRemoveKey(event) && !keepsNativeUndo(event.target)) {
+        const { w: workspace, busy: working, removablePoint: id } = historyKeys.current
+        const index = workspace.alignment.points.findIndex((point) => point.id === id)
+        if (working || index < 0) return
+        event.preventDefault()
+        workspace.updateAlignment((a) =>
+          a.points.length > 2 ? { ...a, points: a.points.filter((point) => point.id !== id) } : a,
+        )
+        setSelectedPoint(null)
+        workspace.setNotice(
+          profileKeptNotice(workspace.alignment.vertical.length, `Point ${index + 1} removed`) ??
+            `Point ${index + 1} removed. Undo brings it back.`,
+        )
+        return
+      }
       const action = event.defaultPrevented ? null : historyShortcut(event, applePlatform)
       if (!action || keepsNativeUndo(event.target)) return
       event.preventDefault()
@@ -2292,6 +2353,7 @@ export default function DevForestryRoads() {
     >
       <StationTable
         terrainOnly={!!terrainProfile}
+        roadName={displayedAlignment.name}
         analysis={displayedAnalysis}
         station={station}
         onStation={w.setStation}
@@ -3257,6 +3319,7 @@ export default function DevForestryRoads() {
                             analyses={displayAnalyses}
                             source={source}
                             station={station}
+                            selectedStation={at}
                             onStation={w.setStation}
                             onSelectAlignment={selectAlignment}
                             onMode={investigation || busy || costPreview ? undefined : beginMode}
@@ -3346,6 +3409,7 @@ export default function DevForestryRoads() {
                                 analysis={profileAnalysis}
                                 alignment={displayedAlignment}
                                 station={station}
+                                selectedStation={terrainProfile ? undefined : at}
                                 onStation={w.setStation}
                                 onVerticalChange={
                                   busy ||
@@ -3498,6 +3562,7 @@ export default function DevForestryRoads() {
                                     selectedRange={selectedRange}
                                     viewRange={sharedProfileRange}
                                     analysis={displayedAnalysis}
+                                    engineeringInputs={displayedAlignment.engineering}
                                     station={station}
                                     onStation={w.setStation}
                                   />
@@ -3812,19 +3877,14 @@ export default function DevForestryRoads() {
                         max={Math.ceil(displayedAnalysis.length * 10) / 10}
                         step="any"
                         className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
-                        title="Updates the linked views as you type. Arrow keys select the next or previous calculated station."
-                        value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
+                        title="Shows the section at exactly the station you type. Arrow keys select the next or previous calculated station."
+                        value={stationEntryText ?? Number(station.toFixed(1))}
                         onChange={(e) => {
                           const text = e.target.value
                           const value = Number(text)
-                          if (text.trim() && Number.isFinite(value)) {
-                            const bounded = Math.max(0, Math.min(displayedAnalysis.length, value))
-                            setStation(bounded)
-                            setStationEntry({
-                              value: nearestStation(displayedAnalysis.stations, bounded)?.chainage ?? 0,
-                              text,
-                            })
-                          } else setStationEntry({ value: station, text })
+                          if (text.trim() && Number.isFinite(value))
+                            setStationEntry({ value: selectTypedStation(value), text })
+                          else setStationEntry({ value: station, text })
                         }}
                         onBlur={finishStationEntry}
                         onKeyDown={(e) => {
@@ -3865,6 +3925,17 @@ export default function DevForestryRoads() {
                       className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
                       onChange={(e) => w.setStation(Number(e.target.value))}
                     />
+                    {typedHere && typedHere.entered !== typedHere.station && (
+                      <span
+                        role="status"
+                        className="text-xs text-amber-800 dark:text-amber-300"
+                        data-testid="road-station-limited"
+                      >
+                        {typedHere.entered < 0
+                          ? `Station ${number(typedHere.entered)} is before the road's start; showing ${formatRoadStation(0)}.`
+                          : `Station ${number(typedHere.entered)} is past the road's end; showing ${formatRoadStation(displayedAnalysis.length)}.`}
+                      </span>
+                    )}
                     <output className="font-mono text-xs" data-testid="road-selected-station">
                       {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
                         <span

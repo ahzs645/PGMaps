@@ -20,9 +20,11 @@ import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
+import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
-import type { Alignment, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
+import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
+import type { Alignment, AlignmentEngineering, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
 
 export const ROAD_CHART_COLORS = {
   ground: '#a07845',
@@ -116,28 +118,21 @@ function linePath(points: Point[], key: 'ground' | 'design', x: (n: number) => n
     .join(' ')
 }
 
-/** Make absent terrain visible even when a short gap is smaller than a line stroke. */
-function TerrainGapBands({
-  points,
+/** Hatches road lengths with something missing, at least two pixels wide so a short one still shows. */
+function HatchedSpans({
+  spans,
   x,
   top,
   height,
+  title,
 }: {
-  points: Point[]
+  spans: Array<[number, number]>
   x: (value: number) => number
   top: number
   height: number
+  title: (start: number, end: number) => string
 }) {
   const id = `terrain-gap-${useId().replace(/:/g, '')}`
-  const spans: Array<[number, number]> = []
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1],
-      b = points[i]
-    if (finite(a.ground) && finite(b.ground)) continue
-    const previous = spans[spans.length - 1]
-    if (previous?.[1] === a.x) previous[1] = b.x
-    else spans.push([a.x, b.x])
-  }
   if (!spans.length) return null
   return (
     <g pointerEvents="none">
@@ -156,12 +151,42 @@ function TerrainGapBands({
           height={height}
           fill={`url(#${id})`}
         >
-          <title>
-            Missing terrain between {format(start, 2)} and {format(end, 2)} m
-          </title>
+          <title>{title(start, end)}</title>
         </rect>
       ))}
     </g>
+  )
+}
+
+/** Make absent terrain visible even when a short gap is smaller than a line stroke. */
+function TerrainGapBands({
+  points,
+  x,
+  top,
+  height,
+}: {
+  points: Point[]
+  x: (value: number) => number
+  top: number
+  height: number
+}) {
+  const spans: Array<[number, number]> = []
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1],
+      b = points[i]
+    if (finite(a.ground) && finite(b.ground)) continue
+    const previous = spans[spans.length - 1]
+    if (previous?.[1] === a.x) previous[1] = b.x
+    else spans.push([a.x, b.x])
+  }
+  return (
+    <HatchedSpans
+      spans={spans}
+      x={x}
+      top={top}
+      height={height}
+      title={(start, end) => `Missing terrain between ${format(start, 2)} and ${format(end, 2)} m`}
+    />
   )
 }
 
@@ -504,6 +529,10 @@ function ChartSlot({
   )
 }
 
+/** Screen length a tangent needs for its "grade · length" label, and for the grade alone. */
+const FULL_GRADE_LABEL_PX = 100
+const GRADE_ONLY_LABEL_PX = 40
+
 const nearestOf = (stations: RoadStation[], chainage: number) =>
   stations.reduce<RoadStation | undefined>(
     (best, s) => (!best || Math.abs(s.chainage - chainage) < Math.abs(best.chainage - chainage) ? s : best),
@@ -538,6 +567,7 @@ export function ProfileChart({
   analysis,
   alignment,
   station,
+  selectedStation,
   onStation,
   onVerticalChange,
   onViewRangeChange,
@@ -549,6 +579,8 @@ export function ProfileChart({
   analysis: RoadAnalysis
   alignment: Alignment
   station: number
+  /** The selected station's record, when it was typed and lies between calculated stations. */
+  selectedStation?: RoadStation
   onStation: (chainage: number) => void
   onVerticalChange?: (points: VerticalPoint[]) => void
   onViewRangeChange?: (range: [number, number]) => void
@@ -683,10 +715,12 @@ export function ProfileChart({
     wheelSvg.addEventListener('wheel', onWheel, { passive: false })
     return () => wheelSvg.removeEventListener('wheel', onWheel)
   }, [wheelSvg])
-  const active = analysis.stations.reduce<RoadStation | undefined>(
-    (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
-    undefined,
-  )
+  const active =
+    selectedStation ??
+    analysis.stations.reduce<RoadStation | undefined>(
+      (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
+      undefined,
+    )
   const sorted = terrainOnly ? [] : [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
@@ -1241,7 +1275,8 @@ export function ProfileChart({
                   />
                 )}
                 {gradeSpans
-                  .filter((span) => f.x(span.end) - f.x(span.start) > 100)
+                  // A tangent too short on screen for "grade · length" still shows its grade.
+                  .filter((span) => f.x(span.end) - f.x(span.start) > GRADE_ONLY_LABEL_PX)
                   .map((span) => {
                     const level = (chainage: number) => {
                       const nearest = nearestOf(analysis.stations, chainage)
@@ -1284,7 +1319,9 @@ export function ProfileChart({
                         pointerEvents="none"
                         data-grade-label
                       >
-                        {span.label}
+                        {f.x(span.end) - f.x(span.start) > FULL_GRADE_LABEL_PX
+                          ? span.label
+                          : span.label.split(' · ')[0]}
                         <title>{span.detail}</title>
                       </text>
                     )
@@ -1509,7 +1546,11 @@ export function CrossSectionChart({
     !terrainOnly && station
       ? analysis?.engineering?.stations.find((s) => Math.abs(s.chainage - station.chainage) < 0.001)
       : undefined
-  const template = engineering?.template.template ?? alignment?.template
+  // A station typed between calculation stations has no engineering record; it still takes the
+  // template assigned at its own chainage.
+  const template =
+    engineering?.template.template ??
+    (alignment && station && !terrainOnly ? templateAt(alignment, station.chainage).template : alignment?.template)
   const culverts =
     !terrainOnly && station
       ? (analysis?.engineering?.culverts.filter((c) => Math.abs(c.chainage - station.chainage) < 0.001) ?? [])
@@ -2141,15 +2182,25 @@ export function CrossSectionChart({
   )
 }
 
+const HAUL_CLASS_COLORS = { freehaul: '#0d9488', overhaul: '#d97706', endhaul: '#7c3aed' } as const
+const HAUL_CLASS_LABELS = { freehaul: 'Free haul', overhaul: 'Overhaul', endhaul: 'End haul' } as const
+/** The balance after borrow and waste: the foreground colour, so it reads in both themes. */
+const AFTER_SITES_COLOR = 'hsl(var(--foreground))'
+/** A diagram that ends within this of zero has closed: every surplus and deficit found a site. */
+const MASS_CLOSED_M3 = 0.05
+
 export function MassHaulChart({
   selectedRange,
   analysis,
+  engineeringInputs,
   station,
   onStation,
   viewRange,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
+  /** The road's entered haul settings and sites, which name the pits and give the classes their limits. */
+  engineeringInputs?: Pick<AlignmentEngineering, 'haul' | 'sites'>
   station: number
   onStation: (chainage: number) => void
   viewRange?: [number, number]
@@ -2157,19 +2208,28 @@ export function MassHaulChart({
   const id = useId().replace(/:/g, '')
   const [showMovements, setShowMovements] = useState(false)
   const engineering = analysis.engineering
+  const diagram = useMemo(() => massHaulDiagram(analysis, engineeringInputs), [analysis, engineeringInputs])
+  const haul = diagram.haul
   const rangeStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
   const rangeEnd = viewRange
     ? clamp(viewRange[1], rangeStart + 1, Math.max(1, analysis.length))
     : Math.max(1, analysis.length)
-  const points = (engineering?.stations ?? analysis.stations).map((s) => ({
-    x: s.chainage,
-    ground: s.massM3,
-    design: 0,
-  }))
-  const selected = points.reduce<Point | undefined>(
-    (best, point) => (!best || Math.abs(point.x - station) < Math.abs(best.x - station) ? point : best),
-    undefined,
-  )
+  const points = diagram.balance.map(([x, mass]) => ({ x, ground: mass, design: 0 }))
+  // Borrow and waste move the line only where a site took some; without that it is the balance itself.
+  const afterSites = haul?.afterSites.some((p, i, line) => i > 0 && line[i - 1][0] === p[0]) ? haul.afterSites : null
+  const balanceHere = ordinateAt(diagram.balance, station)
+  const afterHere = afterSites ? ordinateAt(afterSites, station) : null
+  const unknownHere = diagram.unknown.some((span) => station > span.start + 1e-6 && station < span.end - 1e-6)
+  const closed = !!haul && Math.abs(haul.closingM3) <= MASS_CLOSED_M3
+  const unplaced = [
+    (engineering?.haul.unallocatedBorrowM3 ?? 0) > MASS_CLOSED_M3 &&
+      `${format(engineering!.haul.unallocatedBorrowM3)} compacted m³ of fill has no borrow site with room`,
+    (engineering?.haul.unallocatedWasteM3 ?? 0) > MASS_CLOSED_M3 &&
+      `${format(engineering!.haul.unallocatedWasteM3)} bank m³ of cut has no waste site with room`,
+  ]
+    .filter(Boolean)
+    .join(' and ')
+  const classBands = haul?.classes.some((band) => band.spans.length) ? haul.classes : []
   const nearbyMovements = [...(engineering?.movements ?? [])]
     .filter(
       (movement) =>
@@ -2186,25 +2246,25 @@ export function MassHaulChart({
       return proximity(a) - proximity(b) || b.transportedVolumeM3 - a.transportedVolumeM3
     })
     .slice(0, 5)
-  const haulColor = (category: string) =>
-    category === 'freehaul' ? '#0d9488' : category === 'overhaul' ? '#d97706' : '#7c3aed'
-  const haulLabel = (category: string) =>
-    category === 'freehaul' ? 'Free haul' : category === 'overhaul' ? 'Overhaul' : 'End haul'
-  const [low, high] = extent(
-    [
-      0,
-      ...points
-        .filter(
-          (p, i) =>
-            (p.x >= rangeStart && p.x <= rangeEnd) ||
-            (p.x < rangeStart && points[i + 1]?.x > rangeStart) ||
-            (p.x > rangeEnd && points[i - 1]?.x < rangeEnd),
-        )
-        .map((p) => p.ground),
-    ],
-    10,
-  )
+  const inView = <T extends readonly [number, number]>(line: readonly T[]) =>
+    line
+      .filter(
+        (p, i) =>
+          (p[0] >= rangeStart && p[0] <= rangeEnd) ||
+          (p[0] < rangeStart && line[i + 1]?.[0] > rangeStart) ||
+          (p[0] > rangeEnd && line[i - 1]?.[0] < rangeEnd),
+      )
+      .map((p) => p[1])
+  const [valueLow, high] = extent([0, ...inView(diagram.balance), ...inView(afterSites ?? [])], 10)
+  // The class bands take the foot of the plot, so the curve is kept clear of them.
+  const low = classBands.length ? valueLow - (high - valueLow) * 0.12 : valueLow
   const domain: Domain = [rangeStart, rangeEnd, low, high]
+  const classRange = (band: HaulClassBand) =>
+    band.fromM === null
+      ? ''
+      : band.toM === null
+        ? ` over ${format(band.fromM)} m`
+        : ` ${format(band.fromM)}–${format(band.toM)} m`
   return (
     <ChartSlot
       footer={
@@ -2215,156 +2275,197 @@ export function MassHaulChart({
                 label: engineering ? 'Usable compacted cut − fill' : 'Cumulative cut × factor − fill',
                 color: ROAD_CHART_COLORS.mass,
               },
+              ...(afterSites ? [{ label: 'After borrow and waste', color: AFTER_SITES_COLOR }] : []),
               { label: 'Surplus', color: ROAD_CHART_COLORS.cut },
               { label: 'Deficit', color: ROAD_CHART_COLORS.fill },
+              ...(diagram.unknown.length ? [{ label: 'Earthwork unknown (hatched)', color: '#b45309' }] : []),
             ]}
           />
           <p className="text-3xs" data-testid="road-mass-cursor">
-            {formatRoadStation(selected?.x ?? station)} · balance {format(selected?.ground)} m³
-            {finite(selected?.ground) ? '' : ' · unknown after an incomplete section'}
+            {formatRoadStation(station)} · balance {format(balanceHere)} m³
+            {afterHere !== null && ` · after borrow and waste ${format(afterHere)} m³`}
+            {unknownHere && ' · earthwork unknown here, so the balance is carried across'}
           </p>
+          <p className="text-3xs" data-testid="road-mass-end">
+            End balance {format(diagram.endBalanceM3)} m³
+            {diagram.unknownLengthM > 0 &&
+              ` · excludes ${format(diagram.unknownLengthM)} m of road with unknown earthwork`}
+            {haul &&
+              ` · after borrow and waste ${closed ? 'the diagram closes at 0 m³' : `it ends at ${format(haul.closingM3)} m³`}`}
+            {haul && unplaced && ` · ${unplaced}`}
+          </p>
+          {haul && haul.pits.length > 0 && (
+            <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-3xs" data-testid="road-mass-pits">
+              {haul.pits.map((pit) => (
+                <button
+                  key={pit.siteId}
+                  className="underline decoration-dotted"
+                  title="Select this site's road station"
+                  onClick={() => onStation(pit.chainage)}
+                >
+                  {pit.kind === 'borrow' ? 'Borrow' : 'Waste'} · {pit.name} at {formatRoadStation(pit.chainage)}:{' '}
+                  {format(pit.volumeM3)} {pit.volumeBasis} m³
+                </button>
+              ))}
+            </p>
+          )}
+          {haul && (
+            <p
+              className="flex flex-wrap gap-x-3 gap-y-0.5 text-3xs text-muted-foreground"
+              data-testid="road-haul-classes"
+            >
+              {haul.classes.map((band) => (
+                <span key={band.category} className="inline-flex items-center gap-1">
+                  <span className="h-1.5 w-3" style={{ backgroundColor: HAUL_CLASS_COLORS[band.category] }} />
+                  {band.label}
+                  {classRange(band)}: {format(band.compactedM3)} compacted m³
+                  {band.bankM3 > 0 && ` + ${format(band.bankM3)} bank m³ waste`}
+                </span>
+              ))}
+            </p>
+          )}
           <p className="text-3xs text-muted-foreground">
             {engineering
               ? 'Material reuse and compaction follow the entered assumptions. '
               : 'Balance of computed earthwork. '}
-            Gaps remain unknown; quantities cover supported intervals.
+            The balance counts known earthwork only.
+            {afterSites &&
+              ' Each site steps the dashed line at its road station; above zero the net haul runs up-station, below zero down-station.'}
+            {classBands.length > 0 &&
+              ' The bars at the foot of the plot mark the road each haul class moves material over.'}
           </p>
-          {engineering?.haul.enabled && (
-            <>
-              <p className="text-3xs text-muted-foreground">
-                Road totals · compacted volume: free haul {format(engineering.haul.freeHaulM3)} · overhaul{' '}
-                {format(engineering.haul.overhaulM3)} · end haul {format(engineering.haul.endHaulM3)} m³. Borrow{' '}
-                {format(engineering.haul.borrowCompactedM3)} compacted m³ · waste {format(engineering.haul.wasteBankM3)}{' '}
-                bank m³{engineering.haul.complete ? '' : ' · allocation incomplete'}.
-              </p>
-              {nearbyMovements.length > 0 && (
-                <div className="-mx-3 border-t" data-testid="road-haul-movements">
-                  <button
-                    className="flex w-full justify-between px-3 py-1 text-3xs text-muted-foreground hover:bg-muted"
-                    aria-expanded={showMovements}
-                    onClick={() => setShowMovements((value) => !value)}
-                  >
-                    <span>
-                      Haul movements nearest the cursor · {nearbyMovements.length} of {engineering.movements.length}
-                    </span>
-                    <span>{showMovements ? 'Hide −' : 'Show +'}</span>
-                  </button>
-                  {showMovements && (
-                    <SizedChart height={nearbyMovements.length * 24 + 4}>
-                      {(width) => {
-                        const frame = chartFrame(width, 100, domain)
-                        return (
-                          <svg
-                            width={width}
-                            height={nearbyMovements.length * 24 + 4}
-                            role="group"
-                            aria-label="Computed haul movement endpoints; select either end to inspect its road station"
-                          >
-                            <defs>
-                              <clipPath id={`haul-range-${id}`}>
-                                <rect
-                                  x={frame.left}
-                                  y={0}
-                                  width={frame.plotWidth}
-                                  height={nearbyMovements.length * 24 + 4}
-                                />
-                              </clipPath>
-                              <marker
-                                id={`haul-arrow-${id}`}
-                                viewBox="0 0 10 10"
-                                refX="9"
-                                refY="5"
-                                markerWidth="5"
-                                markerHeight="5"
-                                orient="auto-start-reverse"
-                              >
-                                <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
-                              </marker>
-                            </defs>
-                            {nearbyMovements.map((movement, index) => {
-                              const fromX = frame.x(movement.fromChainage),
-                                toX = frame.x(movement.toChainage),
-                                y = index * 24 + 18
-                              const detail = `${movement.kind}: ${formatRoadStation(movement.fromChainage)} to ${formatRoadStation(movement.toChainage)}; ${format(movement.transportedVolumeM3)} ${movement.volumeBasis} m³; ${format(movement.distanceM)} m; ${haulLabel(movement.category)}; CAD ${format(movement.haulCost, 2)} haul cost.`
-                              return (
-                                <g key={movement.id}>
-                                  <title>{detail}</title>
-                                  <text x={3} y={y + 3} fontSize="9" fill="hsl(var(--muted-foreground))">
-                                    {movement.kind === 'cut-to-fill' ? 'C → F' : movement.kind}
-                                  </text>
-                                  <g clipPath={`url(#haul-range-${id})`}>
-                                    <line
-                                      x1={fromX}
-                                      x2={toX}
-                                      y1={y}
-                                      y2={y}
-                                      stroke={haulColor(movement.category)}
-                                      strokeWidth={2}
-                                      markerEnd={`url(#haul-arrow-${id})`}
-                                    />
-                                    <text
-                                      x={(fromX + toX) / 2}
-                                      y={y - 5}
-                                      textAnchor="middle"
-                                      fontSize="8"
-                                      fill="hsl(var(--muted-foreground))"
-                                    >
-                                      {format(movement.transportedVolumeM3, 0)} {movement.volumeBasis} m³ ·{' '}
-                                      {haulLabel(movement.category)}
-                                    </text>
-                                    {[
-                                      { x: fromX, chainage: movement.fromChainage, name: 'source' },
-                                      { x: toX, chainage: movement.toChainage, name: 'destination' },
-                                    ]
-                                      .filter(
-                                        (endpoint) => endpoint.chainage >= rangeStart && endpoint.chainage <= rangeEnd,
-                                      )
-                                      .map((endpoint) => (
-                                        <g
-                                          key={endpoint.name}
-                                          role="button"
-                                          tabIndex={0}
-                                          aria-label={`${movement.kind} ${endpoint.name} at ${formatRoadStation(endpoint.chainage)}`}
-                                          className="cursor-pointer outline-none focus-visible:[&>circle]:stroke-foreground"
-                                          onClick={() => onStation(endpoint.chainage)}
-                                          onKeyDown={(event) => {
-                                            if (event.key === 'Enter' || event.key === ' ') {
-                                              event.preventDefault()
-                                              onStation(endpoint.chainage)
-                                            }
-                                          }}
-                                        >
-                                          <circle cx={endpoint.x} cy={y} r={7} fill="transparent" />
-                                          <circle cx={endpoint.x} cy={y} r={3} fill={haulColor(movement.category)} />
-                                        </g>
-                                      ))}
-                                  </g>
-                                </g>
-                              )
-                            })}
-                            <line
-                              x1={frame.x(station)}
-                              x2={frame.x(station)}
-                              y1={0}
-                              y2={nearbyMovements.length * 24 + 4}
-                              stroke={ROAD_CHART_COLORS.selected}
-                              strokeWidth={1}
-                              pointerEvents="none"
+          {engineering?.haul.enabled && nearbyMovements.length > 0 && (
+            <div className="-mx-3 border-t" data-testid="road-haul-movements">
+              <button
+                className="flex w-full justify-between px-3 py-1 text-3xs text-muted-foreground hover:bg-muted"
+                aria-expanded={showMovements}
+                onClick={() => setShowMovements((value) => !value)}
+              >
+                <span>
+                  Haul movements nearest the cursor · {nearbyMovements.length} of {engineering.movements.length}
+                </span>
+                <span>{showMovements ? 'Hide −' : 'Show +'}</span>
+              </button>
+              {showMovements && (
+                <SizedChart height={nearbyMovements.length * 24 + 4}>
+                  {(width) => {
+                    const frame = chartFrame(width, 100, domain)
+                    return (
+                      <svg
+                        width={width}
+                        height={nearbyMovements.length * 24 + 4}
+                        role="group"
+                        aria-label="Computed haul movement endpoints; select either end to inspect its road station"
+                      >
+                        <defs>
+                          <clipPath id={`haul-range-${id}`}>
+                            <rect
+                              x={frame.left}
+                              y={0}
+                              width={frame.plotWidth}
+                              height={nearbyMovements.length * 24 + 4}
                             />
-                          </svg>
-                        )
-                      }}
-                    </SizedChart>
-                  )}
-                </div>
+                          </clipPath>
+                          <marker
+                            id={`haul-arrow-${id}`}
+                            viewBox="0 0 10 10"
+                            refX="9"
+                            refY="5"
+                            markerWidth="5"
+                            markerHeight="5"
+                            orient="auto-start-reverse"
+                          >
+                            <path d="M0,0 L10,5 L0,10 z" fill="context-stroke" />
+                          </marker>
+                        </defs>
+                        {nearbyMovements.map((movement, index) => {
+                          const fromX = frame.x(movement.fromChainage),
+                            toX = frame.x(movement.toChainage),
+                            y = index * 24 + 18
+                          const detail = `${movement.kind}: ${formatRoadStation(movement.fromChainage)} to ${formatRoadStation(movement.toChainage)}; ${format(movement.transportedVolumeM3)} ${movement.volumeBasis} m³; ${format(movement.distanceM)} m; ${HAUL_CLASS_LABELS[movement.category]}; CAD ${format(movement.haulCost, 2)} haul cost.`
+                          return (
+                            <g key={movement.id}>
+                              <title>{detail}</title>
+                              <text x={3} y={y + 3} fontSize="9" fill="hsl(var(--muted-foreground))">
+                                {movement.kind === 'cut-to-fill' ? 'C → F' : movement.kind}
+                              </text>
+                              <g clipPath={`url(#haul-range-${id})`}>
+                                <line
+                                  x1={fromX}
+                                  x2={toX}
+                                  y1={y}
+                                  y2={y}
+                                  stroke={HAUL_CLASS_COLORS[movement.category]}
+                                  strokeWidth={2}
+                                  markerEnd={`url(#haul-arrow-${id})`}
+                                />
+                                <text
+                                  x={(fromX + toX) / 2}
+                                  y={y - 5}
+                                  textAnchor="middle"
+                                  fontSize="8"
+                                  fill="hsl(var(--muted-foreground))"
+                                >
+                                  {format(movement.transportedVolumeM3, 0)} {movement.volumeBasis} m³ ·{' '}
+                                  {HAUL_CLASS_LABELS[movement.category]}
+                                </text>
+                                {[
+                                  { x: fromX, chainage: movement.fromChainage, name: 'source' },
+                                  { x: toX, chainage: movement.toChainage, name: 'destination' },
+                                ]
+                                  .filter(
+                                    (endpoint) => endpoint.chainage >= rangeStart && endpoint.chainage <= rangeEnd,
+                                  )
+                                  .map((endpoint) => (
+                                    <g
+                                      key={endpoint.name}
+                                      role="button"
+                                      tabIndex={0}
+                                      aria-label={`${movement.kind} ${endpoint.name} at ${formatRoadStation(endpoint.chainage)}`}
+                                      className="cursor-pointer outline-none focus-visible:[&>circle]:stroke-foreground"
+                                      onClick={() => onStation(endpoint.chainage)}
+                                      onKeyDown={(event) => {
+                                        if (event.key === 'Enter' || event.key === ' ') {
+                                          event.preventDefault()
+                                          onStation(endpoint.chainage)
+                                        }
+                                      }}
+                                    >
+                                      <circle cx={endpoint.x} cy={y} r={7} fill="transparent" />
+                                      <circle
+                                        cx={endpoint.x}
+                                        cy={y}
+                                        r={3}
+                                        fill={HAUL_CLASS_COLORS[movement.category]}
+                                      />
+                                    </g>
+                                  ))}
+                              </g>
+                            </g>
+                          )
+                        })}
+                        <line
+                          x1={frame.x(station)}
+                          x2={frame.x(station)}
+                          y1={0}
+                          y2={nearbyMovements.length * 24 + 4}
+                          stroke={ROAD_CHART_COLORS.selected}
+                          strokeWidth={1}
+                          pointerEvents="none"
+                        />
+                      </svg>
+                    )
+                  }}
+                </SizedChart>
               )}
-            </>
+            </div>
           )}
         </>
       }
     >
       {(width, height) => {
         const f = chartFrame(width, height, domain)
+        const bandTop = f.top + f.plotHeight - classBands.length * 5 - 1
         return (
           <svg
             width={width}
@@ -2401,6 +2502,17 @@ export function MassHaulChart({
             />
             <g clipPath={`url(#mass-${id})`}>
               <SelectionBand range={selectedRange} frame={f} />
+              <g data-testid="road-mass-unknown">
+                <HatchedSpans
+                  spans={diagram.unknown.map((span) => [span.start, span.end])}
+                  x={f.x}
+                  top={f.top}
+                  height={f.plotHeight}
+                  title={(start, end) =>
+                    `Earthwork unknown between ${formatRoadStation(start)} and ${formatRoadStation(end)}: an incomplete section. The balance is carried across.`
+                  }
+                />
+              </g>
               {differencePolygons(points, f.x, f.y).map((p, i) => (
                 <polygon key={i} points={p.points} fill={p.color} opacity={0.2} />
               ))}
@@ -2418,6 +2530,71 @@ export function MassHaulChart({
                 strokeWidth={2}
                 fill="none"
               />
+              {afterSites && (
+                <path
+                  data-testid="road-mass-after-sites"
+                  d={afterSites
+                    .map(([x, y], i) => `${i ? 'L' : 'M'}${f.x(x).toFixed(2)},${f.y(y).toFixed(2)}`)
+                    .join(' ')}
+                  stroke={AFTER_SITES_COLOR}
+                  strokeWidth={1.6}
+                  strokeDasharray="5 3"
+                  fill="none"
+                />
+              )}
+              {afterSites &&
+                haul!.pits.map((pit, index) => {
+                  const x = f.x(pit.chainage)
+                  const before = ordinateAt(afterSites, pit.chainage, 'before') ?? 0,
+                    after = ordinateAt(afterSites, pit.chainage) ?? 0
+                  const borrow = pit.kind === 'borrow'
+                  const color = borrow ? ROAD_CHART_COLORS.fill : ROAD_CHART_COLORS.cut
+                  // A label sits beside its pit, flipping near the right edge and stepping down when pits crowd.
+                  const flip = x > f.left + f.plotWidth - 120
+                  return (
+                    <g key={pit.siteId} data-testid="road-mass-pit" data-kind={pit.kind} data-chainage={pit.chainage}>
+                      <title>
+                        {`${borrow ? 'Borrow' : 'Waste'} · ${pit.name} at ${formatRoadStation(pit.chainage)}: ${format(pit.volumeM3)} ${pit.volumeBasis} m³. The balance steps ${format(pit.stepM3)} m³ here.`}
+                      </title>
+                      <line x1={x} x2={x} y1={f.y(before)} y2={f.y(after)} stroke={color} strokeWidth={3} />
+                      <path
+                        d={
+                          borrow
+                            ? `M${x - 5},${f.top + 9} L${x + 5},${f.top + 9} L${x},${f.top + 1} z`
+                            : `M${x - 5},${f.top + 1} L${x + 5},${f.top + 1} L${x},${f.top + 9} z`
+                        }
+                        fill={color}
+                      />
+                      <text
+                        x={x + (flip ? -8 : 8)}
+                        y={f.top + 9 + (index % 3) * 10}
+                        textAnchor={flip ? 'end' : 'start'}
+                        fontSize="9"
+                        fill="hsl(var(--foreground))"
+                      >
+                        {borrow ? 'Borrow' : 'Waste'} {format(pit.volumeM3, 0)} m³
+                      </text>
+                    </g>
+                  )
+                })}
+              {classBands.map((band, row) =>
+                band.spans.map((span) => (
+                  <rect
+                    key={`${band.category}-${span.start}`}
+                    data-testid="road-mass-class-span"
+                    data-class={band.category}
+                    x={f.x(span.start)}
+                    y={bandTop + row * 5}
+                    width={Math.max(1, f.x(span.end) - f.x(span.start))}
+                    height={4}
+                    fill={HAUL_CLASS_COLORS[band.category]}
+                  >
+                    <title>
+                      {`${band.label}${classRange(band)}: material moves over ${formatRoadStation(span.start)}–${formatRoadStation(span.end)}`}
+                    </title>
+                  </rect>
+                )),
+              )}
               <line
                 x1={f.x(station)}
                 x2={f.x(station)}
