@@ -63,7 +63,7 @@ the optional delivered-cost borrow/waste allocation.
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
 | Reusable cut factor                  | 0.1–2                                                                                                                       | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
-| Horizon depths                       | 0–1,000 m below ground; no overlap in station and depth                                                                     | `validateEngineering`                                                      | Calculation error                                                                |
+| Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier         | `validateEngineering`; `groundHorizons.ts` `resolveHorizons`               | Calculation error for a depth out of range; overlaps are resolved                |
 | Material section work                | 15,000,000 section-sample × layer pairs                                                                                     | `engineering.ts` `calculateEngineering`                                    | Calculation error                                                                |
 | Haul allocation                      | 20,000,000 comparisons; 20,000 movements                                                                                    | `engineering.ts` `allocateHaul`                                            | Calculation error, not a truncated allocation                                    |
 | Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km                                                                 | `validateEngineering`                                                      | Calculation error                                                                |
@@ -94,8 +94,17 @@ new template is validated before it is added; one out of range is refused with a
 a BC road-class standard. Left and right ditch bottom widths are set in the template's side
 editor.
 
+**Ditch shape.** A ditch is a top width, a depth and a flat bottom centred in it, so its inslope
+and backslope are the same: each runs (top − bottom) / 2 over the depth. **Side slopes (H:V)** in
+the ditch editor enters that slope instead of the top width (`ditchTopWidthForSlope` in
+`templates.ts`): a 0.3 m deep V ditch at 4:1 becomes 2.4 m wide. A ditch whose backslope is the
+cut batter, with a different inslope, is not modelled. **Copy left side to right** (and right to
+left) copies the lane, crossfall, surfacing, ditch, batters, components and one-sided courses of
+one side to the other (`copyTemplateSide`).
+
 **Section geometry.** Negative offsets are left looking up-station, on the plan, the section, the
-templates and the tables. A ditch is built only where ground at the hinge is above the formation
+templates and the tables. The cross-section draws the surfacing above the subgrade line: the
+explicit course stack, or the template's surfacing depth on each side where there is no stack. A ditch is built only where ground at the hinge is above the formation
 edge, so a fill side never gets one. Each batter is searched outward from the hinge (or ditch) at
 the sampling pitch and refined by bisection. The first crossing with ground is the daylight, so a
 narrow bench or gully narrower than the pitch can be stepped over.
@@ -134,14 +143,28 @@ surplus and deficit found a site. The class bars at the foot of the plot mark wh
 overhaul and end haul move material; a movement to or from a site is classed by chainage distance
 plus access, but its bar covers only the road part.
 
-**Materials.** A new material copies the current base cut rate and reusable cut factor, with a
-reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
+**Materials.** A ground material carries an excavation rate ($/bank m³), a reusable fraction, a
+compacted-per-bank factor (entered directly, or converted from a bank-per-compacted factor such
+as a RoadEng fill expansion factor), optional cut and fill batters, and an optional quality from
+0 to 100. A blank quality is unknown and cannot meet a quality rule; the field says so. Fill
+placement is not a material property: one fill-placement rate (`RoadSettings.fillRate`) prices
+all fill, and each material's block shows it. A number field that receives a value outside its
+range says what it was changed to (`useRangeNote` in `Controls.tsx`). A new material copies the
+current base cut rate and reusable cut factor, with a reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
 changes do not reach it. Horizons are vertical depths below original ground at each section
-sample. A legacy stripping horizon classifies excavated cut only: it does not remove ground
+sample. Where two overlap in station and depth, the later one in the list replaces the earlier
+over the overlap, and the editor says which ones it replaces; enter the general case first and the
+local exception after it. A legacy stripping horizon classifies excavated cut only: it does not remove ground
 under fill or create replacement fill by itself. Explicit **Stripping before construction** ranges now remove ground
 before the section is built, including beneath fill, and create the corresponding replacement
 fill. See [Physical section assemblies and preparation](section-assemblies.md) for the separate
 prepared-ground surface, material-sensitive batters, component/course quantities and limits.
+
+**Add buttons.** Every Add button creates an entry the analysis accepts. Stripping ranges,
+fill requirements on one layer, sidecast ranges and template ranges cannot overlap, so a new one
+takes road that none covers yet (`freeStationRange` in `inputErrors.ts`), from the selected
+station where that is free; the button is disabled, with the reason beside it, once the road is
+fully covered.
 
 **Nearest-source haul.** With no material policies and economic mode unset, allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
 nearest remaining usable cut anywhere on the road. It is a repeatable
@@ -170,7 +193,16 @@ In the table only the default borrow and waste rates are editable. Class rates a
 fields below the table; site rates and fixed costs in Engineering → Haul. **Structures** shows the
 culvert count and their installed total, with no rate.
 
-**Culverts.** Cover is the minimum sampled subgrade-to-crown distance under the lane width only. It
+**Culverts.** The inlet is the left end of the barrel and the outlet the right. With both inverts
+entered, **fall, inlet to outlet (%)** shows the gradient over the horizontal span and accepts
+one: it keeps the inlet and moves the outlet, or the reverse (`invertsForFall`, `culvertGrade.ts`).
+Skew is measured from square to the road, not from the centreline: 0° crosses
+square, a pipe 75° from the centreline is 15°, and positive turns the right-hand end toward lower
+stations. Each culvert shows the full-pipe Manning capacity of its diameter at its fall
+(`culvertScreeningCapacity`), with the drainage settings' Manning n, or at an assumed 2 % until
+the outlet is below the inlet. That figure belongs to the pipe alone; the peak flow it must carry
+comes only from a drainage run, which uses the same slope rule (`culvertCapacitySlope`,
+`hydrology.ts`). Cover is the minimum sampled subgrade-to-crown distance under the lane width only. It
 excludes surfacing and is not checked under ditches or fill batters. The formation under the
 barrel uses the section's own crossfall at each sample's station, superelevated on a curve
 (`sectionCrossfall` in `templates.ts`). A dip deepens the left (inlet-side) ditch only, and only
@@ -222,6 +254,18 @@ prices, unpriced work, material assumptions, unallocated haul and crossing/culve
 gaps. With haul off, it screens minimum borrow demand from the covered material balance
 without adding an invented price or extrapolating missing intervals.
 
+**Unpriced quantities.** `unpricedQuantities` (`costReadiness.ts`) lists every quantity above
+zero whose rate is zero: stripping and excavation by material, fill placement, surfacing,
+clearing, borrow supply and waste disposal, overhaul and endhaul distance, and culverts with no
+installed cost. No rate is assumed for them; the amount stays zero. Each is named with its
+quantity ("1,795 bank m³ of stripping (Stripped overburden) has no rate") in a warning above the
+cost table, its row reads **No rate** in place of $0.00, the dialog's status line counts them and
+the headline tile reads **Estimate · N unpriced**. This matters because adding unpriced work
+can lower the total: **Add stripping range** creates its material at $0, so stripping moves
+excavation off a priced line onto an unpriced one. Free haul inside the free-haul distance,
+loading, sidecast and a site's fixed cost are entered scenarios and are not listed. The same list
+is `unpriced` on `assessCostReadiness`, which builds the zero-rate review flags from it.
+
 **Regional evidence and rate tools.** The BC reference browser links all eight regions
 to current manual editions and primary supplier sources. Missing public prices remain
 quote-required. Separate Interior subgrade and Coast bundled-road comparisons retain
@@ -244,19 +288,23 @@ payload, or net crew productivity as appropriate. See
 | Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                           |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
-| "Correct this alignment before calculating: …"                           | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)       | Read the message; quantities are unavailable until it is fixed                           |
+| "The road and results below leave out your latest edit"                  | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results show the last valid inputs on the current line     |
+| "Correct this alignment before calculating: …"                           | The line cannot be calculated, or an input was invalid before any valid result existed                                          | Read the message; quantities are unavailable until it is fixed                           |
 | Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                 |
 | "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                          |
 | Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                      |
 | "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                 |
 | Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                              |
 | Overhaul m³·km in the cost dialog smaller than on the Haul tab           | The dialog charges overhaul and endhaul only beyond free haul; the Haul tab's m³·km is over the whole distance                  | Expected; use the dialog's rows for cost, the Haul tab for movement                      |
-| A zero cost line                                                         | Its rate is zero                                                                                                                | Zero means unpriced; enter a rate or state the exclusion                                 |
+| A cost line reads **No rate**, tile reads **Estimate · N unpriced**      | A quantity above zero has a zero rate                                                                                           | Enter the rate, or record where the cost is carried; the total leaves it out             |
 
 ## What it does not do
 
 - Classify soil, rock or organics from terrain, or test material suitability.
 - Strip or undercut beneath embankments, or model layer-specific fill.
+- Price fill placement by material. An embankment rate per ground type would need the fill of
+  every interval attributed to a material, which exists only once haul is allocated, and the
+  economic allocation would have to carry placement in its objective.
 - Optimize haul or borrow and waste globally, schedule construction, or survey site access.
 - Size culverts hydraulically or check structural cover; see [Drainage](drainage.md).
 - Grade a 3D landing pad, design intersections, or add new template component types.

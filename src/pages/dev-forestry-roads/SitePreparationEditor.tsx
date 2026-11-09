@@ -1,19 +1,26 @@
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
+import { EntryProblem } from './InputProblem'
+import { freeStationRange, inputMessage, type InvalidInput } from './inputErrors'
 import type { AlignmentEngineering, SitePreparationRange } from './types'
 
 export function SitePreparationEditor({
   design,
   length,
   station,
+  problem,
   onChange,
 }: {
   design: AlignmentEngineering
   length: number
   station: number
+  /** The current invalid edit, if any; its message is shown at the range it names. */
+  problem?: InvalidInput
   onChange: (design: AlignmentEngineering) => void
 }) {
   const ranges = design.sitePreparation ?? []
+  // Stripping ranges cannot overlap, so a new one takes road that none covers yet.
+  const free = freeStationRange(ranges, length, station)
   const update = (id: string, patch: Partial<SitePreparationRange>) =>
     onChange({ ...design, sitePreparation: ranges.map((r) => (r.id === id ? { ...r, ...patch } : r)) })
   return (
@@ -26,11 +33,11 @@ export function SitePreparationEditor({
       <Button
         size="sm"
         variant="outline"
-        disabled={ranges.length >= 100}
+        disabled={ranges.length >= 100 || !free}
         onClick={() => {
+          if (!free) return
           const material = design.materials.find((m) => m.purpose === 'stripping'),
             materialId = material?.id ?? crypto.randomUUID()
-          const start = Math.min(Math.max(0, station), Math.max(0, length - 1))
           onChange({
             ...design,
             materials: material
@@ -51,8 +58,7 @@ export function SitePreparationEditor({
               ...ranges,
               {
                 id: crypto.randomUUID(),
-                start,
-                end: Math.max(start + 1, length),
+                ...free,
                 materialId,
                 depthM: 0.2,
                 leftInsideM: 0,
@@ -66,6 +72,11 @@ export function SitePreparationEditor({
       >
         Add stripping range
       </Button>
+      {!free && ranges.length > 0 && (
+        <p className="text-2xs text-muted-foreground">
+          The whole road already has a stripping range. Shorten one to add another.
+        </p>
+      )}
       {ranges.map((r, i) => (
         <div key={r.id} className="space-y-2 rounded border p-2">
           <Field label={`Stripping ${i + 1} material`}>
@@ -102,10 +113,17 @@ export function SitePreparationEditor({
                 value={r[key]}
                 min={0}
                 max={max}
+                error={inputMessage(problem, 'sitePreparation', r.id, key)}
                 onChange={(value) => update(r.id, { [key]: value })}
               />
             ))}
           </div>
+          <EntryProblem
+            problem={problem}
+            list="sitePreparation"
+            id={r.id}
+            inlineFields={['start', 'end', 'depthM', 'leftInsideM', 'rightInsideM', 'leftOutsideM', 'rightOutsideM']}
+          />
           <Button
             size="sm"
             variant="ghost"

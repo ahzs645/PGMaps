@@ -676,7 +676,7 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
   await fillNumber(page, 'Culvert 1 left inlet invert (m)', inlet - 3)
   await fillNumber(page, 'Culvert 1 right outlet invert (m)', inlet - 3.6)
   const originalBarrel = (await mapState(page))!.structures?.features[0].geometry
-  await fillNumber(page, 'Culvert 1 skew (°)', 20)
+  await fillNumber(page, 'Culvert 1 skew from square (°)', 20)
   await expect.poll(async () => (await mapState(page))?.structures?.features[0].geometry).not.toEqual(originalBarrel)
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain A', exact: true })).toBeVisible()
   await fillNumber(page, 'Selected station metres', 400)

@@ -3,6 +3,8 @@ import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } f
 import { RoadSection } from './SidebarParts'
 import type { AlignmentEngineering, FillRequirement, HaulDirectionRange, SidecastRange } from './engineeringTypes'
 import { MAX_FILL_REQUIREMENTS, MAX_HAUL_DIRECTION_RANGES, MAX_SIDECAST_RANGES } from './allocationPolicy'
+import { EntryProblem } from './InputProblem'
+import { freeStationRange, inputMessage, type InvalidInput } from './inputErrors'
 
 export function MaterialAllocationControls({
   design: e,
@@ -10,12 +12,15 @@ export function MaterialAllocationControls({
   length,
   requirementsOnly = false,
   layerIds = [],
+  problem,
 }: {
   design: AlignmentEngineering
   onChange: (value: AlignmentEngineering) => void
   length: number
   requirementsOnly?: boolean
   layerIds?: string[]
+  /** The current invalid edit, if any; its message is shown at the range it names. */
+  problem?: InvalidInput
 }) {
   const enable = (value: AlignmentEngineering) =>
     onChange({ ...value, haul: { ...value.haul, enabled: true, allocation: 'economic' } })
@@ -50,6 +55,18 @@ export function MaterialAllocationControls({
       ]),
     ]),
   ]
+  // Requirements on one layer cannot overlap, nor can sidecast ranges: a new one takes free road,
+  // on the first layer that still has some.
+  const freeRequirement = knownLayers
+    .map((layer) => ({
+      layer,
+      range: freeStationRange(
+        (e.fillRequirements ?? []).filter((r) => r.layer === layer),
+        end,
+      ),
+    }))
+    .find((candidate) => candidate.range)
+  const freeSidecast = freeStationRange(e.haul.sidecastRanges ?? [], end)
   return (
     <div className="space-y-3" data-testid="road-material-allocation-policy">
       <RoadSection
@@ -59,17 +76,19 @@ export function MaterialAllocationControls({
         <Button
           size="sm"
           variant="outline"
-          disabled={(e.fillRequirements?.length ?? 0) >= MAX_FILL_REQUIREMENTS || !fillMaterials.length}
+          disabled={
+            (e.fillRequirements?.length ?? 0) >= MAX_FILL_REQUIREMENTS || !fillMaterials.length || !freeRequirement
+          }
           onClick={() =>
+            freeRequirement?.range &&
             enable({
               ...e,
               fillRequirements: [
                 ...(e.fillRequirements ?? []),
                 {
                   id: crypto.randomUUID(),
-                  start: 0,
-                  end,
-                  layer: 'subgrade',
+                  ...freeRequirement.range,
+                  layer: freeRequirement.layer,
                   materialId: fillMaterials[0].id,
                   replaceable: false,
                 },
@@ -79,6 +98,14 @@ export function MaterialAllocationControls({
         >
           Add fill requirement
         </Button>
+        {!fillMaterials.length && (
+          <p className="mt-2 text-2xs text-muted-foreground">Add a ground material in Engineering → Ground first.</p>
+        )}
+        {fillMaterials.length > 0 && !freeRequirement && (
+          <p className="mt-2 text-2xs text-muted-foreground">
+            Every layer already has a requirement over the whole road. Shorten one to add another.
+          </p>
+        )}
         {(e.fillRequirements ?? []).map((r, index) => (
           <div key={r.id} className="mt-2 space-y-2 rounded border p-2">
             <div className="flex items-center justify-between gap-2">
@@ -96,11 +123,13 @@ export function MaterialAllocationControls({
               <NumberField
                 label={`Requirement ${index + 1} start (m)`}
                 value={r.start}
+                error={inputMessage(problem, 'fillRequirements', r.id, 'start')}
                 onChange={(start) => patchRequirement(r.id, { start })}
               />
               <NumberField
                 label={`Requirement ${index + 1} end (m)`}
                 value={r.end}
+                error={inputMessage(problem, 'fillRequirements', r.id, 'end')}
                 onChange={(value) => patchRequirement(r.id, { end: value })}
               />
               <Field label={`Requirement ${index + 1} layer`}>
@@ -156,6 +185,7 @@ export function MaterialAllocationControls({
               />
               Permit substitution by quality
             </label>
+            <EntryProblem problem={problem} list="fillRequirements" id={r.id} inlineFields={['start', 'end']} />
           </div>
         ))}
       </RoadSection>
@@ -190,14 +220,17 @@ export function MaterialAllocationControls({
                   <NumberField
                     label={`Direction ${index + 1} start (m)`}
                     value={r.start}
+                    error={inputMessage(problem, 'directionRanges', r.id, 'start')}
                     onChange={(start) => patchDirection(r.id, { start })}
                   />
                   <NumberField
                     label={`Direction ${index + 1} end (m)`}
                     value={r.end}
+                    error={inputMessage(problem, 'directionRanges', r.id, 'end')}
                     onChange={(value) => patchDirection(r.id, { end: value })}
                   />
                 </div>
+                <EntryProblem problem={problem} list="directionRanges" id={r.id} inlineFields={['start', 'end']} />
                 <Field label={`Direction ${index + 1} movement`}>
                   <RoadSelect
                     ariaLabel={`Direction ${index + 1} movement`}
@@ -234,15 +267,16 @@ export function MaterialAllocationControls({
             <Button
               size="sm"
               variant="outline"
-              disabled={(e.haul.sidecastRanges?.length ?? 0) >= MAX_SIDECAST_RANGES}
+              disabled={(e.haul.sidecastRanges?.length ?? 0) >= MAX_SIDECAST_RANGES || !freeSidecast}
               onClick={() =>
+                freeSidecast &&
                 enable({
                   ...e,
                   haul: {
                     ...e.haul,
                     sidecastRanges: [
                       ...(e.haul.sidecastRanges ?? []),
-                      { id: crypto.randomUUID(), start: 0, end, capacityBankM3PerM: 0, unitRate: 0 },
+                      { id: crypto.randomUUID(), ...freeSidecast, capacityBankM3PerM: 0, unitRate: 0 },
                     ],
                   },
                 })
@@ -250,17 +284,24 @@ export function MaterialAllocationControls({
             >
               Add sidecast range
             </Button>
+            {!freeSidecast && (
+              <p className="mt-2 text-2xs text-muted-foreground">
+                The whole road already has a sidecast range. Shorten one to add another.
+              </p>
+            )}
             {(e.haul.sidecastRanges ?? []).map((r, index) => (
               <div key={r.id} className="mt-2 space-y-2 rounded border p-2">
                 <div className="grid grid-cols-2 gap-2">
                   <NumberField
                     label={`Sidecast ${index + 1} start (m)`}
                     value={r.start}
+                    error={inputMessage(problem, 'sidecastRanges', r.id, 'start')}
                     onChange={(start) => patchSidecast(r.id, { start })}
                   />
                   <NumberField
                     label={`Sidecast ${index + 1} end (m)`}
                     value={r.end}
+                    error={inputMessage(problem, 'sidecastRanges', r.id, 'end')}
                     onChange={(value) => patchSidecast(r.id, { end: value })}
                   />
                   <NumberField
@@ -290,6 +331,7 @@ export function MaterialAllocationControls({
                     ))}
                   </RoadSelect>
                 </Field>
+                <EntryProblem problem={problem} list="sidecastRanges" id={r.id} inlineFields={['start', 'end']} />
                 <Button
                   size="sm"
                   variant="ghost"

@@ -269,12 +269,12 @@ describe('physical section assemblies', () => {
     ]
     const result = analyzeRoad(a, flat, settings)
     expect(result.coveragePercent).toBe(0)
-    expect(result.stations[0].flags.join(' ')).toContain('requested key extends outside')
+    expect(result.stations[0].flags.join(' ')).toContain('Outside key: the key reaches 21.00 m past the formation edge')
     expect(result.cutVolumeM3).toBe(0)
     a.vertical = a.vertical.map((v) => ({ ...v, elevation: 798 }))
     const cut = analyzeRoad(a, flat, settings)
     expect(cut.coveragePercent).toBeCloseTo(100, 5)
-    expect(cut.stations[0].flags.join(' ')).not.toContain('requested key')
+    expect(cut.stations[0].flags.join(' ')).not.toContain('the key reaches')
   })
   it('classifies key excavation from actual entered ground horizons', () => {
     const a = road(802)

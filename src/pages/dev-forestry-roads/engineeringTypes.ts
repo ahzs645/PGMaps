@@ -308,7 +308,11 @@ export interface HaulSummary {
   /** All quantities refer only to supported earthwork intervals. */
   complete: boolean
   allocationMethod?: 'nearest' | 'economic'
-  optimizationStatus?: 'optimal' | 'infeasible' | 'not-requested'
+  /**
+   * `infeasible`: the entered rules cannot all be met. `unsolved`: the allocation could not be
+   * calculated (model too large, solver limit, failed check); no movement or haul cost is adopted.
+   */
+  optimizationStatus?: 'optimal' | 'infeasible' | 'unsolved' | 'not-requested'
   sidecastBankM3?: number
   /** Economic supply/movement/disposal/opening cost, excluding excavation and placement. */
   objectiveCost?: number

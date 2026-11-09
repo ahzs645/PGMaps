@@ -7,6 +7,10 @@ import { CURVE_DESIGN_HELP, CurveDesignControls } from '../CurveTools'
 import { RoadSettingsDialog } from '../RoadSettingsDialog'
 import { TemplateComponents } from '../TemplateComponents'
 import { RoadSection } from '../SidebarParts'
+import { EntryProblem } from '../InputProblem'
+import { inputMessage } from '../inputErrors'
+import { createEngineeringDesign } from '../engineeringTypes'
+import { keyedRockFillTemplate } from '../templates'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
 import { appliedTapers, duplicateWideningAt, fullWidthRange, limitedTaper } from '../wideningEntry'
@@ -26,8 +30,39 @@ const TEMPLATE_FIELDS: [NumericTemplateKey, string, number, number][] = [
   ['surfaceDepth', 'Surfacing depth (m)', 0, 2],
 ]
 
-export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }) {
+export function SectionTab(
+  p: SidebarProps & { onTab: (tab: SidebarTab) => void; onOpenTemplate?: (templateId: string) => void },
+) {
   const { alignment, updateAlignment } = p.workspace
+  /** A rock fill is a new named template to assign by station range and side; the road keeps its section. */
+  const startRockFillTemplate = () => {
+    const count = alignment.engineering?.templates.length ?? 0
+    if (count >= 50) {
+      p.workspace.setError('The template library is full (50). Remove a template to add a keyed rock fill.')
+      return
+    }
+    try {
+      const template = keyedRockFillTemplate(alignment.template, id),
+        templateId = id(),
+        name = `Keyed rock fill ${count + 1}`
+      updateAlignment((a) => {
+        const engineering = a.engineering ?? createEngineeringDesign()
+        return {
+          ...a,
+          engineering: { ...engineering, templates: [...engineering.templates, { id: templateId, name, template }] },
+        }
+      })
+      p.workspace.setError('')
+      p.workspace.setNotice(
+        `Created ${name}. The road is unchanged: assign the template to a station range and side under Template station assignments.`,
+      )
+      p.onOpenTemplate?.(templateId)
+    } catch (cause) {
+      p.workspace.setError(cause instanceof Error ? cause.message : 'Could not create the rock-fill template.')
+    }
+  }
+  // An invalid section value keeps the last valid road on screen; the message sits at its field.
+  const problem = p.workspace.analysis.invalidInput
   return (
     <>
       <RoadSection
@@ -42,10 +77,13 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
               value={alignment.template[key] ?? 0}
               min={min}
               max={max}
+              error={inputMessage(problem, 'template', undefined, key)}
               onChange={(value) => updateAlignment((a) => ({ ...a, template: { ...a.template, [key]: value } }))}
             />
           ))}
         </div>
+        {/* Side values are edited under Template components, which shows one component at a time. */}
+        <EntryProblem problem={problem} list="template" inlineFields={TEMPLATE_FIELDS.map(([key]) => key)} />
         <Button
           variant="ghost"
           size="sm"
@@ -62,6 +100,8 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
           materials={alignment.engineering?.materials}
           features={p.workspace.project.context}
           surfaces={p.workspace.project.terrain.referenceSurfaces}
+          problem={problem}
+          onRockFillTemplate={startRockFillTemplate}
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
         />
       </RoadSection>

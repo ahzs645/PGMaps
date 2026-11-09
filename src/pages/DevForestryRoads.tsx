@@ -150,6 +150,8 @@ import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { incompleteReasonSummary, incompleteReasonText } from './dev-forestry-roads/sectionCompleteness'
+import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
@@ -863,6 +865,14 @@ export default function DevForestryRoads() {
   const displayAnalyses = useMemo(
     () => new Map([...w.analyses, [displayedAlignment.id, displayedAnalysis]]),
     [w.analyses, displayedAlignment, displayedAnalysis],
+  )
+  const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
+  const unpricedCount = useMemo(
+    () =>
+      displayedAnalysis.stations.length
+        ? unpricedQuantities(displayedAnalysis, displayedAlignment, project.settings).length
+        : 0,
+    [displayedAnalysis, displayedAlignment, project.settings],
   )
   // Any other selection (a chart, the slider, a table row) takes a calculated station again.
   if (typedStation && typedStation.station !== w.station) setTypedStation(null)
@@ -2878,12 +2888,16 @@ export default function DevForestryRoads() {
                       ? 'Candidate complete cost'
                       : completeCostRecord
                         ? 'Complete access cost'
-                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
+                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible' ||
+                            displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
                           ? 'Incomplete estimate'
-                          : summaryLabel(
-                              'Base engineering estimate',
-                              hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                            ),
+                          : unpricedCount
+                            ? // Work with no rate adds nothing, so the figure must not read as a finished price.
+                              summaryLabel(`Estimate · ${unpricedCount} unpriced`, `Est. · ${unpricedCount} unpriced`)
+                            : summaryLabel(
+                                'Base engineering estimate',
+                                hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                              ),
                     value: costPreview
                       ? costPreview.totalCost === null
                         ? costPreview.status === 'infeasible'
@@ -2896,12 +2910,14 @@ export default function DevForestryRoads() {
                           : 'Recalculate'
                         : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
                           ? 'Material plan infeasible'
-                          : displayedAnalysis.stations.length
-                            ? summaryValue(
-                                `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                                `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                              )
-                            : 'Unavailable',
+                          : displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
+                            ? 'Material plan not solved'
+                            : displayedAnalysis.stations.length
+                              ? summaryValue(
+                                  `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                                  `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                                )
+                              : 'Unavailable',
                     // Opens the calculation: quantities × editable rates.
                     onToggle:
                       costPreview || completeCostRecord
@@ -2920,6 +2936,17 @@ export default function DevForestryRoads() {
                     label: summaryLabel('Complete sections', 'Coverage'),
                     value: `${number(displayedAnalysis.coveragePercent)}%`,
                     tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
+                    // Below 100 %, the tile opens the first incomplete section, where its reason is stated.
+                    ...(incompleteReasons.length
+                      ? {
+                          onToggle: () => {
+                            setStation(incompleteReasons[0].firstChainage)
+                            setDetail('section')
+                          },
+                          pressed: false,
+                          toggleLabel: `Show the first incomplete section. ${incompleteReasonText(incompleteReasons)}`,
+                        }
+                      : {}),
                   },
                 ]),
           ]}
@@ -3087,6 +3114,13 @@ export default function DevForestryRoads() {
                 )}
                 {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
+                )}
+                {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
+                  <div data-testid="road-invalid-input">
+                    <InlineAlert tone="warning" title="The road and results below leave out your latest edit">
+                      {displayedAnalysis.invalidInput.message} They show the last valid inputs until it is corrected.
+                    </InlineAlert>
+                  </div>
                 )}
                 {!investigation && routePreview && (
                   <div

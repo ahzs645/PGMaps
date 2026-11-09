@@ -1,4 +1,5 @@
 import type { AlignmentEngineering, RoadTemplate, SectionComponent, SectionLayer, SitePreparationRange } from './types'
+import { EngineeringInputError, requireStationRange } from './inputErrors'
 
 const number = (v: unknown, min: number, max: number, name: string): number => {
   if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
@@ -137,6 +138,22 @@ export function validateSectionMaterials(t: RoadTemplate, e?: AlignmentEngineeri
 
 export function validatePreparation(e: AlignmentEngineering) {
   if (e.sitePreparation !== undefined) {
+    // The ordering and overlap rules first, attributed to their range; the parser checks the rest.
+    e.sitePreparation.forEach((r, i) => {
+      const owner = `Stripping ${i + 1}`,
+        target = { list: 'sitePreparation' as const, id: r.id }
+      requireStationRange(r.start, r.end, owner, target)
+      for (let j = 0; j < i; j++) {
+        const other = e.sitePreparation![j],
+          from = Math.max(r.start, other.start),
+          to = Math.min(r.end, other.end)
+        if (to > from + 1e-7)
+          throw new EngineeringInputError(
+            `${owner} and stripping ${j + 1} overlap between ${Number(from.toFixed(3))} and ${Number(to.toFixed(3))} m. Stripping ranges cannot overlap; change a start or end station.`,
+            target,
+          )
+      }
+    })
     parseSitePreparation(e.sitePreparation)
     for (const r of e.sitePreparation) {
       const material = e.materials.find((m) => m.id === r.materialId)

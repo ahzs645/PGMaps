@@ -8,7 +8,13 @@
 import { solve, type Constraint, type Model } from 'yalps'
 import { acceptsFill, haulDirectionAllowed, materialDemandKey, requiredFillAt } from './allocationPolicy'
 import type { AlignmentEngineering, FillRequirement } from './engineeringTypes'
-import type { AllocationParcel, EconomicAllocation, Flow } from './materialAllocation'
+import {
+  allocationPivotLimit,
+  unfinishedSolveReason,
+  type AllocationParcel,
+  type EconomicAllocation,
+  type Flow,
+} from './materialAllocation'
 
 export const MAX_SPARSE_ALLOCATION_VARIABLES = 20_000
 export const MAX_SPARSE_ALLOCATION_CONSTRAINTS = 1_200
@@ -363,7 +369,7 @@ export function solveSparseMaterialAllocation(
   if (!n)
     return infeasible('No compatible, reachable material source or disposal capacity satisfies the construction rules.')
   const model: Model = { direction: 'minimize', objective: 'cost', variables, constraints, binaries }
-  const maxPivots = Math.min(8192, Math.max(128, Math.floor(500_000_000 / Math.max(1, cells))))
+  const maxPivots = allocationPivotLimit(m * 2 + binaries.length + 1)
   const result = solve(model, {
     precision: 1e-8,
     tolerance: 0,
@@ -378,7 +384,7 @@ export function solveSparseMaterialAllocation(
     )
   if (result.status !== 'optimal' || !Number.isFinite(result.result))
     throw Error(
-      `Sparse economic allocation did not finish an optimal solution (${result.status}; ${n} variables, ${m} constraints, ${maxPivots} pivots). No partial prescription was adopted.`,
+      `Economic allocation did not finish: ${unfinishedSolveReason(result.status, maxPivots)} (${n} variables, ${m} constraints). Increase station spacing, reduce materials or sites, or split the road. No partial prescription was adopted.`,
     )
   const values = new Map(result.variables)
   for (const [key, bound] of Object.entries(constraints)) {

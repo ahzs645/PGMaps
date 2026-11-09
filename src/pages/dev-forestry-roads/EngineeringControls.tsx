@@ -3,6 +3,7 @@ import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
 import { ArrowRight, Copy, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { crossingsWithoutStructure } from './costReadiness'
 import { TabBar } from '@/components/ui/tab-bar'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -17,8 +18,19 @@ import { GravelSourcesPanel } from './GravelSourcesPanel'
 import { MaterialAllocationControls } from './MaterialAllocationControls'
 import { surfacingSupplyCost } from './gravel'
 import { ReferenceSelect } from './CostReferenceControls'
+import { EntryProblem } from './InputProblem'
+import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
+import { horizonReplacements } from './groundHorizons'
+import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
+import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
-import { templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
+import {
+  copyTemplateSide,
+  keyedRockFillTemplate,
+  templateFromStarter,
+  validateTemplate,
+  type TemplateStarter,
+} from './templates'
 import { formatRoadStation } from './Charts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type {
@@ -35,15 +47,18 @@ import type {
 } from './types'
 
 const uid = () => crypto.randomUUID()
-type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number }
+type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number; hint?: string }
 function Fields<T extends object>({
   value,
   fields,
   onChange,
+  errorFor,
 }: {
   value: T
   fields: NumericField<T>[]
   onChange: (patch: Partial<T>) => void
+  /** The validation message for one of these fields, shown under it. */
+  errorFor?: (field: string) => string | undefined
 }) {
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -55,6 +70,8 @@ function Fields<T extends object>({
           min={field.min}
           max={field.max}
           step={field.step}
+          hint={field.hint}
+          error={errorFor?.(String(field.key))}
           onChange={(number) => onChange({ [field.key]: number } as Partial<T>)}
         />
       ))}
@@ -76,6 +93,14 @@ function MaterialFactorEditor({
     String(material.volumeFactorProvenance?.enteredFactor ?? material.compactionFactor),
   )
   const [source, setSource] = useState(material.volumeFactorProvenance?.source ?? '')
+  // An edit to the factor itself (or an undo) replaces what the converter was showing.
+  const [seenFactor, setSeenFactor] = useState(material.compactionFactor)
+  if (seenFactor !== material.compactionFactor) {
+    setSeenFactor(material.compactionFactor)
+    const recorded = material.volumeFactorProvenance
+    setEntered(String(recorded?.enteredFactor ?? material.compactionFactor))
+    setConvention(recorded?.convention ?? 'compacted-per-bank')
+  }
   let preview: MaterialVolumeFactorProvenance | undefined
   let error: string | undefined
   try {
@@ -92,14 +117,14 @@ function MaterialFactorEditor({
         min={0.1}
         max={2}
         step={0.05}
-        hint="Compacted fill volume per reusable bank volume. Usable compacted cut equals bank cut × reusable fraction × this factor. Editing this value clears a recorded conversion when the factor changes."
+        hint="Compacted fill volume per reusable bank volume: below 1 the material shrinks when placed, above 1 it swells. Usable compacted cut equals bank cut × reusable fraction × this factor. A source that states bank volume per compacted volume, as a RoadEng fill expansion factor does, goes through the factor conversion below. Editing this value clears a recorded conversion when the factor changes."
         onChange={(factor) => onChange(materialCompactionFactorPatch(material, factor))}
       />
       <RoadSection
         title={`${material.name} factor conversion`}
         summary={recorded ? `${recorded.enteredFactor} → ${recorded.canonicalFactor.toPrecision(8)}` : 'Optional'}
         toggleTestId={`material-factor-converter-${material.id}`}
-        help="Choose the ratio stated by your source. Bank / compacted is inverted to compacted / bank before applying. Reusable fraction stays separate. The quoted RoadEng fill-factor example corresponds to bank / compacted only when its cut factor is 1; this is not a general RoadEng importer. Source notes are entered evidence, not verification."
+        help="Choose the ratio your source states, then apply. Bank / compacted is inverted before it is applied: 1.05 becomes 0.952. A RoadEng fill expansion factor is bank / compacted when that ground type's cut factor is 1; with another cut factor, work out compacted per bank volume yourself and enter it as Compacted / bank. Reusable fraction stays separate. Source notes are entered evidence, not verification."
       >
         <Field label={`${material.name} factor convention`}>
           <RoadSelect
@@ -236,6 +261,7 @@ export function EngineeringControls({
   aggregateOpen = false,
   onAggregateOpenChange,
   culvertRequest,
+  templateRequest,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -245,6 +271,8 @@ export function EngineeringControls({
   aggregateOpen?: boolean
   onAggregateOpenChange?: (open: boolean) => void
   culvertRequest?: number
+  /** Opens the Templates tab on this library template; a new sequence repeats the request. */
+  templateRequest?: { id: string; sequence: number }
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
   const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
@@ -256,6 +284,8 @@ export function EngineeringControls({
     }
   }
   const [haulOpen, setHaulOpen] = useState(false)
+  // Which invert a typed culvert fall keeps; the other one follows.
+  const [fallHolds, setFallHolds] = useState<Record<string, 'inlet' | 'outlet'>>({})
   const activeTab = aggregateOpen ? 'haul' : tab
   const changeHaulOpen = (open: boolean) => {
     setHaulOpen(open)
@@ -263,11 +293,24 @@ export function EngineeringControls({
     setTab('haul')
   }
   const [templateId, setTemplateId] = useState('')
-  const [preset, setPreset] = useState<TemplateStarter>('current')
+  const [seenTemplateRequest, setSeenTemplateRequest] = useState(templateRequest?.sequence)
+  if (templateRequest && templateRequest.sequence !== seenTemplateRequest) {
+    setSeenTemplateRequest(templateRequest.sequence)
+    setTab('templates')
+    setTemplateId(templateRequest.id)
+  }
+  const [preset, setPreset] = useState<TemplateStarter | 'rockfill'>('current')
   const [libraryMode, setLibraryMode] = useState<'merge' | 'replace'>('merge')
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
   const design = alignment.engineering ?? createEngineeringDesign()
+  // An invalid edit keeps the last valid results; its message goes beside the entry that caused it.
+  const problem = analysis.invalidInput
+  const errorsFor = (list: EngineeringInputList, id?: string) => (field: string) =>
+    inputMessage(problem, list, id, field)
+  const replacedHorizons = horizonReplacements(design.strata)
+  // The pipe roughness the drainage run uses, so the capacity shown here is the one it will check.
+  const manningN = project.drainage?.settings?.manningN ?? DEFAULT_DRAINAGE_SETTINGS.manningN
   const constrainedAllocation = !!(
     design.fillRequirements?.length ||
     design.haul.directionRanges?.length ||
@@ -391,10 +434,8 @@ export function EngineeringControls({
     }))
     onClosePreview?.()
   }
-  const assignmentRange = () => {
-    const lastEnd = Math.max(w.station, ...design.assignments.map((a) => a.end), 0)
-    return { start: lastEnd, end: Math.min(100000, lastEnd + Math.max(1, Math.min(100, analysis.length - lastEnd))) }
-  }
+  // A new range takes road that no assignment covers yet, from the selected station where that is free.
+  const assignmentRange = freeStationRange(design.assignments, analysis.length, w.station, 100)
   const newCulvert = (
     chainage = w.station,
     name = `Culvert ${design.culverts.length + 1}`,
@@ -439,6 +480,14 @@ export function EngineeringControls({
           Show quantities & cost breakdown
           <ArrowRight className="size-3" />
         </Button>
+        {problem && (
+          <div data-testid="road-engineering-problem">
+            <InlineAlert tone="error" title="Not calculated yet">
+              {problem.message}
+              {analysis.stations.length > 0 && ' Results show the last valid inputs.'}
+            </InlineAlert>
+          </div>
+        )}
       </div>
       {activeTab === 'templates' && (
         <>
@@ -521,13 +570,14 @@ export function EngineeringControls({
                 ariaLabel="Template starting point"
                 className={roadFieldClass}
                 value={preset}
-                onValueChange={(value) => setPreset(value as TemplateStarter)}
+                onValueChange={(value) => setPreset(value as typeof preset)}
               >
                 <option value="current">Current road section</option>
                 <option value="single">Forest single lane</option>
                 <option value="double">Forest double lane</option>
                 <option value="landing">Wide landing</option>
                 <option value="urban">Crowned road</option>
+                <option value="rockfill">Keyed rock fill</option>
               </RoadSelect>
             </Field>
             <Button
@@ -536,16 +586,21 @@ export function EngineeringControls({
               className="mt-2 w-full"
               disabled={design.templates.length >= 50}
               onClick={() => {
-                const names: Record<TemplateStarter, string> = {
+                const names: Record<typeof preset, string> = {
                   current: 'Road section',
                   single: 'Forest single lane',
                   double: 'Forest double lane',
                   landing: 'Wide landing',
                   urban: 'Crowned road',
+                  rockfill: 'Keyed rock fill',
                 }
                 let template: RoadTemplate
                 try {
-                  template = templateFromStarter(alignment.template, preset)
+                  // A rock fill keeps the road's section and adds a key under each fill-side toe.
+                  template =
+                    preset === 'rockfill'
+                      ? keyedRockFillTemplate(alignment.template, uid)
+                      : templateFromStarter(alignment.template, preset)
                 } catch (error) {
                   w.setError(error instanceof Error ? error.message : 'Could not create template.')
                   return
@@ -646,6 +701,28 @@ export function EngineeringControls({
                 <details className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
                   <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {(['left', 'right'] as const).map((from) => (
+                        <Button
+                          key={from}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const copy = copyTemplateSide(candidate, from, uid)
+                            // Keys the copy removed must be passed as undefined to clear them.
+                            updateTemplate({
+                              ...Object.fromEntries(sideFields.map((field) => [field.key, copy[field.key]])),
+                              leftWidth: copy.leftWidth,
+                              rightWidth: copy.rightWidth,
+                              components: copy.components,
+                              layers: copy.layers,
+                            })
+                          }}
+                        >
+                          Copy {from} side to {from === 'left' ? 'right' : 'left'}
+                        </Button>
+                      ))}
+                    </div>
                     {sideFields.map((field) => (
                       <div key={String(field.key)} className="flex items-end gap-1">
                         <div className="min-w-0 flex-1">
@@ -724,6 +801,7 @@ export function EngineeringControls({
                 </div>
                 <TemplateSandbox
                   template={candidate}
+                  materials={design.materials}
                   name={`${selected.name}${templateDirty ? ' · unsaved candidate' : ''}`}
                 />
               </div>
@@ -736,20 +814,26 @@ export function EngineeringControls({
             <Button
               variant="outline"
               size="sm"
-              disabled={!selected || templateDirty || design.assignments.length >= 200}
+              disabled={!selected || templateDirty || design.assignments.length >= 200 || !assignmentRange}
               onClick={() =>
                 selected &&
+                assignmentRange &&
                 edit((e) => ({
                   ...e,
                   assignments: [
                     ...e.assignments,
-                    { id: uid(), ...assignmentRange(), templateId: selected.id, side: 'both', transitionM: 0 },
+                    { id: uid(), ...assignmentRange, templateId: selected.id, side: 'both', transitionM: 0 },
                   ],
                 }))
               }
             >
               Assign selected template
             </Button>
+            {selected && !templateDirty && !assignmentRange && (
+              <p className="mt-2 text-2xs text-muted-foreground">
+                Every station already has a template range. Shorten one, or change its side, to add another.
+              </p>
+            )}
             {templateDirty && (
               <p className="mt-2 text-2xs text-muted-foreground">
                 Save or discard template changes before adding a station assignment.
@@ -810,7 +894,14 @@ export function EngineeringControls({
                     { key: 'end', label: `Assignment ${index + 1} end (m)` },
                     { key: 'transitionM', label: `Assignment ${index + 1} transition (m)`, max: 1000 },
                   ]}
+                  errorFor={errorsFor('assignments', a.id)}
                   onChange={(p) => patch('assignments', a.id, p)}
+                />
+                <EntryProblem
+                  problem={problem}
+                  list="assignments"
+                  id={a.id}
+                  inlineFields={['start', 'end', 'transitionM']}
                 />
               </div>
             ))}
@@ -892,7 +983,14 @@ export function EngineeringControls({
                       step: 0.05,
                     },
                   ]}
+                  errorFor={errorsFor('materials', m.id)}
                   onChange={(p) => patch('materials', m.id, p)}
+                />
+                <EntryProblem
+                  problem={problem}
+                  list="materials"
+                  id={m.id}
+                  inlineFields={['cutRate', 'reusableFraction']}
                 />
                 <MaterialFactorEditor material={m} onChange={(p) => patch('materials', m.id, p)} />
                 <div className="grid grid-cols-2 gap-2">
@@ -902,6 +1000,10 @@ export function EngineeringControls({
                     min={0}
                     max={100}
                     placeholder="unknown"
+                    hint="A quality class you define, from 0 (poorest) to 100 (best), so a fill requirement can ask for a minimum. Number your own classes in order, for example 20, 40, 60 and 80 for four classes."
+                    description={
+                      m.quality === undefined ? 'Blank is unknown: it cannot meet a quality rule.' : undefined
+                    }
                     onChange={(quality) => patch('materials', m.id, { quality: quality ?? undefined })}
                   />
                   <OptionalNumberField
@@ -921,6 +1023,12 @@ export function EngineeringControls({
                     onChange={(fillSlope) => patch('materials', m.id, { fillSlope: fillSlope ?? undefined })}
                   />
                 </div>
+                {m.purpose !== 'stripping' && (
+                  <p className="text-2xs text-muted-foreground" data-testid="road-material-placement-rate">
+                    Placed as fill at ${project.settings.fillRate.toFixed(2)}/m³, the one fill placement rate for every
+                    material. Edit it in the cost breakdown.
+                  </p>
+                )}
               </div>
             ))}
           </RoadSection>
@@ -928,11 +1036,12 @@ export function EngineeringControls({
             design={design}
             length={analysis.length}
             station={w.station}
+            problem={problem}
             onChange={(value) => edit(() => value)}
           />
           <RoadSection
             title="Station ranges & ground horizons"
-            help="Depths are vertical below original ground. Horizons cannot overlap. Excavated stripping is reported separately and never reused. Use pre-construction stripping to remove ground beneath fills."
+            help="Depths are vertical below original ground. Where two horizons overlap in station and depth, the later one in this list replaces the earlier, so a whole-road layer can be entered first and a local one after it. Excavated stripping is reported separately and never reused. Use pre-construction stripping to remove ground beneath fills."
           >
             <Button
               size="sm"
@@ -1004,8 +1113,25 @@ export function EngineeringControls({
                       ? []
                       : [{ key: 'bottomDepthM' as const, label: `Horizon ${index + 1} bottom depth (m)`, max: 1000 }]),
                   ]}
+                  errorFor={errorsFor('strata', s.id)}
                   onChange={(p) => patch('strata', s.id, p)}
                 />
+                <EntryProblem
+                  problem={problem}
+                  list="strata"
+                  id={s.id}
+                  inlineFields={['start', 'end', 'topDepthM', ...(s.bottomDepthM === null ? [] : ['bottomDepthM'])]}
+                />
+                {replacedHorizons.has(s.id) && (
+                  <p className="text-2xs text-muted-foreground" data-testid="road-horizon-replaces">
+                    Replaces{' '}
+                    {replacedHorizons
+                      .get(s.id)!
+                      .map((id) => `Horizon ${design.strata.findIndex((x) => x.id === id) + 1}`)
+                      .join(', ')}{' '}
+                    where they overlap.
+                  </p>
+                )}
                 <label className="flex items-center gap-1 text-xs">
                   <input
                     type="checkbox"
@@ -1069,14 +1195,39 @@ export function EngineeringControls({
                   value={c}
                   fields={[
                     { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
-                    { key: 'skewDegrees', label: `Culvert ${index + 1} skew (°)`, min: -80, max: 80 },
+                    {
+                      key: 'skewDegrees',
+                      label: `Culvert ${index + 1} skew from square (°)`,
+                      min: -80,
+                      max: 80,
+                      hint: 'Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
+                    },
                     { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
                     { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
                     { key: 'minCoverM', label: `Culvert ${index + 1} required cover (m)`, max: 100 },
                     { key: 'unitCost', label: `Culvert ${index + 1} installed $/m`, max: 1000000 },
                     { key: 'fixedCost', label: `Culvert ${index + 1} fixed cost ($)`, max: 1e9 },
                   ]}
+                  errorFor={errorsFor('culverts', c.id)}
                   onChange={(p) => patch('culverts', c.id, p)}
+                />
+                <p className="text-2xs leading-4 text-muted-foreground">
+                  Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15°
+                  here.
+                </p>
+                <EntryProblem
+                  problem={problem}
+                  list="culverts"
+                  id={c.id}
+                  inlineFields={[
+                    'chainage',
+                    'skewDegrees',
+                    'lengthM',
+                    'diameterM',
+                    'minCoverM',
+                    'unitCost',
+                    'fixedCost',
+                  ]}
                 />
                 <OptionalNumberField
                   label={`Culvert ${index + 1} ditch dip to inlet (%)`}
@@ -1118,25 +1269,62 @@ export function EngineeringControls({
                   Enter provisional inverts
                 </label>
                 {c.inletInvertM !== null && c.outletInvertM !== null && (
-                  <Fields<Culvert>
-                    value={c}
-                    fields={[
-                      {
-                        key: 'inletInvertM',
-                        label: `Culvert ${index + 1} left inlet invert (m)`,
-                        min: -12000,
-                        max: 12000,
-                      },
-                      {
-                        key: 'outletInvertM',
-                        label: `Culvert ${index + 1} right outlet invert (m)`,
-                        min: -12000,
-                        max: 12000,
-                      },
-                    ]}
-                    onChange={(p) => patch('culverts', c.id, p)}
-                  />
+                  <>
+                    <Fields<Culvert>
+                      value={c}
+                      fields={[
+                        {
+                          key: 'inletInvertM',
+                          label: `Culvert ${index + 1} left inlet invert (m)`,
+                          min: -12000,
+                          max: 12000,
+                        },
+                        {
+                          key: 'outletInvertM',
+                          label: `Culvert ${index + 1} right outlet invert (m)`,
+                          min: -12000,
+                          max: 12000,
+                        },
+                      ]}
+                      errorFor={errorsFor('culverts', c.id)}
+                      onChange={(p) => patch('culverts', c.id, p)}
+                    />
+                    {/* The same two inverts, entered as a gradient: one end is held and the other follows. */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberField
+                        label={`Culvert ${index + 1} fall, inlet to outlet (%)`}
+                        value={Number((culvertFallPercent(c) ?? 0).toFixed(3))}
+                        min={-50}
+                        max={50}
+                        step={0.5}
+                        hint="The pipe gradient over its horizontal span. Entering it moves one invert and keeps the other; a positive fall puts the outlet below the inlet."
+                        onChange={(fall) => {
+                          const inverts = invertsForFall(c, fall, fallHolds[c.id] ?? 'inlet')
+                          if (inverts) patch('culverts', c.id, inverts)
+                        }}
+                      />
+                      <Field label={`Culvert ${index + 1} fall keeps`}>
+                        <RoadSelect
+                          ariaLabel={`Culvert ${index + 1} fall keeps`}
+                          className={roadFieldClass}
+                          value={fallHolds[c.id] ?? 'inlet'}
+                          onValueChange={(value) =>
+                            setFallHolds((previous) => ({ ...previous, [c.id]: value as 'inlet' | 'outlet' }))
+                          }
+                        >
+                          <option value="inlet">Inlet invert, sets the outlet</option>
+                          <option value="outlet">Outlet invert, sets the inlet</option>
+                        </RoadSelect>
+                      </Field>
+                    </div>
+                  </>
                 )}
+                <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
+                  {(() => {
+                    const pipe = culvertScreeningCapacity(c, manningN)
+                    return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${manningN}). The peak flow it must carry needs a drainage run.`
+                  })()}
+                </p>
                 {result && (
                   <p className="text-2xs leading-4">
                     Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}
@@ -1260,6 +1448,7 @@ export function EngineeringControls({
                   { key: 'mobilizationCost', label: 'Mobilization ($)', max: 1e9 },
                   { key: 'contingencyPercent', label: 'Contingency (%)', max: 100 },
                 ]}
+                errorFor={errorsFor('haul')}
                 onChange={(p) => edit((e) => ({ ...e, haul: { ...e.haul, ...p } }))}
               />
             </RoadSection>
@@ -1343,7 +1532,20 @@ export function EngineeringControls({
                             },
                           ]),
                     ]}
+                    errorFor={errorsFor('sites', s.id)}
                     onChange={(p) => patch('sites', s.id, p)}
+                  />
+                  <EntryProblem
+                    problem={problem}
+                    list="sites"
+                    id={s.id}
+                    inlineFields={[
+                      'chainage',
+                      'accessDistanceM',
+                      'unitRate',
+                      'fixedCost',
+                      ...(s.capacityM3 === null ? [] : ['capacityM3']),
+                    ]}
                   />
                   <Field label={`Site ${index + 1} material`}>
                     <RoadSelect
@@ -1400,6 +1602,7 @@ export function EngineeringControls({
                   ]),
                 ),
               ]}
+              problem={problem}
               onChange={(value) => edit(() => value)}
             />
           </RoadSettingsDialog>

@@ -842,6 +842,7 @@ function* profileSearch(
         ? 'Stream crossing estimates need review or prices before total-cost optimization.'
         : '') ||
       (result.analysis.engineering?.haul.optimizationStatus === 'infeasible' ||
+      result.analysis.engineering?.haul.optimizationStatus === 'unsolved' ||
       (o.objective === 'total' && result.analysis.engineering?.haul.enabled && !result.analysis.engineering.complete)
         ? 'The engineering material/haul prescription is incomplete or infeasible.'
         : '') ||

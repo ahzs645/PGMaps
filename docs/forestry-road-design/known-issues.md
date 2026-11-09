@@ -35,6 +35,18 @@ that fixes it, and add one, with the file and function, when you find a new defe
   `.pdf`) was exported before the 2026-11-09 change below. It still prints "the mass curve stops
   at the first gap" and "material is not moved across a terrain/daylight gap", and its haul figures
   were allocated run by run. Re-export it from the workspace (`roadReportHtml`, `project.ts`).
+- **Economic material flow cannot solve an ordinary road under a stepped haul quote**
+  (confirmed, 2026-11-09). `solveDenseMaterialAllocation` (`materialAllocation.ts`) builds one
+  variable for every compatible cut-interval/fill-interval pair and solves it as a dense simplex
+  tableau, which `MAX_ALLOCATION_TABLEAU_CELLS` caps at 3,000,000 cells. The sparse chain model
+  (`solveSparseMaterialAllocation`) is exact only for a linear quote (`linearHaulSlope`): free-haul
+  distance 0 m and one distance rate, or every rate zero. The default free-haul distance is 25 m,
+  so entering any distance rate sends the road to the dense model, and about 90 intervals whose
+  cut can be placed as fill (a 930 m road at 10 m stations) exceed the limit. The result is
+  **Material plan not solved**; the road and quantities are unaffected. Until the dense model is
+  replaced, set the free-haul distance to 0 m with a single distance rate, or widen the station
+  spacing. An exact fix needs either a sparse simplex or a model that keeps explicit pairs only
+  inside the overhaul limit and carries longer hauls on one-way chains entered beyond it.
 
 ## Fixed on 2026-11-09
 

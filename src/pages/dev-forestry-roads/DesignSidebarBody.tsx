@@ -135,6 +135,8 @@ export function DesignSidebar(p: SidebarProps) {
     p.onWorkflowTabChange?.(next)
   }
   const [aggregateOpen, setAggregateOpen] = useState(false)
+  // A template created from the Section tab opens in the library editor on the Engineering tab.
+  const [templateRequest, setTemplateRequest] = useState<{ id: string; sequence: number }>()
   const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
   const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)
@@ -209,7 +211,15 @@ export function DesignSidebar(p: SidebarProps) {
             />
           </div>
           <div hidden={tab !== 'template'}>
-            <SectionTab {...p} onTab={setTab} />
+            <SectionTab
+              {...p}
+              onTab={setTab}
+              onOpenTemplate={(id) => {
+                setAggregateOpen(false)
+                setTemplateRequest((previous) => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
+                setTab('engineering')
+              }}
+            />
           </div>
           <div hidden={tab !== 'engineering'}>
             <StreamCrossingsPanel workspace={p.workspace} />
@@ -222,6 +232,7 @@ export function DesignSidebar(p: SidebarProps) {
               aggregateOpen={aggregateOpen}
               onAggregateOpenChange={setAggregateOpen}
               culvertRequest={p.engineeringRequest}
+              templateRequest={templateRequest}
             />
           </div>
           <div hidden={tab !== 'review'}>

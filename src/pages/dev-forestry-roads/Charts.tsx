@@ -24,7 +24,15 @@ import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
-import type { Alignment, AlignmentEngineering, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
+import type {
+  Alignment,
+  AlignmentEngineering,
+  CableAnalysis,
+  RoadAnalysis,
+  RoadStation,
+  SectionLayer,
+  VerticalPoint,
+} from './types'
 
 export const ROAD_CHART_COLORS = {
   ground: '#a07845',
@@ -1551,6 +1559,22 @@ export function CrossSectionChart({
   const template =
     engineering?.template.template ??
     (alignment && station && !terrainOnly ? templateAt(alignment, station.chainage).template : alignment?.template)
+  // The courses above the subgrade: an explicit stack, or the template's single surfacing depth
+  // per side, so the surfacing that is measured and priced is also drawn.
+  const courses: SectionLayer[] =
+    terrainOnly || !template
+      ? []
+      : (template.layers ??
+        (['left', 'right'] as const).flatMap((side) => {
+          const depthM = template[`${side}SurfaceDepth`] ?? template.surfaceDepth
+          return depthM > 0 ? [{ id: `surfacing-${side}`, name: 'Surfacing', side, depthM }] : []
+        }))
+  const courseStackM = Math.max(
+    0,
+    ...(['left', 'right'] as const).map((side) =>
+      courses.filter((l) => l.side === side || l.side === 'both').reduce((sum, l) => sum + l.depthM, 0),
+    ),
+  )
   const culverts =
     !terrainOnly && station
       ? (analysis?.engineering?.culverts.filter((c) => Math.abs(c.chainage - station.chainage) < 0.001) ?? [])
@@ -1598,9 +1622,7 @@ export function CrossSectionChart({
   const [low, high] = extent([
     ...points.flatMap((p) => [p.ground, p.design]),
     ...preparedPoints.map((p) => p.ground),
-    ...points.flatMap((p) =>
-      finite(p.design) ? [p.design + (template?.layers ?? []).reduce((s, l) => s + l.depthM, 0)] : [],
-    ),
+    ...points.flatMap((p) => (finite(p.design) ? [p.design + courseStackM] : [])),
     ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
   ])
   const halfWidth = Math.max(
@@ -1618,6 +1640,10 @@ export function CrossSectionChart({
   const preparedCentre = station ? sectionSampleAt(station, 0).preparedGround : undefined
   const preparedDepth =
     finite(preparedCentre) && finite(station?.designElevation) ? preparedCentre - station.designElevation : null
+  const incompleteLabel =
+    station && !terrainOnly && !station.complete
+      ? `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`
+      : null
   // Section status block, in the abbreviations of a road-design section window.
   const sectionReadout: Array<ReadoutItem | null | undefined> = !station
     ? []
@@ -1691,7 +1717,7 @@ export function CrossSectionChart({
               : 'incomplete',
             title: station.complete
               ? 'Daylight offsets left / right of the centreline (m)'
-              : 'Incomplete section: terrain coverage or daylight limit',
+              : `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`,
             tone: station.complete ? ('default' as const) : ('warning' as const),
           },
           { label: 'Cut A', value: `${fixed(station.cutAreaM2)} m²`, title: 'Cut area of this section' },
@@ -1714,6 +1740,7 @@ export function CrossSectionChart({
                   : [
                       { label: 'Ground', color: ROAD_CHART_COLORS.ground },
                       { label: 'Template', color: ROAD_CHART_COLORS.design },
+                      ...(courses.length ? [{ label: 'Surfacing', color: '#d6a84b' }] : []),
                       ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
                       { label: 'Cut', color: ROAD_CHART_COLORS.cut },
                       { label: 'Fill', color: ROAD_CHART_COLORS.fill },
@@ -1740,6 +1767,16 @@ export function CrossSectionChart({
             )}
           </div>
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
+          {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
+          {incompleteLabel && (
+            <p
+              role="status"
+              data-testid="road-section-incomplete"
+              className="text-3xs leading-4 text-amber-700 dark:text-amber-400"
+            >
+              {incompleteLabel}. It is left out of quantities.
+            </p>
+          )}
           {(onShift || (!terrainOnly && onVerticalShift)) && (
             <div
               role="group"
@@ -1942,15 +1979,13 @@ export function CrossSectionChart({
                 </path>
               )}
               {!terrainOnly &&
-                template?.layers?.map((layer, layerIndex) => {
+                courses.map((layer, layerIndex) => {
                   const widthLeft = station?.leftWidth ?? 0,
                     widthRight = station?.rightWidth ?? 0
                   return (['left', 'right'] as const).flatMap((side) => {
                     if (layer.side !== 'both' && layer.side !== side) return []
-                    const lower = template
-                      .layers!.slice(0, layerIndex)
-                      .filter((l) => l.side === side || l.side === 'both')
-                      .reduce((sum, l) => sum + l.depthM, 0)
+                    const below = courses.slice(0, layerIndex).filter((l) => l.side === side || l.side === 'both')
+                    const lower = below.reduce((sum, l) => sum + l.depthM, 0)
                     const a = side === 'left' ? -widthLeft : 0,
                       b = side === 'left' ? 0 : widthRight
                     const za = station && sectionSampleAt(station, a).design,
@@ -1960,7 +1995,9 @@ export function CrossSectionChart({
                       <polygon
                         key={`${layer.id}-${side}`}
                         points={`${f.x(a)},${f.y(za + lower)} ${f.x(b)},${f.y(zb + lower)} ${f.x(b)},${f.y(zb + lower + layer.depthM)} ${f.x(a)},${f.y(za + lower + layer.depthM)}`}
-                        fill={['#d6a84b', '#a3a36e', '#8296b3'][layerIndex % 3]}
+                        // Coloured by its place in this side's stack, so a course matches across the crown.
+                        fill={['#d6a84b', '#a3a36e', '#8296b3'][below.length % 3]}
+                        data-testid="road-section-course"
                         opacity={0.5}
                       >
                         <title>
@@ -2173,6 +2210,21 @@ export function CrossSectionChart({
             {!station && (
               <text x={width / 2} y={height / 2} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
                 Select a road station
+              </text>
+            )}
+            {/* On the chart itself, because the readout below folds away on a short pane. */}
+            {incompleteLabel && (
+              <text
+                x={f.left + 6}
+                y={f.top + 13}
+                fontSize="11"
+                fill="#b45309"
+                data-testid="road-section-incomplete-label"
+              >
+                <title>{incompleteLabel}</title>
+                {incompleteLabel.length > Math.floor(f.plotWidth / 5.6)
+                  ? `${incompleteLabel.slice(0, Math.max(12, Math.floor(f.plotWidth / 5.6) - 1))}…`
+                  : incompleteLabel}
               </text>
             )}
           </svg>

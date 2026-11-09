@@ -6,6 +6,7 @@
  * Quantities use average end areas; mass is compacted available cut minus fill.
  * They are covered subtotals, never estimates silently bridged across DEM holes.
  */
+import { incompleteReasonSummary, incompleteReasonText } from './sectionCompleteness'
 import { checkVerticalDesign } from './verticalStandards'
 import { MAX_DRAG_GRADE } from './verticalTools'
 import type {
@@ -1545,6 +1546,8 @@ export function analyzeRoad(
       ...effectiveWidths(alignment, s),
       ...section,
       flags,
+      // Every flag the section builder raises is a reason the section could not be completed.
+      ...(section.complete ? {} : { incompleteReasons: [...section.flags] }),
       cutVolumeM3: null,
       fillVolumeM3: null,
       massM3: null,
@@ -1601,10 +1604,13 @@ export function analyzeRoad(
     p.massM3 = mass
   }
   const coveragePercent = clamp((completeLength / path.length) * 100, 0, 100)
-  if (coveragePercent < 100 - 1e-5)
+  if (coveragePercent < 100 - 1e-5) {
     warnings.push(
       `Terrain coverage or daylight is incomplete over ${Number((path.length - completeLength).toFixed(1)).toLocaleString('en-CA')} m of road. Quantities and cost are covered subtotals, and the mass balance counts the known earthwork only.`,
     )
+    const reasons = incompleteReasonText(incompleteReasonSummary(stations))
+    if (reasons) warnings.push(`Incomplete sections: ${reasons}`)
+  }
   const badGrades = stations.filter(
     (s) => s.gradePercent !== null && Math.abs(s.gradePercent) > settings.maxGradePercent + EPS,
   ).length

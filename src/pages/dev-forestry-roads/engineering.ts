@@ -26,6 +26,7 @@ import { curveDesignAt, surfaceLayersAt } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { materialDemandKey, requiredFillAt } from './allocationPolicy'
+import { resolveHorizons } from './groundHorizons'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -46,20 +47,18 @@ function activeLayers(alignment: Alignment, chainage: number, length: number): R
   // The last cross-section uses the approach-side geology; an adjacent range that
   // starts at the road end must not be counted alongside the preceding material.
   const lookup = Math.abs(chainage - length) < 1e-6 ? Math.max(0, chainage - 1e-7) : chainage
-  return e.strata
-    .filter((s) => lookup >= s.start && lookup < s.end)
-    .sort((a, b) => a.topDepthM - b.topDepthM)
-    .map((s) => {
-      const m = e.materials.find((m) => m.id === s.materialId)!
-      return {
-        id: s.id,
-        materialId: s.materialId,
-        name: m.name,
-        color: m.color,
-        topDepthM: s.topDepthM,
-        bottomDepthM: s.bottomDepthM,
-      }
-    })
+  // A later horizon replaces an earlier one where they overlap, so the column never double-counts.
+  return resolveHorizons(e.strata.filter((s) => lookup >= s.start && lookup < s.end)).map((piece) => {
+    const m = e.materials.find((m) => m.id === piece.materialId)!
+    return {
+      id: piece.id,
+      materialId: piece.materialId,
+      name: m.name,
+      color: m.color,
+      topDepthM: piece.topDepthM,
+      bottomDepthM: piece.bottomDepthM,
+    }
+  })
 }
 
 /** Exact integral of max(linear ground-minus-formation depth − horizon, 0). */
@@ -579,6 +578,41 @@ function allocateHaul(
   return { summary, movements, costs, warnings }
 }
 
+/**
+ * The material plan, or an explicit "unsolved" plan when it cannot be calculated: a model over
+ * its size limit, a solver that did not finish or a failed conservation check. The road, its
+ * sections and its quantities do not depend on the plan, so they are kept; only movements and
+ * the haul, borrow and waste costs are left out, and the result says so.
+ */
+function allocateOrReport(
+  e: AlignmentEngineering,
+  intervals: EarthworkInterval[],
+  coverageComplete: boolean,
+  unknownLengthM: number,
+): ReturnType<typeof allocateHaul> {
+  try {
+    return allocateHaul(e, intervals, coverageComplete, unknownLengthM)
+  } catch (cause) {
+    const h = e.haul
+    const summary = emptyHaul(h.enabled, false)
+    summary.optimizationStatus = 'unsolved'
+    summary.unallocatedBorrowM3 = intervals.reduce(
+      (sum, p) => sum + p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
+      0,
+    )
+    summary.unallocatedWasteM3 = intervals.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
+    return {
+      summary,
+      movements: [],
+      costs: { haul: 0, borrow: 0, waste: 0, sitePreparation: 0 },
+      warnings: [
+        // The allocator states its limits in plain sentences; anything else is an internal fault.
+        `Material plan not solved: ${cause instanceof Error && cause.constructor === Error ? cause.message : 'the allocation stopped on an internal error.'} The road, sections and quantities are unaffected, but no material movement, borrow, waste or haul cost is included; zero there does not mean the work is free.`,
+      ],
+    }
+  }
+}
+
 function planarOffset(origin: Coordinate, coordinate: Coordinate): [number, number] {
   return [(coordinate[0] - origin[0]) * RAD * R * Math.cos(origin[1] * RAD), (coordinate[1] - origin[1]) * RAD * R]
 }
@@ -946,15 +980,19 @@ export function calculateEngineering(
   // decide whether a site is on the road, keeping its entered chainage for haul distances. A site
   // beyond the road end has no road to it; one beside unknown ground is still on the road.
   const roadEnd = analysis.stations.at(-1)?.chainage ?? 0
-  const haul = allocateHaul(
+  const haul = allocateOrReport(
     { ...e, sites: e.sites.filter((site) => Math.round(site.chainage * 1e6) / 1e6 <= roadEnd + EPS) },
     intervals,
     coverageComplete,
     Math.max(0, analysis.length - analysis.completeLength),
   )
   // What each interval takes from, and sends, off the road: its fill not met by cut hauled to it,
-  // and its bank cut not placed as fill. An infeasible economic model adopts no prescription.
-  if (haul.summary.enabled && haul.summary.optimizationStatus !== 'infeasible') {
+  // and its bank cut not placed as fill. An infeasible or unsolved model adopts no prescription.
+  if (
+    haul.summary.enabled &&
+    haul.summary.optimizationStatus !== 'infeasible' &&
+    haul.summary.optimizationStatus !== 'unsolved'
+  ) {
     const received = new Map<string, number>(),
       placed = new Map<string, number>()
     for (const m of haul.movements) {

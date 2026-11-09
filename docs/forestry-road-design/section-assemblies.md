@@ -54,9 +54,23 @@ it with fill. Its excavation and replacement demands enter the quantities once; 
 material identifies the replacement demand. Keep keys within a fill footprint and review the
 resulting section. An active key outside the constructed footprint makes the section incomplete
 with a specific flag; a key whose cut/fill condition does not match is skipped deliberately.
-The finished batter meets the stripped ground, not the bottom of a foundation trench, so an
-excavated key cannot manufacture a false toe at its own vertical edge. The **Keyed rock-fill starter** adds two keys and steeper entered fill batters;
-it is a geometric starter, not a geotechnical standard. Individual components can be saved in a
+The flag says how far the key reaches past the formation edge and where the slope meets ground.
+It is shown under the cross-section, counted by reason in the analysis warnings
+(`incompleteReasonSummary`, `sectionCompleteness.ts`), and the **Complete sections** tile opens
+the first incomplete station. The finished batter meets the stripped ground, not the bottom of a
+foundation trench, so an excavated key cannot manufacture a false toe at its own vertical edge.
+
+**Keyed rock fill** is a template of its own, never an edit of the section in use. **New keyed
+rock-fill template** (Section → Template components) and the **Keyed rock fill** starting point
+(Engineering → Templates) both call `keyedRockFillTemplate` (`templates.ts`): a copy of the road's
+section with the fill batter at the rock slope (1H:1V to start) and a 2 m wide, 1 m deep
+fill-side key under each toe. Lanes, crossfall, cut batter, ditches and surfacing are copied
+unchanged, so cut sides keep their ditch. The road changes only where the template is assigned by
+station range and side. The key's block also edits the two template values that complete a rock
+fill, the subgrade (lane) width and the rock slope (fill batter) on its side. A rock-fill
+_thickness_ is not an input: the embankment is one fill volume, not a rock zone over ordinary
+fill, so the value would change nothing. These are starting dimensions, not a geotechnical
+standard. Individual components can be saved in a
 device-local library and imported/exported as `pgmaps-road-components-v1` JSON. Imported material
 and reference IDs must also exist in the receiving project.
 

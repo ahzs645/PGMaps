@@ -10,6 +10,8 @@ import { surfacingSupplyCost } from './gravel'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
+import { unpricedQuantities } from './costReadiness'
+import { InlineAlert } from '@/components/ui/map-panels'
 
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
@@ -298,6 +300,9 @@ export function CostBreakdown({
       ]
   const preset = ratePresetFor(settings)
   const change = analysis.estimatedCost - opened.total
+  // Work with a quantity and no rate: its amount is zero because it is unpriced, not because it is free.
+  const unpriced = unpricedQuantities(analysis, alignment, settings)
+  const unpricedOn = (rowId: string) => unpriced.filter((item) => item.rowId === rowId)
   return (
     <PanelDialog
       open={open}
@@ -311,6 +316,7 @@ export function CostBreakdown({
         <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
           {hasCompleteCoverage(analysis) ? '' : 'Section coverage partial · '}
           {result?.complete === false ? 'Engineering inputs incomplete · ' : ''}
+          {unpriced.length ? `${unpriced.length} unpriced ${unpriced.length === 1 ? 'quantity' : 'quantities'} · ` : ''}
           Recalculated on every edit
           {processMs === undefined
             ? ''
@@ -354,6 +360,21 @@ export function CostBreakdown({
             </InfoTip>
           </span>
         </div>
+        {unpriced.length > 0 && (
+          <div data-testid="road-cost-unpriced">
+            <InlineAlert
+              tone="warning"
+              title={
+                unpriced.length === 1
+                  ? 'One quantity has no rate and adds nothing to the total'
+                  : `${unpriced.length} quantities have no rate and add nothing to the total`
+              }
+            >
+              {unpriced.map((item) => item.text).join('; ')}. Enter the missing rate{unpriced.length === 1 ? '' : 's'},
+              or note where the cost is carried. A total that falls after work is added is missing a price.
+            </InlineAlert>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <EngineeringTable data-testid="road-cost-calculation">
             <thead>
@@ -366,17 +387,39 @@ export function CostBreakdown({
               </tr>
             </thead>
             <tbody>
-              {rows.map((row) => (
-                <tr key={row.id} data-cost-row={row.id} title={row.note}>
-                  <td className="text-left">{row.item}</td>
-                  <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'lump sum' ? 0 : 1)}</td>
-                  <td className="text-left text-muted-foreground">{row.unit}</td>
-                  <td>
-                    <RateCell rate={row.rate} />
-                  </td>
-                  <td className="font-mono">{money(row.amount, 2)}</td>
-                </tr>
-              ))}
+              {rows.map((row) => {
+                const missing = unpricedOn(row.id)
+                return (
+                  <tr
+                    key={row.id}
+                    data-cost-row={row.id}
+                    data-unpriced={missing.length ? 'true' : undefined}
+                    title={[...missing.map((item) => `${item.text}.`), row.note].filter(Boolean).join(' ') || undefined}
+                  >
+                    <td className="text-left">{row.item}</td>
+                    <td>{quantity(row.quantity, row.unit === 'culverts' || row.unit === 'lump sum' ? 0 : 1)}</td>
+                    <td className="text-left text-muted-foreground">{row.unit}</td>
+                    <td>
+                      <RateCell rate={row.rate} />
+                    </td>
+                    <td className="font-mono">
+                      {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
+                      {missing.length > 0 && row.amount === 0 ? (
+                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">No rate</span>
+                      ) : (
+                        <>
+                          {missing.length > 0 && (
+                            <span className="mr-1 font-sans text-3xs font-medium text-amber-700 dark:text-amber-400">
+                              part unpriced
+                            </span>
+                          )}
+                          {money(row.amount, 2)}
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
               {costs && (
                 <>
                   <tr className="font-medium">
