@@ -51,6 +51,9 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Spiral against deflection                    | Ls / R must be less than Δ                                                  | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
 | Bulk fit: tangent use                        | 98 % of each leg (`FIT`)                                                    | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
 | Bulk fit: largest radius                     | 10,000 m                                                                    | `horizontalTools.ts`                                                       | Capped                                                          |
+| Polyline to alignment: maximum deviation     | 0.1–500 m (`MIN_FIT_DEVIATION_M`, `MAX_FIT_DEVIATION_M`)                    | `polylineFit.ts`, `CurveTools.tsx`                                         | Error, or the field rejects it                                  |
+| Polyline to alignment: source points         | 5,000 (`MAX_FIT_SOURCE_POINTS`)                                             | `polylineFit.ts`                                                           | Error: thin the line first                                      |
+| Polyline to alignment: tangent use; merge    | 98 % of each leg; corners merged up to 120° of turn (`MAX_MERGED_TURN`)     | `polylineFit.ts`                                                           | Curve reduced, or the corners stay separate                     |
 | Road from a found route: fit; smallest curve | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`) | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
 | Design speed                                 | 1–150 km/h                                                                  | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
 | Maximum superelevation; side friction f      | 0–20 %; 0–1                                                                 | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
@@ -215,6 +218,25 @@ ratio (see [Exports and project files](exports-and-project-files.md#landxml)).
 **Bulk radius fit** keeps radii you set when you use **Fit sharp corners** (default 35 m). It
 rounds radii down to 0.1 m, and a radius its tangents hold comes back exactly as asked. It reports
 a radius below the minimum in the notice only; the station flag then marks it.
+
+**Polyline to alignment** (**Reduce points, fit curves**, `fitPolylineAlignment` in
+`polylineFit.ts`) turns a line of many points into few points with a curve at each. It takes one
+value, **Max deviation**, and the road-wide minimum radius.
+
+- A road with no curves is read along its points; a road that already has curves is read along its
+  centreline, sampled every 2 m, so existing curves are followed rather than their corners.
+- It tries nine point reductions (Douglas–Peucker at shares of the deviation from all of it to
+  none) and, for each, the same line with neighbouring corners that turn the same way merged into
+  one point where their tangents meet. It keeps the result with the fewest sharp corners, then the
+  fewest points.
+- Every fitted curve is at least the minimum radius and as large as the deviation and its tangents
+  allow, up to 1,000 m. A corner that cannot take the minimum radius inside the deviation stays
+  sharp and is counted; **Fit sharp corners** then gives it the largest curve its tangents hold.
+- The notice gives points before and after, the number of curves and the tightest, the largest
+  distance between the old line and the new centreline, and both lengths. That distance is measured
+  on the result at 1 m samples, both ways; it is not assumed from the tolerances.
+- Stations along the road move. A profile, widenings and anything else set by station keep their
+  stations, so check them after reducing a designed road.
 
 **Pegging.** Bearings are true bearings. **L-Stn** in the pegging table is the running
 peg-to-peg distance, not road chainage: fitted curves cut the corners, so road stations are
@@ -510,8 +532,8 @@ engineering assumptions and sampling, and review the geometric and material flag
 | "The road start (0+000.0) is on a gap in the terrain"                     | A tied end has no ground under it                                                                            | Move the end, set a control there, or untie the ends                   |
 | "No profile meets the limits between _a_ and _b_"                         | The named limit or control cannot be met over that interval inside the band                                  | Change what the message names, then run again                          |
 | The road end drops far below the ground in the profile and 3D view        | Two PVIs almost on top of each other make a near-vertical tangent, and the road extends it past the last PVI | Remove or move the PVI beside the end; the warning names both stations |
-| Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | Simplify the PIs, fit curves, then recheck grade                       |
-| A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart or remove one                                    |
+| Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | **Reduce points, fit curves** with more deviation, then recheck grade  |
+| A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart, or reduce points with more deviation            |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
 | "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
 | "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                                                                       | Set a minimum radius in that range                                     |

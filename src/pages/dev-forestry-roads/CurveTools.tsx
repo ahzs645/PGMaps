@@ -4,8 +4,9 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { evaluateCurveCriteria, parseWideningTableCsv } from './roadCriteria'
-import { curveDesignAt, horizontalCurveSummary } from './engine'
+import { centrelineSamples, curveDesignAt, horizontalCurveSummary } from './engine'
 import { fitHorizontalRadii, type RadiusFitMode } from './horizontalTools'
+import { describePolylineFit, fitPolylineAlignment, MAX_FIT_DEVIATION_M, MIN_FIT_DEVIATION_M } from './polylineFit'
 import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -18,7 +19,37 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
   const [radius, setRadius] = useState(35)
   const [tolerance, setTolerance] = useState(2)
   const [spiral, setSpiral] = useState(0)
+  const [deviation, setDeviation] = useState(5)
   const corners = Math.max(0, alignment.points.length - 2)
+  /** Polyline to alignment: fewer points, a curve at each, within `deviation` of the road as it is. */
+  const reduce = () => {
+    const limits = { maxDeviationM: deviation, minRadiusM: project.settings.minRadius }
+    try {
+      // A road that already has curves is followed along them, not along the corners they cut.
+      const centre = alignment.points.some((p) => p.radiusM > 0) ? centrelineSamples(alignment, 2) : null
+      const line = centre
+        ? centre.samples.map((sample) => centre.toCoordinate(sample.x, sample.y))
+        : alignment.points.map((p) => p.coordinate)
+      const fit = fitPolylineAlignment(line, limits)
+      const last = fit.points.length - 1
+      updateAlignment((a) => ({
+        ...a,
+        points: fit.points.map((point, i) => ({
+          id: i === 0 ? a.points[0].id : i === last ? a.points[a.points.length - 1].id : crypto.randomUUID(),
+          ...point,
+        })),
+      }))
+      setNotice(
+        describePolylineFit({ ...fit, sourcePoints: alignment.points.length }, limits) +
+          (fit.sharpCorners ? ' “Fit sharp corners” gives them the largest curve their tangents hold.' : '') +
+          (alignment.vertical.length || alignment.overrides.length
+            ? ' Stations along the road have moved: check the profile and anything set by station.'
+            : ''),
+      )
+    } catch (cause) {
+      workspace.setError(cause instanceof Error ? cause.message : 'Could not reduce this line.')
+    }
+  }
   const apply = (mode: RadiusFitMode, onlySharp: boolean) => {
     const { points, report } = fitHorizontalRadii(alignment.points, mode, {
       minRadiusM: project.settings.minRadius,
@@ -45,11 +76,29 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
     }))
     setNotice(spiral > 0 ? `Set ${spiral} m spirals on every curve.` : 'Removed the spirals.')
   }
-  // Each row is the action and the one value it uses, so the three tools read as a short list.
+  // Each row is the action and the one value it uses, so the four tools read as a short list.
   return (
     <div className="mt-2 rounded-md border p-2" data-testid="road-curve-tools">
       <p className="mb-1 text-xs font-medium">Bulk curve tools</p>
       <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-end gap-x-2 gap-y-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          className={bulkButtonClass}
+          disabled={!corners}
+          data-testid="road-reduce-points"
+          title={`Polyline to alignment: keeps as few points as will hold the line within this distance, with a curve of at least the ${project.settings.minRadius} m minimum radius at each`}
+          onClick={reduce}
+        >
+          Reduce points, fit curves
+        </Button>
+        <NumberField
+          label="Max deviation (m)"
+          value={deviation}
+          min={MIN_FIT_DEVIATION_M}
+          max={MAX_FIT_DEVIATION_M}
+          onChange={setDeviation}
+        />
         <Button
           size="sm"
           variant="outline"

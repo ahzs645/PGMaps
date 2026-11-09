@@ -1193,6 +1193,12 @@ The [alignment guide](forestry-road-design/alignment-and-optimization.md) descri
 the sampling assumptions; [final connector checks](forestry-road-design/final-connector-checks.md)
 add denser adoption gates for local folds and excessive actual bank.
 
+**Reduce points, fit curves** (`fitPolylineAlignment` in `polylineFit.ts`), under Design →
+Horizontal points, is the polyline-to-alignment step for an imported line or a found route: as
+few points as hold the line within the entered maximum deviation, a curve of at least the minimum
+radius at each, and a notice with the point count before and after and the largest measured
+deviation.
+
 `fitHorizontalRadii` (`horizontalTools.ts`), under Design → Horizontal points, has two modes:
 
 - **Fit sharp corners** gives every corner that has no radius the default radius (35 m, as in
