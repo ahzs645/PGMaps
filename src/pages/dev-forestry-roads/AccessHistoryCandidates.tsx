@@ -8,7 +8,7 @@ import {
   historicalRoadCandidates,
   type HistoricalRoadCandidate,
   type SourceCodeComparison,
-} from './accessHistoryCandidates'
+} from './accessHistoryCandidateRanking'
 import type { HistoricalCoverageSummary } from './accessHistorySummary'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import type { ContextFeature, Coordinate } from './types'
