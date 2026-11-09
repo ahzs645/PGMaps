@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { corridorFrame, optimizeRoadCorridor, optimizeRoadCorridorAsync } from './corridorOptimizer'
+import {
+  corridorFrame,
+  CorridorSearchError,
+  optimizeRoadCorridor,
+  optimizeRoadCorridorAsync,
+} from './corridorOptimizer'
 import { corridorCandidate } from './corridorCandidate'
 import { alignmentLength, distance, horizontalCurveSummary, positionAt } from './engine'
 import type { ContextFeature, Coordinate, RoadSettings, RoadTemplate, TerrainSource } from './types'
@@ -254,14 +259,64 @@ describe('verified sketched-corridor search', () => {
     await expect(
       optimizeRoadCorridorAsync(guide, flat, settings, [], options, { signal: before.signal }),
     ).rejects.toThrow(/cancelled/)
+    // A slice of 0 ms hands over at every step the search offers, so progress arrives before it ends.
     const during = new AbortController()
     await expect(
       optimizeRoadCorridorAsync(guide, flat, settings, [], options, {
         signal: during.signal,
+        sliceMs: 0,
         onProgress: () => during.abort(),
       }),
     ).rejects.toThrow(/cancelled/)
     expect(JSON.stringify(guide)).toBe(frozen)
+  })
+  it('gets round a hill inside a budget that a plain search spends in front of it', () => {
+    // A 40 m knoll on the direct line, far too steep to cross at 8 %: the road has to go round it.
+    const knoll = terrain((x, y) => 700 + 40 * Math.exp(-((x - 150) ** 2 + y ** 2) / 60 ** 2))
+    const guide = [point(0, 0), point(300, 0)]
+    const tight = { ...options, corridorHalfWidthM: 180, maxStates: 3000 }
+    let failure: unknown
+    try {
+      optimizeRoadCorridor(guide, knoll, settings, [], tight)
+    } catch (cause) {
+      failure = cause
+    }
+    expect(failure).toBeInstanceOf(CorridorSearchError)
+    const { failure: report } = failure as CorridorSearchError
+    expect((failure as Error).message).toMatch(/Search budget reached without a verified candidate/)
+    expect(report.reason).toBe('budget')
+    expect(report.directM).toBeCloseTo(300, 3)
+    // It made some headway, and the grade limit is what turned its lines back.
+    expect(report.closestRemainingM).toBeLessThan(300)
+    expect(report.closestRemainingM).toBeGreaterThan(150)
+    expect(report.stopped.grade).toBeGreaterThan(100)
+    expect(report.stopped.terrain + report.stopped.exclusion).toBe(0)
+    const found = optimizeRoadCorridor(guide, knoll, settings, [], { ...tight, searchWeight: 3 })
+    expect(found.searchStatus).toBe('complete')
+    expect(found.maxSampledGroundPitchPercent).toBeLessThanOrEqual(settings.maxGradePercent + 1e-4)
+    expect(found.lengthM).toBeGreaterThan(330)
+    expect(found.minimumRadiusM).toBeGreaterThanOrEqual(settings.minRadius - 1e-6)
+    expect(() => optimizeRoadCorridor(guide, knoll, settings, [], { ...tight, searchWeight: 6 })).toThrow(
+      /Search weight must be 1–5/,
+    )
+  })
+  it('reports what stopped its lines when a gap in the terrain crosses the whole corridor', () => {
+    const split = terrain((x) => (x > 60 && x < 70 ? NaN : 700))
+    let failure: unknown
+    try {
+      optimizeRoadCorridor([point(0, 0), point(120, 0)], split, settings, [], { ...options, corridorHalfWidthM: 25 })
+    } catch (cause) {
+      failure = cause
+    }
+    expect(failure).toBeInstanceOf(CorridorSearchError)
+    const { failure: report } = failure as CorridorSearchError
+    expect((failure as Error).message).toMatch(/No verified candidate/)
+    expect(report.reason).toBe('no-candidate')
+    expect(report.stopped.terrain).toBeGreaterThan(0)
+    expect(report.stopped.grade).toBe(0)
+    // It got to the gap, 60 m short of the end, and no further.
+    expect(report.closestRemainingM).toBeGreaterThan(59)
+    expect(report.closestRemainingM).toBeLessThan(75)
   })
   it('rejects stale/malformed candidate geometry before adoption', () => {
     const result = optimizeRoadCorridor([point(0, 0), point(200, 0)], flat, settings, [], options)

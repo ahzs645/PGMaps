@@ -7,18 +7,25 @@
  * Takes terrain and projections as arguments and touches neither the DOM nor the network.
  */
 import { safeAnalyzeRoad } from './analysisResult'
+import { yieldToHost } from './cooperative'
 import { crossingScreeningOverlapCount } from './crossingPlan'
-import { corridorFrame, optimizeRoadCorridorAsync, type RoadOptimizationObjective } from './corridorOptimizer'
+import {
+  corridorFrame,
+  CorridorSearchError,
+  optimizeRoadCorridorAsync,
+  type CorridorFailure,
+  type RoadOptimizationObjective,
+} from './corridorOptimizer'
 import { corridorCandidate } from './corridorCandidate'
 import { runDrainage, type DrainageSettings } from './drainageRun'
 import { alignmentLength } from './engine'
 import { fillDepressions, flowAccumulation, flowDirections } from './hydrology'
 import { MAX_JOINT_MOVABLE_POINTS, refinePlanAndProfile } from './jointOptimizer'
 import { derivedRoadName } from './roadNames'
+import { roadFromRoute } from './routeFit'
 import { suggestRoutes, type RouteSearchOptions } from './routing'
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
-import { fitHorizontalRadii } from './horizontalTools'
-import { optimizeVerticalProfile } from './verticalOptimizer'
+import { optimizeVerticalProfileAsync } from './verticalOptimizer'
 import { constraintRouteIssues } from './riparian'
 import type {
   Alignment,
@@ -78,6 +85,8 @@ export interface RouteComparisonOptions {
   /** Allowance per cross-drain site without a culvert, CAD. A planning placeholder. */
   crossDrainCost: number
   drainage: DrainageSettings
+  /** Smaller corridor-search budgets, for tests and constrained devices. The defaults are the documented ones. */
+  searchBudget?: { maxStates?: number; maxTerrainSamples?: number }
 }
 export const DEFAULT_CROSS_DRAIN_COST = 1500
 /** Metres of road a mapped stream contact is worth to the drainage goal's search. */
@@ -96,9 +105,26 @@ const SCREENING_CELL_M = 2
 const SCREENING_BUFFER_M = 150
 const STREAM_MODEL_CELL_M = 4
 const MAX_GUIDE_POINTS = 8
-const MAX_ROUTED_POINTS = 14
 const WIDER_CORRIDOR_FACTOR = 2
 const MAX_CORRIDOR_HALF_WIDTH_M = 600
+/**
+ * How hard the second search of a corridor leans toward the end, once the even-handed one has run out
+ * of budget. On the LiDAR hillside it reached ends 1.1 km apart in under 3 s where the first search
+ * spent its whole budget, with a line 1 % to 5 % longer than a larger budget finds.
+ */
+export const QUICK_SEARCH_WEIGHT = 2.5
+/**
+ * A road is fitted to a grid route inside this distance of it. The route is a line that already meets
+ * the grade limit, so the search only has to round its corners; a tube this narrow is searched in a
+ * second or two where the full corridor spent its whole budget.
+ */
+export const ROUTED_HALF_WIDTH_M = 40
+/** Guide points a grid route may keep; the corridor search takes at most 100. */
+const MAX_ROUTED_GUIDE_POINTS = 100
+/** Progress within a step is passed on no more often than this, ms. */
+const DETAIL_INTERVAL_MS = 200
+/** Plan-and-profile trials spent refining the cheapest line. */
+const REFINEMENT_TRIALS = 10
 
 export interface DrainageScreen {
   crossings: number
@@ -152,6 +178,8 @@ export interface RouteComparisonInput {
 export interface RouteComparisonProgress {
   /** What is happening now, in terms of the roads rather than the engine. */
   message: string
+  /** What the step is doing at this moment, and how far through its own budget it is. */
+  detail?: string
   step: number
   total: number
 }
@@ -307,7 +335,67 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   return kept
 }
 
-const tick = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
+
+/** What stopped a corridor search, where it got to and what to change, for the row that found no road. */
+export function describeCorridorFailure(
+  failure: CorridorFailure,
+  limits: { maxGradePercent: number; minRadiusM: number; halfWidthM: number },
+) {
+  const { stopped } = failure
+  const total = stopped.grade + stopped.terrain + stopped.exclusion + stopped.corridor
+  const [check] = (Object.entries(stopped) as [keyof typeof stopped, number][]).sort((a, b) => b[1] - a[1])[0]
+  const share = failure.closestRemainingM / Math.max(1, failure.directM)
+  const reached =
+    failure.closestRemainingM > failure.directM - 5
+      ? 'made no headway toward the end'
+      : `got to within ${whole(failure.closestRemainingM)} m of the end`
+  // The trouble lies ahead of where the search stopped: by the start, by the end, or between them.
+  const move = share > 0.65 ? "the road's start" : share < 0.35 ? "the road's end" : 'an end'
+  const ended = failure.reason === 'budget' ? ', then ran out of its search budget' : ' and had no line left to try'
+  if (!total) return `The search ${reached}${ended}. Move an end or widen the corridor under Search settings.`
+  const cause = {
+    grade: `ground steeper than the ${limits.maxGradePercent}% grade limit`,
+    terrain: 'gaps in the terrain',
+    exclusion: 'blocked areas',
+    corridor: `the edge of the ±${limits.halfWidthM} m corridor`,
+  }[check]
+  const remedy = {
+    grade: `Raise the grade limit, move ${move} onto gentler ground, or widen the corridor under Search settings.`,
+    terrain: 'Move the ends onto mapped ground, or add terrain between them.',
+    exclusion: 'Change the treatment of the areas between the ends, or widen the corridor under Search settings.',
+    corridor: 'Widen the corridor under Search settings.',
+  }[check]
+  return `No line within ${limits.maxGradePercent}% and a ${limits.minRadiusM} m radius reaches the end: the search ${reached}${ended}. ${whole((100 * stopped[check]) / total)}% of the lines it tried were stopped by ${cause}. ${remedy}`
+}
+
+/**
+ * What a run came back with, for the notice: how many roads, how many of them carry a flag, and the
+ * goals left with none. `found` is false only when nothing usable came back and no goal was already
+ * led by the current road.
+ */
+export function comparisonSummary(comparison: RouteComparison): { found: boolean; message: string } {
+  const designed = comparison.rows.filter((row) => row.goal !== 'current' && row.alignment)
+  const failed = comparison.rows.filter((row) => row.goal !== 'current' && !row.alignment)
+  if (!designed.length)
+    return failed.length
+      ? { found: false, message: `No route found. ${failed[0].blockers[0] ?? ''}`.trim() }
+      : { found: true, message: 'No new road beat yours on these goals.' }
+  const flagged = designed.filter((row) => row.blockers.length).length
+  const routes = `${designed.length} route${designed.length === 1 ? '' : 's'}`
+  const without = failed.length ? ` No route for ${failed.map((row) => row.label.toLowerCase()).join(', ')}.` : ''
+  if (!flagged)
+    return { found: true, message: `${routes} ready. Click one to open its profile and sections.${without}` }
+  return {
+    found: true,
+    message:
+      (flagged === designed.length
+        ? `${routes} found, ${designed.length === 1 ? 'with a limit broken or a check to make: its row says' : 'each with a limit broken or a check to make: their rows say'} which.`
+        : `${routes} found; ${flagged} ${flagged === 1 ? 'has' : 'have'} a limit broken or a check to make, shown on ${flagged === 1 ? 'its row' : 'their rows'}.`) +
+      ` Click one to open it.${without}`,
+  }
+}
+
 const LINE_NAME: Record<'shortest' | 'balanced' | 'contour', string> = {
   shortest: 'shortest',
   balanced: 'balanced',
@@ -333,12 +421,35 @@ export async function compareRoutes(
     1 +
     (options.goals.includes('drainage') ? 1 : 0)
   let done = 0
+  /** Gives the page a turn between two stretches of work that cannot be split, and stops if cancelled. */
+  const breathe = async () => {
+    await yieldToHost()
+    aborted()
+  }
+  let current = '',
+    detailed = 0
   const step = async (message: string) => {
     aborted()
     done = Math.min(total, done + 1)
+    current = message
+    detailed = 0
     onStep?.({ message, step: done, total })
-    await tick()
-    aborted()
+    await breathe()
+  }
+  /**
+   * What the current step is doing, and how far along it is: a search by the share of its own budget
+   * spent, which it may not need all of, and a profile fit by the share of its work done.
+   */
+  const detail = (text: string, share?: number, of = ' of its budget') => {
+    const now = Date.now()
+    if (share !== undefined && now - detailed < DETAIL_INTERVAL_MS) return
+    detailed = now
+    onStep?.({
+      message: current,
+      detail: share === undefined ? text : `${text} · ${Math.floor(share * 100)}%${of}`,
+      step: done,
+      total,
+    })
   }
   const guide = simplifyGuide(base.points.map((p) => p.coordinate))
   // The same candidate is priced, refined, screened and listed; analyse and screen it once each.
@@ -354,6 +465,7 @@ export async function compareRoutes(
     corridorHalfWidthM: Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth),
     groundWindowM: options.groundWindowM,
     constraintCostBasePerM: routeOptions.baseCostPerM,
+    ...options.searchBudget,
   })
 
   let wetness: ((coordinate: Coordinate) => number) | null = null
@@ -362,15 +474,39 @@ export async function compareRoutes(
     | { result: Searched; points?: undefined; note: string | null }
     | { result?: undefined; points: RoadPoint[]; note: string }
   const searches = new Map<string, { line: Line } | { error: unknown }>()
-  /** One corridor search per objective and stream set: the cost goal shares the other goals' lines. */
-  const horizontal = async (objective: RoadOptimizationObjective, drainage: boolean): Promise<Line> => {
-    const key = `${objective}:${drainage}`
-    const known = searches.get(key)
-    if (known) {
-      if ('error' in known) throw known.error
-      return known.line
+  /**
+   * What is known about each corridor, shared by every goal. The limits a line must meet do not
+   * depend on the goal, so a corridor one goal's search found empty is empty for the rest, and one
+   * that spent a whole search budget is searched the quicker way from then on.
+   */
+  type Corridor = 'guide' | 'wide' | 'routed'
+  const corridors = new Map<string, 'hard' | 'empty' | 'spent'>()
+  /** The search that got nearest the end, kept to explain a goal that ends with no road. */
+  let nearest: { failure: CorridorFailure; halfWidthM: number } | null = null
+  let other: unknown = null
+  const noteFailure = (cause: unknown, halfWidthM: number) => {
+    if (!(cause instanceof CorridorSearchError)) {
+      other ??= cause
+      return
     }
-    const search = (line: Coordinate[], halfWidth: number) =>
+    if (!nearest || cause.failure.closestRemainingM < nearest.failure.closestRemainingM)
+      nearest = { failure: cause.failure, halfWidthM }
+  }
+  const QUICK_NOTE = 'Found by a quicker search that leans toward the end, so a more direct line may exist.'
+  /** One corridor, searched evenly first and then the quicker way if that runs out. Null when it has no line. */
+  const searchCorridor = async (
+    corridor: Corridor,
+    line: Coordinate[],
+    halfWidth: number,
+    objective: RoadOptimizationObjective,
+    drainage: boolean,
+    doing: string,
+  ): Promise<{ result: Searched; quick: boolean } | null> => {
+    // The tube along a grid route is cheap to search, and what fits in it does depend on the goal.
+    const place = corridor === 'routed' ? `routed:${objective}` : corridor
+    const known = corridors.get(place)
+    if (known === 'empty' || known === 'spent') return null
+    const run = (searchWeight?: number) =>
       optimizeRoadCorridorAsync(
         line,
         terrain,
@@ -380,62 +516,131 @@ export async function compareRoutes(
           objective,
           ...searchOptions(halfWidth),
           ...(drainage ? { streamContactCostM: DRAINAGE_STREAM_CONTACT_M, groundPenalty: wetness! } : {}),
+          ...(searchWeight ? { searchWeight } : {}),
         },
-        { signal },
+        {
+          signal,
+          onProgress: ({ budgetUsed }) => detail(searchWeight ? `${doing}, leaning toward the end` : doing, budgetUsed),
+        },
       )
+    // A search that cannot start (an end off the terrain or inside a blocked area) fails every time.
+    const failed = (cause: unknown) => {
+      aborted()
+      noteFailure(cause, Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth))
+      if (!(cause instanceof CorridorSearchError)) throw cause
+      return cause.failure.reason
+    }
+    if (known !== 'hard' || drainage)
+      try {
+        detail(doing)
+        return { result: await run(), quick: false }
+      } catch (cause) {
+        if (failed(cause) === 'no-candidate') {
+          corridors.set(place, 'empty')
+          return null
+        }
+        // Steering round wet ground already leans toward the end; a second run would repeat it.
+        if (drainage) return null
+        corridors.set(place, 'hard')
+      }
+    try {
+      detail(`${doing}, leaning toward the end`)
+      return { result: await run(QUICK_SEARCH_WEIGHT), quick: true }
+    } catch (cause) {
+      corridors.set(place, failed(cause) === 'no-candidate' ? 'empty' : 'spent')
+      return null
+    }
+  }
+  /** The terrain-cost grid route between the ends, searched once: it does not depend on the goal. */
+  let gridRoute: { coordinates: Coordinate[] } | { error: unknown } | null = null
+  const routed = () => {
+    if (!gridRoute)
+      try {
+        gridRoute = {
+          coordinates: suggestRoutes(guide[0], guide[guide.length - 1], terrain, settings, context, {
+            ...routeOptions,
+            alternatives: 1,
+            groundWindowM: options.groundWindowM,
+          }).routes[0].coordinates,
+        }
+      } catch (error) {
+        gridRoute = { error }
+      }
+    return 'coordinates' in gridRoute ? gridRoute.coordinates : null
+  }
+  /** The grid route as a road: fewer points with curves where that stays clear, else the route as found. */
+  let gridRoad: { points: RoadPoint[]; note: string } | null = null
+  const roadFromGridRoute = (route: Coordinate[]) => {
+    if (gridRoad) return gridRoad
+    const road = roadFromRoute(route, terrain, context, settings.minRadius)
+    const sharp = road.fit?.sharpCorners ?? 0
+    return (gridRoad = {
+      points: road.points.map((point) => ({ id: id(), ...point })),
+      note: road.fit
+        ? `Built from a terrain-cost grid route, with curves fitted within ${road.maxDeviationM} m of it${sharp ? `; ${sharp} corner${sharp === 1 ? ' is' : 's are'} too tight for a ${settings.minRadius} m curve` : ''}. Its ground grades were checked along the grid route, not along the curves.`
+        : // Every leg of the route as found was checked for ground, grade and blocked areas by its own search.
+          'This is a terrain-cost grid route as found. No curves fit it without leaving the terrain or entering a blocked area, so its corners are sharp.',
+    })
+  }
+  /** One line per objective and stream set: the cost goal shares the other goals' lines. */
+  const horizontal = async (objective: RoadOptimizationObjective, drainage: boolean): Promise<Line> => {
+    const key = `${objective}:${drainage}`
+    const known = searches.get(key)
+    if (known) {
+      if ('error' in known) throw known.error
+      return known.line
+    }
     const attempt = async (): Promise<Line> => {
       const halfWidth = options.corridorHalfWidthM
-      let failure: unknown
-      try {
-        return { result: await search(guide, halfWidth), note: null }
-      } catch (cause) {
-        aborted()
-        failure = cause
-      }
+      const quick = (found: { quick: boolean }, note: string | null) =>
+        found.quick ? [note, QUICK_NOTE].filter(Boolean).join(' ') : note
+      const direct = await searchCorridor(
+        'guide',
+        guide,
+        halfWidth,
+        objective,
+        drainage,
+        `searching within ${halfWidth} m of your road`,
+      )
+      if (direct) return { result: direct.result, note: quick(direct, null) }
       // Only a corridor with no valid line can gain from more room; an exhausted budget cannot.
-      if (failure instanceof Error && /No verified candidate/.test(failure.message))
-        try {
-          return {
-            result: await search(guide, halfWidth * WIDER_CORRIDOR_FACTOR),
-            note: `Corridor widened to ±${Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth * WIDER_CORRIDOR_FACTOR)} m.`,
-          }
-        } catch {
-          aborted()
-        }
+      const wider = Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth * WIDER_CORRIDOR_FACTOR)
+      if (corridors.get('guide') === 'empty' && wider > halfWidth) {
+        const wide = await searchCorridor(
+          'wide',
+          guide,
+          wider,
+          objective,
+          drainage,
+          `no line within ${halfWidth} m; searching within ${wider} m`,
+        )
+        if (wide) return { result: wide.result, note: quick(wide, `Corridor widened to ±${wider} m.`) }
+      }
+      // Steering round wet ground is tried in the corridors only: past them the balanced line serves.
+      if (drainage) throw Error('No line steers round the modelled streams.')
       // A grid route can leave the corridor entirely; its simplified line becomes a new guide.
-      let routed: Coordinate[]
-      try {
-        routed = suggestRoutes(guide[0], guide[guide.length - 1], terrain, settings, context, {
-          ...routeOptions,
-          alternatives: 1,
-          groundWindowM: options.groundWindowM,
-        }).routes[0].coordinates
-      } catch {
-        throw failure
-      }
-      const routedGuide = simplifyGuide(routed)
-      try {
-        return { result: await search(routedGuide, halfWidth), note: 'Guided by a terrain-cost grid route.' }
-      } catch {
-        aborted()
-      }
-      // The grid route met the limits; only the corridor's tighter geometry did not fit. Keep the
-      // route with curves fitted to its corners: its rows say so, and a misfit corner is a blocker.
-      const corners = simplifyGuide(routed, MAX_ROUTED_POINTS).map((coordinate) => ({
-        id: id(),
-        coordinate,
-        radiusM: 0,
-      }))
-      return {
-        points: fitHorizontalRadii(
-          corners,
-          { kind: 'radius', radiusM: settings.minRadius * 2 },
-          {
-            minRadiusM: settings.minRadius,
-          },
-        ).points,
-        note: 'Built from a grid route, so check its curves.',
-      }
+      detail('searching a wider area on a grid')
+      await breathe()
+      const route = routed()
+      if (!route) throw Error('No line found.')
+      const tube = Math.min(halfWidth, ROUTED_HALF_WIDTH_M)
+      const along = await searchCorridor(
+        'routed',
+        simplifyGuide(route, MAX_ROUTED_GUIDE_POINTS),
+        tube,
+        objective,
+        drainage,
+        'fitting a road along a grid route',
+      )
+      if (along)
+        return {
+          result: along.result,
+          note: quick(along, `Follows a terrain-cost grid route, within ${tube} m of it.`),
+        }
+      // The grid route met the grade limit; only the corridor's tighter geometry did not fit along it.
+      detail('fitting curves to the grid route')
+      await breathe()
+      return roadFromGridRoute(route)
     }
     try {
       const line = await attempt()
@@ -447,10 +652,25 @@ export async function compareRoutes(
       throw error
     }
   }
+  /** Why a goal ended with no road, in the designer's terms: which limit, and where the search got to. */
+  const failureText = (cause: unknown) => {
+    const grid =
+      gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : ''
+    if (nearest)
+      return (
+        describeCorridorFailure(nearest.failure, {
+          maxGradePercent: settings.maxGradePercent,
+          minRadiusM: settings.minRadius,
+          halfWidthM: nearest.halfWidthM,
+        }) + grid
+      )
+    const reason = other ?? cause
+    return reason instanceof Error ? reason.message : 'No route found.'
+  }
 
   const profileOptions = { context, ...(input.analysisOptions ?? {}) }
   /** The horizontal candidate with the profile, of those asked for, that prices lowest. */
-  const fitProfile = (
+  const fitProfile = async (
     found: Line,
     goal: (typeof ROUTE_GOALS)[number],
     objectives: readonly ('earthwork' | 'total')[],
@@ -469,45 +689,74 @@ export async function compareRoutes(
         }
     candidate.color = goal.color
     const length = alignmentLength(candidate)
-    const fitted = objectives.map((objective) => {
-      const vertical = optimizeVerticalProfile(candidate, length, terrain, settings, {
-        ...profileOptions,
-        objective,
-      }).vertical.map((point) => ({ ...point, id: id() }))
-      const analysis = analyse({ ...candidate, vertical })
-      return {
-        vertical,
-        cost: analysis.estimatedCost,
-        withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
+    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean }[] = []
+    let failure: unknown
+    const fit = async (objective: 'earthwork' | 'total') => {
+      try {
+        detail('fitting a profile')
+        const profile = await optimizeVerticalProfileAsync(
+          candidate,
+          length,
+          terrain,
+          settings,
+          { ...profileOptions, objective },
+          { signal, onProgress: ({ fraction }) => detail('fitting a profile', fraction, '') },
+        )
+        await breathe()
+        const vertical = profile.vertical.map((point) => ({ ...point, id: id() }))
+        const analysis = analyse({ ...candidate, vertical })
+        fitted.push({
+          vertical,
+          cost: analysis.estimatedCost,
+          withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
+        })
+      } catch (cause) {
+        aborted()
+        failure ??= cause
       }
-    })
+    }
+    for (const objective of objectives) await fit(objective)
+    // Total cost needs every crossing and haul input priced; cut and fill alone does not.
+    if (!fitted.length && !objectives.includes('earthwork')) await fit('earthwork')
+    if (!fitted.length)
+      throw Error(
+        `A line was found, but no profile fits it. ${failure instanceof Error ? failure.message : 'The profile search failed.'}`,
+      )
     const best = fitted.sort((a, b) => Number(b.withinGrade) - Number(a.withinGrade) || a.cost - b.cost)[0]
     return { candidate: { ...candidate, vertical: best.vertical }, cost: best.cost, withinGrade: best.withinGrade }
   }
 
   const design = async (goal: (typeof ROUTE_GOALS)[number]) => {
     if (goal.id !== 'cost') {
-      let found: Line
-      try {
-        found = await horizontal(goal.objective, goal.id === 'drainage')
-      } catch (cause) {
-        aborted()
-        if (goal.id !== 'drainage') throw cause
-        found = await horizontal(goal.objective, false)
-        found = { ...found, note: 'Could not steer around modelled streams; this is the balanced line.' }
-      }
+      let found: Line | null = null
+      if (goal.id === 'drainage') {
+        // Steering is extra: a search that cannot do it still has the balanced line to offer.
+        try {
+          found = await horizontal(goal.objective, true)
+        } catch {
+          aborted()
+        }
+        if (!found) {
+          found = await horizontal(goal.objective, false)
+          found = { ...found, note: 'Could not steer around modelled streams; this is the balanced line.' }
+        }
+      } else found = await horizontal(goal.objective, false)
       await step(`${goal.label}: fitting a profile`)
-      return { candidate: fitProfile(found, goal, ['total']).candidate, notes: found.note ? [found.note] : [] }
+      return {
+        candidate: (await fitProfile(found, goal, ['total'])).candidate,
+        notes: found.note ? [found.note] : [],
+      }
     }
     // Lowest cost has to be measured, not assumed from a preference: price every line, drainage
     // included, and keep the cheapest. A short line that needs more culverts can lose.
-    const priced: { fit: ReturnType<typeof fitProfile>; total: number; note: string | null }[] = []
+    const priced: { fit: Awaited<ReturnType<typeof fitProfile>>; total: number; note: string | null }[] = []
     let failure: unknown
     for (const objective of ['shortest', 'balanced', 'contour'] as const) {
       await step(`${goal.label}: pricing the ${LINE_NAME[objective]} line`)
       try {
         const found = await horizontal(objective, false)
-        const fit = fitProfile(found, goal, ['earthwork', 'total'])
+        const fit = await fitProfile(found, goal, ['earthwork', 'total'])
+        await breathe()
         priced.push({ fit, total: totalOf(fit.candidate), note: found.note })
       } catch (cause) {
         aborted()
@@ -520,14 +769,18 @@ export async function compareRoutes(
     const notes = priced[0].note ? [priced[0].note] : []
     if (candidate.points.length > 2 && candidate.points.length - 2 <= MAX_JOINT_MOVABLE_POINTS) {
       await step(`${goal.label}: refining the cheapest line`)
+      let trial = 0
       try {
         const refined = await refinePlanAndProfile(candidate, terrain, settings, context, {
           stepM: 5,
           rounds: 1,
-          maxEvaluations: 10,
+          maxEvaluations: REFINEMENT_TRIALS,
           profile: { ...profileOptions, objective: 'total' },
           signal,
-          yieldControl: tick,
+          yieldControl: async () => {
+            detail(`trial ${Math.min(REFINEMENT_TRIALS, ++trial)} of ${REFINEMENT_TRIALS}`)
+            await breathe()
+          },
         })
         // Refinement sees only the build price. A cheaper build that lands on a stream costs more.
         if (totalOf(refined.alignment) < priced[0].total) candidate = refined.alignment
@@ -548,7 +801,6 @@ export async function compareRoutes(
       const drainage = screen(alignment, analysis)
       return drainage.crossingCostOverlaps ? Infinity : analysis.estimatedCost + drainage.allowance
     } catch {
-      aborted()
       return analysis.estimatedCost
     }
   }
@@ -645,7 +897,7 @@ export async function compareRoutes(
       Object.assign(row, metrics(analysis, settings.maxGradePercent, context))
     } catch (cause) {
       aborted()
-      row.blockers = [cause instanceof Error ? cause.message : 'No route found.']
+      row.blockers = [failureText(cause)]
     }
     rows.push(row)
   }
@@ -655,6 +907,7 @@ export async function compareRoutes(
     await step(`${row.label}: checking drainage`)
     try {
       const analysis = row.goal === 'current' ? baseAnalysis : analyse(row.alignment)
+      await breathe()
       row.drainage = screen(row.alignment, analysis)
       row.totalCost = row.constructionCost! + row.drainage.allowance
       if (row.drainage.crossingCostOverlaps) {

@@ -8,6 +8,7 @@ import { RoadSection } from './SidebarParts'
 import { parseProject } from './project'
 import { distinctRoadColors } from './roadColors'
 import {
+  comparisonSummary,
   compareRoutes,
   DEFAULT_CROSS_DRAIN_COST,
   ROUTE_GOALS,
@@ -15,6 +16,7 @@ import {
   type RouteGoal,
   type RouteRow,
 } from './routeComparison'
+import { corridorSearchResolution } from './corridorOptimizer'
 import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
@@ -37,12 +39,6 @@ const money = (n: number) =>
 const whole = (n: number) => Math.round(n).toLocaleString('en-CA')
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const GOAL_LABEL = Object.fromEntries(ROUTE_GOALS.map((goal) => [goal.id, goal.label])) as Record<RouteGoal, string>
-/** The engine's messages describe its budgets; a row needs to say what to try next. */
-const failure = (message: string, limit: number) =>
-  /budget|No verified candidate|No terrain-cost/.test(message)
-    ? `No route within ${limit}%. Raise the limit or move an end off the steep ground.`
-    : message
-
 /** Pick the ends, pick what matters, and see designed roads priced beside the one you have. */
 export function RouteFinder({
   workspace: w,
@@ -109,10 +105,18 @@ export function RouteFinder({
     if (abort.current || w.busy) return
     const controller = new AbortController()
     abort.current = controller
+    // Cancel hands the workspace back at once; the search stops at its next slice, a few milliseconds on.
+    const stop = () => {
+      controller.abort()
+      if (abort.current !== controller) return
+      abort.current = null
+      w.setBusy('')
+      w.setNotice('Route comparison cancelled. No road was changed.')
+    }
     setRun(null)
     w.setError('')
     w.setBusy('Starting…')
-    w.setBusyCancel({ label: 'Cancel route comparison', title: 'Comparing routes', onCancel: () => controller.abort() })
+    w.setBusyCancel({ label: 'Cancel route comparison', title: 'Comparing routes', onCancel: stop })
     try {
       const comparison = await compareRoutes(
         {
@@ -140,20 +144,27 @@ export function RouteFinder({
         },
         {
           signal: controller.signal,
-          onStep: ({ message, step, total }) => {
-            w.setBusy(message)
+          onStep: ({ message, detail, step, total }) => {
+            if (abort.current !== controller) return
+            w.setBusy(detail ? `${message} · ${detail}` : message)
             w.setBusyProgress({ step, total })
           },
         },
       )
+      if (abort.current !== controller) return
       setRun({ comparison, roadKey, inputs, source })
-      w.setNotice('Routes ready. Click one to open its profile and sections.')
+      // A run that found nothing is a failure, whatever else it finished.
+      const summary = comparisonSummary(comparison)
+      if (summary.found) w.setNotice(summary.message)
+      else w.setError(summary.message)
     } catch (cause) {
-      if (controller.signal.aborted) w.setNotice('Route comparison cancelled. No road was changed.')
-      else w.setError(cause instanceof Error ? cause.message : 'Could not compare routes.')
+      if (abort.current !== controller) return
+      w.setError(cause instanceof Error ? cause.message : 'Could not compare routes.')
     } finally {
-      abort.current = null
-      w.setBusy('')
+      if (abort.current === controller) {
+        abort.current = null
+        w.setBusy('')
+      }
     }
   }
 
@@ -184,13 +195,17 @@ export function RouteFinder({
   const rows = run?.comparison.rows ?? []
   const current = rows.find((row) => row.goal === 'current')
   const designed = rows.filter((row) => row.goal !== 'current' && row.alignment)
-  const limit = project.settings.maxGradePercent
   // Goals that failed for one reason read as one line, not one row each.
   const failures = new Map<string, RouteRow[]>()
   for (const row of rows.filter((row) => !row.alignment)) {
-    const message = failure(row.blockers[0] ?? '', limit)
+    const message = row.blockers[0] ?? 'No route found.'
     failures.set(message, [...(failures.get(message) ?? []), row])
   }
+  // What a search of this corridor works at, so the numbers are known before a run rather than after.
+  const resolution = corridorSearchResolution(
+    alignment.points.map((p) => p.coordinate),
+    halfWidth,
+  )
   const colors = distinctRoadColors([
     ...project.alignments,
     ...designed.filter((row) => !inProject.has(row.alignment!.id)).map((row) => row.alignment!),
@@ -299,6 +314,17 @@ export function RouteFinder({
               onChange={setCrossDrainCost}
             />
           </div>
+          {resolution && (
+            <p className="mt-2 text-2xs leading-4 text-muted-foreground" data-testid="road-route-resolution">
+              Searches on {resolution.cellM.toFixed(1)} m cells in {resolution.stepM.toFixed(0)} m strides and{' '}
+              {resolution.headings} headings; ground is read every {resolution.sampleM} m along each line.{' '}
+              <InfoTip label="About the search resolution">
+                The corridor is divided into at most 140 cells a side, never finer than 3 m, so a longer road or a wider
+                corridor is searched more coarsely. Each search stops after 50,000 trial positions or 3.5 million ground
+                readings; the progress line shows how much of that it has used.
+              </InfoTip>
+            </p>
+          )}
         </details>
         {stale && (
           <InlineAlert tone="warning">

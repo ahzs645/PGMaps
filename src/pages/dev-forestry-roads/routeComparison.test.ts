@@ -4,8 +4,10 @@ import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import {
   assignGoals,
   compareRoutes,
+  comparisonSummary,
   crossDrainSites,
   DEFAULT_CROSS_DRAIN_COST,
+  describeCorridorFailure,
   flowPenalty,
   simplifyGuide,
   type RouteRow,
@@ -267,11 +269,177 @@ describe('compareRoutes', () => {
     expect(rows[0].alignment).not.toBeNull()
   }, 30_000)
 
+  it('says which limit stopped a goal, where the search got to and that nothing was found', async () => {
+    // 60 % straight up the fall line: every line has to traverse, and none can turn back toward the end.
+    const steep: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.6 * (lat - origin[1]) * M }
+    const base = road([at(0, 0), at(0, 200)], 'Cliff')
+    const comparison = await compareRoutes({
+      ...input(base, ['shortest', 'gentle']),
+      terrain: steep,
+      baseAnalysis: safeAnalyzeRoad(base, steep, DEFAULT_ROAD_SETTINGS),
+    })
+    const failed = comparison.rows.filter((row) => row.goal !== 'current')
+    expect(failed.map((row) => row.alignment)).toEqual([null, null])
+    for (const row of failed)
+      expect(row.blockers[0]).toMatch(
+        /^No line within 12% and a 25 m radius reaches the end: the search made no headway toward the end.* \d+% of the lines it tried were stopped by ground steeper than the 12% grade limit\. Raise the grade limit, move the road's start onto gentler ground, or widen the corridor under Search settings\. A coarser search of a wider area on a grid found no line either\.$/,
+      )
+    // Never "ready" when nothing usable came back.
+    const summary = comparisonSummary(comparison)
+    expect(summary.found).toBe(false)
+    expect(summary.message).toMatch(/^No route found\. No line within 12%/)
+  }, 60_000)
+
+  it('searches again leaning toward the end when the even search runs out of budget', async () => {
+    // A knoll on the direct line, too steep to cross: the road has to go round it.
+    const knoll: TerrainSource = {
+      elevationAt(lng, lat) {
+        const x = (lng - origin[0]) * M * cos,
+          y = (lat - origin[1]) * M
+        return 700 + 40 * Math.exp(-((x - 150) ** 2 + y ** 2) / 60 ** 2)
+      },
+    }
+    const base = road([at(0, 0), at(300, 0)], 'Over the knoll')
+    const settings = { ...DEFAULT_ROAD_SETTINGS, maxGradePercent: 8, minRadius: 35 }
+    const details: string[] = []
+    const original = input(base, ['shortest'])
+    const comparison = await compareRoutes(
+      {
+        ...original,
+        terrain: knoll,
+        settings,
+        baseAnalysis: safeAnalyzeRoad(base, knoll, settings),
+        options: { ...original.options, corridorHalfWidthM: 180, searchBudget: { maxStates: 3000 } },
+      },
+      { onStep: ({ detail }) => detail && details.push(detail) },
+    )
+    const found = comparison.rows.find((row) => row.goal !== 'current')!
+    expect(found.alignment).not.toBeNull()
+    expect(found.lengthM!).toBeGreaterThan(330)
+    expect(found.notes.join(' ')).toMatch(/quicker search that leans toward the end/)
+    // The progress line said what it was doing, and how far through each search's own budget it was.
+    expect(details.some((text) => /^searching within 180 m of your road( · \d+% of its budget)?$/.test(text))).toBe(
+      true,
+    )
+    expect(details.some((text) => /^searching within 180 m of your road, leaning toward the end/.test(text))).toBe(true)
+    expect(details.some((text) => /^fitting a profile · \d+%$/.test(text))).toBe(true)
+    expect(comparisonSummary(comparison).found).toBe(true)
+  }, 60_000)
+
   it('stops when cancelled', async () => {
     const controller = new AbortController()
     controller.abort()
     await expect(
       compareRoutes(input(road([at(0, 0), at(600, 40)]), ['shortest']), { signal: controller.signal }),
     ).rejects.toThrow(/cancelled/)
+  })
+
+  it('stops inside a search or a profile fit, not only between steps', async () => {
+    for (const stage of [/^searching within/, /^fitting a profile/]) {
+      const controller = new AbortController()
+      let after = 0,
+        cancelledAt = 0
+      const run = compareRoutes(input(road([at(0, 0), at(600, 40)]), ['shortest', 'gentle']), {
+        signal: controller.signal,
+        onStep: ({ detail }) => {
+          if (controller.signal.aborted) after++
+          else if (detail && stage.test(detail)) {
+            cancelledAt = performance.now()
+            controller.abort()
+          }
+        },
+      })
+      await expect(run).rejects.toMatchObject({ name: 'AbortError' })
+      expect(cancelledAt).toBeGreaterThan(0)
+      expect(after).toBe(0)
+      expect(performance.now() - cancelledAt).toBeLessThan(1000)
+    }
+  }, 60_000)
+})
+
+describe('describeCorridorFailure', () => {
+  const limits = { maxGradePercent: 18, minRadiusM: 35, halfWidthM: 180 }
+  const failure = (patch: Partial<Parameters<typeof describeCorridorFailure>[0]>) => ({
+    reason: 'budget' as const,
+    directM: 1100,
+    closestRemainingM: 109,
+    closest: at(990, 0),
+    stopped: { grade: 790, terrain: 60, exclusion: 0, corridor: 150 },
+    ...patch,
+  })
+  it('names the limit that stopped most lines and the end the trouble is near', () => {
+    expect(describeCorridorFailure(failure({}), limits)).toBe(
+      "No line within 18% and a 35 m radius reaches the end: the search got to within 109 m of the end, then ran out of its search budget. 79% of the lines it tried were stopped by ground steeper than the 18% grade limit. Raise the grade limit, move the road's end onto gentler ground, or widen the corridor under Search settings.",
+    )
+  })
+  it('says when terrain gaps or blocked areas, not grade, are in the way', () => {
+    expect(
+      describeCorridorFailure(
+        failure({
+          reason: 'no-candidate',
+          closestRemainingM: 560,
+          stopped: { grade: 1, terrain: 9, exclusion: 0, corridor: 0 },
+        }),
+        limits,
+      ),
+    ).toMatch(
+      /got to within 560 m of the end and had no line left to try\. 90% of the lines it tried were stopped by gaps in the terrain\. Move the ends onto mapped ground, or add terrain between them\.$/,
+    )
+    expect(
+      describeCorridorFailure(failure({ stopped: { grade: 0, terrain: 0, exclusion: 5, corridor: 0 } }), limits),
+    ).toMatch(
+      /100% of the lines it tried were stopped by blocked areas\. Change the treatment of the areas between the ends/,
+    )
+    expect(
+      describeCorridorFailure(failure({ stopped: { grade: 0, terrain: 0, exclusion: 0, corridor: 5 } }), limits),
+    ).toMatch(/stopped by the edge of the ±180 m corridor\. Widen the corridor under Search settings\.$/)
+  })
+})
+
+describe('comparisonSummary', () => {
+  const row = (goal: RouteRow['goal'], values: Partial<RouteRow> = {}): RouteRow => ({
+    id: goal,
+    goal,
+    label: goal === 'current' ? 'Your road' : goal === 'cost' ? 'Lowest cost' : 'Shortest',
+    color: '#000000',
+    alignment: road([at(0, 0), at(100, 0)]),
+    coordinates: [],
+    lengthM: 1000,
+    maxGradePercent: 8,
+    earthworksM3: 1000,
+    constructionCost: 100,
+    drainage: null,
+    totalCost: 100,
+    blockers: [],
+    notes: [],
+    best: [],
+    ...values,
+  })
+  const summary = (rows: RouteRow[]) => comparisonSummary({ rows, drainageChecked: true, currentLeads: [] })
+  it('counts the roads that came back and the ones with a flag', () => {
+    expect(summary([row('current'), row('cost'), row('shortest')])).toEqual({
+      found: true,
+      message: '2 routes ready. Click one to open its profile and sections.',
+    })
+    expect(
+      summary([row('current'), row('cost'), row('shortest', { blockers: ['98% of sections complete'] })]).message,
+    ).toBe('2 routes found; 1 has a limit broken or a check to make, shown on its row. Click one to open it.')
+    expect(summary([row('current'), row('cost', { blockers: ['3 sharp corners'] })]).message).toBe(
+      '1 route found, with a limit broken or a check to make: its row says which. Click one to open it.',
+    )
+  })
+  it('names the goals left without a road, and fails outright when there is none at all', () => {
+    const none = { alignment: null, blockers: ['No line within 12% reaches the end.'] }
+    expect(summary([row('current'), row('cost'), row('shortest', none)]).message).toBe(
+      '1 route ready. Click one to open its profile and sections. No route for shortest.',
+    )
+    expect(summary([row('current'), row('cost', none), row('shortest', none)])).toEqual({
+      found: false,
+      message: 'No route found. No line within 12% reaches the end.',
+    })
+    expect(summary([row('current', { best: ['cost'] })])).toEqual({
+      found: true,
+      message: 'No new road beat yours on these goals.',
+    })
   })
 })

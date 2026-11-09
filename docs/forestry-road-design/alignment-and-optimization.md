@@ -108,12 +108,22 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 | Ground-grade limit                      | 1–30 %, taken from the road's grade limit                              | `corridorOptimizer.ts`                          | Error                                         |
 | Minimum radius                          | 5–1,000 m, taken from the road settings                                | `corridorOptimizer.ts`                          | Error                                         |
 | Search states                           | 50,000 (`maxStates`)                                                   | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
+| Search weight                           | 1–5 (`searchWeight`); 1, or 2 with a ground penalty                    | `corridorOptimizer.ts`                          | Error                                         |
 | Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 200,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
 | Candidate length                        | the lesser of 15 km and 3 × sketch length + 4 × half-width             | `corridorOptimizer.ts`                          | Branch not searched                           |
 
 Geometry operations include guide-distance and corridor checks even with no supplied constraints.
 If that budget is reached, narrow the corridor, shorten/simplify the guide or crop constraints.
-The API accepts a lower geometry-operation budget; it cannot raise the 15,000,000 ceiling.
+The API accepts a lower geometry-operation budget; it cannot raise the 200,000,000 ceiling.
+
+The search works on cells of the corridor's longer side ÷ 140, never finer than 3 m, in strides of
+twice that (at least 12 m) and 32 headings, and reads ground every 1 m along each line
+(`corridorSearchResolution`). **Find the best route → Search settings** shows these figures for the
+current road and corridor before a run.
+
+A search that ends without a road throws `CorridorSearchError`. Its `failure` says whether the
+budget ran out or every line was tried, how near the end the search got, and how many trial lines
+each check stopped: grade, missing terrain, a blocked area or the corridor's edge.
 
 ### Pegging
 
@@ -307,10 +317,44 @@ cheaper. One road can hold several goals, and a road leading nothing is left out
 a limit or found no line shows only when no other road holds its goal. Goals that failed for the
 same reason share one line. Your road shows the goals it already leads.
 
-**A goal that finds no corridor** retries at twice the half-width, up to ±600 m, when no line
-fitted, then follows a simplified terrain-cost grid route as a new guide. If the corridor still
-finds nothing it keeps that grid route with curves fitted to its corners, and the row says so. A
-goal with no route at all does not stop the others.
+**How a line is found** (`horizontal` in `routeComparison.ts`). Each step is tried only when the
+one before found nothing, and the row's note says which one produced the road:
+
+1. The corridor of the entered half-width around your road, searched evenly.
+2. The same corridor searched again leaning toward the end (`QUICK_SEARCH_WEIGHT`, 2.5), when the
+   first search spent its whole budget. On the LiDAR hillside this reached ends 1.1 km apart in
+   under 3 s where the even search ran out. The line can be longer than a larger budget would find.
+3. Twice the half-width, up to ±600 m, when the corridor was searched out with no line.
+4. A terrain-cost grid route between the ends, searched once for all goals, then a road fitted
+   inside ±40 m of it (`ROUTED_HALF_WIDTH_M`). The grid route already meets the grade limit, so the
+   search only has to round its corners, and a tube that narrow is searched in a second or two.
+5. The grid route itself with curves fitted (`roadFromRoute` in `routeFit.ts`): the tightest
+   polyline fit of 2, 4, 8 or 16 m that rounds every corner at between one and two times the
+   minimum radius, kept only if every metre of its centreline has ground under it and it enters no
+   blocked area. If no fit stays clear, the route as found, with sharp corners.
+
+What one goal learns about a corridor the others reuse. The limits a line must meet do not depend
+on the goal, so a corridor one goal searched out, or spent both searches in, is skipped by the
+rest. That bounds a comparison to two budget-length searches of each corridor, however many goals
+are asked for. The drainage goal steers inside the corridors only; past them it takes the balanced
+line and says so. A goal with no route at all does not stop the others.
+
+**A goal with no road says why** (`describeCorridorFailure`). The row names the limits, how near
+the end the search got, whether it ran out of budget or of lines to try, the check that stopped the
+most lines (grade, gaps in the terrain, blocked areas or the corridor's edge) with its share, and
+what to change. It is the report of the search that got nearest the end. Goals that failed for the
+same reason share one row.
+
+**The notice counts what came back** (`comparisonSummary`): how many routes, how many of them
+carry a flag, and the goals left without one. With no route at all it is an error that repeats the
+reason, never "ready".
+
+**Progress and Cancel.** Every search and profile fit runs in slices of about 12 ms
+(`cooperative.ts`), so the page keeps answering. The progress line names the step, what it is doing
+and the share of that search's own budget spent: a search that finds a line early stops well short
+of 100 %. **Cancel** hands the workspace back at once and the run stops at its next slice. The
+longest stretches that cannot be split are the grid route and one drainage screen, each well under
+a second on the LiDAR tile.
 
 **Drainage has two parts.** The drainage goal steers: flow is modelled on 4 m cells over the corridor
 plus 150 m, and ground carrying five times the stream threshold costs about 20 m of road per metre,
@@ -334,8 +378,15 @@ road with no designed profile follows the ground, so it can look cheap while bre
 **Comparing like with like.** New roads carry the active road's template only. If the current road
 has culverts, materials or haul inputs, its estimate includes them and theirs does not.
 
-Time on the published LiDAR road: about 25 s with all four goals, about half of it the Lowest cost
-refinement. A hard pair of ends can take over a minute before reporting no route; Cancel stops it.
+Time on the published LiDAR tile, all four goals, on a loaded desktop: about 30 s between the ends
+of the example road, about half of it the Lowest cost refinement; about 40 s for ends 1.1 km apart
+across a 40 % hillside, where both searches of the corridor run out and the road follows the grid
+route; about 15 s to report that no line reaches an end on a 60 % face.
+
+**Sections can still be incomplete.** The searches check ground under the centreline only. On
+terrain with scattered gaps, a found road often has a few sections whose batters run onto a gap,
+and its row says "98% of sections complete". Such a road cannot lead a goal; open it and move the
+points beside the gap.
 
 ## Reading optimizer and route results
 
@@ -386,7 +437,9 @@ log belongs to the road or named profile the run produced and goes when you open
 
 **Budget-limited.** The corridor optimizer can return a verified candidate after reaching its
 50,000-state budget; the review dialog and report say "budget-limited". Better alternatives may
-exist. Route search and the profile optimizer stop with an error instead.
+exist. Route search and the profile optimizer stop with an error instead. In **Find the best
+route**, a line found by the second, quicker search of a corridor carries a note that a more direct
+line may exist.
 
 **Dollars and relative costs.**
 

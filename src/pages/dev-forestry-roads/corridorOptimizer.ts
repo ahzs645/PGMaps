@@ -4,6 +4,7 @@
  * straight chords. Ground grades are a reconnaissance screen, NOT designed
  * formation grades. No geology, hydraulic adequacy or road approval is inferred.
  */
+import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
 import { routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
@@ -25,6 +26,13 @@ export interface RoadOptimizationOptions {
   constraintCostBasePerM?: number
   /** Extra metres of road per metre travelled here, such as over modelled flow lines. Never negative. */
   groundPenalty?: (coordinate: Coordinate) => number
+  /**
+   * How hard the search leans toward the end, 1–5. At 1 it spreads evenly and returns the best line
+   * it can prove inside its budget. Above 1 it follows the most promising line first, which reaches
+   * the end on ground that needs long detours, and returns a line that may not be the most direct.
+   * Default 1, or 2 with a ground penalty.
+   */
+  searchWeight?: number
   /** Smaller budgets can be used in tests or on constrained devices. */
   maxStates?: number
   maxTerrainSamples?: number
@@ -60,11 +68,32 @@ export interface RoadOptimizationResult extends CorridorMetrics {
 export interface CorridorProgress {
   explored: number
   terrainSamples: number
+  /** Share of the search's budget used so far, 0–1: the larger of its state and terrain-sample shares. */
+  budgetUsed: number
 }
-export interface CorridorRunControl {
-  signal?: AbortSignal
-  onProgress?: (progress: CorridorProgress) => void
+export type CorridorRunControl = CooperativeControl<CorridorProgress>
+/** Where a failed search got to and what stopped its lines, for a message a designer can act on. */
+export interface CorridorFailure {
+  /** `budget`: the search ran out before reaching the end. `no-candidate`: it tried every line it could. */
+  reason: 'budget' | 'no-candidate'
+  directM: number
+  /** Straight-line distance from the nearest point the search reached to the end. */
+  closestRemainingM: number
+  closest: Coordinate
+  /** Trial lines stopped by each check. One line can only be stopped once, by the first check it fails. */
+  stopped: { grade: number; terrain: number; exclusion: number; corridor: number }
 }
+/** A search that ended without a road. `message` keeps the engine's wording; `failure` says where and why. */
+export class CorridorSearchError extends Error {
+  readonly failure: CorridorFailure
+  constructor(message: string, failure: CorridorFailure) {
+    super(message)
+    this.name = 'CorridorSearchError'
+    this.failure = failure
+  }
+}
+export const MIN_SEARCH_WEIGHT = 1
+export const MAX_SEARCH_WEIGHT = 5
 type XY = [number, number]
 type Piece = { a: XY; heading: number; length: number; curvature: number }
 type RecordNode = {
@@ -132,6 +161,31 @@ export function corridorFrame(origin: Coordinate) {
     return [((lon / RAD + 540) % 360) - 180, q / RAD]
   }
   return { toXY, fromXY }
+}
+/** Cell and stride for a search area: at most 140 cells a side, never finer than 3 m. */
+const searchResolution = (widthM: number, heightM: number) => {
+  const cellM = Math.max(3, widthM / 140, heightM / 140)
+  return { cellM, stepM: Math.max(12, cellM * 2) }
+}
+/**
+ * What a search of this corridor will work at, before it runs: positions are told apart on cells of
+ * `cellM`, lines advance in strides of `stepM`, headings in `headings` directions, and ground is
+ * read every `sampleM` along each line.
+ */
+export function corridorSearchResolution(guide: Coordinate[], corridorHalfWidthM: number) {
+  if (guide.length < 2 || !guide.every(validCoordinate)) return null
+  const frame = corridorFrame(guide[0]),
+    sketch = guide.map(frame.toXY)
+  const xs = sketch.map((p) => p[0]),
+    ys = sketch.map((p) => p[1])
+  return {
+    ...searchResolution(
+      Math.max(...xs) - Math.min(...xs) + 2 * corridorHalfWidthM,
+      Math.max(...ys) - Math.min(...ys) + 2 * corridorHalfWidthM,
+    ),
+    headings: BINS,
+    sampleM: STEP,
+  }
 }
 function piecePoint(p: Piece, t: number): XY {
   const angle = p.curvature * p.length * t,
@@ -257,7 +311,6 @@ function* search(
   settings: RoadSettings,
   context: ContextFeature[],
   options: RoadOptimizationOptions,
-  control: CorridorRunControl = {},
 ): Generator<CorridorProgress, RoadOptimizationResult> {
   const groundWindowM = options.groundWindowM ?? 0,
     streamContactCostM = options.streamContactCostM ?? 150
@@ -295,6 +348,9 @@ function* search(
   const maxGeometry = options.maxGeometryOperations ?? MAX_GEOMETRY_OPERATIONS
   if (!Number.isInteger(maxGeometry) || maxGeometry < 1 || maxGeometry > MAX_GEOMETRY_OPERATIONS)
     throw Error('Invalid geometry search budget.')
+  const searchWeight = options.searchWeight ?? (options.groundPenalty ? 2 : 1)
+  if (!Number.isFinite(searchWeight) || searchWeight < MIN_SEARCH_WEIGHT || searchWeight > MAX_SEARCH_WEIGHT)
+    throw Error(`Search weight must be ${MIN_SEARCH_WEIGHT}–${MAX_SEARCH_WEIGHT}.`)
   const frame = corridorFrame(guide[0]),
     sketch = guide.map(frame.toXY),
     end = sketch[sketch.length - 1]
@@ -310,11 +366,10 @@ function* search(
     Math.max(...sketch.map((p) => p[0])) + width,
     Math.max(...sketch.map((p) => p[1])) + width,
   ]
-  const cell = Math.max(3, (box[2] - box[0]) / 140, (box[3] - box[1]) / 140)
+  const { cellM: cell, stepM: step } = searchResolution(box[2] - box[0], box[3] - box[1])
   const columns = Math.ceil((box[2] - box[0]) / cell) + 1,
     rows = Math.ceil((box[3] - box[1]) / cell) + 1
-  const step = Math.max(12, cell * 2),
-    turn = Math.min(TURN * 2, step / settings.minRadius)
+  const turn = Math.min(TURN * 2, step / settings.minRadius)
   const turnRadius = step / turn
   const segments: Segment[] = [],
     polygons: Array<{ rings: XY[][]; box: number[]; costPerM: number | null }> = []
@@ -322,14 +377,24 @@ function* search(
     operations = 0,
     calls = 0,
     explored = 0
-  const abort = () => {
-    if (control.signal?.aborted) throw new DOMException('Road optimization cancelled.', 'AbortError')
-  }
+  // Kept for the failure report: how near the end the search got, and what stopped the lines it tried.
+  const stopped = { grade: 0, terrain: 0, exclusion: 0, corridor: 0 }
+  let closestRemaining = direct,
+    closestAt: XY = [0, 0]
+  const failed = (message: string, reason: CorridorFailure['reason']) =>
+    new CorridorSearchError(message, {
+      reason,
+      directM: direct,
+      closestRemainingM: closestRemaining,
+      closest: frame.fromXY(closestAt),
+      stopped: { ...stopped },
+    })
   const geometryBudget = (n = 1) => {
     operations += n
     if (operations > maxGeometry)
-      throw Error(
+      throw failed(
         'Corridor geometry budget reached; narrow the corridor, shorten or simplify the guide, or crop supplied constraints.',
+        'budget',
       )
   }
   const constraintCostBase = options.constraintCostBasePerM ?? 100
@@ -408,16 +473,20 @@ function* search(
     if (guideDistances.size < 200000) guideDistances.set(key, min)
     return min
   }
-  const pointAllowed = (p: XY, margin = 0) => {
+  /** What keeps a point out of the search: the corridor's edge, an exclusion, or nothing. */
+  const pointBlock = (p: XY, margin = 0): 'corridor' | 'exclusion' | null => {
     if (p[0] < box[0] || p[1] < box[1] || p[0] > box[2] || p[1] > box[3] || guideOffset(p) + margin > width + EPS)
-      return false
-    return !polygons.some((poly) => {
+      return 'corridor'
+    return polygons.some((poly) => {
       if (poly.costPerM !== null) return false
       if (!overlaps(poly.box, [...p, ...p])) return false
       geometryBudget(poly.rings.reduce((s, r) => s + r.length, 0))
       return inRing(p, poly.rings[0]) && !poly.rings.slice(1).some((hole) => inRing(p, hole))
     })
+      ? 'exclusion'
+      : null
   }
+  const pointAllowed = (p: XY, margin = 0) => pointBlock(p, margin) === null
   const zonePenaltyAt = (p: XY) =>
     polygons.reduce((sum, poly) => {
       if (poly.costPerM === null || !overlaps(poly.box, [...p, ...p])) return sum
@@ -445,11 +514,11 @@ function* search(
   }
   const cache = new Map<string, number>()
   const read = (p: XY, fresh = false) => {
-    abort()
     // No coordinate rounding: narrow missing cells must not be replaced by a nearby height.
     const key = p[0] + ',' + p[1]
     if (!fresh && cache.has(key)) return cache.get(key)!
-    if (++calls > maxSamples) throw Error('Terrain sampling budget reached; narrow the corridor or shorten the road.')
+    if (++calls > maxSamples)
+      throw failed('Terrain sampling budget reached; narrow the corridor or shorten the road.', 'budget')
     const z = terrain.elevationAt(...frame.fromXY(p))
     if (cache.size < 200000) cache.set(key, z)
     return z
@@ -469,6 +538,10 @@ function* search(
     metrics: CorridorMetrics
     points: XY[]
     profile: Array<{ stationM: number; elevationM: number }>
+  }
+  const stop = (check: keyof typeof stopped) => {
+    stopped[check]++
+    return null
   }
   const evaluate = (pieces: Piece[], strict: boolean, collect = false, fresh = false): Evaluation | null => {
     let length = 0,
@@ -490,9 +563,13 @@ function* search(
       if (!Number.isFinite(firstZ)) firstZ = zBefore
       if (!Number.isFinite(zBefore)) {
         complete = false
-        if (strict) return null
+        if (strict) return stop('terrain')
       }
-      if (strict && (!pointAllowed(previous) || !segmentAllowed(previous, previous, 0, contacts))) return null
+      if (strict) {
+        const block = pointBlock(previous)
+        if (block) return stop(block)
+        if (!segmentAllowed(previous, previous, 0, contacts)) return stop('exclusion')
+      }
       if (collect && points.length === 0) {
         points.push(previous)
         elevationProfile.push({ stationM: length, elevationM: zBefore })
@@ -502,23 +579,20 @@ function* search(
           sagitta = piece.curvature ? Math.abs((1 / piece.curvature) * (1 - Math.cos((piece.curvature * ds) / 2))) : 0
         // Distance-to-guide is 1-Lipschitz. This margin conservatively guards
         // the entire subarc, not only its sampled vertices.
-        if (
-          strict &&
-          (!pointAllowed(at, ds / 2) ||
-            !pointAllowed(previous, ds / 2) ||
-            !segmentAllowed(previous, at, sagitta, contacts))
-        )
-          return null
-        if (!strict) segmentAllowed(previous, at, sagitta, contacts, false)
+        if (strict) {
+          const block = pointBlock(at, ds / 2) ?? pointBlock(previous, ds / 2)
+          if (block) return stop(block)
+          if (!segmentAllowed(previous, at, sagitta, contacts)) return stop('exclusion')
+        } else segmentAllowed(previous, at, sagitta, contacts, false)
         const z = read(at, fresh)
         if (!Number.isFinite(z) || !Number.isFinite(zBefore)) {
           complete = false
-          if (strict) return null
+          if (strict) return stop('terrain')
         } else {
           const dz = z - zBefore,
             grade = (dz / ds) * 100,
             limit = grade >= 0 ? uphill : downhill
-          if (strict && Math.abs(grade) > limit + 1e-5) return null
+          if (strict && Math.abs(grade) > limit + 1e-5) return stop('grade')
           peak = Math.max(peak, Math.abs(grade))
           rise += Math.max(0, dz)
           fall += Math.max(0, -dz)
@@ -584,7 +658,7 @@ function* search(
   }
   // A ground penalty the bound cannot see leaves the plain search circling the start; lean on the
   // bound instead. The result stays verified, and this search never claimed a global optimum.
-  const headingWeight = options.groundPenalty ? 2 : 1
+  const headingWeight = searchWeight
   const records: RecordNode[] = [],
     best = new Map<number, number>(),
     heap = new Queue()
@@ -616,20 +690,30 @@ function* search(
     }
     return blocks.reverse().flat()
   }
-  yield { explored, terrainSamples: calls }
+  const progress = (): CorridorProgress => ({
+    explored,
+    terrainSamples: calls,
+    budgetUsed: Math.min(1, Math.max(explored / maxStates, calls / maxSamples)),
+  })
+  yield progress()
   while (heap.length) {
-    abort()
     const top = heap.pop()!
     const p = records[top.id]
     if (best.get(p.key) !== top.id) continue // immutable records prevent stale-parent corruption
     if (top.f >= goalCost - EPS) break
     if (++explored > maxStates) {
-      if (goal < 0) throw Error('Search budget reached without a verified candidate; widen or revise the guide.')
+      if (goal < 0)
+        throw failed('Search budget reached without a verified candidate; widen or revise the guide.', 'budget')
       status = 'budget-limited'
       break
     }
-    if (explored % 96 === 0) yield { explored, terrainSamples: calls }
+    // The driver decides when the page gets a turn; this only has to offer one often enough.
+    if (explored % 16 === 0) yield progress()
     const remaining = norm(delta(end, p.at))
+    if (remaining < closestRemaining) {
+      closestRemaining = remaining
+      closestAt = p.at
+    }
     // Direct initial alignment and local, tangent goal connections are checked
     // with exactly the same grade, obstacle and terrain rules as all other edges.
     if (p.parent === -1 || remaining < step * 4 + settings.minRadius * 2) {
@@ -664,8 +748,12 @@ function* search(
       const next = piecePoint(pieces[pieces.length - 1], 1),
         key = keyOf(next, heading)
       const length = p.length + pieces.reduce((s, v) => s + v.length, 0)
-      if (key < 0 || key === p.key || length > Math.min(15000, sketchLength * 3 + width * 4) || !pointAllowed(next))
+      if (key < 0 || key === p.key || length > Math.min(15000, sketchLength * 3 + width * 4)) continue
+      const block = pointBlock(next)
+      if (block) {
+        stopped[block]++
         continue
+      }
       const existing = best.get(key)
       if (existing !== undefined && records[existing].cost <= p.cost + step) continue
       const edge = evaluate(pieces, true)
@@ -674,8 +762,9 @@ function* search(
     }
   }
   if (goal < 0)
-    throw Error(
+    throw failed(
       'No verified candidate in this corridor meets the sampled ground-grade, radius, terrain and exclusion checks. This is not proof that a field-designed road is impossible.',
+      'no-candidate',
     )
   const pieces = reconstruct(goal)
   // Independent final pass uses fresh samples on the exact geometry we return.
@@ -745,13 +834,10 @@ export function optimizeRoadCorridor(
   context: ContextFeature[],
   options: RoadOptimizationOptions,
 ): RoadOptimizationResult {
-  const iterator = search(guide, terrain, settings, context, options)
-  let next = iterator.next()
-  while (!next.done) next = iterator.next()
-  return next.value
+  return runToCompletion(search(guide, terrain, settings, context, options))
 }
 /** Cooperative execution keeps Cancel and the map responsive without serializing terrain functions. */
-export async function optimizeRoadCorridorAsync(
+export function optimizeRoadCorridorAsync(
   guide: Coordinate[],
   terrain: TerrainSource,
   settings: RoadSettings,
@@ -759,13 +845,5 @@ export async function optimizeRoadCorridorAsync(
   options: RoadOptimizationOptions,
   control: CorridorRunControl = {},
 ): Promise<RoadOptimizationResult> {
-  const iterator = search(guide, terrain, settings, context, options, control)
-  let next = iterator.next()
-  while (!next.done) {
-    control.onProgress?.(next.value)
-    await new Promise<void>((resolve) => setTimeout(resolve, 0))
-    next = iterator.next()
-  }
-  if (control.signal?.aborted) throw new DOMException('Road optimization cancelled.', 'AbortError')
-  return next.value
+  return runCooperatively(search(guide, terrain, settings, context, options), control, 'Road optimization cancelled.')
 }
