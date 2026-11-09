@@ -143,6 +143,8 @@ const num = (value: number, digits = 0) =>
   value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 const trim = (value: number, digits = 1) => String(Math.round(value * 10 ** digits) / 10 ** digits)
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`
+/** "The 1 crossing has", "All 3 crossings have": a met row's subject, whatever the count. */
+const every = (count: number, one: string, many: string) => (count === 1 ? `The 1 ${one}` : `All ${count} ${many}`)
 const pct = (value: number) => `${Math.abs(value).toFixed(1)}%`
 const money = (value: number) => `$${num(value, value % 1 ? 2 : 0)}`
 
@@ -441,7 +443,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
           group: 'alignment',
           check: 'Every corner fitted with a curve',
           state: 'met',
-          result: corners ? `All ${plural(corners, 'corner')} have a curve` : 'Straight road: no corners',
+          result: corners ? `${every(corners, 'corner has', 'corners have')} a curve` : 'Straight road: no corners',
           measured: corners ? plural(curves.length, 'curve') : undefined,
           judgedOn: 'A curve at every IP (intersection point)',
         },
@@ -571,7 +573,9 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       group: 'alignment',
       check: 'Vertical curve at every grade break',
       state: 'met',
-      result: breaks.length ? `All ${plural(breaks.length, 'grade break')} have a vertical curve` : 'No grade breaks',
+      result: breaks.length
+        ? `${every(breaks.length, 'grade break has', 'grade breaks have')} a vertical curve`
+        : 'No grade breaks',
       judgedOn: `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`,
     })
 
@@ -911,7 +915,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         group: 'water',
         check: 'Every stream crossing has a sized structure',
         state: 'met',
-        result: `All ${plural(crossed.length, 'crossing')} have a sized culvert`,
+        result: `${every(crossed.length, 'crossing has', 'crossings have')} a sized culvert`,
         measured: crossed.slice(0, 3).map(describe).join(' · '),
         judgedOn: sizedRule,
       })
@@ -950,7 +954,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       check: 'Every crossed stream has a reviewed riparian class',
       state: 'met',
       result: crossedStreams.length
-        ? `All ${plural(crossedStreams.length, 'crossed stream')} have a reviewed class`
+        ? `${every(crossedStreams.length, 'crossed stream has', 'crossed streams have')} a reviewed class`
         : 'No crossed streams',
       measured:
         crossedStreams
@@ -1107,7 +1111,10 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       group: 'water',
       check: 'Excluded and conditional areas kept clear',
       state: 'met',
-      result: `The centreline is clear of all ${plural(areas.length, 'constraint area')}`,
+      result:
+        areas.length === 1
+          ? 'The centreline is clear of the 1 constraint area'
+          : `The centreline is clear of all ${areas.length} constraint areas`,
       judgedOn: 'Every sampled centreline station outside each excluded or unreviewed area',
     })
 
@@ -1199,6 +1206,12 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
 
   const culverts = engineering?.culverts ?? []
   const structureFlags = costFlags('structure-costs')
+  // The unpriced culverts are named first in that prompt's detail; the count leads the row.
+  const unpricedNames =
+    structureFlags
+      .find((flag) => flag.id === 'zero-culvert-rates')
+      ?.detail.split('. ')[0]
+      .split(', ') ?? []
   add(
     structureFlags.length
       ? {
@@ -1207,8 +1220,20 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
           check: 'Structures priced',
           state: 'attention',
           severity: 'todo',
-          result: structureFlags[0].label,
-          measured: structureFlags.map((flag) => flag.detail.split('. ')[0]).join(' · '),
+          result: unpricedNames.length
+            ? `${plural(unpricedNames.length, 'culvert has', 'culverts have')} no price`
+            : structureFlags[0].label,
+          measured:
+            [
+              unpricedNames.length ? `No price: ${unpricedNames.join(', ')}` : '',
+              // The first prompt is the result when no culvert is unpriced; do not print it twice.
+              ...structureFlags
+                .filter((flag) => flag.id !== 'zero-culvert-rates')
+                .slice(unpricedNames.length ? 0 : 1)
+                .map((flag) => flag.label),
+            ]
+              .filter(Boolean)
+              .join(' · ') || undefined,
           judgedOn: 'An installed price on every culvert and current crossing record',
           action: { label: 'Set price', target: 'culverts', chainage: culverts[0]?.chainage },
         }
@@ -1218,7 +1243,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
             group: 'cost',
             check: 'Structures priced',
             state: 'met',
-            result: `All ${plural(culverts.length, 'culvert')} have a price`,
+            result: `${every(culverts.length, 'culvert has', 'culverts have')} a price`,
             measured: result ? `Structures ${money(result.costs.structures)}` : undefined,
             judgedOn: 'An installed price on every culvert and current crossing record',
           }

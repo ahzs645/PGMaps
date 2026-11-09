@@ -6,6 +6,30 @@ These are places where the workspace does something other than what its controls
 were reproduced; **read** ones were found by reading the code. Remove an entry in the same change
 that fixes it, and add one, with the file and function, when you find a new defect.
 
+## Open
+
+Found on 2026-11-09 while reworking Review and the design standards; **read** unless marked.
+
+- A permitted short pitch is still coloured as over the limit on the plan, in the 3D view and in
+  the mapped-road panel. They compare each grade with `settings.maxGradePercent` directly
+  (`PlanView.tsx`, the active road's segment colour; `TerrainPreview.tsx`, `maxGradePercent`;
+  `MappedRoadPanel.tsx`) instead of `reviewGrades` (`designStandards.ts`). The station flags, the
+  header's grade card and the Review grade row do apply the allowance.
+- Route search, the corridor optimizer and the profile optimizer read the grade limit and the minimum
+  radius only (`routing.ts` `suggestRoutes`, `corridorOptimizer.ts`, `verticalOptimizer.ts`). They
+  ignore `project.standards`: no short-pitch allowance, no adverse limit. Route search keeps its own
+  `routeSearch.haulGrades`, and the complete-route comparison its own connector-check limits.
+- The standards' design speed is recorded and printed but not applied: `alignment.curveDesign`
+  (`CurveTools.tsx`) keeps its own speed per road.
+- A road added after the project is created takes `DEFAULT_TEMPLATE`, not the standards'
+  running-surface width (`newAlignment` in `DevForestryRoads.tsx`, `starterAlignment` in
+  `terrain.ts`). Review's template row raises the difference.
+- The drainage check goes out of date when only the grade limit or the minimum radius changes,
+  although neither alters the design surface: `drainageInputFingerprint` (`drainageEvidence.ts`)
+  hashes every road setting. **Confirmed** in a walkthrough.
+- Review's constraint row tests sampled centreline stations only (`avoidAt` in `engine.ts`): a road
+  that clips an area between two stations, or whose batter reaches into one, is not raised there.
+
 ## Fixed on 2026-10-26
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter

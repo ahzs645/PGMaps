@@ -222,7 +222,7 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
     const sized = assess({ context, alignment: sizedRoad, drainage })
     expect(sized.row('crossing-structures')).toMatchObject({
       state: 'met',
-      result: 'All 1 crossing have a sized culvert',
+      result: 'The 1 crossing has a sized culvert',
     })
     // The same culvert against a capacity check it fails.
     const failing = assess({
@@ -486,6 +486,20 @@ describe('assessReadiness: limits and states', () => {
     const stranded = rows.filter((item: ReadinessRow) => item.state === 'attention' && !item.action)
     expect(stranded.map((item) => item.id)).toEqual([])
     expect(new Set(rows.map((item) => item.id)).size).toBe(rows.length)
+  })
+
+  it('counts and names the culverts that have no price', () => {
+    const alignment = road()
+    alignment.engineering!.culverts = [
+      culvert({ chainage: 120 }),
+      culvert({ id: 'c2', name: 'Culvert 2', chainage: 260, unitCost: 450 }),
+    ]
+    const priced = assess({ alignment }).row('structure-costs')
+    expect(priced).toMatchObject({ state: 'attention', severity: 'todo', result: '1 culvert has no price' })
+    expect(priced.measured).toMatch(/^No price: Culvert 1/)
+    expect(priced.action).toMatchObject({ target: 'culverts' })
+    // Nothing entered is nothing to price: not assessed, never a tick.
+    expect(assess().row('structure-costs').state).toBe('not-assessed')
   })
 
   it('summarises the list and prints it for the report', () => {
