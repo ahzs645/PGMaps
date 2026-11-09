@@ -301,11 +301,15 @@ test('loading notifications align inline without a dismiss button and errors rem
   await page.getByRole('button', { name: 'Load BC 1 m LiDAR sample', exact: true }).click()
   const toast = page.getByTestId('workspace-toast-loading')
   await expect(toast).toContainText('Reading the published')
+  // Road jobs join the app's one notification stack, in the bottom-right corner.
+  await expect(toast).toHaveAttribute('role', 'status')
   const box = (await toast.boundingBox())!
-  expect(box.y).toBeLessThan(30)
-  await expect(toast.getByRole('button', { name: 'Dismiss loading notification', exact: true })).toHaveCount(0)
+  const viewport = page.viewportSize()!
+  expect(viewport.height - (box.y + box.height)).toBeLessThan(40)
+  expect(viewport.width - (box.x + box.width)).toBeLessThan(40)
+  await expect(toast.getByRole('button', { name: /^Dismiss/ })).toHaveCount(0)
   const icon = (await toast.locator('svg').first().boundingBox())!
-  const message = (await toast.getByRole('status').boundingBox())!
+  const message = (await toast.locator('[data-notification-message]').boundingBox())!
   expect(Math.abs(icon.y + icon.height / 2 - (message.y + message.height / 2))).toBeLessThanOrEqual(1)
   releaseManifest()
   await expect.poll(() => terrainRequested).toBe(true)

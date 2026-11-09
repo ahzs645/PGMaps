@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Redo2, Undo2, X } from 'lucide-react'
+import { Redo2, Undo2 } from 'lucide-react'
 import {
   DESKTOP_SIDEBAR_MAX_WIDTH,
   DESKTOP_SIDEBAR_MIN_WIDTH,
@@ -8,7 +8,7 @@ import {
 } from '@/components/layout/MapSectionLayout'
 import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import type { MapRef } from '@/components/ui/map'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { Notification } from '@/components/ui/notification'
 import { COLOR_SCALES } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { ScoreBuilderBuildView } from './components/ScoreBuilderBuildView'
@@ -949,19 +949,14 @@ export default function ScoreBuilderSection({ lab = 'index' }: { lab?: ScoreLabK
                   )}
 
                   {exportError && (
-                    <div className="absolute left-1/2 top-3 z-30 flex w-[min(26rem,calc(100%-2rem))] -translate-x-1/2 items-start gap-1 rounded-md bg-background shadow-xl max-md:top-[calc(env(safe-area-inset-top)+7rem)]">
-                      <InlineAlert tone="error" title="Export failed" className="min-w-0 flex-1 p-2.5">
-                        {exportError}
-                      </InlineAlert>
-                      <button
-                        type="button"
-                        onClick={() => setExportError(null)}
-                        aria-label="Dismiss export error"
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+                    <Notification
+                      id="score-builder-export-error"
+                      tone="error"
+                      title="Export failed"
+                      message={exportError}
+                      onDismiss={() => setExportError(null)}
+                      dismissLabel="Dismiss export error"
+                    />
                   )}
 
                   {sb.showWalkabilitySourceSurface && (

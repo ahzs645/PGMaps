@@ -37,6 +37,7 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Layer / data-source on-off                        | `ToggleRow` (`toggle-row.tsx`), `layout="tile"` for grids.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | Multi-select filter chips                         | `FilterChipGroup variant="filled"` + `SelectAllActions` (`text-button.tsx`) in the group heading.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Notes, warnings, errors, loading text             | `InlineAlert` (`tone`, `title`, `loading`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Floating notifications                            | `Notification` (`notification.tsx`) joins the one stack `Shell`'s `NotificationProvider` places: bottom-right, full width on phones. `tone` (`error` is an alert, the rest polite), `title`, `message`, `icon`, `progress`, `action` (beside the text), `actions` (below), `onDismiss`. Render it while your state lasts (a job, an error); `useNotifications().push` for one-off events. Never position a notice yourself.                                                                                                                                                                             |
 | Explanations a reader needs once                  | `InfoTip` (`info-tip.tsx`, app-level): an (i) button whose bubble opens on hover or focus, pins on click or tap, closes on Escape, and renders in a portal so a scroll port cannot clip it. `showLabel` prints the label beside the icon. Field helpers can take a `hint` that puts one beside the label, outside the `<label>`, so it never becomes the input's name. Keep warnings inline in `InlineAlert`.                                                                                                                                                                                           |
 | Label/value details                               | `KeyValueRows` (`variant="stack" \| "divided" \| "grid"`, `size`), falsy rows skipped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Selected item card                                | `SelectedItemCard` (hover follows `tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
@@ -113,6 +114,34 @@ support is a failure. `copyTextWithSelection` is an opt-in compatibility fallbac
 that restores focus and selection; AVAST and dataset-information adapters retain
 their existing specialized fallback behavior. Keep serialization errors distinct
 from clipboard rejection when presenting a share-link failure.
+
+## Floating notifications
+
+Anything that pops in over the page to report an event (an update is ready, a
+job is running, a job failed, an export failed) is a `Notification`
+(`notification.tsx`, from the toolkit's `/ui`). Notes that belong to a panel stay
+inline in `InlineAlert`.
+
+- **One stack.** `Shell` mounts the only `NotificationProvider`, so the app
+  update prompt and a road job stack instead of overlapping. The stack sits
+  bottom-right (24rem wide) on `sm` and up, full width along the bottom on
+  phones, above the safe area and above dialogs and sheets (`z-notification`,
+  2200). It passes clicks through between cards. Never position a notice per page.
+- **Held state:** render `<Notification id=… />` for as long as the state you own
+  lasts (`w.busy`, `error`). It leaves when you unmount it; `onDismiss` adds a
+  close button and should clear your state.
+- **Events:** `useNotifications().push({ tone, message })` returns an id for
+  `update` / `dismiss`. Pushed `success` (5 s) and `info` (6 s) notices close
+  themselves; the clock pauses while the pointer or focus is in the stack.
+  `loading`, `warning` and `error` stay until dismissed. `duration` overrides it.
+- **Card:** `tone`, `title`, `message`, `icon` (or `null`), `progress`
+  (`{ value, max, label?, valueText? }`), `action` beside the text (Cancel),
+  `actions` in a row below (Later / Reload), `onDismiss` + `dismissLabel`.
+  `error` is `role="alert"`; every other tone is a polite `role="status"`. Other
+  props, such as `aria-label` and `data-testid`, land on the card itself, so in
+  e2e the test id element _is_ the status; its text is `[data-notification-message]`.
+- Cards rise in once and leave at once (no exit animation), so a dismissed notice
+  is gone the moment the click lands, including under `page.clock`.
 
 ## Result lists
 
