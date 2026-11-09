@@ -75,6 +75,8 @@ import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
+import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import { vehicleFit } from './dev-forestry-roads/readiness'
 import { SweptPathPanel } from './dev-forestry-roads/SweptPathPanel'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
@@ -734,6 +736,7 @@ export default function DevForestryRoads() {
       referenceSurfaces: w.referenceSurfaces,
       verticalReference: project.terrain.verticalReference,
       sharedCrossingCosts: project.sharedCrossingCosts,
+      gradeStandards: project.standards,
     })
     if (!terrainProfile) return result
     const completeLength = result.stations.slice(1).reduce((length, station, index) => {
@@ -779,6 +782,7 @@ export default function DevForestryRoads() {
     project.context,
     project.terrain.verticalReference,
     project.sharedCrossingCosts,
+    project.standards,
     terrainProfile,
     w.referenceSurfaces,
   ])
@@ -2089,6 +2093,11 @@ export default function DevForestryRoads() {
       return { result: null, error: cause instanceof Error ? cause.message : 'The swept path could not be calculated.' }
     }
   }, [sweptAlignment, terrainProfile])
+  // Review reads the result only once it is for the road on screen, never a deferred earlier one.
+  const vehicleFitOnRoad = useMemo(
+    () => (sweptState.result && sweptAlignment === alignment ? vehicleFit(sweptState.result) : null),
+    [sweptState.result, sweptAlignment, alignment],
+  )
   const swept: SweptPathProps = {
     ...sweptState,
     showOnPlan: showSwept,
@@ -2599,7 +2608,14 @@ export default function DevForestryRoads() {
                 groundOnly ? 'Ground grade' : 'Max grade',
               ),
               value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
-              tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
+              // A designed road warns where the grade standard is broken, so a permitted short pitch does not.
+              tone: (
+                groundOnly
+                  ? displayedAnalysis.maxGradePercent > project.settings.maxGradePercent
+                  : displayedAnalysis.stations.some((s) => s.flags.some(isGradeBreachFlag))
+              )
+                ? 'warning'
+                : 'default',
             },
             ...(groundOnly
               ? [
@@ -2788,6 +2804,8 @@ export default function DevForestryRoads() {
                 onShowDrainage={() => setDetail('drainage')}
                 onSelectRoad={selectAlignment}
                 onShowCulverts={showCulverts}
+                onShowSwept={() => setDetail('swept')}
+                vehicleFit={vehicleFitOnRoad}
                 engineeringRequest={engineeringRequest}
                 drainageStale={drainageStale}
                 templatePreviewActive={!!templatePreview}

@@ -524,11 +524,15 @@ warning someone must see stays an `InlineAlert`.
   that open elsewhere are tiles at the end.
 - **Section:** the eight template numbers. Components and curve rules fold.
 - **Engineering:** four input tabs. The aggregate source sits under Haul.
-- **Review:** **Ready to review**, a checklist of the active road. Every failing row has an action that
-  leads to what clears it. A stream crossing clears on a culvert at that station, a culvert needs a price,
-  and a drainage check that no longer matches the road reads as out of date. Mapped streams come from
-  project data and modelled streams from the check, so their counts can differ.
-  Flags, limits, rates and D-lines fold.
+- **Review:** **Ready to review**, the checks a designer answers for on the active road, in three
+  states: met, needs attention, not assessed. A check the workspace could not make is never shown as
+  met. Each row states the result, the measured value and the limit it was judged on, and a row with
+  something outstanding has an action that leads to what clears it. The rules are `readiness.ts`; the
+  report prints the same rows. The **Crossing register** lists mapped and modelled crossings once and
+  says which are the same crossing. **Design standards** holds the job's limits, including the
+  short-pitch grade allowance. See
+  [Review checks, design standards and the crossing register](forestry-road-design/review-and-standards.md).
+  Model flags, sampling, rates and D-lines fold.
 
 ## Editing the road path
 

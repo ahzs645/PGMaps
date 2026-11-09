@@ -274,6 +274,7 @@ export function useRoadWorkspace() {
               referenceSurfaces,
               verticalReference: project.terrain.verticalReference,
               sharedCrossingCosts: project.sharedCrossingCosts,
+              gradeStandards: project.standards,
             }),
       ]),
     )
@@ -288,6 +289,7 @@ export function useRoadWorkspace() {
     referenceSurfaces,
     project.terrain.verticalReference,
     project.sharedCrossingCosts,
+    project.standards,
   ])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!

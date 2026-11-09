@@ -22,9 +22,7 @@ async function compare(page: Page) {
   await expect(results(page)).toBeVisible({ timeout: 180_000 })
 }
 
-test('compares your road with designed routes, opens one and switches between them from any view', async ({
-  page,
-}) => {
+test('compares your road with designed routes, opens one and switches between them from any view', async ({ page }) => {
   await openTraining(page)
   const before = await roadCount(page)
   for (const goal of ['Gentlest', 'Fewest drainage issues'])
@@ -96,9 +94,11 @@ test('the review checklist reports the road and links to the next step', async (
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   const checks = page.getByTestId('road-readiness-checks')
   await expect(checks.locator('[data-check="grade"]')).toContainText('Steepest')
-  await checks.locator('[data-check="drainage"]').getByRole('button', { name: 'Open', exact: true }).click()
+  // A check that was never run reads as not assessed, never as met.
+  await expect(checks.locator('[data-check="drainage"]')).toHaveAttribute('data-state', 'not-assessed')
+  await checks.locator('[data-check="drainage"]').getByRole('button', { name: 'Run check', exact: true }).click()
   await expect(page.getByRole('heading', { name: /Drainage/ })).toBeVisible()
-  await openRoadPanel(page, 'Limits & sampling')
+  await openRoadPanel(page, 'Sampling')
   await expect(page.getByRole('spinbutton', { name: 'Station spacing (m)', exact: true })).toBeVisible()
 })
 
@@ -106,22 +106,27 @@ test('each failing check can be cleared from where it points', async ({ page }) 
   await openTraining(page)
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
   const checks = page.getByTestId('road-readiness-checks')
-  const crossing = checks.locator('[data-check="crossings"]')
-  await expect(crossing).toContainText(/needs? a culvert/)
+  const crossing = checks.locator('[data-check="crossing-structures"]')
+  await expect(crossing).toContainText(/ha(s|ve) no structure/)
   await crossing.getByRole('button', { name: 'Add culvert', exact: true }).click()
-  await page.getByRole('button', { name: /^Add culvert at (?!station)/ }).first().click()
+  await page
+    .getByRole('button', { name: /^Add culvert at (?!station)/ })
+    .first()
+    .click()
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
-  await expect(crossing).not.toContainText('needs a culvert')
-  const price = checks.locator('[data-check="culvert-prices"]')
-  await expect(price).toContainText('no price')
+  // A culvert dropped in at its starting size is a structure, but not yet a sized one.
+  await expect(crossing).not.toContainText('no structure')
+  await expect(crossing).toContainText('not sized')
+  const price = checks.locator('[data-check="structure-costs"]')
+  await expect(price).toContainText('zero installed cost')
   await price.getByRole('button', { name: 'Set price', exact: true }).click()
   await page.getByRole('spinbutton', { name: 'Culvert 1 installed $/m', exact: true }).fill('450')
   await page.getByRole('spinbutton', { name: 'Culvert 1 installed $/m', exact: true }).press('Tab')
   await page.getByRole('tab', { name: 'Review', exact: true }).click()
-  await expect(price).toHaveCount(0)
+  await expect(price).not.toContainText('zero installed cost')
 
   const rates = checks.locator('[data-check="rates"]')
-  await expect(rates).toContainText('Still at the default')
+  await expect(rates).toContainText('Still the starting value')
   await rates.getByRole('button', { name: 'Enter rates', exact: true }).click()
   for (const [label, value] of [
     ['Cut ($/m³)', '9'],
@@ -133,6 +138,7 @@ test('each failing check can be cleared from where it points', async ({ page }) 
     await field.fill(value)
     await field.press('Tab')
   }
-  await expect(rates).toContainText('Unit rates entered')
-  await expect(rates.getByRole('button')).toHaveCount(0)
+  await expect(rates).toContainText('Every base rate with a quantity has been entered')
+  await expect(rates).toHaveAttribute('data-state', 'met')
+  await expect(rates.getByRole('button', { name: 'Enter rates', exact: true })).toHaveCount(0)
 })
