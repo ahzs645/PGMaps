@@ -173,42 +173,7 @@ a,
   }
 }
 
-/* Themed map popup arrow tip (used by MapPopup) */
-.mapcn-popup .maplibregl-popup-content,
-.mapcn-tooltip .maplibregl-popup-content {
-  background: transparent !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  padding: 0 !important;
-}
-
-.mapcn-popup .maplibregl-popup-tip {
-  display: block !important;
-}
-
-.mapcn-tooltip .maplibregl-popup-tip {
-  display: none !important;
-}
-
-.mapcn-popup.maplibregl-popup-anchor-top .maplibregl-popup-tip,
-.mapcn-popup.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
-.mapcn-popup.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
-  border-bottom-color: hsl(var(--popover)) !important;
-}
-
-.mapcn-popup.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
-.mapcn-popup.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
-.mapcn-popup.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
-  border-top-color: hsl(var(--popover)) !important;
-}
-
-.mapcn-popup.maplibregl-popup-anchor-left .maplibregl-popup-tip {
-  border-right-color: hsl(var(--popover)) !important;
-}
-
-.mapcn-popup.maplibregl-popup-anchor-right .maplibregl-popup-tip {
-  border-left-color: hsl(var(--popover)) !important;
-}
+/* MapPopup's arrow (.mapcn-popup / .mapcn-tooltip) is styled by @pgmaps/geo-toolkit/styles.css. */
 
 /* Hover popup styling - more subtle and lightweight */
 .hover-popup .maplibregl-popup-content {
