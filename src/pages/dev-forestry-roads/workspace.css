@@ -173,7 +173,7 @@
     font-size: 0.875rem;
   }
 
-  .road-workspace-title [role='status'] {
+  .road-workspace-title .road-workspace-status {
     max-width: 12rem;
   }
 
@@ -196,7 +196,7 @@
     padding-top: 0.5rem;
   }
 
-  .road-workspace-title [role='status'] {
+  .road-workspace-title .road-workspace-status {
     display: none;
   }
 

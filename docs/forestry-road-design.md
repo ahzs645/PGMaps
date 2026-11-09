@@ -505,9 +505,14 @@ starting alignment on the published LiDAR tile is an editable example, not an
 existing or optimized road; its name says “review required”. It was chosen from the DTM
 (`loadLidarTerrain`) so that no no-data cell lies within 60 m of the centreline and the
 ground grade over any 50 m stays under 8 %: about 930 m with every section complete. Only
-a browser without a saved project gets it, or one replacing the training example. Action notices
-(exports, optimizer results, restores) replace the header subtitle for eight
-seconds in a polite live region instead of occupying a dismissible row.
+a browser without a saved project gets it, or one replacing the training example. The header
+line carries the open project's name (click to rename) beside the heading, and under it the save
+state: the time of the browser save and whether a project file holds the same thing. Action
+notices (exports, optimizer results, restores) take that line's place for eight seconds in a polite
+live region instead of occupying a dismissible row; a notice longer than the line has an (i) that
+shows all of it. A reopened session and a first visit's example each say so once in the
+notification stack. See
+[Autosave and restore](forestry-road-design/exports-and-project-files.md#autosave-and-restore).
 
 ## The sidebar
 

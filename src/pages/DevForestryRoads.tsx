@@ -25,6 +25,13 @@ import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
+import {
+  ExampleStartNotice,
+  HeaderStatus,
+  ProjectName,
+  SaveStateLine,
+  SessionRestoredNotice,
+} from './dev-forestry-roads/ProjectHeader'
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
@@ -76,6 +83,11 @@ import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPane
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import {
+  applyJobStandardsToNewProject,
+  startingJobStandards,
+  type JobStandards,
+} from './dev-forestry-roads/jobStandards'
 import { vehicleFit } from './dev-forestry-roads/readiness'
 import { SweptPathPanel } from './dev-forestry-roads/SweptPathPanel'
 import { StationTable } from './dev-forestry-roads/StationTable'
@@ -112,6 +124,7 @@ import {
 } from './dev-forestry-roads/project'
 import {
   createDemoProject,
+  DEFAULT_ROAD_SETTINGS,
   DEFAULT_TEMPLATE,
   demoTerrain,
   loadLas,
@@ -228,6 +241,12 @@ const boundsOf = (p: RoadProject): [number, number, number, number] => {
     Math.max(...coords.map((p) => p[1])) + 0.001,
   ]
 }
+
+/** What New project's design standards start from: the workspace limits and the starting template's width. */
+const STARTING_JOB_STANDARDS = startingJobStandards(
+  DEFAULT_ROAD_SETTINGS,
+  DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
+)
 
 export default function DevForestryRoads() {
   const w = useRoadWorkspace()
@@ -581,6 +600,8 @@ export default function DevForestryRoads() {
   }
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
+  const pendingStandards = useRef<JobStandards | null>(null)
+  const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<ContextFeature | null>(null)
   const onPlanReady = useCallback((map: MapLibreMap | null) => {
@@ -664,7 +685,7 @@ export default function DevForestryRoads() {
       /* View preferences are optional. */
     }
   }, [layoutSelection])
-  useDocumentTitle('Forest road design · PGMaps')
+  useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
   useEffect(() => () => operation.current?.abort(), [])
 
   const terrainProfile = useMemo(() => {
@@ -1448,25 +1469,34 @@ export default function DevForestryRoads() {
       w.setStation(0)
     })
   /** A new project on `terrain`, with one straight road at `centre` to drag or replace. */
+  /** The standards entered in New project, written into the project it creates. */
+  const withNewProjectStandards = (created: RoadProject) => {
+    const job = pendingStandards.current
+    pendingStandards.current = null
+    return job ? parseProject(applyJobStandardsToNewProject(created, job)) : created
+  }
   const startOn = (name: string, terrain: RoadProject['terrain'], terrainSource: TerrainSource, centre: Coordinate) => {
     const road = starterAlignment(centre)
     w.startProject(
-      parseProject({
-        ...createDemoProject(),
-        name,
-        terrain,
-        alignments: [road],
-        activeAlignmentId: road.id,
-        context: [],
-        cables: [],
-        profiles: [],
-        settings: project.settings,
-      }),
+      withNewProjectStandards(
+        parseProject({
+          ...createDemoProject(),
+          name,
+          terrain,
+          alignments: [road],
+          activeAlignmentId: road.id,
+          context: [],
+          cables: [],
+          profiles: [],
+          settings: project.settings,
+        }),
+      ),
       terrainSource,
     )
     setMode('edit')
   }
   const createProject = (start: NewProject) => {
+    pendingStandards.current = start.standards ?? null
     if (start.kind === 'import') {
       pendingProject.current = start.name
       requestFile('terrain')
@@ -1475,13 +1505,13 @@ export default function DevForestryRoads() {
     void run('Starting a new project…', async (signal) => {
       if (start.kind === 'training') {
         await w.flush()
-        w.startProject({ ...createDemoProject(), name: start.name }, demoTerrain)
+        w.startProject(withNewProjectStandards({ ...createDemoProject(), name: start.name }), demoTerrain)
       } else if (start.kind === 'lidar') {
         const loaded = await loadRoadScenario('bc-lidar', { signal, onProgress: w.setBusy })
         if (signal.aborted) return
         await w.flush()
         if (signal.aborted) return
-        w.startProject({ ...loaded.project, name: start.name }, loaded.source)
+        w.startProject(withNewProjectStandards({ ...loaded.project, name: start.name }), loaded.source)
       } else {
         const [lon, lat] = start.centre
         const dLat = start.sizeKm / 2 / 111.32,
@@ -1633,6 +1663,7 @@ export default function DevForestryRoads() {
           await w.flush()
           // A project file opens as its own project; the one that was open stays saved.
           await w.restore(opened, signal)
+          w.markFileSaved()
         } else if (fileKind.current === 'alignment') {
           const lines = importAlignmentGeoJson(raw).map((a) => ({
             ...a,
@@ -1849,6 +1880,7 @@ export default function DevForestryRoads() {
       const download = (file: Awaited<ReturnType<typeof exportFile>>) => {
         if (typeof file.content === 'string') downloadText(file.content, file.filename, file.mime)
         else downloadBlob(file.content, file.filename)
+        if (kind === 'project') w.markFileSaved()
         w.setNotice(file.notice)
         w.setError('')
       }
@@ -2176,17 +2208,17 @@ export default function DevForestryRoads() {
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {investigation ? 'Forest access investigation' : 'Forest road design'}
-            </h1>
-            <p
-              role="status"
-              aria-live="polite"
-              title={w.notice || undefined}
-              className={`max-w-[58vw] truncate text-xs ${w.notice ? 'text-teal-700 dark:text-teal-400' : 'text-muted-foreground'}`}
-            >
-              {w.notice}
-            </p>
+            {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
+            <div className="flex min-w-0 items-center gap-1">
+              <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">
+                {investigation ? 'Forest access investigation' : 'Forest road design'}
+              </h1>
+              <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
+            </div>
+            <HeaderStatus
+              notice={w.notice}
+              idle={w.ready && <SaveStateLine browser={w.browserSave} file={w.fileSave} />}
+            />
           </div>
           {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
           {project.terrain.kind !== 'geotiff' && (
@@ -2394,6 +2426,8 @@ export default function DevForestryRoads() {
         onScenario={openScenario}
         onOpenBcOpening={openBcOpening}
         portalContainer={ref.current}
+        newProjectRequest={newProjectRequest}
+        startingStandards={STARTING_JOB_STANDARDS}
       />
       <NetworkPlanningDialog
         workspace={w}
@@ -2533,6 +2567,20 @@ export default function DevForestryRoads() {
         onChange={(e) => {
           const file = e.target.files?.[0]
           if (file) importFile(file)
+        }}
+      />
+      <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
+      <ExampleStartNotice
+        show={w.exampleStart && !busy}
+        onDismiss={w.dismissExampleStart}
+        onNewProject={() => {
+          w.dismissExampleStart()
+          setNewProjectRequest((n) => n + 1)
+          setProjectsOpen(true)
+        }}
+        onOpenFile={() => {
+          w.dismissExampleStart()
+          requestFile('project')
         }}
       />
       <RoadNotifications

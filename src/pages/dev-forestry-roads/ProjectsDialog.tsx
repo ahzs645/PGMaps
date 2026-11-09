@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Search, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader } from '@/components/ui/result-list'
@@ -9,11 +10,16 @@ import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { BcAccessDiscoveryPanel } from './BcAccessDiscoveryPanel'
 import { BC_ACCESS_EXAMPLES } from './bcAccessExamples'
 import type { LibraryEntry } from './projectLibrary'
+import { DesignStandardsFields } from './DesignStandardsFields'
+import type { JobStandards } from './jobStandards'
 import type { Coordinate } from './types'
 import { ROAD_SCENARIOS, type RoadScenarioId, type ScenarioContent } from './scenarios'
 
-/** How a new project gets its terrain. Every kind but the BC sample starts with one straight road. */
-export type NewProject = { name: string } & (
+/**
+ * How a new project gets its terrain, and the design standards entered for it. Every kind but the
+ * BC sample starts with one straight road.
+ */
+export type NewProject = { name: string; standards?: JobStandards } & (
   | { kind: 'lidar' }
   | { kind: 'regional'; centre: Coordinate; sizeKm: number }
   | { kind: 'import' }
@@ -76,6 +82,8 @@ export function ProjectsDialog({
   onScenario,
   onOpenBcOpening,
   portalContainer,
+  newProjectRequest,
+  startingStandards,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -93,8 +101,18 @@ export function ProjectsDialog({
   /** Resolves only after a new investigation workspace has loaded; rejection leaves discovery open. */
   onOpenBcOpening?: (openingId: string) => Promise<void>
   portalContainer?: HTMLElement | null
+  /** Rises each time something outside asks for the new-project form. */
+  newProjectRequest?: number
+  /** What the new-project form's design standards start from. Omitted, the form does not ask. */
+  startingStandards?: JobStandards
 }) {
   const [view, setView] = useState<'list' | 'new' | 'scenarios' | 'discover'>('list')
+  // A request from outside the dialog opens it straight on the new-project form.
+  const [seenNewRequest, setSeenNewRequest] = useState(newProjectRequest)
+  if (newProjectRequest !== seenNewRequest) {
+    setSeenNewRequest(newProjectRequest)
+    if (newProjectRequest) setView('new')
+  }
   const [cutblockFilter, setCutblockFilter] = useState<'all' | 'with' | 'without'>('all')
   const [scenarioFilter, setScenarioFilter] = useState<'all' | 'records' | 'design' | 'training'>('all')
   const [scenarioSearch, setScenarioSearch] = useState('')
@@ -117,6 +135,7 @@ export function ProjectsDialog({
   const [lat, setLat] = useState<number | null>(null)
   const [lon, setLon] = useState<number | null>(null)
   const [sizeKm, setSizeKm] = useState(3)
+  const [standards, setStandards] = useState(startingStandards)
   const preset = PLACES[place].centre ?? centre
   const at: Coordinate = [lon ?? preset[0], lat ?? preset[1]]
   const savedNeedle = savedSearch.trim().toLowerCase()
@@ -166,8 +185,13 @@ export function ProjectsDialog({
   }
   const create = () => {
     const title = name.trim() || (kind === 'regional' ? `Road project near ${PLACES[place].label}` : 'New road project')
-    onCreate(kind === 'regional' ? { name: title, kind, centre: at, sizeKm } : ({ name: title, kind } as NewProject))
+    onCreate(
+      kind === 'regional'
+        ? { name: title, standards, kind, centre: at, sizeKm }
+        : ({ name: title, standards, kind } as NewProject),
+    )
     setName('')
+    setStandards(startingStandards)
     close(false)
   }
   const openBcStudy = async (openingId: string) => {
@@ -598,6 +622,21 @@ export function ProjectsDialog({
                 Create opens the file picker. The road starts across the middle of the imported terrain. Set the DEM
                 vertical datum in the Terrain tab first if the file does not carry one.
               </InlineAlert>
+            )}
+            {standards && (
+              <section className="space-y-2 rounded-lg border p-3" aria-label="Design standards">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium">Design standards</h3>
+                  <InfoTip label="About design standards">
+                    What this job&apos;s roads are designed to. The grade and curve checks, the swept path and the
+                    Review list read these, and the first road takes the running-surface width and design vehicle. They
+                    start from the workspace&apos;s usual values: change the ones your job sets, leave the rest, and
+                    edit them later under Review → Design standards. They are your inputs, not a certified road
+                    standard.
+                  </InfoTip>
+                </div>
+                <DesignStandardsFields value={standards} onChange={setStandards} />
+              </section>
             )}
             <Button className="w-full" onClick={create}>
               {kind === 'import' ? <Upload className="size-4" /> : <Plus className="size-4" />}

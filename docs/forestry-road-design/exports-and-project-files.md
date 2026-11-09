@@ -202,17 +202,29 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   their terrain, road count and last edit; open, duplicate or delete one there (the open project
   cannot be deleted). **New project** starts from a regional DEM around a chosen place (a square
   1–10 km wide, recorded as the terrain's `bounds` so a reopened project loads the same square),
-  an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example. A project always holds
+  an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example, and asks for the job's
+  [design standards](review-and-standards.md#design-standards) with starting values filled in. The
+  new project records them as confirmed that day, and its first road takes the running-surface
+  width and the design vehicle. A project always holds
   at least one road, so the first three start with a straight 300 m road (`starterAlignment`) to
   drag or replace; the BC sample brings its example road. Opening a project file, and the sidebar's
   **Training example**, start a new project too; the one that was open stays saved.
 - **Autosave writes the whole validated project to IndexedDB** (`pgmaps-forestry-roads-v1`, key
   `project:<id>`, listed under `library`, with `active` naming the one to reopen;
   `projectLibrary.ts`) 650 ms after each edit, embedded raster included. Switching projects saves
-  the open one first. A pre-library save under `current` moves into the library on first load. The
-  header shows "Saved on this device", "Local save unavailable — download your project" or "Last
-  valid save retained: …". Below the `xl` breakpoint it shows a small dot instead, whose tooltip and
-  label carry the text.
+  the open one first. A pre-library save under `current` moves into the library on first load.
+- **The header says which project is open and where it is kept.** The project's name sits beside
+  the heading; click it to rename the project. Under it, one line gives the browser save and its
+  time and whether a project file holds the same thing: "Saved in this browser 14:02 · not yet saved
+  to a file", "· file saved 13:58" or "· not saved to a file since 13:58" once the project has
+  changed (`saveState.ts`). A file counts when it was saved with **Save** or opened in this session;
+  the workspace cannot see a file saved in an earlier session. A refused save reads "Not saved in
+  this browser", and inputs that cannot be saved read "Last valid version kept"; a red dot beside
+  the buttons marks both on narrow headers. A notice takes the line's place for eight seconds; when
+  it is longer than the line, an (i) beside it shows the whole message.
+- **A reload says what it reopened.** "Previous session restored", with the project's name and the
+  time of its save, shows once in the notification stack. A first visit opens an example road and
+  says so, with **New project** and **Open a project file** on the card.
 - **An invalid edit does not overwrite the last valid save.** The message names the problem.
 - **Autosave pauses while an error banner is shown,** and while the workspace is busy. Dismiss
   the banner to resume.
