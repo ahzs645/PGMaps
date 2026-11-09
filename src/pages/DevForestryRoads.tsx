@@ -100,6 +100,7 @@ import {
 } from './dev-forestry-roads/terrain'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
+import type { AccessHistorySelection } from './dev-forestry-roads/AccessHistorySelection'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
@@ -319,6 +320,7 @@ export default function DevForestryRoads() {
   const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
   const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
   const [cutblockReviewRequest, setCutblockReviewRequest] = useState<{ id: string; sequence: number }>()
+  const [historySelection, setHistorySelection] = useState<AccessHistorySelection>()
   const reviewRoad = useCallback(
     (road: ContextFeature | null, picked = false) => {
       // A road the reviewer picks, in the panel or on the map, is highlighted. The panel's own
@@ -500,6 +502,12 @@ export default function DevForestryRoads() {
   const [completeCostOpen, setCompleteCostOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
   const [workflowTab, setWorkflowTab] = useState<SidebarTab>('design')
+  const inspectHistoryEvidence = useCallback((selection: Omit<AccessHistorySelection, 'revision'>) => {
+    setHistorySelection((previous) => ({ ...selection, revision: (previous?.revision ?? 0) + 1 }))
+    setWorkflowTab('terrain')
+    setCollapsed(false)
+    setControlsOpen(true)
+  }, [])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
   const openCompleteCosts = () => {
     if (!project.totalCostPlanning)
@@ -562,6 +570,21 @@ export default function DevForestryRoads() {
     (area: ContextFeature) => {
       setFocusedConstraintId(area.id)
       showOnPlan(area)
+    },
+    [showOnPlan],
+  )
+  const locateHistory = useCallback(
+    (coordinates: Coordinate[]) => {
+      if (!coordinates.length) return
+      showOnPlan({
+        id: 'history-locate',
+        name: 'Historical access evidence',
+        kind: 'existing-road',
+        geometry: {
+          type: 'LineString',
+          coordinates: coordinates.length === 1 ? [coordinates[0], coordinates[0]] : coordinates,
+        },
+      })
     },
     [showOnPlan],
   )
@@ -941,7 +964,11 @@ export default function DevForestryRoads() {
     setMode('inspect')
     w.setStation(0)
   }
-  const run = async (message: string, action: (signal: AbortSignal) => Promise<void>) => {
+  const run = async (
+    message: string,
+    action: (signal: AbortSignal) => Promise<void>,
+    cancellation?: { label: string; notice: string },
+  ) => {
     if (w.busy) return
     setMode('inspect')
     setDraft([])
@@ -950,6 +977,14 @@ export default function DevForestryRoads() {
     const controller = new AbortController()
     operation.current = controller
     w.setBusy(message)
+    if (cancellation)
+      w.setBusyCancel({
+        label: cancellation.label,
+        onCancel: () => {
+          controller.abort()
+          w.setNotice(cancellation.notice)
+        },
+      })
     w.setError('')
     try {
       await action(controller.signal)
@@ -1171,19 +1206,33 @@ export default function DevForestryRoads() {
       w.setNotice('Opened from this browser’s projects.')
     })
   const openScenario = (id: RoadScenarioId) =>
-    void run('Loading scenario terrain and context…', async (signal) => {
-      const loaded = await loadRoadScenario(id, { signal, onProgress: w.setBusy })
-      if (signal.aborted) return
-      await w.flush()
-      if (signal.aborted) return
-      w.startProject(loaded.project, loaded.source)
-      beginMode('inspect')
-      setActiveProfile(null)
-      setSelectedPoint(null)
-      setRoutePreviewState(null)
-      setFitRevision((n) => n + 1)
-      w.setNotice(loaded.notice)
-    })
+    void run(
+      'Loading scenario terrain and context…',
+      async (signal) => {
+        const loaded = await loadRoadScenario(id, { signal, onProgress: w.setBusy })
+        if (signal.aborted) return
+        await w.flush()
+        if (signal.aborted) return
+        w.startProject(loaded.project, loaded.source)
+        beginMode('inspect')
+        setActiveProfile(null)
+        setSelectedPoint(null)
+        setRoutePreviewState(null)
+        setFitRevision((n) => n + 1)
+        w.setNotice(loaded.notice)
+        if (id === 'bc-opening-60677') {
+          const block = loaded.project.context.find((feature) => feature.kind === 'harvest')
+          if (block) {
+            inspectHistoryEvidence({ kind: 'block', id: block.id })
+            showOnPlan(block)
+            // Keep the evidence visible beside the map on desktop; on phones the controls
+            // are the first useful view because no historical path has been established yet.
+            setControlsOpen(true)
+          }
+        }
+      },
+      { label: 'Cancel scenario loading', notice: 'Scenario loading cancelled. The current project was kept.' },
+    )
   const requestFile = (kind: FileKind) => {
     if (w.busy) return
     fileKind.current = kind
@@ -2313,6 +2362,8 @@ export default function DevForestryRoads() {
                 onLocateRoad={locateRoad}
                 onOpenRoadHistory={openRoadReview}
                 onLocateConstraint={locateConstraint}
+                onLocateHistory={locateHistory}
+                historySelection={historySelection}
                 focusedConstraintId={focusedConstraintId}
                 cutblockReviewRequest={cutblockReviewRequest}
                 onReviewRoad={reviewRoad}
@@ -2538,6 +2589,8 @@ export default function DevForestryRoads() {
                             selectedRange={terrainProfile ? undefined : selectedRange}
                             onMapReady={onPlanReady}
                             selectedCulvertId={currentCulvertId}
+                            onHistorySelect={inspectHistoryEvidence}
+                            historySelection={historySelection}
                             onSelectCulvert={selectCulvert}
                             onContextSelect={(feature) => {
                               if (feature.kind === 'existing-road') openRoadReview(feature.id)

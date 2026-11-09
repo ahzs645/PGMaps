@@ -123,7 +123,6 @@ export function castorToLonLat(project: CastorProject): ((coordinate: [number, n
   if (!crs) return null
   // Supported BC/UTM codes use the shared definitions; anything else is passed to proj4 as written.
   const definition = projectedCrsDefinition(epsgCode(crs) ?? 0) ?? crs
-  let converter: proj4.Converter
   try {
     const projection = new proj4.Proj(definition) as unknown as { units?: string; to_meter?: number; projName?: string }
     if (
@@ -133,18 +132,18 @@ export function castorToLonLat(project: CastorProject): ((coordinate: [number, n
       (projection.to_meter !== undefined && Math.abs(projection.to_meter - 1) > 1e-12)
     )
       throw new Error('Inventory x/y and grid cell sizes require a projected CRS in metres.')
-    converter = proj4(definition, 'EPSG:4326')
+    const converter = proj4(definition, 'EPSG:4326')
+    return (coordinate: [number, number]) => {
+      const result = converter.forward(coordinate) as [number, number]
+      if (!result.every(Number.isFinite) || Math.abs(result[0]) > 180 || Math.abs(result[1]) > 90)
+        throw new Error('Projected inventory coordinates cannot be converted to valid longitude/latitude.')
+      return result
+    }
   } catch (cause) {
     if (cause instanceof Error && cause.message.includes('projected CRS in metres')) throw cause
     throw new Error(
       `The browser has no coordinate definition for ${crs}. Supply a supported projected CRS or WGS84 GeoJSON geometry.`,
     )
-  }
-  return (coordinate) => {
-    const result = converter.forward(coordinate) as [number, number]
-    if (!result.every(Number.isFinite) || Math.abs(result[0]) > 180 || Math.abs(result[1]) > 90)
-      throw new Error('Projected inventory coordinates cannot be converted to valid longitude/latitude.')
-    return result
   }
 }
 function pixelGeometry(

@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import shp from 'shpjs'
+import type * as GeoJSON from 'geojson'
 
 import {
   HMS_DENSITY_COLORS,

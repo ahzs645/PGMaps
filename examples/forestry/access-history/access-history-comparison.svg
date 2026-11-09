@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="948" viewBox="0 0 1440 948" role="img" aria-labelledby="title description">
+<title id="title">Synthetic training data: historical block-access comparison, 2010 and 2022</title>
+<desc id="description">Computed from the invented PGMaps training project. Block A has a 1,264 m candidate through the shared bridge in 2010 and a 2,364 m candidate using the later bypass in 2022. Block B shares the bridge in 2010. The 2022 closure and conflicting load reports remain visible. These are geometric candidates, not proof of historical use.</desc>
+<metadata>{&quot;synthetic&quot;:true,&quot;scenario&quot;:&quot;training-access-history&quot;,&quot;projection&quot;:{&quot;type&quot;:&quot;local equirectangular&quot;,&quot;origin&quot;:[-122.72,53.89],&quot;metresPerDegree&quot;:111195,&quot;longitudeScale&quot;:65531.36877004215,&quot;pixelsPerMetre&quot;:0.38216560509542974},&quot;panels&quot;:[{&quot;asOf&quot;:&quot;2010-06-30&quot;,&quot;blockALengthM&quot;:1264.005371860064,&quot;blockBLengthM&quot;:1460.5508102346732,&quot;blockARoadIds&quot;:[&quot;history-example-bridge-road&quot;,&quot;history-example-mainline-west&quot;,&quot;history-example-spur-a&quot;],&quot;blockAStructureIds&quot;:[&quot;history-example-bridge&quot;],&quot;bridgeStatus&quot;:&quot;compatible&quot;,&quot;sharedRoadLengthM&quot;:899.9979637304002,&quot;uniqueRoadLengthM&quot;:1824.558218364337},{&quot;asOf&quot;:&quot;2022-08-01&quot;,&quot;blockALengthM&quot;:2364.058880234802,&quot;blockBLengthM&quot;:2160.604030018988,&quot;blockARoadIds&quot;:[&quot;history-example-bypass&quot;,&quot;history-example-mainline-east&quot;,&quot;history-example-mainline-west&quot;,&quot;history-example-spur-a&quot;],&quot;blockAStructureIds&quot;:[],&quot;bridgeStatus&quot;:&quot;conflict&quot;,&quot;sharedRoadLengthM&quot;:1800.051327809926,&quot;uniqueRoadLengthM&quot;:2724.611582443864}]}</metadata>
+<style>
+text{font-family:Arial,Helvetica,sans-serif;fill:#1c3342} .kicker{font-size:12px;font-weight:700;letter-spacing:1.7px;fill:#527064}.title{font-size:32px;font-weight:700}.subtitle{font-size:14px;fill:#526674}.panel{fill:#fff;stroke:#d4dfdf;stroke-width:1.2}.date-label{font-size:13px;font-weight:700;letter-spacing:1px;fill:#527064}.route-heading{font-size:24px;font-weight:700}.legend{font-size:13px;fill:#3f5565}.block{stroke-width:1.4}.block-a{fill:#e7f3e9;stroke:#80ab89}.block-b{fill:#e7eff9;stroke:#87a3c9}.block-label{font-size:13px;font-weight:700}.block-date{font-size:10px;fill:#4e636d}.road{fill:none;stroke:#bcc7ce;stroke-width:2.7;stroke-linecap:round;stroke-linejoin:round}.future{stroke:#84909a;stroke-width:3;stroke-dasharray:1 7}.undated{stroke:#bbc2c7;stroke-width:2;stroke-dasharray:5 5}.stream{fill:none;stroke:#9dcadf;stroke-width:3}.route{fill:none;stroke-linecap:round;stroke-linejoin:round}.route-b{stroke:#457dc2;stroke-width:9;stroke-opacity:.75}.route-a{stroke:#087e70;stroke-width:4.5}.overpass-casing{fill:none;stroke:white;stroke-width:7}.overpass{fill:none;stroke:#8c97a2;stroke-width:2.5}.map-note{font-size:11px;fill:#526472;paint-order:stroke;stroke:white;stroke-width:4px;stroke-linejoin:round}.anchor{fill:#213b4d;stroke:white;stroke-width:2}.culvert{fill:white;stroke:#356baa;stroke-width:2.5}.bridge-used rect,.bridge-unavailable rect{fill:white;stroke-width:2}.bridge-used{stroke:#087e70;stroke-width:2}.bridge-unavailable{stroke:#bd443c;stroke-width:2.5}.bridge-label{font-size:13px;font-weight:700;fill:#087263}.conflict-label{font-size:13px;font-weight:700;fill:#a93832}.halo{paint-order:stroke;stroke:white;stroke-width:4;stroke-linejoin:round}.north,.scale{fill:none;stroke:#667a85;stroke-width:1.2}.small{font-size:10px;fill:#667a85}.divider{stroke:#dce5e6;stroke-width:1}.summary{font-size:13px;fill:#526674}.summary-strong{font-size:13px;font-weight:700}.footer-heading{font-size:12px;font-weight:700;letter-spacing:1.5px;fill:#527064}.footer{font-size:14px;fill:#405967}.footnote{font-size:12px;fill:#697c86}
+</style>
+<rect width="1440" height="948" fill="#f3f7f5"/>
+<text x="36" y="35" class="kicker">PGMAPS · HISTORICAL ACCESS</text>
+<text x="36" y="76" class="title">Synthetic training data</text>
+<text x="36" y="105" class="subtitle">The same coordinates and evidence, traced at two dates. Candidate distances come from the routing engine.</text>
+<path d="M36,143h42" class="route route-a"/><text x="90" y="148" class="legend">Block A candidate</text>
+<path d="M270,143h42" class="route route-b"/><text x="324" y="148" class="legend">Block B candidate</text>
+<path d="M510,143h42" class="route route-b"/><path d="M510,143h42" class="route route-a"/><text x="564" y="148" class="legend">Shared road portion</text>
+<path d="M780,143h42" class="road future"/><text x="834" y="148" class="legend">Not built at the selected date</text>
+<g aria-label="Access comparison at 2010-06-30">
+<rect x="36" y="178" width="672" height="626" rx="14" class="panel"/>
+<text x="60.00" y="208.00" class="date-label" text-anchor="start">AS OF 2010-06-30</text>
+<text x="60.00" y="240.00" class="route-heading" text-anchor="start">Block A → outlet · 1,264 m</text>
+<text x="60.00" y="263.00" class="subtitle" text-anchor="start">Date-compatible candidate through the shared bridge.</text>
+<g data-feature-id="history-example-block-a"><path d="M435.06,364.43 L519.13,364.43 L519.13,288.00 L435.06,288.00 L435.06,364.43 Z" class="block block-a" fill-rule="evenodd"/><text x="477.10" y="322.22" class="block-label" text-anchor="middle">Block A</text><text x="477.10" y="339.22" class="block-date" text-anchor="middle">2009–2010</text></g>
+<g data-feature-id="history-example-block-b"><path d="M587.92,421.76 L672.00,421.76 L672.00,345.32 L587.92,345.32 L587.92,421.76 Z" class="block block-b" fill-rule="evenodd"/><text x="629.96" y="379.54" class="block-label" text-anchor="middle">Block B</text><text x="629.96" y="396.54" class="block-date" text-anchor="middle">2010–2011</text></g><path d="M301.30,574.62 L301.30,402.65" class="stream"/><path data-feature-id="history-example-mainline-west" d="M72.00,498.19 L224.87,498.19" class="road"><title>Synthetic mainline west · built 1988</title></path>
+<path data-feature-id="history-example-bridge-road" d="M224.87,498.19 L301.30,498.19 L415.95,498.19" class="road"><title>Synthetic bridge road · built 1988</title></path>
+<path data-feature-id="history-example-mainline-east" d="M415.95,498.19 L492.38,498.19" class="road"><title>Synthetic mainline east · built 1988</title></path>
+<path data-feature-id="history-example-spur-a" d="M415.95,498.19 L454.17,364.43" class="road"><title>Synthetic spur A · built 2008</title></path>
+<path data-feature-id="history-example-spur-b" d="M492.38,498.19 L607.03,421.76" class="road"><title>Synthetic spur B · built 2009</title></path>
+<path data-feature-id="history-example-bypass" d="M224.87,498.19 L224.87,631.95 L492.38,631.95 L492.38,498.19" class="road future"><title>Synthetic bypass · built 2016</title></path>
+<path data-feature-id="history-example-undated-track" d="M72.00,498.19 L454.17,364.43" class="road undated"><title>Synthetic track · date unknown</title></path>
+<path data-feature-id="history-example-overpass" d="M339.52,574.62 L339.52,402.65" class="road"><title>Synthetic grade-separated road · no junction</title></path><path data-trace-id="access-history-v1-ed6c14af33a33771" data-length-m="1460.5508102346732" d="M607.03,421.76 L549.71,459.97 L492.38,498.19 L492.38,498.19 L415.95,498.19 L415.95,498.19 L301.30,498.19 L224.87,498.19 L224.87,498.19 L72.00,498.19" class="route route-b"><title>Computed block B candidate: 1,461 m</title></path>
+<path data-trace-id="access-history-v1-e3024e679385ca7d" data-length-m="1264.005371860064" d="M454.17,364.43 L415.95,498.19 L415.95,498.19 L301.30,498.19 L224.87,498.19 L224.87,498.19 L72.00,498.19" class="route route-a"><title>Computed block A candidate: 1,264 m</title></path>
+<path d="M339.52,574.62 L339.52,402.65" class="overpass-casing"/><path d="M339.52,574.62 L339.52,402.65" class="overpass"/>
+<text x="339.52" y="390.65" class="map-note" text-anchor="middle">No junction</text>
+<g data-structure-id="history-example-bridge" class="bridge-used"><rect x="291.30" y="490.19" width="20" height="16" rx="2"/><path d="M295.30,494.19H307.30M295.30,502.19H307.30"/></g><circle cx="549.71" cy="459.97" r="6" class="culvert"/><text x="561.71" y="479.97" class="map-note" text-anchor="start">Culvert</text><circle cx="454.17" cy="364.43" r="5" class="anchor"/><circle cx="607.03" cy="421.76" r="5" class="anchor"/><circle cx="72.00" cy="498.19" r="5" class="anchor"/><text x="72.00" y="522.19" class="map-note" text-anchor="start">Network outlet</text>
+<text x="301.30" y="528.19" class="bridge-label halo" text-anchor="middle">Shared bridge</text>
+<text x="301.30" y="546.19" class="map-note" text-anchor="middle">Both 2010 routes cross here</text>
+<text x="358.62" y="651.95" class="map-note" text-anchor="middle">Future bypass · built 2016 · excluded</text>
+<text transform="translate(209.58,441.04) rotate(-19.29)" class="map-note" text-anchor="middle">Undated track · excluded</text>
+<path d="M72,326v-22m-5,7l5,-7l5,7" class="north"/><text x="72.00" y="294.00" class="map-note" text-anchor="middle">N</text>
+<path d="M96,314h191.08m-191.08,-4v8m191.08,-8v8" class="scale"/><text x="96.00" y="333.00" class="small" text-anchor="start">0</text><text x="287.08" y="333.00" class="small" text-anchor="end">500 m</text>
+<path d="M60,681H684" class="divider"/>
+<text x="60.00" y="706.00" class="summary-strong" text-anchor="start">Block B candidate: 1,461 m; both routes use this bridge.</text>
+<text x="60.00" y="730.00" class="summary" text-anchor="start">Shared road length: 900 m; counted once.</text>
+<text x="60.00" y="754.00" class="summary" text-anchor="start">Unique road length in these routes: 1,825 m.</text>
+<text x="60.00" y="778.00" class="summary" text-anchor="start">The 2016 bypass cannot explain access in 2010.</text>
+</g>
+<g aria-label="Access comparison at 2022-08-01">
+<rect x="732" y="178" width="672" height="626" rx="14" class="panel"/>
+<text x="756.00" y="208.00" class="date-label" text-anchor="start">AS OF 2022-08-01</text>
+<text x="756.00" y="240.00" class="route-heading" text-anchor="start">Block A → outlet · 2,364 m</text>
+<text x="756.00" y="263.00" class="subtitle" text-anchor="start">Date-compatible candidate around the unavailable bridge.</text>
+<g data-feature-id="history-example-block-a"><path d="M1131.06,364.43 L1215.13,364.43 L1215.13,288.00 L1131.06,288.00 L1131.06,364.43 Z" class="block block-a" fill-rule="evenodd"/><text x="1173.10" y="322.22" class="block-label" text-anchor="middle">Block A</text><text x="1173.10" y="339.22" class="block-date" text-anchor="middle">2009–2010</text></g>
+<g data-feature-id="history-example-block-b"><path d="M1283.92,421.76 L1368.00,421.76 L1368.00,345.32 L1283.92,345.32 L1283.92,421.76 Z" class="block block-b" fill-rule="evenodd"/><text x="1325.96" y="379.54" class="block-label" text-anchor="middle">Block B</text><text x="1325.96" y="396.54" class="block-date" text-anchor="middle">2010–2011</text></g><path d="M997.30,574.62 L997.30,402.65" class="stream"/><path data-feature-id="history-example-mainline-west" d="M768.00,498.19 L920.87,498.19" class="road"><title>Synthetic mainline west · built 1988</title></path>
+<path data-feature-id="history-example-bridge-road" d="M920.87,498.19 L997.30,498.19 L1111.95,498.19" class="road"><title>Synthetic bridge road · built 1988</title></path>
+<path data-feature-id="history-example-mainline-east" d="M1111.95,498.19 L1188.38,498.19" class="road"><title>Synthetic mainline east · built 1988</title></path>
+<path data-feature-id="history-example-spur-a" d="M1111.95,498.19 L1150.17,364.43" class="road"><title>Synthetic spur A · built 2008</title></path>
+<path data-feature-id="history-example-spur-b" d="M1188.38,498.19 L1303.03,421.76" class="road"><title>Synthetic spur B · built 2009</title></path>
+<path data-feature-id="history-example-bypass" d="M920.87,498.19 L920.87,631.95 L1188.38,631.95 L1188.38,498.19" class="road"><title>Synthetic bypass · built 2016</title></path>
+<path data-feature-id="history-example-undated-track" d="M768.00,498.19 L1150.17,364.43" class="road undated"><title>Synthetic track · date unknown</title></path>
+<path data-feature-id="history-example-overpass" d="M1035.52,574.62 L1035.52,402.65" class="road"><title>Synthetic grade-separated road · no junction</title></path><path data-trace-id="access-history-v1-90b8589cae796766" data-length-m="2160.604030018988" d="M1303.03,421.76 L1245.71,459.97 L1188.38,498.19 L1188.38,498.19 L1188.38,631.95 L920.87,631.95 L920.87,498.19 L920.87,498.19 L768.00,498.19" class="route route-b"><title>Computed block B candidate: 2,161 m</title></path>
+<path data-trace-id="access-history-v1-f56b0ecec6b426de" data-length-m="2364.058880234802" d="M1150.17,364.43 L1111.95,498.19 L1111.95,498.19 L1188.38,498.19 L1188.38,498.19 L1188.38,631.95 L920.87,631.95 L920.87,498.19 L920.87,498.19 L768.00,498.19" class="route route-a"><title>Computed block A candidate: 2,364 m</title></path>
+<path d="M1035.52,574.62 L1035.52,402.65" class="overpass-casing"/><path d="M1035.52,574.62 L1035.52,402.65" class="overpass"/>
+<text x="1035.52" y="390.65" class="map-note" text-anchor="middle">No junction</text>
+<g data-structure-id="history-example-bridge" class="bridge-unavailable"><rect x="987.30" y="490.19" width="20" height="16" rx="2"/><path d="M992.30,493.19l10,10m0,-10l-10,10"/></g><circle cx="1245.71" cy="459.97" r="6" class="culvert"/><text x="1257.71" y="479.97" class="map-note" text-anchor="start">Culvert</text><circle cx="1150.17" cy="364.43" r="5" class="anchor"/><circle cx="1303.03" cy="421.76" r="5" class="anchor"/><circle cx="768.00" cy="498.19" r="5" class="anchor"/><text x="768.00" y="522.19" class="map-note" text-anchor="start">Network outlet</text>
+<text x="997.30" y="528.19" class="conflict-label halo" text-anchor="middle">Bridge unavailable</text>
+<text x="997.30" y="546.19" class="map-note" text-anchor="middle">60 t / 0 t · conflict</text>
+<text x="1054.62" y="651.95" class="map-note" text-anchor="middle">Bypass built 2016</text>
+<text transform="translate(905.58,441.04) rotate(-19.29)" class="map-note" text-anchor="middle">Undated track · excluded</text>
+<path d="M768,326v-22m-5,7l5,-7l5,7" class="north"/><text x="768.00" y="294.00" class="map-note" text-anchor="middle">N</text>
+<path d="M792,314h191.08m-191.08,-4v8m191.08,-8v8" class="scale"/><text x="792.00" y="333.00" class="small" text-anchor="start">0</text><text x="983.08" y="333.00" class="small" text-anchor="end">500 m</text>
+<path d="M756,681H1380" class="divider"/>
+<text x="756.00" y="706.00" class="summary-strong" text-anchor="start">Bridge closure applies from 2019-01-01.</text>
+<text x="756.00" y="730.00" class="summary" text-anchor="start">Applicable ratings: 60 t / 0 t; status: conflict.</text>
+<text x="756.00" y="754.00" class="summary" text-anchor="start">Block B also uses the bypass: 2,161 m.</text>
+<text x="756.00" y="778.00" class="summary" text-anchor="start">This date is outside both reported harvest intervals.</text>
+</g>
+<text x="36" y="842" class="footer-heading">WHAT THE COMPARISON ESTABLISHES</text>
+<text x="36" y="869" class="footer">Geometry and dated evidence change which route is plausible. A candidate does not prove actual use or construction purpose.</text>
+<text x="36" y="894" class="footer">The geography, harvest dates, road history and bridge reports are invented. Historical ratings do not authorize present-day road use.</text>
+<text x="36" y="925" class="footnote">Generated from training-access-history · identical scale and local projection in both panels · no ministry source extracts</text>
+</svg>

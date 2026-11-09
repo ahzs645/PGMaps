@@ -28,6 +28,7 @@ export const NEARBY_CUTBLOCK_ROAD_M = 1000
 
 const SOURCE_LABELS = {
   'bc-consolidated': 'BC consolidated cutblocks',
+  'bc-ften': 'BC forest tenure cutblock',
   user: 'Imported harvest evidence',
   scenario: 'Synthetic teaching record',
 } as const

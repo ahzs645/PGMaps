@@ -150,7 +150,9 @@
     "lidar:process": "python3 scripts/lidar/run.py",
     "lidar:inspector:browser": "node scripts/lidar/check_inspector_browser.cjs",
     "lidar:preview:build": "vite build --config lidar-preview/vite.config.ts",
-    "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build"
+    "ci:prepare": "npm run toolkit:build && npm --prefix vendor/json-url run build",
+    "example:access-history": "node --import tsx scripts/forestry/generate-access-history-example.ts",
+    "check:access-history": "tsc --project scripts/forestry/tsconfig.access-history.json"
   },
   "dependencies": {
     "@deck.gl/core": "^9.3.4",

@@ -11,6 +11,18 @@ export function roadPlanFitCoordinates(
   const coordinates = roads.flatMap((alignment) => alignment.points.map((point) => point.coordinate))
   // A block a road reaches is part of the picture: fit the whole block, not just the landing.
   coordinates.push(...reachedBlockCoordinates(project.context, roads))
+  if (target === 'roads' && project.accessHistory) {
+    const history = project.accessHistory
+    const selected = history.paths.find((path) => path.id === history.selectedPathId)
+    if (selected) {
+      coordinates.push(...selected.coordinates)
+      const block = project.context.find((feature) => feature.id === selected.blockId && feature.kind === 'harvest')
+      if (block?.geometry.type === 'Polygon')
+        coordinates.push(...block.geometry.coordinates[0].map(([x, y]) => [x, y] as Coordinate))
+    }
+    coordinates.push(...history.anchors.map((anchor) => anchor.coordinate))
+    coordinates.push(...history.structures.map((structure) => structure.coordinate))
+  }
   if (target === 'active' || !project.totalCostPlanning) return coordinates
   for (const feature of project.context)
     if (feature.kind === 'existing-road' && feature.geometry.type === 'LineString')

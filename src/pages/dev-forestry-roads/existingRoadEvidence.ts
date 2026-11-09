@@ -3,6 +3,35 @@ import { parseRoadNetworkEvidence } from './roadNetwork'
 import { parseRoadConditionObservations, parseRoadConditionPolicy } from './roadCondition'
 import { deactivatedRoadNeedsReview, parseRoadDeactivation } from './roadHistory'
 
+const ROAD_IDENTIFIER_FIELDS = ['forestFileId', 'roadSectionId', 'timberMark', 'clientNumber'] as const
+const ROAD_STATION_FIELDS = ['segmentStartStation', 'segmentEndStation'] as const
+
+/** Business codes are strings: coercing them to numbers would destroy section/client leading zeros. */
+export function parseRoadIdentifiers(raw: Record<string, unknown>): Partial<ExistingRoadEvidence> {
+  const result: Partial<ExistingRoadEvidence> = {}
+  for (const key of ROAD_IDENTIFIER_FIELDS) {
+    const value = raw[key]
+    if (value === undefined) continue
+    if (typeof value !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_.:-]{0,79}$/.test(value))
+      throw Error(`Invalid road evidence ${key}; retain the source identifier as text.`)
+    result[key] = value
+  }
+  for (const key of ROAD_STATION_FIELDS) {
+    const value = raw[key]
+    if (value === undefined) continue
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 10_000_000)
+      throw Error(`Invalid road evidence ${key}; use a non-negative source station.`)
+    result[key] = value
+  }
+  if (
+    result.segmentStartStation !== undefined &&
+    result.segmentEndStation !== undefined &&
+    result.segmentStartStation > result.segmentEndStation
+  )
+    throw Error('Road segment end station must not precede its start station.')
+  return result
+}
+
 /** Facts stay separate from planning assumptions, including after portable project restoration. */
 export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error('Road evidence must be an object.')
@@ -19,6 +48,7 @@ export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
     condition: r.condition as ExistingRoadEvidence['condition'],
     conditionBasis: r.conditionBasis as ExistingRoadEvidence['conditionBasis'],
     reuseAllowed: r.reuseAllowed,
+    ...parseRoadIdentifiers(r),
   }
   if (r.roadClass !== undefined) {
     if (typeof r.roadClass !== 'string' || !['fsr', 'permit', 'user'].includes(r.roadClass))
@@ -76,6 +106,13 @@ export function refreshedRoadEvidence(
 ): ExistingRoadEvidence {
   const result = previous
     ? {
+        // Older section responses did not include these codes. Preserve explicit identifiers
+        // until a refresh supplies a replacement; never infer them from a display name.
+        ...Object.fromEntries(
+          [...ROAD_IDENTIFIER_FIELDS, ...ROAD_STATION_FIELDS]
+            .filter((key) => previous[key] !== undefined)
+            .map((key) => [key, previous[key]]),
+        ),
         ...facts,
         condition: previous.condition,
         conditionBasis: previous.conditionBasis,

@@ -1,6 +1,6 @@
 /** Live, per-place DataBC query. No catalogue status is treated as proof of a built, usable road. */
 import { importContextGeoJson } from './project'
-import { unreviewedRoadEvidence } from './existingRoadEvidence'
+import { parseRoadIdentifiers, unreviewedRoadEvidence } from './existingRoadEvidence'
 import type { ContextFeature, Coordinate, ExistingRoadEvidence } from './types'
 
 export type RoadQueryBounds = [number, number, number, number]
@@ -75,6 +75,24 @@ function recordDate(value: unknown): string | undefined {
 const recordText = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim() ? value.trim().slice(0, 200) : undefined
 
+/** Preserve source business identifiers independently of display names and ArcGIS object IDs. */
+export function sourceRoadIdentifiers(properties: Record<string, unknown>): Partial<ExistingRoadEvidence> {
+  const keys = {
+    FOREST_FILE_ID: 'forestFileId',
+    ROAD_SECTION_ID: 'roadSectionId',
+    START_STATION: 'segmentStartStation',
+    END_STATION: 'segmentEndStation',
+    TIMBER_MARK: 'timberMark',
+    CLIENT_NUMBER: 'clientNumber',
+  } as const
+  const values: Record<string, unknown> = {}
+  for (const [sourceKey, key] of Object.entries(keys)) {
+    const value = properties[sourceKey]
+    if (value !== null && value !== undefined && value !== '') values[key] = value
+  }
+  return parseRoadIdentifiers(values)
+}
+
 export function parseBcExistingRoads(raw: unknown, retrievedAt = new Date().toISOString()): ContextFeature[] {
   if (!raw || typeof raw !== 'object') throw Error('The BC roads service returned an invalid response.')
   const response = raw as {
@@ -97,6 +115,7 @@ export function parseBcExistingRoads(raw: unknown, retrievedAt = new Date().toIS
     const p = f?.properties ?? {}
     const evidence: ExistingRoadEvidence = {
       ...unreviewedRoadEvidence('bc-ften'),
+      ...sourceRoadIdentifiers(p),
       ...(p.FILE_TYPE_CODE === FSR_FILE_TYPE_CODE
         ? { roadClass: 'fsr' as const }
         : p.FILE_TYPE_CODE === 'B01'
@@ -224,34 +243,44 @@ export function importExistingRoads(raw: unknown): ContextFeature[] {
         ...f.properties,
         name: typeof f.properties?.name === 'string' ? f.properties.name : `Imported road ${index + 1}`,
         kind: 'existing-road',
-        roadEvidence: f.properties?.roadEvidence ?? {
-          ...unreviewedRoadEvidence(),
-          roadClass:
-            f.properties?.FILE_TYPE_CODE === FSR_FILE_TYPE_CODE
-              ? 'fsr'
-              : f.properties?.FILE_TYPE_CODE === 'B01'
-                ? 'permit'
-                : 'user',
-          ...(recordText(f.properties?.FILE_TYPE_CODE)
-            ? { fileTypeCode: recordText(f.properties?.FILE_TYPE_CODE) }
-            : {}),
-          ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE)
-            ? { lifecycleStatus: recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) }
-            : {}),
-          ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) || recordText(f.properties?.FILE_STATUS_CODE)
+        roadEvidence:
+          f.properties?.roadEvidence != null
             ? {
-                status: [recordText(f.properties?.LIFE_CYCLE_STATUS_CODE), recordText(f.properties?.FILE_STATUS_CODE)]
-                  .filter(Boolean)
-                  .join(' / '),
+                ...sourceRoadIdentifiers(f.properties ?? {}),
+                ...f.properties.roadEvidence,
               }
-            : {}),
-          ...(recordDate(f.properties?.AWARD_DATE) ? { awardDate: recordDate(f.properties?.AWARD_DATE) } : {}),
-          ...(recordDate(f.properties?.RETIREMENT_DATE)
-            ? { retirementDate: recordDate(f.properties?.RETIREMENT_DATE) }
-            : {}),
-          // Only an explicitly structured physical event is accepted; administrative fields never fill it.
-          ...(f.properties?.deactivation !== undefined ? { deactivation: f.properties.deactivation } : {}),
-        },
+            : {
+                ...unreviewedRoadEvidence(),
+                ...sourceRoadIdentifiers(f.properties ?? {}),
+                roadClass:
+                  f.properties?.FILE_TYPE_CODE === FSR_FILE_TYPE_CODE
+                    ? 'fsr'
+                    : f.properties?.FILE_TYPE_CODE === 'B01'
+                      ? 'permit'
+                      : 'user',
+                ...(recordText(f.properties?.FILE_TYPE_CODE)
+                  ? { fileTypeCode: recordText(f.properties?.FILE_TYPE_CODE) }
+                  : {}),
+                ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE)
+                  ? { lifecycleStatus: recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) }
+                  : {}),
+                ...(recordText(f.properties?.LIFE_CYCLE_STATUS_CODE) || recordText(f.properties?.FILE_STATUS_CODE)
+                  ? {
+                      status: [
+                        recordText(f.properties?.LIFE_CYCLE_STATUS_CODE),
+                        recordText(f.properties?.FILE_STATUS_CODE),
+                      ]
+                        .filter(Boolean)
+                        .join(' / '),
+                    }
+                  : {}),
+                ...(recordDate(f.properties?.AWARD_DATE) ? { awardDate: recordDate(f.properties?.AWARD_DATE) } : {}),
+                ...(recordDate(f.properties?.RETIREMENT_DATE)
+                  ? { retirementDate: recordDate(f.properties?.RETIREMENT_DATE) }
+                  : {}),
+                // Only an explicitly structured physical event is accepted; administrative fields never fill it.
+                ...(f.properties?.deactivation !== undefined ? { deactivation: f.properties.deactivation } : {}),
+              },
       },
     }
   })

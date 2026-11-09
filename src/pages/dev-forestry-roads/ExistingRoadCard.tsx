@@ -12,12 +12,14 @@ export function ExistingRoadCard({
   at,
   onClose,
   onReview,
+  onAccessHistory,
 }: {
   road: ContextFeature
   at: Coordinate
   onClose: () => void
   /** The full record, history, condition and reuse settings, in the sidebar. */
   onReview?: () => void
+  onAccessHistory?: () => void
 }) {
   const evidence = road.roadEvidence
   const style = roadHistoryStyle(evidence)
@@ -46,10 +48,19 @@ export function ExistingRoadCard({
         onClose={onClose}
         closeLabel="Close road details"
         actions={
-          onReview && (
-            <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onReview}>
-              Review road
-            </Button>
+          (onReview || onAccessHistory) && (
+            <div className="grid gap-1.5">
+              {onReview && (
+                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onReview}>
+                  Review road
+                </Button>
+              )}
+              {onAccessHistory && (
+                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onAccessHistory}>
+                  Access evidence
+                </Button>
+              )}
+            </div>
           )
         }
       >

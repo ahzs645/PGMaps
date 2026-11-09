@@ -11,6 +11,8 @@ import { fitHorizontalRadii } from './horizontalTools'
 import { DEFAULT_ROUTE_OPTIONS, suggestRoutes } from './routing'
 import { requireScenarioTerrain } from './scenarioCoverage'
 import { createFullCostTrainingProject } from './trainingFullCostScenario'
+import { createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
+import { loadBcAccessPilotScenario } from './bcAccessPilotScenario'
 import {
   createDemoProject,
   DEFAULT_ROAD_SETTINGS,
@@ -35,6 +37,16 @@ export interface ScenarioContents {
 }
 
 export const ROAD_SCENARIOS = [
+  {
+    id: 'bc-opening-60677',
+    name: 'BC records · opening 60677',
+    terrain: 'Regional DEM · live source investigation',
+    detail:
+      'A real FTEN block and nearby road segments, cross-checked with RESULTS. Missing road dates and crossing evidence stay visible.',
+    focus: 'Inspect source identity, nearby-road candidates and the evidence still needed for historical access',
+    kind: 'history-pilot',
+    contents: { roads: 'mapped', cutblocks: 'mapped' },
+  },
   {
     id: 'bc-lidar',
     name: 'Prince George · native LiDAR',
@@ -131,6 +143,16 @@ export const ROAD_SCENARIOS = [
     detail:
       'The same road with and without a zero-acquisition local stockpile. Processing, loading and haul still cost.',
     focus: 'Compare enabled supply, finite capacity and purchased surfacing',
+    kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
+  },
+  {
+    id: 'training-access-history',
+    name: 'Training · reconstruct block access and bridges',
+    terrain: 'Synthetic ground · offline',
+    detail:
+      'Two blocks share a bridge in 2010. A later bypass, bridge closure and conflicting ratings change the evidence.',
+    focus: 'Trace dated access, inspect shared structures and save reviewed assertions',
     kind: 'training',
     contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
@@ -319,7 +341,12 @@ export function roadScenario(id: string) {
 export function createTrainingScenario(id: RoadScenarioId): RoadProject {
   const scenario = roadScenario(id)
   if (scenario.kind !== 'training') throw Error('This scenario requires its real terrain to be loaded first.')
-  const project = id === 'training-full-cost-access' ? createFullCostTrainingProject() : createDemoProject()
+  const project =
+    id === 'training-full-cost-access'
+      ? createFullCostTrainingProject()
+      : id === 'training-access-history'
+        ? createAccessHistoryTrainingProject()
+        : createDemoProject()
   project.name = scenario.name
   project.scenario = { id, contextWarnings: [], terrainCoveragePercent: 100 }
   if (id === 'training-harvest-history') {
@@ -677,6 +704,7 @@ export async function loadRoadScenario(
   }: { signal?: AbortSignal; onProgress?: (message: string) => void; decodeRegionalTiles?: TileDecoder } = {},
 ): Promise<{ project: RoadProject; source: TerrainSource; notice: string }> {
   const scenario = roadScenario(id)
+  if (scenario.kind === 'history-pilot') return loadBcAccessPilotScenario({ signal, onProgress, decodeRegionalTiles })
   if (scenario.kind === 'training') {
     const project = createTrainingScenario(id)
     requireScenarioTerrain(project.alignments, demoTerrain, project.settings.crossSectionHalfWidth)

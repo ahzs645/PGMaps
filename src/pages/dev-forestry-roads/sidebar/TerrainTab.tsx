@@ -13,6 +13,7 @@ import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
 import { NumberField } from '../Controls'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
+import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
 
 const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
@@ -152,6 +153,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           p.onOpenRoadHistory?.(road.id)
         }}
       />
+      <AccessHistoryPanel workspace={p.workspace} onLocate={p.onLocateHistory} selection={p.historySelection} />
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection
         title="Import options"

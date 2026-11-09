@@ -235,6 +235,13 @@ export interface ExistingRoadEvidence {
   roadClass?: 'fsr' | 'permit' | 'user'
   fileTypeCode?: string
   lifecycleStatus?: string
+  /** Source business identifiers remain strings, including leading zeroes. */
+  forestFileId?: string
+  roadSectionId?: string
+  segmentStartStation?: number
+  segmentEndStation?: number
+  timberMark?: string
+  clientNumber?: string
   sourceId?: string
   sourceUrl?: string
   retrievedAt?: string
@@ -304,6 +311,8 @@ export interface RoadProject {
   scenario?: { id: string; contextWarnings: string[]; terrainCoveragePercent: number }
   /** Calendar year for reproducible harvest-age displays; absent uses the current year. */
   harvestHistoryYear?: number
+  /** Evidence-led block access reconstruction, independent of present-day reuse permission. */
+  accessHistory?: import('./accessHistoryTypes').HistoricalAccessState
   activeAlignmentId: string
   alignments: Alignment[]
   terrain: TerrainMetadata

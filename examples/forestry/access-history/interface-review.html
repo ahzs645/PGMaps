@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Access history · PGMaps component review</title>
+    <style>
+      /* Review-only layout; the production panel keeps its existing styles. */
+      @media (min-width: 1024px) {
+        .history-review-grid {
+          grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+        }
+        .history-review-panel {
+          max-height: 80dvh;
+          overflow-y: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./interface-review.tsx"></script>
+  </body>
+</html>

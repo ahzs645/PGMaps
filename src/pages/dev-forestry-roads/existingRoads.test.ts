@@ -35,6 +35,10 @@ const response = (features: unknown[]) => ({ type: 'FeatureCollection', features
 afterEach(() => vi.unstubAllGlobals())
 
 describe('BC existing-road evidence', () => {
+  it.each([false, 0, ''])('rejects explicitly malformed imported road evidence (%s)', (roadEvidence) => {
+    expect(() => importExistingRoads(response([{ ...feature(), properties: { roadEvidence } }]))).toThrow()
+  })
+
   it('accepts an empty BC query and refreshes source facts without discarding review assumptions', () => {
     expect(parseBcExistingRoads(response([]))).toEqual([])
     const old = {
