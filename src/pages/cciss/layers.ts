@@ -165,12 +165,3 @@ export function ccissTileId(selection: CcissLayerSelection): string {
 export function ccissTileUrl(tileId: string): string {
   return `https://tileserver.thebeczone.ca/data/${tileId}/{z}/{x}/{y}.webp`
 }
-
-export function hasComparableNumericSuitability(selection: CcissLayerSelection): boolean {
-  return (
-    selection.kind === 'suitability' &&
-    selection.period === '1961_1990_ref' &&
-    selection.edatope === 'C4' &&
-    selection.species === 'Pl'
-  )
-}
