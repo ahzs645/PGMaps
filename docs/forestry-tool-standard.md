@@ -7,13 +7,13 @@ for the full catalogue.
 
 ## Every tool
 
-| Need                 | Use                                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Tab title            | `useDocumentTitle('<Tool> · PGMaps')`, matching the tool's `h1`                                               |
-| Hub card name        | The tool's `h1` exactly, in `DevForestry.tsx`                                                                 |
-| Way back to the hub  | `ForestryBackLink`: `icon` in a sidebar or workspace header, `text` on a scrolling page                       |
-| Local files          | `FileDropField`. It does not filter drops by `accept`; a tool that needs only some types filters in `onFiles` |
-| A numbered procedure | `TabBar` with `StepMarker` when steps are long; `StepSection collapsible={false}` when they fit on one screen |
+| Need                 | Use                                                                                                                                                            |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Tab title            | `useDocumentTitle('<Tool> · PGMaps')`, matching the tool's `h1`                                                                                                |
+| Hub card name        | The tool's `h1` exactly, in `DevForestry.tsx`                                                                                                                  |
+| Way back to the hub  | `ForestryBackLink`: `icon` in a sidebar or workspace header, `text` on a scrolling page                                                                        |
+| Local files          | `FileDropField`. It does not filter drops by `accept`; a tool that needs only some types filters in `onFiles`. An import of one file passes `multiple={false}` |
+| A numbered procedure | `TabBar` with `StepMarker` when steps are long; `StepSection collapsible={false}` when they fit on one screen                                                  |
 
 ## The three tool shapes
 

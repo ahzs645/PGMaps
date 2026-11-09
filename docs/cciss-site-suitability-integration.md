@@ -5,6 +5,29 @@ handoff, see [CCISS browser analysis](cciss-current-analysis.md). The source and
 numeric-map validation notes below remain relevant; the current-data importer
 adds a separate calculation path and does not change map product provenance.
 
+## Page layout
+
+`/dev/forestry/cciss-suitability` is a map with a sidebar, per the
+[forestry tool standard](forestry-tool-standard.md). `DevCcissSuitability.tsx` only
+composes; the parts live in `src/pages/cciss/`:
+
+- `useCcissWorkspace.ts` owns the shareable state (point, layer selection, map
+  source, trace method, open analysis) and writes it with `replaceState` on top of
+  the live URL. `CcissMap.tsx`'s `SyncMapUrl` writes the camera (`lng`, `lat`, `z`)
+  separately, so panning never moves an assessment's point.
+- `useRasterSource.ts` opens the hosted or local GeoTIFFs and reads the cell under
+  the point. `usePublishedTiles` checks CCISS's TileJSON only while original tiles
+  are shown.
+- The sidebar is one file per section: `AnalysesSection` (dialog launchers and the
+  folded "About" notes), `MapLayerSection`, `InspectSection` and
+  `RasterFilesSection`. The suitability legend is a `MapLegendPanel` on the map;
+  its colours and the layers' colours both come from `palette.ts`.
+- `AnalysisDialogs.tsx` opens one analysis at a time from `?analysis=`. Each dialog
+  is a `DialogShell` whose larger pages sit in their own files
+  (`CurrentWorkspace`, `LegacyPointComparison`, `ShinyReferenceResults`,
+  `ComparisonResults`). Imports use `FileImportField` (a single-file
+  `FileDropField`); the newest import wins through `useLatestRequest`.
+
 ## Scope
 
 Build a value-backed CCISS map and, separately, reproduce site-specific tree
