@@ -30,6 +30,9 @@ that fixes it, and add one, with the file and function, when you find a new defe
   holding a gap used to be blanked, so the visible cut rows summed to 2,536 m³ under a total of
   4,655 m³; it now reports the known part with a flag (`reportingRows`, `StationTable.tsx`). The
   first row of a narrowed range no longer counts the interval before the range.
+- A typed station is kept. 85 used to land on 80 and 716.1 on 720, and a pit added from the
+  selected station took the snapped value. The section is now evaluated at the typed chainage
+  (`roadStationAt`, `stationAt.ts`), and a value past either end says it was held to the road.
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter
   is still in the air (or underground) at the section reach, the plan used to drop the envelope

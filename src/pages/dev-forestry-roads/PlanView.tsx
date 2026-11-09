@@ -81,6 +81,8 @@ interface PlanProps {
   analyses: Map<string, RoadAnalysis>
   source: TerrainSource
   station: number
+  /** The selected station's record, when it was typed and lies between calculated stations. */
+  selectedStation?: RoadStation
   onStation: (station: number) => void
   onSelectAlignment: (id: string) => void
   mode: DrawMode
@@ -309,7 +311,7 @@ function Layers(
     () => (bounds ? buildTerrainDisplay(props.source, bounds, 192) : null),
     [bounds, props.source],
   )
-  const chosen = nearestStation(analysis.stations, props.station)
+  const chosen = props.selectedStation ?? nearestStation(analysis.stations, props.station)
   const activeCable = resolvedCables.find((c) => c.id === props.activeCableId)
   const originalCable = projectCables.find((c) => c.id === props.activeCableId)
   const cableCursor = useMemo(() => {

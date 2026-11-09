@@ -20,6 +20,7 @@ import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
+import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
@@ -562,6 +563,7 @@ export function ProfileChart({
   analysis,
   alignment,
   station,
+  selectedStation,
   onStation,
   onVerticalChange,
   onViewRangeChange,
@@ -573,6 +575,8 @@ export function ProfileChart({
   analysis: RoadAnalysis
   alignment: Alignment
   station: number
+  /** The selected station's record, when it was typed and lies between calculated stations. */
+  selectedStation?: RoadStation
   onStation: (chainage: number) => void
   onVerticalChange?: (points: VerticalPoint[]) => void
   onViewRangeChange?: (range: [number, number]) => void
@@ -707,10 +711,12 @@ export function ProfileChart({
     wheelSvg.addEventListener('wheel', onWheel, { passive: false })
     return () => wheelSvg.removeEventListener('wheel', onWheel)
   }, [wheelSvg])
-  const active = analysis.stations.reduce<RoadStation | undefined>(
-    (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
-    undefined,
-  )
+  const active =
+    selectedStation ??
+    analysis.stations.reduce<RoadStation | undefined>(
+      (best, s) => (!best || Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
+      undefined,
+    )
   const sorted = terrainOnly ? [] : [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
@@ -1533,7 +1539,11 @@ export function CrossSectionChart({
     !terrainOnly && station
       ? analysis?.engineering?.stations.find((s) => Math.abs(s.chainage - station.chainage) < 0.001)
       : undefined
-  const template = engineering?.template.template ?? alignment?.template
+  // A station typed between calculation stations has no engineering record; it still takes the
+  // template assigned at its own chainage.
+  const template =
+    engineering?.template.template ??
+    (alignment && station && !terrainOnly ? templateAt(alignment, station.chainage).template : alignment?.template)
   const culverts =
     !terrainOnly && station
       ? (analysis?.engineering?.culverts.filter((c) => Math.abs(c.chainage - station.chainage) < 0.001) ?? [])

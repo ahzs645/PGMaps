@@ -462,6 +462,15 @@ selected station, which follows the pointer along the road, always shows its ful
 readout (station · grade · ground Z) on the left of travel. The Labels checkbox hides
 labels, ticks and callouts together.
 
+A station typed into the station box is honoured exactly. Between two calculated stations
+the section is evaluated at the typed chainage (`roadStationAt`, `stationAt.ts`, through
+`createRoadStationSampler`), with the same terrain, template and reference rules as a
+calculated one, and the plan marker, profile, section and readout all show that station.
+A site, culvert or other item added "at the selected station" takes it. Such a station has
+no interval volumes, and its mass ordinate is read off the line between its neighbours. A
+value outside the road is held to the nearer end and the box says so. Pointing at a chart,
+the slider and the arrow keys still select calculated stations.
+
 Dense profiles stay readable. When PVIs fall under 44 px apart on screen (an optimized line,
 or a long road zoomed out), the profile drops curve bands and labels, thins station callouts
 to 30 px apart and shrinks the PVI handles. Zooming in brings them back. The mouse wheel or a
