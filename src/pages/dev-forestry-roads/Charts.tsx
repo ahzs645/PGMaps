@@ -529,6 +529,10 @@ function ChartSlot({
   )
 }
 
+/** Screen length a tangent needs for its "grade · length" label, and for the grade alone. */
+const FULL_GRADE_LABEL_PX = 100
+const GRADE_ONLY_LABEL_PX = 40
+
 const nearestOf = (stations: RoadStation[], chainage: number) =>
   stations.reduce<RoadStation | undefined>(
     (best, s) => (!best || Math.abs(s.chainage - chainage) < Math.abs(best.chainage - chainage) ? s : best),
@@ -1271,7 +1275,8 @@ export function ProfileChart({
                   />
                 )}
                 {gradeSpans
-                  .filter((span) => f.x(span.end) - f.x(span.start) > 100)
+                  // A tangent too short on screen for "grade · length" still shows its grade.
+                  .filter((span) => f.x(span.end) - f.x(span.start) > GRADE_ONLY_LABEL_PX)
                   .map((span) => {
                     const level = (chainage: number) => {
                       const nearest = nearestOf(analysis.stations, chainage)
@@ -1314,7 +1319,9 @@ export function ProfileChart({
                         pointerEvents="none"
                         data-grade-label
                       >
-                        {span.label}
+                        {f.x(span.end) - f.x(span.start) > FULL_GRADE_LABEL_PX
+                          ? span.label
+                          : span.label.split(' · ')[0]}
                         <title>{span.detail}</title>
                       </text>
                     )

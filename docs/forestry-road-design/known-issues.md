@@ -47,6 +47,8 @@ that fixes it, and add one, with the file and function, when you find a new defe
 - Delete removes the point selected for editing. Moving or removing a point on a road with a
   designed profile now says that its PVIs kept their stations; one 30 px drag had taken cut from
   2,603 to 21,181 m³ with no hint why.
+- Profile tangents too short on screen for their "grade · length" label (under 100 px) now show
+  the grade alone down to 40 px, so a 129 m tangent on a whole-road view is no longer unlabelled.
 - A typed station is kept. 85 used to land on 80 and 716.1 on 720, and a pit added from the
   selected station took the snapped value. The section is now evaluated at the typed chainage
   (`roadStationAt`, `stationAt.ts`), and a value past either end says it was held to the road.
