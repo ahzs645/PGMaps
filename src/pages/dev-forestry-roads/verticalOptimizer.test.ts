@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeRoad, offsetCoordinate } from './engine'
+import { analyzeRoad, offsetCoordinate, verticalCurveSummary } from './engine'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import {
   designElevationAt,
@@ -116,6 +116,91 @@ describe('profile optimizer controls', () => {
     expect(() => optimizeVerticalProfile(road(600), 600, terrain, settings)).toThrow(
       /between 0\+550\.0 and 0\+600\.0\..*the road end is tied to ground at \d+\.\d\d m\. Widen “Search ±” so the line can cut or fill more, loosen what holds it/,
     )
+  })
+})
+
+describe('profile optimizer vertical curves', () => {
+  /** Rolling ground: three sine waves on a slope. Each set is one where simplifying used to cost a curve. */
+  const rolling = (a: number[], w: number[], p: number[], slope: number): TerrainSource => ({
+    elevationAt: (lon, lat) => {
+      const [x, y] = local(lon, lat)
+      return (
+        800 +
+        slope * x +
+        a[0] * Math.sin(x / w[0] + p[0]) +
+        a[1] * Math.sin(x / w[1] + p[1]) +
+        a[2] * Math.sin(x / w[2] + p[2]) +
+        0.05 * y
+      )
+    },
+  })
+  const cases: [number, TerrainSource][] = [
+    [
+      10,
+      rolling(
+        [1.5787274539470673, 1.2537609338760376, 1.1088279366493226],
+        [113.95418167114258, 27.102200984954834, 20.317282497882843],
+        [2.0312726497650146, 5.767273664474487, 4.834645986557007],
+        -0.017499828338623048,
+      ),
+    ],
+    [
+      10,
+      rolling(
+        [3.9386297166347504, 0.9776630401611328, 0.6954344093799592],
+        [71.86892509460449, 33.87234419584274, 18.333301067352295],
+        [5.3988518714904785, 3.686558246612549, 0.7174515724182129],
+        0.019006772041320803,
+      ),
+    ],
+    [
+      20,
+      rolling(
+        [1.672194480895996, 1.3490734696388245, 1.2357494115829468],
+        [74.52536582946777, 52.007581889629364, 17.26402711868286],
+        [3.3360114097595215, 4.163608074188232, 2.0718398094177246],
+        0.05041034698486328,
+      ),
+    ],
+    [
+      20,
+      rolling(
+        [3.0122143030166626, 2.2239692211151123, 1.005656886100769],
+        [104.11463737487793, 51.55938744544983, 13.305221319198608],
+        [2.300839841365814, 1.25059175491333, 2.8181979060173035],
+        -0.007541179656982422,
+      ),
+    ],
+  ]
+
+  it('returns only profiles whose curves the engine builds, at the K asked for', () => {
+    for (const [k, terrain] of cases) {
+      const result = optimizeVerticalProfile(road(400), 400, terrain, settings, { k })
+      const designed = { ...road(400), vertical: result.vertical }
+      const curves = verticalCurveSummary(designed)
+      // Simplifying these lines left two curves overlapping, which the engine dropped without a word.
+      expect(curves.filter((curve) => !curve.valid)).toEqual([])
+      expect(curves.every((curve) => curve.k === null || curve.k >= k - 1e-6)).toBe(true)
+      // Every grade break has its curve: none is left unrounded.
+      const breaks = result.vertical.slice(1, -1).filter((p, i) => {
+        const before = result.vertical[i],
+          after = result.vertical[i + 2]
+        const g1 = (p.elevation - before.elevation) / (p.chainage - before.chainage),
+          g2 = (after.elevation - p.elevation) / (after.chainage - p.chainage)
+        return Math.abs(g2 - g1) * 100 > 0.05
+      })
+      expect(breaks.every((p) => p.curveLength > 0)).toBe(true)
+      const warnings = analyzeRoad(designed, terrain, settings).warnings
+      expect(warnings.filter((warning) => /tangent grades are retained/.test(warning))).toEqual([])
+    }
+  })
+
+  it('still simplifies where a finer tolerance keeps every curve', () => {
+    const [k, terrain] = cases[0]
+    const result = optimizeVerticalProfile(road(400), 400, terrain, settings, { k })
+    const unsimplified = optimizeVerticalProfile(road(400), 400, terrain, settings, { k, simplifyToleranceM: 0 })
+    expect(result.vertical.length).toBeLessThanOrEqual(unsimplified.vertical.length)
+    expect(result.message).toMatch(/K ≥ 10/)
   })
 })
 

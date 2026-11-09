@@ -77,7 +77,7 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Section solves                | 60,000 (`maxSectionSolves`)                                       | `verticalOptimizer.ts`                               | Error: widen spacing or coarsen the step                     |
 | Depth band between PVIs       | ± (search ± plus about four level steps); ±7 m at defaults        | `verticalOptimizer.ts` `rows`                        | Station priced as incomplete                                 |
 | Incomplete-section penalty    | $5,000 per m (`incompletePenaltyPerM`)                            | `verticalOptimizer.ts`                               | Added to the search cost only                                |
-| Simplification                | 0.3 m; kept if cost rises at most 1 % + $1                        | `verticalOptimizer.ts` `finish`                      | Unsimplified line kept                                       |
+| Simplification                | 0.3 m, then 0.15 and 0.075 m; kept if cost rises at most 1 % + $1 | `verticalOptimizer.ts` `finish`, `SIMPLIFY_SHARES`   | Unsimplified line kept                                       |
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)             | `verticalOptimizer.ts` `prices`                      | —                                                            |
 
 The dynamic programme runs on the page's main thread in slices of about 12 ms
@@ -278,6 +278,13 @@ and last tangents are exempt from the minimum tangent length.
   the end.
 - Curves keep their required lengths rather than being silently shortened below K. The complete
   fitted result is rechecked against every standard and control before returning.
+- **Every curve of a returned profile is built.** The engine drops a vertical curve that does not
+  fit its tangents or overlaps its neighbour and keeps the tangent grades, so a result is read back
+  through the engine's own curve fit (`curveFault`). A line with a dropped or short curve is
+  repaired by taking out the free PVI nearest the line through its neighbours, which lengthens the
+  tangents (`withFittedCurves`); the log counts the PVIs removed. If only controls and the road
+  ends are left to remove, that trial line fails and the message names the grade break, the curve
+  it needs and the tangent it has.
 - Elevation controls are corrected against the actual parabolic profile in at most 24 bounded
   iterations, then rechecked. This handles the middle-ordinate shift at a control on a grade break.
   An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
@@ -456,8 +463,11 @@ segment drops about 25 %. Before you accept an untied result, pin each end with 
 point at the elevation it must meet and run again.
 
 **Simplification.** The search places a PVI every spacing step. Douglas–Peucker at 0.3 m then
-drops PVIs, and the simpler line is kept only if it has no vertical check failures, no grade
-over the limit, no less coverage and no more than 1 % + $1 extra objective cost.
+drops PVIs, and the simpler line is kept only if every one of its curves still fits, it has no
+vertical check failures, no grade over the limit, no less coverage and no more than 1 % + $1 extra
+objective cost. Fewer PVIs mean larger grade changes and longer curves, and two of them can meet on
+a short tangent: on rolling 400 m roads that happened on 2 of 25 terrains at K 10 and 6 of 25 at
+K 20. Half and a quarter of the tolerance are then tried, and the message gives the one used.
 Both simplified and unsimplified candidates must pass the final vertical standards,
 controls and road-wide grade checks before a result is returned. If no tested candidate
 passes, optimization reports an error and creates no road.
@@ -485,7 +495,8 @@ holds there, the objective, then steepest grade, cut and fill, waste or borrow a
 full analysis of the returned line. Waste is usable cut left after filling, as bank volume; borrow
 is fill still needed. Notes underneath say what the run could not do: length with no complete
 section, PVIs moved off gaps, earthwork out of balance by more than a tenth of cut plus fill (and
-50 m³), an untied end left above or below ground, and trial lines dropped after curve fitting. The
+50 m³), an untied end left above or below ground, PVIs taken out so every curve fits, and trial lines
+dropped after curve fitting. The
 log belongs to the road or named profile the run produced and goes when you open another.
 
 **Budget-limited.** The corridor optimizer can return a verified candidate after reaching its

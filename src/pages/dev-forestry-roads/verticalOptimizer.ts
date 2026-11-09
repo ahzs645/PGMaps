@@ -16,7 +16,7 @@
  * one go, `optimizeVerticalProfileAsync` hands the page a turn between slices and can be cancelled.
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
-import { analyzeRoad, positionAt, sectionAreasAt } from './engine'
+import { analyzeRoad, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
 import { gradeWindowAt, curvatureRuleAt, formatStation, type VerticalControl } from './verticalStandards'
 import { simplifyProfile } from './verticalTools'
 import type { Alignment, ContextFeature, RoadSettings, TerrainSource, VerticalPoint } from './types'
@@ -135,6 +135,8 @@ export interface VerticalOptimizationReport {
 }
 
 const EPS = 1e-9
+/** Shares of the simplification tolerance tried, widest first, until a line's curves all fit. */
+const SIMPLIFY_SHARES = [1, 0.5, 0.25]
 const pct = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
 
 /** Fitted parabolic profile, including endpoint tangent extension; independent of terrain. */
@@ -776,6 +778,67 @@ function* profileSearch(
   const earthwork = (a: ReturnType<typeof check>) =>
     a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
   const score = (a: ReturnType<typeof check>) => (o.objective === 'total' ? a.estimatedCost : earthwork(a))
+  /**
+   * The first grade break of a line whose curve the road engine would not build: one that does not
+   * fit its tangents or overlaps its neighbour, which the engine drops, or one shorter than the K
+   * limits ask. Null when every curve is applied at its full length. The search keeps curves inside
+   * their tangents, but dropping PVIs afterwards lengthens the curves that are left.
+   */
+  const curveFault = (line: VerticalPoint[]): { index: number; message: string } | null => {
+    const summary = verticalCurveSummary({ ...alignment, vertical: line })
+    for (let i = 1; i < line.length - 1; i++) {
+      const p = line[i]
+      const g1 = (100 * (p.elevation - line[i - 1].elevation)) / (p.chainage - line[i - 1].chainage),
+        g2 = (100 * (line[i + 1].elevation - p.elevation)) / (line[i + 1].chainage - p.chainage)
+      const needed = curveLength(p.chainage, g1, g2)
+      if (!(needed > 0)) continue
+      const built = summary.find((curve) => curve.pviId === p.id)
+      if (built?.valid && built.length >= needed - 1e-6) continue
+      const at = `${formatStation(p.chainage)} (${pct(g1)} to ${pct(g2)})`
+      if (!Number.isFinite(needed))
+        return { index: i, message: `The grade changes at ${at}, inside a straight-grade-only range.` }
+      const room =
+        built?.reason === 'overlap'
+          ? `the curves beside it leave ${Math.min(built.backM, built.aheadM).toFixed(1)} m of tangent for its ${(needed / 2).toFixed(1)} m half`
+          : `the PVIs either side are ${(p.chainage - line[i - 1].chainage).toFixed(0)} m and ${(line[i + 1].chainage - p.chainage).toFixed(0)} m away`
+      return {
+        index: i,
+        message: `The grade change at ${at} needs a ${needed.toFixed(1)} m vertical curve, and ${room}.`,
+      }
+    }
+    return null
+  }
+  /**
+   * A line whose curves all fit, made from one that has a curve the engine would drop by taking out
+   * PVIs: fewer PVIs leave longer tangents. Each pass removes, of the faulty break and its
+   * neighbours, the free PVI that sits nearest the line through the PVIs either side of it. Null
+   * when only controls and the road ends are left to remove.
+   */
+  const withFittedCurves = (input: VerticalPoint[]): VerticalPoint[] | null => {
+    let line = input
+    const held = (p: VerticalPoint) => controls.some((c) => Math.abs(c.chainage - p.chainage) < 1e-6)
+    for (let pass = 0; pass < input.length; pass++) {
+      const fault = curveFault(line)
+      if (!fault) return line
+      let drop = -1,
+        least = Infinity
+      for (const i of [fault.index - 1, fault.index, fault.index + 1]) {
+        if (i <= 0 || i >= line.length - 1 || held(line[i])) continue
+        const a = line[i - 1],
+          b = line[i + 1]
+        const chord =
+          a.elevation + ((b.elevation - a.elevation) * (line[i].chainage - a.chainage)) / (b.chainage - a.chainage)
+        const off = Math.abs(line[i].elevation - chord)
+        if (off < least) {
+          least = off
+          drop = i
+        }
+      }
+      if (drop < 0) return null
+      line = fitElevationControls(fitted(line.filter((_, i) => i !== drop)))
+    }
+    return curveFault(line) ? null : line
+  }
   // Drop PVIs with no grade change, size curves from K within their tangents, then simplify if it costs ≤ 1%.
   const finish = (chosen: number[]) => {
     // A level a control depends on stays exact; every other level is a whole millimetre.
@@ -791,33 +854,47 @@ function* profileSearch(
       return Math.abs(g2 - g1) * 100 > 0.05
     })
     let vertical = fitElevationControls(fitted(kept))
+    // Rounding levels and settling a control on its curve can lengthen a curve past its tangent.
+    let unfitted = curveFault(vertical)
+    let repaired = 0
+    if (unfitted) {
+      const sound = withFittedCurves(vertical)
+      if (sound) {
+        repaired = vertical.length - sound.length
+        vertical = sound
+        unfitted = null
+      }
+    }
     let analysis = check(vertical)
-    let simplified = false
-    if (o.simplifyToleranceM > 0 && vertical.length > 3) {
-      const lighter = fitElevationControls(
-        fitted(
-          simplifyProfile(
-            vertical,
-            o.simplifyToleranceM,
-            controls.map((c) => c.chainage),
+    let simplified = 0
+    if (o.simplifyToleranceM > 0 && vertical.length > 3 && !unfitted)
+      // A simpler line has longer curves, and two of them can meet. Then a finer tolerance is tried.
+      for (const share of SIMPLIFY_SHARES) {
+        const toleranceM = o.simplifyToleranceM * share
+        const lighter = fitElevationControls(
+          fitted(
+            simplifyProfile(
+              vertical,
+              toleranceM,
+              controls.map((c) => c.chainage),
+            ),
           ),
-        ),
-      )
-      if (lighter.length < vertical.length) {
+        )
+        if (lighter.length >= vertical.length) break
+        if (curveFault(lighter)) continue
         const light = check(lighter)
         const ok =
           !light.verticalChecks?.length &&
           light.maxGradePercent <= settings.maxGradePercent + 1e-6 &&
           light.coveragePercent >= analysis.coveragePercent - 1e-6 &&
           score(light) <= score(analysis) * 1.01 + 1
-        if (ok) {
-          vertical = lighter
-          analysis = light
-          simplified = true
-        }
+        if (!ok) continue
+        vertical = lighter
+        analysis = light
+        simplified = toleranceM
+        break
       }
-    }
-    return { vertical, analysis, simplified }
+    return { vertical, analysis, simplified, unfitted: unfitted?.message ?? '', repaired }
   }
   // Total cost: the DP cannot carry a running mass balance, so price interval imbalance at a few
   // levels and keep the line the full analysis (haul, borrow, waste) prices lowest.
@@ -837,6 +914,8 @@ function* profileSearch(
     // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it
     // outside a station-range limit. Only a rechecked candidate can be adopted.
     const checkFailure =
+      (result.unfitted &&
+        `${result.unfitted} Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`) ||
       result.analysis.verticalChecks?.[0]?.message ||
       (o.objective === 'total' && result.analysis.crossingEstimate?.complete === false
         ? 'Stream crossing estimates need review or prices before total-cost optimization.'
@@ -898,6 +977,10 @@ function* profileSearch(
         `The road ${label} is not tied: the line is ${Math.abs(at - ground).toFixed(1)} m ${at > ground ? 'above' : 'below'} ground there.`,
       )
   }
+  if (chosenResult.repaired)
+    notes.push(
+      `${chosenResult.repaired} PVI${chosenResult.repaired === 1 ? ' was' : 's were'} taken out so that every vertical curve fits its tangents.`,
+    )
   if (failedLines)
     notes.push(
       `${failedLines} of ${prices.length} trial lines failed a check once curves were fitted and were dropped: ${failedCheck}`,
@@ -913,7 +996,7 @@ function* profileSearch(
     pviCount: vertical.length,
     levelsPerPvi: 2 * ladder + 1,
     sectionSolves: solves,
-    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m around ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult.price.toFixed(2)}/m³` : ''}.`,
+    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${Number(simplified.toFixed(3))} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m around ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult.price.toFixed(2)}/m³` : ''}.`,
     report: {
       roadLengthM: length,
       objective: o.objective,
@@ -922,7 +1005,7 @@ function* profileSearch(
         spacingM: Math.max(...segments.map((segment) => segment[1].s - segment[0].s)),
         solves,
       },
-      pvis: { searched: n, spacingM: length / count, kept: vertical.length, simplified, movedOffGaps },
+      pvis: { searched: n, spacingM: length / count, kept: vertical.length, simplified: simplified > 0, movedOffGaps },
       band: { centre: o.bandCenter, depthM: o.maxDepthM, levelStepM: o.levelStepM, levelsPerPvi: 2 * ladder + 1 },
       limits: {
         maxGradePercent: settings.maxGradePercent,
