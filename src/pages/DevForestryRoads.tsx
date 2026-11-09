@@ -125,6 +125,7 @@ import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scen
 import type { AccessHistorySelection } from './dev-forestry-roads/AccessHistorySelection'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { replaceableRouteAlternatives, terrainCostAlternatives } from './dev-forestry-roads/routeAlternatives'
+import { ProfileSwitcher } from './dev-forestry-roads/ProfileSwitcher'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
@@ -3132,6 +3133,7 @@ export default function DevForestryRoads() {
                         <FullscreenPanel
                           actions={
                             <>
+                              {!terrainProfile && <ProfileSwitcher workspace={w} disabled={!!busy} />}
                               {chartSlot}
                               {closePanel('profile')}
                             </>

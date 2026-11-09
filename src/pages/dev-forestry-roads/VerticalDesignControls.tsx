@@ -129,7 +129,9 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       const { notes } = result.report
       workspace.setNotice(
         `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original ${resultTarget === 'vertical' ? 'profile' : 'road'} is kept as an alternative.` +
-          (resultTarget === 'vertical' ? ' Switch between profiles under “Profiles on this road”.' : '') +
+          (resultTarget === 'vertical'
+            ? ' Switch between this road’s profiles from the list in the profile pane’s header; compare them under Compare → Profiles on this road.'
+            : '') +
           (notes.length
             ? ` ${notes.length === 1 ? notes[0] : `${notes.length} things to check are listed under “Last run”.`}`
             : ''),
