@@ -34,6 +34,11 @@ that fixes it, and add one, with the file and function, when you find a new defe
   CSV button that exports the table at its reporting interval. The Station CSV gained four columns
   after `mass_balance_m3` (`interval_surfacing_volume_m3`, `interval_stripping_bank_m3`,
   `interval_borrow_compacted_m3`, `interval_waste_bank_m3`), so read it by header, not by position.
+- A curve that does not fit says so where it was typed. A horizontal radius of 2000 used to become
+  1000 without a word (the field's own limit, now the engine's 10,000 m), and an unfitted radius or
+  vertical curve showed only in Stations → Curves or as "Unfitted" in a table. The note under the
+  field gives the tangent needed, what is available and the largest value that fits
+  (`horizontalCurveFits`, `engine.ts`; `curveFit.ts`).
 - A typed station is kept. 85 used to land on 80 and 716.1 on 720, and a pit added from the
   selected station took the snapped value. The section is now evaluated at the typed chainage
   (`roadStationAt`, `stationAt.ts`), and a value past either end says it was held to the road.

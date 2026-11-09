@@ -12,7 +12,8 @@ import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
 import { SwitchbackTools } from '../SwitchbackTools'
 import { VerticalDesignControls } from '../VerticalDesignControls'
-import { distance } from '../engine'
+import { horizontalFitNote, limitedRadius, verticalFitNote } from '../curveFit'
+import { distance, horizontalCurveFits, verticalCurveSummary } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import { MAX_GROUND_WINDOW_M, resolvedGroundWindow } from '../groundTrend'
 import type { RoadOptimizationObjective } from '../corridorOptimizer'
@@ -589,6 +590,19 @@ function HorizontalPoints(p: SidebarProps) {
         x.id === point?.id ? { ...x, coordinate: axis === 0 ? [value, x.coordinate[1]] : [x.coordinate[0], value] } : x,
       ),
     }))
+  // What became of the radius typed at this point: held to the range, or not fitted to its legs.
+  const [limited, setLimited] = useState<{ pointId: string; radiusM: number; note: string } | null>(null)
+  const limitedNote =
+    limited && limited.pointId === point?.id && limited.radiusM === point.radiusM ? limited.note : null
+  const fitNote = useMemo(() => {
+    if (!point) return null
+    try {
+      return horizontalFitNote(horizontalCurveFits(alignment).find((fit) => fit.pointId === point.id))
+    } catch {
+      // An alignment that cannot be compiled is reported by the workspace.
+      return null
+    }
+  }, [alignment, point])
   return (
     <RoadSection
       title="Horizontal points"
@@ -677,17 +691,27 @@ function HorizontalPoints(p: SidebarProps) {
               step={0.00001}
               onChange={(value) => movePoint(1, value)}
             />
+            {/* The field's own limit would change a typed value without a word; `limitedRadius` says so. */}
             <NumberField
               label="Horizontal radius (m)"
               value={point.radiusM}
-              max={1000}
+              max={1e9}
               step={1}
-              onChange={(radiusM) =>
+              onChange={(entered) => {
+                const { radiusM, note } = limitedRadius(entered)
+                // Leaving the field repeats the value now shown; that must not withdraw the note.
+                setLimited((shown) =>
+                  note
+                    ? { pointId: point.id, radiusM, note }
+                    : shown?.pointId === point.id && shown.radiusM === radiusM
+                      ? shown
+                      : null,
+                )
                 updateAlignment((a) => ({
                   ...a,
                   points: a.points.map((x) => (x.id === point.id ? { ...x, radiusM } : x)),
                 }))
-              }
+              }}
             />
             <NumberField
               label="Spiral length each side (m)"
@@ -707,6 +731,11 @@ function HorizontalPoints(p: SidebarProps) {
               }
             />
           </div>
+          {(limitedNote || fitNote) && (
+            <div data-testid="road-radius-note">
+              <InlineAlert tone="warning">{[limitedNote, fitNote].filter(Boolean).join(' ')}</InlineAlert>
+            </div>
+          )}
           <Button
             variant="ghost"
             size="sm"
@@ -766,6 +795,15 @@ function HorizontalPoints(p: SidebarProps) {
 
 function VerticalAlignment(p: SidebarProps) {
   const { alignment, analysis, updateAlignment } = p.workspace
+  // Why an entered vertical curve was not applied, by PVI.
+  const fitNotes = useMemo(() => {
+    try {
+      return new Map(verticalCurveSummary(alignment).map((curve) => [curve.pviId, verticalFitNote(curve)]))
+    } catch {
+      // Invalid PVIs are reported by the workspace.
+      return new Map<string, string | null>()
+    }
+  }, [alignment])
   const addPvi = () => {
     const at = analysis.stations.reduce(
       (best, s) =>
@@ -824,6 +862,15 @@ function VerticalAlignment(p: SidebarProps) {
           <div className="space-y-1">
             {alignment.vertical.map((v, i) => (
               <div key={v.id} className="grid grid-cols-[1.5rem_repeat(3,minmax(0,1fr))_1.5rem] items-center gap-1">
+                {fitNotes.get(v.id) && (
+                  <p
+                    className="order-last col-span-full text-2xs text-amber-800 dark:text-amber-300"
+                    role="status"
+                    data-testid="road-pvi-curve-note"
+                  >
+                    {fitNotes.get(v.id)}
+                  </p>
+                )}
                 <button
                   className="text-left text-2xs font-medium tabular-nums text-muted-foreground hover:text-foreground"
                   title={`Go to ${formatRoadStation(v.chainage)}`}

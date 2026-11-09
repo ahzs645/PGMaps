@@ -16,7 +16,9 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 
 - **No sharp PIs left.** A corner with radius 0, or a radius that does not fit its tangents,
   stays a sharp PI. The station is flagged "Sharp horizontal PI: curve required" and the
-  workspace warns. Route and corridor results start as new roads, so check them again.
+  workspace warns. Select the point in **Horizontal points**: the note under its radius gives the
+  tangent the curve needs, the leg or neighbouring curve that is short, and the largest radius
+  that fits. Route and corridor results start as new roads, so check them again.
 - **Radii checked against the speed, not only the minimum.** The minimum-radius flag compares
   each arc with the road-wide **Minimum radius** (default 25 m, `DEFAULT_ROAD_SETTINGS` in
   `terrain.ts`). With curve design enabled, required versus capped superelevation is checked too; conflicting curves are flagged and fail the final connector gate. See
@@ -44,9 +46,9 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | ------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | Horizontal points per alignment             | 2,000                                    | `engine.ts` `compile`                                                      | Error                                                           |
 | Alignment length; distance from first point | 100 km each                              | `engine.ts` `compile`                                                      | Error                                                           |
-| Horizontal radius                           | 0–10,000 m                               | `engine.ts` `compile`, `project.ts`                                        | Error                                                           |
-| Curve tangent (trim)                        | must be shorter than both legs           | `engine.ts` `compile`                                                      | Sharp PI kept, warning                                          |
-| Adjacent curves                             | trims must not overlap on the shared leg | `engine.ts` `compile`                                                      | Both become sharp PIs, warning                                  |
+| Horizontal radius                           | 0–10,000 m                               | `engine.ts` `MAX_HORIZONTAL_RADIUS_M`, `project.ts`                        | Error; the radius field holds it and says so                    |
+| Curve tangent (trim)                        | must be shorter than both legs           | `engine.ts` `compile`                                                      | Sharp PI kept, warning, note under the radius field             |
+| Adjacent curves                             | trims must not overlap on the shared leg | `engine.ts` `compile`                                                      | Both become sharp PIs, warning, note naming the neighbour       |
 | Spiral length each side                     | 0–2,000 m                                | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
 | Spiral against deflection                   | Ls / R must be less than Δ               | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
 | Bulk fit: tangent use                       | 98 % of each leg (`FIT`)                 | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
@@ -64,7 +66,7 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | PVIs per alignment            | 500, at least 1 mm apart                                          | `engine.ts` `verticalProfile`                        | Error                                                        |
 | PVI drag in the profile       | at least 5 m from each neighbour; adjacent tangents at most 100 % | `verticalTools.ts` `MIN_PVI_GAP_M`, `MAX_DRAG_GRADE` | Drag stops at the limit                                      |
 | Tangent steeper than 100 %    | allowed when typed, with a warning naming the two PVIs            | `engine.ts` `verticalProfile`                        | Warning                                                      |
-| Vertical curve                | half its length must fit each adjoining tangent                   | `engine.ts` `verticalProfile`                        | Curve dropped, warning                                       |
+| Vertical curve                | half its length must fit each adjoining tangent                   | `engine.ts` `verticalProfile`                        | Curve dropped, warning, note under the PVI                   |
 | PVI spacing                   | at least 10 m (UI 10–1,000 m)                                     | `verticalOptimizer.ts`, `VerticalDesignControls.tsx` | Error                                                        |
 | Search ±, level step, K       | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search        | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
 | Level transitions             | 5,000,000 across all price runs (`maxTransitions`)                | `verticalOptimizer.ts`                               | Error: coarsen the level step, reduce depth or widen spacing |
@@ -383,12 +385,12 @@ engineering assumptions and sampling, and review the geometric and material flag
 
 | Symptom                                                                   | Likely cause                                                                                                 | What to do                                                             |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| "Curve at point _n_ does not fit its tangents; the sharp PI is retained." | Radius too large for the legs                                                                                | Shorten the radius, move PIs apart, or run **Fit sharp corners**       |
+| "Curve at point _n_ does not fit its tangents; the sharp PI is retained." | Radius too large for the legs                                                                                | Use the radius the note gives, move PIs apart, **Fit sharp corners**   |
 | "Curve at point _n_ overlaps an adjacent curve"                           | Two trims share a short leg                                                                                  | Reduce one radius or lengthen the leg                                  |
 | "Spirals at point _n_ are longer than its deflection allows"              | Ls / R at least Δ                                                                                            | Shorten the spirals or raise the radius                                |
 | Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent                                                     | Inspect the crossfall rotation rate and lengthen the tangent if needed |
 | Design speed requires more e than the maximum                             | Radius below V²/(127(e + f)); geometry is capped and flagged                                                 | Increase radius, reduce speed or review the sourced criteria           |
-| "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Shorten the curve or use **Set every curve from K**                    |
+| "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Use the length the note gives, or **Set every curve from K**           |
 | Optimized profile fails a standard                                        | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints   |
 | Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |

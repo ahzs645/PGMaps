@@ -10,6 +10,7 @@ import {
 import { TabBar } from '@/components/ui/tab-bar'
 import { NumberField } from './Controls'
 import { nearestStation, verticalCurveSummary } from './engine'
+import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
 import { SweptPathPanel } from './SweptPathPanel'
 import type { SweptManeuver, SweptPathResult } from './sweptPath'
@@ -217,7 +218,11 @@ export function DesignSchedules({
                         <td>{fmt(curve?.k)}</td>
                         <td
                           className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
-                          title={status === 'Tangent' ? 'Tangent break: no vertical curve' : undefined}
+                          title={
+                            status === 'Tangent'
+                              ? 'Tangent break: no vertical curve'
+                              : (verticalFitNote(curve) ?? undefined)
+                          }
                         >
                           {status}
                         </td>

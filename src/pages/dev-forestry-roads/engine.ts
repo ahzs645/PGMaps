@@ -116,6 +116,36 @@ type Path = {
   sharp: number[]
   boundaries: number[]
   first: Coordinate
+  fits: HorizontalCurveFit[]
+}
+
+/** The largest radius a horizontal point may carry. */
+export const MAX_HORIZONTAL_RADIUS_M = 10000
+
+/**
+ * How the radius entered at an interior horizontal point was applied. A curve needs `tangentM` of
+ * each leg, measured from the point; `backM` and `aheadM` are what each leg has left for it once a
+ * fitted neighbour has taken its own tangent.
+ */
+export interface HorizontalCurveFit {
+  pointId: string
+  /** 1-based, as the point is numbered everywhere else. */
+  point: number
+  radiusM: number
+  /**
+   * `fitted`; `sharp` (no radius entered); `straight` (no deflection to round); `tangent` (the
+   * curve needs more tangent than a leg has); `overlap` (it fits its legs alone, but not together
+   * with the neighbouring curve on a shared leg); `reversal` (the road doubles back on itself).
+   */
+  status: 'fitted' | 'sharp' | 'straight' | 'tangent' | 'overlap' | 'reversal'
+  deflectionDegrees: number
+  tangentM: number
+  backM: number
+  aheadM: number
+  /** The neighbouring point whose curve shares the short leg, for `overlap`. */
+  neighbourPoint?: number
+  /** The largest simple-curve radius the legs allow as the neighbours stand; null with spirals or no room. */
+  maxRadiusM: number | null
 }
 
 /** Clothoid heading and position at distance t, by Simpson's rule on the heading function. */
@@ -184,6 +214,7 @@ function compile(alignment: Alignment): Path {
     spiral?: { length: number; thetaS: number; psi0: number; sign: number }
   }
   const curves: Array<Fillet | null> = nodes.map(() => null)
+  const fits: Array<HorizontalCurveFit | undefined> = nodes.map(() => undefined)
   for (let i = 1; i < nodes.length - 1; i++) {
     const a = sub(nodes[i].xy, nodes[i - 1].xy),
       b = sub(nodes[i + 1].xy, nodes[i].xy)
@@ -191,8 +222,20 @@ function compile(alignment: Alignment): Path {
       v = unit(b),
       theta = Math.acos(clamp(u[0] * v[0] + u[1] * v[1], -1, 1))
     const radius = nodes[i].radiusM
-    if (!Number.isFinite(radius) || radius < 0 || radius > 10000)
+    if (!Number.isFinite(radius) || radius < 0 || radius > MAX_HORIZONTAL_RADIUS_M)
       throw new Error('Horizontal curve radii must be between 0 and 10,000 m.')
+    const fit: HorizontalCurveFit = {
+      pointId: nodes[i].id,
+      point: i + 1,
+      radiusM: radius,
+      status: theta < 1e-5 ? 'straight' : radius ? 'fitted' : 'sharp',
+      deflectionDegrees: theta / RAD,
+      tangentM: 0,
+      backM: norm(a),
+      aheadM: norm(b),
+      maxRadiusM: null,
+    }
+    fits[i] = fit
     if (!radius || theta < 1e-5) continue
     let spiralLength = Math.max(0, nodes[i].spiralM ?? 0)
     if (spiralLength > 0 && spiralLength / radius >= theta - 1e-6) {
@@ -201,7 +244,9 @@ function compile(alignment: Alignment): Path {
       spiralLength = 0
     }
     const { trim, thetaS } = spiralTangent(radius, theta, spiralLength)
+    fit.tangentM = trim
     if (theta > Math.PI - 1e-4 || trim >= norm(a) - EPS || trim >= norm(b) - EPS) {
+      fit.status = theta > Math.PI - 1e-4 ? 'reversal' : 'tangent'
       warnings.push(`Curve at point ${i + 1} does not fit its tangents; the sharp PI is retained.`)
       continue
     }
@@ -230,6 +275,27 @@ function compile(alignment: Alignment): Path {
       overlapping.add(i)
       overlapping.add(i + 1)
     }
+  }
+  // What each leg has left for a curve once a neighbour that does fit has taken its tangent. An
+  // overlapping pair is judged against each other's entered tangents, which is why neither fits.
+  const trims = curves.map((c) => c?.trim ?? 0)
+  for (const fit of fits) {
+    if (!fit) continue
+    const i = fit.point - 1
+    const back = fit.backM - trims[i - 1],
+      ahead = fit.aheadM - trims[i + 1]
+    if (overlapping.has(i)) {
+      fit.status = 'overlap'
+      fit.neighbourPoint = back <= ahead ? i : i + 2
+    }
+    fit.backM = Math.max(0, back)
+    fit.aheadM = Math.max(0, ahead)
+    const half = Math.tan((fit.deflectionDegrees * RAD) / 2)
+    const room = Math.min(fit.backM, fit.aheadM)
+    fit.maxRadiusM =
+      fit.status === 'straight' || fit.status === 'reversal' || nodes[i].spiralM || half < 1e-9 || room <= EPS
+        ? null
+        : Math.min(MAX_HORIZONTAL_RADIUS_M, room / half)
   }
   for (const i of overlapping) {
     curves[i] = null
@@ -314,7 +380,21 @@ function compile(alignment: Alignment): Path {
     warnings.push(
       `${sharp.length} horizontal PI${sharp.length === 1 ? ' has' : 's have'} no fitted curve; review the sharp corners.`,
     )
-  return { pieces, length, frame: f, warnings, sharp, boundaries, first }
+  return {
+    pieces,
+    length,
+    frame: f,
+    warnings,
+    sharp,
+    boundaries,
+    first,
+    fits: fits.filter((fit): fit is HorizontalCurveFit => !!fit),
+  }
+}
+
+/** How each interior point's entered radius was applied: fitted, or why not and what would fit. */
+export function horizontalCurveFits(alignment: Alignment): HorizontalCurveFit[] {
+  return compile(alignment).fits
 }
 
 function location(
@@ -689,10 +769,16 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
       warnings.push(
         `The tangent from ${pv[i].chainage.toFixed(1)} m to ${pv[i + 1].chainage.toFixed(1)} m is ${(100 * slope(i)).toLocaleString('en-CA', { maximumFractionDigits: 0 })} %: check for PVIs placed almost on top of each other.`,
       )
+  const reasons: Array<'tangent' | 'overlap' | 'end' | undefined> = pv.map(() => undefined)
   const curves = pv.map((p, i) => {
-    if (!p.curveLength || !i || i === pv.length - 1) return null
+    if (!p.curveLength) return null
+    if (!i || i === pv.length - 1) {
+      reasons[i] = 'end'
+      return null
+    }
     const half = p.curveLength / 2
     if (half > p.chainage - pv[i - 1].chainage || half > pv[i + 1].chainage - p.chainage) {
+      reasons[i] = 'tangent'
       warnings.push(
         `Vertical curve at ${p.chainage.toFixed(1)} m does not fit its tangents; tangent grades are retained.`,
       )
@@ -713,7 +799,10 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
       overlaps.add(i)
       overlaps.add(i + 1)
     }
+  // The tangent each side has left for a curve once a fitted neighbour has taken its half.
+  const halves = curves.map((c) => (c ? c.length / 2 : 0))
   for (const i of overlaps) {
+    reasons[i] = 'overlap'
     curves[i] = null
     warnings.push(
       `Vertical curve at ${pv[i].chainage.toFixed(1)} m overlaps its neighbour; tangent grades are retained.`,
@@ -734,6 +823,13 @@ function verticalProfile(points: VerticalPoint[], warnings: string[]) {
             ? p.curveLength / (100 * Math.abs(slope(i) - slope(i - 1)))
             : null,
         valid: curves[i] !== null,
+        /** Why an entered curve was not applied; undefined when it was. */
+        reason: reasons[i],
+        /** 1-based PVI number, in station order. */
+        pvi: i + 1,
+        /** Tangent available on each side for this curve's half length; 0 at a road end. */
+        backM: i > 0 ? Math.max(0, p.chainage - pv[i - 1].chainage - halves[i - 1]) : 0,
+        aheadM: i < pv.length - 1 ? Math.max(0, pv[i + 1].chainage - p.chainage - halves[i + 1]) : 0,
       }))
       .filter((p) => p.length > 0),
     knots: pv.flatMap((p, i) => (curves[i] ? [curves[i]!.start, p.chainage, curves[i]!.end] : [p.chainage])),

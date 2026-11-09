@@ -608,7 +608,13 @@ horizontal distance, not slope length.
 Interior PIs may carry circular-curve radii. Tangents and circular fillets are
 used where they fit. A radius that cannot fit its neighbouring tangents or
 would overlap an adjacent curve leaves a sharp PI and an explicit warning;
-the model must not silently adjust the requested radius.
+the model must not silently adjust the requested radius. The selected point's
+radius field takes 0–10,000 m (`MAX_HORIZONTAL_RADIUS_M`); a value outside that is
+held to the range and the note under the field says so. When the radius is not
+fitted, the same note gives the tangent it needs, the leg (or the neighbouring
+curve) that is short, the largest radius that fits as the neighbours stand, and
+the remedies: shorten this curve, shorten a neighbour, or move the points
+(`horizontalCurveFits`, `engine.ts`; `curveFit.ts`).
 
 Station positions and arc lengths use the fitted geometry. Curved pieces are
 also represented by chords no longer than 5 m and no wider than 2 degrees of
@@ -639,7 +645,10 @@ they fit. Overlapping/unfit curves retain the tangents and report the issue.
 `verticalCurveSummary()` reports each requested curve with a validity flag,
 incoming/outgoing grades in percent, and K in metres per percentage point of
 grade change. Zero grade change has no finite K. A requested curve that fails
-the fit/overlap checks is annotated as unfitted.
+the fit/overlap checks is annotated as unfitted, with the reason and the tangent
+left on each side. The PVI list in the sidebar states under that PVI the half
+length it needs, what is available and toward which PVI, the longest curve that
+fits, and the same remedies (`verticalFitNote`, `curveFit.ts`).
 A PVI beyond the shortened route end remains visible as a warning; the model
 does not silently discard a previously entered design control.
 
