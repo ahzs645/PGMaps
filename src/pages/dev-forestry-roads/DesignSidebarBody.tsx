@@ -32,6 +32,14 @@ export interface PointCloudChoice {
   preserveCorridorM?: number
   retainTin?: boolean
 }
+export interface RoadDrawing {
+  /** A new road, or more points on the active one. */
+  kind: 'road' | 'extend'
+  points: number
+  /** False until the line has enough points to keep. */
+  canFinish: boolean
+  onFinish: () => void
+}
 export interface SidebarProps {
   workspace: RoadWorkspace
   onCompareCompleteCosts?: () => void
@@ -42,6 +50,11 @@ export interface SidebarProps {
   roadReviewRequest?: { id?: string; sequence: number }
   mode: DrawMode
   onMode: (mode: DrawMode) => void
+  /**
+   * The road line being pegged on the plan, when one is. Until it is finished the plan, profile and
+   * header show it while the project still holds the saved road, so a search has to wait for it.
+   */
+  drawing?: RoadDrawing | null
   onFile: (kind: FileKind) => void
   onTerrain: (kind: 'lidar' | 'regional' | 'demo') => void
   verticalReference: string

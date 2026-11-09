@@ -32,6 +32,8 @@ import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
 const MAX_ALIGNMENTS = 20
+/** Why a search waits while a road is being pegged: it would run on the saved road, not the line on the plan. */
+const DRAWING_REASON = 'Finish the road being drawn on the plan first'
 
 export function DesignTab(p: SidebarProps) {
   const { project, alignment, updateAlignment } = p.workspace
@@ -220,6 +222,7 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
       <RouteFinder
         workspace={p.workspace}
         full={full}
+        drawing={p.drawing}
         onPegRoad={() => p.onMode('road')}
         onPreview={p.onPreviewRoutes}
         onShowCompare={p.onShowCompare}
@@ -534,7 +537,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           variant="outline"
           size="sm"
           className="w-full"
-          disabled={p.full && !replaceableRouteAlternatives(project.alignments, alignment.id).length}
+          disabled={!!p.drawing || (p.full && !replaceableRouteAlternatives(project.alignments, alignment.id).length)}
+          title={p.drawing ? DRAWING_REASON : undefined}
           onClick={() => p.onSuggest(route)}
         >
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
@@ -589,7 +593,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         <Button
           size="sm"
           className="w-full"
-          disabled={p.full || !validWidth || !validCorridorSettings}
+          disabled={!!p.drawing || p.full || !validWidth || !validCorridorSettings}
+          title={p.drawing ? DRAWING_REASON : undefined}
           onClick={() => p.onOptimize(objective, halfWidth)}
         >
           Optimize sketched corridor

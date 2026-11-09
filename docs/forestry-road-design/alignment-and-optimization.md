@@ -360,6 +360,13 @@ goal. Your road is never edited. Clicking a row adds that road and makes it acti
 and table shows it; **Compare all** adds the rest and opens Compare. The switcher above the summary
 tiles then flips between roads from any tab or view.
 
+**New ends on map** starts pegging a new road, which exists only once **Finish road** is pressed.
+Until then the plan, profile and header show the line being pegged while the project still holds the
+saved road, so the searches wait: **Compare routes**, **Suggest terrain-cost alternative** and
+**Optimize sketched corridor** are disabled, and the route finder says why beside its own
+**Finish road** button (`RoadDrawing` in `DesignSidebarBody.tsx`). The same holds while extending a
+road.
+
 | Goal                   | Horizontal line                                                                                                    | Profile                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
 | Lowest cost            | Prices the shortest, balanced and contour lines, drainage allowance included; keeps the cheapest within the limits | Cheaper of cut/fill and total |
