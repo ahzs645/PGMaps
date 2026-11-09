@@ -1,6 +1,6 @@
 import type { RoadFeatureSelection } from './roadSelection'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { safeAnalyzeRoad } from './analysisResult'
+import { designInputsOf, safeAnalyzeRoad, type DesignInputs } from './analysisResult'
 import { createDemoProject, demoTerrain, terrainFromMetadata } from './terrain'
 import { loadRoadScenario } from './scenarios'
 import { parseProject } from './project'
@@ -55,6 +55,8 @@ export function useRoadWorkspace() {
   const libraryRef = useRef(library)
   libraryRef.current = library
   const history = useRef<{ past: RoadProject[]; future: RoadProject[] }>({ past: [], future: [] })
+  // Each road's section and engineering inputs as last calculated, for when an edit is invalid.
+  const [lastValidInputs] = useState(() => new Map<string, DesignInputs>())
   const lastEdit = useRef(0)
   const abort = useRef<AbortController | null>(null)
 
@@ -111,18 +113,20 @@ export function useRoadWorkspace() {
       if (!terrain) throw Error('This project needs its original terrain. Import its GeoTIFF before reopening.')
       if (signal?.aborted) return
       setSource(terrain)
+      lastValidInputs.clear()
       commit(next, false)
       setStation(0)
       history.current = { past: [], future: [] }
       if (!training()) setProjectId(id)
       setCanPersist(true)
     },
-    [commit, setProjectId],
+    [commit, setProjectId, lastValidInputs],
   )
   /** Makes an already-built project the open one, in a new library slot. */
   const startProject = useCallback(
     (next: RoadProject, terrain: TerrainSource) => {
       setSource(terrain)
+      lastValidInputs.clear()
       commit(next, false)
       setStation(0)
       setFeatureSelection(null)
@@ -130,7 +134,7 @@ export function useRoadWorkspace() {
       if (!training()) setProjectId(crypto.randomUUID())
       setCanPersist(true)
     },
-    [commit, setProjectId],
+    [commit, setProjectId, lastValidInputs],
   )
 
   useEffect(() => {
@@ -270,15 +274,23 @@ export function useRoadWorkspace() {
         a.id,
         investigation || a.id === project.designPlaceholderId
           ? investigationAnalysis()
-          : safeAnalyzeRoad(a, source, project.settings, project.context, {
-              referenceSurfaces,
-              verticalReference: project.terrain.verticalReference,
-              sharedCrossingCosts: project.sharedCrossingCosts,
-            }),
+          : safeAnalyzeRoad(
+              a,
+              source,
+              project.settings,
+              project.context,
+              {
+                referenceSurfaces,
+                verticalReference: project.terrain.verticalReference,
+                sharedCrossingCosts: project.sharedCrossingCosts,
+              },
+              lastValidInputs.get(a.id),
+            ),
       ]),
     )
     return { analyses, processMs: performance.now() - started }
   }, [
+    lastValidInputs,
     project.alignments,
     investigation,
     project.designPlaceholderId,
@@ -289,6 +301,13 @@ export function useRoadWorkspace() {
     project.terrain.verticalReference,
     project.sharedCrossingCosts,
   ])
+  // Remember what calculated, after the render that calculated it, for the next invalid edit.
+  useEffect(() => {
+    for (const a of project.alignments) {
+      const result = analyses.get(a.id)
+      if (result?.stations.length && !result.invalidInput) lastValidInputs.set(a.id, designInputsOf(a))
+    }
+  }, [analyses, project.alignments, lastValidInputs])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!
   const undo = () => {

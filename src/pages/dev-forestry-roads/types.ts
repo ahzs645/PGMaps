@@ -13,6 +13,7 @@ import type { TotalCostPlanning } from './fullCostPlanning'
 import type { FullCostReviewRecord } from './fullCostRecord'
 import type { DrainageProjectState } from './drainageEvidence'
 import type { RoadReportSettings } from './reportSettings'
+import type { InvalidInput } from './inputErrors'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -435,6 +436,11 @@ export interface RoadAnalysis {
   crossingEstimate?: CrossingEstimate
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
+  /**
+   * Set when the current section or engineering inputs could not be calculated. With stations, the
+   * results are from the last valid inputs and leave this edit out; without, nothing calculated.
+   */
+  invalidInput?: InvalidInput
 }
 export interface CableSample {
   distance: number

@@ -3,6 +3,7 @@ import { sectionCrossfall, sideValue } from './templates'
 import type { Alignment, RoadStation, RoadTemplate, SectionSample } from './types'
 import { featureSectionAnchor, type SectionReferenceSources } from './sectionReferences'
 import { acceptsFill } from './allocationPolicy'
+import { resolveHorizons } from './groundHorizons'
 
 type XY = { x: number; z: number; code?: string }
 type Region = {
@@ -81,6 +82,10 @@ export function assembledSection({
     (p) => p.depthM > 0 && assignmentStation >= p.start && assignmentStation < p.end - EPS,
   )
   const components = t.components ?? []
+  // One non-overlapping material column for this station: a later horizon replaces an earlier one.
+  const horizons = resolveHorizons(
+    (e?.strata ?? []).filter((h) => assignmentStation >= h.start && assignmentStation < h.end - EPS),
+  )
   const referenceWarnings = new Set<string>()
   const anchors = new Map<string, ReturnType<typeof featureSectionAnchor>>()
   const componentRanges = new Map<
@@ -110,12 +115,8 @@ export function assembledSection({
     if (cut) {
       const g = ground(x),
         depth = g === null ? -1 : g - level
-      const horizon = e?.strata.find(
-        (h) =>
-          assignmentStation >= h.start &&
-          assignmentStation < h.end - EPS &&
-          depth >= h.topDepthM - EPS &&
-          (h.bottomDepthM === null || depth < h.bottomDepthM - EPS),
+      const horizon = horizons.find(
+        (h) => depth >= h.topDepthM - EPS && (h.bottomDepthM === null || depth < h.bottomDepthM - EPS),
       )
       const slope = e?.materials.find((m) => m.id === horizon?.materialId)?.cutSlope
       return slope ?? sideValue(t, side, 'CutSlope')
@@ -245,8 +246,7 @@ export function assembledSection({
         if (g0 !== null && g1 !== null) {
           const d0 = g0 - a.z,
             d1 = g1 - (a.z + slope * (x - a.x))
-          const boundaries = (e?.strata ?? [])
-            .filter((h) => assignmentStation >= h.start && assignmentStation < h.end - EPS)
+          const boundaries = horizons
             .flatMap((h) => (h.bottomDepthM === null ? [h.topDepthM] : [h.topDepthM, h.bottomDepthM]))
             .filter((depth) => Math.abs(d0 - depth) > 1e-6 && (d0 - depth) * (d1 - depth) < 0)
           for (const depth of boundaries) {
@@ -449,22 +449,21 @@ export function assembledSection({
         width = cuts[i] - cuts[i - 1]
       const top = Math.max(0, ...regions.filter((p) => p.purpose === 'stripping' && regionAt(x, p)).map((p) => p.depth))
       let assigned = 0
-      for (const horizon of e?.strata ?? [])
-        if (assignmentStation >= horizon.start && assignmentStation < horizon.end - EPS) {
-          const depth = Math.max(
-            0,
-            Math.min(top + r.depth, horizon.bottomDepthM ?? Infinity) - Math.max(top, horizon.topDepthM),
-          )
-          if (depth > EPS) {
-            const material = e?.materials.find((m) => m.id === horizon.materialId)
-            preparationAreas.push({
-              materialId: horizon.materialId,
-              purpose: material?.purpose ?? 'earthwork',
-              areaM2: complete ? width * depth : 0,
-            })
-            assigned += depth
-          }
+      for (const horizon of horizons) {
+        const depth = Math.max(
+          0,
+          Math.min(top + r.depth, horizon.bottomDepthM ?? Infinity) - Math.max(top, horizon.topDepthM),
+        )
+        if (depth > EPS) {
+          const material = e?.materials.find((m) => m.id === horizon.materialId)
+          preparationAreas.push({
+            materialId: horizon.materialId,
+            purpose: material?.purpose ?? 'earthwork',
+            areaM2: complete ? width * depth : 0,
+          })
+          assigned += depth
         }
+      }
       if (assigned < r.depth - EPS)
         preparationAreas.push({ purpose: 'earthwork', areaM2: complete ? width * (r.depth - assigned) : 0 })
     }

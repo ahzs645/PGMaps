@@ -1,4 +1,4 @@
-import { Children, isValidElement, type OptionHTMLAttributes, type ReactNode } from 'react'
+import { Children, isValidElement, useState, type FormEvent, type OptionHTMLAttributes, type ReactNode } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { FormField, NumberField as SharedNumberField, NullableNumberField } from '@/components/ui/form-field'
 import { AppSelect } from '@/components/ui/select'
@@ -130,6 +130,32 @@ export function Field({
   )
 }
 
+const limitText = (value: number) => Number(value.toFixed(6)).toLocaleString('en-CA', { maximumFractionDigits: 6 })
+
+/**
+ * What a number field says about a typed value outside its range: the allowed range while it is
+ * being typed (the value is not applied yet), then what it was changed to once the field applies
+ * its limit on blur or Enter. A value is never adjusted without saying so beside the field.
+ */
+export function useRangeNote(value: number | null, min: number, max: number) {
+  const [typed, setTyped] = useState<{ entered: number; from: number | null } | null>(null)
+  const onInput = (event: FormEvent<HTMLInputElement>) => {
+    const text = event.currentTarget.value
+    const entered = text.trim() ? Number(text) : NaN
+    setTyped(Number.isFinite(entered) && (entered < min || entered > max) ? { entered, from: value } : null)
+  }
+  if (!typed) return { onInput }
+  const limit = typed.entered < min ? min : max
+  const range = `${limitText(min)} to ${limitText(max)}`
+  if (value === limit && typed.from !== limit)
+    return {
+      onInput,
+      adjusted: `${limitText(typed.entered)} is outside ${range}, so it was changed to ${limitText(limit)}.`,
+    }
+  if (value === typed.from) return { onInput, outOfRange: `Enter ${range}.` }
+  return { onInput }
+}
+
 export function NumberField({
   label,
   ariaLabel,
@@ -144,6 +170,7 @@ export function NumberField({
   precision = 6,
   fixedDecimals,
   inputClassName = roadFieldClass,
+  error,
 }: {
   label: string
   ariaLabel?: string
@@ -155,18 +182,22 @@ export function NumberField({
   disabled?: boolean
   hideLabel?: boolean
   hint?: ReactNode
+  /** Why the entered value cannot be calculated; shown under the field in place of a range note. */
+  error?: ReactNode
   /** Decimals shown; an untouched field keeps its full stored value. */
   precision?: number
   /** Show all `precision` decimals (`283.00`), for a column that lines up. */
   fixedDecimals?: boolean
   inputClassName?: string
 }) {
+  const note = useRangeNote(value, min, max)
   return (
     <SharedNumberField
       label={label}
       aria-label={ariaLabel}
       value={value}
       onValueChange={onChange}
+      onInput={note.onInput}
       min={min}
       max={max}
       step={step}
@@ -177,6 +208,8 @@ export function NumberField({
       hideLabel={hideLabel}
       inputClassName={inputClassName}
       hintAction={hintAction(label, hint)}
+      error={error ?? note.outOfRange}
+      description={note.adjusted && <span role="status">{note.adjusted}</span>}
     />
   )
 }
@@ -235,6 +268,8 @@ export function OptionalNumberField({
   placeholder = 'off',
   hideLabel = false,
   hint,
+  error,
+  description,
 }: {
   label: string
   value: number | null
@@ -245,12 +280,19 @@ export function OptionalNumberField({
   placeholder?: string
   hideLabel?: boolean
   hint?: ReactNode
+  error?: ReactNode
+  /** A standing line under the field, such as what a blank value means. */
+  description?: ReactNode
 }) {
+  const note = useRangeNote(value, min, max)
   return (
     <NullableNumberField
       label={label}
       value={value}
       onValueChange={onChange}
+      onInput={note.onInput}
+      error={error ?? note.outOfRange}
+      description={note.adjusted ? <span role="status">{note.adjusted}</span> : description}
       min={min}
       max={max}
       step={step}

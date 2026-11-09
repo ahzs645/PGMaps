@@ -26,6 +26,7 @@ import { curveDesignAt, surfaceLayersAt } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { materialDemandKey, requiredFillAt } from './allocationPolicy'
+import { resolveHorizons } from './groundHorizons'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -46,20 +47,18 @@ function activeLayers(alignment: Alignment, chainage: number, length: number): R
   // The last cross-section uses the approach-side geology; an adjacent range that
   // starts at the road end must not be counted alongside the preceding material.
   const lookup = Math.abs(chainage - length) < 1e-6 ? Math.max(0, chainage - 1e-7) : chainage
-  return e.strata
-    .filter((s) => lookup >= s.start && lookup < s.end)
-    .sort((a, b) => a.topDepthM - b.topDepthM)
-    .map((s) => {
-      const m = e.materials.find((m) => m.id === s.materialId)!
-      return {
-        id: s.id,
-        materialId: s.materialId,
-        name: m.name,
-        color: m.color,
-        topDepthM: s.topDepthM,
-        bottomDepthM: s.bottomDepthM,
-      }
-    })
+  // A later horizon replaces an earlier one where they overlap, so the column never double-counts.
+  return resolveHorizons(e.strata.filter((s) => lookup >= s.start && lookup < s.end)).map((piece) => {
+    const m = e.materials.find((m) => m.id === piece.materialId)!
+    return {
+      id: piece.id,
+      materialId: piece.materialId,
+      name: m.name,
+      color: m.color,
+      topDepthM: piece.topDepthM,
+      bottomDepthM: piece.bottomDepthM,
+    }
+  })
 }
 
 /** Exact integral of max(linear ground-minus-formation depth − horizon, 0). */

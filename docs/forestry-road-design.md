@@ -757,7 +757,10 @@ Ground materials contain an entered excavation rate in CAD/bank m³, reusable
 fraction, and conversion factor in compacted m³ per reusable bank m³. Station
 ranges assign those materials between vertical depths below original ground.
 A null bottom depth extends the material below the entered finite horizons.
-Two horizons cannot overlap in both station and depth. Horizon endpoints become
+Where two horizons overlap in both station and depth, the later one in the list
+replaces the earlier one over the overlap (`resolveHorizons` in
+`groundHorizons.ts`), so a whole-road layer can be entered first and a local
+range after it; no depth is ever counted twice. Horizon endpoints become
 calculation stations. The approach-side horizon applies at the road endpoint.
 These layers are user-entered assumptions or observations: the bare-earth DTM
 does not identify rock, soil, organic depth or suitability.

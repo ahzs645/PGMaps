@@ -7,6 +7,8 @@ import { CURVE_DESIGN_HELP, CurveDesignControls } from '../CurveTools'
 import { RoadSettingsDialog } from '../RoadSettingsDialog'
 import { TemplateComponents } from '../TemplateComponents'
 import { RoadSection } from '../SidebarParts'
+import { EntryProblem } from '../InputProblem'
+import { inputMessage } from '../inputErrors'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
 
@@ -27,6 +29,8 @@ const TEMPLATE_FIELDS: [NumericTemplateKey, string, number, number][] = [
 
 export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }) {
   const { alignment, updateAlignment } = p.workspace
+  // An invalid section value keeps the last valid road on screen; the message sits at its field.
+  const problem = p.workspace.analysis.invalidInput
   return (
     <>
       <RoadSection
@@ -41,10 +45,13 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
               value={alignment.template[key] ?? 0}
               min={min}
               max={max}
+              error={inputMessage(problem, 'template', undefined, key)}
               onChange={(value) => updateAlignment((a) => ({ ...a, template: { ...a.template, [key]: value } }))}
             />
           ))}
         </div>
+        {/* Side values are edited under Template components, which shows one component at a time. */}
+        <EntryProblem problem={problem} list="template" inlineFields={TEMPLATE_FIELDS.map(([key]) => key)} />
         <Button
           variant="ghost"
           size="sm"
@@ -61,6 +68,7 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
           materials={alignment.engineering?.materials}
           features={p.workspace.project.context}
           surfaces={p.workspace.project.terrain.referenceSurfaces}
+          problem={problem}
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
         />
       </RoadSection>

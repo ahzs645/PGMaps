@@ -3,6 +3,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { NumberField } from './Controls'
 import { sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
+import { inputMessage, type InvalidInput } from './inputErrors'
 import type { ContextFeature, GroundMaterial, RoadTemplate } from './types'
 
 type Side = 'left' | 'right'
@@ -66,12 +67,15 @@ export function TemplateComponents({
   materials,
   features,
   surfaces,
+  problem,
 }: {
   template: RoadTemplate
   onChange: (template: RoadTemplate) => void
   materials?: GroundMaterial[]
   features?: ContextFeature[]
   surfaces?: { id: string; name: string }[]
+  /** The current invalid edit to this template, if any; its message is shown at the field it names. */
+  problem?: InvalidInput
 }) {
   const [selected, setSelected] = useState<{ side: Side; kind: Kind }>({ side: 'left', kind: 'ditch' })
   const value = (field: Field, side: Side) =>
@@ -147,6 +151,7 @@ export function TemplateComponents({
                 min={field.min}
                 max={field.max}
                 step={field.step ?? 0.1}
+                error={inputMessage(problem, 'template', undefined, field.key)}
                 onChange={(v) => onChange({ ...template, [field.key]: v })}
               />
               <p className="mt-0.5 min-h-4 text-3xs leading-4 text-muted-foreground">

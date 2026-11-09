@@ -63,7 +63,7 @@ the optional delivered-cost borrow/waste allocation.
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
 | Reusable cut factor                  | 0.1–2                                                                                                                       | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
-| Horizon depths                       | 0–1,000 m below ground; no overlap in station and depth                                                                     | `validateEngineering`                                                      | Calculation error                                                                |
+| Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier         | `validateEngineering`; `groundHorizons.ts` `resolveHorizons`               | Calculation error for a depth out of range; overlaps are resolved                |
 | Material section work                | 15,000,000 section-sample × layer pairs                                                                                     | `engineering.ts` `calculateEngineering`                                    | Calculation error                                                                |
 | Haul allocation                      | 20,000,000 comparisons; 20,000 movements                                                                                    | `engineering.ts` `allocateHaul`                                            | Calculation error, not a truncated allocation                                    |
 | Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km                                                                 | `validateEngineering`                                                      | Calculation error                                                                |
@@ -126,11 +126,19 @@ incomplete interval; later intervals still count in the covered totals.
 **Materials.** A new material copies the current base cut rate and reusable cut factor, with a
 reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
 changes do not reach it. Horizons are vertical depths below original ground at each section
-sample. A legacy stripping horizon classifies excavated cut only: it does not remove ground
+sample. Where two overlap in station and depth, the later one in the list replaces the earlier
+over the overlap, and the editor says which ones it replaces; enter the general case first and the
+local exception after it. A legacy stripping horizon classifies excavated cut only: it does not remove ground
 under fill or create replacement fill by itself. Explicit **Stripping before construction** ranges now remove ground
 before the section is built, including beneath fill, and create the corresponding replacement
 fill. See [Physical section assemblies and preparation](section-assemblies.md) for the separate
 prepared-ground surface, material-sensitive batters, component/course quantities and limits.
+
+**Add buttons.** Every Add button creates an entry the analysis accepts. Stripping ranges,
+fill requirements on one layer, sidecast ranges and template ranges cannot overlap, so a new one
+takes road that none covers yet (`freeStationRange` in `inputErrors.ts`), from the selected
+station where that is free; the button is disabled, with the reason beside it, once the road is
+fully covered.
 
 **Nearest-source haul.** With no material policies and economic mode unset, allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
 nearest remaining usable cut in the same unbroken run of complete sections. It is a repeatable
@@ -229,7 +237,8 @@ payload, or net crew productivity as appropriate. See
 | Mass curve ends early                                                    | First incomplete interval                                                                                                       | Fix that interval; quantities after it are still in the totals                           |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
-| "Correct this alignment before calculating: …"                           | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)       | Read the message; quantities are unavailable until it is fixed                           |
+| "The road and results below leave out your latest edit"                  | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results show the last valid inputs on the current line     |
+| "Correct this alignment before calculating: …"                           | The line cannot be calculated, or an input was invalid before any valid result existed                                          | Read the message; quantities are unavailable until it is fixed                           |
 | Both borrow and waste on a road that balances overall                    | Gaps split the runs, or nearest-source order left cut stranded                                                                  | Close the gaps; add sites; treat the allocation as one scenario                          |
 | "Some borrow/waste has no reachable site capacity"                       | No site in that run, or capacity used up                                                                                        | Add sites in the run or raise capacity; until then its haul is not priced                |
 | Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                      |

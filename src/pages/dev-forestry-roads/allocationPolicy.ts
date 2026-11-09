@@ -1,5 +1,6 @@
 /** Persistent material suitability and construction constraints. No terrain or UI dependencies. */
 import type { AlignmentEngineering, FillRequirement, HaulSettings, GroundMaterial } from './engineeringTypes'
+import { EngineeringInputError, requireStationRange, type EngineeringInputList } from './inputErrors'
 
 export const MAX_FILL_REQUIREMENTS = 200
 export const MAX_HAUL_DIRECTION_RANGES = 100
@@ -81,7 +82,46 @@ export function parseAllocationPolicy(input: unknown): {
   }
 }
 
+/** Station order, and overlap where the same physical thing would be counted twice, per range. */
+function requireRanges(
+  rows: readonly { id: string; start: number; end: number }[] | undefined,
+  list: EngineeringInputList,
+  label: string,
+  clash?: (a: number, b: number) => string | null,
+): void {
+  rows?.forEach((r, i) => {
+    const owner = `${label} ${i + 1}`,
+      target = { list, id: r.id }
+    requireStationRange(r.start, r.end, owner, target)
+    for (let j = 0; clash && j < i; j++) {
+      const from = Math.max(r.start, rows[j].start),
+        to = Math.min(r.end, rows[j].end)
+      const reason = to > from + 1e-7 ? clash(i, j) : null
+      if (reason !== null)
+        throw new EngineeringInputError(
+          `${owner} and ${label.toLowerCase()} ${j + 1} overlap between ${Number(from.toFixed(3))} and ${Number(to.toFixed(3))} m${reason} Change a start or end station.`,
+          target,
+        )
+    }
+  })
+}
+
 export function validateAllocationPolicy(e: AlignmentEngineering): void {
+  const requirements = Array.isArray(e.fillRequirements) ? e.fillRequirements : undefined
+  requireRanges(requirements, 'fillRequirements', 'Requirement', (a, b) =>
+    requirements![a].layer === requirements![b].layer ? ' on the same layer.' : null,
+  )
+  requireRanges(
+    Array.isArray(e.haul?.directionRanges) ? e.haul.directionRanges : undefined,
+    'directionRanges',
+    'Direction',
+  )
+  requireRanges(
+    Array.isArray(e.haul?.sidecastRanges) ? e.haul.sidecastRanges : undefined,
+    'sidecastRanges',
+    'Sidecast',
+    () => '; the same disposal capacity would be counted twice.',
+  )
   const p = parseAllocationPolicy(e)
   const ids = new Set(e.materials.map((m) => m.id))
   for (const material of e.materials)
@@ -94,15 +134,19 @@ export function validateAllocationPolicy(e: AlignmentEngineering): void {
         throw Error('A stripping material cannot be a borrow fill supply.')
     }
   const reqs = p.fillRequirements ?? []
-  for (const r of reqs) {
+  reqs.forEach((r, i) => {
+    const owner = `Requirement ${i + 1}`,
+      target = { list: 'fillRequirements' as const, id: r.id }
+    const fail = (message: string, field: string) =>
+      new EngineeringInputError(`${owner}: ${message}`, { ...target, field })
     if (r.materialId !== undefined && !ids.has(r.materialId))
-      throw Error('Fill requirement references an unknown material.')
+      throw fail('choose one of the ground materials. Fill requirement references an unknown material.', 'materialId')
     if (e.materials.find((m) => m.id === r.materialId)?.purpose === 'stripping')
-      throw Error('A stripping material cannot be required as fill.')
-    if (!r.replaceable && !r.materialId) throw Error('Exact fill requires a named material.')
+      throw fail('A stripping material cannot be required as fill.', 'materialId')
+    if (!r.replaceable && !r.materialId) throw fail('Exact fill requires a named material.', 'materialId')
     if (r.replaceable && !r.materialId && r.minQuality === undefined)
-      throw Error('Replaceable fill requires a material or minimum quality.')
-  }
+      throw fail('Replaceable fill requires a material or minimum quality.', 'minQuality')
+  })
   for (let i = 0; i < reqs.length; i++)
     for (let j = i + 1; j < reqs.length; j++)
       if (

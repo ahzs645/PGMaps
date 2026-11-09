@@ -1,4 +1,14 @@
-import type { Alignment, AlignmentEngineering, ResolvedTemplate, RoadTemplate, SectionComponent } from './types'
+import type {
+  Alignment,
+  AlignmentEngineering,
+  Culvert,
+  HaulSettings,
+  HaulSite,
+  ResolvedTemplate,
+  RoadTemplate,
+  SectionComponent,
+} from './types'
+import { EngineeringInputError, requireInRange, requireStationRange, type EngineeringInputTarget } from './inputErrors'
 import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
@@ -155,36 +165,65 @@ export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter
   return template
 }
 
-export function validateTemplate(t: RoadTemplate): void {
-  validateSectionAssembly(t)
-  if (
-    !bounded(t.leftWidth, 0.1, 50) ||
-    !bounded(t.rightWidth, 0.1, 50) ||
-    !bounded(t.crossfallPercent, 0, 20) ||
-    !bounded(t.cutSlope, 0.1, 10) ||
-    !bounded(t.fillSlope, 0.1, 10) ||
-    !bounded(t.ditchWidth, 0, 10) ||
-    !bounded(t.ditchDepth, 0, 5) ||
-    !bounded(t.surfaceDepth, 0, 2)
-  )
-    throw new Error('Road template dimensions or side slopes are outside their supported ranges.')
+const plain = (value: number) => Number(value.toFixed(3)).toLocaleString('en-CA', { maximumFractionDigits: 3 })
+/** A failure from a shared parser, attributed to the entry being validated. */
+const attributed = (cause: unknown, owner: string, target: EngineeringInputTarget) =>
+  cause instanceof EngineeringInputError
+    ? cause
+    : new EngineeringInputError(`${owner}: ${cause instanceof Error ? cause.message : 'invalid value.'}`, target)
+
+/**
+ * Checks one template. `target` says which editor holds it (the road's base section by default, or
+ * a named library template) and `owner` names it in the message, so a failure can be shown there.
+ */
+export function validateTemplate(
+  t: RoadTemplate,
+  target: EngineeringInputTarget = { list: 'template' },
+  owner = 'Road section',
+): void {
+  try {
+    validateSectionAssembly(t)
+  } catch (cause) {
+    throw attributed(cause, owner, target)
+  }
+  const base = (key: keyof RoadTemplate, label: string, low: number, high: number) =>
+    requireInRange(t[key], low, high, owner, label, { ...target, field: key })
+  base('leftWidth', 'left half-width (m)', 0.1, 50)
+  base('rightWidth', 'right half-width (m)', 0.1, 50)
+  base('crossfallPercent', 'crown crossfall (%)', 0, 20)
+  base('cutSlope', 'cut batter (H:V)', 0.1, 10)
+  base('fillSlope', 'fill batter (H:V)', 0.1, 10)
+  base('ditchWidth', 'ditch width (m)', 0, 10)
+  base('ditchDepth', 'ditch depth (m)', 0, 5)
+  base('surfaceDepth', 'surfacing depth (m)', 0, 2)
   for (const side of ['left', 'right'] as const) {
-    const valid =
-      bounded(sideValue(t, side, 'CrossfallPercent'), -20, 20) &&
-      bounded(sideValue(t, side, 'CutSlope'), 0.1, 10) &&
-      bounded(sideValue(t, side, 'FillSlope'), 0.1, 10) &&
-      bounded(sideValue(t, side, 'DitchWidth'), 0, 10) &&
-      bounded(sideValue(t, side, 'DitchDepth'), 0, 5) &&
-      bounded(sideValue(t, side, 'DitchBottomWidth'), 0, sideValue(t, side, 'DitchWidth')) &&
-      bounded(sideValue(t, side, 'SurfaceDepth'), 0, 2)
-    if (!valid) throw new Error(`The ${side} template settings are outside their supported ranges.`)
+    const value = (attribute: Attribute, label: string, low: number, high: number) =>
+      requireInRange(sideValue(t, side, attribute), low, high, owner, `${side} ${label}`, {
+        ...target,
+        field: `${side}${attribute}`,
+      })
+    value('CrossfallPercent', 'crossfall (%)', -20, 20)
+    value('CutSlope', 'cut batter (H:V)', 0.1, 10)
+    value('FillSlope', 'fill batter (H:V)', 0.1, 10)
+    value('DitchWidth', 'ditch width (m)', 0, 10)
+    value('DitchDepth', 'ditch depth (m)', 0, 5)
+    value('SurfaceDepth', 'surfacing depth (m)', 0, 2)
+    const width = sideValue(t, side, 'DitchWidth'),
+      bottom = sideValue(t, side, 'DitchBottomWidth')
+    if (!bounded(bottom, 0, width))
+      throw new EngineeringInputError(
+        `${owner}: the ${side} ditch bottom width (${plain(bottom)} m) must be 0 to the ditch top width (${plain(width)} m).`,
+        { ...target, field: `${side}DitchBottomWidth` },
+      )
   }
 }
 
 /**
- * Reject ambiguous overlapping assignments instead of changing their priority silently. Numeric
- * bounds match the editor fields and project-file parsing (`engineeringProject.ts`), so a value
- * either can enter is one the analysis accepts.
+ * Rejects engineering inputs the analysis cannot use, with an `EngineeringInputError` that names
+ * the entry, the field and the allowed range. Numeric bounds match the editor fields and
+ * project-file parsing (`engineeringProject.ts`), so a value either can enter is one the analysis
+ * accepts. Template assignments must not overlap on a side; ground horizons may, and a later
+ * horizon then replaces the earlier one (`groundHorizons.ts`).
  */
 export function validateEngineering(e: AlignmentEngineering): void {
   validatePreparation(e)
@@ -206,113 +245,142 @@ export function validateEngineering(e: AlignmentEngineering): void {
   }
   const templateIds = new Set(e.templates.map((t) => t.id))
   const materialIds = new Set(e.materials.map((m) => m.id))
-  for (const t of e.templates) validateTemplate(t.template)
-  const range = (start: number, end: number) =>
-    Number.isFinite(start) && Number.isFinite(end) && start >= 0 && end > start && end <= 100000
+  for (const t of e.templates) validateTemplate(t.template, { list: 'templates', id: t.id }, t.name || 'Template')
   for (let i = 0; i < e.assignments.length; i++) {
-    const a = e.assignments[i]
-    if (
-      !range(a.start, a.end) ||
-      !templateIds.has(a.templateId) ||
-      !['left', 'right', 'both'].includes(a.side) ||
-      !Number.isFinite(a.transitionM) ||
-      a.transitionM < 0 ||
-      a.transitionM > (a.end - a.start) / 2
-    )
-      throw new Error(
-        'Template assignments need a known template, valid range/side, and transition no longer than half the range.',
-      )
+    const a = e.assignments[i],
+      owner = `Template range ${i + 1}`,
+      target = { list: 'assignments' as const, id: a.id }
+    requireStationRange(a.start, a.end, owner, target)
+    if (!templateIds.has(a.templateId))
+      throw new EngineeringInputError(`${owner}: choose a template from the library.`, {
+        ...target,
+        field: 'templateId',
+      })
+    if (!['left', 'right', 'both'].includes(a.side))
+      throw new EngineeringInputError(`${owner}: choose left, right or both sides.`, { ...target, field: 'side' })
+    requireInRange(a.transitionM, 0, (a.end - a.start) / 2, owner, 'transition (m, at most half the range)', {
+      ...target,
+      field: 'transitionM',
+    })
     for (let j = 0; j < i; j++) {
-      const b = e.assignments[j]
-      if (
-        Math.min(a.end, b.end) > Math.max(a.start, b.start) + EPS &&
-        (a.side === b.side || a.side === 'both' || b.side === 'both')
-      )
-        throw new Error('Template assignments overlap on the same side. Split their station ranges.')
+      const b = e.assignments[j],
+        from = Math.max(a.start, b.start),
+        to = Math.min(a.end, b.end)
+      if (to > from + EPS && (a.side === b.side || a.side === 'both' || b.side === 'both'))
+        throw new EngineeringInputError(
+          `${owner} and template range ${j + 1} overlap on the same side between ${plain(from)} and ${plain(to)} m. Change a station, or give each range its own side.`,
+          target,
+        )
     }
   }
   for (const m of e.materials) {
-    if (
-      m.id === '__unclassified' ||
-      !bounded(m.cutRate, 0, 10000) ||
-      !bounded(m.reusableFraction, 0, 1) ||
-      !bounded(m.compactionFactor, 0.1, 2) ||
-      (m.purpose !== undefined && !['earthwork', 'stripping'].includes(m.purpose)) ||
-      (m.purpose === 'stripping' && m.reusableFraction !== 0)
-    )
-      throw new Error('Material rates/factors are invalid. Stripping must have zero reusable fraction.')
+    const owner = m.name || 'Material',
+      target = { list: 'materials' as const, id: m.id }
+    if (m.id === '__unclassified') throw new Error('A material cannot use the reserved unclassified ID.')
+    requireInRange(m.cutRate, 0, 10000, owner, 'excavation rate ($/bank m³)', { ...target, field: 'cutRate' })
+    requireInRange(m.reusableFraction, 0, 1, owner, 'reusable fraction', { ...target, field: 'reusableFraction' })
+    requireInRange(m.compactionFactor, 0.1, 2, owner, 'compacted / bank factor', {
+      ...target,
+      field: 'compactionFactor',
+    })
+    if (m.purpose !== undefined && !['earthwork', 'stripping'].includes(m.purpose))
+      throw new EngineeringInputError(`${owner}: choose earthwork or excavated stripping.`, {
+        ...target,
+        field: 'purpose',
+      })
+    if (m.purpose === 'stripping' && m.reusableFraction !== 0)
+      throw new EngineeringInputError(`${owner}: Stripping must have zero reusable fraction.`, {
+        ...target,
+        field: 'reusableFraction',
+      })
     if (m.volumeFactorProvenance !== undefined)
       parseMaterialVolumeFactorProvenance(m.volumeFactorProvenance, m.compactionFactor)
   }
   for (let i = 0; i < e.strata.length; i++) {
-    const a = e.strata[i]
-    if (
-      !range(a.start, a.end) ||
-      !materialIds.has(a.materialId) ||
-      !Number.isFinite(a.topDepthM) ||
-      a.topDepthM < 0 ||
-      a.topDepthM > 1000 ||
-      (a.bottomDepthM !== null &&
-        (!Number.isFinite(a.bottomDepthM) || a.bottomDepthM <= a.topDepthM || a.bottomDepthM > 1000))
-    )
-      throw new Error('Strata need a known material, valid station range, and increasing depths below ground.')
-    for (let j = 0; j < i; j++) {
-      const b = e.strata[j]
-      if (
-        Math.min(a.end, b.end) > Math.max(a.start, b.start) + EPS &&
-        Math.min(a.bottomDepthM ?? Infinity, b.bottomDepthM ?? Infinity) > Math.max(a.topDepthM, b.topDepthM) + EPS
-      )
-        throw new Error('Material strata overlap at the same station and depth; excavation cannot be counted twice.')
+    const a = e.strata[i],
+      owner = `Horizon ${i + 1}`,
+      target = { list: 'strata' as const, id: a.id }
+    requireStationRange(a.start, a.end, owner, target)
+    if (!materialIds.has(a.materialId))
+      throw new EngineeringInputError(`${owner}: choose one of the ground materials.`, {
+        ...target,
+        field: 'materialId',
+      })
+    requireInRange(a.topDepthM, 0, 1000, owner, 'top depth (m)', { ...target, field: 'topDepthM' })
+    if (a.bottomDepthM !== null) {
+      requireInRange(a.bottomDepthM, 0, 1000, owner, 'bottom depth (m)', { ...target, field: 'bottomDepthM' })
+      if (a.bottomDepthM <= a.topDepthM)
+        throw new EngineeringInputError(
+          `${owner}: the bottom depth (${plain(a.bottomDepthM)} m) must be greater than the top depth (${plain(a.topDepthM)} m).`,
+          { ...target, field: 'bottomDepthM' },
+        )
     }
   }
-  const h = e.haul
+  const h = e.haul,
+    haulTarget = { list: 'haul' as const }
   if (
     typeof h.enabled !== 'boolean' ||
-    (h.siteSelection !== undefined && !['nearest', 'delivered-cost'].includes(h.siteSelection)) ||
-    [
-      h.freeHaulDistanceM,
-      h.overhaulDistanceM,
-      h.freeHaulRate,
-      h.overhaulRate,
-      h.endHaulRate,
-      h.freeHaulLoadingRate,
-      h.overhaulLoadingRate,
-      h.endHaulLoadingRate,
-      h.borrowRate,
-      h.wasteRate,
-    ].some((v) => !bounded(v, 0, 100000)) ||
-    !bounded(h.mobilizationCost, 0, 1e9) ||
-    !bounded(h.contingencyPercent, 0, 100) ||
-    h.overhaulDistanceM < h.freeHaulDistanceM
+    (h.siteSelection !== undefined && !['nearest', 'delivered-cost'].includes(h.siteSelection))
   )
-    throw new Error('Haul distances, rates and contingency are invalid; overhaul distance must include free haul.')
-  for (const c of e.culverts) {
-    if (
-      !bounded(c.chainage, 0, 100000) ||
-      !bounded(c.skewDegrees, -80, 80) ||
-      !bounded(c.lengthM, 0.2, 500) ||
-      !bounded(c.diameterM, 0.1, 20) ||
-      !bounded(c.minCoverM, 0, 100) ||
-      !bounded(c.unitCost, 0, 1000000) ||
-      !bounded(c.fixedCost, 0, 1e9) ||
-      (c.ditchDipPercent !== undefined && !bounded(c.ditchDipPercent, 0.1, 50)) ||
-      (c.kind !== undefined && !['stream', 'cross-drain'].includes(c.kind)) ||
-      [c.inletInvertM, c.outletInvertM].some((v) => v !== null && (!Number.isFinite(v) || Math.abs(v) > 12000))
+    throw new EngineeringInputError('Haul settings: choose how sites are selected.', haulTarget)
+  const haulFields: [keyof HaulSettings, string, number][] = [
+    ['freeHaulDistanceM', 'free-haul distance (m)', 100000],
+    ['overhaulDistanceM', 'overhaul distance limit (m)', 100000],
+    ['freeHaulRate', 'free haul ($/m³·km)', 100000],
+    ['overhaulRate', 'overhaul ($/m³·km)', 100000],
+    ['endHaulRate', 'end haul ($/m³·km)', 100000],
+    ['freeHaulLoadingRate', 'free-haul loading ($/m³)', 100000],
+    ['overhaulLoadingRate', 'overhaul loading ($/m³)', 100000],
+    ['endHaulLoadingRate', 'end-haul loading ($/m³)', 100000],
+    ['borrowRate', 'default borrow ($/compacted m³)', 100000],
+    ['wasteRate', 'default waste ($/bank m³)', 100000],
+    ['mobilizationCost', 'mobilization ($)', 1e9],
+    ['contingencyPercent', 'contingency (%)', 100],
+  ]
+  for (const [key, label, high] of haulFields)
+    requireInRange(h[key], 0, high, 'Haul settings', label, { ...haulTarget, field: key })
+  if (h.overhaulDistanceM < h.freeHaulDistanceM)
+    throw new EngineeringInputError(
+      `Haul settings: the overhaul distance limit (${plain(h.overhaulDistanceM)} m) must be at least the free-haul distance (${plain(h.freeHaulDistanceM)} m).`,
+      { ...haulTarget, field: 'overhaulDistanceM' },
     )
-      throw new Error('Culverts need valid stationing, size, cover, ditch dip, invert elevations and costs.')
+  for (const c of e.culverts) {
+    const owner = c.name || 'Culvert',
+      target = { list: 'culverts' as const, id: c.id }
+    const field = (key: keyof Culvert, label: string, low: number, high: number) =>
+      requireInRange(c[key], low, high, owner, label, { ...target, field: key })
+    field('chainage', 'station (m)', 0, 100000)
+    field('skewDegrees', 'skew (°)', -80, 80)
+    field('lengthM', 'horizontal barrel span (m)', 0.2, 500)
+    field('diameterM', 'diameter (m)', 0.1, 20)
+    field('minCoverM', 'required cover (m)', 0, 100)
+    field('unitCost', 'installed cost ($/m)', 0, 1000000)
+    field('fixedCost', 'fixed cost ($)', 0, 1e9)
+    if (c.ditchDipPercent !== undefined) field('ditchDipPercent', 'ditch dip to inlet (%)', 0.1, 50)
+    if (c.kind !== undefined && !['stream', 'cross-drain'].includes(c.kind))
+      throw new EngineeringInputError(`${owner}: choose a road cross-drain or a natural stream.`, {
+        ...target,
+        field: 'kind',
+      })
+    if (c.inletInvertM !== null) field('inletInvertM', 'inlet invert elevation (m)', -12000, 12000)
+    if (c.outletInvertM !== null) field('outletInvertM', 'outlet invert elevation (m)', -12000, 12000)
   }
   for (const s of e.sites) {
+    const owner = s.name || 'Site',
+      target = { list: 'sites' as const, id: s.id }
+    const field = (key: keyof HaulSite, label: string, low: number, high: number) =>
+      requireInRange(s[key], low, high, owner, label, { ...target, field: key })
+    field('chainage', 'station (m)', 0, 100000)
+    field('accessDistanceM', 'access distance (m)', 0, 100000)
+    field('unitRate', 'unit rate ($/m³)', 0, 100000)
+    field('fixedCost', 'fixed cost ($)', 0, 1e9)
+    if (s.capacityM3 !== null) field('capacityM3', 'capacity (m³)', 0, 1e12)
     if (
-      !bounded(s.chainage, 0, 100000) ||
-      !bounded(s.accessDistanceM, 0, 100000) ||
-      !bounded(s.unitRate, 0, 100000) ||
-      !bounded(s.fixedCost, 0, 1e9) ||
       !['borrow', 'waste'].includes(s.kind) ||
       (s.enabled !== undefined && typeof s.enabled !== 'boolean') ||
-      (s.sourceNotes !== undefined && (typeof s.sourceNotes !== 'string' || s.sourceNotes.length > 2000)) ||
-      (s.capacityM3 !== null && !bounded(s.capacityM3, 0, 1e12))
+      (s.sourceNotes !== undefined && (typeof s.sourceNotes !== 'string' || s.sourceNotes.length > 2000))
     )
-      throw new Error('Borrow/waste sites need valid stationing, access distance, capacity and costs.')
+      throw new EngineeringInputError(`${owner}: choose borrow or waste, and keep notes to 2,000 characters.`, target)
   }
   const supply = e.surfacingSupply
   if (

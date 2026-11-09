@@ -249,15 +249,53 @@ describe('material intersections, mass and cost', () => {
     const e = analyzeRoad(a, flat, { ...settings, stationInterval: 100 }).engineering!
     expect(e.materials.find((m) => m.materialId === 'soil')!.bankCutM3).toBeCloseTo(180, 3)
     expect(e.materials.find((m) => m.materialId === '__unclassified')!.bankCutM3).toBeCloseTo(1420, 3)
-    a.engineering!.strata.push({
-      id: 'overlap',
-      materialId: 'soil',
-      start: 30,
-      end: 50,
-      topDepthM: 0.5,
-      bottomDepthM: 2,
-    })
-    expect(() => analyzeRoad(a, flat, settings)).toThrow(/cannot be counted twice/)
+  })
+
+  it('lets a later horizon replace an earlier one where they overlap, without counting excavation twice', () => {
+    const a = road()
+    a.engineering!.materials = [
+      { id: 'soil', name: 'Soil', color: '#987', cutRate: 5, reusableFraction: 1, compactionFactor: 1 },
+      { id: 'rock', name: 'Rock', color: '#678', cutRate: 10, reusableFraction: 1, compactionFactor: 1 },
+    ]
+    // The 2 m cut is 10 m wide at ground and 6 m at formation, so depth a–b holds 10(b−a) − (b²−a²) m².
+    a.engineering!.strata = [
+      { id: 'top', materialId: 'soil', start: 20, end: 40, topDepthM: 0, bottomDepthM: 1 },
+      { id: 'later', materialId: 'rock', start: 30, end: 50, topDepthM: 0.5, bottomDepthM: 2 },
+    ]
+    const overlapping = analyzeRoad(a, flat, { ...settings, stationInterval: 100 })
+    const volume = (r: typeof overlapping, id: string) =>
+      r.engineering!.materials.find((m) => m.materialId === id)!.bankCutM3
+    // Soil: 9 m² over 20–30 and 4.75 m² (0–0.5 m) over 30–40. Rock: 11.25 m² (0.5–2 m) over 30–50.
+    expect(volume(overlapping, 'soil')).toBeCloseTo(137.5, 2)
+    expect(volume(overlapping, 'rock')).toBeCloseTo(225, 2)
+    expect(volume(overlapping, '__unclassified')).toBeCloseTo(1600 - 362.5, 2)
+    expect(overlapping.engineering!.materials.reduce((sum, m) => sum + m.bankCutM3, 0)).toBeCloseTo(
+      overlapping.cutVolumeM3,
+      6,
+    )
+    // The same ground entered as ranges split by hand gives the same quantities.
+    a.engineering!.strata = [
+      { id: 'top-a', materialId: 'soil', start: 20, end: 30, topDepthM: 0, bottomDepthM: 1 },
+      { id: 'top-b', materialId: 'soil', start: 30, end: 40, topDepthM: 0, bottomDepthM: 0.5 },
+      { id: 'later', materialId: 'rock', start: 30, end: 50, topDepthM: 0.5, bottomDepthM: 2 },
+    ]
+    const split = analyzeRoad(a, flat, { ...settings, stationInterval: 100 })
+    for (const id of ['soil', 'rock', '__unclassified'])
+      expect(volume(split, id)).toBeCloseTo(volume(overlapping, id), 6)
+    // A later lens inside an open-ended horizon leaves that horizon above and below it.
+    a.engineering!.strata = [
+      { id: 'deep', materialId: 'soil', start: 0, end: 100, topDepthM: 0.5, bottomDepthM: null },
+      { id: 'lens', materialId: 'rock', start: 0, end: 100, topDepthM: 1, bottomDepthM: 1.5 },
+    ]
+    const lens = analyzeRoad(a, flat, { ...settings, stationInterval: 100 })
+    expect(volume(lens, 'rock')).toBeCloseTo(100 * (5 - 1.25), 2)
+    expect(volume(lens, 'soil')).toBeCloseTo(100 * (15 - 3.75 - (5 - 1.25)), 2)
+    expect(lens.engineering!.stations[1].layers.map((l) => [l.materialId, l.topDepthM, l.bottomDepthM])).toEqual([
+      ['soil', 0.5, 1],
+      ['rock', 1, 1.5],
+      ['soil', 1.5, null],
+    ])
+    expect(new Set(lens.engineering!.stations[1].layers.map((l) => l.id)).size).toBe(3)
   })
 
   it('propagates missing sections into material areas and cumulative mass without bridging the gap', () => {
@@ -983,7 +1021,9 @@ describe('template starters', () => {
   })
 
   it('refuses a starter that would copy an out-of-range section', () => {
-    expect(() => templateFromStarter({ ...uDitch, cutSlope: 0.05 }, 'current')).toThrow(/supported ranges/)
+    expect(() => templateFromStarter({ ...uDitch, cutSlope: 0.05 }, 'current')).toThrow(
+      /cut batter \(H:V\) must be 0\.1 to 10/,
+    )
   })
 })
 

@@ -2835,6 +2835,13 @@ export default function DevForestryRoads() {
                 {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
                 )}
+                {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
+                  <div data-testid="road-invalid-input">
+                    <InlineAlert tone="warning" title="The road and results below leave out your latest edit">
+                      {displayedAnalysis.invalidInput.message} They show the last valid inputs until it is corrected.
+                    </InlineAlert>
+                  </div>
+                )}
                 {!investigation && routePreview && (
                   <div
                     role="status"
