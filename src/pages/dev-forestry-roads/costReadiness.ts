@@ -13,9 +13,26 @@ export interface CostReviewFlag {
   detail: string
 }
 
+/** A quantity of work in the estimate that has no price, so it adds nothing to the total. */
+export interface UnpricedQuantity {
+  /** The cost breakdown row the quantity sits on (`data-cost-row`). */
+  rowId: string
+  /** What the work is, such as "stripping (Stripped overburden)". */
+  item: string
+  quantity: number
+  unit: string
+  /** The whole statement: "1,795 bank m³ of stripping (Stripped overburden) has no rate". */
+  text: string
+}
+
 export interface CostReadinessAssessment {
   quantityCoverageComplete: boolean
   placeholderRates: BaseRateKey[]
+  /**
+   * Every quantity above zero whose rate is zero. Adding such work lowers nothing and prices
+   * nothing, so an estimate that falls after it is added is missing a price, not cheaper.
+   */
+  unpriced: UnpricedQuantity[]
   /** Aggregate lower bound on covered fill demand, subject to the entered material assumptions. */
   minimumBorrowCompactedM3: number
   flags: CostReviewFlag[]
@@ -49,6 +66,64 @@ export function crossingsWithoutStructure(analysis: RoadAnalysis, engineering: A
   )
 }
 
+/**
+ * The quantities with no rate, in cost breakdown order. A zero rate is never replaced by an
+ * assumed one: the amount stays zero and the quantity is named. Free haul inside the free-haul
+ * distance, loading, sidecast and site fixed costs are entered scenarios and are not listed.
+ */
+export function unpricedQuantities(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  settings: RoadSettings,
+): UnpricedQuantity[] {
+  const result = analysis.engineering
+  const engineering = alignment.engineering
+  const list: UnpricedQuantity[] = []
+  const add = (rowId: string, item: string, amount: number, unit: string, noun = 'rate') => {
+    if (amount > EPS)
+      list.push({ rowId, item, quantity: amount, unit, text: `${quantity(amount)} ${unit} of ${item} has no ${noun}` })
+  }
+  if (result)
+    for (const material of result.materials) {
+      const rate =
+        material.materialId === '__unclassified'
+          ? settings.cutRate
+          : (engineering?.materials.find((m) => m.id === material.materialId)?.cutRate ?? 0)
+      if (rate === 0)
+        add(
+          `material-${material.materialId}`,
+          material.materialId === '__unclassified'
+            ? 'unclassified excavation'
+            : `${material.purpose === 'stripping' ? 'stripping' : 'excavation'} (${material.name})`,
+          material.bankCutM3,
+          'bank m³',
+        )
+    }
+  else if (settings.cutRate === 0) add('cut', 'excavation', analysis.cutVolumeM3, 'bank m³')
+  if (settings.fillRate === 0) add('fill', 'fill placement', analysis.fillVolumeM3, 'm³')
+  const courses = result?.materialLayerVolumeM3 ?? 0
+  const surfacing = surfacingSupplyCost(
+    Math.max(0, analysis.surfaceVolumeM3 - courses),
+    settings.surfacingRate,
+    engineering?.surfacingSupply,
+  )
+  if (surfacing.rate === 0) add('surfacing-source', 'delivered surfacing aggregate', surfacing.suppliedM3, 'm³')
+  if (settings.surfacingRate === 0) add('surfacing', 'surfacing', surfacing.fallbackM3, 'm³')
+  if (settings.fillRate === 0) add('material-course-placement', 'material course placement', courses, 'm³')
+  if (settings.clearingRate === 0) add('clearing', 'clearing', analysis.clearingAreaM2, 'm²')
+  for (const culvert of result?.culverts ?? [])
+    if (culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id))
+      add('structures', `culvert (${culvert.name})`, culvert.barrelLengthM ?? 0, 'm', 'installed cost')
+  if (result?.haul.enabled && engineering)
+    for (const line of haulCostLines(engineering, result)) {
+      if (line.rate !== 0) continue
+      const supply = (line.group === 'borrow' || line.group === 'waste') && !line.id.startsWith('sidecast-')
+      const distance = line.group === 'haul' && /^haul-(overhaul|endhaul)-/.test(line.id)
+      if (supply || distance) add(line.id, line.item.toLowerCase(), line.quantity, line.unit)
+    }
+  return list
+}
+
 export function assessCostReadiness(
   analysis: RoadAnalysis,
   alignment: Alignment,
@@ -57,6 +132,7 @@ export function assessCostReadiness(
   const result = analysis.engineering
   const engineering = alignment.engineering
   const flags: CostReviewFlag[] = []
+  const unpriced = unpricedQuantities(analysis, alignment, settings)
   const quantityCoverageComplete = hasCompleteCoverage(analysis)
   const unclassified = result
     ? (result.materials.find((material) => material.materialId === '__unclassified')?.bankCutM3 ?? 0)
@@ -102,10 +178,6 @@ export function assessCostReadiness(
       label: 'Some rates still match the placeholders',
       detail: `${placeholderItems.map((item) => item.label).join(', ')}. Check each against a dated, applicable quote or source; changing another rate does not validate these values.`,
     })
-  const unpricedItems = baseItems
-    .filter((item) => item.quantity > EPS && settings[item.key] === 0)
-    .map((item) => item.label)
-  if (surfacing.suppliedM3 > EPS && surfacing.rate === 0) unpricedItems.push('delivered surfacing aggregate')
   if (supply?.enabled && surfacing.suppliedM3 > EPS && !supply.sourceNotes.trim())
     flags.push({
       id: 'aggregate-source-evidence',
@@ -113,14 +185,13 @@ export function assessCostReadiness(
       detail:
         'Record supply access, material suitability, compacted quantity and a dated quote or explicit zero-acquisition agreement in Engineering → Haul & cost settings. Mapped tenure is not a supply agreement.',
     })
-  for (const material of result?.materials ?? [])
-    if (material.materialId !== '__unclassified' && material.bankCutM3 > EPS && material.excavationCost === 0)
-      unpricedItems.push(`excavation of ${material.name}`)
-  if (unpricedItems.length)
+  // Earthwork, surfacing and clearing; supply, haul and culverts have their own flags below.
+  const unpricedWork = unpriced.filter((item) => /^(material-|cut$|fill$|surfacing|clearing$)/.test(item.rowId))
+  if (unpricedWork.length)
     flags.push({
       id: 'zero-work-rates',
       label: 'Positive work quantities have zero amounts',
-      detail: `${unpricedItems.join(', ')}. Enter prices or record why the work is included elsewhere or excluded; zero is not evidence that the work is free.`,
+      detail: `${unpricedWork.map((item) => item.text).join('; ')}. Enter prices or record why the work is included elsewhere or excluded; zero is not evidence that the work is free.`,
     })
   if (unclassified > EPS)
     flags.push({
@@ -152,14 +223,12 @@ export function assessCostReadiness(
         label: 'Some material has no reachable site capacity',
         detail: `${quantity(result.haul.unallocatedBorrowM3)} compacted m³ borrow and ${quantity(result.haul.unallocatedWasteM3)} bank m³ waste remain unallocated. Default supply/disposal rates may be included, but unknown haul is excluded.`,
       })
-    const unpricedSupply = haulCostLines(engineering, result).filter(
-      (line) => (line.group === 'borrow' || line.group === 'waste') && line.quantity > EPS && line.rate === 0,
-    )
+    const unpricedSupply = unpriced.filter((item) => /^(borrow|waste)-/.test(item.rowId))
     if (unpricedSupply.length)
       flags.push({
         id: 'zero-supply-rates',
         label: 'Borrow or waste quantities have zero prices',
-        detail: `${unpricedSupply.map((line) => line.item).join('; ')}. Confirm a supply/disposal price or an explicit included-cost assumption.`,
+        detail: `${unpricedSupply.map((item) => item.text).join('; ')}. Confirm a supply/disposal price or an explicit included-cost assumption.`,
       })
     // A deliberately free-haul class is valid; do not label it an incomplete budget merely
     // because its distance and loading rates are zero.
@@ -237,6 +306,7 @@ export function assessCostReadiness(
   return {
     quantityCoverageComplete,
     placeholderRates: placeholderItems.map((item) => item.key),
+    unpriced,
     minimumBorrowCompactedM3,
     flags,
   }

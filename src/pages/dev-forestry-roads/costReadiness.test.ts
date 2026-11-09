@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
-import { assessCostReadiness } from './costReadiness'
+import { assessCostReadiness, unpricedQuantities } from './costReadiness'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 
@@ -207,5 +207,108 @@ describe('road cost review', () => {
     expect(ids(analysis, road)).toContain('unassigned-crossings')
     road.engineering.culverts[0].chainage = 51
     expect(ids(analysis, road)).not.toContain('unassigned-crossings')
+  })
+  it('names stripping with no rate instead of letting the estimate read as cheaper', () => {
+    // A 2 m cut on flat ground; stripping 0.2 m of it moves priced excavation onto an unpriced line.
+    const road = alignment()
+    road.vertical = road.vertical.map((point) => ({ ...point, elevation: 798 }))
+    road.engineering = createEngineeringDesign()
+    const flat = { elevationAt: () => 800 }
+    const before = analyzeRoad(road, flat, settings)
+    expect(unpricedQuantities(before, road, settings)).toEqual([])
+    road.engineering.materials = [
+      {
+        id: 'strip',
+        name: 'Stripped overburden',
+        color: '#9a663e',
+        cutRate: 0,
+        reusableFraction: 0,
+        compactionFactor: 1,
+        purpose: 'stripping',
+      },
+    ]
+    road.engineering.sitePreparation = [
+      {
+        id: 's1',
+        start: 0,
+        end: 100,
+        depthM: 0.2,
+        leftInsideM: 0,
+        rightInsideM: 0,
+        leftOutsideM: 0.3,
+        rightOutsideM: 0.3,
+        materialId: 'strip',
+      },
+    ]
+    const after = analyzeRoad(road, flat, settings)
+    // The trap: more work, lower estimate.
+    expect(after.cutVolumeM3).toBeGreaterThan(before.cutVolumeM3)
+    expect(after.estimatedCost).toBeLessThan(before.estimatedCost)
+    const stripped = after.engineering!.strippingCutM3
+    const unpriced = unpricedQuantities(after, road, settings)
+    expect(unpriced).toHaveLength(1)
+    expect(unpriced[0]).toMatchObject({
+      rowId: 'material-strip',
+      item: 'stripping (Stripped overburden)',
+      unit: 'bank m³',
+    })
+    expect(unpriced[0].quantity).toBeCloseTo(stripped, 6)
+    expect(unpriced[0].text).toBe(
+      `${stripped.toLocaleString('en-CA', { maximumFractionDigits: 1 })} bank m³ of stripping (Stripped overburden) has no rate`,
+    )
+    const review = assessCostReadiness(after, road, settings)
+    expect(review.unpriced).toEqual(unpriced)
+    expect(review.flags.find((flag) => flag.id === 'zero-work-rates')?.detail).toContain(unpriced[0].text)
+    // No rate is invented: the amount stays zero until one is entered, and then the flag goes.
+    expect(after.engineering!.costs.stripping).toBe(0)
+    road.engineering.materials[0].cutRate = 3
+    const priced = analyzeRoad(road, flat, settings)
+    expect(unpricedQuantities(priced, road, settings)).toEqual([])
+    expect(priced.engineering!.costs.stripping).toBeCloseTo(stripped * 3, 6)
+  })
+
+  it('lists unpriced supply, long haul and culverts but not free haul, loading or sidecast', () => {
+    const road = alignment()
+    road.engineering = createEngineeringDesign()
+    road.engineering.haul.enabled = true
+    road.engineering.sites = [
+      {
+        id: 'pit',
+        name: 'Pit',
+        kind: 'borrow',
+        chainage: 50,
+        accessDistanceM: 1000,
+        capacityM3: null,
+        unitRate: 0,
+        fixedCost: 0,
+      },
+    ]
+    road.engineering.culverts = [
+      {
+        id: 'c1',
+        name: 'Culvert 1',
+        chainage: 50,
+        skewDegrees: 0,
+        lengthM: 30,
+        diameterM: 0.6,
+        inletInvertM: 799,
+        outletInvertM: 798.4,
+        minCoverM: 0.6,
+        unitCost: 0,
+        fixedCost: 0,
+      },
+    ]
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    const rows = unpricedQuantities(analysis, road, settings).map((item) => item.rowId)
+    expect(rows).toEqual(['structures', 'haul-endhaul-compacted', 'borrow-pit'])
+    expect(unpricedQuantities(analysis, road, settings)[0].text).toMatch(
+      /m of culvert \(Culvert 1\) has no installed cost$/,
+    )
+    // Priced supply and haul leave only the culvert; a free-haul move is never listed.
+    road.engineering.sites[0].unitRate = 10
+    road.engineering.haul.endHaulRate = 4
+    const priced = analyzeRoad(road, { elevationAt: () => 800 }, settings)
+    expect(unpricedQuantities(priced, road, settings).map((item) => item.rowId)).toEqual(['structures'])
+    expect(priced.engineering!.movements.some((m) => m.category === 'endhaul')).toBe(true)
   })
 })

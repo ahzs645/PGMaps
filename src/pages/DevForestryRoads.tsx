@@ -134,6 +134,7 @@ import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { incompleteReasonSummary, incompleteReasonText } from './dev-forestry-roads/sectionCompleteness'
+import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
@@ -807,6 +808,13 @@ export default function DevForestryRoads() {
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
   const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
+  const unpricedCount = useMemo(
+    () =>
+      displayedAnalysis.stations.length
+        ? unpricedQuantities(displayedAnalysis, displayedAlignment, project.settings).length
+        : 0,
+    [displayedAnalysis, displayedAlignment, project.settings],
+  )
   const at = nearestStation(displayedAnalysis.stations, w.station)
   const station = at?.chainage ?? 0
   // The header subtitle shows the latest notice briefly, in place of a status row.
@@ -2636,10 +2644,13 @@ export default function DevForestryRoads() {
                         : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible' ||
                             displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
                           ? 'Incomplete estimate'
-                          : summaryLabel(
-                              'Base engineering estimate',
-                              hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                            ),
+                          : unpricedCount
+                            ? // Work with no rate adds nothing, so the figure must not read as a finished price.
+                              summaryLabel(`Estimate · ${unpricedCount} unpriced`, `Est. · ${unpricedCount} unpriced`)
+                            : summaryLabel(
+                                'Base engineering estimate',
+                                hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                              ),
                     value: costPreview
                       ? costPreview.totalCost === null
                         ? costPreview.status === 'infeasible'

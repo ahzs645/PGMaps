@@ -217,6 +217,18 @@ prices, unpriced work, material assumptions, unallocated haul and crossing/culve
 gaps. With haul off, it screens minimum borrow demand from the covered material balance
 without adding an invented price or extrapolating missing intervals.
 
+**Unpriced quantities.** `unpricedQuantities` (`costReadiness.ts`) lists every quantity above
+zero whose rate is zero: stripping and excavation by material, fill placement, surfacing,
+clearing, borrow supply and waste disposal, overhaul and endhaul distance, and culverts with no
+installed cost. No rate is assumed for them; the amount stays zero. Each is named with its
+quantity ("1,795 bank m³ of stripping (Stripped overburden) has no rate") in a warning above the
+cost table, its row reads **No rate** in place of $0.00, the dialog's status line counts them and
+the headline tile reads **Estimate · N unpriced**. This matters because adding unpriced work
+can lower the total: **Add stripping range** creates its material at $0, so stripping moves
+excavation off a priced line onto an unpriced one. Free haul inside the free-haul distance,
+loading, sidecast and a site's fixed cost are entered scenarios and are not listed. The same list
+is `unpriced` on `assessCostReadiness`, which builds the zero-rate review flags from it.
+
 **Regional evidence and rate tools.** The BC reference browser links all eight regions
 to current manual editions and primary supplier sources. Missing public prices remain
 quote-required. Separate Interior subgrade and Coast bundled-road comparisons retain
@@ -245,7 +257,7 @@ payload, or net crew productivity as appropriate. See
 | "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                 |
 | Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                              |
 | Overhaul m³·km in the cost dialog smaller than on the Haul tab           | The dialog charges overhaul and endhaul only beyond free haul; the Haul tab's m³·km is over the whole distance                  | Expected; use the dialog's rows for cost, the Haul tab for movement                      |
-| A zero cost line                                                         | Its rate is zero                                                                                                                | Zero means unpriced; enter a rate or state the exclusion                                 |
+| A cost line reads **No rate**, tile reads **Estimate · N unpriced**      | A quantity above zero has a zero rate                                                                                           | Enter the rate, or record where the cost is carried; the total leaves it out             |
 
 ## What it does not do
 
