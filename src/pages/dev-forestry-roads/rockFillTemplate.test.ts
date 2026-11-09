@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
 import { incompleteReasonSummary, incompleteReasonText } from './sectionCompleteness'
-import { keyedRockFillTemplate, ROCK_FILL_DEFAULTS } from './templates'
+import {
+  copyTemplateSide,
+  ditchSideSlope,
+  ditchTopWidthForSlope,
+  keyedRockFillTemplate,
+  ROCK_FILL_DEFAULTS,
+  sideValue,
+  validateTemplate,
+} from './templates'
 import { templateConditionCases } from './TemplateSandbox'
 import type { Alignment, Coordinate, RoadSettings, RoadTemplate } from './types'
 
@@ -162,5 +170,93 @@ describe('the four condition previews', () => {
     const missing = templateConditionCases(template)
     expect(missing.every((c) => c.station === undefined)).toBe(true)
     expect(missing[0].analysis.invalidInput?.message).toMatch(/unknown material/)
+  })
+})
+
+describe('a ditch entered by depth and slope', () => {
+  it("gives the manual's 0.3 m deep, 4:1 V ditch its 2.4 m top width, and reads it back", () => {
+    expect(ditchTopWidthForSlope(4, 0.3, 0)).toBeCloseTo(2.4, 9)
+    expect(ditchSideSlope(2.4, 0.3, 0)).toBeCloseTo(4, 9)
+    // A flat bottom is added to the two side runs.
+    expect(ditchTopWidthForSlope(2, 0.5, 0.6)).toBeCloseTo(2.6, 9)
+    expect(ditchSideSlope(2.6, 0.5, 0.6)).toBeCloseTo(2, 9)
+    // The default section: a 1 m wide, 0.5 m deep V is 1:1.
+    expect(ditchSideSlope(1, 0.5, 0)).toBeCloseTo(1, 9)
+    expect(ditchSideSlope(1, 0, 0)).toBeNull()
+  })
+  it('puts the ditch bottom where that slope says in a calculated section', () => {
+    const a = road(-2)
+    a.template = { ...a.template, crossfallPercent: 0, ditchDepth: 0.3, ditchWidth: ditchTopWidthForSlope(4, 0.3, 0) }
+    delete a.template.leftFillSlope
+    const station = analyzeRoad(a, flat, settings).stations[5]
+    // Formation at 798 m: the V bottom is 0.3 m lower, 1.2 m beyond each 3 m formation edge.
+    const sample = (offset: number) => station.section.find((p) => Math.abs(p.offset - offset) < 1e-6)?.design
+    expect(sample(4.2)).toBeCloseTo(797.7, 6)
+    expect(sample(-4.2)).toBeCloseTo(797.7, 6)
+    expect(sample(5.4)).toBeCloseTo(798, 6)
+  })
+})
+
+describe('copying one side of a template to the other', () => {
+  const lopsided: RoadTemplate = {
+    ...base,
+    leftWidth: 2.5,
+    leftCrossfallPercent: 4,
+    leftDitchWidth: 2.4,
+    leftDitchDepth: 0.3,
+    rightDitchWidth: 0,
+    rightCutSlope: 2,
+    components: [
+      { id: 'lb', name: 'Bench', side: 'left', kind: 'bench', condition: 'cut', widthM: 1.5, riseM: 0 },
+      { id: 'rk', name: 'Key', side: 'right', kind: 'key', condition: 'fill', widthM: 2, riseM: 0, depthM: 1 },
+    ],
+    layers: [
+      { id: 'all', name: 'Base course', side: 'both', depthM: 0.2 },
+      { id: 'lo', name: 'Left wearing course', side: 'left', depthM: 0.1 },
+      { id: 'ro', name: 'Right wearing course', side: 'right', depthM: 0.05 },
+    ],
+  }
+  it('makes the right side match the left, values, components and courses', () => {
+    const copy = copyTemplateSide(lopsided, 'left', newId)
+    validateTemplate(copy)
+    expect(copy.rightWidth).toBe(2.5)
+    for (const attribute of [
+      'CrossfallPercent',
+      'CutSlope',
+      'FillSlope',
+      'DitchWidth',
+      'DitchDepth',
+      'DitchBottomWidth',
+      'SurfaceDepth',
+    ] as const)
+      expect(sideValue(copy, 'right', attribute)).toBe(sideValue(copy, 'left', attribute))
+    // The right side's own cut batter is cleared, so it inherits the base like the left.
+    expect(copy.rightCutSlope).toBeUndefined()
+    expect(copy.components?.map((c) => [c.side, c.kind, c.name])).toEqual([
+      ['left', 'bench', 'Bench'],
+      ['right', 'bench', 'Bench'],
+    ])
+    expect(new Set(copy.components?.map((c) => c.id)).size).toBe(2)
+    expect(copy.layers?.map((l) => [l.side, l.name])).toEqual([
+      ['both', 'Base course'],
+      ['left', 'Left wearing course'],
+      ['right', 'Left wearing course'],
+    ])
+    // The source side and the template passed in are untouched.
+    expect(copy.leftWidth).toBe(2.5)
+    expect(lopsided.rightCutSlope).toBe(2)
+    expect(lopsided.components).toHaveLength(2)
+  })
+  it('copies right to left the same way', () => {
+    const copy = copyTemplateSide(lopsided, 'right', newId)
+    validateTemplate(copy)
+    expect(copy.leftWidth).toBe(3)
+    expect(copy.leftCutSlope).toBe(2)
+    expect(copy.leftDitchWidth).toBe(0)
+    expect(copy.leftCrossfallPercent).toBeUndefined()
+    expect(copy.components?.map((c) => [c.side, c.kind])).toEqual([
+      ['right', 'key'],
+      ['left', 'key'],
+    ])
   })
 })

@@ -127,6 +127,46 @@ export function sectionCrossfall(
   return crossfall + (target - crossfall) * curve.ratio
 }
 
+/**
+ * The ditch's side slope, H:V. A ditch is a top width, a depth and a flat bottom centred in it, so
+ * its inslope and backslope are equal: each runs (top − bottom) / 2 for the depth. Null when the
+ * ditch has no depth.
+ */
+export function ditchSideSlope(topWidthM: number, depthM: number, bottomWidthM: number): number | null {
+  return depthM > 0 ? Math.max(0, topWidthM - Math.min(topWidthM, bottomWidthM)) / 2 / depthM : null
+}
+
+/** The top width that gives a ditch of this depth and bottom width the side slope `slope` H:V. */
+export function ditchTopWidthForSlope(slope: number, depthM: number, bottomWidthM: number): number {
+  return Math.max(0, bottomWidthM) + 2 * Math.max(0, slope) * Math.max(0, depthM)
+}
+
+/**
+ * The template with every value of one side copied to the other: lane width, crossfall,
+ * surfacing, ditch, batters, section components and one-sided surface courses. Values the source
+ * side inherits from the base are written out, so the two sides match even where the destination
+ * had its own override. `newId` names the copied components and courses.
+ */
+export function copyTemplateSide(template: RoadTemplate, from: Side, newId: () => string): RoadTemplate {
+  const to: Side = from === 'left' ? 'right' : 'left'
+  const next: RoadTemplate = { ...template, [`${to}Width`]: template[`${from}Width`] }
+  for (const attribute of attributes) {
+    const own = template[`${from}${attribute}`]
+    // An inherited value stays inherited on both sides; an own value is copied across.
+    if (own === undefined) delete next[`${to}${attribute}`]
+    else next[`${to}${attribute}`] = own
+  }
+  if (template.components)
+    next.components = template.components.flatMap((component) =>
+      component.side === to ? [] : [component, { ...component, id: newId(), side: to }],
+    )
+  if (template.layers)
+    next.layers = template.layers.flatMap((layer) =>
+      layer.side === to ? [] : layer.side === from ? [layer, { ...layer, id: newId(), side: to }] : [layer],
+    )
+  return next
+}
+
 export type TemplateStarter = 'current' | 'single' | 'double' | 'landing' | 'urban'
 
 const STARTER_DIMENSIONS: Record<Exclude<TemplateStarter, 'current'>, Partial<RoadTemplate>> = {

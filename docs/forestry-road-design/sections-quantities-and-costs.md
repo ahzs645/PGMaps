@@ -94,6 +94,14 @@ new template is validated before it is added; one out of range is refused with a
 a BC road-class standard. Left and right ditch bottom widths are set in the template's side
 editor.
 
+**Ditch shape.** A ditch is a top width, a depth and a flat bottom centred in it, so its inslope
+and backslope are the same: each runs (top − bottom) / 2 over the depth. **Side slopes (H:V)** in
+the ditch editor enters that slope instead of the top width (`ditchTopWidthForSlope` in
+`templates.ts`): a 0.3 m deep V ditch at 4:1 becomes 2.4 m wide. A ditch whose backslope is the
+cut batter, with a different inslope, is not modelled. **Copy left side to right** (and right to
+left) copies the lane, crossfall, surfacing, ditch, batters, components and one-sided courses of
+one side to the other (`copyTemplateSide`).
+
 **Section geometry.** Negative offsets are left looking up-station, on the plan, the section, the
 templates and the tables. A ditch is built only where ground at the hinge is above the formation
 edge, so a fill side never gets one. Each batter is searched outward from the hinge (or ditch) at

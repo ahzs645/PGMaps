@@ -22,7 +22,13 @@ import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements } from './groundHorizons'
 import { nearestStation } from './engine'
-import { keyedRockFillTemplate, templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
+import {
+  copyTemplateSide,
+  keyedRockFillTemplate,
+  templateFromStarter,
+  validateTemplate,
+  type TemplateStarter,
+} from './templates'
 import { formatRoadStation } from './Charts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type {
@@ -688,6 +694,28 @@ export function EngineeringControls({
                 <details className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
                   <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1 pt-2">
+                      {(['left', 'right'] as const).map((from) => (
+                        <Button
+                          key={from}
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            const copy = copyTemplateSide(candidate, from, uid)
+                            // Keys the copy removed must be passed as undefined to clear them.
+                            updateTemplate({
+                              ...Object.fromEntries(sideFields.map((field) => [field.key, copy[field.key]])),
+                              leftWidth: copy.leftWidth,
+                              rightWidth: copy.rightWidth,
+                              components: copy.components,
+                              layers: copy.layers,
+                            })
+                          }}
+                        >
+                          Copy {from} side to {from === 'left' ? 'right' : 'left'}
+                        </Button>
+                      ))}
+                    </div>
                     {sideFields.map((field) => (
                       <div key={String(field.key)} className="flex items-end gap-1">
                         <div className="min-w-0 flex-1">

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
+import { Button } from '@/components/ui/button'
 import { NumberField } from './Controls'
-import { sideValue } from './templates'
+import { copyTemplateSide, ditchSideSlope, ditchTopWidthForSlope, sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
 import { inputMessage, type InvalidInput } from './inputErrors'
 import type { ContextFeature, GroundMaterial, RoadTemplate } from './types'
@@ -87,6 +88,13 @@ export function TemplateComponents({
       : (template[field.key] as number)
   const overridden = (field: Field) => field.base !== undefined && template[field.key] !== undefined
   const component = COMPONENTS[selected.kind]
+  const ditchDepth = sideValue(template, selected.side, 'DitchDepth'),
+    ditchBottom = sideValue(template, selected.side, 'DitchBottomWidth')
+  const ditch = {
+    depth: ditchDepth,
+    bottom: ditchBottom,
+    slope: ditchSideSlope(sideValue(template, selected.side, 'DitchWidth'), ditchDepth, ditchBottom),
+  }
   const fixed = (n: number, digits = 1) => n.toFixed(digits).replace(/\.0+$/, '')
   /** The values that identify a component at a glance, so the grid doubles as a summary. */
   const glance = (kind: Kind, side: Side) => {
@@ -176,6 +184,39 @@ export function TemplateComponents({
             </div>
           ))}
         </div>
+        {selected.kind === 'ditch' && ditch.slope !== null && (
+          // The same ditch, entered as the manual does: a depth and a slope instead of a top width.
+          <div className="mt-2 grid grid-cols-3 items-end gap-2">
+            <NumberField
+              label="Side slopes (H:V)"
+              value={Number(ditch.slope.toFixed(4))}
+              min={0}
+              max={Number(((10 - ditch.bottom) / 2 / ditch.depth).toFixed(4))}
+              step={0.25}
+              hint="Sets the top width from the depth and bottom width: top = bottom + 2 × slope × depth. A 0.3 m deep V ditch at 4:1 is 2.4 m wide. The inslope and the backslope are the same slope; a ditch whose backslope is the cut batter is not modelled."
+              onChange={(slope) =>
+                onChange({
+                  ...template,
+                  [`${selected.side}DitchWidth`]: Number(
+                    ditchTopWidthForSlope(slope, ditch.depth, ditch.bottom).toFixed(4),
+                  ),
+                })
+              }
+            />
+          </div>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {(['left', 'right'] as const).map((from) => (
+          <Button
+            key={from}
+            size="sm"
+            variant="outline"
+            onClick={() => onChange(copyTemplateSide(template, from, () => crypto.randomUUID()))}
+          >
+            Copy {from} side to {from === 'left' ? 'right' : 'left'}
+          </Button>
+        ))}
       </div>
       <SectionAssemblyEditor
         template={template}
