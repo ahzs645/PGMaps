@@ -421,6 +421,22 @@ export const rationalPeakFlow = (runoffCoefficient: number, rainfallMmPerHr: num
 export const fullPipeCapacity = (diameterM: number, slope: number, manningN: number) =>
   (1 / manningN) * ((Math.PI * diameterM ** 2) / 4) * (diameterM / 4) ** (2 / 3) * Math.sqrt(Math.max(0, slope))
 
+/**
+ * The slope a culvert capacity check uses: the entered fall where the outlet is below the inlet,
+ * else `assumedSlope`, flagged as assumed. The drainage run and the culvert editor both read this.
+ */
+export function culvertCapacitySlope(
+  c: Pick<Culvert, 'inletInvertM' | 'outletInvertM' | 'lengthM'>,
+  assumedSlope: number,
+): { slope: number; slopeAssumed: boolean } {
+  const fall =
+    c.inletInvertM !== null && c.outletInvertM !== null && c.lengthM > 0
+      ? (c.inletInvertM - c.outletInvertM) / c.lengthM
+      : NaN
+  const slopeAssumed = !(fall > 0)
+  return { slope: slopeAssumed ? assumedSlope : fall, slopeAssumed }
+}
+
 /** Smallest standard diameter whose full-pipe capacity carries `flow`, or null if none does. */
 export function minimumDiameter(
   flow: number,
@@ -801,12 +817,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
       designArea = Math.max(designArea, accD[i])
       existingArea = Math.max(existingArea, accE[i])
     }
-    const fall =
-      c.inletInvertM !== null && c.outletInvertM !== null && c.lengthM > 0
-        ? (c.inletInvertM - c.outletInvertM) / c.lengthM
-        : NaN
-    const slopeAssumed = !(fall > 0),
-      slope = slopeAssumed ? defaultSlope : fall
+    const { slope, slopeAssumed } = culvertCapacitySlope(c, defaultSlope)
     const designAreaHa = designArea / 10_000
     const designFlowM3s = rationalPeakFlow(input.runoffCoefficient, input.rainfallMmPerHr, designAreaHa)
     const capacityM3s = fullPipeCapacity(c.diameterM, slope, input.manningN)

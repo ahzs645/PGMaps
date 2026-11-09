@@ -21,6 +21,8 @@ import { ReferenceSelect } from './CostReferenceControls'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements } from './groundHorizons'
+import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
+import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
 import {
   copyTemplateSide,
@@ -45,7 +47,7 @@ import type {
 } from './types'
 
 const uid = () => crypto.randomUUID()
-type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number }
+type NumericField<T> = { key: keyof T; label: string; min?: number; max?: number; step?: number; hint?: string }
 function Fields<T extends object>({
   value,
   fields,
@@ -68,6 +70,7 @@ function Fields<T extends object>({
           min={field.min}
           max={field.max}
           step={field.step}
+          hint={field.hint}
           error={errorFor?.(String(field.key))}
           onChange={(number) => onChange({ [field.key]: number } as Partial<T>)}
         />
@@ -281,6 +284,8 @@ export function EngineeringControls({
     }
   }
   const [haulOpen, setHaulOpen] = useState(false)
+  // Which invert a typed culvert fall keeps; the other one follows.
+  const [fallHolds, setFallHolds] = useState<Record<string, 'inlet' | 'outlet'>>({})
   const activeTab = aggregateOpen ? 'haul' : tab
   const changeHaulOpen = (open: boolean) => {
     setHaulOpen(open)
@@ -304,6 +309,8 @@ export function EngineeringControls({
   const errorsFor = (list: EngineeringInputList, id?: string) => (field: string) =>
     inputMessage(problem, list, id, field)
   const replacedHorizons = horizonReplacements(design.strata)
+  // The pipe roughness the drainage run uses, so the capacity shown here is the one it will check.
+  const manningN = project.drainage?.settings?.manningN ?? DEFAULT_DRAINAGE_SETTINGS.manningN
   const constrainedAllocation = !!(
     design.fillRequirements?.length ||
     design.haul.directionRanges?.length ||
@@ -1188,7 +1195,13 @@ export function EngineeringControls({
                   value={c}
                   fields={[
                     { key: 'chainage', label: `Culvert ${index + 1} station (m)` },
-                    { key: 'skewDegrees', label: `Culvert ${index + 1} skew (°)`, min: -80, max: 80 },
+                    {
+                      key: 'skewDegrees',
+                      label: `Culvert ${index + 1} skew from square (°)`,
+                      min: -80,
+                      max: 80,
+                      hint: 'Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
+                    },
                     { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
                     { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
                     { key: 'minCoverM', label: `Culvert ${index + 1} required cover (m)`, max: 100 },
@@ -1198,6 +1211,10 @@ export function EngineeringControls({
                   errorFor={errorsFor('culverts', c.id)}
                   onChange={(p) => patch('culverts', c.id, p)}
                 />
+                <p className="text-2xs leading-4 text-muted-foreground">
+                  Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15°
+                  here.
+                </p>
                 <EntryProblem
                   problem={problem}
                   list="culverts"
@@ -1252,25 +1269,62 @@ export function EngineeringControls({
                   Enter provisional inverts
                 </label>
                 {c.inletInvertM !== null && c.outletInvertM !== null && (
-                  <Fields<Culvert>
-                    value={c}
-                    fields={[
-                      {
-                        key: 'inletInvertM',
-                        label: `Culvert ${index + 1} left inlet invert (m)`,
-                        min: -12000,
-                        max: 12000,
-                      },
-                      {
-                        key: 'outletInvertM',
-                        label: `Culvert ${index + 1} right outlet invert (m)`,
-                        min: -12000,
-                        max: 12000,
-                      },
-                    ]}
-                    onChange={(p) => patch('culverts', c.id, p)}
-                  />
+                  <>
+                    <Fields<Culvert>
+                      value={c}
+                      fields={[
+                        {
+                          key: 'inletInvertM',
+                          label: `Culvert ${index + 1} left inlet invert (m)`,
+                          min: -12000,
+                          max: 12000,
+                        },
+                        {
+                          key: 'outletInvertM',
+                          label: `Culvert ${index + 1} right outlet invert (m)`,
+                          min: -12000,
+                          max: 12000,
+                        },
+                      ]}
+                      errorFor={errorsFor('culverts', c.id)}
+                      onChange={(p) => patch('culverts', c.id, p)}
+                    />
+                    {/* The same two inverts, entered as a gradient: one end is held and the other follows. */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberField
+                        label={`Culvert ${index + 1} fall, inlet to outlet (%)`}
+                        value={Number((culvertFallPercent(c) ?? 0).toFixed(3))}
+                        min={-50}
+                        max={50}
+                        step={0.5}
+                        hint="The pipe gradient over its horizontal span. Entering it moves one invert and keeps the other; a positive fall puts the outlet below the inlet."
+                        onChange={(fall) => {
+                          const inverts = invertsForFall(c, fall, fallHolds[c.id] ?? 'inlet')
+                          if (inverts) patch('culverts', c.id, inverts)
+                        }}
+                      />
+                      <Field label={`Culvert ${index + 1} fall keeps`}>
+                        <RoadSelect
+                          ariaLabel={`Culvert ${index + 1} fall keeps`}
+                          className={roadFieldClass}
+                          value={fallHolds[c.id] ?? 'inlet'}
+                          onValueChange={(value) =>
+                            setFallHolds((previous) => ({ ...previous, [c.id]: value as 'inlet' | 'outlet' }))
+                          }
+                        >
+                          <option value="inlet">Inlet invert, sets the outlet</option>
+                          <option value="outlet">Outlet invert, sets the inlet</option>
+                        </RoadSelect>
+                      </Field>
+                    </div>
+                  </>
                 )}
+                <p className="text-2xs leading-4 text-muted-foreground" data-testid="road-culvert-capacity">
+                  {(() => {
+                    const pipe = culvertScreeningCapacity(c, manningN)
+                    return `Full-pipe capacity ${pipe.capacityM3s.toFixed(3)} m³/s at ${(pipe.slope * 100).toFixed(2)} %${pipe.slopeAssumed ? ', assumed until the outlet is below the inlet' : ''} (Manning n ${manningN}). The peak flow it must carry needs a drainage run.`
+                  })()}
+                </p>
                 {result && (
                   <p className="text-2xs leading-4">
                     Grade {result.gradePercent?.toFixed(2) ?? '—'}% · minimum formation cover{' '}

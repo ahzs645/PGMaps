@@ -179,7 +179,16 @@ In the table only the default borrow and waste rates are editable. Class rates a
 fields below the table; site rates and fixed costs in Engineering → Haul. **Structures** shows the
 culvert count and their installed total, with no rate.
 
-**Culverts.** Cover is the minimum sampled subgrade-to-crown distance under the lane width only. It
+**Culverts.** The inlet is the left end of the barrel and the outlet the right. With both inverts
+entered, **fall, inlet to outlet (%)** shows the gradient over the horizontal span and accepts
+one: it keeps the inlet and moves the outlet, or the reverse (`invertsForFall`, `culvertGrade.ts`).
+Skew is measured from square to the road, not from the centreline: 0° crosses
+square, a pipe 75° from the centreline is 15°, and positive turns the right-hand end toward lower
+stations. Each culvert shows the full-pipe Manning capacity of its diameter at its fall
+(`culvertScreeningCapacity`), with the drainage settings' Manning n, or at an assumed 2 % until
+the outlet is below the inlet. That figure belongs to the pipe alone; the peak flow it must carry
+comes only from a drainage run, which uses the same slope rule (`culvertCapacitySlope`,
+`hydrology.ts`). Cover is the minimum sampled subgrade-to-crown distance under the lane width only. It
 excludes surfacing and is not checked under ditches or fill batters. The formation under the
 barrel uses the section's own crossfall at each sample's station, superelevated on a curve
 (`sectionCrossfall` in `templates.ts`). A dip deepens the left (inlet-side) ditch only, and only

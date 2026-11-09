@@ -447,7 +447,7 @@ export function validateEngineering(e: AlignmentEngineering): void {
     const field = (key: keyof Culvert, label: string, low: number, high: number) =>
       requireInRange(c[key], low, high, owner, label, { ...target, field: key })
     field('chainage', 'station (m)', 0, 100000)
-    field('skewDegrees', 'skew (°)', -80, 80)
+    field('skewDegrees', 'skew from square (°)', -80, 80)
     field('lengthM', 'horizontal barrel span (m)', 0.2, 500)
     field('diameterM', 'diameter (m)', 0.1, 20)
     field('minCoverM', 'required cover (m)', 0, 100)
