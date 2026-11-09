@@ -60,3 +60,14 @@ export function ColumnHeader({
     </th>
   )
 }
+
+/**
+ * An editable number inside an `EngineeringTable` cell: borderless and right-aligned like the
+ * numbers around it, outlined on hover and focus, with no spinner. Give its `<td>` `!p-0.5` and
+ * hide the field's visible label; the column header names it and an `aria-label` names the row.
+ */
+export const engineeringCellInputClass =
+  'w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-right text-base leading-4 tabular-nums text-foreground [appearance:textfield] hover:border-input focus:border-ring focus:bg-background focus:outline-none disabled:opacity-60 md:text-2xs [&::-webkit-inner-spin-button]:appearance-none'
+
+/** Keeps a row's identifying first column in view while the table scrolls sideways. */
+export const engineeringPinnedColumnClass = 'sticky left-0 z-[1]'

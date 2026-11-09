@@ -326,6 +326,8 @@ export interface RoadProject {
   cables: CableLine[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]
   surveyBooks?: import('./surveyInterchange').SurveyBookRecord[]
+  /** Sketches, pins, lines and areas drawn on the plan. Kept apart from design data; nothing reads them. */
+  notes?: import('./mapNotes').MapNote[]
 }
 export interface SectionSample {
   offset: number

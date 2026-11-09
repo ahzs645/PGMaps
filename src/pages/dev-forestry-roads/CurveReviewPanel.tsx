@@ -14,6 +14,7 @@ import {
 } from './curveReview'
 import type { SweptPathResult } from './sweptPath'
 import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
+import { InfoTip } from '@/components/ui/info-tip'
 
 const number = (value: number | null | undefined, digits = 2) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -276,26 +277,26 @@ export function CurveReviewPanel({
                   </div>
                 )
               })()}
-              <details className="text-2xs text-muted-foreground">
-                <summary className="cursor-pointer">How this is calculated</summary>
-                <p className="mt-1">
+              {/* The method is reference text: behind an info button, not an open block under the review. */}
+              <InfoTip label="How this is calculated" showLabel bubbleClassName="w-96 space-y-1.5">
+                <span className="block">
                   {active.events.length === 4
                     ? 'TS/ST bound the full curve; SC/CS bound the circular arc. Full deflection includes both spirals.'
                     : 'BC/EC bound the circular curve. No spirals are fitted.'}
-                </p>
-                <p className="mt-1">
+                </span>
+                <span className="block">
                   Widths, radii, grades and crossfalls use {active.circularSampleCount} calculated sections on the
                   circular arc. Crossfall is positive falling away from the centreline. The capped target can differ
                   from actual crossfall because the section retains its template crown. Entered widening is additional
                   to the resolved template and local widening ranges.
-                </p>
-                <p className="mt-1">{INNER_EDGE_GRADE_BASIS}</p>
-                <p className="mt-1">{CURVE_REVIEW_BASIS}</p>
-                <p className="mt-1">
+                </span>
+                <span className="block">{INNER_EDGE_GRADE_BASIS}</span>
+                <span className="block">{CURVE_REVIEW_BASIS}</span>
+                <span className="block">
                   Criteria: {alignment.curveDesign?.criteriaName || 'Not named'} ·{' '}
                   {alignment.curveDesign?.criteriaSource || 'No source recorded'}.
-                </p>
-              </details>
+                </span>
+              </InfoTip>
             </div>
           )}
         </section>

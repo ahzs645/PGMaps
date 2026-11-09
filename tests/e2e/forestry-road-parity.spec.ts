@@ -4,6 +4,7 @@ import { lasFile } from './road-fixtures'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { dialogsClosed } from './road-dialogs'
 import { choose, optionLabels } from './road-select'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -87,17 +88,17 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   await choose(page.getByRole('combobox', { name: 'Active road', exact: true }), { index: count - 1 })
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  const xml = await download(page, page.getByRole('button', { name: 'LandXML', exact: true }))
+  const xml = await download(page, await chooseExport(page, 'LandXML alignment'))
   expect(xml.name).toMatch(/\.xml$/)
   expect(xml.text).toContain('<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2"')
   expect(xml.text).toMatch(/<CoordinateSystem epsgCode="326\d\d"/)
   expect(xml.text).toContain('<CrossSect sta="0.000">')
-  const stakes = await download(page, page.getByRole('button', { name: 'Stakeout CSV', exact: true }))
+  const stakes = await download(page, await chooseExport(page, 'Stakeout'))
   expect(stakes.text.split('\n')[0]).toBe(
     'point,station_m,code,offset_m,easting,northing,elevation_m,ground_m,cut_fill_m,epsg',
   )
   expect(stakes.text).toContain(',left-catch,')
-  const report = await download(page, page.getByRole('button', { name: 'Report HTML', exact: true }))
+  const report = await download(page, await chooseExport(page, 'Report HTML'))
   expect(report.text).toContain('Cross-sections · every 20 m')
   expect(errors).toEqual([])
 })
@@ -132,9 +133,7 @@ test('station table interval and columns, saved layouts and cost status', async 
   await expect(picker).toHaveText(/Wide plan/)
 
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
-  await expect(page.getByTestId('road-cost-status')).toContainText(
-    /Calculation updated.*section coverage complete.*process time \d+ ms/,
-  )
+  await expect(page.getByTestId('road-cost-status')).toContainText(/Recalculated on every edit · process time \d+ ms/)
   await expect(page.getByTestId('road-haul-cost-graph')).toHaveCount(0)
   expect(errors).toEqual([])
 })
@@ -159,13 +158,13 @@ test('shapefile and plot book exports, template components, spirals and LAS terr
   await expect(tree.getByRole('button', { name: 'Use base value', exact: true })).toBeVisible()
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  const zip = await download(page, page.getByRole('button', { name: 'Shapefile (zip)', exact: true }))
+  const zip = await download(page, await chooseExport(page, 'Shapefile'))
   expect(zip.name).toMatch(/-shapefiles\.zip$/)
   const archive = await JSZip.loadAsync(zip.bytes)
   expect(Object.keys(archive.files)).toEqual(
     expect.arrayContaining(['road_centrelines.shp', 'road_centrelines.dbf', 'road_stations.shp', 'road_stations.prj']),
   )
-  const book = await download(page, page.getByRole('button', { name: 'Plot book (A3)', exact: true }))
+  const book = await download(page, await chooseExport(page, 'Plot book'))
   expect(book.text.match(/<section class="sheet">/g)!.length).toBeGreaterThan(1)
   expect(book.text).toContain('Mass haul (m³)')
 

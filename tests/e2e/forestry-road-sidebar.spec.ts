@@ -72,15 +72,30 @@ async function openProject(page: Page) {
   return page.getByRole('complementary', { name: 'Road design controls', exact: true })
 }
 
+/**
+ * Opens every visible collapsed section. `all()` hands back `nth(i)` locators over a live match, and
+ * an opened section leaves the match, so one pass skipped every other section; it repeats instead
+ * until nothing visible is left collapsed.
+ */
 async function expandSections(sidebar: Locator) {
-  for (const details of await sidebar.locator('details:not([open])').all()) {
-    if (await details.isVisible()) await details.locator(':scope > summary').click()
+  const closed = [
+    sidebar.locator('details:not([open]) > summary'),
+    sidebar.locator('button[aria-controls][aria-expanded="false"]:not([aria-haspopup]):not([role="combobox"])'),
+  ]
+  for (let pass = 0; pass < 50; pass++) {
+    let opened = false
+    for (const locator of closed) {
+      for (const toggle of await locator.all()) {
+        if (!(await toggle.isVisible())) continue
+        await toggle.click()
+        opened = true
+        break
+      }
+      if (opened) break
+    }
+    if (!opened) return
   }
-  for (const toggle of await sidebar
-    .locator('button[aria-controls][aria-expanded="false"]:not([aria-haspopup]):not([role="combobox"])')
-    .all()) {
-    if (await toggle.isVisible()) await toggle.click()
-  }
+  throw Error('Sections kept collapsing while being expanded.')
 }
 
 async function expectContained(sidebar: Locator, label: string) {

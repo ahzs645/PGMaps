@@ -13,11 +13,10 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ChartLine, PanelBottom, Rows3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelBottom, Rows3 } from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
@@ -317,7 +316,8 @@ function Grid({
       >
         {yLabel}
       </text>
-      <text x={width - f.right} y={height - 3} textAnchor="end">
+      {/* Centred under the plot, as the elevation title is centred beside it. */}
+      <text x={f.left + f.plotWidth / 2} y={height - 3} textAnchor="middle">
         {xLabel}
       </text>
     </g>
@@ -337,10 +337,21 @@ function Legend({ items }: { items: Array<{ label: string; color: string }> }) {
   )
 }
 
-/** Chart alone, chart with its readouts under it, or the readouts alone (the chart as a tab). */
-export type ChartView = 'chart' | 'both' | 'details'
-const CHART_VIEWS: ChartView[] = ['chart', 'both', 'details']
-type ChartHeaderValue = { target: HTMLElement | null; view: ChartView | null; setView: (view: ChartView) => void }
+/**
+ * The chart alone, or with its legend and readouts under it. There is no readouts-only view: a
+ * legend and a station readout mean nothing without the lines they describe.
+ */
+export type ChartView = 'chart' | 'both'
+// 'details' was a readouts-only view; a browser that saved it gets the details back under the chart.
+const readStoredView = (saved: string | null): ChartView | null =>
+  saved === 'chart' ? 'chart' : saved === 'both' || saved === 'details' ? 'both' : null
+type ChartHeaderValue = {
+  /** Where the chart's own controls (zoom, scale) go, ahead of the panel toggles. */
+  controls: HTMLElement | null
+  target: HTMLElement | null
+  view: ChartView | null
+  setView: (view: ChartView) => void
+}
 const ChartHeaderContext = createContext<ChartHeaderValue | null>(null)
 
 /**
@@ -355,11 +366,11 @@ export function ChartHeader({
   storageKey?: string
   children: (slot: ReactNode) => ReactNode
 }) {
+  const [controls, setControls] = useState<HTMLElement | null>(null)
   const [target, setTarget] = useState<HTMLElement | null>(null)
   const [view, setStoredView] = useState<ChartView | null>(() => {
     try {
-      const saved = storageKey ? localStorage.getItem(storageKey) : null
-      return CHART_VIEWS.includes(saved as ChartView) ? (saved as ChartView) : null
+      return readStoredView(storageKey ? localStorage.getItem(storageKey) : null)
     } catch {
       return null
     }
@@ -373,24 +384,41 @@ export function ChartHeader({
     }
   }
   return (
-    <ChartHeaderContext.Provider value={{ target, view, setView }}>
-      {children(<span ref={setTarget} className="contents" />)}
+    <ChartHeaderContext.Provider value={{ controls, target, view, setView }}>
+      {children(
+        <span className="contents">
+          <span ref={setControls} className="contents" />
+          <span ref={setTarget} className="contents" />
+        </span>,
+      )}
     </ChartHeaderContext.Provider>
   )
+}
+
+/**
+ * The panel header's slot for a view's own controls, or null outside a `ChartHeader`. A table or
+ * editor in a detail panel portals its toolbar there instead of taking a row above its content.
+ */
+export function useChartHeaderControls() {
+  return useContext(ChartHeaderContext)?.controls ?? null
 }
 
 function ChartSlot({
   children,
   footer,
+  bands,
 }: {
   /** May return absolutely positioned controls beside the svg; they float over the chart. */
   children: (width: number, height: number) => ReactNode
   footer?: ReactNode
+  /** Data bands that line up under the plot, folded until the header toggle opens them. */
+  bands?: { label: string; content: ReactNode }
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
   const header = useContext(ChartHeaderContext)
   const [localView, setLocalView] = useState<ChartView | null>(null)
+  const [bandsOpen, setBandsOpen] = useState(false)
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -403,20 +431,40 @@ function ChartSlot({
   // Until someone picks, a short chart folds its readouts away and a tall one shows both.
   const chosen = header ? header.view : localView
   const view: ChartView = !footer ? 'chart' : (chosen ?? (compact ? 'chart' : 'both'))
-  const switcher = footer && (
-    <SegmentedControl
-      size="sm"
-      className="road-chart-view-switcher"
-      fullWidth={false}
-      label="Chart details layout"
-      value={view}
-      onChange={header ? header.setView : setLocalView}
-      options={[
-        { value: 'chart', label: 'Chart only', icon: ChartLine, iconOnly: true },
-        { value: 'both', label: 'Chart with details below', icon: PanelBottom, iconOnly: true },
-        { value: 'details', label: 'Details only', icon: Rows3, iconOnly: true },
-      ]}
-    />
+  const showDetails = view === 'both'
+  const toggle = (pressed: boolean) =>
+    `size-8 ${pressed ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`
+  const bandsToggle = bands && (
+    <Button
+      size="icon"
+      variant="ghost"
+      className={toggle(bandsOpen)}
+      aria-label={bands.label}
+      aria-pressed={bandsOpen}
+      title={`${bandsOpen ? 'Hide' : 'Show'} ${bands.label.toLowerCase()}`}
+      onClick={() => setBandsOpen(!bandsOpen)}
+    >
+      <Rows3 className="size-3.5" />
+    </Button>
+  )
+  const detailsToggle = footer && (
+    <Button
+      size="icon"
+      variant="ghost"
+      className={toggle(showDetails)}
+      aria-label="Details below chart"
+      aria-pressed={showDetails}
+      title={showDetails ? 'Hide legend & readouts' : 'Show legend & readouts below the chart'}
+      onClick={() => (header ? header.setView : setLocalView)(showDetails ? 'chart' : 'both')}
+    >
+      <PanelBottom className="size-3.5" />
+    </Button>
+  )
+  const switcher = (bandsToggle || detailsToggle) && (
+    <>
+      {bandsToggle}
+      {detailsToggle}
+    </>
   )
   return (
     <div
@@ -430,21 +478,23 @@ function ChartSlot({
         (header?.target ? (
           createPortal(switcher, header.target)
         ) : (
-          <div className="flex shrink-0 justify-end pb-1">{switcher}</div>
+          <div className="flex shrink-0 justify-end gap-1 pb-1">{switcher}</div>
         ))}
-      <div className={`relative min-h-0 flex-1 flex-col ${view === 'details' ? 'hidden' : 'flex'}`}>
+      <div className="relative flex min-h-0 flex-1 flex-col">
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
         </ChartViewport>
       </div>
+      {/* Capped so a short panel keeps most of its height for the plot; the bands scroll instead. */}
+      {bands && bandsOpen && (
+        <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{bands.content}</div>
+      )}
       {footer && (
         <div
           className={
-            view === 'chart'
-              ? 'hidden'
-              : view === 'details'
-                ? 'flex min-h-0 flex-1 flex-col'
-                : `flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`
+            showDetails
+              ? `flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`
+              : 'hidden'
           }
         >
           <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">{footer}</div>
@@ -454,7 +504,6 @@ function ChartSlot({
   )
 }
 
-const PROFILE_TOP = 30
 const nearestOf = (stations: RoadStation[], chainage: number) =>
   stations.reduce<RoadStation | undefined>(
     (best, s) => (!best || Math.abs(s.chainage - chainage) < Math.abs(best.chainage - chainage) ? s : best),
@@ -667,20 +716,16 @@ export function ProfileChart({
     )
     onStation(placed.chainage)
   }
-  const profileValues = analysis.stations
-    .map((s) => (terrainOnly ? s.groundElevation : s.designElevation))
-    .filter(finite)
   const profileGrades = analysis.stations.map((s) => s.gradePercent).filter(finite)
   const first = analysis.stations.find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
   const last = [...analysis.stations].reverse().find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
-  const summary = [
-    `Length ${format(analysis.length)} m`,
+  // Length, maximum grade and the elevation range already show in the header tiles and on the
+  // axes; the footer adds only what appears nowhere else.
+  const roadStats = [
     first && last
       ? `Elev diff ${format(((terrainOnly ? last.groundElevation : last.designElevation) ?? 0) - ((terrainOnly ? first.groundElevation : first.designElevation) ?? 0))} m`
       : null,
-    profileGrades.length ? `Max grade ${format(Math.max(...profileGrades.map(Math.abs)))}%` : null,
     profileGrades.length ? `Min grade ${format(Math.min(...profileGrades.map(Math.abs)))}%` : null,
-    profileValues.length ? `Elev ${format(Math.min(...profileValues))}–${format(Math.max(...profileValues))} m` : null,
   ]
     .filter(Boolean)
     .join(' · ')
@@ -688,89 +733,151 @@ export function ProfileChart({
     (analysis.verticalChecks ?? []).some(
       (check) => (check.kind === 'k' || check.kind === 'curve-length') && Math.abs(check.chainage - chainage) < 0.01,
     )
+  // In a panel, zoom and vertical scale sit in its header beside the panel toggles, so the plot
+  // starts right under the title. Without one they float over the chart's top edge.
+  const header = useContext(ChartHeaderContext)
+  const headerControls = header?.controls ?? null
+  // The plot's top margin: room for the floating bar, or just the top tick label.
+  const profileTop = headerControls ? 14 : 30
   // Grow to a tappable size on touch screens; the mouse layout stays compact.
-  const control = 'h-5 min-w-5 rounded px-1 text-3xs leading-none touch:h-8 touch:min-w-8 touch:text-xs'
-  // Pan, zoom and vertical scale float over the chart's top edge instead of taking a row under it.
-  const toolbar = (exaggeration: number, width: number) => (
-    <div className="pointer-events-none absolute inset-x-1 top-0.5 flex items-start justify-between gap-2">
-      <p
-        className="min-w-0 truncate pl-1 pt-1 text-3xs tabular-nums text-muted-foreground"
-        title={`${summary} · ${editable ? 'Click or drag to inspect; double-click adds a vertical control; drag a control to edit.' : 'Click or drag to inspect.'} Arrow keys move the station.`}
-        data-testid="road-profile-summary"
-      >
-        {width >= 520 ? summary : ''}
-      </p>
+  const control = headerControls
+    ? 'h-8 min-w-8 px-1.5 text-sm leading-none'
+    : 'h-5 min-w-5 rounded px-1 text-3xs leading-none touch:h-8 touch:min-w-8 touch:text-xs'
+  // Each control shows only while it can act: the full-road view needs no pan, reset or range
+  // readout (the axis already says it), which keeps the bar small enough for a narrow pane.
+  const zoomed = viewRange !== null
+  const canPanBack = zoomed && visibleStart > 0
+  const canPanForward = zoomed && visibleEnd < analysis.length
+  // Pan arrows sit on the plot's own left and right edges, where the hidden road continues.
+  const edge =
+    'pointer-events-auto absolute flex h-10 w-5 -translate-y-1/2 items-center justify-center rounded border bg-background/80 text-muted-foreground opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-12 touch:w-8 [&_svg]:size-3.5'
+  const toolbar = (exaggeration: number, width: number, frame: ReturnType<typeof chartFrame>) => {
+    const bar = (
       <div
         role="toolbar"
         aria-label="Profile view"
-        className="pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-md border bg-background/90 p-0.5 text-3xs text-muted-foreground shadow-sm backdrop-blur-sm"
+        className={
+          headerControls
+            ? 'flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground'
+            : 'pointer-events-auto flex shrink-0 items-center gap-0.5 rounded-md border bg-background/90 p-0.5 text-3xs text-muted-foreground shadow-sm backdrop-blur-sm'
+        }
       >
-        <Button
-          className={control}
-          size="sm"
-          variant="ghost"
-          aria-label="Pan profile backward"
-          disabled={visibleStart <= 0}
-          onClick={() => pan(-1)}
-        >
-          ←
-        </Button>
-        <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile in" onClick={() => zoom(0.5)}>
-          +
-        </Button>
-        <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile out" onClick={() => zoom(2)}>
-          −
-        </Button>
-        <Button
-          className={control}
-          size="sm"
-          variant="ghost"
-          aria-label="Pan profile forward"
-          disabled={visibleEnd >= analysis.length}
-          onClick={() => pan(1)}
-        >
-          →
-        </Button>
-        <Button
-          className={control}
-          size="sm"
-          variant="ghost"
-          aria-label="Fit full road profile"
-          onClick={() => {
-            setViewRange(null)
-            setVerticalScale('fit')
-          }}
-        >
-          Fit
-        </Button>
-        <RoadSelect
-          ariaLabel="Profile vertical exaggeration"
-          title="Vertical exaggeration · display only"
-          className="h-5 rounded border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs"
-          value={verticalScale}
-          onValueChange={(value) => setVerticalScale(value)}
-        >
-          {['fit', '1', '2', '5', '10'].map((value) => (
-            <option value={value} key={value}>
-              {value === 'fit' ? `V auto ×${format(exaggeration, 1)}` : `V ×${value}`}
-            </option>
-          ))}
-        </RoadSelect>
-        {width >= 420 && (
+        {/* In the header it shares the row with the panel title, so it waits for a wide panel. */}
+        {zoomed && width >= (headerControls ? 720 : 420) && (
           <span className="px-1 tabular-nums" data-testid="road-profile-range">
             {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}
           </span>
         )}
+        <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile in" onClick={() => zoom(0.5)}>
+          +
+        </Button>
+        <Button
+          className={control}
+          size="sm"
+          variant="ghost"
+          aria-label="Zoom profile out"
+          disabled={!zoomed}
+          onClick={() => zoom(2)}
+        >
+          −
+        </Button>
+        {(zoomed || verticalScale !== 'fit') && (
+          <Button
+            className={control}
+            size="sm"
+            variant="ghost"
+            aria-label="Fit full road profile"
+            onClick={() => {
+              setViewRange(null)
+              setVerticalScale('fit')
+            }}
+          >
+            Fit
+          </Button>
+        )}
+        <RoadSelect
+          ariaLabel="Profile vertical exaggeration"
+          title={`Vertical exaggeration${verticalScale === 'fit' ? ` · auto ×${format(exaggeration, 1)}` : ''} · display only`}
+          className={
+            headerControls
+              ? 'h-8 rounded-md border-0 bg-transparent px-1.5 text-xs text-foreground'
+              : 'h-5 rounded border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs'
+          }
+          value={verticalScale}
+          onValueChange={(value) => setVerticalScale(value)}
+          options={[
+            {
+              value: 'fit',
+              label: `Auto (×${format(exaggeration, 1)})`,
+              selectedLabel: (
+                <>
+                  V ×{format(exaggeration, exaggeration >= 10 ? 0 : 1)}{' '}
+                  <span className="text-muted-foreground">auto</span>
+                </>
+              ),
+            },
+            { value: '1', label: '×1 · true scale', selectedLabel: 'V ×1' },
+            ...['2', '5', '10'].map((value) => ({ value, label: `×${value}`, selectedLabel: `V ×${value}` })),
+          ]}
+        />
+        {/* Separates the chart's own controls from the panel's toggles after it. */}
+        {headerControls && <span aria-hidden className="mx-1 h-5 w-px bg-border" />}
       </div>
-    </div>
-  )
+    )
+    return (
+      <>
+        {headerControls ? (
+          createPortal(bar, headerControls)
+        ) : (
+          <div className="pointer-events-none absolute inset-x-1 top-0.5 flex justify-end">{bar}</div>
+        )}
+        {canPanBack && (
+          <button
+            type="button"
+            className={edge}
+            style={{ left: frame.left + 2, top: frame.top + frame.plotHeight / 2 }}
+            aria-label="Pan profile backward"
+            title="Pan back"
+            onClick={() => pan(-1)}
+          >
+            <ChevronLeft aria-hidden />
+          </button>
+        )}
+        {canPanForward && (
+          <button
+            type="button"
+            className={edge}
+            style={{ right: frame.right + 2, top: frame.top + frame.plotHeight / 2 }}
+            aria-label="Pan profile forward"
+            title="Pan forward"
+            onClick={() => pan(1)}
+          >
+            <ChevronRight aria-hidden />
+          </button>
+        )}
+      </>
+    )
+  }
   const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
-    const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, PROFILE_TOP)
+    const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
     if (drag.current) edit(drag.current.id, chainage, elevation, drag.current.points)
     else if (event.buttons === 1) onStation(chainage)
   }
   return (
     <ChartSlot
+      bands={{
+        label: terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands',
+        content: (
+          <EngineeringBands
+            analysis={analysis}
+            alignment={alignment}
+            station={station}
+            onStation={onStation}
+            terrainOnly={terrainOnly}
+            range={[domain[0], domain[1]]}
+          />
+        ),
+      }}
       footer={
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -789,24 +896,23 @@ export function ProfileChart({
                     ]
               }
             />
-            <span className="text-2xs tabular-nums text-muted-foreground">
-              {formatRoadStation(active?.chainage ?? station)} · {format(active?.gradePercent)}% · ground{' '}
-              {format(active?.groundElevation)} m
-            </span>
+            <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-2xs tabular-nums text-muted-foreground">
+              <span>
+                {formatRoadStation(active?.chainage ?? station)} · {format(active?.gradePercent)}% · ground{' '}
+                {format(active?.groundElevation)} m
+              </span>
+              {roadStats && (
+                <span data-testid="road-profile-summary" title="Whole road, start to end">
+                  Road: {roadStats}
+                </span>
+              )}
+            </div>
           </div>
-          <EngineeringBands
-            analysis={analysis}
-            alignment={alignment}
-            station={station}
-            onStation={onStation}
-            terrainOnly={terrainOnly}
-            range={[domain[0], domain[1]]}
-          />
         </>
       }
     >
       {(width, height) => {
-        const frame = chartFrame(width, height, domain, PROFILE_TOP)
+        const frame = chartFrame(width, height, domain, profileTop)
         const targetScale = verticalScale === 'fit' ? 1 : Number(verticalScale)
         const halfSpan = ((domain[1] - domain[0]) * frame.plotHeight) / frame.plotWidth / (2 * targetScale)
         const displayedDomain: Domain =
@@ -814,7 +920,7 @@ export function ProfileChart({
           (verticalScale === 'fit'
             ? domain
             : [domain[0], domain[1], (low + high) / 2 - halfSpan, (low + high) / 2 + halfSpan])
-        const f = chartFrame(width, height, displayedDomain, PROFILE_TOP)
+        const f = chartFrame(width, height, displayedDomain, profileTop)
         const actualExaggeration =
           f.plotHeight /
           (displayedDomain[3] - displayedDomain[2]) /
@@ -864,7 +970,7 @@ export function ProfileChart({
               data-vertical-exaggeration={actualExaggeration}
               role="group"
               tabIndex={0}
-              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Left and right arrows select station.${editable ? ' Double-click adds a vertical control.' : ''}`}
+              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit.' : ''}`}
               onKeyDown={(event) => {
                 if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
               }}
@@ -872,7 +978,7 @@ export function ProfileChart({
                 event.preventDefault()
                 if (event.button !== 0) return
                 event.currentTarget.setPointerCapture(event.pointerId)
-                onStation(eventValue(event, event.currentTarget, displayedDomain, PROFILE_TOP)[0])
+                onStation(eventValue(event, event.currentTarget, displayedDomain, profileTop)[0])
               }}
               onPointerMove={(event) => handleMove(event, displayedDomain)}
               onPointerUp={(event) => {
@@ -893,7 +999,7 @@ export function ProfileChart({
                   (event.target as Element).getAttribute('data-pvi') === 'true'
                 )
                   return
-                const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, PROFILE_TOP)
+                const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
                 let baseline = sorted
                 if (baseline.length < 2) {
                   const first = analysis.stations[0],
@@ -919,11 +1025,6 @@ export function ProfileChart({
                 onStation(chainage)
               }}
             >
-              <title>
-                {terrainOnly
-                  ? 'Terrain elevation by horizontal chainage'
-                  : 'Ground and designed road elevation by horizontal chainage'}
-              </title>
               <defs>
                 <clipPath id={`profile-${id}`}>
                   <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
@@ -936,7 +1037,7 @@ export function ProfileChart({
                 xLabel="L-Stn (m)"
                 yLabel="Elevation (m)"
                 stationTicks
-                top={PROFILE_TOP}
+                top={profileTop}
               />
               <g clipPath={`url(#profile-${id})`}>
                 <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
@@ -1372,7 +1473,7 @@ export function ProfileChart({
                 </text>
               )}
             </svg>
-            {toolbar(actualExaggeration, width)}
+            {toolbar(actualExaggeration, width, f)}
           </>
         )
       }}
@@ -1446,6 +1547,13 @@ export function CrossSectionChart({
     : station && template && hovered
       ? classifySectionOffset(station, template, hovered.x)
       : 'unknown-design'
+  // Section codes read as words: `left-ditch-bottom` → `left ditch bottom`.
+  const hoveredPlace =
+    hoveredCode === 'outside-designed-section'
+      ? 'outside the road'
+      : hoveredCode === 'unknown-design'
+        ? 'no design here'
+        : hoveredCode.replace(/-/g, ' ')
   const [low, high] = extent([
     ...points.flatMap((p) => [p.ground, p.design]),
     ...preparedPoints.map((p) => p.ground),
@@ -1557,28 +1665,49 @@ export function CrossSectionChart({
     <ChartSlot
       footer={
         <>
-          <Legend
-            items={
-              terrainOnly
-                ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
-                : [
-                    { label: 'Ground', color: ROAD_CHART_COLORS.ground },
-                    { label: 'Template', color: ROAD_CHART_COLORS.design },
-                    ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
-                    { label: 'Cut', color: ROAD_CHART_COLORS.cut },
-                    { label: 'Fill', color: ROAD_CHART_COLORS.fill },
-                  ]
-            }
-          />
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+            <Legend
+              items={
+                terrainOnly
+                  ? [{ label: 'Ground', color: ROAD_CHART_COLORS.ground }]
+                  : [
+                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      { label: 'Template', color: ROAD_CHART_COLORS.design },
+                      ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
+                      { label: 'Cut', color: ROAD_CHART_COLORS.cut },
+                      { label: 'Fill', color: ROAD_CHART_COLORS.fill },
+                    ]
+              }
+            />
+            {/* Values under the pointer; nothing while it is off the section. */}
+            {hovered && (
+              <p
+                className="hidden min-w-0 truncate text-3xs tabular-nums text-muted-foreground md:block"
+                data-testid="road-section-probe"
+              >
+                Offset {format(hovered.x, 2)} m · ground {format(hovered.ground, 2)} m
+                {!terrainOnly && finite(hovered.design) && (
+                  <>
+                    {' '}
+                    · design {format(hovered.design, 2)} m
+                    {hoveredDepth !== null &&
+                      ` · ${hoveredDepth >= 0 ? 'cut' : 'fill'} ${format(Math.abs(hoveredDepth), 2)} m`}
+                  </>
+                )}{' '}
+                · {hoveredPlace}
+              </p>
+            )}
+          </div>
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
           {(onShift || (!terrainOnly && onVerticalShift)) && (
             <div
               role="group"
               aria-label="Road section adjustments"
-              className="flex flex-nowrap items-center gap-x-3 gap-y-1 text-3xs text-muted-foreground md:flex-wrap"
+              className="flex flex-nowrap items-center gap-x-5 gap-y-1 pt-1 text-3xs text-muted-foreground md:flex-wrap"
             >
               {onShift && (
                 <div role="group" aria-label="Shift alignment" className="flex shrink-0 items-center gap-1">
+                  <span className="sr-only md:not-sr-only md:mr-1">Shift alignment</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1588,7 +1717,6 @@ export function CrossSectionChart({
                   >
                     ← 1 m
                   </Button>
-                  <span className="sr-only md:not-sr-only">Shift alignment</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1602,6 +1730,7 @@ export function CrossSectionChart({
               )}
               {!terrainOnly && onVerticalShift && (
                 <div role="group" aria-label="Formation level" className="flex shrink-0 items-center gap-1">
+                  <span className="sr-only md:not-sr-only md:mr-1">Formation level</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1611,7 +1740,6 @@ export function CrossSectionChart({
                   >
                     ↓ 0.25 m
                   </Button>
-                  <span className="sr-only md:not-sr-only">Formation level</span>
                   <Button
                     size="sm"
                     variant="outline"
@@ -1637,28 +1765,6 @@ export function CrossSectionChart({
               . Unassigned depths remain unclassified.
             </p>
           )}
-          <p
-            className="hidden min-h-4 text-3xs tabular-nums text-muted-foreground md:block"
-            data-testid="road-section-probe"
-          >
-            {hovered ? (
-              <>
-                Offset {format(hovered.x, 2)} m · ground {format(hovered.ground, 2)} m
-                {!terrainOnly && (
-                  <>
-                    {' '}
-                    · design {format(hovered.design, 2)} m ·{' '}
-                    {hoveredDepth === null
-                      ? 'depth unknown'
-                      : `${hoveredDepth >= 0 ? 'cut' : 'fill'} ${format(Math.abs(hoveredDepth), 2)} m`}
-                  </>
-                )}{' '}
-                · {hoveredCode}
-              </>
-            ) : (
-              'Move over the section to inspect offset, levels and depth.'
-            )}
-          </p>
           {culverts.map((c) => (
             <button
               key={c.id}
@@ -1723,11 +1829,6 @@ export function CrossSectionChart({
               setShiftPreview(0)
             }}
           >
-            <title>
-              {terrainOnly
-                ? 'Terrain cross-section, looking in the direction of increasing chainage'
-                : 'Ground and road template, looking in the direction of increasing chainage'}
-            </title>
             <defs>
               <clipPath id={`section-${id}`}>
                 <rect x={f.left} y={f.top} width={f.plotWidth} height={f.plotHeight} />
@@ -2386,7 +2487,7 @@ export function CableChart({
             role={onDistance ? 'group' : 'img'}
             tabIndex={onDistance ? 0 : undefined}
             className={onDistance ? 'touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring' : undefined}
-            aria-label="Cable deflection line and ground profile"
+            aria-label="Cable deflection line and ground profile, with negative-clearance conflicts highlighted"
             data-testid="road-cable-chart"
             data-distance={active?.distance ?? distance}
             onPointerDown={
@@ -2409,7 +2510,6 @@ export function CableChart({
               onDistance ? (event) => selectWithKeyboard(event, distance, analysis.length, onDistance) : undefined
             }
           >
-            <title>Cable geometry along horizontal span, with negative-clearance conflicts highlighted</title>
             <Grid width={width} height={height} domain={domain} xLabel="Horizontal span (m)" yLabel="Elevation (m)" />
             {differencePolygons(points, f.x, f.y).map((p, i) => (
               <polygon

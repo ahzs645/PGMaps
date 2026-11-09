@@ -13,6 +13,7 @@ import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
 import { NumberField } from '../Controls'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
+import { terrainDisplayName } from '../terrainName'
 
 const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
 const CLASSIFY: Record<string, string> = {
@@ -28,6 +29,17 @@ const LIDAR_LINKS = [
   ['/dev/lidar/trees/', 'Individual-tree inspection'],
   ['/dev/lidar/transects/', 'Source point-cloud transects'],
 ] as const
+
+const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
+/** A cell size people read at a glance: whole metres when coarse, decimals only when they matter. */
+const terrainCellSize = (m: number) =>
+  m >= 10 ? `${Math.round(m)} m` : m >= 1 ? `${m.toFixed(1)} m` : `${m.toFixed(2)} m`
+/** The source name without its bounding box or a quality note the warning icon already carries. */
+const terrainSourceName = (name: string) =>
+  terrainDisplayName(name)
+    .split(' · ')
+    .filter((part) => part !== 'coarse screening')
+    .join(' · ')
 
 export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoads: ReactNode }) {
   const { project } = p.workspace
@@ -55,20 +67,25 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </>
         }
       >
+        {/* The source by name: a bounding box and raw cell size are kept for the tooltip and report. */}
         <div className="rounded-md border bg-muted/20 px-2.5 py-2" data-testid="road-scenario-evidence">
-          <p className="text-sm font-medium leading-5">{project.terrain.name}</p>
+          <div className="flex items-start gap-1.5">
+            <p className="min-w-0 flex-1 text-sm font-medium leading-5" title={project.terrain.name}>
+              {terrainSourceName(project.terrain.name)}
+            </p>
+            {project.terrain.kind === 'regional' && (
+              <InfoTip label="Screening terrain" tone="warning" className="mt-0.5">
+                Screening terrain. Use bare-earth LiDAR or your own DEM before relying on quantities.
+              </InfoTip>
+            )}
+          </div>
           <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">
-            {project.terrain.resolutionM.toFixed(2)} m cells ·{' '}
+            {terrainCellSize(project.terrain.resolutionM)} cells ·{' '}
             {project.terrain.epsg ? `EPSG:${project.terrain.epsg}` : 'training coordinates'}
             {project.scenario &&
-              ` · ${project.context.filter((feature) => feature.kind === 'existing-road').length} roads · ${project.context.filter((feature) => feature.kind === 'harvest').length} harvest`}
+              ` · ${count(project.context.filter((feature) => feature.kind === 'existing-road').length, 'road')} · ${count(project.context.filter((feature) => feature.kind === 'harvest').length, 'cutblock')}`}
           </p>
         </div>
-        {project.terrain.kind === 'regional' && (
-          <InlineAlert tone="warning" className="mt-2">
-            Screening terrain. Use bare-earth LiDAR or your own DEM before relying on quantities.
-          </InlineAlert>
-        )}
         {project.scenario?.contextWarnings.map((warning, index) => (
           <InlineAlert key={index} tone="warning" className="mt-2">
             {warning}

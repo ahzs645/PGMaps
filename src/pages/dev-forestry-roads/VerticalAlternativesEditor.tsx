@@ -140,6 +140,7 @@ export function VerticalAlternativesEditor({
           <Button
             size="sm"
             variant="outline"
+            className="h-8"
             onClick={add}
             disabled={(alignment.verticalAlternatives?.length ?? 0) >= MAX_VERTICAL_ALTERNATIVES}
           >
@@ -163,6 +164,7 @@ export function VerticalAlternativesEditor({
             <Button
               size="sm"
               variant="outline"
+              className="h-8"
               disabled={alternatives.length < 2}
               onClick={() => change(() => removeVerticalAlternative(alignment, active.id))}
             >

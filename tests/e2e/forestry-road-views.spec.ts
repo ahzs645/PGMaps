@@ -186,7 +186,7 @@ test('an off-screen shared station is revealed and profile bands keep the same c
   await page.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
   const zoomed = await rangeOf(chart)
   const bands = page.getByTestId('road-engineering-bands')
-  await bands.getByRole('button', { name: /Grade, curve, template & material bands/ }).click()
+  await page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true }).click()
   await expect(bands.locator('svg')).toBeVisible()
   expect(await rangeOf(bands)).toEqual(zoomed)
 
@@ -477,15 +477,33 @@ test('header picker, no footer or status row, profile controls on the chart, sec
   )
 
   const chart = (await page.getByTestId('road-profile-chart').boundingBox())!
+  // Zoom and scale sit in the profile panel's title row, ahead of its toggles, not over the plot.
   const toolbar = page.getByRole('toolbar', { name: 'Profile view', exact: true })
   const bar = (await toolbar.boundingBox())!
-  expect(bar.y).toBeGreaterThanOrEqual(chart.y - 1)
-  expect(bar.y + bar.height).toBeLessThanOrEqual(chart.y + 32)
-  expect(bar.x + bar.width).toBeLessThanOrEqual(chart.x + chart.width + 1)
-  for (const name of ['Pan profile backward', 'Zoom profile in', 'Zoom profile out', 'Pan profile forward'])
-    await expect(toolbar.getByRole('button', { name, exact: true })).toBeVisible()
+  const fullscreen = (await page
+    .getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true })
+    .boundingBox())!
+  expect(bar.y + bar.height).toBeLessThanOrEqual(chart.y + 1)
+  expect(Math.abs(bar.y + bar.height / 2 - (fullscreen.y + fullscreen.height / 2))).toBeLessThan(4)
+  expect(bar.x + bar.width).toBeLessThanOrEqual(fullscreen.x)
+  // The full-road view shows only what can act: no pan arrows, reset or range readout.
+  await expect(toolbar.getByRole('button', { name: 'Zoom profile in', exact: true })).toBeVisible()
+  await expect(toolbar.getByRole('button', { name: 'Zoom profile out', exact: true })).toBeDisabled()
   await expect(toolbar.getByLabel('Profile vertical exaggeration', { exact: true })).toBeVisible()
-  await expect(page.getByTestId('road-profile-range')).toHaveText(/0\+000\.0–\d\+\d{3}\.\d/)
+  for (const name of ['Pan profile backward', 'Pan profile forward', 'Fit full road profile'])
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0)
+  await expect(page.getByTestId('road-profile-range')).toHaveCount(0)
+  // Zoomed, the readout and reset join the bar and the pan arrows sit on the plot's edges.
+  await toolbar.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
+  // The range readout shares the title row, so a narrow panel leaves it out.
+  if (chart.width >= 720)
+    await expect(page.getByTestId('road-profile-range')).toHaveText(/\d\+\d{3}\.\d–\d\+\d{3}\.\d/)
+  else await expect(page.getByTestId('road-profile-range')).toHaveCount(0)
+  await expect(toolbar.getByRole('button', { name: 'Fit full road profile', exact: true })).toBeVisible()
+  const forward = (await page.getByRole('button', { name: 'Pan profile forward', exact: true }).boundingBox())!
+  expect(forward.y).toBeGreaterThan(bar.y + bar.height)
+  expect(forward.x + forward.width).toBeLessThanOrEqual(chart.x + chart.width)
+  await toolbar.getByRole('button', { name: 'Fit full road profile', exact: true }).click()
 
   // The detail view picker sits in the panel's title row, beside the title and Section CSV.
   const sectionPanel = page.getByRole('region', { name: 'Cross-section', exact: true })

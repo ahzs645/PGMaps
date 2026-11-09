@@ -19,6 +19,12 @@ vi.mock('@/components/ui/info-tip', () => ({
 }))
 vi.mock('@/components/ui/map-panels', () => ({
   InlineAlert: ({ children }: { children: ReactNode }) => createElement('div', { role: 'alert' }, children),
+  KeyValueRows: ({ rows }: { rows: ({ key: string; label: string; value: ReactNode } | null)[] }) =>
+    createElement(
+      'dl',
+      {},
+      rows.filter(Boolean).map((row) => createElement('div', { key: row!.key }, `${row!.label}: `, row!.value)),
+    ),
 }))
 
 afterEach(() => vi.restoreAllMocks())
@@ -92,12 +98,10 @@ it('opens the chosen nearby road for review without enabling reuse', async () =>
     renderer = create(createElement(CutblockHistoryPanel, { workspace: w, onReviewRoad: review }))
   })
   try {
+    // Each nearby road is a row that opens it in Existing roads & reuse.
     await act(async () =>
-      renderer!.root.findByProps({ 'aria-label': 'Nearby road candidate' }).props.onChange({
-        target: { value: 'history-road-deactivated' },
-      }),
+      renderer!.root.findByProps({ 'aria-label': 'Review road Synthetic spur · deactivated 2016' }).props.onClick(),
     )
-    await act(async () => button(renderer, 'Review selected road').props.onClick())
     expect(review).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'history-road-deactivated',

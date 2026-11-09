@@ -147,15 +147,12 @@ test('the profile view switch stays as short as the adjacent controls on a touch
     .getByRole('tab', { name: 'Profile', exact: true })
     .tap()
   const panel = page.getByRole('region', { name: 'Road profile · ground & formation', exact: true })
-  const switcher = panel.getByRole('group', { name: 'Chart details layout', exact: true })
+  const switcher = panel.getByRole('button', { name: 'Details below chart', exact: true })
   const fullscreen = panel.getByRole('button', { name: 'Fullscreen Road profile · ground & formation', exact: true })
   expect((await switcher.boundingBox())!.height).toBeLessThanOrEqual((await fullscreen.boundingBox())!.height + 1)
-  for (const [label, view] of [
-    ['Chart only', 'chart'],
-    ['Details only', 'details'],
-    ['Chart with details below', 'both'],
-  ]) {
-    await switcher.getByRole('button', { name: label, exact: true }).tap()
+  const pressed = (await switcher.getAttribute('aria-pressed')) === 'true'
+  for (const view of pressed ? ['chart', 'both'] : ['both', 'chart']) {
+    await switcher.tap()
     await expect(panel.locator('[data-chart-slot]')).toHaveAttribute('data-chart-view', view)
   }
   await page.screenshot({ path: info.outputPath('mobile-profile-switcher.png') })

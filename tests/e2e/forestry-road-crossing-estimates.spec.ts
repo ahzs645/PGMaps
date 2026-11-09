@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './road-select'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -53,7 +54,7 @@ test('entered crossing items and a shared item persist with source evidence and 
   expect(saved.sharedCrossingCosts).toHaveLength(1)
   expect(saved.sharedCrossingCosts![0].unitRate).toBe(1000)
   const reportDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Report HTML', exact: true }).click()
+  await (await chooseExport(page, 'Report HTML')).click()
   const report = fs.readFileSync((await (await reportDownload).path())!, 'utf8')
   expect(report).toContain('Stream crossing estimates')
   expect(report).toContain('known subtotal $43,500')

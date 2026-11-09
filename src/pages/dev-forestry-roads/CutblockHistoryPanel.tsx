@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { LocateFixed, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ResultRow } from '@/components/ui/result-list'
 import { InfoTip } from '@/components/ui/info-tip'
-import { InlineAlert } from '@/components/ui/map-panels'
-import { Field, NumberField, RoadSelect } from './Controls'
+import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { NumberField, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { existingRoadQueryBounds, loadBcExistingRoads } from './existingRoads'
 import { refreshExistingRoadFeature } from './existingRoadEvidence'
@@ -13,14 +16,69 @@ import {
   loadBcHarvestHistory,
   nearbyRoadCandidates,
 } from './harvestHistory'
-import { roadDeactivationSummary, roadHistoryStyle } from './roadHistory'
+import { roadHistoryStyle } from './roadHistory'
 import { parseProject } from './project'
+import { polygonAreaM2 } from './mapNotes'
 import type { ContextFeature, Coordinate } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 export const MAX_CUTBLOCK_IMPORT_BYTES = 10 * 1024 * 1024
 export const HISTORY_LOAD_TIMEOUT_MS = 20_000
 export const NEARBY_CUTBLOCK_ROAD_M = 1000
+
+const SOURCE_LABELS = {
+  'bc-consolidated': 'BC consolidated cutblocks',
+  user: 'Imported harvest evidence',
+  scenario: 'Synthetic teaching record',
+} as const
+
+/** A block's footprint and harvest evidence as label/value rows; rows with no value are left out. */
+function evidenceRows(block: ContextFeature) {
+  const e = block.harvestEvidence
+  const mappedHa = block.geometry.type === 'Polygon' ? polygonAreaM2(block.geometry) / 10000 : null
+  const recorded = e?.areaHectares
+  const years =
+    e?.startYear !== undefined && e.endYear !== undefined && e.startYear !== e.endYear
+      ? `${e.startYear}–${e.endYear}`
+      : e?.endYear !== undefined || e?.startYear !== undefined
+        ? String(e.endYear ?? e.startYear)
+        : e?.midYear !== undefined
+          ? `≈ ${e.midYear} (midpoint)`
+          : undefined
+  const row = (key: string, label: string, value: ReactNode) => (value ? { key, label, value } : null)
+  // Each date stays whole; a narrow column breaks only at the dash between them.
+  const date = (value: string) => <span className="whitespace-nowrap">{value}</span>
+  return [
+    row('area', 'Area', mappedHa !== null && `${mappedHa.toFixed(2)} ha`),
+    row(
+      'recorded',
+      'Recorded area',
+      recorded !== undefined && mappedHa !== null && Math.abs(recorded - mappedHa) > 0.05 * recorded
+        ? `${recorded.toFixed(2)} ha`
+        : undefined,
+    ),
+    row('years', 'Harvested', years),
+    row(
+      'dates',
+      'Dates',
+      e?.startDate && (
+        <>
+          {date(e.startDate)}
+          {e.endDate && <> – {date(e.endDate)}</>}
+        </>
+      ),
+    ),
+    row('source', 'Source', e && e.status !== 'proposed' && SOURCE_LABELS[e.source]),
+    row('basis', 'Basis', e?.dataSource),
+    row(
+      'sourceDate',
+      'Source dated',
+      e?.sourceDate && `${e.sourceDate}${e.publishedDate ? ` · published ${e.publishedDate}` : ''}`,
+    ),
+    row('record', 'Record', e?.sourceId),
+    row('opening', 'Opening ID', e?.openingId),
+  ]
+}
 
 /** Harvest history stays separate from proposal geometry and from road condition evidence. */
 export function CutblockHistoryPanel({
@@ -39,7 +97,6 @@ export function CutblockHistoryPanel({
   onReviewRoad?: (road: ContextFeature) => void
 }) {
   const [selected, setSelected] = useState('')
-  const [selectedRoad, setSelectedRoad] = useState('')
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState<'blocks' | 'roads' | null>(null)
   const [error, setError] = useState('')
@@ -71,6 +128,9 @@ export function CutblockHistoryPanel({
   const block =
     blocks.find((feature) => feature.id === selected) ?? blocks.find((feature) => feature.id === focusedId) ?? blocks[0]
   const evidence = block?.harvestEvidence
+  const planned = blocks.filter((feature) => feature.harvestEvidence?.status === 'proposed')
+  const harvested = blocks.filter((feature) => feature.harvestEvidence?.status !== 'proposed')
+  const group: 'planned' | 'harvested' = evidence?.status === 'proposed' ? 'planned' : 'harvested'
   const proximity = useMemo(() => {
     try {
       return {
@@ -87,9 +147,7 @@ export function CutblockHistoryPanel({
     }
   }, [block, w.project.context])
   const candidates = proximity.candidates
-  const candidate = candidates.find((item) => item.road.id === selectedRoad) ?? candidates[0]
   const historyStyle = harvestHistoryStyle(evidence, year)
-  const roadStyle = roadHistoryStyle(candidate?.road.roadEvidence)
   const busy = !!w.busy || !!loading
 
   const merge = (features: ContextFeature[], refreshHarvestRecords = false) => {
@@ -194,19 +252,25 @@ export function CutblockHistoryPanel({
     <div ref={panel}>
       <RoadSection
         title="Cutblocks & harvest history"
-        summary={`${blocks.length} polygons`}
+        summary={`${planned.length} planned · ${harvested.length} harvested`}
         open={open}
         onOpenChange={setOpen}
         help="Load historical harvested areas near the project roads, or import cutblock polygons with their source evidence. Ages are elapsed calendar years since the reported harvest dates or estimated source year, not tree age. Nearby road sections are geographic candidates; their connection, surface, bridges, access and rehabilitation still need review."
       >
-        <div className="space-y-2" data-testid="road-cutblock-history">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-3" data-testid="road-cutblock-history">
+          {/* Planned blocks are the ones roads get built to; harvested ones are history to read. */}
+          <div className="grid grid-cols-2 gap-1.5">
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void load('blocks')}>
-              {loading === 'blocks' ? 'Loading cutblocks…' : 'Load BC cutblocks'}
+              {loading === 'blocks' ? 'Loading…' : 'Load BC cutblocks'}
             </Button>
             <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
               Import cutblocks
             </Button>
+            {onDraw && (
+              <Button size="sm" variant="outline" className="col-span-2" disabled={busy} onClick={onDraw}>
+                Draw planned block
+              </Button>
+            )}
           </div>
           <input
             ref={input}
@@ -238,167 +302,185 @@ export function CutblockHistoryPanel({
             }}
           />
           {error && <InlineAlert tone="warning">{error}</InlineAlert>}
-          <NumberField
-            label="Harvest age reference year"
-            value={year}
-            min={1800}
-            max={2200}
-            step={1}
-            onChange={(value) => w.update((project) => ({ ...project, harvestHistoryYear: Math.round(value) }))}
-          />
-          {!block && (
+          {!blocks.length ? (
             <p className="text-2xs text-muted-foreground">
-              Load historical cutblocks, import polygons, or draw a proposed block.
+              Load historical cutblocks, import polygons, or draw a planned block.
             </p>
-          )}
-          {block && (
+          ) : (
             <>
-              <Field label="Cutblock history selection">
-                <RoadSelect
-                  ariaLabel="Cutblock history selection"
-                  value={block.id}
-                  onValueChange={setSelected}
-                  options={blocks.map((feature) => ({
-                    value: feature.id,
-                    label: `${feature.name} · ${harvestAgeSummary(feature.harvestEvidence, year)}`,
-                  }))}
-                />
-              </Field>
-              <div
-                className="space-y-1 rounded border bg-muted/20 p-2 text-2xs"
-                data-testid="road-cutblock-history-evidence"
-              >
-                <p className="flex items-start gap-1.5 font-medium">
-                  <span
-                    className="mt-0.5 size-3 shrink-0 rounded-sm border"
-                    style={{ backgroundColor: historyStyle.color }}
-                    aria-hidden="true"
-                  />
-                  {harvestAgeSummary(evidence, year)}
-                </p>
-                <p>Reference year: {year}</p>
-                {evidence?.startYear !== undefined && <p>Harvest start year: {evidence.startYear}</p>}
-                {evidence?.endYear !== undefined && <p>Harvest end year: {evidence.endYear}</p>}
-                {evidence?.startDate && <p>Source start date: {evidence.startDate}</p>}
-                {evidence?.endDate && <p>Source end date: {evidence.endDate}</p>}
-                {evidence?.midYear !== undefined && <p>Source midpoint year: {evidence.midYear}</p>}
-                <p>
-                  {evidence?.source === 'scenario'
-                    ? 'Synthetic teaching record'
-                    : evidence?.source === 'bc-consolidated'
-                      ? 'BC consolidated cutblock record'
-                      : evidence
-                        ? 'Imported harvest evidence'
-                        : 'No harvest history supplied'}
-                </p>
-                {evidence?.dataSource && <p>Contributing source: {evidence.dataSource}</p>}
-                {evidence?.sourceDate && <p>Source date: {evidence.sourceDate}</p>}
-                {evidence?.publishedDate && <p>Source published: {evidence.publishedDate}</p>}
-                {evidence?.sourceId && <p className="break-all">Source record: {evidence.sourceId}</p>}
-                {evidence?.openingId && <p className="break-all">Opening ID: {evidence.openingId}</p>}
-                {evidence?.sourceUrl && (
-                  <a href={evidence.sourceUrl} target="_blank" rel="noreferrer" className="inline-block underline">
-                    Harvest source
-                  </a>
-                )}
-                {evidence?.retrievedAt && <p>Retrieved: {evidence.retrievedAt.slice(0, 10)}</p>}
-              </div>
-              <Button
+              <SegmentedControl
                 size="sm"
-                variant="outline"
-                className="w-full"
-                disabled={!onLocate || busy}
-                onClick={() => onLocate?.(block)}
-              >
-                Locate cutblock on plan
-              </Button>
-              <div className="space-y-2 border-t pt-2" data-testid="road-cutblock-nearby-roads">
-                <div className="flex items-center justify-between gap-1">
-                  <p className="text-xs font-medium">Nearby road candidates</p>
-                  <InfoTip label="About nearby roads">
-                    Shortest horizontal separation from the cutblock footprint to mapped road linework, within 1 km. An
-                    intersecting line can still be unbuilt, closed or disconnected from the wider road network. These
-                    candidates do not automatically enter route search.
-                  </InfoTip>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full"
-                  disabled={busy}
-                  onClick={() => void load('roads')}
-                >
-                  {loading === 'roads' ? 'Loading nearby roads…' : 'Load roads near this cutblock'}
-                </Button>
-                <p className="text-2xs text-muted-foreground">
-                  {proximity.error
-                    ? 'Candidate count unavailable'
-                    : `${candidates.length} loaded candidates within 1 km · proximity only`}
-                </p>
-                {proximity.error && <InlineAlert tone="warning">{proximity.error}</InlineAlert>}
-                {candidate && (
-                  <>
-                    <RoadSelect
-                      ariaLabel="Nearby road candidate"
-                      value={candidate.road.id}
-                      onValueChange={setSelectedRoad}
-                      options={candidates.map((item) => ({
-                        value: item.road.id,
-                        label: `${Math.round(item.distanceM)} m · ${item.road.name}`,
-                      }))}
-                    />
-                    <div className="space-y-1 rounded border p-2 text-2xs">
-                      <p className="flex gap-1.5">
-                        <span
-                          className="mt-1 w-5 shrink-0 border-t-2 border-dashed"
-                          style={{ borderColor: roadStyle.color }}
-                          aria-hidden="true"
-                        />
-                        {roadStyle.label}
-                      </p>
-                      <p>{roadDeactivationSummary(candidate.road.roadEvidence?.deactivation)}</p>
-                      {candidate.road.roadEvidence?.retirementDate && (
-                        <p>Tenure retired: {candidate.road.roadEvidence.retirementDate}</p>
-                      )}
-                      <p>{Math.round(candidate.distanceM)} m from mapped cutblock footprint</p>
+                label="Cutblock group"
+                value={group}
+                onChange={(next) => {
+                  const first = (next === 'planned' ? planned : harvested)[0]
+                  if (first) setSelected(first.id)
+                }}
+                options={[
+                  { value: 'planned', label: `Planned ${planned.length}`, disabled: !planned.length },
+                  { value: 'harvested', label: `Harvested ${harvested.length}`, disabled: !harvested.length },
+                ]}
+              />
+              {block && (
+                <>
+                  <div className="flex items-center gap-1">
+                    <div className="min-w-0 flex-1">
+                      <RoadSelect
+                        ariaLabel="Cutblock history selection"
+                        value={block.id}
+                        onValueChange={setSelected}
+                        options={(group === 'planned' ? planned : harvested).map((feature) => ({
+                          value: feature.id,
+                          label: feature.name,
+                          title: harvestAgeSummary(feature.harvestEvidence, year),
+                        }))}
+                      />
                     </div>
                     <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      disabled={!onReviewRoad || busy}
-                      onClick={() => onReviewRoad?.(candidate.road)}
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 shrink-0"
+                      aria-label="Locate cutblock on plan"
+                      title="Locate on plan"
+                      disabled={!onLocate || busy}
+                      onClick={() => onLocate?.(block)}
                     >
-                      Review selected road
+                      <LocateFixed className="size-4" />
                     </Button>
-                  </>
-                )}
-                {!candidate && !proximity.error && (
-                  <p className="text-2xs text-muted-foreground">
-                    No loaded road line falls within 1 km. Load roads for this block or import local linework in
-                    Existing roads & reuse.
-                  </p>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                disabled={busy}
-                onClick={() =>
-                  w.update((project) => ({
-                    ...project,
-                    context: project.context.filter((feature) => feature.id !== block.id),
-                  }))
-                }
-              >
-                Remove selected cutblock
-              </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="size-8 shrink-0"
+                      aria-label="Remove selected cutblock"
+                      title="Remove this block from the project"
+                      disabled={busy}
+                      onClick={() =>
+                        w.update((project) => ({
+                          ...project,
+                          context: project.context.filter((feature) => feature.id !== block.id),
+                        }))
+                      }
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </div>
+                  <div
+                    className="space-y-2 rounded-md border bg-muted/20 p-2.5 text-xs"
+                    data-testid="road-cutblock-history-evidence"
+                  >
+                    <p className="flex items-start gap-1.5 font-medium">
+                      <span
+                        className="mt-0.5 size-3 shrink-0 rounded-sm border"
+                        style={{ backgroundColor: historyStyle.color }}
+                        aria-hidden="true"
+                      />
+                      {harvestAgeSummary(evidence, year)}
+                    </p>
+                    <KeyValueRows variant="grid" valueClassName="tabular-nums" rows={evidenceRows(block)} />
+                    {/* Ages count to this year; it is saved with the project so a report reads the same later. */}
+                    {group === 'harvested' && (
+                      <div className="grid grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] items-center gap-x-3">
+                        <span className="text-muted-foreground" aria-hidden="true">
+                          Ages as of
+                        </span>
+                        <div className="w-20">
+                          <NumberField
+                            label="Harvest age reference year"
+                            hideLabel
+                            value={year}
+                            min={1800}
+                            max={2200}
+                            step={1}
+                            precision={0}
+                            onChange={(value) =>
+                              w.update((project) => ({ ...project, harvestHistoryYear: Math.round(value) }))
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {(evidence?.sourceUrl || evidence?.retrievedAt) && (
+                      <p className="flex flex-wrap justify-between gap-x-2 text-2xs text-muted-foreground">
+                        {evidence?.sourceUrl && (
+                          <a href={evidence.sourceUrl} target="_blank" rel="noreferrer" className="underline">
+                            Harvest source
+                          </a>
+                        )}
+                        {evidence?.retrievedAt && <span>Retrieved {evidence.retrievedAt.slice(0, 10)}</span>}
+                      </p>
+                    )}
+                    {group === 'planned' && (
+                      <p className="text-2xs text-muted-foreground">Plan roads to it in Design → Block access.</p>
+                    )}
+                  </div>
+                  {group === 'harvested' && (
+                    // Roads near the block, nearest first. Each opens in Existing roads & reuse, which holds the
+                    // road's evidence, history and reuse settings; this list adds only the distance.
+                    <div className="space-y-2 border-t pt-3" data-testid="road-cutblock-nearby-roads">
+                      <div className="flex items-center gap-1">
+                        <p className="text-xs font-medium">Nearby roads</p>
+                        <InfoTip label="About nearby roads">
+                          Shortest horizontal separation from the cutblock footprint to mapped road linework, within 1
+                          km. Proximity only: a line can still be unbuilt, closed or disconnected from the wider road
+                          network, and it does not enter route search. Open one to review it in Existing roads & reuse.
+                        </InfoTip>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="ml-auto h-7 px-2 text-xs"
+                          disabled={busy}
+                          onClick={() => void load('roads')}
+                        >
+                          {loading === 'roads' ? 'Loading…' : 'Load roads near this block'}
+                        </Button>
+                      </div>
+                      {proximity.error ? (
+                        <InlineAlert tone="warning">{proximity.error}</InlineAlert>
+                      ) : candidates.length ? (
+                        <>
+                          <p className="text-2xs text-muted-foreground">
+                            {candidates.length} within 1 km · proximity only
+                          </p>
+                          <div className="max-h-48 overflow-y-auto overscroll-contain rounded-md border">
+                            {candidates.map(({ road, distanceM }) => {
+                              const style = roadHistoryStyle(road.roadEvidence)
+                              return (
+                                <ResultRow
+                                  key={road.id}
+                                  className="py-1.5"
+                                  aria-label={`Review road ${road.name}`}
+                                  disabled={!onReviewRoad || busy}
+                                  leading={
+                                    <span
+                                      className="mt-2 block w-4 border-t-2 border-dashed"
+                                      style={{ borderColor: style.color }}
+                                      aria-hidden="true"
+                                    />
+                                  }
+                                  title={road.name}
+                                  subtitle={style.label}
+                                  trailing={
+                                    <span className="text-xs font-normal text-muted-foreground">
+                                      {Math.round(distanceM)} m
+                                    </span>
+                                  }
+                                  onClick={() => onReviewRoad?.(road)}
+                                />
+                              )
+                            })}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-2xs text-muted-foreground">
+                          No loaded road line within 1 km. Load roads near this block, or import local linework in
+                          Existing roads & reuse.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </>
-          )}
-          {onDraw && (
-            <Button size="sm" variant="outline" className="w-full" disabled={busy} onClick={onDraw}>
-              Draw proposed cutblock
-            </Button>
           )}
         </div>
       </RoadSection>

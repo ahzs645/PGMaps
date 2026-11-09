@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { createFullCostTrainingProject } from '../../src/pages/dev-forestry-roads/trainingFullCostScenario'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { expandRoadSection } from './road-sidebar'
+import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose, optionLabels } from './road-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
@@ -10,14 +10,20 @@ test.setTimeout(240_000)
 async function openProject(page: Page, project: RoadProject) {
   const pending = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Open', exact: true }).click()
-  await (await pending).setFiles({
+  await (
+    await pending
+  ).setFiles({
     name: 'block-access.road.json',
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(project)),
   })
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId, {
-    timeout: 60_000,
-  })
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute(
+    'data-value',
+    project.activeAlignmentId,
+    {
+      timeout: 60_000,
+    },
+  )
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 60_000 })
 }
 
@@ -65,42 +71,79 @@ test('grades by haul direction are set in the search tools and saved with the pr
   expect(errors).toEqual([])
 })
 
-test('a harvest block gets ranked access options to nearby FSRs, and the chosen one becomes a road', async ({
+async function openAccess(page: Page) {
+  await openRoadPanel(page, 'Access from FSR')
+  return page.getByTestId('road-access-review')
+}
+
+test('a planned block is compared from its nearest FSRs by goal, and the chosen variant becomes a road', async ({
   page,
 }, info) => {
   const errors = await prepare(page)
-  const panel = page.getByTestId('road-block-access')
+  const panel = await openAccess(page)
   await expect(panel.getByRole('combobox', { name: 'Harvest block', exact: true })).toBeVisible()
-  await panel.getByRole('button', { name: 'Find access', exact: true }).click()
+  // Two FSRs and two goals keep the run short; every variant is still listed by its start.
+  await choose(panel.getByRole('combobox', { name: 'FSRs to try', exact: true }), '2')
+  const goals = panel.getByRole('group', { name: 'Access goals', exact: true })
+  for (const goal of ['Gentlest', 'Fewest drainage issues'])
+    await goals.getByRole('button', { name: goal, exact: true }).click()
+  // The snapped junctions show before anything runs.
+  await expect(panel).toContainText(/Joins .+ \(\d/)
+  await panel.getByRole('button', { name: 'Compare access routes', exact: true }).click()
 
-  const options = page.getByTestId('road-block-access-options').getByRole('radio')
+  const routes = page.getByRole('radiogroup', { name: 'Access routes', exact: true })
+  const options = routes.getByRole('radio')
   await expect(options.first()).toBeVisible({ timeout: 180_000 })
-  await expect(options.first()).toHaveAttribute('aria-checked', 'true')
-  await expect(options.first()).toContainText(/Steepest loaded uphill [\d.]+% · empty uphill [\d.]+%/)
+  await expect(routes.getByRole('radio', { checked: true })).toHaveCount(1)
+  await expect(options.first()).toContainText(/loaded ↑ [\d.—%]+ · empty ↑ [\d.—%]+/)
+  // The overall leader of each goal is starred across every start.
+  await expect(routes).toContainText('★ Lowest cost')
   await expect(page.getByTestId('workspace-toast-error')).toHaveCount(0)
-  const count = await options.count()
-  if (count > 1) {
-    await options.nth(1).click()
-    await expect(options.nth(1)).toHaveAttribute('aria-checked', 'true')
-    await expect(options.first()).toHaveAttribute('aria-checked', 'false')
-  }
-  const chosen = (await page.locator('[data-access-option][aria-checked="true"] .font-medium').textContent()) ?? ''
-  await page.screenshot({ path: info.outputPath('block-access-options.png') })
+  // Arrow keys move through the variants.
+  const checked = routes.getByRole('radio', { checked: true })
+  const first = await checked.getAttribute('data-access-row')
+  await checked.focus()
+  await page.keyboard.press('ArrowDown')
+  if ((await options.count()) > 1) await expect(checked).not.toHaveAttribute('data-access-row', first!)
+  await page.screenshot({ path: info.outputPath('access-review.png') })
 
+  const start =
+    (await routes
+      .getByRole('radio', { checked: true })
+      .locator('xpath=..')
+      .locator('[title]')
+      .first()
+      .getAttribute('title')) ?? ''
   const roads = page.getByLabel('Active road', { exact: true })
   const before = (await optionLabels(roads)).length
   await panel.getByRole('button', { name: 'Add as road', exact: true }).click()
   await expect.poll(async () => (await optionLabels(roads)).length).toBe(before + 1)
-  const active = page.getByLabel('Active road', { exact: true })
-  await expect(active).toContainText('block access')
-  await expect(active).toContainText(chosen.replace(/^\d+\.\s*/, ''))
-  await expect(page.getByTestId('road-block-access-options')).toHaveCount(0)
+  await expect(roads).toContainText(start)
+  await expect(roads).toContainText('→')
+  expect(errors).toEqual([])
+})
+
+test('an end picked on the plan shows the junctions it would start from', async ({ page }) => {
+  const errors = await prepare(page)
+  const panel = await openAccess(page)
+  await panel
+    .getByRole('group', { name: 'Access end', exact: true })
+    .getByRole('button', { name: 'Point on plan' })
+    .click()
+  await panel.getByRole('button', { name: 'Pick end on plan', exact: true }).click()
+  const box = (await page.getByTestId('road-plan-view').locator('canvas').first().boundingBox())!
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.6)
+  await expect(panel.getByRole('button', { name: 'Move end', exact: true })).toBeVisible()
+  await expect(panel).toContainText(/Joins .+ \(\d/)
+  // The end and each junction are labelled on the plan.
+  await expect(page.getByTestId('road-plan-view').getByText('End', { exact: true })).toBeVisible()
+  await expect(page.getByTestId('road-plan-view').getByText(/^Start 1 · /)).toBeVisible()
   expect(errors).toEqual([])
 })
 
 test('Draw block adds a harvest block rather than an avoidance area', async ({ page }) => {
   const errors = await prepare(page)
-  const panel = page.getByTestId('road-block-access')
+  const panel = await openAccess(page)
   const blocks = panel.getByRole('combobox', { name: 'Harvest block', exact: true })
   const before = (await optionLabels(blocks)).length
   await panel.getByRole('button', { name: 'Draw block', exact: true }).click()
@@ -114,7 +157,8 @@ test('Draw block adds a harvest block rather than an avoidance area', async ({ p
     await page.mouse.click(box.x + box.width * x, box.y + box.height * y)
   await page.getByRole('button', { name: 'Finish block', exact: true }).click()
   await expect.poll(async () => (await optionLabels(blocks)).length).toBe(before + 1)
-  expect((await optionLabels(blocks)).at(-1)).toMatch(/^Harvest block \d+$/)
+  // Planned blocks are listed first, so the drawn one sits among them.
+  expect((await optionLabels(blocks)).some((label) => /^Harvest block \d+$/.test(label))).toBe(true)
   expect(errors).toEqual([])
 })
 

@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
 import { choose, optionDisabled, optionEntries, optionLabels } from './road-select'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -378,7 +379,7 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
   expect(saved.project.terrain.kind).toBe('demo')
   expect(saved.project.alignments).toHaveLength(3)
   await page.getByRole('button', { name: 'Save', exact: true }).click()
-  const geo = await downloadText(page, page.getByRole('button', { name: 'Export GeoJSON', exact: true }))
+  const geo = await downloadText(page, await chooseExport(page, 'GeoJSON'))
   expect(geo.name).toMatch(/\.geojson$/)
   const collection = JSON.parse(geo.text) as GeoJSON.FeatureCollection
   expect(collection.type).toBe('FeatureCollection')

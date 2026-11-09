@@ -10,11 +10,10 @@ import { TerrainTab } from './sidebar/TerrainTab'
 import { ExistingRoadsPanel } from './ExistingRoadsPanel'
 import type { RoadOptimizationObjective } from './corridorOptimizer'
 import type { RouteSearchOptions } from './routing'
-import type { BlockAccessState } from './BlockAccessPanel'
 import type { RoutePreviewLine } from './RouteFinder'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
-import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource } from './types'
+import type { ContextFeature, Coordinate, RoadTemplate } from './types'
 
 export type FileKind = 'project' | 'terrain' | 'alignment' | 'context' | 'breaklines'
 export interface PointCloudChoice {
@@ -49,13 +48,19 @@ export interface SidebarProps {
   onSuggest: (options: RouteSearchOptions) => void
   onPreviewRoute?: (options: RouteSearchOptions | null) => void
   onPreviewRoutes?: (lines: RoutePreviewLine[] | null) => void
-  /** Block access: proposed roads from a harvest block to nearby FSRs, previewed on the plan. */
-  blockAccess?: BlockAccessState | null
-  onFindBlockAccess?: (blockId: string) => void
-  onSelectBlockAccess?: (index: number) => void
-  onAdoptBlockAccess?: () => void
-  onClearBlockAccess?: () => void
   onDrawBlock?: () => void
+  /**
+   * Asks the plan for one click: shows `prompt` and hands the clicked point to `onPick`. A null
+   * prompt cancels a pending pick.
+   */
+  onPickOnPlan?: (prompt: string | null, onPick?: (at: Coordinate) => void) => void
+  /** Loads active FSRs around a point when the source needs them; resolves to the context to search. */
+  onLoadFsrsNear?: (
+    at: Coordinate,
+    signal: AbortSignal,
+  ) => Promise<{ context: ContextFeature[]; scope: string } | undefined>
+  /** Points the access review shows on the plan: its end and the junctions it would start from. */
+  onPreviewAccessMarks?: (marks: import('./AccessReviewPanel').AccessMark[] | null) => void
   onShowCompare?: () => void
   onShowDrainage?: () => void
   onSelectRoad?: (id: string) => void
@@ -64,23 +69,13 @@ export interface SidebarProps {
   drainageStale?: boolean
   /** Rises each time the culvert inputs are asked for. */
   engineeringRequest?: number
-  onConnectFsr?: (
-    options: RouteSearchOptions,
-    preference: 'nearest' | 'lowest-cost',
-    endpoint: 'start' | 'end',
-    terrain?: 'current' | 'regional',
-    targetFeatureId?: string,
-  ) => void
-  onDiscoverFsrs?: (endpoint: 'start' | 'end') => void
-  onPreviewFsrTarget?: (featureId: string | null, endpoint: 'start' | 'end') => void
-  fsrDiscovery?: { guide: Alignment; source: TerrainSource; origin: Coordinate; scope: string } | null
   onLocateRoad?: (road: ContextFeature) => void
   onOpenRoadHistory?: (id: string) => void
   /** Shows a constraint on the plan; the sidebar marks `focusedConstraintId` as the one shown. */
   onLocateConstraint?: (area: ContextFeature) => void
   focusedConstraintId?: string | null
   cutblockReviewRequest?: { id: string; sequence: number }
-  onReviewRoad?: (road: ContextFeature | null) => void
+  onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void
   onShowExistingRoads?: () => void
   onShowEngineering?: () => void
   templatePreviewActive?: boolean
@@ -167,7 +162,6 @@ export function DesignSidebar(p: SidebarProps) {
           <div hidden={tab !== 'design'}>
             <DesignTab
               {...p}
-              onPreviewFsrTarget={tab === 'design' ? p.onPreviewFsrTarget : undefined}
               onShowExistingRoads={showExistingRoads}
               onShowEngineering={() => {
                 setTab('engineering')

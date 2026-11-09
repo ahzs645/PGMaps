@@ -5,6 +5,7 @@ import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-ro
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose } from './road-select'
+import { chooseExport } from './road-files'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -240,7 +241,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const geoDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export GeoJSON', exact: true }).click()
+  await (await chooseExport(page, 'GeoJSON')).click()
   const geoFile = await geoDownload
   await geoFile.saveAs(info.outputPath('roads.geojson'))
   const exported = JSON.parse(await readFile(info.outputPath('roads.geojson'), 'utf8')) as GeoJSON.FeatureCollection
@@ -251,7 +252,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   expect(exportedRoad.properties?.length_m).toBeCloseTo(analysis.length, 6)
   expect(exportedRoad.properties?.coverage_percent).toBeCloseTo(100, 5)
   const csvDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Station CSV', exact: true }).click()
+  await (await chooseExport(page, 'Station CSV')).click()
   await (await csvDownload).saveAs(info.outputPath('stations.csv'))
   const csv = await readFile(info.outputPath('stations.csv'), 'utf8')
   expect(csv).toContain('station_m,longitude,latitude,ground_elevation_m,design_elevation_m')

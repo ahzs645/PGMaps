@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)
@@ -130,7 +131,7 @@ test('provincial sources render, retain separate assessment evidence, and travel
   expect(project.provincialStreamData.sourceCounts).toEqual({ streams: 1, fish: 1, watersheds: 1 })
   expect(project.context.find((f: { id: string }) => f.id === 'bc-fwa-42-0').streamSource.sourceId).toBe('42')
   const reportDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Report HTML', exact: true }).click()
+  await (await chooseExport(page, 'Report HTML')).click()
   const report = fs.readFileSync((await (await reportDownload).path())!, 'utf8')
   expect(report).toContain('Fixture FWA reach')
   expect(report).toContain('Fixture community watershed')

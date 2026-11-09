@@ -47,6 +47,7 @@ import type {
   VerticalStandards,
   WidthOverride,
 } from './types'
+import { parseMapNotes } from './mapNotes'
 
 const MAX_ALIGNMENTS = 20
 const MAX_POINTS = 2000
@@ -664,6 +665,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
+    ...(r.notes === undefined ? {} : { notes: parseMapNotes(r.notes) }),
     ...(r.provincialStreamData === undefined
       ? {}
       : { provincialStreamData: parseProvincialStreamData(r.provincialStreamData) }),

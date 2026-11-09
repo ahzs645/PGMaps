@@ -13,11 +13,11 @@ The caller must invalidate a result when geometry, terrain, context or criteria 
 
 ## Preliminary FSR screens and final adoption
 
-The ordinary **Find FSR connection** / **Connect to selected FSR** action saves a preliminary
+Adding a connector from **Access from FSR** (End → **This road**) saves a preliminary
 terrain-cost alignment. It keeps the original road and records the mapped junction/source
 scope. That action does not fit all required curves, create an independent formation or run
 the full connected-access/material-cost model. A saved FSR screening record is not a passed
-final-connector assessment. The FSR panel links directly to **Review final checks & complete
+final-connector assessment. The connection record in that panel links directly to **Review final checks & complete
 costs** so the next step is explicit.
 
 The complete comparison checks the exact assembled candidate, rejects failed or unknown

@@ -28,7 +28,7 @@ const COMPONENTS: Record<Kind, { name: string; rule: string; fields: (side: Side
     fields: (side) => [
       { key: `${side}Width`, label: 'Width (m)', min: 0.1, max: 50 },
       { key: `${side}CrossfallPercent`, base: 'crossfallPercent', label: 'Crossfall (%)', min: -20, max: 20 },
-      { key: `${side}SurfaceDepth`, base: 'surfaceDepth', label: 'Surfacing depth (m)', min: 0, max: 2 },
+      { key: `${side}SurfaceDepth`, base: 'surfaceDepth', label: 'Surfacing (m)', min: 0, max: 2 },
     ],
   },
   ditch: {
@@ -136,29 +136,35 @@ export function TemplateComponents({
           <p className="text-xs font-medium">{label(selected.kind, selected.side)}</p>
           <InfoTip label={`About the ${SHORT[selected.kind].toLowerCase()}`}>{component.rule}</InfoTip>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        {/* Labels can wrap differently, so cells align at the bottom: every input, and the status line
+            under it, sits on one row. The status says whether the value is the base template's. */}
+        <div className="grid grid-cols-3 items-end gap-2">
           {component.fields(selected.side).map((field) => (
             <div key={field.key}>
               <NumberField
-                label={`${field.label}${field.base && !overridden(field) ? ' · base' : ''}`}
+                label={field.label}
                 value={value(field, selected.side)}
                 min={field.min}
                 max={field.max}
                 step={field.step ?? 0.1}
                 onChange={(v) => onChange({ ...template, [field.key]: v })}
               />
-              {overridden(field) && (
-                <button
-                  className="text-3xs underline"
-                  onClick={() => {
-                    const next = { ...template }
-                    delete next[field.key]
-                    onChange(next)
-                  }}
-                >
-                  Use base value
-                </button>
-              )}
+              <p className="mt-0.5 min-h-4 text-3xs leading-4 text-muted-foreground">
+                {overridden(field) ? (
+                  <button
+                    className="underline"
+                    onClick={() => {
+                      const next = { ...template }
+                      delete next[field.key]
+                      onChange(next)
+                    }}
+                  >
+                    Use base value
+                  </button>
+                ) : field.base ? (
+                  'From base'
+                ) : null}
+              </p>
             </div>
           ))}
         </div>

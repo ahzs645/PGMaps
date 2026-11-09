@@ -3,6 +3,7 @@ import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
 import { openRoadPanel } from './road-sidebar'
 import { choose } from './road-select'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15000 })
 test.setTimeout(240000)
@@ -154,7 +155,8 @@ for (const viewport of [
 
     await page.getByRole('button', { name: 'Save', exact: true }).tap()
     const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
-    await dialog.getByRole('button', { name: 'Configure plot book', exact: true }).tap()
+    await chooseExport(page, 'Plot book', { tap: true })
+    await dialog.getByRole('button', { name: 'Sheet setup', exact: true }).tap()
     const reports = page.getByTestId('road-report-settings')
     await chooseOption(page, reports.getByRole('combobox', { name: 'Report paper size', exact: true }), 'A4 landscape')
     await reports.getByLabel('Station label expression', { exact: true }).fill('{road} @ {station}')
@@ -169,11 +171,12 @@ for (const viewport of [
     await reports.getByRole('spinbutton', { name: 'Report station interval (m)', exact: true }).press('Tab')
     await fits(page, '[data-testid="road-files-dialog"]')
     await page.screenshot({ path: info.outputPath(`authored-report-${viewport.width}x${viewport.height}.png`), animations: 'disabled', timeout: 60000 })
-    const book = await download(page, dialog.getByRole('button', { name: 'Plot book (A4)', exact: true }))
+    const book = await download(page, dialog.getByRole('button', { name: 'Download Plot book', exact: true }))
     expect(book.text).toContain('@page{size:A4 landscape')
     expect(book.text).toContain('Mobile station schedule')
     expect(book.text).toContain(' @ 0+000')
     expect(book.text).not.toContain('NaN')
+    await chooseExport(page, 'Project file', { tap: true })
     const projectFile = await download(page, dialog.getByRole('button', { name: 'Save project JSON', exact: true }))
     await closeFiles(page)
     const exported = JSON.parse(projectFile.text) as RoadProject

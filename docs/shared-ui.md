@@ -149,7 +149,9 @@ Felt-style "layers, legend, table" pages. `/dev/data` is the reference.
   toolbar stays on one row at any pane width. `ActiveFilterChip` shows one such
   setting beside the closed button and clears it. It sets `container` itself when
   its button is in a `FullscreenPanel`. The road design station table is the
-  reference.
+  reference: in a panel it portals both buttons into the panel header
+  (`variant="ghost"`, `buttonClassName="size-8"`, `align="end"`) through
+  `useChartHeaderControls`, and its chips take a row only while a filter is on.
 - `FileDropTarget` (`file-drop-target.tsx`): wraps a map. While files are
   dragged over it, it shows a "drop to add" overlay, then hands the parent a
   `File[]`. Dragged text and links are ignored.
@@ -288,6 +290,11 @@ track grows to the longest cell in any column.
   quantity / unit headers. Format numbers with fixed decimals so columns align.
   `variant="text"` keeps the rules, banding and headers but left-aligns and wraps,
   for tables of text, chips, actions or checkboxes. `rowHeaders` styles a `tbody th`.
+  Editable numbers inside one use `engineeringCellInputClass` (borderless, right-aligned,
+  outlined on hover/focus, no spinner) with the field's label hidden and its `<td>` at `!p-0.5`;
+  `engineeringPinnedColumnClass` keeps the identifying first column in view. The road design
+  wraps this as `CellNumberField` (`dev-forestry-roads/Controls.tsx`); never put a labelled form
+  field in a table cell, where every row repeats the column header above its input.
 
 ## Mobile sheets
 

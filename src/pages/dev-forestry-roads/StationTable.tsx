@@ -2,9 +2,10 @@ import { RoadSelect } from './Controls'
 import { Columns3, ListFilter } from 'lucide-react'
 import { FormField, NumberField } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ActiveFilterChip, ToolbarPopover } from '@/components/ui/toolbar-popover'
-import { formatRoadStation } from './Charts'
+import { formatRoadStation, useChartHeaderControls } from './Charts'
 import { nearestStation } from './engine'
 import type { RoadAnalysis, RoadStation } from './types'
 
@@ -205,93 +206,108 @@ export function StationTable({
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
+  // In a panel the two buttons join its header; only active filters take a row above the table.
+  const headerControls = useChartHeaderControls()
+  const popover = headerControls
+    ? ({ variant: 'ghost', buttonClassName: 'size-8', align: 'end' } as const)
+    : ({} as const)
+  const toolbarButtons = (
+    <>
+      <ToolbarPopover
+        {...popover}
+        label="Filter stations"
+        icon={<ListFilter />}
+        count={Number(flagged) + Number(every > 0) + Number(narrowed)}
+      >
+        <div className="grid gap-2.5 p-2.5 text-xs">
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />
+            Flagged only
+          </label>
+          <FormField label="Report every">
+            <RoadSelect
+              ariaLabel="Station table reporting interval"
+              className={field}
+              value={String(every)}
+              onValueChange={(value) => setEvery(Number(value))}
+            >
+              {INTERVALS.map((v) => (
+                <option key={v} value={v}>
+                  {v ? `${v} m` : 'Every station'}
+                </option>
+              ))}
+            </RoadSelect>
+          </FormField>
+          <div className="grid grid-cols-2 gap-2">
+            {/* These commit on blur or Enter: clamping each keystroke would rewrite a half-typed number. */}
+            <NumberField
+              label="From (m)"
+              aria-label="Station table range start"
+              inputClassName={field}
+              updateOn="commit"
+              precision={1}
+              min={0}
+              max={end}
+              value={range.start}
+              onValueChange={(n) => setRange((r) => ({ ...r, start: Math.max(0, Math.min(end, n)) }))}
+            />
+            <NumberField
+              label="To (m)"
+              aria-label="Station table range end"
+              inputClassName={field}
+              updateOn="commit"
+              precision={1}
+              min={range.start}
+              max={analysis.length}
+              value={end}
+              onValueChange={(n) =>
+                setRange((r) => ({ ...r, end: Math.max(range.start, Math.min(analysis.length, n)) }))
+              }
+            />
+          </div>
+        </div>
+      </ToolbarPopover>
+      <ToolbarPopover {...popover} label="Choose columns" icon={<Columns3 />} width={176}>
+        <div className="grid gap-1 p-2.5 text-xs">
+          {available.map((c) => (
+            <label key={c.id} className="flex items-center gap-2 whitespace-nowrap">
+              <input type="checkbox" checked={!hidden.includes(c.id)} onChange={() => toggle(c.id)} />
+              {c.label}
+            </label>
+          ))}
+        </div>
+      </ToolbarPopover>
+    </>
+  )
+  const filtered = flagged || every > 0 || narrowed
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="mb-2 flex min-w-0 items-center gap-1.5">
-        <ToolbarPopover
-          label="Filter stations"
-          icon={<ListFilter />}
-          count={Number(flagged) + Number(every > 0) + Number(narrowed)}
-        >
-          <div className="grid gap-2.5 p-2.5 text-xs">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />
-              Flagged only
-            </label>
-            <FormField label="Report every">
-              <RoadSelect
-                ariaLabel="Station table reporting interval"
-                className={field}
-                value={String(every)}
-                onValueChange={(value) => setEvery(Number(value))}
-              >
-                {INTERVALS.map((v) => (
-                  <option key={v} value={v}>
-                    {v ? `${v} m` : 'Every station'}
-                  </option>
-                ))}
-              </RoadSelect>
-            </FormField>
-            <div className="grid grid-cols-2 gap-2">
-              {/* These commit on blur or Enter: clamping each keystroke would rewrite a half-typed number. */}
-              <NumberField
-                label="From (m)"
-                aria-label="Station table range start"
-                inputClassName={field}
-                updateOn="commit"
-                precision={1}
-                min={0}
-                max={end}
-                value={range.start}
-                onValueChange={(n) => setRange((r) => ({ ...r, start: Math.max(0, Math.min(end, n)) }))}
+      {headerControls ? createPortal(toolbarButtons, headerControls) : null}
+      {(!headerControls || filtered) && (
+        <div className="mb-2 flex min-w-0 items-center gap-1.5">
+          {!headerControls && toolbarButtons}
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
+            {flagged && (
+              <ActiveFilterChip label="Flagged" clearLabel="Show all stations" onClear={() => setFlagged(false)} />
+            )}
+            {every > 0 && (
+              <ActiveFilterChip
+                label={`Every ${every} m`}
+                clearLabel="Report every station"
+                onClear={() => setEvery(0)}
               />
-              <NumberField
-                label="To (m)"
-                aria-label="Station table range end"
-                inputClassName={field}
-                updateOn="commit"
-                precision={1}
-                min={range.start}
-                max={analysis.length}
-                value={end}
-                onValueChange={(n) =>
-                  setRange((r) => ({ ...r, end: Math.max(range.start, Math.min(analysis.length, n)) }))
-                }
+            )}
+            {narrowed && (
+              <ActiveFilterChip
+                label={`${formatRoadStation(range.start)} – ${formatRoadStation(end)}`}
+                clearLabel="Show the full range"
+                onClear={clearRange}
               />
-            </div>
+            )}
           </div>
-        </ToolbarPopover>
-        <ToolbarPopover label="Choose columns" icon={<Columns3 />} width={176}>
-          <div className="grid gap-1 p-2.5 text-xs">
-            {available.map((c) => (
-              <label key={c.id} className="flex items-center gap-2 whitespace-nowrap">
-                <input type="checkbox" checked={!hidden.includes(c.id)} onChange={() => toggle(c.id)} />
-                {c.label}
-              </label>
-            ))}
-          </div>
-        </ToolbarPopover>
-        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
-          {flagged && (
-            <ActiveFilterChip label="Flagged" clearLabel="Show all stations" onClear={() => setFlagged(false)} />
-          )}
-          {every > 0 && (
-            <ActiveFilterChip
-              label={`Every ${every} m`}
-              clearLabel="Report every station"
-              onClear={() => setEvery(0)}
-            />
-          )}
-          {narrowed && (
-            <ActiveFilterChip
-              label={`${formatRoadStation(range.start)} – ${formatRoadStation(end)}`}
-              clearLabel="Show the full range"
-              onClear={clearRange}
-            />
-          )}
         </div>
-      </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
+      )}
+      <div ref={scroller} className="min-h-0 flex-1 overflow-auto overscroll-contain">
         <EngineeringTable data-testid="road-station-table">
           <thead className="sticky top-0 z-10">
             <tr>

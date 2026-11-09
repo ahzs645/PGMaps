@@ -15,6 +15,8 @@ export function ToolbarPopover({
   count = 0,
   align = 'start',
   width = 224,
+  variant = 'outline',
+  buttonClassName,
   children,
 }: {
   /** Accessible name and tooltip of the button, and the name of the panel. */
@@ -23,6 +25,9 @@ export function ToolbarPopover({
   count?: number
   align?: 'start' | 'end'
   width?: number
+  /** `ghost` with `buttonClassName="size-8"` matches a panel header's icon buttons. */
+  variant?: 'outline' | 'ghost'
+  buttonClassName?: string
   children: ReactNode
 }) {
   const anchor = useRef<HTMLButtonElement>(null)
@@ -43,8 +48,8 @@ export function ToolbarPopover({
         ref={anchor}
         type="button"
         size="icon"
-        variant="outline"
-        className="relative size-7 shrink-0"
+        variant={variant}
+        className={cn('relative size-7 shrink-0', buttonClassName)}
         aria-label={count ? `${label}, ${count} active` : label}
         aria-haspopup="dialog"
         aria-expanded={open}

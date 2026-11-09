@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Info } from 'lucide-react'
+import { Info, TriangleAlert } from 'lucide-react'
 import { MOTION_DURATION, useMotionPresence } from '@pgmaps/geo-toolkit/ui/motion'
 import { cn } from '@/lib/utils'
 
@@ -11,7 +11,9 @@ const GAP = 6,
  * Help text behind an (i) button: hover or focus shows it, a click or tap pins it, Escape or
  * leaving closes it. The bubble renders in a portal at fixed position above dialogs, so a
  * scrolling sidebar or an `overflow-hidden` card cannot clip it. Use it for explanations a reader needs once, not for
- * a warning they must see: those stay inline (`InlineAlert`).
+ * a warning they must see: those stay inline (`InlineAlert`). The exception is a standing caveat
+ * that is not news, such as screening-grade terrain: `tone="warning"` keeps an amber triangle in view
+ * and puts its wording behind it.
  */
 export function InfoTip({
   label,
@@ -19,6 +21,7 @@ export function InfoTip({
   showLabel = false,
   className,
   bubbleClassName,
+  tone = 'info',
 }: {
   /** Accessible name of the button, e.g. "About section reach". */
   label: string
@@ -27,6 +30,8 @@ export function InfoTip({
   showLabel?: boolean
   className?: string
   bubbleClassName?: string
+  /** `warning` shows an amber triangle instead of the (i). */
+  tone?: 'info' | 'warning'
 }) {
   const id = useId()
   const button = useRef<HTMLButtonElement>(null)
@@ -133,7 +138,11 @@ export function InfoTip({
           }
         }}
       >
-        <Info className="size-3.5" aria-hidden="true" />
+        {tone === 'warning' ? (
+          <TriangleAlert className="size-3.5 text-amber-500 dark:text-amber-400" aria-hidden="true" />
+        ) : (
+          <Info className="size-3.5" aria-hidden="true" />
+        )}
         {showLabel && label}
       </button>
       {present &&

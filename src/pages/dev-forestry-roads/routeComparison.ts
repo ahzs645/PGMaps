@@ -268,7 +268,8 @@ function metrics(
   }
 }
 
-const MEASURES: Record<RouteGoal, (row: RouteRow) => number | null> = {
+/** How each goal is measured on a road; lower is better. */
+export const ROUTE_GOAL_MEASURES: Record<RouteGoal, (row: RouteRow) => number | null> = {
   cost: (row) => row.totalCost,
   shortest: (row) => row.lengthM,
   gentle: (row) => row.maxGradePercent,
@@ -284,7 +285,7 @@ const MEASURES: Record<RouteGoal, (row: RouteRow) => number | null> = {
 export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
   for (const goal of goals) {
-    const measure = MEASURES[goal]
+    const measure = ROUTE_GOAL_MEASURES[goal]
     const leader = usable
       .filter((row) => measure(row) !== null)
       .sort((a, b) => measure(a)! - measure(b)! || a.totalCost! - b.totalCost!)[0]

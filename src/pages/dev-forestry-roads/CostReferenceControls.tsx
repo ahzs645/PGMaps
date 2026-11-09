@@ -18,7 +18,7 @@ export function ReferenceSelect({
         onValueChange={onChange}
         options={options}
         ariaLabel={label}
-        className="h-auto min-h-9"
+        className="h-auto min-h-8"
       />
     </Field>
   )

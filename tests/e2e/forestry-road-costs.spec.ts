@@ -87,19 +87,20 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
 
   const dialog = await openCosts(page)
   await expect(dialog).toContainText('100.0% of the road has complete sections')
-  await expect(page.getByTestId('road-cost-status')).toContainText('section coverage complete')
-  // The review is one line in the cost dialog; its items open in their own dialog.
-  await expect(page.getByTestId('road-cost-review-bar')).toContainText('Scope to review')
-  await page.getByTestId('road-cost-review-toggle').click()
-  await expect(page.getByTestId('road-cost-readiness')).toContainText('Cost scope and pricing need review')
-  await expect(page.getByTestId('road-cost-readiness')).toContainText('does not measure cost confidence')
+  // Coverage is in the subtitle, so the status line names only what is incomplete and the run time.
+  await expect(page.getByTestId('road-cost-status')).toHaveText(/^Recalculated on every edit/)
+  // The estimate's caveats sit behind the method tip; there is no separate review dialog.
+  await expect(page.getByTestId('road-cost-review-bar')).toHaveCount(0)
+  const method = page.getByRole('button', { name: 'How amounts are calculated', exact: true })
+  await method.click()
+  await expect(page.getByRole('tooltip')).toContainText('not cost confidence')
   await page.screenshot({
     path: testInfo.outputPath('desktop-estimate-review.png'),
     animations: 'disabled',
     timeout: 60_000,
   })
-  await page.keyboard.press('Escape')
-  await expect(page.getByTestId('road-cost-readiness')).toHaveCount(0)
+  // A second click closes the pinned tip; Escape would close the whole dialog.
+  await method.click()
   await expect(dialog).toBeVisible()
   const customTotal = await page.getByTestId('road-cost-total').innerText()
   await chooseOption(page, 'Rate preset', 'PG Maps placeholder rates')

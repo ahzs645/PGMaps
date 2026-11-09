@@ -667,6 +667,7 @@ export function EngineeringControls({
                         <Button
                           size="sm"
                           variant="ghost"
+                          className="h-8"
                           disabled={candidate[field.key] === undefined}
                           onClick={() => updateTemplate({ [field.key]: undefined })}
                         >

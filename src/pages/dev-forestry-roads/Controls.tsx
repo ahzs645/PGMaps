@@ -2,14 +2,21 @@ import { Children, isValidElement, type OptionHTMLAttributes, type ReactNode } f
 import { InfoTip } from '@/components/ui/info-tip'
 import { FormField, NumberField as SharedNumberField, NullableNumberField } from '@/components/ui/form-field'
 import { AppSelect } from '@/components/ui/select'
+import { engineeringCellInputClass } from '@/components/ui/engineering-table'
 import { cn } from '@/lib/utils'
 
+/**
+ * A road text or number field. Single-line fields share the dropdown's 32 px height from `md` up, so an
+ * input, a select and a `h-8` button line up in a row; textareas keep their own height.
+ */
 export const roadFieldClass =
-  'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs'
+  'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs md:[&:not(textarea)]:h-8'
 
 export interface RoadSelectOption {
   value: string
   label: ReactNode
+  /** What the closed trigger shows, when it should be shorter than the list's label. */
+  selectedLabel?: ReactNode
   disabled?: boolean
   title?: string
   /** Text a searchable select matches when the label is not plain text. */
@@ -135,6 +142,7 @@ export function NumberField({
   hideLabel = false,
   hint,
   precision = 6,
+  fixedDecimals,
   inputClassName = roadFieldClass,
 }: {
   label: string
@@ -149,6 +157,8 @@ export function NumberField({
   hint?: ReactNode
   /** Decimals shown; an untouched field keeps its full stored value. */
   precision?: number
+  /** Show all `precision` decimals (`283.00`), for a column that lines up. */
+  fixedDecimals?: boolean
   inputClassName?: string
 }) {
   return (
@@ -161,6 +171,7 @@ export function NumberField({
       max={max}
       step={step}
       precision={precision}
+      fixedDecimals={fixedDecimals}
       stepMode="increment"
       disabled={disabled}
       hideLabel={hideLabel}
@@ -171,6 +182,49 @@ export function NumberField({
 }
 
 /** An empty field remains null ("not checked"), never zero. */
+/**
+ * A number edited in place inside an `EngineeringTable` cell. The column header names it, so the
+ * label is for assistive technology only. Values show all `precision` decimals so the column lines
+ * up; `fixedDecimals={false}` drops trailing zeros where a column's values vary in scale.
+ */
+export function CellNumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  precision = 2,
+  fixedDecimals = true,
+  disabled,
+}: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  min?: number
+  max?: number
+  step?: number
+  precision?: number
+  fixedDecimals?: boolean
+  disabled?: boolean
+}) {
+  return (
+    <NumberField
+      label={label}
+      hideLabel
+      value={value}
+      onChange={onChange}
+      min={min}
+      max={max}
+      step={step}
+      precision={precision}
+      fixedDecimals={fixedDecimals}
+      disabled={disabled}
+      inputClassName={engineeringCellInputClass}
+    />
+  )
+}
+
 export function OptionalNumberField({
   label,
   value,

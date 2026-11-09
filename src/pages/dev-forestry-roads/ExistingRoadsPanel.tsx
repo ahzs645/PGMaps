@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
+import { LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { parseProject } from './project'
@@ -49,8 +51,11 @@ export function ExistingRoadsPanel({
   onOpenChange?: (open: boolean) => void
   /** Highlight and fit this section when the reviewer explicitly asks to locate it. */
   onLocateRoad?: (road: ContextFeature) => void
-  /** Update the review highlight without moving the camera; null clears it on unmount. */
-  onReviewRoad?: (road: ContextFeature | null) => void
+  /**
+   * Update the review highlight without moving the camera; null clears it on unmount. `picked` is set
+   * when the reviewer chose the road, which highlights it even before anything has been located.
+   */
+  onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void
 }) {
   const [selected, setSelected] = useState(initialSelectedRoadId ?? '')
   const [loading, setLoading] = useState(false)
@@ -242,103 +247,148 @@ export function ExistingRoadsPanel({
         </p>
         {road && (
           <>
-            <Field label="Review existing road">
-              <RoadSelect
-                ariaLabel="Review existing road"
-                className={roadFieldClass}
-                value={road.id}
-                onValueChange={(value) => setSelected(value)}
-              >
-                {roads.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {sectionLabel(f)}
-                  </option>
-                ))}
-              </RoadSelect>
-            </Field>
-            {onLocateRoad && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="w-full"
-                disabled={!!w.busy}
-                onClick={() => onLocateRoad(road)}
-              >
-                Locate selected road on plan
-              </Button>
-            )}
+            {/* Picking a road highlights it on the plan; the locate button also brings the plan to it. */}
+            <div className="flex items-end gap-1">
+              <div className="min-w-0 flex-1">
+                <Field label="Review existing road">
+                  <RoadSelect
+                    ariaLabel="Review existing road"
+                    className={roadFieldClass}
+                    value={road.id}
+                    onValueChange={(value) => {
+                      setSelected(value)
+                      const picked = roads.find((f) => f.id === value)
+                      if (picked) reviewCallback.current?.(picked, true)
+                    }}
+                  >
+                    {roads.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {sectionLabel(f)}
+                      </option>
+                    ))}
+                  </RoadSelect>
+                </Field>
+              </div>
+              {onLocateRoad && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="size-8 shrink-0"
+                  aria-label="Locate selected road on plan"
+                  title="Locate on plan"
+                  disabled={!!w.busy}
+                  onClick={() => onLocateRoad(road)}
+                >
+                  <LocateFixed className="size-4" />
+                </Button>
+              )}
+            </div>
+            {/* The record as label/value rows under its condition; the caveat about dates sits behind (i). */}
             <div
-              className="rounded border bg-muted/20 px-2 py-1.5 text-2xs text-muted-foreground"
+              className="space-y-2 rounded-md border bg-muted/20 p-2.5 text-xs"
               data-testid="road-existing-road-evidence"
             >
-              <p>
-                {recordUrl ? (
-                  <a
-                    className="underline"
-                    href={recordUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label={`View source record for ${road.name}`}
-                  >
-                    {sourceLabel}
-                  </a>
-                ) : (
-                  sourceLabel
-                )}
-                {evidence.roadClass === 'fsr'
-                  ? ' · Forest Service Road'
-                  : evidence.roadClass === 'permit'
-                    ? ' · Road permit'
-                    : ''}
-                {evidence.status ? ` · ${evidence.status}` : ''}
-              </p>
-              <p className="break-all">
-                {evidence.sourceId ? `Source record: ${evidence.sourceId} · ` : ''}Section reference: {road.id}
-              </p>
-              {evidence.retrievedAt && (
-                <p>Record retrieved: {new Date(evidence.retrievedAt).toLocaleString(DEFAULT_LOCALE)}</p>
-              )}
-              {evidence.awardDate && <p>Tenure awarded: {evidence.awardDate}</p>}
-              {evidence.retirementDate && <p>Tenure retired: {evidence.retirementDate} · administrative date</p>}
-              <p data-testid="road-deactivation-summary">
-                {roadDeactivationSummary(evidence.deactivation)}
-                {evidence.deactivation?.status === 'reactivated' && evidence.deactivation.deactivatedOn
-                  ? ` · Previously deactivated: ${evidence.deactivation.deactivatedOn}`
-                  : ''}
-              </p>
-              <p className="flex items-center gap-1.5">
+              <p className="flex items-center gap-1.5 font-medium">
                 <span
                   aria-hidden="true"
-                  className="inline-block w-5 border-t-2"
+                  className="inline-block w-5 shrink-0 border-t-2"
                   style={{
                     borderColor: historyStyle.color,
                     borderStyle: historyStyle.key === 'serviceable' ? 'solid' : 'dashed',
                   }}
                 />
-                {historyStyle.label}
+                <span className="min-w-0 flex-1">{historyStyle.label}</span>
+                <InfoTip label="About this road record">
+                  Record and tenure dates do not establish a road's age or present condition; that needs review. Section
+                  reference {road.id}.
+                </InfoTip>
               </p>
-              {evidence.deactivation?.reference && (
-                <p>
-                  {evidence.deactivation.basis === 'scenario'
-                    ? 'Scenario assumption'
-                    : evidence.deactivation.basis === 'field-observation'
-                      ? 'Field note'
-                      : 'Event source'}
-                  :{' '}
-                  {evidence.deactivation.sourceUrl ? (
-                    <a className="underline" href={evidence.deactivation.sourceUrl} target="_blank" rel="noreferrer">
-                      {evidence.deactivation.reference}
-                    </a>
-                  ) : (
-                    evidence.deactivation.reference
-                  )}
-                </p>
-              )}
-              {evidence.deactivation?.observedOn && <p>Event status observed: {evidence.deactivation.observedOn}</p>}
-              <p>
-                Construction year: {evidence.constructionYear ?? 'unknown'}. Record dates do not establish road age.
-                Current condition requires review.
-              </p>
+              <KeyValueRows
+                variant="grid"
+                valueClassName="tabular-nums"
+                rows={[
+                  {
+                    key: 'source',
+                    label: 'Source',
+                    value: recordUrl ? (
+                      <a
+                        className="underline"
+                        href={recordUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        aria-label={`View source record for ${road.name}`}
+                      >
+                        {sourceLabel}
+                      </a>
+                    ) : (
+                      sourceLabel
+                    ),
+                  },
+                  evidence.roadClass === 'fsr' || evidence.roadClass === 'permit'
+                    ? {
+                        key: 'class',
+                        label: 'Type',
+                        value: evidence.roadClass === 'fsr' ? 'Forest Service Road' : 'Road permit',
+                      }
+                    : null,
+                  evidence.status ? { key: 'status', label: 'Tenure status', value: evidence.status } : null,
+                  evidence.sourceId ? { key: 'record', label: 'Record', value: evidence.sourceId } : null,
+                  {
+                    key: 'history',
+                    label: 'Road history',
+                    value: (
+                      <span data-testid="road-deactivation-summary">
+                        {roadDeactivationSummary(evidence.deactivation)}
+                        {evidence.deactivation?.status === 'reactivated' && evidence.deactivation.deactivatedOn
+                          ? ` · Previously deactivated: ${evidence.deactivation.deactivatedOn}`
+                          : ''}
+                      </span>
+                    ),
+                  },
+                  evidence.deactivation?.reference
+                    ? {
+                        key: 'event',
+                        label:
+                          evidence.deactivation.basis === 'scenario'
+                            ? 'Scenario assumption'
+                            : evidence.deactivation.basis === 'field-observation'
+                              ? 'Field note'
+                              : 'Event source',
+                        value: evidence.deactivation.sourceUrl ? (
+                          <a
+                            className="underline"
+                            href={evidence.deactivation.sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            {evidence.deactivation.reference}
+                          </a>
+                        ) : (
+                          evidence.deactivation.reference
+                        ),
+                      }
+                    : null,
+                  evidence.deactivation?.observedOn
+                    ? { key: 'observed', label: 'Event status observed', value: evidence.deactivation.observedOn }
+                    : null,
+                  evidence.awardDate ? { key: 'awarded', label: 'Tenure awarded', value: evidence.awardDate } : null,
+                  evidence.retirementDate
+                    ? { key: 'retired', label: 'Tenure retired', value: evidence.retirementDate }
+                    : null,
+                  {
+                    key: 'built',
+                    label: 'Construction year',
+                    value: evidence.constructionYear ? String(evidence.constructionYear) : 'unknown',
+                  },
+                  evidence.retrievedAt
+                    ? {
+                        key: 'retrieved',
+                        label: 'Retrieved',
+                        value: new Date(evidence.retrievedAt).toLocaleDateString(DEFAULT_LOCALE),
+                      }
+                    : null,
+                ]}
+              />
             </div>
             <div className="grid grid-cols-2 gap-2">
               {evidence.source !== 'bc-ften' && (

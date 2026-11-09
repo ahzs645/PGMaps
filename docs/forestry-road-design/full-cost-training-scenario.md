@@ -41,17 +41,17 @@ The three U-shaped sections are identified as **synthetic FSRs** and are immedia
 named connection choices. This example uses its loaded network and synthetic terrain offline;
 it does not query BC road data.
 
-1. With **Short connector A** active, open **Design → Terrain-cost search · corridor optimizer**.
-2. Under **Connect to a Forest Service Road**, set **Connect from → Road start**. The road end is
-   already tied into the A arm, so starting there would request a near-zero-length connector.
-3. Click **Find nearby FSRs**, then choose **Synthetic B arm · source and outlet access** in
-   **FSR to connect to**. The A arm and upper connection are also selectable.
-4. The selected section and its proposed junction appear blue on the plan. **Locate selected FSR**
-   fits the view to that section. Selection previews the destination without creating a road.
-5. Leave **Use regional terrain across connection** unchecked and click **Connect to selected FSR**.
-   A new preliminary road runs from the common block start to the chosen mapped section; both
-   original connector alternatives remain in the project. Its recorded connection identifies the
-   selected section and junction.
+1. With **Short connector A** active, open **Design → Access from FSR**.
+2. Set **End → This road** and **Connect from → Road start**. The road end is already tied into the
+   A arm, so starting there would request a near-zero-length connector.
+3. Set **Start from → A road I pick**, click **Find nearby FSRs**, then choose **Synthetic B arm ·
+   source and outlet access** in **FSR to connect to**. The A arm and upper connection are also
+   selectable. The chosen section is highlighted on the plan and its junction is labelled
+   **Start 1**; choosing does not create a road.
+4. Leave **Search on regional terrain** unchecked, click **Compare access routes**, pick a variant
+   and click **Add as road**. A new preliminary road runs from the common block start to the chosen
+   mapped section; both original connector alternatives remain in the project. Its recorded
+   connection identifies the selected section and junction.
 
 The generated connector needs formation design, final checks and complete cost review. Its terrain
 search score does not establish an approved junction, road access or a complete construction price.

@@ -49,7 +49,7 @@ export function TerrainProfilesPanel({
                 </option>
               ))}
             </RoadSelect>
-            <Button variant="outline" size="sm" className="text-xs" onClick={() => onProfile(line.id)}>
+            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onProfile(line.id)}>
               Sample
             </Button>
           </div>

@@ -98,7 +98,6 @@ describe('horizontal profile bands', () => {
     await act(async () => {
       renderer = create(createElement(EngineeringBands, props))
     })
-    await act(async () => renderer!.root.findByType('button').props.onClick())
     expect(renderer!.root.findAllByType('text').some((text) => text.children.includes('Tangent'))).toBe(true)
     expect(renderer!.root.findAllByType('text').some((text) => text.children.includes('Ground'))).toBe(false)
     await act(async () => renderer!.update(createElement(EngineeringBands, { ...props, terrainOnly: true })))
@@ -114,7 +113,6 @@ describe('horizontal profile bands', () => {
     await act(async () => {
       renderer = create(createElement(EngineeringBands, props))
     })
-    await act(async () => renderer!.root.findByType('button').props.onClick())
     const root = renderer!.root.findByProps({ 'data-testid': 'road-engineering-bands' })
     expect(root.props['data-range-start']).toBe(200)
     expect(root.props['data-range-end']).toBe(400)

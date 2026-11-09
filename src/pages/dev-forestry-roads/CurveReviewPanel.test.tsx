@@ -1,4 +1,4 @@
-import { createElement } from 'react'
+import { createElement, type ReactNode } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { CurveReviewPanel } from './CurveReviewPanel'
@@ -8,6 +8,11 @@ import { downloadText } from '@/lib/download'
 import type { Alignment, Coordinate } from './types'
 
 vi.mock('@/lib/download', () => ({ downloadText: vi.fn() }))
+// The method sits behind an InfoTip, whose popover needs a browser window; render its text inline.
+vi.mock('@/components/ui/info-tip', () => ({
+  InfoTip: ({ children, label }: { children: ReactNode; label: string }) =>
+    createElement('span', { 'aria-label': label }, children),
+}))
 let renderer: ReactTestRenderer | undefined
 afterEach(async () => {
   await act(async () => renderer?.unmount())

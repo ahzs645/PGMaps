@@ -71,7 +71,7 @@ export function DrainageSensitivityPanel({
           </Field>
           <Button
             size="sm"
-            className="min-h-9 whitespace-normal touch:min-h-10"
+            className="h-auto min-h-8 whitespace-normal py-1.5 touch:min-h-10"
             disabled={!canSave}
             onClick={() => {
               onSave(label.trim() || `Run ${records.length + 1}`)
@@ -99,12 +99,12 @@ export function DrainageSensitivityPanel({
                   onValueChange={setSelectedBaseline}
                   options={records.map((r) => ({ value: drainageComparisonId(r), label: r.label }))}
                   ariaLabel="Comparison baseline"
-                  className="h-9 w-full"
+                  className="h-8 w-full"
                 />
               </Field>
               <Button
                 size="sm"
-                className="min-h-9 whitespace-normal touch:min-h-10"
+                className="h-auto min-h-8 whitespace-normal py-1.5 touch:min-h-10"
                 variant="outline"
                 disabled={busy}
                 onClick={() => onExport(drainageComparisonId(baseline))}

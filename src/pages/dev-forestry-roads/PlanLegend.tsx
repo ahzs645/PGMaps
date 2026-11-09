@@ -7,6 +7,7 @@ import {
   type TerrainDisplay,
 } from './terrainDisplay'
 import type { PlanLegendEntry, PlanLegendSection } from './planLegendModel'
+import { terrainDisplayName } from './terrainName'
 
 /** Thick enough to read the colour, drawn with the dash the map uses. */
 function LineSwatch({ entry }: { entry: PlanLegendEntry }) {
@@ -51,7 +52,10 @@ export function PlanLegend({
         collapsible
         defaultCollapsed
         width="sm"
-        className="road-map-legend bottom-2 right-2 flex p-2 max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:p-2 [&>div:first-child]:shrink-0"
+        className={
+          // Corners, shadow and the folded height match the plan's other 32 px controls.
+          'road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0'
+        }
         contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-contain text-2xs"
       >
         <div className="mt-1 space-y-3 border-t pt-1.5" data-testid="road-plan-legend-content">
@@ -142,13 +146,13 @@ export function PlanLegend({
                   />
                 </>
               )}
+              {/* The source without its bounding box; the full name and why the cells differ are on hover. */}
               <p
                 className="break-words border-t pt-1 text-muted-foreground"
-                title="The map uses a sampled terrain preview; calculations use native terrain."
+                title={`${terrainName}. The map draws a sampled preview at about ${Math.round(display.resolutionM)} m; calculations use the native terrain.`}
+                data-testid="road-legend-terrain-source"
               >
-                {terrainName}
-                <br />
-                Map preview ≈ {Math.round(display.resolutionM)} m cells
+                {terrainDisplayName(terrainName)}, drawn at ≈ {Math.round(display.resolutionM)} m
               </p>
             </MapLegendSection>
           )}

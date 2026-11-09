@@ -49,18 +49,18 @@ blocked until its live references are explicitly reassigned or removed.
 
 ## Author a plot book
 
-Open **Save → Configure plot book**. Drawing settings travel in project JSON as
+Open **Save**, select **Plot book** and switch its pane to **Sheet setup**; **Preview** redraws the book as you edit. Drawing settings travel in project JSON as
 `reportSettings`, schema `pgmaps-road-report-v1`. They do not change calculation station spacing.
 
 You can choose A3 or A4 landscape paper and add, reorder, rename or remove chapters:
 
-| Chapter | Controls and contents |
-| --- | --- |
-| Plan & profile | Station range, maximum metres per sheet, physical horizontal scale or auto-fit, profile vertical exaggeration, plan/profile/mass subviews, contours and legend. |
-| Cross-sections | Station range and report interval; equal axis scales or a fixed physical print scale. Original ground, prepared ground when present, and design remain separate. |
-| Station schedule | Station range, report interval and selected/reordered columns in their selected order. Calculation-interval volumes retain their own analytical intervals. |
-| Horizontal curves | Fitted circular portions intersecting the chapter's range. BC/EC on a spiralled curve refer to its circular arc. |
-| Culvert inventory | Entered structures in the range, geometric length/cover/grade, installed cost and review warnings. |
+| Chapter             | Controls and contents                                                                                                                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan & profile      | Station range, maximum metres per sheet, physical horizontal scale or auto-fit, profile vertical exaggeration, plan/profile/mass subviews, contours and legend.                                                |
+| Cross-sections      | Station range and report interval; equal axis scales or a fixed physical print scale. Original ground, prepared ground when present, and design remain separate.                                               |
+| Station schedule    | Station range, report interval and selected/reordered columns in their selected order. Calculation-interval volumes retain their own analytical intervals.                                                     |
+| Horizontal curves   | Fitted circular portions intersecting the chapter's range. BC/EC on a spiralled curve refer to its circular arc.                                                                                               |
+| Culvert inventory   | Entered structures in the range, geometric length/cover/grade, installed cost and review warnings.                                                                                                             |
 | Material quantities | Cut/stripping, reusable material, unsuitable bank volume and excavation cost over the selected range. Range boundaries clip the engine's linear average-end-area integration; missing intervals stay excluded. |
 
 Curve tables can also be added as a chapter automatically, or inset at the top right of each
@@ -82,16 +82,16 @@ Label offsets affect drawing placement only.
 
 ## Limits and checks
 
-| Limit | Enforcing code |
-| --- | --- |
-| 12 named profiles per horizontal road | `verticalAlternatives.ts`, `MAX_VERTICAL_ALTERNATIVES` |
-| Each child uses the ordinary 500-PVI/profile and engineering validators | `project.ts` parser through `parseVerticalAlternativeFields` |
-| Child IDs unique; active child must exist; retain at least one child | `verticalAlternatives.ts` |
-| 16 authored chapters; 500 generated sheets | `reportSettings.ts`, `MAX_REPORT_CHAPTERS`, `MAX_REPORT_SHEETS`; `plotBook.ts` preflight/add budget |
-| Report interval 2–1,000 m; sheet length 10–10,000 m | `parseRoadReportSettings` |
-| Fixed horizontal scale denominator 50–100,000 or auto-fit | `parseRoadReportSettings` |
-| Profile vertical exaggeration 0.1–20 | `parseRoadReportSettings` |
-| Label expression 200 characters; known fields only; offsets ±100 drawing pixels | `validateLabelTemplate`, `parseRoadReportSettings` |
+| Limit                                                                           | Enforcing code                                                                                      |
+| ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 12 named profiles per horizontal road                                           | `verticalAlternatives.ts`, `MAX_VERTICAL_ALTERNATIVES`                                              |
+| Each child uses the ordinary 500-PVI/profile and engineering validators         | `project.ts` parser through `parseVerticalAlternativeFields`                                        |
+| Child IDs unique; active child must exist; retain at least one child            | `verticalAlternatives.ts`                                                                           |
+| 16 authored chapters; 500 generated sheets                                      | `reportSettings.ts`, `MAX_REPORT_CHAPTERS`, `MAX_REPORT_SHEETS`; `plotBook.ts` preflight/add budget |
+| Report interval 2–1,000 m; sheet length 10–10,000 m                             | `parseRoadReportSettings`                                                                           |
+| Fixed horizontal scale denominator 50–100,000 or auto-fit                       | `parseRoadReportSettings`                                                                           |
+| Profile vertical exaggeration 0.1–20                                            | `parseRoadReportSettings`                                                                           |
+| Label expression 200 characters; known fields only; offsets ±100 drawing pixels | `validateLabelTemplate`, `parseRoadReportSettings`                                                  |
 
 Outputs retain source terrain/datum, sheet numbering and the preliminary-planning title block.
 An empty table reports that no records are available. A missing terrain contour layer reports

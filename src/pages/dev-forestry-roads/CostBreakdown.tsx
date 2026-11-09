@@ -2,14 +2,13 @@ import { useState } from 'react'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
-import { NumberField, RoadSelect } from './Controls'
+import { CellNumberField, NumberField, RoadSelect } from './Controls'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import { surfacingSupplyCost } from './gravel'
 import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
-import { CostReadiness } from './CostReadinessPanel'
 import { BCCostReferences } from './BCCostReferencesPanel'
 
 const money = (value: number, digits = 0) =>
@@ -67,12 +66,14 @@ function RateCell({ rate }: { rate?: Rate }) {
     <span className="inline-flex items-center justify-end gap-1">
       <span className="w-24">
         {rate.onChange ? (
-          <NumberField
+          <CellNumberField
             label={rate.label}
-            hideLabel
             value={rate.value}
             min={rate.min ?? 0}
             max={rate.max ?? 100000}
+            precision={4}
+            // Rates run from cents to thousands; padding every one to four places hides that.
+            fixedDecimals={false}
             onChange={rate.onChange}
           />
         ) : (
@@ -305,10 +306,12 @@ export function CostBreakdown({
       size="lg"
       title="Covered estimate"
       subtitle={`${money(analysis.estimatedCost)} · ${quantity(analysis.coveragePercent)}% of the road has complete sections`}
+      // Coverage is in the subtitle; this line names only what is incomplete, and the run time.
       summary={
         <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
-          Calculation updated · section coverage {hasCompleteCoverage(analysis) ? 'complete' : 'partial'}
-          {result?.complete === false ? ' · engineering inputs incomplete' : ''} · recalculated on every edit
+          {hasCompleteCoverage(analysis) ? '' : 'Section coverage partial · '}
+          {result?.complete === false ? 'Engineering inputs incomplete · ' : ''}
+          Recalculated on every edit
           {processMs === undefined
             ? ''
             : ` · process time ${processMs < 1000 ? `${Math.max(1, Math.round(processMs))} ms` : `${(processMs / 1000).toFixed(1)} s`}`}
@@ -344,13 +347,13 @@ export function CostBreakdown({
             />
           </label>
           <BCCostReferences portalContainer={portalContainer} />
+          <span className="ml-auto flex h-8 items-center">
+            <InfoTip label="How amounts are calculated" showLabel>
+              Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
+              volumes by average end areas. Section coverage measures sampled road length, not cost confidence.
+            </InfoTip>
+          </span>
         </div>
-        <CostReadiness
-          analysis={analysis}
-          alignment={alignment}
-          settings={settings}
-          portalContainer={portalContainer}
-        />
         <div className="overflow-x-auto">
           <EngineeringTable data-testid="road-cost-calculation">
             <thead>
@@ -396,6 +399,15 @@ export function CostBreakdown({
               <tr className="bg-emerald-600/10 font-semibold" data-cost-row="total">
                 <td className="text-left" colSpan={4}>
                   Total
+                  {/* Only an edit made here moves the total, so the difference shows once there is one. */}
+                  {change !== 0 && (
+                    <span
+                      data-testid="road-cost-change"
+                      className={`ml-2 font-normal ${change > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}
+                    >
+                      {`${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
+                    </span>
+                  )}
                 </td>
                 <td className="font-mono" data-testid="road-cost-total">
                   {money(analysis.estimatedCost, 2)}
@@ -429,26 +441,6 @@ export function CostBreakdown({
           </div>
         )}
         {haul && onHaul && <HaulCostGraph haul={haul} />}
-        <div className="flex flex-wrap items-center justify-between gap-2 text-2xs text-muted-foreground">
-          <span>
-            Amount = quantity × rate. Contingency = subtotal × %. Quantities cover supported intervals only, with
-            volumes by average end areas.
-          </span>
-          <span
-            data-testid="road-cost-change"
-            className={
-              change === 0
-                ? ''
-                : change > 0
-                  ? 'text-amber-700 dark:text-amber-400'
-                  : 'text-emerald-700 dark:text-emerald-400'
-            }
-          >
-            {change === 0
-              ? 'No change since opened'
-              : `${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
-          </span>
-        </div>
         {!result && (
           <p className="text-2xs text-muted-foreground">
             Materials, structures, haul, mobilization and contingency join this table once Engineering inputs are added

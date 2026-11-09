@@ -15,7 +15,7 @@ async function prepare(page: Page) {
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
   const bands = page.getByTestId('road-engineering-bands')
-  await bands.getByRole('button', { name: /Grade, curve, template & material bands/ }).click()
+  await page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true }).click()
   const svg = bands.getByRole('group', { name: 'Connected profile data bands; click or drag to inspect a station' })
   await expect(svg).toBeVisible()
   await svg.scrollIntoViewIfNeeded()

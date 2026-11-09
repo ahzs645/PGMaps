@@ -153,7 +153,10 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
   await data.getByRole('button', { name: `Review curve ${lastId}`, exact: true }).click()
   const review = data.getByTestId('road-selected-curve-review')
   await expect(review).toBeVisible()
-  await expect(review).toContainText('BC/EC bound the circular curve. No spirals are fitted.')
+  // The method opens from its info button rather than sitting open under the review.
+  await review.getByRole('button', { name: 'How this is calculated', exact: true }).click()
+  await expect(page.getByRole('tooltip')).toContainText('BC/EC bound the circular curve. No spirals are fitted.')
+  await page.keyboard.press('Escape')
   await expect(review).toContainText('Inside formation radius')
   await expect(review).toContainText('Vehicle swept path not checked.')
   const ec = review.getByRole('button', { name: `${lastId} EC station`, exact: true })
@@ -178,8 +181,8 @@ test('a switchback alternative is staged, created, reviewed in linked views, sav
 
   // The horizontal-curve band lies under the profile with the other engineering bands.
   const bands = page.getByTestId('road-engineering-bands')
-  const toggle = bands.getByRole('button', { name: /Grade, curve, template & material bands/ })
-  if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click()
+  const toggle = page.getByRole('button', { name: 'Grade, curve, template & material bands', exact: true })
+  if ((await toggle.getAttribute('aria-pressed')) !== 'true') await toggle.click()
   await expect(bands.locator('text', { hasText: 'H curve' })).toHaveCount(1)
 
   // Creation is one normal undoable edit.

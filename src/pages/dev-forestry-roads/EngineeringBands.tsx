@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { horizontalCurveEvents } from './planAnnotations'
@@ -243,7 +243,6 @@ export function EngineeringBands({
   terrainOnly?: boolean
   range?: [number, number]
 }) {
-  const [expanded, setExpanded] = useState(false)
   const drag = useRef<{
     pointerId: number
     start: number
@@ -256,7 +255,7 @@ export function EngineeringBands({
     () => () => {
       drag.current = null
     },
-    [expanded, alignment.id],
+    [alignment.id],
   )
   const inspectPointer = (pointerId: number, clientX: number) => {
     const active = drag.current
@@ -276,157 +275,146 @@ export function EngineeringBands({
     end = range?.[1] ?? Math.max(1, analysis.length)
   if (analysis.length <= 0) return null
   return (
-    <div className="-mx-3 border-t" data-testid="road-engineering-bands" data-range-start={start} data-range-end={end}>
-      <button
-        className="flex w-full items-center justify-between px-3 py-1 text-3xs text-muted-foreground hover:bg-muted touch:py-2.5"
-        aria-expanded={expanded}
-        onClick={() => setExpanded((value) => !value)}
-      >
-        <span>{terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands'}</span>
-        <span>{expanded ? 'Hide −' : 'Show +'}</span>
-      </button>
-      {expanded && (
-        <div className="max-h-[112px] overflow-y-auto overscroll-contain">
-          <SizedChart height={rows.length * 22}>
-            {(width) => {
-              const left = width < 380 ? 48 : 58,
-                right = 16
-              const x = (value: number) =>
-                left + Math.max(0, Math.min(1, (value - start) / (end - start))) * Math.max(1, width - left - right)
-              return (
-                <svg
-                  width={width}
-                  height={rows.length * 22}
-                  role="group"
-                  tabIndex={0}
-                  aria-label="Connected profile data bands; click or drag to inspect a station"
-                  className="cursor-ew-resize select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onPointerDown={(event) => {
-                    if (event.button !== 0 || !event.isPrimary || drag.current) return
-                    event.preventDefault()
-                    const box = event.currentTarget.getBoundingClientRect()
-                    // Keep the displayed station domain fixed throughout the gesture, even
-                    // while its live shared station causes the connected views to render.
-                    drag.current = {
-                      pointerId: event.pointerId,
-                      start,
-                      end,
-                      plotLeft: box.left + (left / width) * box.width,
-                      plotWidth: Math.max(1, ((width - left - right) / width) * box.width),
-                    }
-                    event.currentTarget.setPointerCapture(event.pointerId)
-                    event.currentTarget.focus({ preventScroll: true })
-                    inspectPointer(event.pointerId, event.clientX)
-                  }}
-                  onPointerMove={(event) => {
-                    if (drag.current?.pointerId !== event.pointerId) return
-                    event.preventDefault()
-                    inspectPointer(event.pointerId, event.clientX)
-                  }}
-                  onPointerUp={(event) => {
-                    if (drag.current?.pointerId !== event.pointerId) return
-                    inspectPointer(event.pointerId, event.clientX)
-                    drag.current = null
-                    if (event.currentTarget.hasPointerCapture(event.pointerId))
-                      event.currentTarget.releasePointerCapture(event.pointerId)
-                  }}
-                  onPointerCancel={(event) => {
-                    if (drag.current?.pointerId !== event.pointerId) return
-                    drag.current = null
-                    if (event.currentTarget.hasPointerCapture(event.pointerId))
-                      event.currentTarget.releasePointerCapture(event.pointerId)
-                  }}
-                  onLostPointerCapture={(event) => {
-                    if (drag.current?.pointerId === event.pointerId) drag.current = null
-                  }}
-                  onKeyDown={(event) => {
-                    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
-                    event.preventDefault()
-                    onStation(
-                      event.key === 'Home'
-                        ? 0
-                        : event.key === 'End'
-                          ? analysis.length
-                          : Math.max(0, Math.min(analysis.length, station + (event.key === 'ArrowRight' ? 10 : -10))),
-                    )
-                  }}
-                >
-                  {rows.map((row, index) => (
-                    <g key={row.name}>
-                      <text x={3} y={index * 22 + 14} fontSize="9" fill="hsl(var(--muted-foreground))">
-                        {row.name}
-                      </text>
-                      <rect
-                        x={left}
-                        y={index * 22 + 2}
-                        width={width - left - right}
-                        height={18}
-                        fill="hsl(var(--muted))"
-                      />
-                      {row.spans
-                        .filter((s) => s.end >= start && s.start <= end)
-                        .map((span) => {
-                          const spanWidth = Math.max(2, x(span.end) - x(span.start))
-                          const selected = station >= span.start && station <= span.end
-                          return (
-                            <g key={span.id}>
+    // The chart's header toggle mounts this; it has no fold of its own.
+    <div data-testid="road-engineering-bands" data-range-start={start} data-range-end={end}>
+      <div className="max-h-[112px] overflow-y-auto overscroll-contain">
+        <SizedChart height={rows.length * 22}>
+          {(width) => {
+            const left = width < 380 ? 48 : 58,
+              right = 16
+            const x = (value: number) =>
+              left + Math.max(0, Math.min(1, (value - start) / (end - start))) * Math.max(1, width - left - right)
+            return (
+              <svg
+                width={width}
+                height={rows.length * 22}
+                role="group"
+                tabIndex={0}
+                aria-label="Connected profile data bands; click or drag to inspect a station"
+                className="cursor-ew-resize select-none touch-none outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onPointerDown={(event) => {
+                  if (event.button !== 0 || !event.isPrimary || drag.current) return
+                  event.preventDefault()
+                  const box = event.currentTarget.getBoundingClientRect()
+                  // Keep the displayed station domain fixed throughout the gesture, even
+                  // while its live shared station causes the connected views to render.
+                  drag.current = {
+                    pointerId: event.pointerId,
+                    start,
+                    end,
+                    plotLeft: box.left + (left / width) * box.width,
+                    plotWidth: Math.max(1, ((width - left - right) / width) * box.width),
+                  }
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  event.currentTarget.focus({ preventScroll: true })
+                  inspectPointer(event.pointerId, event.clientX)
+                }}
+                onPointerMove={(event) => {
+                  if (drag.current?.pointerId !== event.pointerId) return
+                  event.preventDefault()
+                  inspectPointer(event.pointerId, event.clientX)
+                }}
+                onPointerUp={(event) => {
+                  if (drag.current?.pointerId !== event.pointerId) return
+                  inspectPointer(event.pointerId, event.clientX)
+                  drag.current = null
+                  if (event.currentTarget.hasPointerCapture(event.pointerId))
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                }}
+                onPointerCancel={(event) => {
+                  if (drag.current?.pointerId !== event.pointerId) return
+                  drag.current = null
+                  if (event.currentTarget.hasPointerCapture(event.pointerId))
+                    event.currentTarget.releasePointerCapture(event.pointerId)
+                }}
+                onLostPointerCapture={(event) => {
+                  if (drag.current?.pointerId === event.pointerId) drag.current = null
+                }}
+                onKeyDown={(event) => {
+                  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+                  event.preventDefault()
+                  onStation(
+                    event.key === 'Home'
+                      ? 0
+                      : event.key === 'End'
+                        ? analysis.length
+                        : Math.max(0, Math.min(analysis.length, station + (event.key === 'ArrowRight' ? 10 : -10))),
+                  )
+                }}
+              >
+                {rows.map((row, index) => (
+                  <g key={row.name}>
+                    <text x={3} y={index * 22 + 14} fontSize="9" fill="hsl(var(--muted-foreground))">
+                      {row.name}
+                    </text>
+                    <rect
+                      x={left}
+                      y={index * 22 + 2}
+                      width={width - left - right}
+                      height={18}
+                      fill="hsl(var(--muted))"
+                    />
+                    {row.spans
+                      .filter((s) => s.end >= start && s.start <= end)
+                      .map((span) => {
+                        const spanWidth = Math.max(2, x(span.end) - x(span.start))
+                        const selected = station >= span.start && station <= span.end
+                        return (
+                          <g key={span.id}>
+                            <rect
+                              x={x(span.start) - (spanWidth <= 2 ? 2 : 0)}
+                              y={index * 22 + 2}
+                              width={spanWidth <= 2 ? 4 : spanWidth}
+                              height={18}
+                              fill={span.color}
+                              opacity={selected ? 0.37 : 0.19}
+                              stroke={span.invalid ? span.color : 'hsl(var(--background))'}
+                              strokeDasharray={span.invalid ? '3 2' : undefined}
+                            />
+                            {span.circularSpan && span.circularSpan.end >= start && span.circularSpan.start <= end && (
                               <rect
-                                x={x(span.start) - (spanWidth <= 2 ? 2 : 0)}
+                                x={x(span.circularSpan.start)}
                                 y={index * 22 + 2}
-                                width={spanWidth <= 2 ? 4 : spanWidth}
+                                width={Math.max(0, x(span.circularSpan.end) - x(span.circularSpan.start))}
                                 height={18}
                                 fill={span.color}
-                                opacity={selected ? 0.37 : 0.19}
-                                stroke={span.invalid ? span.color : 'hsl(var(--background))'}
-                                strokeDasharray={span.invalid ? '3 2' : undefined}
+                                opacity={selected ? 0.3 : 0.18}
                               />
-                              {span.circularSpan &&
-                                span.circularSpan.end >= start &&
-                                span.circularSpan.start <= end && (
-                                  <rect
-                                    x={x(span.circularSpan.start)}
-                                    y={index * 22 + 2}
-                                    width={Math.max(0, x(span.circularSpan.end) - x(span.circularSpan.start))}
-                                    height={18}
-                                    fill={span.color}
-                                    opacity={selected ? 0.3 : 0.18}
-                                  />
-                                )}
-                              {spanWidth > span.label.length * 5 + 8 && (
-                                <text
-                                  x={x(span.start) + spanWidth / 2}
-                                  y={index * 22 + 14}
-                                  fontSize="9"
-                                  textAnchor="middle"
-                                  fill="hsl(var(--foreground))"
-                                  pointerEvents="none"
-                                >
-                                  {span.label}
-                                </text>
-                              )}
-                              <title>{span.detail}</title>
-                            </g>
-                          )
-                        })}
-                    </g>
-                  ))}
-                  {station >= start && station <= end && (
-                    <line
-                      x1={x(station)}
-                      x2={x(station)}
-                      y1={0}
-                      y2={rows.length * 22}
-                      stroke="#e11d48"
-                      strokeWidth={1.4}
-                      pointerEvents="none"
-                    />
-                  )}
-                </svg>
-              )
-            }}
-          </SizedChart>
-        </div>
-      )}
+                            )}
+                            {spanWidth > span.label.length * 5 + 8 && (
+                              <text
+                                x={x(span.start) + spanWidth / 2}
+                                y={index * 22 + 14}
+                                fontSize="9"
+                                textAnchor="middle"
+                                fill="hsl(var(--foreground))"
+                                pointerEvents="none"
+                              >
+                                {span.label}
+                              </text>
+                            )}
+                            <title>{span.detail}</title>
+                          </g>
+                        )
+                      })}
+                  </g>
+                ))}
+                {station >= start && station <= end && (
+                  <line
+                    x1={x(station)}
+                    x2={x(station)}
+                    y1={0}
+                    y2={rows.length * 22}
+                    stroke="#e11d48"
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                )}
+              </svg>
+            )
+          }}
+        </SizedChart>
+      </div>
     </div>
   )
 }

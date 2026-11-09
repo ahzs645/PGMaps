@@ -110,15 +110,18 @@ function Widenings(p: SidebarProps) {
       title="Landings & turnouts"
       help="Extra width over a station range, tapered at each end. Landings are unsurfaced; turnouts are surfaced."
       actions={
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7 px-2 text-xs"
-          aria-label="Manage landings & turnouts"
-          onClick={() => setOpen(true)}
-        >
-          Manage
-        </Button>
+        // Manage edits what exists; with nothing yet, the section offers the add buttons instead.
+        alignment.overrides.length ? (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 px-2 text-xs"
+            aria-label="Manage landings & turnouts"
+            onClick={() => setOpen(true)}
+          >
+            Manage
+          </Button>
+        ) : undefined
       }
     >
       {alignment.overrides.length ? (
@@ -139,7 +142,24 @@ function Widenings(p: SidebarProps) {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground">None on this road.</p>
+        <div className="flex items-center gap-1.5">
+          <span className="min-w-0 flex-1 text-xs text-muted-foreground">None yet.</span>
+          {(['landing', 'turnout'] as const).map((kind) => (
+            <Button
+              key={kind}
+              size="sm"
+              variant="outline"
+              className="h-7 px-2 text-xs"
+              disabled={!!p.workspace.busy}
+              onClick={() => {
+                add(kind)
+                setOpen(true)
+              }}
+            >
+              + {kind === 'landing' ? 'Landing' : 'Turnout'}
+            </Button>
+          ))}
+        </div>
       )}
       <RoadSettingsDialog title="Landings & turnouts" open={open} onOpenChange={setOpen} busy={!!p.workspace.busy}>
         <div className="mb-2 flex gap-1">

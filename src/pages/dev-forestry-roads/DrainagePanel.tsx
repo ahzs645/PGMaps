@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { StatGroup } from '@/components/ui/stat-group'
@@ -35,6 +34,12 @@ const n = (v: number, digits = 0) => v.toLocaleString('en-CA', { maximumFraction
  * Flow on the existing ground against flow on the design surface: streams the road carries along
  * its ditches, ditch low points with no culvert, new ponding, and a Rational-method pipe check.
  */
+// Each group is a row: its name on the left, then its inputs as wide as they need.
+const groupRow = 'grid gap-1.5 sm:grid-cols-[6.5rem_minmax(0,1fr)] sm:items-end sm:gap-2'
+const groupHeading = 'text-3xs font-semibold uppercase tracking-wide text-muted-foreground sm:pb-2.5'
+const groupGrid = 'grid grid-cols-[repeat(auto-fill,minmax(8rem,1fr))] items-end gap-2'
+const selectGrid = 'grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] items-end gap-2'
+
 export function DrainagePanel({
   run,
   stale,
@@ -103,122 +108,155 @@ export function DrainagePanel({
   )
   return (
     <div className="h-full space-y-3 overflow-auto text-xs" data-testid="road-drainage">
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2">
-        <NumberField
-          label="Rainfall (mm/h)"
-          value={settings.rainfallMmPerHr}
-          min={1}
-          max={500}
-          step={1}
-          onChange={(v) => set({ rainfallMmPerHr: v })}
-        />
-        <NumberField
-          label="Runoff C"
-          value={settings.runoffCoefficient}
-          min={0.05}
-          max={1}
-          step={0.05}
-          onChange={(v) => set({ runoffCoefficient: v })}
-        />
-        <NumberField
-          label="Pipe Manning n"
-          value={settings.manningN}
-          min={0.009}
-          max={0.05}
-          step={0.001}
-          onChange={(v) => set({ manningN: v })}
-        />
-        <NumberField
-          label="Stream from (ha)"
-          value={settings.streamThresholdHa}
-          min={0.05}
-          max={500}
-          step={0.1}
-          onChange={(v) => set({ streamThresholdHa: v })}
-        />
-        <NumberField
-          label="Upslope buffer (m)"
-          value={settings.bufferM}
-          min={20}
-          max={2000}
-          step={10}
-          onChange={(v) => set({ bufferM: v })}
-        />
-        <Field
-          label="Depression treatment"
-          hint="Fill all retains the existing routing method. Preserve keeps natural sinks. A depth limit fills an entire connected depression only when its spill depth is within that limit; deeper basins remain. Potential ponding is still reported for every policy."
-        >
-          <RoadSelect
-            value={settings.depressionPolicy?.mode ?? 'fill-all'}
-            onValueChange={(mode) =>
-              set({
-                depressionPolicy:
-                  mode === 'depth-limited'
-                    ? {
-                        mode,
-                        maxDepthM:
-                          settings.depressionPolicy?.mode === 'depth-limited'
-                            ? settings.depressionPolicy.maxDepthM
-                            : 0.5,
-                      }
-                    : { mode: mode as 'fill-all' | 'preserve' },
-              })
-            }
-            options={[
-              { value: 'fill-all', label: 'Fill all depressions' },
-              { value: 'preserve', label: 'Preserve depressions' },
-              { value: 'depth-limited', label: 'Fill shallow basins' },
-            ]}
-            ariaLabel="Depression treatment"
-            className="h-9 w-full"
-          />
-        </Field>
-        {settings.depressionPolicy?.mode === 'depth-limited' && (
-          <NumberField
-            label="Maximum basin fill (m)"
-            value={settings.depressionPolicy.maxDepthM}
-            min={0}
-            max={1000}
-            step={0.05}
-            onChange={(maxDepthM) => set({ depressionPolicy: { mode: 'depth-limited', maxDepthM } })}
-          />
-        )}
-        <Field
-          label="Working grid"
-          hint="Automatic uses the source resolution with a 1 m minimum. A requested cell size can coarsen the analysis; it cannot add terrain detail. The cell budget may make the actual grid coarser still."
-        >
-          <RoadSelect
-            value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
-            onValueChange={(value) =>
-              set({ workingResolutionM: value === 'automatic' ? undefined : (run?.cellM ?? 5) })
-            }
-            options={[
-              { value: 'automatic', label: 'Use source resolution' },
-              { value: 'custom', label: 'Set working resolution' },
-            ]}
-            ariaLabel="Working grid"
-            className="h-9 w-full"
-          />
-        </Field>
-        {settings.workingResolutionM !== undefined && (
-          <NumberField
-            label="Requested grid cell (m)"
-            value={settings.workingResolutionM}
-            min={1}
-            max={100000}
-            step={1}
-            onChange={(workingResolutionM) => set({ workingResolutionM })}
-          />
-        )}
-        <div className="flex items-end gap-1">
-          <Button size="sm" className="min-w-0 flex-1" disabled={busy} onClick={onRun}>
+      {/* Run first, then the inputs in three groups; each select's options say what they do. */}
+      <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Button size="sm" className="h-8 shrink-0" disabled={busy} onClick={onRun}>
             {run ? 'Re-run drainage' : 'Run drainage check'}
           </Button>
-          <InfoTip label="About the drainage check">
-            Burns the road prism and its culverts into the terrain, then routes flow with the selected depression policy
-            (D8) on the existing ground and on that design surface. Streams the road turns, ditch low points without a
-            culvert and new ponding then show on the plan.
-          </InfoTip>
+          <p className="min-w-48 flex-1 text-muted-foreground">
+            Routes flow (D8) over the existing ground and over a design surface with the road and its culverts burned
+            in, then marks redirected streams, ditch low points without a culvert and new ponding.
+          </p>
+        </div>
+        <div className="space-y-2.5">
+          <div role="group" aria-label="Design storm" className={groupRow}>
+            <span className={groupHeading}>Design storm</span>
+            <div className={groupGrid}>
+              <NumberField
+                label="Rainfall (mm/h)"
+                value={settings.rainfallMmPerHr}
+                min={1}
+                max={500}
+                step={1}
+                onChange={(v) => set({ rainfallMmPerHr: v })}
+              />
+              <NumberField
+                label="Runoff C"
+                value={settings.runoffCoefficient}
+                min={0.05}
+                max={1}
+                step={0.05}
+                onChange={(v) => set({ runoffCoefficient: v })}
+              />
+              <NumberField
+                label="Pipe Manning n"
+                value={settings.manningN}
+                min={0.009}
+                max={0.05}
+                step={0.001}
+                onChange={(v) => set({ manningN: v })}
+              />
+            </div>
+          </div>
+          <div role="group" aria-label="Flow network" className={groupRow}>
+            <span className={groupHeading}>Flow network</span>
+            <div className={groupGrid}>
+              <NumberField
+                label="Stream from (ha)"
+                value={settings.streamThresholdHa}
+                min={0.05}
+                max={500}
+                step={0.1}
+                onChange={(v) => set({ streamThresholdHa: v })}
+              />
+              <NumberField
+                label="Upslope buffer (m)"
+                value={settings.bufferM}
+                min={20}
+                max={2000}
+                step={10}
+                onChange={(v) => set({ bufferM: v })}
+              />
+            </div>
+          </div>
+          <div role="group" aria-label="Terrain" className={groupRow}>
+            <span className={groupHeading}>Terrain</span>
+            <div className={selectGrid}>
+              <Field label="Depression treatment">
+                <RoadSelect
+                  value={settings.depressionPolicy?.mode ?? 'fill-all'}
+                  onValueChange={(mode) =>
+                    set({
+                      depressionPolicy:
+                        mode === 'depth-limited'
+                          ? {
+                              mode,
+                              maxDepthM:
+                                settings.depressionPolicy?.mode === 'depth-limited'
+                                  ? settings.depressionPolicy.maxDepthM
+                                  : 0.5,
+                            }
+                          : { mode: mode as 'fill-all' | 'preserve' },
+                    })
+                  }
+                  options={[
+                    {
+                      value: 'fill-all',
+                      label: 'Fill all depressions',
+                      title: 'Fill every depression before routing. Potential ponding is still reported.',
+                    },
+                    {
+                      value: 'preserve',
+                      label: 'Preserve depressions',
+                      title: 'Keep natural sinks: flow that reaches one stops there.',
+                    },
+                    {
+                      value: 'depth-limited',
+                      label: 'Fill shallow basins',
+                      title:
+                        'Fill a connected depression only when its spill depth is within the limit; deeper basins remain.',
+                    },
+                  ]}
+                  ariaLabel="Depression treatment"
+                  className="h-8 w-full"
+                />
+              </Field>
+              {settings.depressionPolicy?.mode === 'depth-limited' && (
+                <NumberField
+                  label="Maximum basin fill (m)"
+                  value={settings.depressionPolicy.maxDepthM}
+                  min={0}
+                  max={1000}
+                  step={0.05}
+                  onChange={(maxDepthM) => set({ depressionPolicy: { mode: 'depth-limited', maxDepthM } })}
+                />
+              )}
+              <Field label="Working grid">
+                <RoadSelect
+                  value={settings.workingResolutionM === undefined ? 'automatic' : 'custom'}
+                  onValueChange={(value) =>
+                    set({ workingResolutionM: value === 'automatic' ? undefined : (run?.cellM ?? 5) })
+                  }
+                  options={[
+                    {
+                      value: 'automatic',
+                      label: 'Use source resolution',
+                      title: 'The terrain source resolution, at least 1 m.',
+                    },
+                    {
+                      value: 'custom',
+                      label: 'Set working resolution',
+                      title:
+                        'A coarser cell size. It cannot add terrain detail, and the cell budget may coarsen it further.',
+                    },
+                  ]}
+                  ariaLabel="Working grid"
+                  className="h-8 w-full"
+                />
+              </Field>
+              {settings.workingResolutionM !== undefined && (
+                <NumberField
+                  label="Requested grid cell (m)"
+                  value={settings.workingResolutionM}
+                  min={1}
+                  max={100000}
+                  step={1}
+                  onChange={(workingResolutionM) => set({ workingResolutionM })}
+                />
+              )}
+            </div>
+          </div>
         </div>
       </div>
       {evidence && !run && (
@@ -528,15 +566,11 @@ export function DrainagePanel({
             defaultOpen={!!pourPoint || watershedMinAreaHa !== undefined}
             contentClassName="space-y-2 p-2"
           >
-            <p className="flex items-center gap-1 text-muted-foreground">
-              Pick a point on the plan to see what drains to it.
-              <InfoTip label="About pour points">
-                Snapping picks a cell within the entered distance, by the outlet snap policy.
-              </InfoTip>
+            <p className="text-muted-foreground">
+              Pick a point on the plan to see what drains to it. It snaps to a cell within the snap distance.
             </p>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(8rem,1fr))] items-end gap-2">
-              <label className="space-y-1">
-                <span className="block">Catchment surface</span>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(9rem,1fr))] items-end gap-2">
+              <Field label="Catchment surface">
                 <RoadSelect
                   value={pointSurface}
                   onValueChange={(surface) => setPointOptionsAndApply({ surface: surface as PourPoint['surface'] })}
@@ -545,9 +579,9 @@ export function DrainagePanel({
                     { value: 'design', label: 'Design surface' },
                   ]}
                   ariaLabel="Catchment surface"
-                  className="h-9 w-full"
+                  className="h-8 w-full"
                 />
-              </label>
+              </Field>
               <NumberField
                 label="Pour-point snap (m)"
                 value={pointRadius}
@@ -556,26 +590,32 @@ export function DrainagePanel({
                 step={1}
                 onChange={(snapRadiusM) => setPointOptionsAndApply({ snapRadiusM })}
               />
-              <Field
-                label="Outlet snap policy"
-                hint="Both policies search cell centres within the entered radius, resolving ties by nearest distance then cell ID. Lowest elevation uses the chosen surface before depression filling. A zero radius selects the containing cell."
-              >
+              <Field label="Outlet snap policy">
                 <RoadSelect
                   value={pointPolicy}
                   onValueChange={(snapPolicy) =>
                     setPointOptionsAndApply({ snapPolicy: snapPolicy as PourPoint['snapPolicy'] })
                   }
                   options={[
-                    { value: 'max-accumulation', label: 'Greatest contributing area' },
-                    { value: 'lowest-elevation', label: 'Lowest elevation' },
+                    {
+                      value: 'max-accumulation',
+                      label: 'Greatest contributing area',
+                      title: 'The cell within the snap distance that drains the most area. Ties go to the nearest.',
+                    },
+                    {
+                      value: 'lowest-elevation',
+                      label: 'Lowest elevation',
+                      title:
+                        'The lowest cell within the snap distance, on the chosen surface before depression filling.',
+                    },
                   ]}
                   ariaLabel="Outlet snap policy"
-                  className="h-9 w-full"
+                  className="h-8 w-full"
                 />
               </Field>
               <Button
                 size="sm"
-                className="h-auto min-h-9 min-w-0 whitespace-normal py-2 touch:min-h-10"
+                className="h-auto min-h-8 min-w-0 whitespace-normal py-1.5 touch:min-h-10"
                 variant={pourPointPicking ? 'default' : 'outline'}
                 disabled={busy}
                 onClick={() =>
@@ -630,11 +670,13 @@ export function DrainagePanel({
                     onChange={(event) => onWatershedMinAreaChange(event.target.checked ? 0.4 : undefined)}
                   />
                   Delineate watershed polygons
-                  <InfoTip label="About watershed polygons">
-                    Partitions the pour-point surface, or design surface when no point is selected, by its sampled D8
-                    outlets. Catchments touching the sample edge or missing terrain may be incomplete.
-                  </InfoTip>
                 </label>
+                {watershedMinAreaHa !== undefined && (
+                  <p className="text-muted-foreground">
+                    Splits the pour-point surface, or the design surface without one, by its D8 outlets. Watersheds
+                    touching the sample edge or missing terrain may be incomplete.
+                  </p>
+                )}
                 {watershedMinAreaHa !== undefined && (
                   <NumberField
                     label="Minimum watershed (ha)"

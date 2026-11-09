@@ -357,6 +357,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           <Button
             size="sm"
             variant="outline"
+            className="h-8"
             disabled={alignment.vertical.length < 3}
             title="Sets each interior PVI's curve length to K × its grade change, at least the minimum curve length"
             onClick={() =>

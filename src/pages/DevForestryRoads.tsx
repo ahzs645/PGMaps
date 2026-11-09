@@ -20,6 +20,8 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { csvPreview, geoJsonPreview, textPreview, type ExportPreview } from './dev-forestry-roads/exportCatalog'
+import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
@@ -98,16 +100,14 @@ import {
 } from './dev-forestry-roads/terrain'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
-import { DEFAULT_ROUTE_OPTIONS, suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
+import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
-import { suggestFsrConnections } from './dev-forestry-roads/fsrConnections'
-import { suggestBlockAccess } from './dev-forestry-roads/blockAccess'
 import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
 import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
-import { BLOCK_ACCESS_COLORS, type BlockAccessState } from './dev-forestry-roads/BlockAccessPanel'
-import { loadNearestBcFsrs, nearestFsrConnections } from './dev-forestry-roads/fsrNetwork'
+import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
+import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
@@ -123,6 +123,12 @@ import type {
   TerrainSource,
 } from './dev-forestry-roads/types'
 import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
+import {
+  historyShortcut,
+  historyShortcutLabels,
+  isApplePlatform,
+  keepsNativeUndo,
+} from './dev-forestry-roads/historyShortcut'
 
 const uid = () => crypto.randomUUID()
 const number = (v: number | null | undefined, decimals = 1) =>
@@ -310,48 +316,34 @@ export default function DevForestryRoads() {
     completeCostPreview?.project === project && completeCostPreview.source === source
       ? completeCostPreview.preview
       : null
-  const [fsrDiscovery, setFsrDiscovery] = useState<{
-    guide: Alignment
-    source: TerrainSource
-    origin: Coordinate
-    scope: string
-  } | null>(null)
-  const [fsrTarget, setFsrTarget] = useState<{
-    guide: Alignment
-    source: TerrainSource
-    id: string
-    endpoint: 'start' | 'end'
-  } | null>(null)
   const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
   const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
   const [cutblockReviewRequest, setCutblockReviewRequest] = useState<{ id: string; sequence: number }>()
-  const previewFsrTarget = useCallback(
-    (id: string | null, endpoint: 'start' | 'end') => {
-      if (id) setReviewedRoad(null)
-      setFsrTarget(id ? { guide: alignment, source, id, endpoint } : null)
-    },
-    [alignment, source],
-  )
   const reviewRoad = useCallback(
-    (road: ContextFeature | null) => {
-      setReviewedRoad((previous) => (previous?.source === source ? (road ? { id: road.id, source } : null) : null))
+    (road: ContextFeature | null, picked = false) => {
+      // A road the reviewer picks, in the panel or on the map, is highlighted. The panel's own
+      // first selection only moves a highlight that is already showing.
+      setReviewedRoad((previous) =>
+        road && picked
+          ? { id: road.id, source }
+          : previous?.source === source
+            ? road
+              ? { id: road.id, source }
+              : null
+            : null,
+      )
     },
     [source],
   )
-  const targetPoint = useMemo(() => {
-    if (fsrTarget?.guide !== alignment || fsrTarget.source !== source) return null
-    const origin = (fsrTarget.endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
-    return (
-      nearestFsrConnections(origin, project.context, 10).find((target) => target.featureId === fsrTarget.id) ?? null
-    )
-  }, [fsrTarget, alignment, source, project.context])
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
   const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
   useEffect(() => {
     if (mode !== 'avoid') setPolygonKind('avoid')
   }, [mode])
-  const [blockAccess, setBlockAccess] = useState<BlockAccessState | null>(null)
+  // One plan click asked for by a sidebar tool (the access review's end or start road).
+  const [planPick, setPlanPick] = useState<{ prompt: string; onPick: (at: Coordinate) => void } | null>(null)
+  const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
   const drawnArea = polygonKind === 'harvest' ? 'harvest block' : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
@@ -403,9 +395,9 @@ export default function DevForestryRoads() {
     routePreviewState.options === project.routeSearch
       ? routePreviewState
       : null
+  // A saved FSR connection marks its junction, unless a road under review has the highlight.
   const mapFsrTarget = useMemo(() => {
-    if (targetPoint) return targetPoint
-    if ((fsrTarget?.guide === alignment && fsrTarget.source === source) || reviewedRoad?.source === source) return null
+    if (reviewedRoad?.source === source) return null
     const record = alignment.fsrConnection
     if (
       !record ||
@@ -416,7 +408,7 @@ export default function DevForestryRoads() {
     if (!project.context.some((road) => road.id === record.targetFeatureId && road.kind === 'existing-road'))
       return null
     return { featureId: record.targetFeatureId, coordinate: record.targetCoordinate, name: record.targetName }
-  }, [targetPoint, fsrTarget, alignment, source, reviewedRoad, project.context])
+  }, [alignment, source, reviewedRoad, project.context])
   const planOverlay = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
@@ -435,6 +427,12 @@ export default function DevForestryRoads() {
             geometry: road.geometry,
             properties: { kind: 'reviewed-existing-road', color: '#db2777', selected: true, label: road.name },
           })),
+        // The access review's end and the junctions it would start from, labelled on the plan.
+        ...(accessMarks ?? []).map((mark) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: mark.coordinate },
+          properties: { kind: 'access-mark', color: mark.color, label: mark.label },
+        })),
         // A focused constraint is outlined ring by ring: the overlay draws lines, not fills.
         ...project.context
           .filter((area) => area.id === focusedConstraintId && area.geometry.type === 'Polygon')
@@ -481,6 +479,7 @@ export default function DevForestryRoads() {
       reviewedRoad,
       source,
       focusedConstraintId,
+      accessMarks,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -536,12 +535,29 @@ export default function DevForestryRoads() {
   )
   const locateRoad = useCallback(
     (road: ContextFeature) => {
-      if (targetPoint?.featureId !== road.id) setFsrTarget(null)
       setReviewedRoad({ id: road.id, source })
       showOnPlan(road)
     },
-    [source, targetPoint, showOnPlan],
+    [source, showOnPlan],
   )
+  // Stable, so a sidebar tool can cancel its pick on unmount without cancelling it every render.
+  const pickHelpers = useRef({ notice: w.setNotice, focusPlan: () => {} })
+  useEffect(() => {
+    pickHelpers.current = {
+      notice: w.setNotice,
+      focusPlan: () => {
+        setFocusPane('plan')
+        if (focusMode) setControlsOpen(false)
+      },
+    }
+  })
+  const pickOnPlan = useCallback((prompt: string | null, onPick?: (at: Coordinate) => void) => {
+    setPlanPick(prompt && onPick ? { prompt, onPick } : null)
+    if (prompt && onPick) {
+      pickHelpers.current.notice(prompt)
+      pickHelpers.current.focusPlan()
+    }
+  }, [])
   const locateConstraint = useCallback(
     (area: ContextFeature) => {
       setFocusedConstraintId(area.id)
@@ -695,11 +711,16 @@ export default function DevForestryRoads() {
     const timer = window.setTimeout(() => setNotice(''), 8000)
     return () => window.clearTimeout(timer)
   }, [notice, setNotice])
-  // Routine saves, including a training session's, are a dot; only a save that failed is spelled out.
+  // A routine save shows nothing and a training session's is a dot; only a save that failed is spelled out.
   const trainingSave = !!w.saving?.startsWith('Training session saved')
   const saveNotice =
     !!w.saving && !trainingSave && w.saving !== 'Saved on this device' && w.saving !== 'Saving locally…'
   const planningBasis = [
+    ...(project.terrain.kind === 'regional'
+      ? [
+          `Coarse regional terrain: one ground sample every ${number(project.terrain.resolutionM, 0)} m, enough to screen corridors but not to design from. Load BC LiDAR or your own DEM for site planning`,
+        ]
+      : []),
     'Concept planning',
     project.terrain.verticalReference,
     project.terrain.kind === 'demo'
@@ -1263,14 +1284,172 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
+  /** The project as saved and the file name stem, after the checks every results export shares. */
+  const exportBasis = (kind: RoadExport) => {
+    const safe = parseProject(project)
+    const calculated = kind !== 'project' && kind !== 'notes'
+    if (calculated && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
+      throw Error('Finish or close the design preview before exporting calculated results.')
+    if (calculated && !displayedAnalysis.stations.length)
+      throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
+    const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
+    return { safe, basename }
+  }
+  const reportHtml = (safe: RoadProject) =>
+    terrainProfile
+      ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
+      : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale })
+  /**
+   * One output's file, built the same way for its download and its preview. The PDFs are not here:
+   * they render and download in one step, and preview through the report page and the plan map.
+   */
+  const exportFile = async (
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf'>,
+  ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
+    const { safe, basename } = exportBasis(kind)
+    const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
+      content,
+      filename,
+      mime,
+      notice,
+    })
+    switch (kind) {
+      case 'terrain-landxml':
+      case 'terrain-ascii': {
+        const raster = safe.terrain.raster
+        if (!raster) throw Error('Import or prepare an embedded terrain surface before exporting its grid.')
+        const { terrainSurfaceLandXml, terrainAscii } = await import('./dev-forestry-roads/terrainPreparation')
+        return text(
+          kind === 'terrain-landxml'
+            ? terrainSurfaceLandXml(raster, safe.terrain.preparation?.tin)
+            : terrainAscii(raster),
+          `${basename}-terrain.${kind === 'terrain-landxml' ? 'xml' : 'asc'}`,
+          kind === 'terrain-landxml' ? 'application/xml' : 'text/plain',
+          'Terrain surface exported with its source grid coordinates and datum notes.',
+        )
+      }
+      case 'project':
+        return text(serializeProject(safe), `${basename}.road.json`, 'application/json')
+      case 'notes':
+        return text(
+          JSON.stringify(mapNotesGeoJson(safe.notes ?? []), null, 2),
+          `${basename}-notes.geojson`,
+          'application/geo+json',
+          'Map notes exported.',
+        )
+      case 'streams-csv':
+        return text(streamRegisterCsv(safe, w.analyses), `${basename}-streams.csv`, 'text/csv;charset=utf-8')
+      case 'provincial-evidence':
+        if (!safe.provincialStreamData)
+          throw Error('Load provincial stream evidence before exporting its source records.')
+        return text(
+          JSON.stringify(provincialEvidenceGeoJson(safe.provincialStreamData), null, 2),
+          `${basename}-provincial-stream-evidence.geojson`,
+          'application/geo+json',
+        )
+      case 'geojson':
+        return text(
+          JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
+          `${basename}.geojson`,
+          'application/geo+json',
+        )
+      case 'plotbook': {
+        if (terrainProfile) throw Error('Return to the road before plotting design sheets.')
+        const [{ plotBookHtml }, { buildTerrainDisplay }] = await Promise.all([
+          import('./dev-forestry-roads/plotBook'),
+          import('./dev-forestry-roads/terrainDisplay'),
+        ])
+        // Contours for the plan: the road's extent plus a margin, from the same terrain source.
+        const lng = analysis.centerline.map((c) => c[0]),
+          lat = analysis.centerline.map((c) => c[1])
+        const margin = 0.002
+        let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
+          contourError = ''
+        try {
+          contours = buildTerrainDisplay(
+            source,
+            [
+              Math.min(...lng) - margin,
+              Math.min(...lat) - margin,
+              Math.max(...lng) + margin,
+              Math.max(...lat) + margin,
+            ],
+            256,
+          ).contours
+        } catch (error) {
+          contours = undefined
+          contourError = error instanceof Error ? error.message : 'unknown error'
+        }
+        return text(
+          plotBookHtml({
+            projectName: safe.name,
+            settings: safe.reportSettings,
+            alignment,
+            analysis,
+            terrain: project.terrain,
+            contours,
+            ...exportGrid(project.terrain, alignment.points[0].coordinate),
+          }),
+          `${basename}-plot-book.html`,
+          'text/html;charset=utf-8',
+          contourError
+            ? `Plot book downloaded without contours (${contourError}). Open it and use Print / Save as PDF.`
+            : 'Plot book downloaded. Open it and use Print / Save as PDF.',
+        )
+      }
+      case 'shapefile': {
+        const [{ default: JSZip }, { writeShapefileLayer }] = await Promise.all([
+          import('jszip'),
+          import('./dev-forestry-roads/shapefile'),
+        ])
+        const zip = new JSZip(),
+          warnings: string[] = []
+        for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id)) {
+          const written = writeShapefileLayer(layer)
+          warnings.push(...written.warnings)
+          for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
+        }
+        return {
+          content: await zip.generateAsync({ type: 'blob' }),
+          filename: `${basename}-shapefiles.zip`,
+          mime: 'application/zip',
+          notice: warnings.length
+            ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
+            : 'Shapefiles downloaded.',
+        }
+      }
+      case 'landxml':
+      case 'stakeout': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+        return kind === 'landxml'
+          ? text(
+              landXml({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
+              `${basename}.xml`,
+              'application/xml',
+            )
+          : text(stakeoutCsv({ alignment, analysis, ...grid }), `${basename}-stakeout.csv`, 'text/csv;charset=utf-8')
+      }
+      case 'csv':
+        return text(
+          terrainProfile
+            ? terrainProfileCsv(displayedAnalysis, project.terrain)
+            : stationsCsv(displayedAnalysis, project.terrain),
+          `${basename}-stations.csv`,
+          'text/csv;charset=utf-8',
+        )
+      case 'report':
+        return text(
+          reportHtml(safe),
+          `${basename}-report.html`,
+          'text/html;charset=utf-8',
+          'Report downloaded. Open it and use Print / Save as PDF.',
+        )
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
-      const safe = parseProject(project)
-      if (kind !== 'project' && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
-        throw Error('Finish or close the design preview before exporting calculated results.')
-      if (kind !== 'project' && !displayedAnalysis.stations.length)
-        throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
-      const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
+      const { safe, basename } = exportBasis(kind)
       if (kind === 'map-pdf' || kind === 'report-pdf') {
         void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
@@ -1288,166 +1467,64 @@ export default function DevForestryRoads() {
               `${basename}-map.pdf`,
               signal,
             )
-          } else
-            await exportReportPdf(
-              terrainProfile
-                ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-                : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
-              `${basename}-report.pdf`,
-            )
+          } else await exportReportPdf(reportHtml(safe), `${basename}-report.pdf`)
           w.setNotice(kind === 'map-pdf' ? 'Map PDF downloaded.' : 'Report PDF downloaded.')
         })
         return
       }
-      if (kind === 'terrain-landxml' || kind === 'terrain-ascii') {
-        const raster = safe.terrain.raster
-        if (!raster) throw Error('Import or prepare an embedded terrain surface before exporting its grid.')
-        void run('Exporting the terrain surface…', async () => {
-          const { terrainSurfaceLandXml, terrainAscii } = await import('./dev-forestry-roads/terrainPreparation')
-          downloadText(
-            kind === 'terrain-landxml'
-              ? terrainSurfaceLandXml(raster, safe.terrain.preparation?.tin)
-              : terrainAscii(raster),
-            `${basename}-terrain.${kind === 'terrain-landxml' ? 'xml' : 'asc'}`,
-            kind === 'terrain-landxml' ? 'application/xml' : 'text/plain',
-          )
-          w.setNotice('Terrain surface exported with its source grid coordinates and datum notes.')
-        })
-      } else if (kind === 'project') downloadText(serializeProject(safe), `${basename}.road.json`, 'application/json')
-      else if (kind === 'streams-csv')
-        downloadText(streamRegisterCsv(safe, w.analyses), `${basename}-streams.csv`, 'text/csv;charset=utf-8')
-      else if (kind === 'provincial-evidence') {
-        if (!safe.provincialStreamData)
-          throw Error('Load provincial stream evidence before exporting its source records.')
-        downloadText(
-          JSON.stringify(provincialEvidenceGeoJson(safe.provincialStreamData), null, 2),
-          `${basename}-provincial-stream-evidence.geojson`,
-          'application/geo+json',
-        )
-      } else if (kind === 'geojson')
-        downloadText(
-          JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
-          `${basename}.geojson`,
-          'application/geo+json',
-        )
-      else if (kind === 'plotbook') {
-        if (terrainProfile) throw Error('Return to the road before plotting design sheets.')
-        void (async () => {
-          try {
-            const [{ plotBookHtml }, { buildTerrainDisplay }] = await Promise.all([
-              import('./dev-forestry-roads/plotBook'),
-              import('./dev-forestry-roads/terrainDisplay'),
-            ])
-            // Contours for the plan: the road's extent plus a margin, from the same terrain source.
-            const lng = analysis.centerline.map((c) => c[0]),
-              lat = analysis.centerline.map((c) => c[1])
-            const margin = 0.002
-            let contours: GeoJSON.FeatureCollection<GeoJSON.MultiLineString> | undefined,
-              contourError = ''
-            try {
-              contours = buildTerrainDisplay(
-                source,
-                [
-                  Math.min(...lng) - margin,
-                  Math.min(...lat) - margin,
-                  Math.max(...lng) + margin,
-                  Math.max(...lat) + margin,
-                ],
-                256,
-              ).contours
-            } catch (error) {
-              contours = undefined
-              contourError = error instanceof Error ? error.message : 'unknown error'
-            }
-            downloadText(
-              plotBookHtml({
-                projectName: safe.name,
-                settings: safe.reportSettings,
-                alignment,
-                analysis,
-                terrain: project.terrain,
-                contours,
-                ...exportGrid(project.terrain, alignment.points[0].coordinate),
-              }),
-              `${basename}-plot-book.html`,
-              'text/html;charset=utf-8',
-            )
-            w.setNotice(
-              contourError
-                ? `Plot book downloaded without contours (${contourError}). Open it and use Print / Save as PDF.`
-                : 'Plot book downloaded. Open it and use Print / Save as PDF.',
-            )
-          } catch (error) {
-            w.setError(error instanceof Error ? error.message : 'Could not build the plot book.')
-          }
-        })()
-      } else if (kind === 'shapefile') {
-        void (async () => {
-          try {
-            const [{ default: JSZip }, { writeShapefileLayer }] = await Promise.all([
-              import('jszip'),
-              import('./dev-forestry-roads/shapefile'),
-            ])
-            const zip = new JSZip(),
-              warnings: string[] = []
-            for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id)) {
-              const written = writeShapefileLayer(layer)
-              warnings.push(...written.warnings)
-              for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
-            }
-            downloadBlob(await zip.generateAsync({ type: 'blob' }), `${basename}-shapefiles.zip`)
-            w.setNotice(
-              warnings.length
-                ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
-                : 'Shapefiles downloaded.',
-            )
-          } catch (error) {
-            w.setError(error instanceof Error ? error.message : 'Could not write the shapefiles.')
-          }
-        })()
-      } else if (kind === 'landxml' || kind === 'stakeout') {
-        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
-        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
-        if (kind === 'landxml')
-          downloadText(
-            landXml({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
-            `${basename}.xml`,
-            'application/xml',
-          )
-        else
-          downloadText(
-            stakeoutCsv({ alignment, analysis, ...grid }),
-            `${basename}-stakeout.csv`,
-            'text/csv;charset=utf-8',
-          )
-      } else if (kind === 'csv')
-        downloadText(
-          terrainProfile
-            ? terrainProfileCsv(displayedAnalysis, project.terrain)
-            : stationsCsv(displayedAnalysis, project.terrain),
-          `${basename}-stations.csv`,
-          'text/csv;charset=utf-8',
-        )
-      else
-        downloadText(
-          terrainProfile
-            ? terrainProfileReportHtml(terrainProfile.name, displayedAnalysis, project.terrain)
-            : projectReportHtml(safe, analysis, { drainageHasLiveRun: !!drainageEntry && !drainageStale }),
-          `${basename}-report.html`,
-          'text/html;charset=utf-8',
-        )
-      // The plot book and shapefiles build asynchronously and report their own outcome.
-      w.setNotice(
-        kind === 'plotbook' || kind === 'shapefile'
-          ? `Building the ${kind === 'plotbook' ? 'plot book' : 'shapefiles'}…`
-          : kind === 'report'
-            ? 'Report downloaded. Open it and use Print / Save as PDF.'
-            : 'Export downloaded.',
-      )
-      w.setError('')
+      const download = (file: Awaited<ReturnType<typeof exportFile>>) => {
+        if (typeof file.content === 'string') downloadText(file.content, file.filename, file.mime)
+        else downloadBlob(file.content, file.filename)
+        w.setNotice(file.notice)
+        w.setError('')
+      }
+      if (kind === 'terrain-landxml' || kind === 'terrain-ascii')
+        void run('Exporting the terrain surface…', async () => download(await exportFile(kind)))
+      else {
+        if (kind === 'plotbook' || kind === 'shapefile')
+          w.setNotice(`Building the ${kind === 'plotbook' ? 'plot book' : 'shapefiles'}…`)
+        void exportFile(kind)
+          .then(download)
+          .catch((error) => w.setError(error instanceof Error ? error.message : 'Could not export project.'))
+      }
     } catch (error) {
       w.setError(error instanceof Error ? error.message : 'Could not export project.')
     }
+  }
+  // A preview is rebuilt when anything its file is made from changes.
+  const exportPreviewVersion = useMemo(
+    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels }),
+    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels],
+  )
+  /** What the Save & export dialog shows for one output, from the content its download writes. */
+  const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
+    const { safe } = exportBasis(kind)
+    if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'map-pdf') {
+      const map = planMap.current
+      if (!map || hiddenPanels.includes('plan') || map.getCanvas().clientWidth < 1)
+        throw Error('Show the plan panel to preview its map. The PDF opens it for you.')
+      const { mapImage } = await import('./dev-forestry-roads/pdf')
+      const capture = await mapImage(map, signal)
+      return { type: 'image', src: capture.image, width: capture.width, height: capture.height }
+    }
+    if (kind === 'shapefile') {
+      // The zip holds binary layers; preview the same layers' geometry instead.
+      return {
+        type: 'geometry',
+        layers: roadShapefileLayers(safe.alignments, w.analyses, alignment.id).map((layer) =>
+          layer.type === 'point'
+            ? { name: layer.name, points: layer.features.map((f) => f.point), lines: [] }
+            : { name: layer.name, points: [], lines: layer.features.flatMap((f) => f.parts) },
+        ),
+      }
+    }
+    const file = await exportFile(kind)
+    const content = typeof file.content === 'string' ? file.content : await file.content.text()
+    if (file.mime.startsWith('text/html')) return { type: 'html', html: content }
+    if (file.mime.startsWith('text/csv')) return csvPreview(content)
+    if (file.mime === 'application/geo+json') return geoJsonPreview(JSON.parse(content))
+    return textPreview(content)
   }
   const suggest = (options: RouteSearchOptions) =>
     void run('Searching terrain-cost routes…', async () => {
@@ -1509,189 +1586,8 @@ export default function DevForestryRoads() {
     }
     return { context, scope: networkScope }
   }
-  const previewBlockAccess = (state: BlockAccessState | null) => {
-    setBlockAccess(state)
-    setRouteLines(
-      state?.result.options.map((option, i) => ({
-        id: `block-access-${i}`,
-        label: `${i + 1}. ${option.target.name}`,
-        color: BLOCK_ACCESS_COLORS[i % BLOCK_ACCESS_COLORS.length],
-        selected: i === state.selected,
-        coordinates: option.coordinates,
-      })) ?? null,
-    )
-  }
-  const findBlockAccess = (blockId: string) =>
-    void run('Finding access from the block to nearby FSRs…', async (signal) => {
-      const block = project.context.find((feature) => feature.id === blockId)
-      if (!block || block.geometry.type !== 'Polygon') throw Error('Choose a harvest block drawn as an area.')
-      const ring = block.geometry.coordinates[0]
-      const centre: Coordinate = [
-        ring.reduce((sum, point) => sum + point[0], 0) / ring.length,
-        ring.reduce((sum, point) => sum + point[1], 0) / ring.length,
-      ]
-      previewBlockAccess(null)
-      const discovered = await findFsrContext(centre, signal, 3)
-      if (signal.aborted || !discovered) return
-      w.setBusy('Screening access routes from the block…')
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      if (signal.aborted) return
-      const options = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
-      const result = suggestBlockAccess(block, source, project.settings, discovered.context, {
-        ...options,
-        groundWindowM: resolvedGroundWindow(options, project.terrain.resolutionM),
-      })
-      previewBlockAccess({ blockId, geometry: JSON.stringify(block.geometry), source, result, selected: 0 })
-      setFocusedConstraintId(blockId)
-      w.setNotice(`${result.message} ${discovered.scope}`)
-    })
-  const adoptBlockAccess = () => {
-    if (!blockAccess) return
-    const option = blockAccess.result.options[blockAccess.selected]
-    const block = project.context.find((feature) => feature.id === blockAccess.blockId)
-    try {
-      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
-      const road = generatedAlignment(
-        option.coordinates,
-        `${block?.name ?? 'Block'} → ${option.target.name} · block access`.slice(0, 200),
-        alignment.template,
-        project.settings.minRadius,
-      )
-      w.commit(parseProject({ ...project, alignments: [...project.alignments, road], activeAlignmentId: road.id }))
-      previewBlockAccess(null)
-      setActiveProfile(null)
-      setFitRevision((n) => n + 1)
-      w.setNotice(
-        `Added the access road to ${option.target.name}. Check its profile, curves and junction, and run the final checks before relying on it.`,
-      )
-    } catch (error) {
-      w.setError(error instanceof Error ? error.message : 'Could not add the access road.')
-    }
-  }
-  const discoverFsrs = (endpoint: 'start' | 'end') =>
-    void run('Finding nearby FSR choices…', async (signal) => {
-      const origin = (endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
-      const discovered = await findFsrContext(origin, signal, 3)
-      if (signal.aborted || !discovered) return
-      setFsrDiscovery({ guide: alignment, source, origin, scope: discovered.scope })
-      w.setNotice(
-        `${nearestFsrConnections(origin, discovered.context, 10).length} nearby FSR choices. Choose a named section or use automatic selection. ${discovered.scope}`,
-      )
-    })
-  const connectFsr = (
-    options: RouteSearchOptions,
-    preference: 'nearest' | 'lowest-cost',
-    endpoint: 'start' | 'end',
-    terrainMode: 'current' | 'regional' = 'current',
-    targetFeatureId?: string,
-  ) =>
-    void run('Finding nearby mapped Forest Service Roads…', async (signal) => {
-      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
-      const origin = (endpoint === 'start' ? alignment.points[0] : alignment.points.at(-1)!).coordinate
-      const discovered = targetFeatureId
-        ? {
-            context: project.context,
-            scope:
-              fsrDiscovery?.guide === alignment &&
-              fsrDiscovery.source === source &&
-              distance(fsrDiscovery.origin, origin) < 0.1
-                ? fsrDiscovery.scope
-                : 'The selected mapped FSR in the loaded project network was used.',
-          }
-        : await findFsrContext(origin, signal)
-      if (signal.aborted || !discovered) return
-      const { context, scope: networkScope } = discovered
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      if (signal.aborted) return
-      let connectionSource = source
-      let connectionTerrain = project.terrain
-      if (terrainMode === 'regional') {
-        const targets = targetFeatureId
-          ? nearestFsrConnections(origin, context, 10).filter((target) => target.featureId === targetFeatureId)
-          : nearestFsrConnections(origin, context)
-        if (!targets.length)
-          throw Error(
-            `${networkScope} No active mapped FSR target was found. Load or import an identified FSR network.`,
-          )
-        const coordinates = [
-          ...project.alignments.flatMap((road) => road.points.map((point) => point.coordinate)),
-          ...targets.map((target) => target.coordinate),
-        ]
-        const margin = Math.max(1000, options.searchMarginM ?? 0, ...targets.map((target) => target.distanceM * 0.4))
-        const dLat = margin / 111195
-        const dLon = dLat / Math.cos((origin[1] * Math.PI) / 180)
-        w.setBusy('Loading regional terrain across the proposed FSR connections…')
-        const loaded = await loadRegionalTerrain(
-          [
-            Math.min(...coordinates.map((point) => point[0])) - dLon,
-            Math.min(...coordinates.map((point) => point[1])) - dLat,
-            Math.max(...coordinates.map((point) => point[0])) + dLon,
-            Math.max(...coordinates.map((point) => point[1])) + dLat,
-          ],
-          signal,
-        )
-        if (signal.aborted) return
-        connectionSource = loaded.source
-        connectionTerrain = loaded.metadata
-      }
-      w.setBusy('Screening terrain routes to nearby FSR connection points…')
-      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
-      if (signal.aborted) return
-      const result = suggestFsrConnections(
-        origin,
-        connectionSource,
-        project.settings,
-        context,
-        { ...options, groundWindowM: resolvedGroundWindow(options, connectionTerrain.resolutionM) },
-        preference,
-        targetFeatureId,
-      )
-      const connector = generatedAlignment(
-        result.selected.coordinates,
-        `${alignment.name} → ${result.selected.target.name} · FSR connection`.slice(0, 200),
-        alignment.template,
-        project.settings.minRadius,
-      )
-      connector.fsrConnection = {
-        targetFeatureId: result.selected.target.featureId,
-        targetName: result.selected.target.name,
-        targetCoordinate: result.selected.target.coordinate,
-        originCoordinate: origin,
-        originAlignmentId: alignment.id,
-        endpoint,
-        preference: targetFeatureId ? 'chosen' : preference,
-        networkScope,
-        straightLineDistanceM: result.selected.target.distanceM,
-        routeLengthM: result.selected.lengthM,
-        searchCost: result.selected.cost,
-      }
-      const next = parseProject({
-        ...project,
-        ...(terrainMode === 'regional'
-          ? {
-              name: `${project.name} · regional FSR connection`.slice(0, 200),
-              terrain: connectionTerrain,
-              scenario: undefined,
-            }
-          : {}),
-        context,
-        alignments: [...project.alignments, connector],
-        activeAlignmentId: connector.id,
-      })
-      if (terrainMode === 'regional') {
-        await w.flush()
-        if (signal.aborted) return
-        w.startProject(next, connectionSource)
-      } else w.commit(next)
-      setActiveProfile(null)
-      setRoutePreviewState(null)
-      setReviewedRoad(null)
-      setFsrTarget(null)
-      setFitRevision((n) => n + 1)
-      w.setNotice(
-        `${result.message} ${networkScope}${terrainMode === 'regional' ? ' Opened a separate regional reconnaissance project; your original terrain project remains saved.' : ''}`,
-      )
-    })
+  /** The access review's FSR loading: bounded BC FSR discovery around its end. */
+  const loadFsrsNear = (at: Coordinate, signal: AbortSignal) => findFsrContext(at, signal, 3)
   const shiftSection = (metres: number) => {
     if (busy || !at || terrainProfile || draftAlignment) return
     const target = offsetCoordinate(at.coordinate, at.bearing + 90, metres)
@@ -1784,6 +1680,30 @@ export default function DevForestryRoads() {
     zb = previewCoordinate ? source.elevationAt(...previewCoordinate) : NaN
   const pegGrade = leg > 0 && Number.isFinite(za + zb) ? ((zb - za) / leg) * 100 : null
   const isDrawing = !['inspect', 'edit'].includes(mode)
+  // ⌘Z / Ctrl+Z undo outside text fields; while drawing they take back the last point first.
+  const [applePlatform] = useState(isApplePlatform)
+  const shortcutKeys = historyShortcutLabels(applePlatform)
+  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length })
+  useEffect(() => {
+    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length }
+  })
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = event.defaultPrevented ? null : historyShortcut(event, applePlatform)
+      if (!action || keepsNativeUndo(event.target)) return
+      event.preventDefault()
+      const state = historyKeys.current
+      if (state.isDrawing && state.draftPoints > 0) {
+        if (action === 'undo') setDraft((points) => points.slice(0, -1))
+        return
+      }
+      if (state.busy) return
+      if (action === 'undo' && state.w.canUndo) state.w.undo()
+      if (action === 'redo' && state.w.canRedo) state.w.redo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [applePlatform])
   const profileAnalysis = terrainProfile
     ? { ...displayedAnalysis, stations: displayedAnalysis.stations.map((s) => ({ ...s, designElevation: null })) }
     : displayedAnalysis
@@ -1891,13 +1811,15 @@ export default function DevForestryRoads() {
             <span
               title={planningBasis}
               data-testid="road-planning-basis"
-              className="road-source-badge hidden cursor-help rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
+              className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
             >
               {project.terrain.kind === 'demo'
                 ? compact
                   ? 'SYNTHETIC'
                   : 'SYNTHETIC TRAINING'
-                : `${Math.round(project.terrain.resolutionM)} m SCREENING`}
+                : compact
+                  ? `${Math.round(project.terrain.resolutionM)} m terrain`
+                  : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
             </span>
           )}
         </div>
@@ -1945,12 +1867,13 @@ export default function DevForestryRoads() {
               {w.saving}
             </span>
           )}
-          {w.saving && (
+          {/* A routine autosave shows nothing: only a session that will not be kept, or a failed save. */}
+          {(trainingSave || saveNotice) && (
             <span
               role="img"
               aria-label={w.saving}
               title={w.saving}
-              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-muted-foreground/60'} ${saveNotice ? 'xl:hidden' : ''}`}
+              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'} ${saveNotice ? 'xl:hidden' : ''}`}
             />
           )}
           <Button
@@ -1968,6 +1891,8 @@ export default function DevForestryRoads() {
             size="icon"
             className="size-8"
             aria-label="Undo road edit"
+            title={`Undo (${shortcutKeys.undo})`}
+            aria-keyshortcuts={shortcutKeys.undoAria}
             disabled={!!busy || !w.canUndo}
             onClick={w.undo}
           >
@@ -1978,6 +1903,8 @@ export default function DevForestryRoads() {
             size="icon"
             className="size-8"
             aria-label="Redo road edit"
+            title={`Redo (${shortcutKeys.redo})`}
+            aria-keyshortcuts={shortcutKeys.redoAria}
             disabled={!!busy || !w.canRedo}
             onClick={w.redo}
           >
@@ -2129,6 +2056,16 @@ export default function DevForestryRoads() {
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
         busy={!!busy}
         portalContainer={ref.current}
+        context={{
+          designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
+          hasResults: displayedAnalysis.stations.length > 0,
+          terrainProfile: !!terrainProfile,
+          hasTerrainGrid: !!project.terrain.raster,
+          hasProvincialEvidence: !!project.provincialStreamData,
+          hasNotes: !!project.notes?.length,
+        }}
+        buildPreview={buildExportPreview}
+        previewVersion={exportPreviewVersion}
       />
       <CostBreakdown
         open={costOpen && !!displayedAnalysis.stations.length}
@@ -2373,10 +2310,6 @@ export default function DevForestryRoads() {
                   }))
                 }
                 onSuggest={suggest}
-                onConnectFsr={connectFsr}
-                onDiscoverFsrs={discoverFsrs}
-                fsrDiscovery={fsrDiscovery}
-                onPreviewFsrTarget={previewFsrTarget}
                 onLocateRoad={locateRoad}
                 onOpenRoadHistory={openRoadReview}
                 onLocateConstraint={locateConstraint}
@@ -2385,11 +2318,9 @@ export default function DevForestryRoads() {
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
                 onPreviewRoutes={setRouteLines}
-                blockAccess={blockAccess}
-                onFindBlockAccess={findBlockAccess}
-                onSelectBlockAccess={(selected) => blockAccess && previewBlockAccess({ ...blockAccess, selected })}
-                onAdoptBlockAccess={adoptBlockAccess}
-                onClearBlockAccess={() => previewBlockAccess(null)}
+                onPickOnPlan={pickOnPlan}
+                onLoadFsrsNear={loadFsrsNear}
+                onPreviewAccessMarks={setAccessMarks}
                 onDrawBlock={() => {
                   setPolygonKind('harvest')
                   setMode('avoid')
@@ -2501,6 +2432,8 @@ export default function DevForestryRoads() {
                       size="sm"
                       variant="outline"
                       disabled={!draft.length}
+                      title={`Undo point (${shortcutKeys.undo})`}
+                      aria-keyshortcuts={shortcutKeys.undoAria}
                       onClick={() => setDraft((p) => p.slice(0, -1))}
                     >
                       Undo point
@@ -2620,6 +2553,9 @@ export default function DevForestryRoads() {
                               }
                             }}
                             project={displayProject}
+                            // Notes are their own collection; a note edit is an ordinary, undoable project edit.
+                            onNotesChange={busy ? undefined : (notes) => update((p) => ({ ...p, notes }))}
+                            onHighlightRoad={(road) => reviewRoad(road, true)}
                             alignment={displayedAlignment}
                             analyses={displayAnalyses}
                             source={source}
@@ -2657,7 +2593,8 @@ export default function DevForestryRoads() {
                             overlay={planOverlay}
                             drainage={drainageOnPlan}
                             swept={showSwept ? sweptState.result?.overlay : undefined}
-                            pourPointPicking={!!drainagePicking}
+                            // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
+                            pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={
                               drainagePicking
                                 ? (coordinate) => {
@@ -2665,7 +2602,12 @@ export default function DevForestryRoads() {
                                     setDetail('drainage')
                                     if (focusMode) setFocusPane('detail')
                                   }
-                                : undefined
+                                : planPick
+                                  ? (coordinate) => {
+                                      setPlanPick(null)
+                                      planPick.onPick(coordinate)
+                                    }
+                                  : undefined
                             }
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))

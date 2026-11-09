@@ -7,7 +7,7 @@ import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { HaulGradeFields } from '../HaulGradeFields'
-import { BlockAccessPanel } from '../BlockAccessPanel'
+import { AccessReviewPanel } from '../AccessReviewPanel'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
 import { SwitchbackTools } from '../SwitchbackTools'
@@ -16,7 +16,6 @@ import { distance } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import { MAX_GROUND_WINDOW_M, resolvedGroundWindow } from '../groundTrend'
 import type { RoadOptimizationObjective } from '../corridorOptimizer'
-import { FsrConnectionControls } from '../FsrConnectionControls'
 import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
@@ -120,6 +119,7 @@ export function DesignTab(p: SidebarProps) {
         onShowCompare={p.onShowCompare}
         onSelectRoad={p.onSelectRoad}
       />
+      <AccessReviewPanel {...p} full={full} />
       <RouteFinding {...p} full={full} />
       <HorizontalPoints {...p} />
       <VerticalAlignment {...p} />
@@ -426,15 +426,6 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
         </Button>
       </div>
-      {p.onConnectFsr && (
-        <FsrConnectionControls
-          key={`${p.workspace.projectId ?? 'training'}:${alignment.id}`}
-          {...p}
-          options={route}
-          full={p.full}
-        />
-      )}
-      <BlockAccessPanel {...p} full={p.full} />
       <div className="space-y-2 border-t pt-3" data-testid="road-corridor-optimizer">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold">Optimize sketched road corridor</p>
@@ -555,7 +546,7 @@ function HorizontalPoints(p: SidebarProps) {
         <Button
           size="sm"
           variant="outline"
-          className="px-2 text-xs"
+          className="h-8 px-2 text-xs"
           aria-label="Select start"
           title="Select the start point"
           onClick={() => {
@@ -568,7 +559,7 @@ function HorizontalPoints(p: SidebarProps) {
         <Button
           size="sm"
           variant="outline"
-          className="px-2 text-xs"
+          className="h-8 px-2 text-xs"
           aria-label="Select end"
           title="Select the end point"
           onClick={() => {

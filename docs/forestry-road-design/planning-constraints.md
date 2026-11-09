@@ -69,9 +69,9 @@ the searched route and up to three limits: loaded uphill (adverse), loaded downh
 and empty uphill. The empty truck climbs back up what the loaded one came down, so that direction
 is held to the stricter of the loaded-downhill and empty-uphill limits. `directionalGradeLimit` in
 `routing.ts` applies them to each signed sample; they only tighten the maximum grade, never relax
-it. Direction runs from the route's start to its end: the road start for a terrain-cost search,
-the endpoint for an FSR connection, and the block landing for block access, where loaded travel
-is always from the landing to the FSR. Edge costs are cached per directed arc for this reason.
+it. Direction runs from the route's start to its end: the road start for a terrain-cost search. **Access from FSR** searches from the junction to the end, so
+it sets loaded travel from the end back to the junction (`end-to-start`) whatever the saved
+direction (`compareAccessRoutes` in `accessReview.ts`). Edge costs are cached per directed arc for this reason.
 Limits accept `MIN_HAUL_GRADE_PERCENT`–`MAX_HAUL_GRADE_PERCENT` (0.5–60%); both are computation
 bounds, not recommended grades.
 
@@ -93,68 +93,57 @@ returned unchanged. The host then gives each corner the minimum radius with the 
 **Fit sharp corners**; fitted arcs cut inside corners, so review the fitted road's profile and
 footprint before relying on it.
 
-## Propose a connection to a Forest Service Road
+## Access from FSR
 
-**Design → Search tools → Connect to a Forest Service Road** starts at the chosen **Road start**
-or **Road end** (default end). The host loads a bounded nearby BC FSR network, then
-`fsrConnections.ts` evaluates exact nearest points on its mapped segments. Generic tenure or
-permit roads do not become FSR targets merely because they appear in the same catalogue.
+**Design → Access from FSR** (`AccessReviewPanel.tsx`, `accessReview.ts`) works back from where a
+new road has to reach to the roads it could leave. It replaced the separate block-access and
+FSR-connector tools.
 
-**Nearest feasible** tries the three nearest loaded road targets in increasing straight-line
-distance and stops at the first route that passes. **Lowest screening cost** tries all three
-and selects the cheapest successful route under the terrain-cost model. Neither mode searches
-every possible junction along every BC road. A farther junction, another point on the same
-road, or a wider network search may give a different outcome. The loaded source and search
-radius must accompany the result.
+**End** is a planned block, a point picked on the plan, or **This road** (the active road's **Road
+start** or **Road end**, default end), which makes the new road an FSR connector. **Start from** is
+the 1–4 nearest active FSR sections, or one road you choose from **FSR to connect to** (after **Find
+nearby FSRs**) or by clicking an active road on the plan. On real terrain the host first loads active
+BC FSRs around the end. FSR targets need `roadClass: 'fsr'`; generic tenure or permit roads do not
+become FSR targets merely because they appear in the same catalogue, though a road you click can be
+any active road. Discovery widens through 2, 5 and 10 km radii to find three sections and reports
+the radius it searched; an imported FSR network is used as loaded instead. A block lands on its edge
+closest to each start (`blockLandings`). Each junction is the exact nearest point on the mapped
+segment.
 
-**Find nearby FSRs** discovers choices before generating any alignment. The **FSR to connect to**
-picker lists up to ten nearest mapped sections with straight-line distances. Choosing a specific
-FSR highlights its road and junction in blue. **Connect to selected FSR** searches that one
-destination and reports failure rather than switching to another FSR. **Locate selected FSR**
-fits the plan and closes the phone controls. A generated connector saves its destination and
-source scope with the alignment so reopening retains the review record.
+For each start a terrain-cost search from the junction to the end is the corridor, and the route
+goals are compared along it (`compareAccessRoutes`). Variants are grouped by start with length,
+maximum design grade, the steepest sampled ground climb loaded (end → junction) and empty, and price;
+★ marks each goal's overall leader. A chosen road's failure is reported, never replaced by another
+road, and a road closed or retired after it was chosen blocks the run. Neither mode searches every
+possible junction along every BC road: a farther junction, another point on the same road, or a
+wider network search may give a different outcome.
 
-By default the connection uses the current terrain exactly; missing coverage remains an error.
-Enable **Use regional terrain across connection (screening)** to request coarse regional
-terrain covering the roads, FSR targets and search area. This is an explicit source change:
-the host opens a separate project after preserving the original library project. The checkbox
-starts off. Regional terrain supports broad access screening, not detailed earthwork quantities.
+**Add as road** creates a separate alignment from junction to end. From **This road** it is a
+connector instead, reversed to run from the road's endpoint to the exact junction, with an
+`fsrConnection` record of its destination and source scope; it does not replace either endpoint of
+the original road. **Search on regional terrain (screening)** requests coarse regional terrain across
+the end and every start; adding a road from such a run opens a separate project and keeps the source
+project unchanged. Regional terrain supports broad access screening, not detailed earthwork
+quantities. Otherwise the run uses the current terrain exactly, and missing coverage is an error:
+load terrain spanning the whole connector and try again.
 
-Each attempt uses the current grade, terrain slope, coverage, clearance, stream and heading
-inputs. It returns the exact mapped segment point as the proposed end coordinate. A new,
-separate alignment holds the connector; it does not replace either endpoint of the original
-road. The proposal does not prove that a mapped FSR is driveable, that access is authorized,
-or that the junction/profile/curves are suitable. Individual road reuse eligibility still
-controls cost discounts separately from proposing a connection to that road.
+| Limit                             | Value                 | Enforced in                               | When exceeded             |
+| --------------------------------- | --------------------- | ----------------------------------------- | ------------------------- |
+| Starts tried per review           | 4                     | `accessReview.ts` `MAX_ACCESS_STARTS`     | Nearest four only         |
+| Nearby choices listed             | 10                    | `accessReview.ts` `nearestFsrConnections` | Nearest ten only          |
+| Road picked on the plan           | within 250 m          | `accessReview.ts` `pickActiveRoad`        | No road; pick closer      |
+| Edge samples per block            | 400, at ≥10 m spacing | `blockAccess.ts` `MAX_EDGE_SAMPLES`       | Spacing widens            |
+| End already within 2 m of a start | —                     | `compareAccessRoutes`                     | That start reports why    |
+| No start yields a passing route   | —                     | `AccessReviewPanel`                       | Error listing each reason |
 
-`MAX_FSR_CONNECTION_CANDIDATES` is 3; each search returns one candidate and retains the normal
-route-search budgets. An endpoint already within 2 m of a mapped FSR needs junction inspection
-rather than a near-zero-length generated road. Missing terrain, closed/unidentified targets
-or constraints with no covered solution produce an explicit failure. Load terrain spanning
-the entire connector before trying again; regional terrain remains a coarse planning source.
+The proposal does not prove that a mapped FSR is driveable, that access is authorized, or that the
+junction, profile and curves are suitable. A landing on the nearest block edge is a starting
+proposal, not a chosen landing site. Individual road reuse eligibility still controls cost discounts
+separately from proposing a connection to that road. `blockAccess.ts` keeps the older single-search
+block proposal (`suggestBlockAccess`, at most `MAX_BLOCK_ACCESS_OPTIONS` = 4 sections), which
+real-data scenarios still use.
 
-The picker limit is `MAX_FSR_CHOICES` (10) in `fsrConnections.ts`. A manual choice runs one search;
-automatic comparison still runs at most three. Discovery expands to seek three choices, bounded
-by the same 2/5/10 km radii and source transfer limits.
-
-## Access a harvest block
-
-**Design → Search tools → Access a harvest block** picks a harvest polygon (drawn with **Draw
-block**, or loaded as mapped cutblocks) and proposes roads to the nearest FSR sections.
-`blockAccess.ts` samples the block edge at no less than 10 m spacing and at most 400 points, keeps
-the edge point closest to each FSR section as that section's landing, and runs one terrain-cost
-search from each landing to its FSR footpoint. On real terrain the host first loads active BC FSRs
-near the block centre, as **Find nearby FSRs** does. Options are ranked by search score and drawn
-on the plan in their list colours; each reports its length, search cost and the steepest loaded
-and empty uphill ground grades sampled every metre on the ground the search used. **Add as road**
-creates a separate alignment from the chosen option.
-
-| Limit                              | Value                 | Enforced in                                 | When exceeded             |
-| ---------------------------------- | --------------------- | ------------------------------------------- | ------------------------- |
-| FSR sections tried per block       | 4                     | `blockAccess.ts` `MAX_BLOCK_ACCESS_OPTIONS` | Nearest four only         |
-| Edge samples per block             | 400, at ≥10 m spacing | `blockAccess.ts` `MAX_EDGE_SAMPLES`         | Spacing widens            |
-| Block already within 2 m of an FSR | —                     | `suggestBlockAccess`                        | That section is skipped   |
-| No section yields a passing route  | —                     | `suggestBlockAccess`                        | Error listing each reason |
+## Real-data scenarios
 
 Real-data scenarios load their mapped roads and blocks first, each source with its own timeout and
 one retry (`SCENARIO_CONTEXT_RETRIES`), then place a draft corridor whose orientation screen keeps it
@@ -172,10 +161,6 @@ An option is dropped when it crosses another mapped road (it should start from t
 consecutive legs are shorter than the minimum radius, or when it has more than four points per
 100 m: both are the grid climbing ground steeper than the grade limit. A block within 30 m of a mapped
 road gets no new road. The plan view's fit includes any block a road ends within 25 m of.
-
-A landing on the nearest edge is a starting proposal, not a chosen landing site: move the road's
-first point to the real landing and re-run the checks. The search score is not a complete access
-cost, and an option does not establish the junction, the FSR's condition or access rights.
 
 ## Interface scope
 

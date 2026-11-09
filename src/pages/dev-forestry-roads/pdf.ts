@@ -41,7 +41,8 @@ function withinExportBudget<T>(start: () => Promise<T>, signal: AbortSignal | un
 }
 
 /** Read WebGL once, inside render, before its drawing buffer is discarded. */
-async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
+/** The plan map with its HTML markers, as the map PDF prints it. */
+export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
   let capture = () => {}
   let removed = () => {}
   const image = await withinExportBudget(

@@ -1,7 +1,12 @@
 import { Plus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import {
+  ColumnHeader,
+  EngineeringTable,
+  engineeringCellInputClass,
+  engineeringPinnedColumnClass,
+} from '@/components/ui/engineering-table'
 import { TabBar } from '@/components/ui/tab-bar'
 import { NumberField } from './Controls'
 import { nearestStation, verticalCurveSummary } from './engine'
@@ -22,10 +27,9 @@ export interface SweptPathProps {
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
 /** A schedule cell's input reads as table text until it is hovered or focused, like a spreadsheet cell. */
-const cellInput =
-  'w-full min-w-0 rounded-sm border border-transparent bg-transparent px-1 py-0.5 text-right text-base leading-4 tabular-nums text-foreground [appearance:textfield] hover:border-input focus:border-ring focus:bg-background focus:outline-none md:text-2xs [&::-webkit-inner-spin-button]:appearance-none'
+const cellInput = engineeringCellInputClass
 /** Only this column stays put when the table scrolls sideways, so a row can always be identified. */
-const pinned = 'sticky left-0 z-[1]'
+const pinned = engineeringPinnedColumnClass
 export function DesignSchedules({
   alignment,
   analysis,
@@ -201,6 +205,7 @@ export function DesignSchedules({
                               min={key === 'elevation' ? -12000 : 0}
                               max={key === 'elevation' ? 12000 : key === 'curveLength' ? 10000 : 100000}
                               precision={2}
+                              fixedDecimals
                               inputClassName={cellInput}
                               disabled={!onVerticalChange}
                               onChange={(value) => update(v.id, { [key]: value })}

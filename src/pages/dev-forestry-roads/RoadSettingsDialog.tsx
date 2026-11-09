@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { Button } from '@/components/ui/button'
 
@@ -16,22 +16,30 @@ export function RoadSettingsDialog({
   busy: boolean
   children: ReactNode
 }) {
+  // Mount inside the road workspace, as its other dialogs do. Its own fullscreen pins it above the
+  // page (z-menu, 1300), so a dialog on the page body (1200) opened underneath, like a dead button.
+  const [anchor, setAnchor] = useState<HTMLSpanElement | null>(null)
+  const container =
+    anchor?.closest<HTMLElement>('.road-workspace') ?? (document.fullscreenElement as HTMLElement | null)
   return (
-    <PanelDialog
-      title={title}
-      open={open}
-      onOpenChange={onOpenChange}
-      subtitle="Changes update the connected road views and save on this device."
-      portalContainer={document.fullscreenElement as HTMLElement | null}
-      footer={
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
-          Done
-        </Button>
-      }
-    >
-      <fieldset disabled={busy} className="min-w-0 w-full space-y-5">
-        {children}
-      </fieldset>
-    </PanelDialog>
+    <>
+      <span ref={setAnchor} hidden />
+      <PanelDialog
+        title={title}
+        open={open}
+        onOpenChange={onOpenChange}
+        subtitle="Changes update the connected road views and save on this device."
+        portalContainer={container}
+        footer={
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        }
+      >
+        <fieldset disabled={busy} className="min-w-0 w-full space-y-5">
+          {children}
+        </fieldset>
+      </PanelDialog>
+    </>
   )
 }

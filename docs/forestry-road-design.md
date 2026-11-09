@@ -399,9 +399,12 @@ Mobile omits the duplicate workspace heading, back link, action subtitle and ter
 badge beneath that navigation; the desktop heading row remains visible.
 At 480 px high or less, **Show road summary** opens the numbers and cost action
 on demand over the views, reserving that space for the plot by default.
-The profile and detail panel headers carry a **Chart details layout** switch (`ChartHeader`,
-`Charts.tsx`): chart only, chart with its readouts below, or readouts only, so the details work
-as a tab. Until someone picks, a chart slot below 260 px shows the chart only and a taller one
+The profile and detail panel headers carry a **Details below chart** toggle (`ChartHeader`,
+`Charts.tsx`) that shows or hides the legend and readouts under the chart. The profile adds a
+**Grade, curve, template & material bands** toggle beside it, which opens the engineering bands
+directly under the plot, aligned to its stations, whether or not the details are shown. There is no
+readouts-only view: a legend and station readout mean nothing without the chart they describe.
+Until someone picks, a chart slot below 260 px shows the chart only and a taller one
 shows both. The choice is kept per panel in this browser and holds when the detail view changes. The pane tabs respect the selected
 screen preset and closed panels; resizing never changes the road or saved layout.
 On phones, the cross-section's four adjustment buttons share one row with their
@@ -448,8 +451,13 @@ or cancelling leaves the last inspected station selected and ends the gesture. T
 changes the shared station, without editing PVIs, templates or other road data. Left/right
 arrows still move by 10 m; Home and End select the full road's ends.
 
-The profile's pan, zoom, fit and vertical-exaggeration controls and its visible
-station range float in the top-right corner of the chart; the top-left carries a
+The profile's zoom and vertical-exaggeration controls sit in the profile panel's title
+row, ahead of its toggles (`ChartHeader`'s controls slot), so the plot starts right under
+the title; a profile outside a panel header floats them over its top-right corner
+instead. Each control shows only while it can act, so the bar stays small in a
+narrow pane: zoomed in, the visible station range and Fit join it, and pan arrows sit
+on the plot's left and right edges for whichever direction has more road; at the full
+road none of them show, because the axis already gives the range. The top-left carries a
 slope-profile summary (length, elevation difference, maximum and minimum grade,
 elevation range). Station ticks fall on round chainages with minor ticks, the
 elevation axis is titled on the left, PVIs carry a leader and rotated station
@@ -518,6 +526,35 @@ profile, sections and quantities and records one Undo action. Click **Duplicate 
 editing to keep the original path as an alternative, then switch paths with **Active road**.
 A corridor optimizer's middle guide points shape its search corridor; they are not mandatory
 waypoints. Manually edited control points remain part of the saved alignment.
+
+## Map notes and cutblock details
+
+The plan's **Map notes** button opens a notes bar with four tools: **Pen** (drag to draw; the map
+stops panning while it is in hand), **Pin**, **Line** (click points, double-click or Enter to finish,
+optional arrowhead) and **Area** (click corners, double-click or Enter). Escape drops the tool,
+Backspace removes the last point. Each finished note opens a card on the map for its text, colour,
+arrow and deletion, and shows a length or area. Text appears as a label on the plan.
+
+Notes are `project.notes` (`mapNotes.ts`): their own collection, validated on load, saved with the
+project file and exported alone as **Map notes** GeoJSON from Save & export. No calculation,
+fingerprint or route search reads them, so a note never stales a result. A note edit is an
+ordinary project edit, so Undo takes it back. Pen strokes are thinned (Ramer–Douglas–Peucker at
+about 1.5 screen pixels) before they are stored. The eye button in the bar, or **Map notes** in map
+settings, hides every note; the choice is kept in this browser.
+
+Clicking a cutblock on the plan opens a card there (`CutblockCard.tsx`) with its footprint area
+and perimeter measured on the sphere, the harvest-age summary, harvest years, opening ID and
+source. When the source records its own area and it differs from the footprint by more than 5%,
+both show. **Full history & nearby roads** opens the sidebar's cutblock history, which used to open
+straight away.
+
+An existing road works the same way. Clicking one on the plan highlights it (pink, the review
+highlight) and opens `ExistingRoadCard.tsx` with its length, tenure status, deactivation, record and
+whether route reuse is on; **Review road** opens it in Terrain → Existing roads & reuse. Picking a road
+in that panel's **Review existing road** list highlights it on the plan without moving the camera;
+the locate button beside the list brings the plan to it. The panel's evidence block is the road's
+condition followed by label/value rows. The cutblock history's **Nearby roads** list holds only
+distance and status and opens each road in that same panel, which owns the road's record.
 
 ## Geometry and calculations
 
@@ -935,6 +972,39 @@ multiplier or a contractor price.
   m³. It provides no assumed density, swell, payload, cycle or production rate.
   Results are components to scope, not automatically applied prices.
 
+### Access from FSR
+
+Design → **Access from FSR** (`AccessReviewPanel.tsx`, `accessReview.ts`) works back from where a
+new road has to reach to the roads it could leave, since a new road has to start on an existing one.
+It replaced Block access and the FSR connector.
+
+- **End**: a planned block (planned blocks first, harvested ones marked for a re-entry; a block
+  lands on its edge nearest each start), a point picked on the plan, or **This road**: the active
+  road's start or end, which makes the new road an FSR connector for it.
+- **Start from**: the 1–4 nearest active FSR sections (`nearestFsrConnections`; loaded from BC
+  around the end when the source needs them), or one road you choose: from the nearby-FSR list
+  (**Find nearby FSRs** loads them first) or by clicking any active road on the plan
+  (`pickActiveRoad`, within 250 m). A chosen road that is later closed or retired blocks the run
+  ("The selected FSR is unavailable…") rather than the review quietly starting elsewhere. Closed, retired and unreviewed-deactivated
+  sections are never starts. The snapped junctions and the end are labelled on the plan before
+  anything runs.
+- For each start, a terrain-cost route from the junction to the end is the corridor, and the route
+  goals are compared along it with `compareRoutes`. The start's own route stays in when it already
+  leads a goal; a start that finds nothing gives its reason. ★ marks the overall leader of each goal
+  across every start, judged by `ROUTE_GOAL_MEASURES` as one comparison judges its own roads.
+- Each variant lists length, maximum design grade, the steepest sampled ground climb **loaded**
+  (end → junction) and **empty** (junction → end), and price. Arrow keys move through them and the
+  plan draws every variant in its start's colour, the selected one thicker.
+- **Add as road** adds the selected variant from the junction (chainage 0) to the end. From **This
+  road** it is added as a connector instead (`accessConnector`): reversed (`reverseAlignment`:
+  points, profile controls and widenings measured from the other end, sides swapped) so it runs from
+  the road's endpoint to the exact junction, with an `fsrConnection` record (preference `chosen` for
+  a chosen road, otherwise `nearest`). The record is listed in the panel, with a warning once the
+  road's ends move, and its junction is marked on the plan. The junction, access rights and road
+  condition still need review.
+- **Search on regional terrain (screening)** loads the regional DEM across the end and every start.
+  Adding a road from such a run opens a separate reconnaissance project and leaves this one as it was.
+
 ### Deterministic terrain-cost route assistance
 
 “Suggest terrain-cost alternative” runs `A*` (`suggestRoutes` in `routing.ts`)
@@ -1300,7 +1370,14 @@ sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
 
 The header's **Save** button opens the **Save & export** dialog. It owns project
 naming, project and line import, and all data/document exports; Files is no longer
-another sidebar tab. **Map PDF** downloads the current plan with its rendered
+another sidebar tab. Every output is a row in one grouped list (`exportCatalog.ts`
+holds its type, description and why it is unavailable); the selected one is
+previewed beside the list from the same content its download writes, built by
+`exportFile` in `DevForestryRoads.tsx`: documents render in a sandboxed frame,
+CSVs show their first rows, GeoJSON and shapefiles draw their geometry, and XML,
+grids and the project file show their opening lines. The Report PDF previews its
+report page and the Map PDF its captured plan. The dialog opens on the project file
+each time, since its Save button (`Save project JSON`) is what the header promises. **Map PDF** downloads the current plan with its rendered
 terrain, roads, markers and scale. **Report PDF** writes the same report content as
 HTML, with paginated text/tables and profile/cross-section plots. Both are direct
 PDF downloads; the existing HTML report and A3 plot book remain available.

@@ -1,6 +1,7 @@
 import { inflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './road-select'
+import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(120000)
@@ -54,13 +55,14 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   await dialog.getByLabel('Project name', { exact: true }).fill('Road workspace review')
   const project = await download(page, 'Save project JSON')
   expect(JSON.parse(project.bytes.toString()).name).toBe('Road workspace review')
-  const map = await download(page, 'Map PDF')
+  await chooseExport(page, 'Map PDF')
+  const map = await download(page, 'Download Map PDF')
   expect(map.file.suggestedFilename()).toBe('Road-workspace-review-map.pdf')
   expect(map.bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(map.bytes.length).toBeGreaterThan(10000)
   await map.file.saveAs(testInfo.outputPath('map.pdf'))
-  await expect(dialog.getByRole('button', { name: 'Report PDF', exact: true })).toBeEnabled()
-  const report = await download(page, 'Report PDF')
+  await expect(await chooseExport(page, 'Report PDF')).toBeEnabled()
+  const report = await download(page, 'Download Report PDF')
   expect(report.file.suggestedFilename()).toBe('Road-workspace-review-report.pdf')
   expect(report.bytes.subarray(0, 5).toString()).toBe('%PDF-')
   expect(report.bytes.length).toBeGreaterThan(10000)

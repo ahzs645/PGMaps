@@ -22,7 +22,7 @@ have their own panel; they are no longer mixed into **Constraints**.
    **Load roads near this cutblock** queries all FTEN tenure statuses around the
    selected block, so retired records are not excluded from historical review.
 
-The existing **Design → Search tools → Access a harvest block** workflow still
+The existing **Design → Access from FSR** (End → **Planned block**) workflow still
 proposes new connectors to eligible FSR sections. A nearby-road candidate in the
 history panel is only a proximity result. It does not establish a connected
 route, a constructed road, permission to travel, or an earthworks saving.

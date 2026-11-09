@@ -115,6 +115,12 @@ async function closeTable(page: Page, phone: boolean) {
     .click()
 }
 
+/** The history table opens from the map settings popover, not a toolbar button. */
+async function openHistoryTable(page: Page) {
+  await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
+  await page.getByRole('button', { name: 'Cutblock & road history table', exact: true }).click()
+}
+
 async function setHarvestVisibility(page: Page, visible: boolean) {
   await page.getByRole('button', { name: 'Map display settings', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show harvest areas context', exact: true }).setChecked(visible)
@@ -155,31 +161,35 @@ for (const phone of [false, true]) {
       await expect(history.getByLabel('Harvest age reference year', { exact: true })).toHaveValue('2026')
       await choose(selection, 'history-recent')
       await expect(evidence).toContainText('4–5 calendar years since reported harvest (2021–2022)')
-      await expect(evidence).toContainText('Source start date: 2021-09-01')
-      await expect(evidence).toContainText('Source end date: 2022-02-15')
-      await expect(evidence).toContainText('Synthetic teaching record')
-      await expect(evidence).toContainText('Source record: teaching-recent')
+      // The evidence reads as label/value rows: dates as one range, the source and its record.
+      await expect(evidence).toContainText(/Dates\s*2021-09-01 – 2022-02-15/)
+      await expect(evidence).toContainText(/Source\s*Synthetic teaching record/)
+      await expect(evidence).toContainText(/Record\s*teaching-recent/)
+      await expect(evidence).toContainText(/Area\s*\d+\.\d{2} ha/)
       await choose(selection, 'history-older')
       await expect(evidence).toContainText('36–37 calendar years since reported harvest (1989–1990)')
       await choose(selection, 'history-estimated')
       await expect(evidence).toContainText('About 18 calendar years since estimated harvest (2008)')
-      await expect(evidence).toContainText('Source midpoint year: 2008')
+      await expect(evidence).toContainText(/Harvested\s*≈ 2008 \(midpoint\)/)
       await choose(selection, 'history-unknown')
       await expect(evidence).toContainText('Harvest date unknown')
       await expect(evidence).not.toContainText('calendar years since')
-      await choose(selection, 'history-proposed')
+      // Planned blocks are a group of their own: the ones roads get built to, not harvest history.
+      const groups = history.getByRole('group', { name: 'Cutblock group', exact: true })
+      await groups.getByRole('button', { name: /^Planned/ }).click()
+      await expect(selection).toHaveAttribute('data-value', 'history-proposed')
       await expect(evidence).toContainText('Proposed cutblock · no harvest history')
+      await expect(page.getByTestId('road-cutblock-nearby-roads')).toHaveCount(0)
+      await groups.getByRole('button', { name: /^Harvested/ }).click()
       await choose(selection, 'history-recent')
 
       const nearby = page.getByTestId('road-cutblock-nearby-roads')
-      await choose(
-        nearby.getByRole('combobox', { name: 'Nearby road candidate', exact: true }),
-        'history-road-deactivated',
-      )
+      // Nearby roads list distance and status only; a row opens the road in Existing roads & reuse.
+      const deactivated = nearby.getByRole('button', { name: 'Review road Synthetic spur · deactivated 2016', exact: true })
       await expect(nearby).toContainText('proximity only')
-      await expect(nearby).toContainText('Recorded deactivation')
-      await expect(nearby).toContainText('Deactivation: 2016-09-15')
-      await nearby.getByRole('button', { name: 'Review selected road', exact: true }).click()
+      await expect(deactivated).toContainText('Recorded deactivation')
+      await expect(deactivated).toContainText(/\d+ m$/)
+      await deactivated.click()
       const roadSelection = page.getByRole('combobox', { name: 'Review existing road', exact: true })
       await expect(roadSelection).toHaveAttribute('data-value', 'history-road-deactivated')
       await expect(page.getByTestId('road-existing-road-evidence')).toContainText('Synthetic training assumption')
@@ -196,7 +206,7 @@ for (const phone of [false, true]) {
         .getByLabel('Road event notes (optional)', { exact: true })
         .fill('Reviewed in the synthetic history scenario.')
       await editor.getByRole('button', { name: 'Save road history', exact: true }).click()
-      await expect(page.getByTestId('road-existing-road-evidence')).toContainText('Event status observed: 2026-10-01')
+      await expect(page.getByTestId('road-existing-road-evidence')).toContainText(/Event status observed\s*2026-10-01/)
       await choose(roadSelection, 'history-road-undated')
       await expect(page.getByTestId('road-deactivation-summary')).toHaveText('Deactivation: date unknown')
       await page.getByTestId('road-deactivation-toggle').click()
@@ -245,7 +255,7 @@ for (const phone of [false, true]) {
       await page.screenshot({ path: info.outputPath('harvest-age-and-road-status-legend.png') })
       await page.getByRole('button', { name: 'Collapse legend', exact: true }).click()
 
-      await page.getByRole('button', { name: 'Open cutblock and road history table', exact: true }).click()
+      await openHistoryTable(page)
       const pane = tablePane(page, phone)
       await expect(pane.getByRole('table')).toHaveAttribute('aria-rowcount', '5')
       const recentRow = pane.getByRole('row').filter({ hasText: RECENT })
@@ -276,7 +286,7 @@ for (const phone of [false, true]) {
       await expect(legend.getByText('Harvest 0–10 calendar years ago', { exact: true })).toHaveCount(0)
       await expect(legend.getByText('Recorded deactivation', { exact: true })).toHaveCount(1)
       await page.getByRole('button', { name: 'Collapse legend', exact: true }).click()
-      await page.getByRole('button', { name: 'Open cutblock and road history table', exact: true }).click()
+      await openHistoryTable(page)
       await expect(pane.getByRole('table')).toHaveAttribute('aria-rowcount', '3')
       await pane.getByRole('heading', { name: 'Existing road history', exact: true }).click()
       await expect(page.getByRole('listbox', { name: 'Table layer', exact: true }).getByRole('option')).toHaveCount(1)
@@ -349,14 +359,10 @@ for (const phone of [false, true]) {
       await expect(referenceYear).toHaveValue('2030')
       await choose(selection, 'history-recent')
       await expect(evidence).toContainText('8–9 calendar years since reported harvest (2021–2022)')
-      await expect(evidence).toContainText('Source record: teaching-recent')
-      await choose(
-        nearby.getByRole('combobox', { name: 'Nearby road candidate', exact: true }),
-        'history-road-deactivated',
-      )
-      await nearby.getByRole('button', { name: 'Review selected road', exact: true }).click()
+      await expect(evidence).toContainText(/Record\s*teaching-recent/)
+      await nearby.getByRole('button', { name: 'Review road Synthetic spur · deactivated 2016', exact: true }).click()
       await expect(page.getByTestId('road-deactivation-summary')).toHaveText('Deactivation: 2016-09-15')
-      await expect(page.getByTestId('road-existing-road-evidence')).toContainText('Event status observed: 2026-10-01')
+      await expect(page.getByTestId('road-existing-road-evidence')).toContainText(/Event status observed\s*2026-10-01/)
       await showMap(page, phone)
       const reopened = await saveProject(page)
       expect(reopened.context).toEqual(saved.context)

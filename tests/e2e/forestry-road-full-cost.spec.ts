@@ -120,7 +120,7 @@ test('network hauling changes the chosen horizontal road and adopted totals roun
     .getByRole('button', { name: /^Preview / })
     .click()
   await expect(page.getByTestId('full-cost-map-preview')).toBeVisible()
-  await expect(page.getByTestId('road-profile-summary')).toContainText('400 m')
+  await expect(page.getByRole('term').filter({ hasText: /^Length$/ }).locator('..')).toContainText('400 m')
   await expect(page.getByRole('term').filter({ hasText: 'Candidate complete cost' }).locator('..')).toContainText(
     quotedCost,
   )

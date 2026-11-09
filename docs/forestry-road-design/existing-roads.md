@@ -81,13 +81,11 @@ search can return no connection if terrain coverage or hard constraints block it
 this does not establish that no access exists elsewhere in BC. A first-radius
 candidate can also be infeasible even though a more distant candidate exists.
 
-**FSR to connect to** lists up to ten nearest loaded sections by name and
-straight-line distance from the chosen road endpoint. Choosing a named section
-highlights that road and its proposed junction in blue. **Locate selected FSR**
-fits the plan to it and closes the phone controls so the map is visible.
-**Connect to selected FSR** searches only that destination; a failure never
-substitutes a different road. Closed, retired or removed targets are unavailable.
-Automatic nearest-feasible and lowest-screening-cost selection remain available.
+In **Access from FSR** with **Start from → A road I pick**, **FSR to connect to** lists up to ten
+nearest loaded sections by name and straight-line distance from the end. Choosing one, or clicking
+an active road on the plan, highlights that road and labels its proposed junction. The review then
+searches only that start; a failure never substitutes a different road, and a road closed or retired
+after it was chosen blocks the run. **Nearest FSRs** instead tries the 1–4 nearest sections.
 
 Generated alignments retain an optional `fsrConnection` record in project JSON:
 the destination section/name/junction, origin, choice mode, source scope, and
@@ -95,7 +93,7 @@ straight-line distance, generated length and search cost at creation. The Design
 panel shows this historical record on reopening. Editing either endpoint produces
 a junction-review notice; the saved record does not certify later edits.
 
-An optional **Use regional terrain across connection (screening)** choice loads
+An optional **Search on regional terrain (screening)** choice in **Access from FSR** loads
 coarse terrain spanning the current alignments and candidate junctions. A successful
 result opens a separate regional project and retains the original terrain project
 in the library. This makes a connector outside a small LiDAR tile reviewable without

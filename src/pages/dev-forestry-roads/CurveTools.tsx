@@ -10,6 +10,9 @@ import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 /** Bulk curve tools for the horizontal points: one default radius, or a best fit within a tolerance. */
+/** Field height when the label fits; a narrow pane wraps the label and the button grows rather than clipping. */
+const bulkButtonClass = 'h-auto min-h-8 whitespace-normal py-1 leading-tight'
+
 export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
   const { alignment, project, updateAlignment, setNotice } = workspace
   const [radius, setRadius] = useState(35)
@@ -50,6 +53,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         <Button
           size="sm"
           variant="outline"
+          className={bulkButtonClass}
           disabled={!corners}
           title="Every corner without a radius gets this one, reduced where its tangents are too short"
           onClick={() => apply({ kind: 'radius', radiusM: radius }, true)}
@@ -60,6 +64,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         <Button
           size="sm"
           variant="outline"
+          className={bulkButtonClass}
           disabled={!corners}
           title="Every corner gets the largest radius whose arc stays within this distance of the pegged corner"
           onClick={() => apply({ kind: 'tolerance', toleranceM: tolerance }, false)}
@@ -70,6 +75,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
         <Button
           size="sm"
           variant="outline"
+          className={bulkButtonClass}
           disabled={!alignment.points.some((p) => p.radiusM > 0)}
           title="Clothoid transitions of this length on both sides of every curve; 0 removes them"
           onClick={setSpirals}

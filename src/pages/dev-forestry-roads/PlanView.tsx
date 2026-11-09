@@ -2,13 +2,17 @@ import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
-import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, Waves, X } from 'lucide-react'
+import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
+import { NOTE_LAYER_IDS, NotesLayer, NotesToolbar, type NoteTool } from './PlanNotes'
+import { CutblockCard } from './CutblockCard'
+import { ExistingRoadCard } from './ExistingRoadCard'
+import { MAP_NOTE_COLORS, type MapNote } from './mapNotes'
 import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
 import { distinctRoadColors } from './roadColors'
 import { ROAD_HISTORY_STYLES } from './roadHistory'
@@ -99,7 +103,13 @@ interface PlanProps {
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
   /** Inspect the source/history of a mapped cutblock or existing road. */
-  onContextSelect?: (feature: ContextFeature) => void
+  onContextSelect?: (feature: ContextFeature, at?: Coordinate) => void
+  /** Saves the project's map notes; without it notes show but cannot be drawn or edited. */
+  onNotesChange?: (notes: MapNote[]) => void
+  /** Set while a note tool is in hand, so the plan's own clicks stand aside. */
+  noteTool?: NoteTool
+  /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
+  onHighlightRoad?: (road: ContextFeature) => void
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
@@ -171,6 +181,7 @@ function Layers(
     onOverlaySelect,
     onSelectCulvert,
     onContextSelect,
+    noteTool,
     pourPointPicking,
     onPourPoint,
   } = props
@@ -1035,6 +1046,10 @@ function Layers(
   useEffect(() => {
     if (!map || !isLoaded) return
     const click = (e: MapMouseEvent) => {
+      // A note tool, or a click on a drawn note, belongs to the notes layer.
+      if (noteTool) return
+      const noteLayers = NOTE_LAYER_IDS.filter((id) => map.getLayer(id))
+      if (noteLayers.length && map.queryRenderedFeatures(e.point, { layers: [...noteLayers] }).length) return
       if (pourPointPicking && onPourPoint) {
         onPourPoint([e.lngLat.lng, e.lngLat.lat])
         return
@@ -1077,7 +1092,7 @@ function Layers(
             .find((feature) => ['existing-road', 'harvest'].includes(String(feature.properties?.kind)))
           const feature = props.project.context.find((candidate) => candidate.id === contextHit?.properties?.id)
           if (feature) {
-            onContextSelect(feature)
+            onContextSelect(feature, [e.lngLat.lng, e.lngLat.lat])
             return
           }
         }
@@ -1091,7 +1106,7 @@ function Layers(
       }
     }
     const move = (e: MapMouseEvent) => {
-      if (pourPointPicking) return
+      if (pourPointPicking || noteTool) return
       if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
@@ -1105,7 +1120,8 @@ function Layers(
         if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
       }
     }
-    map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
+    if (!noteTool)
+      map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
     map.doubleClickZoom.disable()
     map.on('click', click)
     map.on('mousemove', move)
@@ -1133,6 +1149,7 @@ function Layers(
     props.project.context,
     pourPointPicking,
     onPourPoint,
+    noteTool,
   ])
 
   return (
@@ -1468,6 +1485,9 @@ const MIN_HANDLE_SPACING_PX = 34
 /** A handle moved less than this was a slip, so no point is added. */
 const MIN_BEND_DRAG_PX = 10
 
+/** A shared empty list, so a project without notes does not re-send the notes source every render. */
+const NO_NOTES: MapNote[] = []
+
 export function PlanView(props: PlanProps) {
   const [drag, setDrag] = useState<{ original: Alignment; id: string; coordinate: Coordinate } | null>(null)
   const [bend, setBend] = useState<{ original: Alignment; afterId: string; coordinate: Coordinate } | null>(null)
@@ -1530,6 +1550,49 @@ export function PlanView(props: PlanProps) {
     }
   }
   const [hiddenContextKinds, setHiddenContextKinds] = useState<ContextFeature['kind'][]>([])
+  // Map notes: their own project collection, drawn with the notes bar and hidden as one layer.
+  const notes = props.project.notes ?? NO_NOTES
+  const [notesOpen, setNotesOpen] = useState(false)
+  const [noteTool, setNoteTool] = useState<NoteTool>(null)
+  const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
+  const [noteArrow, setNoteArrow] = useState(true)
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null)
+  const [notesVisible, setNotesVisibleState] = useState(() => {
+    try {
+      return localStorage.getItem('pgmaps-road-notes-visible') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
+  const setNotesVisible = (visible: boolean) => {
+    setNotesVisibleState(visible)
+    if (!visible) {
+      setNoteTool(null)
+      setSelectedNoteId(null)
+    }
+    try {
+      localStorage.setItem('pgmaps-road-notes-visible', visible ? 'visible' : 'hidden')
+    } catch {
+      /* The choice still holds for this session. */
+    }
+  }
+  // A road drawing tool and a note tool never run together: picking one puts the other down.
+  const roadDrawing = !['inspect', 'edit'].includes(props.mode)
+  if (roadDrawing && noteTool) setNoteTool(null)
+  const pickNoteTool = (tool: NoteTool) => {
+    if (tool && roadDrawing) props.onMode?.('inspect')
+    if (tool && !notesVisible) setNotesVisible(true)
+    setSelectedNoteId(null)
+    setNoteTool(tool)
+  }
+  const [cutblockCard, setCutblockCard] = useState<{ id: string; at: Coordinate } | null>(null)
+  const [roadCard, setRoadCard] = useState<{ id: string; at: Coordinate } | null>(null)
+  const cardRoad = roadCard
+    ? props.project.context.find((feature) => feature.id === roadCard.id && feature.kind === 'existing-road')
+    : undefined
+  const cutblock = cutblockCard
+    ? props.project.context.find((feature) => feature.id === cutblockCard.id && feature.kind === 'harvest')
+    : undefined
   const [selectedHistoryRowId, setSelectedHistoryRowId] = useState<string | null>(null)
   const selectedHistoryFeature = props.project.context.find(
     (feature) => feature.id === selectedHistoryRowId && !hiddenContextKinds.includes(feature.kind),
@@ -1547,9 +1610,8 @@ export function PlanView(props: PlanProps) {
   )
   const table = useMapTable({
     sources: tableSources,
+    // Never placed by a layout: the map settings popover opens the table instead of a toolbar button.
     inlineButton: true,
-    // Match the 32 px plan controls: a taller button covered the attribution on short maps.
-    buttonClassName: 'h-8 min-w-8',
     url: false,
     selectedRowId: selectedHistoryFeature?.id ?? null,
     defaultSourceId:
@@ -1558,16 +1620,24 @@ export function PlanView(props: PlanProps) {
         : selectedHistoryFeature?.kind === 'harvest'
           ? 'cutblock-history'
           : tableSources[0]?.id,
-    buttonLabel: 'Open cutblock and road history table',
     onSelectRow: (feature: ContextFeature) => {
       setSelectedHistoryRowId(feature.id)
       props.onContextSelect?.(feature)
     },
   })
-  const selectContext = (feature: ContextFeature) => {
+  const selectContext = (feature: ContextFeature, at?: Coordinate) => {
     setSelectedHistoryRowId(feature.id)
     table.follow(feature.kind === 'existing-road' ? 'road-history' : 'cutblock-history')
-    props.onContextSelect?.(feature)
+    // A cutblock clicked on the map shows its details there; its full history is one button away.
+    if (feature.kind === 'harvest' && at) {
+      setRoadCard(null)
+      setCutblockCard({ id: feature.id, at })
+    } else if (feature.kind === 'existing-road' && at) {
+      // A road clicked on the map is highlighted and summarised there; Review road opens its record.
+      setCutblockCard(null)
+      setRoadCard({ id: feature.id, at })
+      props.onHighlightRoad?.(feature)
+    } else props.onContextSelect?.(feature)
   }
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
@@ -1591,7 +1661,7 @@ export function PlanView(props: PlanProps) {
       window.removeEventListener('keydown', keepTabInPanel, true)
     }
   }, [settingsOpen])
-  const drawing = props.pourPointPicking || !['inspect', 'edit'].includes(props.mode)
+  const drawing = props.pourPointPicking || roadDrawing || !!noteTool
   const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
   return (
     <div
@@ -1656,7 +1726,50 @@ export function PlanView(props: PlanProps) {
           showLabels={showLabels}
           showEarthwork={showEarthwork}
           hiddenContextKinds={hiddenContextKinds}
+          noteTool={noteTool}
         />
+        <NotesLayer
+          notes={notes}
+          visible={notesVisible}
+          tool={noteTool}
+          color={noteColor}
+          arrow={noteArrow}
+          selectedId={selectedNoteId}
+          onSelect={setSelectedNoteId}
+          onChange={props.onNotesChange}
+          onToolDone={() => setNoteTool(null)}
+        />
+        {cardRoad && roadCard && (
+          <ExistingRoadCard
+            road={cardRoad}
+            at={roadCard.at}
+            onClose={() => setRoadCard(null)}
+            onReview={
+              props.onContextSelect
+                ? () => {
+                    setRoadCard(null)
+                    props.onContextSelect?.(cardRoad)
+                  }
+                : undefined
+            }
+          />
+        )}
+        {cutblock && cutblockCard && (
+          <CutblockCard
+            feature={cutblock}
+            at={cutblockCard.at}
+            year={props.project.harvestHistoryYear ?? new Date().getFullYear()}
+            onClose={() => setCutblockCard(null)}
+            onOpenHistory={
+              props.onContextSelect
+                ? () => {
+                    setCutblockCard(null)
+                    props.onContextSelect?.(cutblock)
+                  }
+                : undefined
+            }
+          />
+        )}
         <MapScaleBar position="bottom-left" className="road-map-scale left-2 bottom-2" />
         {table.layout.bottomPane && (
           <div
@@ -1672,7 +1785,6 @@ export function PlanView(props: PlanProps) {
         className="absolute left-2 top-2 z-30 flex max-w-[calc(100%-110px)] items-center gap-1"
         data-map-export-ignore
       >
-        {table.button}
         <RoadSelect
           value={terrainLayer}
           onValueChange={(value) => setTerrainLayer(value as TerrainLayer)}
@@ -1736,6 +1848,7 @@ export function PlanView(props: PlanProps) {
               [
                 ['Contours', showContours, setShowContours],
                 ['Labels', showLabels, setShowLabels],
+                ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
               ] as const
             ).map(([label, checked, set]) => (
@@ -1764,11 +1877,61 @@ export function PlanView(props: PlanProps) {
                 ))}
               </fieldset>
             )}
+            {/* The history table opens from here rather than a toolbar button of its own. */}
+            {tableSources.length > 0 && !table.activeSource && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 w-full"
+                onClick={() => {
+                  table.open()
+                  closeSettings()
+                }}
+              >
+                <Table2 className="size-3.5" />
+                Cutblock & road history table
+              </Button>
+            )}
           </AnchoredPopover>
         </div>
         <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
+        <Button
+          size="icon"
+          variant="outline"
+          className={`size-8 shrink-0 shadow-sm ${notesOpen ? 'bg-accent text-accent-foreground' : 'bg-background/95'}`}
+          aria-label="Map notes"
+          aria-pressed={notesOpen}
+          title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
+          onClick={() => {
+            if (notesOpen) setNoteTool(null)
+            setNotesOpen(!notesOpen)
+          }}
+        >
+          <StickyNote className="size-4" />
+        </Button>
       </div>
+      {notesOpen && (
+        <div className="absolute left-2 top-12 z-30 max-w-[calc(100%-4rem)]">
+          <NotesToolbar
+            tool={noteTool}
+            onTool={pickNoteTool}
+            color={noteColor}
+            onColor={setNoteColor}
+            arrow={noteArrow}
+            onArrow={setNoteArrow}
+            visible={notesVisible}
+            onVisible={setNotesVisible}
+            count={notes.length}
+            disabled={!props.onNotesChange}
+            onClose={() => {
+              setNoteTool(null)
+              setNotesOpen(false)
+            }}
+          />
+        </div>
+      )}
       {props.mode === 'edit' &&
+        !notesOpen &&
         (editHelpVisible ? (
           <div
             className="absolute left-2 top-12 z-20 flex max-w-[calc(100%-4rem)] items-center gap-2 rounded-md border bg-background/95 px-2 py-1 text-2xs shadow"

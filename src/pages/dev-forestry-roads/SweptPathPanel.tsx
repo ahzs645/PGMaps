@@ -11,6 +11,7 @@ import {
   type SweptPathResult,
 } from './sweptPath'
 import type { DesignVehicle, VehicleCheck, VehicleUnit } from './types'
+import { InfoTip } from '@/components/ui/info-tip'
 
 const m = (value: number) =>
   `${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`
@@ -360,14 +361,13 @@ export function SweptPathPanel({
           </Button>
         </div>
       </details>
-      <details className="text-2xs text-muted-foreground">
-        <summary className="cursor-pointer">How the swept path is calculated</summary>
-        <p className="mt-1">{SWEPT_PATH_BASIS}</p>
-        <p className="mt-1">
+      <InfoTip label="How the swept path is calculated" showLabel bubbleClassName="w-96 space-y-1.5">
+        <span className="block">{SWEPT_PATH_BASIS}</span>
+        <span className="block">
           A turn spans each fitted curve plus a vehicle length either side; turns that overlap are judged together, so a
           switchback’s two curves read as one 180° turn.
-        </p>
-      </details>
+        </span>
+      </InfoTip>
     </div>
   )
 }
