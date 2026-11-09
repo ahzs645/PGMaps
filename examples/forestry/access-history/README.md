@@ -7,7 +7,9 @@ bridges** demonstrates dated routing, shared infrastructure, conflicting reports
 and review using invented evidence.
 
 The committed project, bundle, report and route diagram below contain **invented
-training data**. No provincial feature extract is committed in this directory.
+training data**. The one provincial extract is the
+[block–road reference set](reference-pairs/README.md): 347 real blocks with the
+road built for each, and roads generated from rules learned on them.
 See the [workflow, observed source findings and expansion guide](../../../docs/forestry-road-design/access-history.md).
 
 ## Inspect the actual BC opening
