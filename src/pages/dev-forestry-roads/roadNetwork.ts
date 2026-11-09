@@ -398,6 +398,77 @@ export function buildRoadNetwork(
   rawPolicy: RoadNetworkPolicy,
   attachmentInputs: readonly RoadNetworkAttachmentInput[] = [],
 ): RoadNetworkGraph {
+  return buildRoadGraph(inputs, rawPolicy, attachmentInputs, 'operational')
+}
+
+/** Geometry-only inputs deliberately exclude present access, condition, bridge ratings and costs. */
+export interface HistoricalRoadTopologyInput {
+  id: string
+  name: string
+  coordinates: Coordinate[]
+  level: number | null
+  junctions: RoadNetworkEvidence['junctions']
+}
+export interface HistoricalRoadTopologyOptions {
+  snapToleranceM: number
+  attachmentToleranceM: number
+  allowUnverifiedEndpointSnaps: boolean
+}
+export interface HistoricalRoadTopologyGraph extends Omit<RoadNetworkGraph, 'policy'> {
+  mode: 'historical-topology'
+}
+
+/**
+ * Historical reconstruction shares junction geometry, never operational eligibility. The caller
+ * first filters roads/events for its historical date. This graph proves neither use nor permission.
+ * Its distinct type cannot be passed accidentally to the operational path/cost entry point.
+ */
+export function buildHistoricalRoadTopology(
+  inputs: readonly HistoricalRoadTopologyInput[],
+  options: HistoricalRoadTopologyOptions,
+  attachments: readonly RoadNetworkAttachmentInput[] = [],
+): HistoricalRoadTopologyGraph {
+  const graph = buildRoadGraph(
+    inputs.map((input) => ({
+      id: input.id,
+      name: input.name,
+      coordinates: input.coordinates,
+      network: { ...createRoadNetworkEvidence(), level: input.level, junctions: input.junctions },
+    })),
+    { ...createRoadNetworkPolicy('2000-01-01'), ...options },
+    attachments,
+    'historical',
+  )
+  const { policy: _policy, ...topology } = graph
+  void _policy
+  return { ...topology, mode: 'historical-topology' }
+}
+
+/** Historical geometric distance only; operational haul/rehabilitation costs are not reported. */
+export function shortestHistoricalTopologyPath(graph: HistoricalRoadTopologyGraph, from: string, to: string) {
+  const path = shortestRoadNetworkPath({ ...graph, policy: createRoadNetworkPolicy('2000-01-01') }, from, to, {
+    objective: 'distance',
+    distanceRatePerM: 0,
+    includeRehabilitation: false,
+  })
+  if (!path) return null
+  return {
+    coordinates: path.coordinates,
+    edgeIds: path.edgeIds,
+    roadIds: path.roadIds,
+    lengthM: path.lengthM,
+    junctionGapM: path.junctionGapM,
+    attachmentDistanceM: path.attachmentDistanceM,
+    warnings: path.warnings,
+  }
+}
+
+function buildRoadGraph(
+  inputs: readonly RoadNetworkInput[],
+  rawPolicy: RoadNetworkPolicy,
+  attachmentInputs: readonly RoadNetworkAttachmentInput[],
+  mode: 'operational' | 'historical',
+): RoadNetworkGraph {
   const policy = parseRoadNetworkPolicy(rawPolicy)
   if (inputs.length > MAX_NETWORK_ROADS)
     throw Error(`Road network exceeds ${MAX_NETWORK_ROADS} roads; split the planning area.`)
@@ -411,7 +482,11 @@ export function buildRoadNetwork(
     warnings: [],
     policy,
   }
-  if (!policy.requireCurrentConditionEvidence)
+  if (mode === 'historical')
+    graph.warnings.push(
+      'Historical topology only: mapped connectivity does not establish past use, current access or vehicle capacity.',
+    )
+  if (mode === 'operational' && !policy.requireCurrentConditionEvidence)
     graph.warnings.push('The planning policy does not require current dated condition evidence for existing roads.')
   for (const [enabled, label] of [
     [policy.allowUnknownAccess, 'unknown road access'],
@@ -420,11 +495,11 @@ export function buildRoadNetwork(
     [policy.allowUnknownCondition, 'unknown entered road condition'],
     [policy.allowUnverifiedEndpointSnaps, 'endpoint connections with unknown grade-separation levels'],
   ] as const)
-    if (enabled)
+    if (mode === 'operational' && enabled)
       graph.warnings.push(
         `The planning policy explicitly permits assumptions about ${label}; permission and physical suitability are not established by this switch.`,
       )
-  if (policy.maxUphillGradePercent === null && policy.maxDownhillGradePercent === null)
+  if (mode === 'operational' && policy.maxUphillGradePercent === null && policy.maxDownhillGradePercent === null)
     graph.warnings.push(
       'No existing-network vehicle grade limits are set; network grade feasibility is not established.',
     )
@@ -467,7 +542,17 @@ export function buildRoadNetwork(
     if (coordinates.length < 2) throw Error(`Network road ${id} has no nonzero line segments.`)
     const input = { ...raw, id, name: string(raw.name, 'Network road name', 200), coordinates }
     const network = input.network ? parseRoadNetworkEvidence(input.network) : createRoadNetworkEvidence()
-    const status = evaluateNetworkRoad({ ...input, network }, policy)
+    const status =
+      mode === 'operational'
+        ? evaluateNetworkRoad({ ...input, network }, policy)
+        : {
+            eligible: true,
+            reasons: [],
+            warnings: [],
+            condition: 'unknown' as const,
+            forwardAllowed: true,
+            reverseAllowed: true,
+          }
     if (!status.eligible) {
       graph.excludedRoads.push({ roadId: id, name: input.name, reasons: status.reasons })
       continue
@@ -726,13 +811,13 @@ export function buildRoadNetwork(
           to: b.nodeId,
           roadId,
           kind: 'road',
-          reused: !road.input.proposed,
+          reused: mode === 'operational' && !road.input.proposed,
           coordinates: [a.coordinate, b.coordinate],
           lengthM,
           weightedLengthM: lengthM * n.haulCostFactor,
           forwardAllowed: road.status.forwardAllowed,
           reverseAllowed: road.status.reverseAllowed,
-          costItems,
+          costItems: mode === 'historical' ? [] : costItems,
           warnings: road.status.warnings,
         })
       }

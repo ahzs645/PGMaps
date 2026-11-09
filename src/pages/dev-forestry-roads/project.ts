@@ -14,6 +14,7 @@ import { createEngineeringDesign } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
+import { parseAccessHistoryState } from './accessHistory'
 import { parseRouteSearchOptions } from './routing'
 import { parseNetworkPlanning } from './roads/planning'
 import { parseTotalCostPlanning } from './fullCostPlanning'
@@ -641,6 +642,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.harvestHistoryYear === undefined
       ? {}
       : { harvestHistoryYear: parseHarvestHistoryYear(r.harvestHistoryYear) }),
+    ...(r.accessHistory === undefined ? {} : { accessHistory: parseAccessHistoryState(r.accessHistory, context) }),
     ...(scenario
       ? {
           scenario: {
