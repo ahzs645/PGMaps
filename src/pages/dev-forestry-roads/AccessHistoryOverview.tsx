@@ -142,8 +142,7 @@ export function AccessHistoryOverview({
               {coverage.roadCoverage.total}. {coverage.structureCoverage.matched} structure
               {coverage.structureCoverage.matched === 1 ? ' has' : 's have'} a resolved road attachment;{' '}
               {coverage.structureCoverage.withoutConstructionDate}{' '}
-              {coverage.structureCoverage.withoutConstructionDate === 1 ? 'lacks' : 'lack'}
-              construction dates.
+              {coverage.structureCoverage.withoutConstructionDate === 1 ? 'lacks' : 'lack'} construction dates.
             </p>
             {coverage.identity.entityCount > 0 && (
               <p className="text-2xs">
