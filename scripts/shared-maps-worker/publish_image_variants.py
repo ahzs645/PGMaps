@@ -246,7 +246,21 @@ def checked(response: httpx.Response, operation: str) -> None:
 
 
 def publish(stage_path: Path, config: dict, *, client=None, receipt_path: Path | None = None) -> dict:
-    stage, body, objects = validate_stage(stage_path)
+    return publish_validated(
+        stage_path, config, validate_stage(stage_path), client=client, receipt_path=receipt_path,
+        receipt_metadata={"schema":"pgmaps-image-variant-publication-receipt-v1", "geometryChanged":False,
+                          "savedProjectsChanged":False},
+    )
+
+
+def publish_validated(stage_path: Path, config: dict, validated: tuple, *, client=None,
+                      receipt_path: Path | None = None, receipt_metadata: dict) -> dict:
+    """Shared conditional transport; callers must validate their own stage first.
+
+    This is not a CLI bypass: each public publisher supplies its own bounded
+    validator. Extra immutable evidence inputs can be protected by the caller.
+    """
+    stage, body, objects = validated
     endpoint, base = owner_base(config)
     if stage.get("collectionBase") != base:
         raise ValueError("Owner configuration names a different collection")
@@ -256,13 +270,14 @@ def publish(stage_path: Path, config: dict, *, client=None, receipt_path: Path |
             (stage_path.parent/stage["afterCatalogue"]).resolve(),
             *((stage_path.parent/name).resolve() for name in stage.get("uploadManifests", [])),
             *(entry["localPath"].resolve() for entry in objects),
+            *(Path(path).resolve() for path in stage.get("protectedInputs", [])),
         }
         if receipt_path.resolve() in inputs:
             raise ValueError("Publication receipt must preserve every staged input")
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
     own_client = client is None
     client = client or httpx.Client(timeout=180, follow_redirects=False, headers={"Accept-Encoding":"identity", "User-Agent":"PGMaps-source-variants/1.0"})
-    receipt = {"schema":"pgmaps-image-variant-publication-receipt-v1", "activated":False, "beforeSha256":stage["beforeSha256"], "afterSha256":stage["afterSha256"], "objects":[], "geometryChanged":False, "savedProjectsChanged":False,
+    receipt = {**receipt_metadata, "activated":False, "beforeSha256":stage["beforeSha256"], "afterSha256":stage["afterSha256"], "objects":[],
                "reviewedDisplayRefreshCount":len(stage.get("displayRefreshes", [])), "reviewedMetadataUpdateCount":len(stage.get("metadataUpdates", []))}
 
     def save():
