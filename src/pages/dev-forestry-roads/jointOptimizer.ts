@@ -1,7 +1,7 @@
 /** Bounded coordinate descent over fitted horizontal controls and their designed profile. */
 import { alignmentLength, analyzeRoad, distance, offsetCoordinate } from './engine'
 import { hasCompleteCoverage } from './analysisResult'
-import { optimizeVerticalProfile, type VerticalOptimizationOptions } from './verticalOptimizer'
+import { optimizeVerticalProfileAsync, type VerticalOptimizationOptions } from './verticalOptimizer'
 import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource } from './types'
 
 export const MAX_JOINT_EVALUATIONS = 32
@@ -80,11 +80,18 @@ export async function refinePlanAndProfile(
     let score: number | null = null
     try {
       const length = alignmentLength(candidate)
+      // In slices, so a trial on a long road cannot hold up Cancel for the whole of its profile search.
       if (refit)
-        candidate.vertical = optimizeVerticalProfile(candidate, length, terrain, settings, {
-          ...o.profile,
-          context,
-        }).vertical
+        candidate.vertical = (
+          await optimizeVerticalProfileAsync(
+            candidate,
+            length,
+            terrain,
+            settings,
+            { ...o.profile, context },
+            { signal: o.signal },
+          )
+        ).vertical
       const analysis = analyzeRoad(candidate, terrain, settings, context, {
         referenceSurfaces: o.profile.referenceSurfaces,
         verticalReference: o.profile.verticalReference,

@@ -1,7 +1,11 @@
 /** Road names built from other road names, and the short forms shown where several sit side by side. */
 const SEPARATOR = ' · '
-/** Parts this app appends. A road derived from a derived road replaces them rather than stacking them. */
-const GENERATED = /^(optimized profile|lowest cost|shortest|gentlest|fewest drainage issues)( \d+)?$/i
+/**
+ * Parts this app appends. A road derived from a derived road replaces them rather than stacking them.
+ * The last form is what route searches wrote before 2026-11: a rank and the search's score in dollars.
+ */
+const GENERATED =
+  /^(optimized profile|lowest cost|shortest|gentlest|fewest drainage issues|terrain-cost route|terrain-cost(?: #\d+)? \(\$[\d,]+\))( \d+)?$/i
 const MAX_NAME = 200
 
 const parts = (name: string) => name.split(SEPARATOR).map((part) => part.trim())

@@ -1037,7 +1037,8 @@ It replaced Block access and the FSR connector.
 on an eight-neighbour grid between the current road's endpoints. It is
 deterministic route assistance, not an AI model or a call to an external
 optimizer. It creates editable alternatives and keeps the original alignment.
-It does not design PVIs, fit road curves or compute earthworks.
+It does not design PVIs or compute earthworks. Each route found becomes a road with curves of at
+least the minimum radius where they fit and stay on the terrain (`routeFit.ts`).
 
 The search prices a route in dollars:
 
@@ -1055,15 +1056,21 @@ Optional **start and end headings** keep the first and last legs within ±45° o
 bearing. **Alternatives** (1–5) are found by repeating the search with a 60% surcharge on
 edges that earlier routes used. A new route is kept only if no more than 70% of its edges
 are shared with a route already kept, and the routes are returned ranked by their own cost.
-Each becomes a separate road, named with its rank and cost. The entered maximum grade constrains sampled **ground** slope;
-it does not prove that a designed road can be constructed at that grade.
+Each becomes a separate road named `<road> · terrain-cost route <n>`. The search's score stays
+out of the name: it is kept on the road (`routeSearch`) and listed under **Routes found**, as a
+ranking figure and not an estimate. A later search replaces the found roads that have not been
+changed since; see the
+[alignment guide](forestry-road-design/alignment-and-optimization.md#built-in-assumptions). The
+entered maximum grade constrains sampled **ground** slope; it does not prove that a designed road
+can be constructed at that grade.
 
 Candidate grid edges are sampled at intervals no greater than 5 m during the
 search. Before returning a route, every chosen segment is checked again at
 intervals no greater than 1 m. A failing segment is excluded and the search
-can retry, up to four attempts. Returned vertices are retained without
-unconstrained smoothing, which could otherwise cross an exclusion or change
-the checked grade. All terrain reads still use the selected source: checking a
+can retry, up to four attempts. The search returns its vertices as found. Curves
+are fitted to them afterwards only where the whole fitted centreline has ground
+under it and stays out of blocked areas; the ground grade along those curves is
+not rechecked. All terrain reads still use the selected source: checking a
 coarse regional DEM at 1 m spacing does not turn it into 1 m terrain.
 
 The search is local and bounded. Endpoints must be at least 2 m and no more
@@ -1096,7 +1103,9 @@ standards:
 - a minimum vertical-curve length and a minimum tangent between curves.
 
 Control points fix a formation elevation, a grade or both at a station, each with its own
-tolerance. “Get from alignment” copies the current design values.
+tolerance. “Get from alignment” sets both from the designed profile at the control's station
+and says what it read. On a road with no profile yet it sets the elevation from the ground and
+says there is no grade to read.
 
 Any value left empty is not checked, and the road-wide maximum grade still applies. Each
 failure becomes a station flag (in the tables and on the plan), a workspace warning and a
@@ -1112,7 +1121,11 @@ over the fixed horizontal alignment:
 - PVIs sit at the entered spacing, at both ends and at every control point.
 - Each PVI's formation may take one of a ladder of levels within ± the search depth of the
   ground, in the level step. An end can be tied to ground, and a control narrows its PVI
-  to its tolerance.
+  to its tolerance. A control's own elevation is a level exactly as entered, and a PVI beside
+  a grade control also gets the levels that run at exactly that grade from it, so a control
+  held to ±0 at a value read off the ground or the profile is always inside the search.
+- A PVI the spacing puts on a gap in the terrain slides to the nearest station with ground.
+  Only an end tied to ground has to have ground under it.
 - Section cut and fill areas are solved with the engine's own section model once per sample
   station and level (`sectionAreasAt`), then interpolated between levels.
 - Dynamic programming over pairs of adjacent levels keeps every tangent inside its grade
@@ -1134,9 +1147,13 @@ The search places a PVI at every spacing step. Afterwards the line is simplified
 (Douglas–Peucker, 0.3 m), and the simpler line is kept only if it still meets every limit
 at no more than 1 % extra cost. On the LiDAR road below, that gives 15 PVIs instead of 22. Curves are sized from K and the result becomes a new
 alternative road, with the covered estimates before and after in the notice. If no profile
-meets the limits after curve fitting, the optimizer says which standard or control failed
-instead of returning one. The search stops at 5,000,000 level transitions across all price
-runs (`maxTransitions`), so fine-level searches may need a coarser step or smaller depth.
+meets the limits, the optimizer names the interval, the limit or control that conflicts there
+and what to change, instead of returning one. The search stops at 5,000,000 level transitions
+across all price runs (`maxTransitions`), so fine-level searches may need a coarser step or
+smaller depth. It runs in slices on the page's thread: the progress line shows a percentage and
+Cancel stops it. **Last run**, under the button, then lists what the search sampled and used and
+what the returned line costs, including the waste or borrow it leaves; see the
+[alignment guide](forestry-road-design/alignment-and-optimization.md#reading-optimizer-and-route-results).
 
 On the published LiDAR tile's earlier example road (1,050 m, 22 PVIs at 50 m, ±12 m in 0.5 m steps, K 4, ends free)
 the search took about 1.3 s in a desktop browser. It lowered the covered estimate from
@@ -1180,6 +1197,12 @@ grades, required/capped/actual crossfall and incomplete-data status remain disti
 The [alignment guide](forestry-road-design/alignment-and-optimization.md) describes
 the sampling assumptions; [final connector checks](forestry-road-design/final-connector-checks.md)
 add denser adoption gates for local folds and excessive actual bank.
+
+**Reduce points, fit curves** (`fitPolylineAlignment` in `polylineFit.ts`), under Design →
+Horizontal points, is the polyline-to-alignment step for an imported line or a found route: as
+few points as hold the line within the entered maximum deviation, a curve of at least the minimum
+radius at each, and a notice with the point count before and after and the largest measured
+deviation.
 
 `fitHorizontalRadii` (`horizontalTools.ts`), under Design → Horizontal points, has two modes:
 

@@ -6,6 +6,29 @@ These are places where the workspace does something other than what its controls
 were reproduced; **read** ones were found by reading the code. Remove an entry in the same change
 that fixes it, and add one, with the file and function, when you find a new defect.
 
+## Open: route searches (found 2026-11-09)
+
+- **A found road can have incomplete sections (confirmed).** The corridor search
+  (`evaluate` in `corridorOptimizer.ts`) and the terrain-cost search (`segmentCost` in
+  `routing.ts`) check for ground under the centreline only. On the published LiDAR tile, where
+  0.9 % of cells are gaps scattered across the hillside, roads found between new ends often read
+  "97% of sections complete": a batter runs onto a gap a few metres to one side. Such a road
+  cannot lead a goal in **Find the best route**, and the row says so. The search would need to
+  keep a clearance from gaps, or price ground near them.
+- **A found terrain-cost route can keep sharp corners (confirmed).** `roadFromRoute` in
+  `routeFit.ts` gives a corner the largest curve its tangents hold only from what its neighbours
+  leave; it does not shrink a neighbour's curve to make room. On a 20 m search grid with a 35 m
+  minimum radius, several corners of a route can stay sharp. **Reduce points, fit curves** with a
+  larger deviation removes most of them.
+- **Ground grade along fitted curves is not rechecked (read).** `roadFromRoute` verifies that a
+  fitted centreline has ground under it and enters no blocked area. The grade limit was checked
+  along the grid route's straight legs, up to 16 m away. The designed profile is what holds the
+  grade afterwards.
+- **"Had no line left to try" is not proof (confirmed).** The corridor search keeps one arrival
+  per cell and heading (`best` in `corridorOptimizer.ts`), so a search that ends with no candidate
+  has not tried every line: a second search leaning toward the end found a road in a tube where
+  the even search had reported none. **Find the best route** therefore still tries the next step.
+
 ## Fixed on 2026-10-26
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter

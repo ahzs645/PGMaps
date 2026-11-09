@@ -20,6 +20,8 @@ import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import { RouteFinder } from '../RouteFinder'
+import { RouteAlternativesList } from '../RouteAlternativesList'
+import { replaceableRouteAlternatives } from '../routeAlternatives'
 import { straightPointIds } from '../horizontalTools'
 import type { SidebarProps } from '../DesignSidebarBody'
 import { FirstRoadPanel } from '../FirstRoadPanel'
@@ -351,10 +353,12 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold">Terrain-cost search</p>
           <InfoTip label="About terrain-cost search">
-            An eight-neighbour search between the road's endpoints, without curve constraints. Cost is road $/m scaled
-            by sampled grade, plus each stream crossing and the $/m of any avoidance area given a zone cost. The
-            defaults are placeholders. Clearance and terrain-slope inputs screen the centreline, not the final road
-            footprint. Headings hold the first and last legs within ±45°.
+            An eight-neighbour search between the road's endpoints. Its score is road $/m scaled by sampled grade, plus
+            each stream crossing and the $/m of any avoidance area given a zone cost: a ranking figure, not an estimate,
+            and the defaults are placeholders. Each route found becomes a road with curves of at least the minimum
+            radius where they fit and stay on the terrain; a corner that cannot take one stays sharp and is flagged.
+            Clearance and terrain-slope inputs screen the centreline, not the final road footprint. Headings hold the
+            first and last legs within ±45°.
           </InfoTip>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -375,7 +379,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             min={0}
             max={10000}
             step={5}
-            hint="Used by the corridor optimizer and curve checks. The terrain-cost grid result has sharp corners until curves are fitted."
+            hint="Curves fitted to a found route are at least this radius; a corner too tight for one stays sharp and is flagged. The corridor optimizer and the curve checks use it too."
             onChange={(minRadius) =>
               p.workspace.update((current) => ({ ...current, settings: { ...current.settings, minRadius } }))
             }
@@ -525,9 +529,16 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             Live route preview
           </label>
         )}
-        <Button variant="outline" size="sm" className="w-full" disabled={p.full} onClick={() => p.onSuggest(route)}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          disabled={p.full && !replaceableRouteAlternatives(project.alignments, alignment.id).length}
+          onClick={() => p.onSuggest(route)}
+        >
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
         </Button>
+        <RouteAlternativesList workspace={p.workspace} onSelectRoad={p.onSelectRoad} />
       </div>
       <div className="space-y-2 border-t pt-3" data-testid="road-corridor-optimizer">
         <div className="flex items-center justify-between gap-2">

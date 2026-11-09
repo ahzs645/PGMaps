@@ -37,6 +37,25 @@ describe('bulk horizontal curves', () => {
     expect(warnings.some((w) => w.includes('does not fit') || w.includes('overlaps'))).toBe(false)
   })
 
+  it('gives the radius asked for where the tangents hold it, at any deflection', () => {
+    // 300 m legs: none is short of room. The fit used to come back 0.1 m under on about a quarter of
+    // these, so a curve set to the minimum radius was flagged as below it.
+    const middle = offsetCoordinate(origin, 90, 300)
+    for (const radius of [15, 20, 25, 30, 35, 40, 50, 60])
+      for (let deflection = 10; deflection <= 150; deflection += 5) {
+        const line: RoadPoint[] = [origin, middle, offsetCoordinate(middle, 90 - deflection, 300)].map(
+          (coordinate, i) => ({ id: `q${i}`, coordinate, radiusM: 0 }),
+        )
+        const { points: fitted, report } = fitHorizontalRadii(
+          line,
+          { kind: 'radius', radiusM: radius },
+          { minRadiusM: radius },
+        )
+        expect(fitted[1].radiusM, `${radius} m at ${deflection}°`).toBe(radius)
+        expect(report[0]).toMatchObject({ limitedBy: 'requested', belowMinimum: false })
+      }
+  })
+
   it('fits the largest radius within a tolerance of the pegged corner', () => {
     // A 90° corner with E = 2 m: R = 2 / (sec 45° − 1) ≈ 4.83 m.
     const { points: fitted, report } = fitHorizontalRadii(

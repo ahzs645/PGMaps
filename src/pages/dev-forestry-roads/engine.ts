@@ -760,6 +760,11 @@ export function verticalCurveSummary(alignment: Alignment) {
   return verticalProfile(alignment.vertical, []).curves
 }
 
+/** Elevation and grade (percent) of the designed profile at a station; null when the road has no PVIs. */
+export function designProfileAt(alignment: Alignment, chainage: number) {
+  return verticalProfile(alignment.vertical, []).value(chainage)
+}
+
 function validate(alignment: Alignment, settings: RoadSettings) {
   if (Object.values(settings).some((v) => !Number.isFinite(v)))
     throw new Error('Design settings must be finite numbers.')

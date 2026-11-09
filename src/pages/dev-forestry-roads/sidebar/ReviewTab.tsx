@@ -36,7 +36,7 @@ const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
     'Minimum radius (m)',
     0,
     10000,
-    'Horizontal curves tighter than this are flagged. The corridor optimizer needs 5–1,000 m; the terrain-cost grid search does not fit curves.',
+    'Horizontal curves tighter than this are flagged. The corridor optimizer needs 5–1,000 m; a route from the terrain-cost search gets curves of at least this radius where they fit.',
   ],
 ]
 const RATES = [

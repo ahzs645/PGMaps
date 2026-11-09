@@ -182,6 +182,8 @@ export interface Alignment {
    * read-only, and its formation follows the ground. It is the road as mapped, not a proposal.
    */
   mappedRoad?: MappedRoadOrigin
+  /** Set on a road a terrain-cost route search made: the search's own figures for it. */
+  routeSearch?: RouteSearchRecord
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string
@@ -196,6 +198,24 @@ export interface Alignment {
     routeLengthM: number
     searchCost: number
   }
+}
+/**
+ * What a route search reported for one of the roads it made. The score is the search's own ranking
+ * figure under its cost model (road $/m scaled by ground grade, plus crossings and zones), not an
+ * estimate of the road. `name` and `pointsKey` are the road as made, to tell whether it has been
+ * changed since.
+ */
+export interface RouteSearchRecord {
+  kind: 'terrain-cost'
+  /** 1 is the lowest search score of the routes that search returned. */
+  rank: number
+  of: number
+  searchScore: number
+  /** Length of the route as searched, before curves were fitted, m. */
+  lengthM: number
+  crossings: number
+  name: string
+  pointsKey: string
 }
 /** Where a loaded mapped road came from and how its line was prepared. */
 export interface MappedRoadOrigin {

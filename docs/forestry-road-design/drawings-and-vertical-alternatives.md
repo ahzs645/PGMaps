@@ -5,6 +5,11 @@ named profiles under one horizontal road, rather than duplicating the horizontal
 The plan, base section template and widening ranges are shared. A plan edit therefore changes
 the geometry sampled by every sibling profile.
 
+Once a road has two or more profiles, the profile pane's header carries a **Profile shown** list
+(`ProfileSwitcher.tsx`), so the profile on screen can be changed where it is drawn. It switches
+only: adding, renaming, removing and comparing profiles stay in the Compare view. The profile
+optimizer's notice points to both when it saves its result as a named profile.
+
 **Add profile** retains the original profile as a sibling and selects a copy for editing. Editing
 PVIs, vertical standards and control points affects the selected profile only. Selecting another
 profile saves the current edits before loading that profile. The overlay and table compare each

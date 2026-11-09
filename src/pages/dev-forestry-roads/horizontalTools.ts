@@ -84,7 +84,9 @@ export function fitHorizontalRadii(
   const report: RadiusFitReport[] = []
   const next = points.map((p, i) => {
     if (!touched[i]) return p
-    const radius = Math.floor(radiusFor(i, trims[i]) * 10) / 10
+    // The search for the radius stops a hair under it; without the nudge a 35 m request came back as
+    // 34.9 m on most deflections, below a 35 m minimum, and every such curve was flagged.
+    const radius = Math.floor(radiusFor(i, trims[i]) * 10 + 1e-6) / 10
     report.push({
       index: i,
       deflectionDegrees: theta[i] / RAD,

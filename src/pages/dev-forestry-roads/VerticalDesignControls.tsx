@@ -1,16 +1,21 @@
 import { derivedRoadName } from './roadNames'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { NumberField, OptionalNumberField, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
-import { nearestStation } from './engine'
+import { designProfileAt, nearestStation } from './engine'
 import { EMPTY_VERTICAL_STANDARDS, type VerticalControl, type VerticalStandards } from './verticalStandards'
 import { curveLengthsForK } from './verticalTools'
-import { DEFAULT_VERTICAL_OPTIMIZATION, optimizeVerticalProfile } from './verticalOptimizer'
+import {
+  DEFAULT_VERTICAL_OPTIMIZATION,
+  optimizeVerticalProfileAsync,
+  verticalOptimizationLog,
+  type VerticalOptimizationReport,
+} from './verticalOptimizer'
 import { safeAnalyzeRoad } from './analysisResult'
 import { parseProject } from './project'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -34,23 +39,56 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
     objective: 'earthwork' as 'earthwork' | 'total',
     bandCenter: 'ground' as 'ground' | 'design',
   })
+  // The last run's record, shown under the button for the road or profile it produced.
+  const [log, setLog] = useState<{ roadId: string; profileId?: string; report: VerticalOptimizationReport } | null>(
+    null,
+  )
+  const running = useRef<AbortController | null>(null)
+  useEffect(() => () => running.current?.abort(), [])
   const optimize = async () => {
-    if (workspace.busy) return
+    if (workspace.busy || running.current) return
     const { project, source } = workspace
+    const controller = new AbortController()
+    running.current = controller
+    // Cancel hands the workspace back at once; the search stops at its next slice.
+    const stop = () => {
+      controller.abort()
+      if (running.current !== controller) return
+      running.current = null
+      workspace.setBusy('')
+      workspace.setNotice('Profile optimization cancelled. No road was changed.')
+    }
     workspace.setError('')
     workspace.setBusy('Optimizing the vertical profile…')
-    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+    workspace.setBusyCancel({ label: 'Cancel profile optimization', onCancel: stop })
+    let shown = -1
     try {
       if (resultTarget === 'road' && project.alignments.length >= 20)
         throw Error('The project already has 20 road alternatives.')
-      const result = optimizeVerticalProfile(alignment, analysis.length, source, project.settings, {
-        ...search,
-        k,
-        context: project.context,
-        referenceSurfaces: workspace.referenceSurfaces,
-        verticalReference: project.terrain.verticalReference,
-        sharedCrossingCosts: project.sharedCrossingCosts,
-      })
+      const result = await optimizeVerticalProfileAsync(
+        alignment,
+        analysis.length,
+        source,
+        project.settings,
+        {
+          ...search,
+          k,
+          context: project.context,
+          referenceSurfaces: workspace.referenceSurfaces,
+          verticalReference: project.terrain.verticalReference,
+          sharedCrossingCosts: project.sharedCrossingCosts,
+        },
+        {
+          signal: controller.signal,
+          onProgress: ({ fraction }) => {
+            const percent = Math.floor(fraction * 100)
+            if (percent === shown || running.current !== controller) return
+            shown = percent
+            workspace.setBusyProgress({ step: percent, total: 100, text: `${percent}%` })
+          },
+        },
+      )
+      if (running.current !== controller) return
       let candidate =
         resultTarget === 'vertical'
           ? addVerticalAlternative(
@@ -86,14 +124,26 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           activeAlignmentId: candidate.id,
         }),
       )
+      setLog({ roadId: candidate.id, profileId: candidate.activeVerticalAlternativeId, report: result.report })
       const money = (n: number) => `$${Math.round(n).toLocaleString('en-CA')}`
+      const { notes } = result.report
       workspace.setNotice(
-        `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original ${resultTarget === 'vertical' ? 'profile' : 'road'} is kept as an alternative.`,
+        `${result.message} Covered estimate ${money(analysis.estimatedCost)} → ${money(after.estimatedCost)}; the original ${resultTarget === 'vertical' ? 'profile' : 'road'} is kept as an alternative.` +
+          (resultTarget === 'vertical'
+            ? ' Switch between this road’s profiles from the list in the profile pane’s header; compare them under Compare → Profiles on this road.'
+            : '') +
+          (notes.length
+            ? ` ${notes.length === 1 ? notes[0] : `${notes.length} things to check are listed under “Last run”.`}`
+            : ''),
       )
     } catch (cause) {
+      if (running.current !== controller) return
       workspace.setError(cause instanceof Error ? cause.message : 'Could not optimize the profile.')
     } finally {
-      workspace.setBusy('')
+      if (running.current === controller) {
+        running.current = null
+        workspace.setBusy('')
+      }
     }
   }
   const setStandards = (patch: Partial<VerticalStandards>) =>
@@ -109,6 +159,29 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
   const fromAlignment = (chainage: number) => {
     const at = nearestStation(analysis.stations, chainage)
     return { elevation: at?.designElevation ?? null, gradePercent: at?.gradePercent ?? null }
+  }
+  /** Fills a control from the designed profile at its own station, or says what there is to read instead. */
+  const readFromAlignment = (control: VerticalControl, index: number) => {
+    const name = `Control ${index + 1}`,
+      at = formatRoadStation(control.chainage)
+    const designedAt = alignment.vertical.length > 1 ? designProfileAt(alignment, control.chainage) : null
+    if (designedAt) {
+      setControl(control.id, { elevation: designedAt.elevation, gradePercent: designedAt.grade })
+      workspace.setNotice(
+        `${name} set from the profile at ${at}: ${designedAt.elevation.toFixed(2)} m, ${designedAt.grade.toFixed(1)}%.`,
+      )
+      return
+    }
+    // Without a profile the formation follows the ground, which has a level to hold but no design grade.
+    const ground = nearestStation(analysis.stations, control.chainage)?.groundElevation
+    if (ground === null || ground === undefined || !Number.isFinite(ground)) {
+      workspace.setError(`There is no profile and no ground at ${at} to read. Move the control onto the terrain.`)
+      return
+    }
+    setControl(control.id, { elevation: ground })
+    workspace.setNotice(
+      `${name} set to the ground at ${at} (${ground.toFixed(2)} m). This road has no designed profile yet, so there is no grade to read.`,
+    )
   }
   const checks = analysis.verticalChecks ?? []
   const designed = alignment.vertical.length > 1
@@ -448,6 +521,17 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
         >
           Optimize profile (K {k})
         </Button>
+        {log && log.roadId === alignment.id && log.profileId === alignment.activeVerticalAlternativeId && (
+          <div className="mt-2 rounded-md border p-2" data-testid="road-profile-optimization-log">
+            <p className="mb-1 text-xs font-medium">Last run</p>
+            <KeyValueRows rows={verticalOptimizationLog(log.report)} valueMaxWidth="max-w-[10rem]" />
+            {log.report.notes.map((note) => (
+              <InlineAlert key={note} tone="warning">
+                {note}
+              </InlineAlert>
+            ))}
+          </div>
+        )}
       </RoadSection>
       <JointOptimizationControls workspace={workspace} profile={{ ...search, k }} />
       <RoadSection
@@ -467,8 +551,12 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                     size="sm"
                     variant="ghost"
                     className="h-6 px-1 text-2xs"
-                    disabled={!designed}
-                    onClick={() => setControl(c.id, fromAlignment(c.chainage))}
+                    title={
+                      designed
+                        ? 'Sets the elevation and grade from the designed profile at this station'
+                        : 'Sets the elevation from the ground at this station; the road has no designed profile to read a grade from'
+                    }
+                    onClick={() => readFromAlignment(c, index)}
                   >
                     Get from alignment
                   </Button>

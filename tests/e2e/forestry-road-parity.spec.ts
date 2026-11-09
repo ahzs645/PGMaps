@@ -84,7 +84,9 @@ test('bulk curves, ranked route alternatives and design exports', async ({ page 
   await page.getByLabel('Alternatives', { exact: true }).press('Tab')
   await page.getByRole('button', { name: 'Suggest terrain-cost alternatives', exact: true }).click()
   await expect.poll(() => roadCount(page)).toBeGreaterThan(count + 1)
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveText(/terrain-cost #1 \(\$/)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveText(/terrain-cost route 1/)
+  // The search's own score is beside the routes it found, not in their names.
+  await expect(page.getByTestId('road-route-alternatives')).toContainText(/\$[\d,]+/)
   await choose(page.getByRole('combobox', { name: 'Active road', exact: true }), { index: count - 1 })
 
   await page.getByRole('button', { name: 'Save', exact: true }).click()
