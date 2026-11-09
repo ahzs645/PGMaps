@@ -2,7 +2,10 @@ import JSZip from 'jszip'
 import proj4 from 'proj4'
 import { describe, expect, it } from 'vitest'
 import { projectionDefinition } from '@/lib/geo/projectedCrs'
-import { createDemoProject } from './terrain'
+import { analyzeRoad, offsetCoordinate } from './engine'
+import { sectionCodePoints } from './sectionGeometry'
+import { featureSectionAnchor } from './sectionReferences'
+import { createDemoProject, DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import { writeShapefileLayer, type ShapeLayer } from './shapefile'
 import {
   applySpatialImport,
@@ -16,7 +19,7 @@ import {
   statedRole,
   type SpatialFile,
 } from './spatialImport'
-import type { Coordinate } from './types'
+import type { Alignment, Coordinate } from './types'
 
 /** The ESRI projection file of a NAD83(CSRS) / UTM zone 10N shapefile: no authority code in it. */
 const CSRS_UTM10_PRJ =
@@ -171,6 +174,72 @@ describe('reading a spatial file', () => {
       [-122.8158, 53.8989, 761.2],
       [-122.8165, 53.895, 758.4],
     ])
+  })
+
+  it('keeps the heights of a feature that states its vertical datum, so a section anchor reads them', async () => {
+    // A surveyed bench 6 m left of a road running north, as a project's GeoJSON export writes it,
+    // beside a 3D line that states no datum.
+    const origin: Coordinate = [-122.8, 53.9]
+    const beside = (along: number, z: number) => [...offsetCoordinate(offsetCoordinate(origin, 0, along), 270, 6), z]
+    const measured = [beside(-50, 798.5), beside(150, 800.5)] as unknown as Coordinate[]
+    const exported = JSON.stringify({
+      type: 'FeatureCollection',
+      features: [
+        line(measured, { kind: 'stream', name: 'Survey bench', referenceVerticalDatum: 'CGVD2013' }),
+        line(measured, { kind: 'stream', name: 'Height of unknown datum' }),
+      ],
+    })
+    const read = await readSpatialImport(file('survey.geojson', exported))
+    const [withDatum, without] = read.collection.features.map((f) => (f.geometry as GeoJSON.LineString).coordinates)
+    expect(withDatum.map((p) => p[2])).toEqual([798.5, 800.5])
+    expect(without.every((p) => p.length === 2)).toBe(true)
+
+    const imported = buildSpatialImport(read, { point: null, line: null, polygon: null }, 'streams')
+    const bench = imported.context.find((feature) => feature.name === 'Survey bench')!
+    expect(bench.referenceVerticalDatum).toBe('CGVD2013')
+    const anchor = featureSectionAnchor(bench, offsetCoordinate(origin, 0, 50), 0, 'left', { checks: 0 })!
+    expect(anchor.offset).toBeCloseTo(-6, 3)
+    expect(anchor.elevation).toBeCloseTo(799.5, 6)
+
+    // A component anchored to it takes the measured level, not the ground at the intersection (800 m).
+    const road: Alignment = {
+      id: 'r',
+      name: 'Road',
+      color: '#16817a',
+      points: [
+        { id: 'a', coordinate: origin, radiusM: 0 },
+        { id: 'b', coordinate: offsetCoordinate(origin, 0, 100), radiusM: 0 },
+      ],
+      vertical: [
+        { id: 'a', chainage: 0, elevation: 798, curveLength: 0 },
+        { id: 'b', chainage: 100, elevation: 798, curveLength: 0 },
+      ],
+      template: {
+        ...DEFAULT_TEMPLATE,
+        components: [
+          {
+            id: 'anchor',
+            name: 'Anchored bench',
+            side: 'left',
+            kind: 'slope',
+            condition: 'cut',
+            widthM: 1,
+            riseM: 0,
+            referenceFeatureId: bench.id,
+            code: 'survey-edge',
+          },
+        ],
+      },
+      overrides: [],
+    }
+    const analysis = analyzeRoad(road, { elevationAt: () => 800 }, DEFAULT_ROAD_SETTINGS, imported.context, {
+      verticalReference: 'CGVD2013',
+    })
+    const station = analysis.stations.find((s) => s.chainage === 50)!
+    expect(sectionCodePoints(station, road.template).find((p) => p.code === 'survey-edge')?.design).toBeCloseTo(
+      799.5,
+      5,
+    )
   })
 
   it('names the file and the accepted formats instead of showing a parser error', async () => {

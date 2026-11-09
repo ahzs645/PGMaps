@@ -141,7 +141,13 @@ reference layer**. The picker only says what it is for; the file's contents deci
   plan legend lists them and **Map settings** can hide them. The GeoJSON export writes them with
   `kind: "reference"`, so they import back as reference. The printed report and the map PDF do not
   draw them.
-- **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum.
+- **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum. The
+  exception is a GeoJSON feature that states its datum in a `referenceVerticalDatum` property, as
+  the project's own GeoJSON export writes for a measured 3D line or area. Its heights are kept
+  (`statesVerticalDatum`, `spatialImport.ts`), so a section component anchored to it takes its
+  level from them when that datum matches the terrain's (see
+  [section assemblies](section-assemblies.md)). A shapefile cannot carry that property, and the
+  import has no field for stating a datum, so a 3D shapefile line comes in flat.
 
 ### LandXML
 
