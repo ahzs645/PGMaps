@@ -34,7 +34,12 @@ export function RoadSwitcher({
   const colors = distinctRoadColors(alignments)
   const options = alignments.map((road, i) => {
     const result = analyses.get(road.id)
-    const cost = result && !alternativeCostLabel(result) ? money(result.estimatedCost) : null
+    // A mapped road already exists: label it as such rather than with a build cost it does not have.
+    const cost = road.mappedRoad
+      ? 'mapped'
+      : result && !alternativeCostLabel(result)
+        ? money(result.estimatedCost)
+        : null
     // A native option is text only, so the road's colour is shown beside the select instead.
     return { value: road.id, title: road.name, label: cost ? `${names[i]} · ${cost}` : names[i] }
   })

@@ -81,6 +81,7 @@ export function AccessHistoryPanel({
   defaultOpen = false,
   onInspectRecord,
   onSelectBlock,
+  onLoadAsRoad,
 }: {
   workspace: AccessHistoryWorkspace
   onLocate?: (coordinates: Coordinate[]) => void
@@ -88,6 +89,7 @@ export function AccessHistoryPanel({
   defaultOpen?: boolean
   onInspectRecord?: (kind: 'road' | 'structure', id: string) => void
   onSelectBlock?: (id: string) => void
+  onLoadAsRoad?: (featureId: string) => void
 }) {
   const fallback = useMemo(() => createAccessHistoryState(), [])
   const history = w.project.accessHistory ?? fallback
@@ -295,6 +297,7 @@ export function AccessHistoryPanel({
               history={history}
               asOf={coverage.asOf}
               onLocate={onLocate}
+              onLoadAsRoad={onLoadAsRoad}
             />
           </div>
         )}

@@ -1,7 +1,7 @@
 import { RoadSelect } from './Controls'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
+import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
 import { MapLineLayer } from '@/components/ui/map-layers'
@@ -38,6 +38,7 @@ import {
 import { terrainBounds } from './terrain'
 import { roadPlanFitCoordinates } from './planFit'
 import { investigationAnalysis, investigationCoordinates, isAccessInvestigation } from './investigationWorkspace'
+import { MAPPED_ROAD_COLOR } from './mappedRoad'
 import { buildTerrainDisplay } from './terrainDisplay'
 import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
@@ -60,7 +61,10 @@ import type {
   TerrainSource,
 } from './types'
 
-export type DrawMode = 'inspect' | 'edit' | 'road' | 'profile' | 'cable' | 'stream' | 'avoid'
+/** `sketch` takes one freehand stroke; `extend` pegs on from the active road's nearer end. */
+export type DrawMode = 'inspect' | 'edit' | 'road' | 'sketch' | 'extend' | 'profile' | 'cable' | 'stream' | 'avoid'
+/** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
+export const SKETCH_CAPTURE_PX = 1.5
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
 type FitRequest = { revision: number; target: 'roads' | 'active' | 'terrain' }
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
@@ -83,6 +87,8 @@ interface PlanProps {
   onMode?: (mode: DrawMode) => void
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
+  /** A finished freehand stroke in `sketch` mode, with the ground size of a screen pixel when it ended. */
+  onSketch?: (stroke: Coordinate[], metresPerPixel: number) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
   onInsertPoint?: (afterId: string, coordinate: Coordinate) => void
   /** A bend handle was clicked or barely moved, so nothing changed. */
@@ -110,6 +116,8 @@ interface PlanProps {
   /** Inspect the source/history of a mapped cutblock or existing road. */
   onContextSelect?: (feature: ContextFeature, at?: Coordinate) => void
   onHistorySelect?: (selection: Omit<AccessHistorySelection, 'revision'>) => void
+  /** Loads a mapped road as a road whose formation follows the ground, to read its profile. */
+  onLoadMappedRoad?: (featureId: string) => void
   historySelection?: AccessHistorySelection
   /** Saves the project's map notes; without it notes show but cannot be drawn or edited. */
   onNotesChange?: (notes: MapNote[]) => void
@@ -422,7 +430,9 @@ function Layers(
                   ? '#9ca3af'
                   : p.gradePercent !== null && Math.abs(p.gradePercent) > props.project.settings.maxGradePercent
                     ? '#dc2626'
-                    : '#d97706',
+                    : a.mappedRoad
+                      ? MAPPED_ROAD_COLOR
+                      : '#d97706',
           }),
         )
       }),
@@ -625,6 +635,66 @@ function Layers(
   useLayoutEffect(() => {
     latestSection.current = section
   }, [section])
+  // The stroke being sketched has its own source: it changes on every pointer move, and sending it
+  // with the other sources would queue all of them behind each move.
+  const [stroke, setStroke] = useState<Coordinate[]>([])
+  const sketchLine = useMemo(() => fc(stroke.length > 1 ? [line(stroke)] : []), [stroke])
+  const latestSketch = useRef(sketchLine)
+  useLayoutEffect(() => {
+    latestSketch.current = sketchLine
+  }, [sketchLine])
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    ;(map.getSource('road-sketch') as GeoJSONSource | undefined)?.setData(sketchLine)
+  }, [map, isLoaded, sketchLine])
+  const onSketch = props.onSketch
+  useEffect(() => {
+    if (!map || !isLoaded || mode !== 'sketch' || !onSketch) return
+    // Press, drag, release. The map stops panning while the pencil is in hand.
+    map.dragPan.disable()
+    map.touchZoomRotate.disableRotation()
+    let current: Coordinate[] | null = null
+    const at = (e: MapMouseEvent | MapTouchEvent): Coordinate => [e.lngLat.lng, e.lngLat.lat]
+    const down = (e: MapMouseEvent | MapTouchEvent) => {
+      if ('points' in e && e.points.length > 1) return
+      e.preventDefault()
+      current = [at(e)]
+      setStroke(current)
+    }
+    const move = (e: MapMouseEvent | MapTouchEvent) => {
+      if (!current) return
+      const next = at(e)
+      const last = current[current.length - 1]
+      if (map.project(last).dist(map.project(next)) < SKETCH_CAPTURE_PX) return
+      current = [...current, next]
+      setStroke(current)
+    }
+    const up = () => {
+      if (!current) return
+      const finished = current
+      current = null
+      setStroke([])
+      const metresPerPixel = (40075016.7 * Math.cos((map.getCenter().lat * Math.PI) / 180)) / (512 * 2 ** map.getZoom())
+      if (finished.length > 1) onSketch(finished, metresPerPixel)
+    }
+    map.on('mousedown', down)
+    map.on('touchstart', down)
+    map.on('mousemove', move)
+    map.on('touchmove', move)
+    map.on('mouseup', up)
+    map.on('touchend', up)
+    return () => {
+      map.off('mousedown', down)
+      map.off('touchstart', down)
+      map.off('mousemove', move)
+      map.off('touchmove', move)
+      map.off('mouseup', up)
+      map.off('touchend', up)
+      map.dragPan.enable()
+      map.touchZoomRotate.enableRotation()
+      setStroke([])
+    }
+  }, [map, isLoaded, mode, onSketch])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -685,6 +755,7 @@ function Layers(
       structures,
       draft,
       section: latestSection.current,
+      sketch: latestSketch.current,
       ticks,
       contours: display?.contours ?? fc([]),
       overlay: props.overlay ?? fc([]),
@@ -875,6 +946,13 @@ function Layers(
       source: 'road-draft',
       paint: { 'line-color': '#0d9488', 'line-width': 3, 'line-dasharray': [2, 1] },
     })
+    add({
+      id: 'road-sketch',
+      type: 'line',
+      source: 'road-sketch',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#0d9488', 'line-width': 4, 'line-opacity': 0.85 },
+    })
     // Existing-ground streams dashed and pale, design-surface streams solid and widening with
     // contributing area, so a stream the road turns shows as the two lines parting.
     add({
@@ -1032,6 +1110,7 @@ function Layers(
       'road-structures',
       'road-section',
       'road-draft',
+      'road-sketch',
       'road-drainage-existing',
       'road-drainage-catchment-fill',
       'road-drainage-catchment-outline',
@@ -1088,6 +1167,7 @@ function Layers(
         onPourPoint([e.lngLat.lng, e.lngLat.lat])
         return
       }
+      if (mode === 'sketch') return
       if (!['inspect', 'edit'].includes(mode)) {
         onDraw([e.lngLat.lng, e.lngLat.lat])
         return
@@ -1856,6 +1936,14 @@ export function PlanView(input: PlanProps) {
             road={cardRoad}
             at={roadCard.at}
             onClose={() => setRoadCard(null)}
+            onLoadAsRoad={
+              props.onLoadMappedRoad && cardRoad.geometry.type === 'LineString'
+                ? () => {
+                    setRoadCard(null)
+                    props.onLoadMappedRoad?.(cardRoad.id)
+                  }
+                : undefined
+            }
             onAccessHistory={
               props.onHistorySelect
                 ? () => {

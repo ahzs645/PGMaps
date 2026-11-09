@@ -159,6 +159,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         selection={p.historySelection}
         onInspectRecord={p.onInspectHistoryRecord}
         onSelectBlock={p.onSelectHistoryBlock}
+        onLoadAsRoad={p.onLoadMappedRoad}
       />
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection

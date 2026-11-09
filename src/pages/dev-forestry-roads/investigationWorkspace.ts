@@ -1,6 +1,6 @@
 import { distance, offsetCoordinate } from './engine'
 import { DEFAULT_TEMPLATE } from './terrain'
-import type { Coordinate, RoadAnalysis, RoadProject } from './types'
+import type { Alignment, Coordinate, RoadAnalysis, RoadProject } from './types'
 
 export const INTERNAL_ACCESS_DRAFT_NAME = 'Internal design placeholder · not a mapped road'
 const LEGACY_ACCESS_DRAFT_NAME = 'Design draft · no historical-use assertion'
@@ -57,19 +57,38 @@ export function legacyAccessInvestigation(project: RoadProject): RoadProject['in
   return { openingId: '60677', draftAlignmentId: road.id }
 }
 
-/** Explicit transition: the internal draft becomes an editable proposal only after this action. */
-export function startInvestigationDesign(project: RoadProject): RoadProject {
+/**
+ * Explicit transition into design. With a `seed` (a road the user chose, such as a mapped road),
+ * that road becomes the design's first road. Without one the design starts empty: the internal
+ * draft stays hidden as `designPlaceholderId` until the user pegs, sketches or loads a road.
+ */
+export function startInvestigationDesign(project: RoadProject, seed?: Alignment): RoadProject {
   if (!isAccessInvestigation(project)) return project
   const { investigation, ...design } = project
+  if (seed) return { ...design, workspaceMode: 'design', alignments: [seed], activeAlignmentId: seed.id }
   return {
     ...design,
     workspaceMode: 'design',
-    alignments: project.alignments.map((alignment) =>
-      alignment.id === investigation?.draftAlignmentId
-        ? { ...alignment, name: 'New design draft · proposed alignment' }
-        : alignment,
-    ),
+    designPlaceholderId: investigation?.draftAlignmentId ?? project.activeAlignmentId,
   }
+}
+
+/** The hidden placeholder of a design that has no road yet. */
+export const isDesignPlaceholder = (project: Pick<RoadProject, 'designPlaceholderId'>, alignmentId: string) =>
+  project.designPlaceholderId === alignmentId
+
+/** Whether the design still has no road of its own. */
+export const awaitingFirstRoad = (project: Pick<RoadProject, 'designPlaceholderId'>) => !!project.designPlaceholderId
+
+/**
+ * Adds roads to a project, making `activeId` (default: the first added) active. A pending
+ * placeholder is dropped here, so no path that adds a road can leave it behind.
+ */
+export function withAddedAlignments(project: RoadProject, added: Alignment[], activeId = added[0]?.id): RoadProject {
+  if (!added.length) return project
+  const { designPlaceholderId, ...rest } = project
+  const kept = designPlaceholderId ? project.alignments.filter((a) => a.id !== designPlaceholderId) : project.alignments
+  return { ...rest, alignments: [...kept, ...added], activeAlignmentId: activeId ?? added[0].id }
 }
 
 /** The non-null engine contract is retained, but no placeholder geometry is analysed or exposed. */

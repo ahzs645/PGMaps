@@ -25,6 +25,11 @@ const METRICS: Metric[] = [
   { id: 'disturbance', label: 'Disturbance', unit: 'm²', value: (r) => r.clearingAreaM2 },
 ]
 
+/** What building a road costs and disturbs. A mapped road already exists, so it has none to compare. */
+const BUILD_METRICS = new Set(['cost', 'earthworks', 'disturbance'])
+const EXISTING_ROAD_NOTE =
+  'A mapped road already exists. Its formation follows the ground, so build cost, earthworks and disturbance do not apply.'
+
 export function compareMetric(
   base: RoadAnalysis,
   other: RoadAnalysis,
@@ -143,20 +148,35 @@ export function CompareAlternatives({
                       aria-hidden="true"
                     />
                     <span className="truncate">{names.get(a.id)}</span>
+                    {a.mappedRoad && (
+                      <span className="shrink-0 rounded bg-violet-100 px-1 text-3xs text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                        mapped
+                      </span>
+                    )}
                   </button>
                 </td>
                 {METRICS.map((m) => {
                   if (!available) return <td key={m.id}>—</td>
+                  if (a.mappedRoad && BUILD_METRICS.has(m.id))
+                    return (
+                      <td key={m.id} data-metric={m.id} title={EXISTING_ROAD_NOTE} className="text-muted-foreground">
+                        Existing
+                      </td>
+                    )
                   if (m.id === 'cost' && alternativeCostLabel(result))
                     return (
                       <td key={m.id} data-metric={m.id} className="text-amber-700 dark:text-amber-400">
                         {alternativeCostLabel(result)}
                       </td>
                     )
-                  const { value, change, reason } = compareMetric(baseline, result, m.id, {
+                  const compared = compareMetric(baseline, result, m.id, {
                     baseHasProfile: baselineAlignment.vertical.length > 0,
                     otherHasProfile: a.vertical.length > 0,
                   })
+                  const { value } = compared
+                  const againstExisting = !!baselineAlignment.mappedRoad && BUILD_METRICS.has(m.id)
+                  const change = againstExisting ? null : compared.change
+                  const reason = againstExisting ? EXISTING_ROAD_NOTE : compared.reason
                   const better = change !== null && change < -0.05,
                     worse = change !== null && change > 0.05
                   return (
@@ -194,7 +214,7 @@ export function CompareAlternatives({
           })}
         </tbody>
       </EngineeringTable>
-      {onAlignmentChange && alignments.find((a) => a.id === activeId) && (
+      {onAlignmentChange && alignments.find((a) => a.id === activeId && !a.mappedRoad) && (
         <VerticalAlternativesEditor
           alignment={alignments.find((a) => a.id === activeId)!}
           terrain={terrain}

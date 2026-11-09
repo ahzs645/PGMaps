@@ -37,6 +37,7 @@ import type {
   CableLine,
   ContextFeature,
   Coordinate,
+  MappedRoadOrigin,
   RoadAnalysis,
   RoadProject,
   RoadSettings,
@@ -335,6 +336,25 @@ function parseCurveDesign(raw: unknown): CurveDesign {
   validateCurveCriteria(result)
   return result
 }
+function parseMappedRoad(raw: unknown): MappedRoadOrigin {
+  const r = object(raw, 'Mapped road origin')
+  if (r.source !== 'bc-ften' && r.source !== 'user' && r.source !== 'scenario')
+    throw Error('A mapped road source must be bc-ften, user or scenario.')
+  const strings = (value: unknown, label: string, min: number) =>
+    list(value, label, 500, min).map((entry) => text(entry, label, 200))
+  return {
+    source: r.source,
+    roadName: text(r.roadName, 'Mapped road name'),
+    contextIds: strings(r.contextIds, 'Mapped road parts', 1),
+    sourceIds: strings(r.sourceIds, 'Mapped road source IDs', 0),
+    ...(r.forestFileId === undefined ? {} : { forestFileId: text(r.forestFileId, 'Mapped road forest file', 40) }),
+    ...(r.roadSectionId === undefined ? {} : { roadSectionId: text(r.roadSectionId, 'Mapped road section', 40) }),
+    sourceVertexCount: Math.round(number(r.sourceVertexCount, 'Mapped road source vertices', 2, MAX_CONTEXT_VERTICES)),
+    thinningToleranceM: number(r.thinningToleranceM, 'Mapped road thinning tolerance', 0, 1000),
+    joinGapsM: list(r.joinGapsM, 'Mapped road joins', 500).map((gap) => number(gap, 'Mapped road join gap', 0, 100000)),
+    partsLeftOut: Math.round(number(r.partsLeftOut, 'Mapped road parts left out', 0, 500)),
+  }
+}
 function parseAlignment(raw: unknown): Alignment {
   const r = object(raw, 'Alignment'),
     key = id(r.id, 'Alignment ID')
@@ -391,6 +411,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.networkEntryRoadId === undefined
       ? {}
       : { networkEntryRoadId: text(r.networkEntryRoadId, 'Connector road attachment') }),
+    ...(r.mappedRoad === undefined ? {} : { mappedRoad: parseMappedRoad(r.mappedRoad) }),
     ...(r.verticalControls === undefined
       ? {}
       : {
@@ -631,6 +652,13 @@ export function parseProject(raw: unknown): RoadProject {
     (alignments.length !== 1 || activeAlignmentId !== investigationMetadata?.draftAlignmentId)
   )
     throw Error('Start design before adding road alignments to an access investigation.')
+  const designPlaceholderId =
+    r.designPlaceholderId === undefined ? undefined : id(r.designPlaceholderId, 'Design placeholder')
+  if (designPlaceholderId !== undefined) {
+    if (r.workspaceMode !== 'design') throw Error('Only a started design keeps a hidden design placeholder.')
+    if (alignments.length !== 1 || alignments[0].id !== designPlaceholderId)
+      throw Error('A hidden design placeholder is the only road until the first road is added.')
+  }
   const context = list(r.context, 'Context features', 500).map(parseContext)
   validateContextBudget(context)
   const cables = list(r.cables, 'D-lines', 100).map(parseCable)
@@ -662,6 +690,7 @@ export function parseProject(raw: unknown): RoadProject {
     name: text(r.name, 'Project name'),
     ...(r.workspaceMode === undefined ? {} : { workspaceMode: r.workspaceMode }),
     ...(investigationMetadata ? { investigation: investigationMetadata } : {}),
+    ...(designPlaceholderId ? { designPlaceholderId } : {}),
     ...(r.harvestHistoryYear === undefined
       ? {}
       : { harvestHistoryYear: parseHarvestHistoryYear(r.harvestHistoryYear) }),

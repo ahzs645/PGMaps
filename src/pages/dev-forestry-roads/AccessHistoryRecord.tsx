@@ -46,12 +46,15 @@ export function AccessHistoryRecord({
   history,
   asOf,
   onLocate,
+  onLoadAsRoad,
 }: {
   selection: Pick<AccessHistorySelection, 'kind' | 'id'>
   context: ContextFeature[]
   history: HistoricalAccessState
   asOf: string
   onLocate?: (coordinates: Coordinate[]) => void
+  /** Loads the road, held as mapped, to read its profile and grades on the project terrain. */
+  onLoadAsRoad?: (featureId: string) => void
 }) {
   if (selection.kind === 'road') {
     const road = context.find((feature) => feature.id === selection.id && feature.kind === 'existing-road')
@@ -138,6 +141,11 @@ export function AccessHistoryRecord({
             }
           >
             Locate road record
+          </Button>
+        )}
+        {onLoadAsRoad && (
+          <Button size="sm" onClick={() => onLoadAsRoad(road.id)}>
+            Load as road · read its profile
           </Button>
         )}
       </div>

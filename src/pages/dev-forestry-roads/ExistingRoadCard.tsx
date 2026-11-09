@@ -13,6 +13,7 @@ export function ExistingRoadCard({
   onClose,
   onReview,
   onAccessHistory,
+  onLoadAsRoad,
 }: {
   road: ContextFeature
   at: Coordinate
@@ -20,6 +21,8 @@ export function ExistingRoadCard({
   /** The full record, history, condition and reuse settings, in the sidebar. */
   onReview?: () => void
   onAccessHistory?: () => void
+  /** Loads this road as the active road, held as mapped, so its profile and grades can be read. */
+  onLoadAsRoad?: () => void
 }) {
   const evidence = road.roadEvidence
   const style = roadHistoryStyle(evidence)
@@ -48,8 +51,13 @@ export function ExistingRoadCard({
         onClose={onClose}
         closeLabel="Close road details"
         actions={
-          (onReview || onAccessHistory) && (
-            <div className="grid gap-1.5">
+          (onReview || onAccessHistory || onLoadAsRoad) && (
+            <div className="grid w-full gap-1.5">
+              {onLoadAsRoad && (
+                <Button size="sm" className="h-7 w-full text-xs" onClick={onLoadAsRoad}>
+                  Load as road
+                </Button>
+              )}
               {onReview && (
                 <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onReview}>
                   Review road

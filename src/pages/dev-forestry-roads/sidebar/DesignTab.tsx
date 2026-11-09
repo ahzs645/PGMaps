@@ -1,6 +1,6 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Plus, Trash2, type LucideIcon } from 'lucide-react'
+import { Copy, PencilLine, Plus, SquareArrowOutUpRight, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -22,6 +22,9 @@ import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import { RouteFinder } from '../RouteFinder'
 import { straightPointIds } from '../horizontalTools'
 import type { SidebarProps } from '../DesignSidebarBody'
+import { FirstRoadPanel } from '../FirstRoadPanel'
+import { MappedRoadPanel } from '../MappedRoadPanel'
+import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
 const MAX_ALIGNMENTS = 20
@@ -29,13 +32,41 @@ const MAX_ALIGNMENTS = 20
 export function DesignTab(p: SidebarProps) {
   const { project, alignment, updateAlignment } = p.workspace
   const full = project.alignments.length >= MAX_ALIGNMENTS
+  if (awaitingFirstRoad(project))
+    return (
+      <FirstRoadPanel
+        context={project.context}
+        onPeg={() => p.onMode('road')}
+        onSketch={() => p.onMode('sketch')}
+        onLoadMappedRoad={(id) => p.onLoadMappedRoad?.(id)}
+      />
+    )
+  const mapped = !!alignment.mappedRoad
   return (
     <>
       <RoadSection
         title="Road"
+        actions={
+          <Button
+            size="icon"
+            className="size-7 shrink-0"
+            variant="ghost"
+            aria-label="Delete active alignment"
+            title="Delete this road"
+            onClick={p.onRemoveAlignment}
+            disabled={project.alignments.length <= 1}
+          >
+            <Trash2 className="size-3" />
+          </Button>
+        }
         help={
           <>
             <b>Peg road:</b> click the start, optional middle points, then the end and Finish road.
+            <br />
+            <b>Sketch:</b> press and drag a road freehand; its corners get the minimum radius. A stroke that starts or
+            ends at the active road&apos;s end continues that road.
+            <br />
+            <b>Extend:</b> peg on from the active road&apos;s nearer end.
             <br />
             <b>Edit points:</b> drag any numbered control; click + between controls to add a middle point.
             <br />
@@ -75,10 +106,11 @@ export function DesignTab(p: SidebarProps) {
               />
             </Field>
           </div>
-          <div className="flex gap-1">
+          {/* Two rows of two: four labelled buttons do not fit the sidebar's width on one line. */}
+          <div className="grid grid-cols-2 gap-1">
             <Button
               size="sm"
-              className="min-w-0 flex-1 gap-1 px-1"
+              className="min-w-0 gap-1 px-1"
               onClick={() => p.onMode('road')}
               aria-pressed={p.mode === 'road'}
               disabled={full}
@@ -89,28 +121,69 @@ export function DesignTab(p: SidebarProps) {
             <Button
               size="sm"
               variant="outline"
-              className="min-w-0 flex-1 gap-1 px-1"
-              aria-label="Duplicate active alignment"
-              title="Keep this road and edit a separate path alternative"
-              onClick={p.onDuplicate}
-              disabled={full}
+              className="min-w-0 gap-1 px-1"
+              onClick={() => p.onMode('sketch')}
+              aria-pressed={p.mode === 'sketch'}
+              title="Press and drag to sketch a road freehand"
             >
-              <Copy className="size-3" /> Duplicate
+              <PencilLine className="size-3" />
+              Sketch
             </Button>
             <Button
-              size="icon"
-              className="size-8 shrink-0"
-              variant="ghost"
-              aria-label="Delete active alignment"
-              title="Delete this road"
-              onClick={p.onRemoveAlignment}
-              disabled={project.alignments.length <= 1}
+              size="sm"
+              variant="outline"
+              className="min-w-0 gap-1 px-1"
+              onClick={() => p.onMode('extend')}
+              aria-pressed={p.mode === 'extend'}
+              disabled={mapped}
+              title={
+                mapped ? 'Copy this mapped road as a design to extend it' : 'Peg on from the nearer end of this road'
+              }
             >
-              <Trash2 className="size-3" />
+              <SquareArrowOutUpRight className="size-3" />
+              Extend
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-w-0 gap-1 px-1"
+              aria-label={mapped ? 'Copy mapped road as a design' : 'Duplicate active alignment'}
+              title={
+                mapped
+                  ? 'An editable design on this mapped line'
+                  : 'Keep this road and edit a separate path alternative'
+              }
+              onClick={mapped ? () => p.onCopyMappedRoad?.() : p.onDuplicate}
+              disabled={full}
+            >
+              <Copy className="size-3" /> {mapped ? 'Copy as design' : 'Duplicate'}
             </Button>
           </div>
         </div>
       </RoadSection>
+      {mapped && (
+        <MappedRoadPanel
+          workspace={p.workspace}
+          full={full}
+          onCopyAsDesign={() => p.onCopyMappedRoad?.()}
+          onCompareRoutes={() => p.onSuggest(project.routeSearch ?? DEFAULT_ROUTE_OPTIONS)}
+          onLocate={p.onLocateActiveRoad}
+          onStation={(chainage) => p.workspace.setStation(chainage)}
+          onLoadTerrain={p.onLoadTerrainAroundRoad}
+        />
+      )}
+      {mapped && <RouteFinding {...p} full={full} />}
+      {!mapped && <DesignRoadSections {...p} full={full} />}
+    </>
+  )
+}
+
+/** The editing tools of a designed road; a mapped road is held as recorded and shows none of them. */
+function DesignRoadSections(p: SidebarProps & { full: boolean }) {
+  const { project, alignment } = p.workspace
+  const full = p.full
+  return (
+    <>
       <RouteFinder
         workspace={p.workspace}
         full={full}

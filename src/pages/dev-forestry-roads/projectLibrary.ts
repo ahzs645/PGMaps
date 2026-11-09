@@ -34,7 +34,10 @@ export function libraryEntry(id: string, project: RoadProject, updatedAt = Date.
     id,
     name: project.name || 'Untitled road project',
     terrain: project.terrain.name,
-    roads: isAccessInvestigation(project) ? 0 : project.alignments.length,
+    // Neither an investigation's nor an empty design's hidden placeholder is a road.
+    roads: isAccessInvestigation(project)
+      ? 0
+      : project.alignments.filter((alignment) => alignment.id !== project.designPlaceholderId).length,
     workspaceMode: isAccessInvestigation(project) ? 'access-investigation' : 'design',
     ...(project.investigation ? { openingId: project.investigation.openingId } : {}),
     blocks: project.context.filter((feature) => feature.kind === 'harvest').length,

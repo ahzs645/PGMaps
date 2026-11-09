@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { derivedRoadName } from './mappedRoad'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -79,7 +80,11 @@ export function DesignSidebar(props: SidebarProps) {
       if (abort.signal.aborted) return
       if (current.current.project !== original || current.current.source !== source)
         throw Error('The road or terrain changed during the search. Run it again; the old result was discarded.')
-      const candidate = corridorCandidate(result, alignment.template, alignment.name + ' · ' + objective + ' corridor')
+      const candidate = corridorCandidate(
+        result,
+        alignment.template,
+        derivedRoadName(alignment) + ' · ' + objective + ' corridor',
+      )
       setReview({ result, candidate, original, source, options })
       w.setNotice('Candidate ready for review. Your original road has not changed.')
     } catch (cause) {

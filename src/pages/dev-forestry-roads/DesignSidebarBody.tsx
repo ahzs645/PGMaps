@@ -45,6 +45,14 @@ export interface SidebarProps {
   selectedPoint: string | null
   onPoint: (id: string | null) => void
   onDuplicate: () => void
+  /** Loads a mapped road from context as a road whose formation follows the ground. */
+  onLoadMappedRoad?: (featureId: string) => void
+  /** Copies the active mapped road as an editable design on the same line. */
+  onCopyMappedRoad?: () => void
+  /** Fits the plan to the active road. */
+  onLocateActiveRoad?: () => void
+  /** Loads regional terrain over the active road's extent. */
+  onLoadTerrainAroundRoad?: () => void
   onRemoveAlignment: () => void
   onSuggest: (options: RouteSearchOptions) => void
   onPreviewRoute?: (options: RouteSearchOptions | null) => void

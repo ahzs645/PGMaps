@@ -177,6 +177,11 @@ export interface Alignment {
   fullCostRecord?: FullCostReviewRecord
   /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */
   networkEntryRoadId?: string
+  /**
+   * Set when this road is a mapped road loaded from context: its line is the record's, held
+   * read-only, and its formation follows the ground. It is the road as mapped, not a proposal.
+   */
+  mappedRoad?: MappedRoadOrigin
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string
@@ -191,6 +196,25 @@ export interface Alignment {
     routeLengthM: number
     searchCost: number
   }
+}
+/** Where a loaded mapped road came from and how its line was prepared. */
+export interface MappedRoadOrigin {
+  source: ExistingRoadEvidence['source']
+  roadName: string
+  /** Context features joined into the line, in order. */
+  contextIds: string[]
+  /** Retained source identities of those features (FTEN OBJECTIDs for BC records). */
+  sourceIds: string[]
+  forestFileId?: string
+  roadSectionId?: string
+  /** Vertices on the record before thinning. */
+  sourceVertexCount: number
+  /** Ramer–Douglas–Peucker tolerance used to thin the record's vertices. */
+  thinningToleranceM: number
+  /** Straight joins added between parts that did not touch, metres. */
+  joinGapsM: number[]
+  /** Parts of the same section left out because no end came near the joined line. */
+  partsLeftOut: number
 }
 export interface VerticalAlternative {
   id: string
@@ -310,6 +334,11 @@ export interface RoadProject {
   /** Investigation workspaces expose source records, never the schema's internal design placeholder. */
   workspaceMode?: 'design' | 'access-investigation'
   investigation?: { openingId: string; draftAlignmentId: string }
+  /**
+   * A design started from an investigation before any road was added. The schema needs one
+   * alignment, so this placeholder stays hidden and unanalysed; the first road added replaces it.
+   */
+  designPlaceholderId?: string
   /** Persistent library loading/coverage evidence, retained when a scenario is saved. */
   scenario?: { id: string; contextWarnings: string[]; terrainCoveragePercent: number }
   /** Calendar year for reproducible harvest-age displays; absent uses the current year. */

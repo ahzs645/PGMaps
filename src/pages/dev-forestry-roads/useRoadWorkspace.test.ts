@@ -92,7 +92,7 @@ afterEach(async () => {
 })
 
 describe('road workspace persistence', () => {
-  it('restores a study without analysing its internal placeholder, and analyses it only after Start design', async () => {
+  it('restores a study without analysing its internal placeholder, and Start design keeps it hidden', async () => {
     const study = createDemoProject()
     const placeholder = starterAlignment(study.alignments[0].points[0].coordinate)
     study.alignments = [placeholder]
@@ -108,12 +108,17 @@ describe('road workspace persistence', () => {
     expect(workspace.analysis.centerline).toEqual([])
     expect(workspace.analysis.crossings).toEqual([])
     expect(workspace.library[0].roads).toBe(0)
-    await act(async () => workspace.update(startInvestigationDesign))
+    await act(async () => workspace.update((current) => startInvestigationDesign(current)))
+    // The design starts with no road: the placeholder stays unanalysed and is not counted.
     expect(workspace.project.workspaceMode).toBe('design')
-    expect(workspace.analysis.stations.length).toBeGreaterThan(1)
+    expect(workspace.project.designPlaceholderId).toBe(placeholder.id)
+    expect(workspace.analysis.stations).toEqual([])
+    expect(workspace.analysis.centerline).toEqual([])
     await act(async () => workspace.flush())
-    expect((await readLibrary()).entries[0].roads).toBe(1)
-    expect((await readProject(workspace.projectId!))?.workspaceMode).toBe('design')
+    expect((await readLibrary()).entries[0].roads).toBe(0)
+    const saved = await readProject(workspace.projectId!)
+    expect(saved?.workspaceMode).toBe('design')
+    expect(saved?.designPlaceholderId).toBe(placeholder.id)
   })
 
   it('preserves an existing project after a transient startup storage read failure, even after dismissing the error and editing', async () => {

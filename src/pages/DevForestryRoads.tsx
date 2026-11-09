@@ -2,15 +2,26 @@ import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
 import {
+  awaitingFirstRoad,
   isAccessInvestigation,
   mappedRoadRecordCount,
   startInvestigationDesign,
+  withAddedAlignments,
 } from './dev-forestry-roads/investigationWorkspace'
+import {
+  derivedRoadName,
+  designFromMappedRoad,
+  isLoadableMappedRoad,
+  isMappedRoad,
+  mappedRoadAlignment,
+} from './dev-forestry-roads/mappedRoad'
+import { extendAlignment, nearerEnd, sketchPoints, strokeContinuation } from './dev-forestry-roads/sketchRoad'
+import { pathLengthM } from './dev-forestry-roads/mapNotes'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
   Download,
@@ -156,7 +167,8 @@ const summaryValue = (full: string, mobile: string) => (
     <span className="sr-only md:not-sr-only">{full}</span>
   </span>
 )
-const colors = ['#d97706', '#2563eb', '#7c3aed', '#16a34a', '#db2777']
+// Violet is left out: it marks a mapped road (MAPPED_ROAD_COLOR).
+const colors = ['#d97706', '#2563eb', '#0891b2', '#16a34a', '#db2777']
 function fitContextFeature(map: MapLibreMap, feature: ContextFeature) {
   const points =
     feature.geometry.type === 'LineString' ? feature.geometry.coordinates : feature.geometry.coordinates.flat()
@@ -181,6 +193,14 @@ function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEM
     overrides: [],
   }
 }
+/** Points a drawing needs before Finish: an extension continues from a road end, so one is enough. */
+const minimumDraftPoints = (mode: DrawMode) => (mode === 'avoid' ? 3 : mode === 'extend' ? 1 : 2)
+/** Roads the user has, not counting the hidden placeholder of a design with none yet. */
+const roadCount = (p: RoadProject) => p.alignments.filter((a) => a.id !== p.designPlaceholderId).length
+const pointsInUse = (p: RoadProject) =>
+  p.alignments.filter((a) => a.id !== p.designPlaceholderId).reduce((n, a) => n + a.points.length, 0)
+const MAX_PROJECT_POINTS = 2000
+const MAX_PROJECT_ROADS = 20
 /**
  * A searched route as a road: its corners get the project's minimum radius, reduced where the
  * tangents are too short to hold it, so a generated road turns on curves rather than at points.
@@ -654,16 +674,25 @@ export default function DevForestryRoads() {
     return a
   }, [project.profiles, project.context, activeProfile])
   const draftAlignment = useMemo(() => {
-    if (mode !== 'road' || !draft.length) return null
-    const points =
+    if ((mode !== 'road' && mode !== 'extend') || !draft.length) return null
+    let points =
       deferredHover && distance(draft[draft.length - 1], deferredHover) >= 0.2 ? [...draft, deferredHover] : draft
+    // An extension previews the whole road it would make, so the profile shows the joined grade.
+    if (mode === 'extend' && alignment.points.length >= 2) {
+      const road = alignment.points.map((p) => p.coordinate)
+      points = nearerEnd(alignment, draft[0]) === 'end' ? [...road, ...points] : [...[...points].reverse(), ...road]
+    }
     if (points.length < 2) return null
     return {
-      ...newAlignment(points, 'Road being pegged', alignment.template),
+      ...newAlignment(
+        points,
+        mode === 'extend' ? `${alignment.name} · extending` : 'Road being pegged',
+        alignment.template,
+      ),
       id: 'pegging-preview',
       points: points.map((coordinate, index) => ({ id: `preview-${index}`, coordinate, radiusM: 0 })),
     }
-  }, [mode, draft, deferredHover, alignment.template])
+  }, [mode, draft, deferredHover, alignment])
   const templateAlignment = useMemo(
     () =>
       templatePreview
@@ -689,6 +718,8 @@ export default function DevForestryRoads() {
       templateAlignment ??
       alignment)
   const completeCostRecord = displayedAlignment === alignment ? alignment.fullCostRecord : undefined
+  /** A terrain profile or a mapped road: ground only, so no design quantities or cost in the summary. */
+  const groundOnly = !!terrainProfile || (displayedAlignment === alignment && isMappedRoad(alignment))
   const completeCostCurrent = useMemo(
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
     [completeCostRecord, alignment, project],
@@ -894,6 +925,14 @@ export default function DevForestryRoads() {
   }
   const beginMode = (next: DrawMode) => {
     if (w.busy || (investigation && next !== 'inspect')) return
+    if ((next === 'edit' || next === 'extend') && (isMappedRoad(alignment) || awaitingFirstRoad(project))) {
+      w.setNotice(
+        awaitingFirstRoad(project)
+          ? 'Add a road first: peg, sketch or load a mapped road.'
+          : 'A mapped road is held as recorded. Copy it as a design to edit or extend it.',
+      )
+      return
+    }
     setMode(next)
     setPegPreview(null)
     setDraft([])
@@ -961,13 +1000,143 @@ export default function DevForestryRoads() {
       return false
     }
   }
-  const finishDraw = () => {
-    if (busy || draft.length < (mode === 'avoid' ? 3 : 2)) return
-    if (mode === 'road') {
-      const next = newAlignment(draft, `Road ${project.alignments.length + 1}`, alignment.template)
-      if (!commitValidated({ ...project, alignments: [...project.alignments, next], activeAlignmentId: next.id }))
+  /** Loads a mapped road as a road held as recorded; from an investigation, this starts the design. */
+  const loadMappedRoad = (featureId: string) => {
+    if (w.busy) return
+    const feature = project.context.find((candidate) => candidate.id === featureId)
+    if (!isLoadableMappedRoad(feature)) {
+      w.setError('Only a mapped road line can be loaded as a road.')
+      return
+    }
+    const loaded = project.alignments.find((a) => a.mappedRoad?.contextIds.includes(featureId))
+    if (loaded && !investigation) {
+      selectAlignment(loaded.id)
+      setWorkflowTab('design')
+      setFitRevision((n) => n + 1)
+      w.setNotice(`${loaded.name} is already loaded; it is now the active road.`)
+      return
+    }
+    if (!investigation && roadCount(project) >= MAX_PROJECT_ROADS) {
+      w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before loading another.`)
+      return
+    }
+    try {
+      const road = mappedRoadAlignment({
+        seed: feature,
+        context: project.context,
+        id: uid(),
+        template: alignment.template,
+        terrainResolutionM: project.terrain.resolutionM,
+        pointBudget: MAX_PROJECT_POINTS - (investigation ? 0 : pointsInUse(project)),
+      })
+      if (
+        !commitValidated(investigation ? startInvestigationDesign(project, road) : withAddedAlignments(project, [road]))
+      )
         return
+      setMode('inspect')
+      setDraft([])
+      setActiveProfile(null)
+      setSelectedPoint(null)
+      setWorkflowTab('design')
+      setCollapsed(false)
+      setControlsOpen(true)
+      w.setStation(0)
+      setFitRevision((n) => n + 1)
+      const origin = road.mappedRoad!
+      w.setNotice(
+        `Loaded ${feature.name} as mapped: ${road.points.length} points from ${origin.sourceVertexCount} vertices` +
+          `${origin.contextIds.length > 1 ? ` in ${origin.contextIds.length} parts` : ''}. Its formation follows the ground; it is not a proposed design.`,
+      )
+    } catch (cause) {
+      w.setError(cause instanceof Error ? cause.message : 'Could not load this mapped road.')
+    }
+  }
+  /** An editable design on the active mapped road's line. */
+  const copyMappedRoad = () => {
+    if (!isMappedRoad(alignment)) return
+    if (roadCount(project) >= MAX_PROJECT_ROADS) {
+      w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before copying this road.`)
+      return
+    }
+    const copy = designFromMappedRoad(alignment, uid(), colors[project.alignments.length % colors.length])
+    if (!commitValidated(withAddedAlignments(project, [copy]))) return
+    setActiveProfile(null)
+    w.setNotice(`${copy.name} is an editable design on the mapped line. The mapped road is kept for comparison.`)
+  }
+  /**
+   * A finished pencil stroke: it continues the active road when it starts or ends at one of its
+   * ends, and is otherwise a new road. The pencil stays in hand for the next stroke.
+   */
+  const finishSketch = (stroke: Coordinate[], metresPerPixel: number) => {
+    if (w.busy) return
+    const points = sketchPoints(stroke, metresPerPixel)
+    if (points.length < 2 || pathLengthM(points) < 5) {
+      w.setNotice('Drag further to sketch a road.')
+      return
+    }
+    const extendable = !awaitingFirstRoad(project) && !isMappedRoad(alignment)
+    const continuation = extendable ? strokeContinuation(alignment, points, metresPerPixel) : null
+    if (continuation) {
+      try {
+        const next = extendAlignment(alignment, continuation.added, continuation.end, uid, project.settings.minRadius)
+        if (!commitValidated({ ...project, alignments: project.alignments.map((a) => (a.id === next.id ? next : a)) }))
+          return
+        w.setNotice(`Extended ${alignment.name} from its ${continuation.end}. Sketch again to keep going.`)
+      } catch (cause) {
+        w.setError(cause instanceof Error ? cause.message : 'Could not extend this road.')
+      }
+      return
+    }
+    if (roadCount(project) >= MAX_PROJECT_ROADS) {
+      w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before sketching another.`)
+      return
+    }
+    const road = generatedAlignment(
+      points,
+      `Sketched road ${roadCount(project) + 1}`,
+      alignment.template,
+      project.settings.minRadius,
+    )
+    if (!commitValidated(withAddedAlignments(project, [road]))) return
+    setActiveProfile(null)
+    w.setStation(0)
+    w.setNotice(
+      `Sketched a road with ${road.points.length} points and ${project.settings.minRadius} m curves where they fit. Start a stroke at its end to continue it.`,
+    )
+  }
+  // The plan holds its stroke listeners for the whole sketch; a stable handler keeps it from
+  // dropping a stroke when the page re-renders mid-drag.
+  const finishSketchRef = useRef(finishSketch)
+  useLayoutEffect(() => {
+    finishSketchRef.current = finishSketch
+  })
+  const onSketch = useCallback((stroke: Coordinate[], metresPerPixel: number) => {
+    finishSketchRef.current(stroke, metresPerPixel)
+  }, [])
+  // A road held as recorded, or a design with no road, has no points to edit.
+  useEffect(() => {
+    if ((mode === 'edit' || mode === 'extend') && (isMappedRoad(alignment) || awaitingFirstRoad(project)))
+      setMode('inspect')
+  }, [mode, alignment, project])
+  const finishDraw = () => {
+    if (busy || draft.length < minimumDraftPoints(mode)) return
+    if (mode === 'road') {
+      const next = newAlignment(draft, `Road ${roadCount(project) + 1}`, alignment.template)
+      if (!commitValidated(withAddedAlignments(project, [next]))) return
       setSelectedPoint(next.points[0].id)
+    } else if (mode === 'extend') {
+      try {
+        const end = nearerEnd(alignment, draft[0])
+        const next = extendAlignment(alignment, draft, end, uid, project.settings.minRadius)
+        if (!commitValidated({ ...project, alignments: project.alignments.map((a) => (a.id === next.id ? next : a)) }))
+          return
+        w.setNotice(
+          `Extended ${alignment.name} from its ${end} by ${draft.length} point${draft.length === 1 ? '' : 's'}.`,
+        )
+      } catch (cause) {
+        w.setError(cause instanceof Error ? cause.message : 'Could not extend this road.')
+        return
+      }
     } else if (mode === 'profile') {
       const next = { id: uid(), name: `Terrain profile ${(project.profiles?.length ?? 0) + 1}`, points: draft }
       if (!commitValidated({ ...project, profiles: [...(project.profiles ?? []), next] })) return
@@ -1667,7 +1836,7 @@ export default function DevForestryRoads() {
       const created = result.routes.map((route, rank) =>
         generatedAlignment(
           route.coordinates,
-          `${alignment.name} · terrain-cost ${result.routes.length > 1 ? `#${rank + 1} ` : ''}($${Math.round(route.cost).toLocaleString('en-CA')})`,
+          `${derivedRoadName(alignment)} · terrain-cost ${result.routes.length > 1 ? `#${rank + 1} ` : ''}($${Math.round(route.cost).toLocaleString('en-CA')})`,
           alignment.template,
           project.settings.minRadius,
         ),
@@ -1949,7 +2118,7 @@ export default function DevForestryRoads() {
             </span>
           )}
         </div>
-        {!investigation && (
+        {!investigation && !awaitingFirstRoad(project) && (
           <RoadSwitcher
             className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
             alignments={project.alignments}
@@ -1967,12 +2136,11 @@ export default function DevForestryRoads() {
               variant="outline"
               disabled={!!busy}
               onClick={() => {
-                w.update(startInvestigationDesign)
+                w.update((current) => startInvestigationDesign(current))
                 setWorkflowTab('design')
-                setFitRevision((revision) => revision + 1)
-                w.setNotice(
-                  'Started a new proposed design. The orange draft is editable and is not a mapped road or historical-use record.',
-                )
+                setCollapsed(false)
+                setControlsOpen(true)
+                w.setNotice('Design started with no road. Peg or sketch the first road, or load a mapped road.')
               }}
             >
               Start design
@@ -2318,7 +2486,7 @@ export default function DevForestryRoads() {
             { key: 'routes', label: 'Saved access assertions', value: project.accessHistory?.paths.length ?? 0 },
           ]}
         />
-      ) : (
+      ) : awaitingFirstRoad(project) ? null : (
         <StatGroup
           variant="tiles"
           size="sm"
@@ -2338,13 +2506,13 @@ export default function DevForestryRoads() {
             {
               key: 'grade',
               label: summaryLabel(
-                terrainProfile ? 'Max ground grade' : 'Max design grade',
-                terrainProfile ? 'Ground grade' : 'Max grade',
+                groundOnly ? 'Max ground grade' : 'Max design grade',
+                groundOnly ? 'Ground grade' : 'Max grade',
               ),
               value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
               tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
             },
-            ...(terrainProfile
+            ...(groundOnly
               ? [
                   {
                     key: 'grade-range',
@@ -2448,6 +2616,7 @@ export default function DevForestryRoads() {
                   selection={historySelection}
                   onInspectRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
                   onSelectBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
+                  onLoadAsRoad={loadMappedRoad}
                 />
               </div>
             ) : (
@@ -2502,6 +2671,10 @@ export default function DevForestryRoads() {
                   }))
                 }
                 onSuggest={suggest}
+                onLoadMappedRoad={loadMappedRoad}
+                onCopyMappedRoad={copyMappedRoad}
+                onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
+                onLoadTerrainAroundRoad={() => loadTerrain('regional')}
                 onLocateRoad={locateRoad}
                 onOpenRoadHistory={openRoadReview}
                 onLocateConstraint={locateConstraint}
@@ -2564,7 +2737,12 @@ export default function DevForestryRoads() {
                     stretch
                   />
                 )}
-                {!investigation && !displayedAnalysis.stations.length && (
+                {!investigation && awaitingFirstRoad(project) && !isDrawing && (
+                  <InlineAlert tone="info">
+                    No road yet. Peg or sketch one from the Design tab, or click a mapped road and choose Load as road.
+                  </InlineAlert>
+                )}
+                {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
                 )}
                 {!investigation && routePreview && (
@@ -2600,15 +2778,39 @@ export default function DevForestryRoads() {
                     </div>
                   </div>
                 )}
-                {!investigation && isDrawing && (
+                {!investigation && mode === 'sketch' && (
+                  <div
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                    data-testid="sketch-feedback"
+                  >
+                    <strong>Sketch road</strong>
+                    <span>
+                      Press and drag on the plan. A stroke that starts or ends at the active road&apos;s end continues
+                      it; corners take the {project.settings.minRadius} m minimum radius where they fit.
+                    </span>
+                    <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
+                      Done sketching
+                    </Button>
+                  </div>
+                )}
+                {!investigation && isDrawing && mode !== 'sketch' && (
                   <div
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                     data-testid="pegging-feedback"
                   >
                     <strong>
-                      {mode === 'road' ? 'Peg road' : mode === 'avoid' ? `Draw ${drawnArea}` : `Draw ${mode}`}
+                      {mode === 'road'
+                        ? 'Peg road'
+                        : mode === 'extend'
+                          ? `Extend ${alignment.name}`
+                          : mode === 'avoid'
+                            ? `Draw ${drawnArea}`
+                            : `Draw ${mode}`}
                     </strong>
-                    <span>Click plan to add points · {draft.length} points</span>
+                    <span>
+                      {mode === 'extend' ? 'Click plan to peg on from the nearer road end' : 'Click plan to add points'}{' '}
+                      · {draft.length} points
+                    </span>
                     <span className="font-mono">
                       Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
                       <strong
@@ -2621,8 +2823,10 @@ export default function DevForestryRoads() {
                         {number(pegGrade)}%
                       </strong>
                     </span>
-                    <Button size="sm" onClick={finishDraw} disabled={draft.length < (mode === 'avoid' ? 3 : 2)}>
-                      Finish {mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}
+                    <Button size="sm" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
+                      {mode === 'extend'
+                        ? 'Finish extension'
+                        : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
                     </Button>
                     <Button
                       size="sm"
@@ -2724,7 +2928,9 @@ export default function DevForestryRoads() {
                                 ? 'Blue design streams · dashed existing · red redirected · amber low point'
                                 : drainageStale && !terrainProfile
                                   ? 'Drainage out of date · re-run it to show flow'
-                                  : 'Orange road · red grade flag'}
+                                  : isMappedRoad(alignment)
+                                    ? 'Violet mapped road · red over the grade limit'
+                                    : 'Orange road · red grade flag'}
                           </span>
                           {!investigation && closePanel('plan')}
                         </>
@@ -2775,6 +2981,8 @@ export default function DevForestryRoads() {
                             mode={investigation || costPreview ? 'inspect' : mode}
                             draft={draft}
                             onDraw={onDraw}
+                            onSketch={onSketch}
+                            onLoadMappedRoad={busy ? undefined : loadMappedRoad}
                             onMovePoint={movePoint}
                             onInsertPoint={(afterId, coordinate) => {
                               if (busy || costPreview || alignment.points.length >= 2000) return

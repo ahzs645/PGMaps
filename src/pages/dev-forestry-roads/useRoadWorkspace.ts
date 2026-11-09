@@ -268,7 +268,7 @@ export function useRoadWorkspace() {
     const analyses = new Map(
       project.alignments.map((a): [string, RoadAnalysis] => [
         a.id,
-        investigation
+        investigation || a.id === project.designPlaceholderId
           ? investigationAnalysis()
           : safeAnalyzeRoad(a, source, project.settings, project.context, {
               referenceSurfaces,
@@ -281,6 +281,7 @@ export function useRoadWorkspace() {
   }, [
     project.alignments,
     investigation,
+    project.designPlaceholderId,
     project.settings,
     project.context,
     source,

@@ -3,7 +3,12 @@ import { IDBFactory } from 'fake-indexeddb'
 import { createDemoProject, starterAlignment } from './terrain'
 import { parseProject, serializeProject } from './project'
 import { libraryEntry, readLibrary, readProject } from './projectLibrary'
-import { isAccessInvestigation, startInvestigationDesign } from './investigationWorkspace'
+import {
+  awaitingFirstRoad,
+  isAccessInvestigation,
+  startInvestigationDesign,
+  withAddedAlignments,
+} from './investigationWorkspace'
 import type { RoadProject } from './types'
 
 /** Invented fixture reproducing the old application's untouched 300 m starter, not a BC record. */
@@ -62,9 +67,37 @@ describe('access investigation workspace contract', () => {
     const design = parseProject(startInvestigationDesign(project))
     expect(design.workspaceMode).toBe('design')
     expect(design.investigation).toBeUndefined()
-    expect(design.alignments[0].name).toContain('proposed')
-    expect(libraryEntry('design', design).roads).toBe(1)
-    expect(parseProject(serializeProject(design)).workspaceMode).toBe('design')
+    // The design starts empty: the placeholder is kept for the schema but hidden and not counted.
+    expect(design.designPlaceholderId).toBe(project.activeAlignmentId)
+    expect(awaitingFirstRoad(design)).toBe(true)
+    expect(libraryEntry('design', design).roads).toBe(0)
+    expect(parseProject(serializeProject(design))).toEqual(design)
+  })
+
+  it('replaces the hidden placeholder with the first road added, by any route', () => {
+    const design = parseProject(startInvestigationDesign(parseProject(legacyStudy())))
+    const road = { ...starterAlignment([-122.7, 53.9]), id: 'first-road', name: 'Road 1' }
+    const next = parseProject(withAddedAlignments(design, [road]))
+    expect(next.alignments.map((a) => a.id)).toEqual(['first-road'])
+    expect(next.activeAlignmentId).toBe('first-road')
+    expect(next.designPlaceholderId).toBeUndefined()
+    expect(libraryEntry('design', next).roads).toBe(1)
+    const second = { ...starterAlignment([-122.71, 53.9]), id: 'second-road', name: 'Road 2' }
+    expect(parseProject(withAddedAlignments(next, [second])).alignments.map((a) => a.id)).toEqual([
+      'first-road',
+      'second-road',
+    ])
+  })
+
+  it('starts a design from a chosen road, and rejects a placeholder that is not the only road', () => {
+    const study = parseProject(legacyStudy())
+    const road = { ...starterAlignment([-122.7, 53.9]), id: 'mapped', name: 'Mapped' }
+    const design = parseProject(startInvestigationDesign(study, road))
+    expect(design.alignments.map((a) => a.id)).toEqual(['mapped'])
+    expect(design.designPlaceholderId).toBeUndefined()
+    const empty = parseProject(startInvestigationDesign(study))
+    expect(() => parseProject({ ...empty, alignments: [...empty.alignments, road] })).toThrow('only road')
+    expect(() => parseProject({ ...empty, workspaceMode: 'access-investigation' })).toThrow()
   })
 
   it('counts source road records once when their geometry has multiple map parts', () => {

@@ -176,7 +176,15 @@ test.describe('source-only access investigation', () => {
     await expect.poll(async () => (await mapHistory(page))?.designRoads.length).toBe(0)
     await page.getByRole('button', { name: 'Start design', exact: true }).click()
     await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-workspace-mode', 'design')
+    // The design starts with no road: no placeholder line, no summary of one.
+    await expect(page.getByTestId('first-road-panel')).toBeVisible()
+    await expect(page.locator('.road-summary')).toHaveCount(0)
+    await expect.poll(async () => (await mapHistory(page))?.designRoads.length ?? 0).toBe(0)
+    // Loading the study's mapped road makes it the first road, held as recorded.
+    await page.getByRole('button', { name: `Load ${road.name} as a road`, exact: true }).click()
+    await expect(page.getByTestId('mapped-road-panel')).toBeVisible()
     await expect(page.locator('.road-summary')).toBeVisible()
+    await expect(page.getByText('Max ground grade', { exact: true })).toBeVisible()
     await expect.poll(async () => (await mapHistory(page))?.designRoads.length ?? 0).toBeGreaterThan(0)
     expect(errors).toEqual([])
   })

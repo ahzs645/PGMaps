@@ -140,9 +140,15 @@ cutting permit, timber mark and block ID. The scenario library also contains fou
 checked real-record studies. These open in persisted **Access investigation** mode:
 the source map, block/road-record counts and evidence panel replace the engineering
 dashboard. The internal compatibility alignment is neither drawn nor analysed;
-**Start design** explicitly activates a proposed alignment. Saved unedited legacy
-opening-60677 starter projects migrate to this mode. See [BC discovery and actual
-case findings](forestry-road-design/bc-access-discovery.md).
+**Start design** opens a design with no road, keeping that alignment hidden as
+`designPlaceholderId` until the first road is pegged, sketched or loaded. A road record's
+**Load as road** starts the design from that mapped road instead. Saved unedited legacy
+opening-60677 starter projects migrate to this mode. See [BC discovery and actual case findings](forestry-road-design/bc-access-discovery.md).
+
+**Load as road** (map card, Access history record or an empty design's list) turns a mapped
+road into a road held as recorded: its formation follows the ground, its line is read-only, and
+its build quantities are not compared. **Sketch** and **Extend** draw a road freehand and continue
+it from an end. See [Mapped roads as roads, and sketched roads](forestry-road-design/mapped-roads-and-sketching.md).
 
 ### Offline training hillside
 
