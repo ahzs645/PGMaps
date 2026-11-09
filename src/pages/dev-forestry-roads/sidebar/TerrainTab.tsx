@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { Field, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
@@ -16,6 +16,7 @@ import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
 import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
+import { pointCloudImportSummary } from '../terrain'
 
 const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
 const CLASSIFY: Record<string, string> = {
@@ -46,6 +47,7 @@ const terrainSourceName = (name: string) =>
 export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoads: ReactNode }) {
   const { project } = p.workspace
   const busy = !!p.workspace.busy
+  const importSummary = pointCloudImportSummary(project.terrain)
   return (
     <>
       <RoadSection
@@ -87,6 +89,22 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             {project.scenario &&
               ` · ${count(project.context.filter((feature) => feature.kind === 'existing-road').length, 'road')} · ${count(project.context.filter((feature) => feature.kind === 'harvest').length, 'cutblock')}`}
           </p>
+          {/* The point-cloud import summary stays with the terrain: its notice is gone in seconds. */}
+          {importSummary && (
+            <details className="group mt-1.5 border-t pt-1.5" data-testid="road-terrain-import-summary">
+              <summary className="flex cursor-pointer list-none items-center gap-1 text-2xs font-medium [&::-webkit-details-marker]:hidden">
+                <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+                Import summary
+                <span className="min-w-0 truncate font-normal text-muted-foreground">{importSummary[0].value}</span>
+              </summary>
+              <KeyValueRows
+                variant="grid"
+                className="mt-1.5"
+                valueClassName="tabular-nums font-normal"
+                rows={importSummary.map((row) => ({ key: row.label, label: row.label, value: row.value }))}
+              />
+            </details>
+          )}
         </div>
         {project.scenario?.contextWarnings.map((warning, index) => (
           <InlineAlert key={index} tone="warning" className="mt-2">
@@ -179,12 +197,13 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         help={
           <>
             <b>GeoTIFF:</b> single-band bare-earth elevations in metres, up to 4.19 million native cells / 64 MB, with
-            resolution and no-data preserved.
+            resolution and no-data preserved. Its vertical datum is the field here, or asked for at import.
             <br />
-            <b>LAS or LAZ</b> (up to 1 GB): needs a projected CRS key; the vertical datum comes from the file or the
-            field here. Ground points are gridded to about 1 m, as a cell mean (gaps up to 3 cells filled) or as a TIN
-            that keeps breaklines such as ditch bottoms, stream banks and road edges. Unclassified clouds are classified
-            here at about 55,000 points a second, so a million points takes about 20 s.
+            <b>LAS or LAZ</b> (up to 12 tiles, 1 GB in all): a cloud with no CRS is asked for its EPSG code. The
+            vertical datum comes from the field here or the file; with neither, the import asks. Ground points are
+            gridded to about 1 m, as a cell mean (gaps up to 3 cells filled) or as a TIN that keeps breaklines such as
+            ditch bottoms, stream banks and road edges. Unclassified clouds are classified here at about 55,000 points a
+            second, so a million points takes about 20 s.
           </>
         }
       >
@@ -253,11 +272,11 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
                   onClick={() => p.onFile('breaklines')}
                   disabled={busy}
                 >
-                  {p.breaklines ? 'Replace breaklines' : 'Add breaklines (GeoJSON)'}
+                  {p.breaklines ? 'Replace breaklines' : 'Add breaklines'}
                 </Button>
                 <InfoTip label="About breaklines">
-                  Lines with Z, a <code>z</code> property, or draped on the ground. The next TIN import keeps them as
-                  hard edges.
+                  GeoJSON, a zipped shapefile, KML or KMZ. Lines with Z, a <code>z</code> property, or draped on the
+                  ground; KML altitude is not read. The next TIN import keeps them as hard edges.
                 </InfoTip>
                 {p.breaklines && (
                   <Button variant="ghost" size="sm" onClick={p.onClearBreaklines} title={p.breaklines}>
@@ -291,6 +310,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         workspace={p.workspace}
         verticalReference={p.verticalReference}
         pointCloud={p.pointCloud}
+        onAskTerrain={p.onAskTerrain}
       />
       {existingRoads}
       <RoadSection

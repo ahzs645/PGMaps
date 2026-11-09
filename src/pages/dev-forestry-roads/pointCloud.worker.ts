@@ -33,6 +33,8 @@ export interface PointCloudWorkerRequest {
   classify: boolean | 'auto'
   maxPoints?: number
   preserve?: PointPreservation
+  /** The CRS of a cloud that carries none, as the person stated it. A CRS a file states always wins. */
+  assumedEpsg?: number
   /** Grid the ground points here too, so only the grid crosses back to the page. */
   surface?: SurfaceRequest
   /** Post `crs` once the cloud is read and wait for a `breaklines` reply (see above). */
@@ -98,6 +100,7 @@ async function run({
   classify,
   maxPoints,
   preserve,
+  assumedEpsg,
   method = 'ground_point_filter',
   params,
   surface: requested,
@@ -108,11 +111,13 @@ async function run({
   try {
     post({ type: 'progress', stage: 'reading', done: 0, total: 1 })
     let started = performance.now()
-    let cloud = await readPointCloud(new Uint8Array(bytes), { maxPoints, preserve })
+    // Read after decoding, so a LAZ whose CRS only whitebox finds keeps it over the stated one.
+    const read = async (source: ArrayBuffer) =>
+      assumeCrs(await readPointCloud(new Uint8Array(source), { maxPoints, preserve }), assumedEpsg)
+    let cloud = await read(bytes)
     if (additionalBytes?.length) {
       const clouds = [cloud]
-      for (const source of additionalBytes)
-        clouds.push(await readPointCloud(new Uint8Array(source), { maxPoints, preserve }))
+      for (const source of additionalBytes) clouds.push(await read(source))
       cloud = mergePointClouds(clouds, maxPoints, preserve)
     }
     const readMs = performance.now() - started
@@ -164,6 +169,11 @@ async function run({
   } catch (error) {
     post({ type: 'error', message: error instanceof Error ? error.message : String(error) })
   }
+}
+
+/** A cloud that carries no CRS takes the stated one; a cloud that carries a CRS is left as it is. */
+export function assumeCrs(cloud: PointCloud, assumedEpsg: number | undefined): PointCloud {
+  return cloud.epsg === null && assumedEpsg ? { ...cloud, epsg: assumedEpsg } : cloud
 }
 
 /**

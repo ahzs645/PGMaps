@@ -595,8 +595,8 @@ export function ProjectsDialog({
             )}
             {kind === 'import' && (
               <InlineAlert>
-                Create opens the file picker. The road starts across the middle of the imported terrain. Set the DEM
-                vertical datum in the Terrain tab first if the file does not carry one.
+                Create opens the file picker: one GeoTIFF, or one or more LAS/LAZ tiles. You are asked for the CRS or
+                vertical datum if the files do not state them. The road starts across the middle of the terrain.
               </InlineAlert>
             )}
             <Button className="w-full" onClick={create}>

@@ -6,11 +6,15 @@ import { RoadSection } from './SidebarParts'
 import { burnRoad } from './designSurface'
 import {
   exportGrid,
+  importTerrainWithAnswers,
   loadLas,
   loadRaster,
   parseTerrainReferenceSurfaces,
   preparedTerrain,
+  TerrainImportQuestion,
   type PointCloudImport,
+  type TerrainImportAnswers,
+  type TerrainImportNeeds,
 } from './terrain'
 import {
   gradePad,
@@ -47,10 +51,13 @@ export function TerrainPreparationPanel({
   workspace: w,
   verticalReference,
   pointCloud,
+  onAskTerrain,
 }: {
   workspace: RoadWorkspace
   verticalReference: string
   pointCloud?: Pick<PointCloudImport, 'classify' | 'surface' | 'preserveCorridorM' | 'retainTin'>
+  /** Asks for a CRS or vertical datum the chosen files do not state; null when cancelled. */
+  onAskTerrain?: (needs: TerrainImportNeeds) => Promise<TerrainImportAnswers | null>
 }) {
   const { project, alignment } = w,
     metadata = project.terrain,
@@ -91,6 +98,12 @@ export function TerrainPreparationPanel({
   const cloudFiles = useRef<HTMLInputElement>(null)
   const backgroundFile = useRef<HTMLInputElement>(null),
     [backgroundKind, setBackgroundKind] = useState<TerrainBackgroundLayer['kind']>('canopy')
+  // The vertical datum is the entered one or the one asked for now. The open terrain's is never
+  // taken silently: it is offered in the question, where choosing it is a statement.
+  const ask = (needs: TerrainImportNeeds) => {
+    if (!onAskTerrain) throw new TerrainImportQuestion('Enter the vertical datum under Import options first.', needs)
+    return onAskTerrain(needs)
+  }
   const run = async (action: () => Promise<void>) => {
     setWorking(true)
     w.setError('')
@@ -190,9 +203,12 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (!files.length) return
               void run(async () => {
-                const loaded = await Promise.all(
-                  files.map((f) => loadRaster(f, verticalReference || metadata.verticalReference)),
+                const loaded = await importTerrainWithAnswers(
+                  (answers) => Promise.all(files.map((f) => loadRaster(f, answers.verticalReference ?? ''))),
+                  ask,
+                  { verticalReference },
                 )
+                if (!loaded) return
                 const all = [...(raster ? [metadata] : []), ...loaded.map((l) => l.metadata)],
                   grids = all.map((m) => m.raster!)
                 const raw = mosaicRasters(grids, overlap)
@@ -220,13 +236,20 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (!files.length) return
               void run(async () => {
-                const loaded = await loadLas(files[0], verticalReference || metadata.verticalReference, {
-                  classify: 'auto',
-                  surface: 'tin',
-                  ...pointCloud,
-                  additionalFiles: files.slice(1),
-                  preservePath: alignment.points.map((p) => p.coordinate),
-                })
+                const loaded = await importTerrainWithAnswers(
+                  (answers) =>
+                    loadLas(files[0], answers.verticalReference ?? '', {
+                      classify: 'auto',
+                      surface: 'tin',
+                      ...pointCloud,
+                      additionalFiles: files.slice(1),
+                      assumedEpsg: answers.epsg,
+                      preservePath: alignment.points.map((p) => p.coordinate),
+                    }),
+                  ask,
+                  { verticalReference },
+                )
+                if (!loaded) return
                 ensureCurrentSource()
                 w.setSource(loaded.source)
                 w.update((p) => ({

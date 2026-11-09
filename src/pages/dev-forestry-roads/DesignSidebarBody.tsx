@@ -101,6 +101,10 @@ export interface SidebarProps {
   focusedConstraintId?: string | null
   /** Reads a spatial file a panel's own picker was given; the intent says what that picker is for. */
   onImportSpatial?: (file: File, intent: import('./spatialImport').ImportIntent) => void
+  /** Asks for a CRS or vertical datum a terrain file does not state; null when the question is cancelled. */
+  onAskTerrain?: (
+    needs: import('./terrain').TerrainImportNeeds,
+  ) => Promise<import('./terrain').TerrainImportAnswers | null>
   /** Shows a reference feature on the plan; the sidebar marks `focusedReferenceId` as the one shown. */
   onLocateReference?: (feature: import('./referenceFeatures').ReferenceFeature) => void
   focusedReferenceId?: string | null

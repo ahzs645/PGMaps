@@ -156,6 +156,22 @@ describe('reading a spatial file', () => {
     expect(read.collection.features[0].properties?.name).toBe('Spur 2')
   })
 
+  it('drops heights unless a breakline import asks to keep them', async () => {
+    const ditch = JSON.stringify(
+      line([
+        [-122.8158, 53.8989, 761.2],
+        [-122.8165, 53.895, 758.4],
+      ] as unknown as Coordinate[]),
+    )
+    const plain = await readSpatialImport(file('ditch.geojson', ditch))
+    expect((plain.collection.features[0].geometry as GeoJSON.LineString).coordinates[0]).toEqual([-122.8158, 53.8989])
+    const kept = await readSpatialImport(file('ditch.geojson', ditch), { keepHeights: true })
+    expect((kept.collection.features[0].geometry as GeoJSON.LineString).coordinates).toEqual([
+      [-122.8158, 53.8989, 761.2],
+      [-122.8165, 53.895, 758.4],
+    ])
+  })
+
   it('names the file and the accepted formats instead of showing a parser error', async () => {
     const reads = (name: string, content: string | Uint8Array) => readSpatialImport(file(name, content))
     await expect(reads('notes.txt', 'station,offset\n0,1')).rejects.toThrow(

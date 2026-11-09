@@ -204,11 +204,21 @@ export function spatialFeatureName(properties: Record<string, unknown> | null | 
   return texts.length === 1 && keys.length === 1 ? (properties[texts[0]] as string).trim().slice(0, MAX_NAME) : null
 }
 
-/** Every position of a geometry, mapped through `change`; heights and measures are dropped. */
-function mapPositions(geometry: GeoJSON.Geometry, change: (xy: [number, number]) => number[]): GeoJSON.Geometry {
+/**
+ * Every position of a geometry, mapped through `change`. Heights and measures are dropped unless
+ * `keepHeights` asks for the third coordinate, which passes through untouched.
+ */
+function mapPositions(
+  geometry: GeoJSON.Geometry,
+  change: (xy: [number, number]) => number[],
+  keepHeights = false,
+): GeoJSON.Geometry {
   const walk = (value: unknown): unknown =>
     Array.isArray(value) && typeof value[0] === 'number'
-      ? change([value[0] as number, value[1] as number])
+      ? [
+          ...change([value[0] as number, value[1] as number]),
+          ...(keepHeights && typeof value[2] === 'number' && Number.isFinite(value[2]) ? [value[2] as number] : []),
+        ]
       : Array.isArray(value)
         ? value.map(walk)
         : value
@@ -262,7 +272,7 @@ function flatten(input: unknown): GeoJSON.Feature[] {
 
 const isZip = (bytes: Uint8Array) => bytes[0] === 0x50 && bytes[1] === 0x4b && (bytes[2] === 3 || bytes[2] === 5)
 
-async function readShapefileZip(bytes: Uint8Array, fileName: string) {
+async function readShapefileZip(bytes: Uint8Array, fileName: string, keepHeights: boolean) {
   const [{ default: JSZip }, shpjs] = await Promise.all([import('jszip'), import('shpjs')])
   const zip = await JSZip.loadAsync(bytes).catch(() =>
     fail(`${fileName} is not a readable zip file. Use ${SPATIAL_FORMATS}.`),
@@ -313,7 +323,7 @@ async function readShapefileZip(bytes: Uint8Array, fileName: string) {
     features.push(
       ...flatten(raw).map((feature) => ({
         ...feature,
-        geometry: mapPositions(feature.geometry, (xy) => (change ? change(xy) : xy)),
+        geometry: mapPositions(feature.geometry, (xy) => (change ? change(xy) : xy), keepHeights),
       })),
     )
   }
@@ -325,14 +335,19 @@ async function readShapefileZip(bytes: Uint8Array, fileName: string) {
  * so a KMZ renamed `.zip` or a shapefile handed to a GeoJSON picker still reads; anything else is
  * refused with a message naming the file and the formats accepted.
  */
-export async function readSpatialImport(file: Readable): Promise<SpatialFile> {
+export async function readSpatialImport(
+  file: Readable,
+  {
+    keepHeights = false,
+  }: { /** Keep a third coordinate, for breaklines. KML altitude is never kept. */ keepHeights?: boolean } = {},
+): Promise<SpatialFile> {
   const fileName = (file.name ?? 'This file').slice(0, MAX_NAME)
   if (file.size > MAX_SPATIAL_FILE_BYTES)
     fail(`${fileName} is over 120 MB. Crop it to the area of the job and import it again.`)
   const bytes = new Uint8Array(await file.arrayBuffer())
   let format: SpatialFormat, crs: string, features: GeoJSON.Feature[]
   if (isZip(bytes)) {
-    const shapefile = await readShapefileZip(bytes, fileName)
+    const shapefile = await readShapefileZip(bytes, fileName, keepHeights)
     if (shapefile) {
       format = 'zipped shapefile'
       ;({ features, crs } = shapefile)
@@ -364,7 +379,7 @@ export async function readSpatialImport(file: Readable): Promise<SpatialFile> {
       crs = source.label
       features = flatten(root).map((feature) => ({
         ...feature,
-        geometry: mapPositions(feature.geometry, (xy) => (source.toWgs84 ? source.toWgs84(xy) : xy)),
+        geometry: mapPositions(feature.geometry, (xy) => (source.toWgs84 ? source.toWgs84(xy) : xy), keepHeights),
       }))
     } else if (/\.(shp|shx|dbf|prj|cpg)$/i.test(fileName))
       return fail(
