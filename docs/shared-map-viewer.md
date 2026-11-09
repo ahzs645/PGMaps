@@ -87,6 +87,9 @@ existing Worker/R2 service and does not require a new tile server.
 
 The frontend stays on the existing GitHub Pages deployment. Cloudflare serves the map bytes; this does not change the main site's DNS or migrate unrelated applications.
 
+For a reviewed transparency-mask repair or a finer export from a recovered
+frozen model, use the bounded workflow in [Reviewed raster revisions](shared-map-raster-revisions.md).
+
 ## Owner setup and publication
 
 Use the repository's existing Wrangler convention for this service. With owner-authorized Cloudflare credentials configured normally (never pasted into chat or committed):
