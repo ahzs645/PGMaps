@@ -84,6 +84,14 @@ function MaterialFactorEditor({
     String(material.volumeFactorProvenance?.enteredFactor ?? material.compactionFactor),
   )
   const [source, setSource] = useState(material.volumeFactorProvenance?.source ?? '')
+  // An edit to the factor itself (or an undo) replaces what the converter was showing.
+  const [seenFactor, setSeenFactor] = useState(material.compactionFactor)
+  if (seenFactor !== material.compactionFactor) {
+    setSeenFactor(material.compactionFactor)
+    const recorded = material.volumeFactorProvenance
+    setEntered(String(recorded?.enteredFactor ?? material.compactionFactor))
+    setConvention(recorded?.convention ?? 'compacted-per-bank')
+  }
   let preview: MaterialVolumeFactorProvenance | undefined
   let error: string | undefined
   try {
@@ -100,14 +108,14 @@ function MaterialFactorEditor({
         min={0.1}
         max={2}
         step={0.05}
-        hint="Compacted fill volume per reusable bank volume. Usable compacted cut equals bank cut × reusable fraction × this factor. Editing this value clears a recorded conversion when the factor changes."
+        hint="Compacted fill volume per reusable bank volume: below 1 the material shrinks when placed, above 1 it swells. Usable compacted cut equals bank cut × reusable fraction × this factor. A source that states bank volume per compacted volume, as a RoadEng fill expansion factor does, goes through the factor conversion below. Editing this value clears a recorded conversion when the factor changes."
         onChange={(factor) => onChange(materialCompactionFactorPatch(material, factor))}
       />
       <RoadSection
         title={`${material.name} factor conversion`}
         summary={recorded ? `${recorded.enteredFactor} → ${recorded.canonicalFactor.toPrecision(8)}` : 'Optional'}
         toggleTestId={`material-factor-converter-${material.id}`}
-        help="Choose the ratio stated by your source. Bank / compacted is inverted to compacted / bank before applying. Reusable fraction stays separate. The quoted RoadEng fill-factor example corresponds to bank / compacted only when its cut factor is 1; this is not a general RoadEng importer. Source notes are entered evidence, not verification."
+        help="Choose the ratio your source states, then apply. Bank / compacted is inverted before it is applied: 1.05 becomes 0.952. A RoadEng fill expansion factor is bank / compacted when that ground type's cut factor is 1; with another cut factor, work out compacted per bank volume yourself and enter it as Compacted / bank. Reusable fraction stays separate. Source notes are entered evidence, not verification."
       >
         <Field label={`${material.name} factor convention`}>
           <RoadSelect
@@ -957,6 +965,10 @@ export function EngineeringControls({
                     min={0}
                     max={100}
                     placeholder="unknown"
+                    hint="A quality class you define, from 0 (poorest) to 100 (best), so a fill requirement can ask for a minimum. Number your own classes in order, for example 20, 40, 60 and 80 for four classes."
+                    description={
+                      m.quality === undefined ? 'Blank is unknown: it cannot meet a quality rule.' : undefined
+                    }
                     onChange={(quality) => patch('materials', m.id, { quality: quality ?? undefined })}
                   />
                   <OptionalNumberField
@@ -976,6 +988,12 @@ export function EngineeringControls({
                     onChange={(fillSlope) => patch('materials', m.id, { fillSlope: fillSlope ?? undefined })}
                   />
                 </div>
+                {m.purpose !== 'stripping' && (
+                  <p className="text-2xs text-muted-foreground" data-testid="road-material-placement-rate">
+                    Placed as fill at ${project.settings.fillRate.toFixed(2)}/m³, the one fill placement rate for every
+                    material. Edit it in the cost breakdown.
+                  </p>
+                )}
               </div>
             ))}
           </RoadSection>

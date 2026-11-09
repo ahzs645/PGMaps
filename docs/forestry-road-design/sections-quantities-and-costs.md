@@ -123,8 +123,14 @@ buffer, so it understates a right-of-way that is wider than the earthwork footpr
 materials, it is usable compacted cut − fill. The mass curve and the mass column stop at the first
 incomplete interval; later intervals still count in the covered totals.
 
-**Materials.** A new material copies the current base cut rate and reusable cut factor, with a
-reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
+**Materials.** A ground material carries an excavation rate ($/bank m³), a reusable fraction, a
+compacted-per-bank factor (entered directly, or converted from a bank-per-compacted factor such
+as a RoadEng fill expansion factor), optional cut and fill batters, and an optional quality from
+0 to 100. A blank quality is unknown and cannot meet a quality rule; the field says so. Fill
+placement is not a material property: one fill-placement rate (`RoadSettings.fillRate`) prices
+all fill, and each material's block shows it. A number field that receives a value outside its
+range says what it was changed to (`useRangeNote` in `Controls.tsx`). A new material copies the
+current base cut rate and reusable cut factor, with a reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
 changes do not reach it. Horizons are vertical depths below original ground at each section
 sample. Where two overlap in station and depth, the later one in the list replaces the earlier
 over the overlap, and the editor says which ones it replaces; enter the general case first and the
@@ -263,6 +269,9 @@ payload, or net crew productivity as appropriate. See
 
 - Classify soil, rock or organics from terrain, or test material suitability.
 - Strip or undercut beneath embankments, or model layer-specific fill.
+- Price fill placement by material. An embankment rate per ground type would need the fill of
+  every interval attributed to a material, which exists only once haul is allocated, and the
+  economic allocation would have to carry placement in its objective.
 - Optimize haul or borrow and waste globally, schedule construction, or survey site access.
 - Size culverts hydraulically or check structural cover; see [Drainage](drainage.md).
 - Grade a 3D landing pad, design intersections, or add new template component types.
