@@ -22,7 +22,8 @@ export default {
         menu: '1300',
         overlay: '1400',
         'workspace-menu': '1500',
-        'workspace-popover': '1600'
+        'workspace-popover': '1600',
+        notification: '2200'
       },
       borderRadius: {
         lg: 'var(--radius)',

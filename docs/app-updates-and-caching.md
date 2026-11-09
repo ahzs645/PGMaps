@@ -24,7 +24,7 @@ The production client checks:
 - after a JavaScript or stylesheet load error;
 - when `window.pluginWebUpdateNotice_.checkUpdate()` is called manually.
 
-The plugin's default UI is disabled. `src/updates/useAppUpdate.ts` listens for `plugin_web_update_notice`, and `src/updates/AppUpdateNotice.tsx` renders the PGMaps notification. Choosing **Later** suppresses that deployed version while still allowing a later commit to notify the user. Choosing **Reload** preserves the current route, query, and fragment while adding a fresh `_update` query value so GitHub Pages and intermediate caches must resolve the navigation again.
+The plugin's default UI is disabled. `src/updates/useAppUpdate.ts` listens for `plugin_web_update_notice`, and `src/updates/AppUpdateNotice.tsx` shows it as a `Notification` in the app's shared notification stack (see [shared UI](shared-ui.md#floating-notifications)). Choosing **Later** suppresses that deployed version while still allowing a later commit to notify the user. Choosing **Reload** preserves the current route, query, and fragment while adding a fresh `_update` query value so GitHub Pages and intermediate caches must resolve the navigation again.
 
 The version endpoint is always network-only in `public/sw.js`. The plugin also adds a timestamp to its request. Both protections are intentional: a cached version response would make the update detector ineffective.
 

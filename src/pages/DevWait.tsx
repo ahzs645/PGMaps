@@ -35,6 +35,7 @@ import {
   type WaitSource,
   type WaitStatus,
 } from './dev-wait/data'
+import { Notification } from '@/components/ui/notification'
 
 type SourceFilter = 'all' | WaitSource | 'closed'
 
@@ -295,11 +296,7 @@ function DevWait() {
           </MapLegendPanel>
         </Map>
 
-        {error && (
-          <InlineAlert tone="error" className="absolute left-3 top-3 z-10 text-sm shadow">
-            {error}
-          </InlineAlert>
-        )}
+        {error && <Notification id="er-wait-load-error" tone="error" message={error} />}
       </div>
     </MapSectionLayout>
   )

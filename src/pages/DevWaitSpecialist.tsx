@@ -38,6 +38,7 @@ import {
   type SpecialistSort,
   type WaitBand,
 } from './dev-wait/specialistData'
+import { Notification } from '@/components/ui/notification'
 
 type AuthorityFilter = 'all' | string
 type BandFilter = 'all' | WaitBand
@@ -411,11 +412,7 @@ function DevWaitSpecialist() {
           )}
         </Map>
 
-        {error && (
-          <InlineAlert tone="error" className="absolute left-3 top-3 z-10 text-sm shadow">
-            {error}
-          </InlineAlert>
-        )}
+        {error && <Notification id="specialist-wait-load-error" tone="error" message={error} />}
       </div>
     </MapSectionLayout>
   )
