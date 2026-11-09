@@ -83,6 +83,20 @@ a formatted value, `layout="inline"` for a compact engineering header, or
 `renderControl` for an existing custom slider. Its native input forwards refs
 and native attributes. Keep host recalculation timing in the caller.
 
+For an option checkbox ("Hide tile-edge candidates") use `CheckboxField`
+(`label`, `checked`, `onCheckedChange`, optional `description`); `aria-label`
+and other input props reach the native checkbox. A layer or data source switched
+on and off stays a `ToggleRow`.
+
+## Shares and distributions
+
+`ShareBars` (`share-bars.tsx`) draws rows of percentage bars against a fixed
+`max`: `layout="inline"` for a distribution across bins (the LiDAR return-height
+profile), `layout="stacked"` with two `series` to compare A and B per row (the
+forestry plot fingerprint). `StackedShareBar` splits one bar into coloured
+segments, e.g. a recorded species mixture. A gradient legend with more than two
+labels is `MapGradientLegendItem ticks={…}`.
+
 ## Copy actions
 
 Use `CopyButton` (`copy-button.tsx`) or `useClipboardText`

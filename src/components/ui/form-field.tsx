@@ -1,5 +1,6 @@
 // Compatibility entry point. Generic implementations live in the toolkit.
 export {
+  CheckboxField,
   FORM_INPUT_CLASS,
   FormField,
   NativeSelect,
@@ -8,6 +9,7 @@ export {
   NullableNumberField,
 } from '@pgmaps/geo-toolkit/ui/form-field'
 export type {
+  CheckboxFieldProps,
   FormFieldProps,
   SelectFieldProps,
   NumberFieldProps,
