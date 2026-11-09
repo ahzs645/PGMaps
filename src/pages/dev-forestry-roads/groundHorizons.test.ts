@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { horizonReplacements, resolveHorizons } from './groundHorizons'
-import type { StratumAssignment } from './engineeringTypes'
+import { analyzeRoad } from './engine'
+import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon, resolveHorizons } from './groundHorizons'
+import { createEngineeringDesign, type StratumAssignment } from './engineeringTypes'
+import { parseProject, serializeProject } from './project'
+import { createDemoProject, demoTerrain } from './terrain'
 
 const horizon = (
   id: string,
@@ -71,5 +74,60 @@ describe('ground horizons resolved to one column', () => {
     expect(replaced.get('gravel')).toEqual(['pan'])
     expect(replaced.has('rock')).toBe(false)
     expect(replaced.has('elsewhere')).toBe(false)
+  })
+})
+
+describe('the horizon Add material horizon makes', () => {
+  const added = (strata: StratumAssignment[]) => {
+    const next = nextHorizon(strata, 930.3, 'till', 'new')
+    return [next.topDepthM, next.bottomDepthM, next.start, next.end]
+  }
+  it('is the next metre down, over the whole road', () => {
+    expect(added([])).toEqual([0, 1, 0, 930.3])
+    expect(added([horizon('a', 0, 1), horizon('b', 1, 2.5)])).toEqual([2.5, 3.5, 0, 930.3])
+  })
+  it('goes a metre into an open-ended horizon, and stays inside the depth limit', () => {
+    expect(added([horizon('a', 0, 1), horizon('b', 1, 2), horizon('rock', 2, null)])).toEqual([3, 4, 0, 930.3])
+    expect(added([horizon('deep', 0, MAX_HORIZON_DEPTH_M)])).toEqual([
+      MAX_HORIZON_DEPTH_M - 1,
+      MAX_HORIZON_DEPTH_M,
+      0,
+      930.3,
+    ])
+    expect(nextHorizon([], 0, 'till', 'new').end).toBe(1)
+  })
+
+  it('calculates and saves in every case, and the note names what it replaces', () => {
+    const project = createDemoProject()
+    const road = project.alignments[0]
+    const length = analyzeRoad(road, demoTerrain, project.settings).length
+    road.engineering = createEngineeringDesign()
+    road.engineering.materials = [
+      { id: 'till', name: 'Till', color: '#9a663e', cutRate: 4, reusableFraction: 1, compactionFactor: 0.9 },
+    ]
+    const add = () => {
+      const next = nextHorizon(road.engineering!.strata, length, 'till', `h${road.engineering!.strata.length + 1}`)
+      road.engineering!.strata = [...road.engineering!.strata, next]
+      return next
+    }
+    add()
+    add()
+    add()
+    // The third horizon runs down without limit, as "Extends below all finite horizons" makes it.
+    road.engineering.strata[2] = { ...road.engineering.strata[2], bottomDepthM: null }
+    const fourth = add()
+    expect(horizonReplacements(road.engineering.strata).get(fourth.id)).toEqual(['h3'])
+    // The project file, and so the autosave, takes it; it used to refuse any overlap.
+    const saved = parseProject(serializeProject(project))
+    expect(saved.alignments[0].engineering!.strata).toHaveLength(4)
+    const analysis = analyzeRoad(saved.alignments[0], demoTerrain, saved.settings)
+    expect(analysis.invalidInput).toBeUndefined()
+    expect(analysis.stations.length).toBeGreaterThan(0)
+    // The documented case: a whole-road layer, then a local one over part of it.
+    road.engineering.strata = [horizon('h1', 0, 3, 0, length), horizon('h2', 0, 1, 0, 215)].map((h) => ({
+      ...h,
+      materialId: 'till',
+    }))
+    expect(() => parseProject(serializeProject(project))).not.toThrow()
   })
 })

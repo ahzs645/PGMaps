@@ -167,7 +167,7 @@ describe('a typed station says what its calculated neighbours say', () => {
   it('gives the reasons an incomplete section could not be completed', () => {
     // Ground is missing west of the centreline, so no section along the road can daylight there.
     const halfCovered: TerrainSource = {
-      elevationAt: (lng, lat) => (local(lng, lat).east < -3 ? null : ground.elevationAt(lng, lat)),
+      elevationAt: (lng, lat) => (local(lng, lat).east < -3 ? NaN : ground.elevationAt(lng, lat)),
     }
     const { at, neighbours } = evaluated(85, road(), halfCovered)
     const [s80] = neighbours(80)

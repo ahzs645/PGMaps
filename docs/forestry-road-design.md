@@ -842,7 +842,11 @@ A null bottom depth extends the material below the entered finite horizons.
 Where two horizons overlap in both station and depth, the later one in the list
 replaces the earlier one over the overlap (`resolveHorizons` in
 `groundHorizons.ts`), so a whole-road layer can be entered first and a local
-range after it; no depth is ever counted twice. Horizon endpoints become
+range after it; no depth is ever counted twice. The editor names the horizons a
+later one replaces, and the calculation and the project file follow the same
+rule: neither refuses an overlap. **Add material horizon** adds the next metre
+down over the whole road (`nextHorizon`); under an open-ended horizon it starts
+a metre below that horizon's top and replaces it there. Horizon endpoints become
 calculation stations. The approach-side horizon applies at the road endpoint.
 These layers are user-entered assumptions or observations: the bare-earth DTM
 does not identify rock, soil, organic depth or suitability.
@@ -1469,8 +1473,10 @@ instrument-specific construction stakeout package.
 - At most 500 vertical controls and 200 widening ranges per alignment.
 - Per alignment: at most 50 named templates, 200 template assignments,
   32 materials, 200 station/depth horizons, 100 culverts and 100 haul sites.
-  Same-side template overlaps and overlapping station/depth material horizons
-  are rejected. Side crossfall is −20% to 20%; template width is 0.1–50 m per side.
+  Same-side template overlaps are rejected. Material horizons may overlap in
+  station and depth: the later one replaces the earlier (`resolveHorizons`), and
+  the project file keeps them as entered. Side crossfall is −20% to 20%; template
+  width is 0.1–50 m per side.
 - Material intersections: at most 15,000,000 section-sample/layer pairs.
   Haul: at most 20,000,000 source comparisons and 20,000 emitted movements.
   Exceeding a budget returns an explicit calculation error, not truncated

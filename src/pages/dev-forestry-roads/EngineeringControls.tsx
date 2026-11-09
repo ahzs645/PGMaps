@@ -20,7 +20,7 @@ import { surfacingSupplyCost } from './gravel'
 import { ReferenceSelect } from './CostReferenceControls'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
-import { horizonReplacements } from './groundHorizons'
+import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
@@ -1074,23 +1074,15 @@ export function EngineeringControls({
               size="sm"
               variant="outline"
               disabled={!design.materials.length || design.strata.length >= 200}
-              onClick={() => {
-                const bottom = Math.max(0, ...design.strata.map((s) => s.bottomDepthM ?? s.topDepthM + 1))
+              onClick={() =>
                 edit((e) => ({
                   ...e,
                   strata: [
                     ...e.strata,
-                    {
-                      id: uid(),
-                      start: 0,
-                      end: Math.max(1, analysis.length),
-                      materialId: e.materials[e.materials.length - 1].id,
-                      topDepthM: bottom,
-                      bottomDepthM: bottom + 1,
-                    },
+                    nextHorizon(e.strata, analysis.length, e.materials[e.materials.length - 1].id, uid()),
                   ],
                 }))
-              }}
+              }
             >
               Add material horizon
             </Button>
@@ -1135,10 +1127,16 @@ export function EngineeringControls({
                   fields={[
                     { key: 'start', label: `Horizon ${index + 1} start (m)` },
                     { key: 'end', label: `Horizon ${index + 1} end (m)` },
-                    { key: 'topDepthM', label: `Horizon ${index + 1} top depth (m)`, max: 1000 },
+                    { key: 'topDepthM', label: `Horizon ${index + 1} top depth (m)`, max: MAX_HORIZON_DEPTH_M },
                     ...(s.bottomDepthM === null
                       ? []
-                      : [{ key: 'bottomDepthM' as const, label: `Horizon ${index + 1} bottom depth (m)`, max: 1000 }]),
+                      : [
+                          {
+                            key: 'bottomDepthM' as const,
+                            label: `Horizon ${index + 1} bottom depth (m)`,
+                            max: MAX_HORIZON_DEPTH_M,
+                          },
+                        ]),
                   ]}
                   errorFor={errorsFor('strata', s.id)}
                   onChange={(p) => patch('strata', s.id, p)}
