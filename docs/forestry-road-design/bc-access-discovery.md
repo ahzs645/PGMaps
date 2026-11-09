@@ -89,6 +89,14 @@ place to investigate common access. It establishes shared mapped records in
 neighbouring study areas; historical connectivity and actual use still need dated
 evidence and reviewed entrances/outlets.
 
+The FTEN road **section** layer, which this recipe does not load, names R03890
+sections A–C `CP 407/8  MAIN` and sections H–I `CP 407   AMEND 2`. Opening 11981
+is CP 407 and 11984 is CP 408, so the road permit records this mainline as the
+planned access for both blocks. Air photos from May 1986 and July 1990 bracket
+section B's appearance, and the permit was awarded on 1988-04-15. See
+[What BC records establish about block access](bc-access-research-2026-11-09.md#1-the-worked-case-openings-11981-and-11984)
+for the full timeline, later reuse and the open anomalies.
+
 To inspect it in the interface:
 
 1. **Projects → Find BC cutblocks → Opening ID `11981` → Search BC cutblocks → Open study**.
@@ -165,6 +173,13 @@ establish the configuration at a 1988, 1989, 1996 or 1997 harvest. No real bridg
 been attached to these blocks without supporting records. The separate synthetic
 bridge-closure example demonstrates the intended historical behavior with explicitly
 invented evidence.
+
+The envelope was the wrong place to look. Only 305 of the layer's 7,847 rows are
+on road permits; nearly all are on Forest Service Roads. For 11981 and 11984,
+R03890 joins the Beaver FSR (7753), and a haul toward Prince George crosses the
+Willow River bridge G1-010 (km 27.69) and major culvert G1-009 (km 13.67). Search
+for structures along the route to the FSR and outlet, as described in
+[the research note](bc-access-research-2026-11-09.md#the-haul-route-and-its-bridges).
 
 ## Reproduce the searches
 

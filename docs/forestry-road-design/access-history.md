@@ -465,6 +465,36 @@ running the inference over an entire district:
    terrain. Measure wrong attachments, missed alternatives and unresolved gaps, then
    decide which new source or topology step would improve the next regional sample.
 
+Several public sources already narrow these steps; the
+[research note](bc-access-research-2026-11-09.md) measures each one:
+
+- **Road section names** cite the cutting permit or block a section was built
+  for. In district samples, 55–67% of CP-citing names touch a block of that CP,
+  against 0–3% for a control CP. Load `FTEN_ROAD_SECTION_LINES_SVW` alongside the
+  segments and add "named in road permit" as planned-access evidence.
+- **Recent names contain the block ID** (`N2E149.1000`); a token match against
+  touching blocks found no control hits. For 480 blocks harvested since 2010, a
+  touching road names the block in 23% of cases and a neighbouring block in 7%;
+  the rest depend on adjacency, ownership and imagery.
+- **Modern spurs are amendments to old permits** (median 19.5 years between
+  award and harvest), so `AWARD_DATE` cannot date them. For roads built since
+  2017, Sentinel-2 NDVI along the road line gives a "first seen" interval; for
+  blocks planned since about 2021, the FOM plan gives planned roads and dates.
+- **Dates bracket the road:** permit `AWARD_DATE` (the permit's, not the
+  section's), CP `ISSUE_DATE` from the harvesting authority layer, and the air
+  photo catalogue's dated frames.
+- **How roads were drawn to blocks:** in 347 block–road pairs, a built access
+  leg joined the nearest road only 26% of the time. A straight connection over
+  12%, a shorter haul to the FSR, or a nearest road that was retired or a
+  separate fragment explains 72% of the rest. In-block roads follow the
+  contours, and roads through a block often predate it or continue to later
+  blocks. See the note's section 8 for the rules this suggests for the route
+  search.
+- **RESULTS silviculture methods** show when crews drove in (machine site
+  preparation) and when work moved to helicopters.
+- **Harvests along a road by year** show older use and later reuse.
+- **Structures** sit mostly on FSRs, so search along the haul route.
+
 None of these records alone explains why an operator chose a route. Construction
 purpose, actual use, shared access for future blocks, historical constraints and costs
 remain separate questions. The broader expansion below supplies the infrastructure

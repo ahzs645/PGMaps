@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BC block–road reference set</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+  :root { --fg:#1d232b; --muted:#5b6673; --line:#d9dee4; --bg:#f7f8fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; color:var(--fg); display:grid; grid-template-columns: 340px 1fr; height:100vh; }
+  aside { border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; background:#fff; }
+  header { padding:12px 14px 8px; border-bottom:1px solid var(--line); }
+  h1 { font-size:15px; margin:0 0 4px; }
+  .muted { color:var(--muted); }
+  .filters { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px; }
+  .filters input, .filters select { width:100%; padding:5px 6px; border:1px solid var(--line); border-radius:6px; font:inherit; }
+  .filters input { grid-column: 1 / -1; }
+  #list { overflow:auto; flex:1; }
+  .row { padding:8px 14px; border-bottom:1px solid #eef0f3; cursor:pointer; }
+  .row:hover { background:var(--bg); }
+  .row.sel { background:#e8f1ff; }
+  .row b { font-weight:600; }
+  .tag { display:inline-block; padding:0 6px; margin:2px 3px 0 0; border-radius:9px; background:#eef0f3; font-size:11px; color:var(--muted); }
+  .k-road_at_block { background:#e6f4ea; color:#1e6b35; } .k-joined_nearest { background:#e8f0fe; color:#1a4fb5; } .k-joined_elsewhere { background:#fdecea; color:#a1271b; }
+  #detail { border-top:1px solid var(--line); padding:10px 14px; max-height:40%; overflow:auto; background:var(--bg); }
+  #detail table { border-collapse:collapse; width:100%; } #detail td { padding:2px 0; vertical-align:top; } #detail td:first-child { color:var(--muted); width:52%; }
+  #map { position:relative; }
+  .legend { position:absolute; bottom:28px; left:10px; background:#fffe; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:12px; z-index:2; }
+  .legend div { display:flex; align-items:center; gap:7px; margin:2px 0; }
+  .sw { width:22px; height:0; border-top:3px solid; } .dot { width:10px; height:10px; border-radius:50%; } .fill { width:16px; height:12px; }
+  .basemap { position:absolute; top:10px; left:10px; z-index:2; background:#fff; border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
+</style>
+</head>
+<body>
+<aside>
+  <header>
+    <h1>BC block–road reference set</h1>
+    <div class="muted" id="summary">Loading…</div>
+    <div class="filters">
+      <input id="q" placeholder="Search block, licence, CP, opening or road name">
+      <select id="scenario"><option value="">All scenarios</option><option value="road_at_block">Road already at block</option><option value="joined_nearest">Joined nearest road</option><option value="joined_elsewhere">Joined elsewhere</option></select>
+      <select id="tag"><option value="">Any reason</option><option>steep_straight_alternative</option><option>nearest_road_retired</option><option>nearest_is_small_separate_network</option><option>shorter_haul_to_fsr</option><option>laid_out_around_existing_road</option><option>development_road_continues</option></select>
+    </div>
+  </header>
+  <div id="list"></div>
+  <div id="detail" class="muted">Select a block.</div>
+</aside>
+<div id="map">
+  <div class="basemap"><label><input type="radio" name="bm" value="imagery" checked> Imagery</label> <label><input type="radio" name="bm" value="osm"> Streets</label> · <label><input type="checkbox" id="showSetup" checked> Whole setup</label></div>
+  <div class="legend">
+    <div><span class="fill" style="background:#3fb95066;border:1px solid #2e8b3e"></span>Cutblock</div>
+    <div><span class="fill" style="background:#ff9f0a33;border:1px solid #ff9f0a"></span>Other blocks in the setup (licence + CP)</div>
+    <div><span class="sw" style="border-color:#ff9f0a"></span>Roads named for the setup</div>
+    <div><span class="sw" style="border-color:#ff3b30"></span>Built road (named for block)</div>
+    <div><span class="sw" style="border-color:#00e5ff;border-top-style:dashed"></span>Generated road (group rule)</div>
+    <div><span class="sw" style="border-color:#c77dff;border-top-style:dotted"></span>Generated leg (single block)</div>
+    <div><span class="sw" style="border-color:#c9ced6"></span>Other existing road</div>
+    <div><span class="dot" style="background:#ff3b30"></span>Real junction</div>
+    <div><span class="dot" style="background:#00e5ff"></span>Generated junction</div>
+    <div><span class="dot" style="background:#ffd60a"></span>Nearest point on network</div>
+  </div>
+</div>
+<script>
+const DATA_URL = new URLSearchParams(location.search).get('data') || './reference-pairs.geojson.gz';
+const SETUP_URL = new URLSearchParams(location.search).get('setups') || './reference-setups.geojson.gz';
+let SETUPS = null, setupLoad = null;
+async function fetchJson(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`Could not load ${url}: ${r.status}`);
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  const gz = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  return JSON.parse(gz ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes));
+}
+function loadSetups() {
+  if (window.REFERENCE_SETUPS) return Promise.resolve(SETUPS ||= index(window.REFERENCE_SETUPS));
+  return setupLoad ||= fetchJson(SETUP_URL).then(fc => (SETUPS = index(fc))).catch(() => (SETUPS = {}));
+}
+function index(fc) { const by = {}; for (const f of fc.features) (by[f.properties.setup] ||= []).push(f); return by; }
+const LABEL = { road_at_block:'Road already at block', joined_nearest:'Joined nearest road', joined_elsewhere:'Joined elsewhere' };
+const fmt = (v, u='') => v == null ? '—' : (typeof v === 'number' ? v.toLocaleString() + u : v);
+async function load() {
+  if (window.REFERENCE_DATA) return window.REFERENCE_DATA;
+  const r = await fetch(DATA_URL);
+  if (!r.ok) throw new Error(`Could not load ${DATA_URL}: ${r.status}`);
+  const bytes = new Uint8Array(await r.arrayBuffer());
+  // a server may already have removed the gzip layer; only decompress real gzip bytes
+  const gz = bytes[0] === 0x1f && bytes[1] === 0x8b;
+  const text = gz ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text() : new TextDecoder().decode(bytes);
+  return JSON.parse(text);
+}
+const map = new maplibregl.Map({ container:'map', center:[-122.75, 54.5], zoom:6, style:{ version:8,
+  sources:{ imagery:{ type:'raster', tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize:256, attribution:'Imagery © Esri' },
+            osm:{ type:'raster', tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize:256, attribution:'© OpenStreetMap contributors' } },
+  layers:[{ id:'imagery', type:'raster', source:'imagery' }, { id:'osm', type:'raster', source:'osm', layout:{ visibility:'none' } }] } });
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+document.querySelectorAll('input[name=bm]').forEach(i => i.onchange = () => { map.setLayoutProperty('imagery','visibility', i.value==='imagery'&&i.checked?'visible':'none'); map.setLayoutProperty('osm','visibility', i.value==='osm'&&i.checked?'visible':'none'); });
+let FC, byPair = {}, blocks = [], selected = null;
+function bbox(geoms) { let b=[180,90,-180,-90]; const walk=c=>typeof c[0]==='number'?(b=[Math.min(b[0],c[0]),Math.min(b[1],c[1]),Math.max(b[2],c[0]),Math.max(b[3],c[1])]):c.forEach(walk); geoms.forEach(g=>walk(g.coordinates)); return b; }
+function render() {
+  const q = document.getElementById('q').value.trim().toLowerCase(), sc = document.getElementById('scenario').value, tg = document.getElementById('tag').value;
+  const rows = blocks.filter(b => (!sc || b.properties.scenario===sc) && (!tg || b.properties.tags.includes(tg)) &&
+    (!q || [b.properties.block_id,b.properties.licence,b.properties.cutting_permit,b.properties.opening_id,...(byPair[b.properties.pair]||[]).filter(f=>f.properties.role==='built_road').map(f=>f.properties.name)].join(' ').toLowerCase().includes(q)));
+  document.getElementById('list').innerHTML = rows.map(b => { const p=b.properties; return `<div class="row ${selected===p.pair?'sel':''}" data-pair="${p.pair}"><b>${p.block_id}</b> · ${p.licence} CP ${p.cutting_permit??'—'} <span class="muted">· harvested ${p.harvest_start}</span><br><span class="tag k-${p.scenario}">${LABEL[p.scenario]||p.scenario}</span>${p.tags.map(t=>`<span class="tag">${t.replaceAll('_',' ')}</span>`).join('')}</div>`; }).join('') || '<div class="row muted">No blocks match.</div>';
+  document.querySelectorAll('.row[data-pair]').forEach(r => r.onclick = () => select(r.dataset.pair));
+}
+async function select(pair) {
+  selected = pair; render();
+  const fs = byPair[pair]; map.getSource('pair').setData({ type:'FeatureCollection', features:fs });
+  const blk = fs.find(f=>f.properties.role==='block');
+  const showSetup = document.getElementById('showSetup').checked;
+  const setupKey = `${blk.properties.licence}|${blk.properties.cutting_permit ?? ''}`;
+  const sfs = showSetup ? ((await loadSetups())[setupKey] || []) : [];
+  if (selected !== pair) return;
+  map.getSource('setup').setData({ type:'FeatureCollection', features: sfs.filter(f => !(f.properties.role === 'setup_block' && f.properties.block_id === blk.properties.block_id)) });
+  const b = bbox(fs.filter(f=>['block','built_road','generated_access','generated_group_access','generated_in_block'].includes(f.properties.role)).map(f=>f.geometry).concat(sfs.filter(f=>f.properties.role==='setup_block').map(f=>f.geometry)));
+  const ss = (sfs.find(f => f.properties.summary) || {}).properties?.summary;
+  map.fitBounds([[b[0],b[1]],[b[2],b[3]]], { padding:80, duration:600, maxZoom:16 });
+  const p = blk.properties, m = p.metrics || {}, g = p.generated || {};
+  const names = [...new Set(fs.filter(f=>f.properties.role==='built_road').map(f=>f.properties.name).filter(Boolean))];
+  document.getElementById('detail').className=''; document.getElementById('detail').innerHTML = `<b>${p.block_id}</b> · ${p.licence} CP ${p.cutting_permit??'—'}${p.opening_id?` · opening ${p.opening_id}`:''}<br><span class="muted">${p.client||''}</span>
+   <table>
+   <tr><td>Scenario</td><td>${LABEL[p.scenario]||p.scenario}${p.tags.length?'<br>'+p.tags.map(t=>t.replaceAll('_',' ')).join(', '):''}</td></tr>
+   <tr><td>Harvest</td><td>${p.harvest_start} → ${p.harvest_end||'?'}</td></tr>
+   <tr><td>Block area</td><td>${fmt(m.area_ha,' ha')}</td></tr>
+   <tr><td>Road names</td><td>${names.join(', ')||'—'}</td></tr>
+   <tr><td>Built road (in / out of block)</td><td>${fmt(m.spur_in,' m')} / ${fmt(m.spur_out,' m')}</td></tr>
+   <tr><td>Nearest existing road</td><td>${fmt(m.nearest_road_dist,' m')}</td></tr>
+   <tr><td>Junction from nearest point</td><td>${fmt(m.junction_to_nearest_point,' m')}</td></tr>
+   <tr><td>Straight alternative max grade</td><td>${fmt(m.alt_grade_max,'%')}</td></tr>
+   <tr><td>Built leg max grade</td><td>${fmt(m.spur_grade_max,'%')}</td></tr>
+   <tr><td>Share within 300 m of road</td><td>${m.share_within_300!=null?Math.round(m.share_within_300*100)+'%':'—'}</td></tr>
+   ${p.first_seen ? `<tr><td>Road first seen (Sentinel-2)</td><td>${p.first_seen.result === 'dated' ? `between ${p.first_seen.last_scene_without} and ${p.first_seen.first_scene_with} (${p.first_seen.timing.replaceAll('_',' ')})` : p.first_seen.result.replaceAll('_',' ')}</td></tr>` : ''}
+   <tr><td>Generated junction error</td><td>${fmt(g.junction_error,' m')}</td></tr>
+   <tr><td>Generated leg / built leg</td><td>${g.leg_len_ratio??'—'}</td></tr>
+   <tr><td>Built road within 60 m of generated (single / group of ${g.group_size??'—'})</td><td>${g.single_reproduced_60m!=null?Math.round(g.single_reproduced_60m*100)+'%':'—'} / ${g.group_reproduced_60m!=null?Math.round(g.group_reproduced_60m*100)+'%':'—'}</td></tr>
+   <tr><td>Generated in-block / built</td><td>${fmt(g.in_block_generated,' m')} / ${fmt(g.in_block_built,' m')}</td></tr>
+   ${ss ? `<tr><td colspan="2"><b>Whole setup (${blk.properties.licence} CP ${blk.properties.cutting_permit ?? '—'})</b></td></tr>
+   <tr><td>Blocks / area</td><td>${ss.n_blocks} / ${fmt(ss.area_ha,' ha')}</td></tr>
+   <tr><td>Farthest blocks apart</td><td>${fmt(ss.span_m,' m')}</td></tr>
+   <tr><td>Harvest spread</td><td>${ss.harvest_years} years</td></tr>
+   <tr><td>Road named for the setup</td><td>${fmt(ss.named_road_m,' m')}</td></tr>
+   <tr><td>Blocks on setup roads / other roads only / none</td><td>${ss.blocks_on_named_road} / ${ss.blocks_on_other_road_only} / ${ss.blocks_no_road}</td></tr>
+   <tr><td>Existing road permits joined</td><td>${ss.host_permits ?? '—'}${ss.top_host_share != null ? ` (${Math.round(ss.top_host_share*100)}% on the main one)` : ''}${ss.joins_fsr ? ' · joins an FSR' : ''}</td></tr>
+   <tr><td>Shared new road (mainline)</td><td>${fmt(ss.mainline_m,' m')}</td></tr>` : ''}
+   </table>`;
+}
+map.on('load', async () => {
+  FC = await load();
+  for (const f of FC.features) (byPair[f.properties.pair] ||= []).push(f);
+  blocks = FC.features.filter(f => f.properties.role === 'block').sort((a,b)=>a.properties.harvest_start<b.properties.harvest_start?1:-1);
+  const n = blocks.length, k = s => blocks.filter(b=>b.properties.scenario===s).length;
+  document.getElementById('summary').textContent = `${n} blocks harvested since 2010 whose road is named for them · ${k('road_at_block')} road already at block · ${k('joined_nearest')} joined nearest · ${k('joined_elsewhere')} joined elsewhere`;
+  map.addSource('pair', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addSource('setup', { type:'geojson', data:{ type:'FeatureCollection', features:[] } });
+  map.addLayer({ id:'setup-blk', type:'fill', source:'setup', filter:['==',['get','role'],'setup_block'], paint:{ 'fill-color':'#ff9f0a', 'fill-opacity':0.2 } });
+  map.addLayer({ id:'setup-blk-line', type:'line', source:'setup', filter:['==',['get','role'],'setup_block'], paint:{ 'line-color':'#ff9f0a', 'line-width':1.2 } });
+  map.addLayer({ id:'setup-road', type:'line', source:'setup', filter:['==',['get','role'],'setup_road'], paint:{ 'line-color':'#ff9f0a', 'line-width':2.5 } });
+  map.addSource('centroids', { type:'geojson', data:{ type:'FeatureCollection', features: blocks.map(b=>({ type:'Feature', properties:{ pair:b.properties.pair, scenario:b.properties.scenario }, geometry:{ type:'Point', coordinates:[b.properties.lon, b.properties.lat] } })) } });
+  const R = r => ['==', ['get','role'], r];
+  map.addLayer({ id:'blk', type:'fill', source:'pair', filter:R('block'), paint:{ 'fill-color':'#3fb950', 'fill-opacity':0.3 } });
+  map.addLayer({ id:'blk-line', type:'line', source:'pair', filter:R('block'), paint:{ 'line-color':'#2e8b3e', 'line-width':1.5 } });
+  map.addLayer({ id:'existing', type:'line', source:'pair', filter:R('existing_road'), paint:{ 'line-color':'#c9ced6', 'line-width':2 } });
+  map.addLayer({ id:'built', type:'line', source:'pair', filter:R('built_road'), paint:{ 'line-color':'#ff3b30', 'line-width':3.5 } });
+  map.addLayer({ id:'gen-single', type:'line', source:'pair', filter:R('generated_access'), paint:{ 'line-color':'#c77dff', 'line-width':2, 'line-dasharray':[0.5,1.5] } });
+  map.addLayer({ id:'gen', type:'line', source:'pair', filter:['in',['get','role'],['literal',['generated_group_access','generated_in_block']]], paint:{ 'line-color':'#00e5ff', 'line-width':2.5, 'line-dasharray':[2,1.5] } });
+  map.addLayer({ id:'pts', type:'circle', source:'pair', filter:['in',['get','role'],['literal',['junction','generated_junction','nearest_point']]], paint:{ 'circle-radius':6, 'circle-stroke-color':'#000', 'circle-stroke-width':1,
+    'circle-color':['match',['get','role'],'junction','#ff3b30','generated_junction','#00e5ff','#ffd60a'] } });
+  map.addLayer({ id:'cents', type:'circle', source:'centroids', maxzoom:11, paint:{ 'circle-radius':4, 'circle-stroke-color':'#fff', 'circle-stroke-width':1,
+    'circle-color':['match',['get','scenario'],'road_at_block','#2e8b3e','joined_nearest','#1a4fb5','#d93025'] } });
+  map.on('click', 'cents', e => select(e.features[0].properties.pair));
+  map.on('mouseenter', 'cents', () => map.getCanvas().style.cursor = 'pointer'); map.on('mouseleave', 'cents', () => map.getCanvas().style.cursor = '');
+  const b = bbox(blocks.map(x=>({ coordinates:[x.properties.lon, x.properties.lat] }))); map.fitBounds([[b[0],b[1]],[b[2],b[3]]], { padding:40, duration:0 });
+  ['q','scenario','tag'].forEach(id => document.getElementById(id).oninput = render); render();
+  document.getElementById('showSetup').onchange = () => selected && select(selected);
+  const want = new URLSearchParams(location.search).get('pair'); if (want && byPair[want]) select(want);
+});
+</script>
+</body>
+</html>

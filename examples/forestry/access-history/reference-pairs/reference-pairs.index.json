@@ -1,0 +1,8083 @@
+[
+ {
+  "pair": "1006009",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues",
+   "steep_straight_alternative",
+   "nearest_road_retired"
+  ],
+  "licence": "A20017",
+  "cutting_permit": "267",
+  "block_id": "13",
+  "opening_id": 1665275,
+  "harvest_start": "2015-08-15",
+  "area_ha": 15.0,
+  "built_road_m": 1798,
+  "nearest_road_m": 83,
+  "lon": -121.33324,
+  "lat": 52.61691,
+  "road_first_seen": null,
+  "names": [
+   "CP267-13-SP1"
+  ]
+ },
+ {
+  "pair": "1012071",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "A73",
+  "block_id": "1226",
+  "opening_id": 1413193,
+  "harvest_start": "2011-06-15",
+  "area_ha": 41.6,
+  "built_road_m": 61,
+  "nearest_road_m": 0,
+  "lon": -123.77266,
+  "lat": 55.58107,
+  "road_first_seen": null,
+  "names": [
+   "1226.1000"
+  ]
+ },
+ {
+  "pair": "1020750",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W60",
+  "block_id": "SAL150",
+  "opening_id": 1489070,
+  "harvest_start": "2012-07-31",
+  "area_ha": 31.0,
+  "built_road_m": 1624,
+  "nearest_road_m": 0,
+  "lon": -122.86489,
+  "lat": 54.39777,
+  "road_first_seen": null,
+  "names": [
+   "SAL150.1000",
+   "SAL150.2000"
+  ]
+ },
+ {
+  "pair": "1030180",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "148",
+  "block_id": "004",
+  "opening_id": 1430250,
+  "harvest_start": "2011-10-17",
+  "area_ha": 33.5,
+  "built_road_m": 268,
+  "nearest_road_m": 0,
+  "lon": -122.32456,
+  "lat": 53.62232,
+  "road_first_seen": null,
+  "names": [
+   "148-4 ACCESS"
+  ]
+ },
+ {
+  "pair": "1037385",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "K26",
+  "block_id": "0545",
+  "opening_id": 1454290,
+  "harvest_start": "2011-11-15",
+  "area_ha": 53.4,
+  "built_road_m": 2380,
+  "nearest_road_m": 7,
+  "lon": -123.50556,
+  "lat": 55.09488,
+  "road_first_seen": null,
+  "names": [
+   "0545.1000",
+   "0545.2000"
+  ]
+ },
+ {
+  "pair": "1048659",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "172",
+  "block_id": "577",
+  "opening_id": 1456452,
+  "harvest_start": "2012-02-03",
+  "area_ha": 215.2,
+  "built_road_m": 652,
+  "nearest_road_m": 0,
+  "lon": -123.07141,
+  "lat": 54.20534,
+  "road_first_seen": null,
+  "names": [
+   "172-577 ACCESS 1",
+   "172-577 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1048698",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C05",
+  "block_id": "1318",
+  "opening_id": 1536493,
+  "harvest_start": "2013-03-02",
+  "area_ha": 46.8,
+  "built_road_m": 531,
+  "nearest_road_m": 0,
+  "lon": -123.58236,
+  "lat": 55.56114,
+  "road_first_seen": null,
+  "names": [
+   "1318.1100"
+  ]
+ },
+ {
+  "pair": "1049085",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W76",
+  "block_id": "WEE302A",
+  "opening_id": 1459011,
+  "harvest_start": "2012-03-02",
+  "area_ha": 55.1,
+  "built_road_m": 406,
+  "nearest_road_m": 0,
+  "lon": -123.03952,
+  "lat": 54.75679,
+  "road_first_seen": null,
+  "names": [
+   "WEE302A.1000 AM360"
+  ]
+ },
+ {
+  "pair": "1051818",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "W53",
+  "block_id": "SAL125",
+  "opening_id": 1490190,
+  "harvest_start": "2012-08-22",
+  "area_ha": 42.8,
+  "built_road_m": 2685,
+  "nearest_road_m": 271,
+  "lon": -122.81403,
+  "lat": 54.43024,
+  "road_first_seen": null,
+  "names": [
+   "SAL125.1000 AM 329",
+   "SAL125.1100 AM 329",
+   "SAL125.1200 AM 329",
+   "SAL125.1300 AM 329"
+  ]
+ },
+ {
+  "pair": "1053623",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "V68",
+  "block_id": "SAL117",
+  "opening_id": 1521633,
+  "harvest_start": "2012-11-15",
+  "area_ha": 10.5,
+  "built_road_m": 211,
+  "nearest_road_m": 110,
+  "lon": -122.85481,
+  "lat": 54.34684,
+  "road_first_seen": null,
+  "names": [
+   "SAL117.1000"
+  ]
+ },
+ {
+  "pair": "1054129",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20020",
+  "cutting_permit": "25X",
+  "block_id": "3",
+  "opening_id": 1521094,
+  "harvest_start": "2014-09-29",
+  "area_ha": 127.8,
+  "built_road_m": 685,
+  "nearest_road_m": 0,
+  "lon": -123.45007,
+  "lat": 51.93616,
+  "road_first_seen": null,
+  "names": [
+   "CP25X-3-SP2",
+   "CP25X-3-SP3"
+  ]
+ },
+ {
+  "pair": "1057001",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "27X",
+  "block_id": "5",
+  "opening_id": 1492814,
+  "harvest_start": "2012-10-18",
+  "area_ha": 19.0,
+  "built_road_m": 815,
+  "nearest_road_m": 469,
+  "lon": -123.32292,
+  "lat": 51.70234,
+  "road_first_seen": null,
+  "names": [
+   "CP27X-5-SP1"
+  ]
+ },
+ {
+  "pair": "1058019",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "84C",
+  "block_id": "84C004",
+  "opening_id": 1507853,
+  "harvest_start": "2012-11-30",
+  "area_ha": 31.9,
+  "built_road_m": 647,
+  "nearest_road_m": 365,
+  "lon": -124.01599,
+  "lat": 53.80224,
+  "road_first_seen": null,
+  "names": [
+   "84C004.1000"
+  ]
+ },
+ {
+  "pair": "1062661",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "99S",
+  "block_id": "99S002",
+  "opening_id": 1515372,
+  "harvest_start": "2012-07-20",
+  "area_ha": 41.9,
+  "built_road_m": 301,
+  "nearest_road_m": 191,
+  "lon": -123.80547,
+  "lat": 54.73089,
+  "road_first_seen": null,
+  "names": [
+   "99S002.1000"
+  ]
+ },
+ {
+  "pair": "1063319",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "166",
+  "block_id": "609",
+  "opening_id": 1671337,
+  "harvest_start": "2015-11-01",
+  "area_ha": 32.4,
+  "built_road_m": 1433,
+  "nearest_road_m": 9,
+  "lon": -123.10005,
+  "lat": 54.30321,
+  "road_first_seen": null,
+  "names": [
+   "166-609 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1064347",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20020",
+  "cutting_permit": "09W",
+  "block_id": "2",
+  "opening_id": 1520890,
+  "harvest_start": "2013-09-30",
+  "area_ha": 127.9,
+  "built_road_m": 4450,
+  "nearest_road_m": 370,
+  "lon": -123.20045,
+  "lat": 51.52342,
+  "road_first_seen": null,
+  "names": [
+   "CP09W-2-SP1"
+  ]
+ },
+ {
+  "pair": "1065292",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A15430",
+  "cutting_permit": "518",
+  "block_id": "003",
+  "opening_id": 1593315,
+  "harvest_start": "2013-12-02",
+  "area_ha": 13.0,
+  "built_road_m": 384,
+  "nearest_road_m": 203,
+  "lon": -120.67334,
+  "lat": 53.62872,
+  "road_first_seen": null,
+  "names": [
+   "518-003 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1065535",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "920",
+  "block_id": "10",
+  "opening_id": 1498630,
+  "harvest_start": "2012-09-09",
+  "area_ha": 4.1,
+  "built_road_m": 401,
+  "nearest_road_m": 0,
+  "lon": -122.77326,
+  "lat": 51.31589,
+  "road_first_seen": null,
+  "names": [
+   "CP920-10-SP1"
+  ]
+ },
+ {
+  "pair": "1071637",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "61G",
+  "block_id": "61G003",
+  "opening_id": 1473350,
+  "harvest_start": "2012-06-26",
+  "area_ha": 4.0,
+  "built_road_m": 145,
+  "nearest_road_m": 94,
+  "lon": -124.33852,
+  "lat": 53.69022,
+  "road_first_seen": null,
+  "names": [
+   "61G003.1000"
+  ]
+ },
+ {
+  "pair": "1072801",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W59",
+  "block_id": "MUS148A",
+  "opening_id": 1532332,
+  "harvest_start": "2013-01-25",
+  "area_ha": 3.6,
+  "built_road_m": 187,
+  "nearest_road_m": 100,
+  "lon": -123.4622,
+  "lat": 54.6366,
+  "road_first_seen": null,
+  "names": [
+   "MUS148A.1000"
+  ]
+ },
+ {
+  "pair": "1075635",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "Y3A",
+  "block_id": "BAR010",
+  "opening_id": 1497690,
+  "harvest_start": "2012-09-10",
+  "area_ha": 45.8,
+  "built_road_m": 641,
+  "nearest_road_m": 69,
+  "lon": -124.44865,
+  "lat": 54.16754,
+  "road_first_seen": null,
+  "names": [
+   "BAR010.1100"
+  ]
+ },
+ {
+  "pair": "1080398",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "49K",
+  "block_id": "49K002",
+  "opening_id": 1517792,
+  "harvest_start": "2013-01-15",
+  "area_ha": 14.2,
+  "built_road_m": 164,
+  "nearest_road_m": 77,
+  "lon": -124.10853,
+  "lat": 53.62097,
+  "road_first_seen": null,
+  "names": [
+   "49K002.1000"
+  ]
+ },
+ {
+  "pair": "1081077",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W09",
+  "block_id": "DOC305",
+  "opening_id": 1521077,
+  "harvest_start": "2012-11-28",
+  "area_ha": 17.0,
+  "built_road_m": 53,
+  "nearest_road_m": 7,
+  "lon": -123.55179,
+  "lat": 54.20513,
+  "road_first_seen": null,
+  "names": [
+   "DOC305.1000"
+  ]
+ },
+ {
+  "pair": "1082008",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "97K",
+  "block_id": "HAT007",
+  "opening_id": 1507130,
+  "harvest_start": "2012-11-15",
+  "area_ha": 77.7,
+  "built_road_m": 2036,
+  "nearest_road_m": 122,
+  "lon": -124.23517,
+  "lat": 54.78405,
+  "road_first_seen": null,
+  "names": [
+   "HAT007.1000"
+  ]
+ },
+ {
+  "pair": "1083494",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "TFL30",
+  "cutting_permit": "9BB",
+  "block_id": "RAI060",
+  "opening_id": 1523670,
+  "harvest_start": "2012-12-19",
+  "area_ha": 55.5,
+  "built_road_m": 2212,
+  "nearest_road_m": 512,
+  "lon": -122.20169,
+  "lat": 54.34648,
+  "road_first_seen": null,
+  "names": [
+   "RAI060.1000",
+   "RAI060.1000  AM32",
+   "RAI060.1100"
+  ]
+ },
+ {
+  "pair": "1085901",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A77955",
+  "cutting_permit": "D21",
+  "block_id": "KUZ319",
+  "opening_id": 1540551,
+  "harvest_start": "2012-11-15",
+  "area_ha": 45.6,
+  "built_road_m": 35,
+  "nearest_road_m": 0,
+  "lon": -124.85472,
+  "lat": 54.78585,
+  "road_first_seen": null,
+  "names": [
+   "KUZ319.1000"
+  ]
+ },
+ {
+  "pair": "1088383",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A77955",
+  "cutting_permit": "C49",
+  "block_id": "INZ106",
+  "opening_id": 1651319,
+  "harvest_start": "2014-12-01",
+  "area_ha": 65.9,
+  "built_road_m": 1369,
+  "nearest_road_m": 0,
+  "lon": -124.24759,
+  "lat": 54.87802,
+  "road_first_seen": null,
+  "names": [
+   "INZ106.1000",
+   "INZ106.2000"
+  ]
+ },
+ {
+  "pair": "1113831",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "54E",
+  "block_id": "54E003",
+  "opening_id": 1585678,
+  "harvest_start": "2013-11-29",
+  "area_ha": 54.1,
+  "built_road_m": 451,
+  "nearest_road_m": 0,
+  "lon": -123.73425,
+  "lat": 53.6086,
+  "road_first_seen": null,
+  "names": [
+   "54E003.1000"
+  ]
+ },
+ {
+  "pair": "1117540",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "42W",
+  "block_id": "C0781",
+  "opening_id": 1610637,
+  "harvest_start": "2014-02-02",
+  "area_ha": 1.1,
+  "built_road_m": 52,
+  "nearest_road_m": 51,
+  "lon": -122.79089,
+  "lat": 51.2881,
+  "road_first_seen": null,
+  "names": [
+   "A20015 CP42W/C0781"
+  ]
+ },
+ {
+  "pair": "1122257",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C10",
+  "block_id": "1629",
+  "opening_id": 1603375,
+  "harvest_start": "2013-07-15",
+  "area_ha": 90.0,
+  "built_road_m": 2346,
+  "nearest_road_m": 10,
+  "lon": -124.02845,
+  "lat": 55.76815,
+  "road_first_seen": null,
+  "names": [
+   "1629.1000",
+   "1629.2000"
+  ]
+ },
+ {
+  "pair": "1122260",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C10",
+  "block_id": "1630",
+  "opening_id": 1555391,
+  "harvest_start": "2013-06-04",
+  "area_ha": 129.8,
+  "built_road_m": 3077,
+  "nearest_road_m": 0,
+  "lon": -124.04265,
+  "lat": 55.76553,
+  "road_first_seen": null,
+  "names": [
+   "1630.1000",
+   "1630.2000",
+   "1630.3000",
+   "1630.4000"
+  ]
+ },
+ {
+  "pair": "1126068",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "153",
+  "block_id": "008",
+  "opening_id": 1599076,
+  "harvest_start": "2013-10-11",
+  "area_ha": 38.3,
+  "built_road_m": 1090,
+  "nearest_road_m": 0,
+  "lon": -122.15524,
+  "lat": 53.86133,
+  "road_first_seen": null,
+  "names": [
+   "153-8 ACCESS 1",
+   "153-8 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1126072",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "153",
+  "block_id": "001",
+  "opening_id": 1598936,
+  "harvest_start": "2013-10-12",
+  "area_ha": 46.6,
+  "built_road_m": 1013,
+  "nearest_road_m": 0,
+  "lon": -122.25322,
+  "lat": 53.80571,
+  "road_first_seen": null,
+  "names": [
+   "153-1 ACCESS 1",
+   "153-1 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1146428",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "D59",
+  "block_id": "NAT014",
+  "opening_id": 1559536,
+  "harvest_start": "2013-08-12",
+  "area_ha": 39.1,
+  "built_road_m": 1554,
+  "nearest_road_m": 0,
+  "lon": -124.02504,
+  "lat": 55.59678,
+  "road_first_seen": null,
+  "names": [
+   "NAT014.1000",
+   "NAT014.2000"
+  ]
+ },
+ {
+  "pair": "1146919",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W85",
+  "block_id": "MUS112",
+  "opening_id": 1558516,
+  "harvest_start": "2013-06-20",
+  "area_ha": 10.7,
+  "built_road_m": 1208,
+  "nearest_road_m": 581,
+  "lon": -123.67087,
+  "lat": 54.69213,
+  "road_first_seen": null,
+  "names": [
+   "MUS112.1000"
+  ]
+ },
+ {
+  "pair": "1154769",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "49R",
+  "block_id": "KIT014",
+  "opening_id": 1581118,
+  "harvest_start": "2013-10-18",
+  "area_ha": 119.0,
+  "built_road_m": 4338,
+  "nearest_road_m": 471,
+  "lon": -123.95595,
+  "lat": 53.72015,
+  "road_first_seen": null,
+  "names": [
+   "KIT014.1000"
+  ]
+ },
+ {
+  "pair": "1155077",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TFL53",
+  "cutting_permit": "291",
+  "block_id": "2",
+  "opening_id": 1660858,
+  "harvest_start": "2015-07-01",
+  "area_ha": 43.5,
+  "built_road_m": 815,
+  "nearest_road_m": 0,
+  "lon": -122.20255,
+  "lat": 53.45846,
+  "road_first_seen": null,
+  "names": [
+   "CP 291-2 BLK RD 1",
+   "CP 291-2 BLK RD 2"
+  ]
+ },
+ {
+  "pair": "1156955",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A84966",
+  "cutting_permit": "93W",
+  "block_id": "WLB104",
+  "opening_id": 1669013,
+  "harvest_start": "2013-12-01",
+  "area_ha": 9.7,
+  "built_road_m": 497,
+  "nearest_road_m": 110,
+  "lon": -121.51048,
+  "lat": 52.14947,
+  "road_first_seen": null,
+  "names": [
+   "A84966 CP93W/WLB104"
+  ]
+ },
+ {
+  "pair": "1158094",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W77",
+  "block_id": "SAL156",
+  "opening_id": 1607224,
+  "harvest_start": "2014-01-20",
+  "area_ha": 128.5,
+  "built_road_m": 95,
+  "nearest_road_m": 6,
+  "lon": -122.8891,
+  "lat": 54.41756,
+  "road_first_seen": null,
+  "names": [
+   "SAL156.1000  AM433",
+   "SAL156.2000  AM433",
+   "SAL156.3000  AM433"
+  ]
+ },
+ {
+  "pair": "1158737",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "15F",
+  "block_id": "MAL020",
+  "opening_id": 1644020,
+  "harvest_start": "2014-06-05",
+  "area_ha": 211.5,
+  "built_road_m": 1040,
+  "nearest_road_m": 10,
+  "lon": -125.2539,
+  "lat": 53.17107,
+  "road_first_seen": null,
+  "names": [
+   "MAL020.2000",
+   "MAL020.2100"
+  ]
+ },
+ {
+  "pair": "1159265",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "3Y",
+  "block_id": "BNY047",
+  "opening_id": 1607240,
+  "harvest_start": "2014-02-11",
+  "area_ha": 99.5,
+  "built_road_m": 3122,
+  "nearest_road_m": 0,
+  "lon": -122.50257,
+  "lat": 54.27807,
+  "road_first_seen": null,
+  "names": [
+   "BNY047.1000",
+   "BNY047.2000",
+   "BNY047.3000",
+   "BNY047.3100"
+  ]
+ },
+ {
+  "pair": "1164428",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "B40",
+  "block_id": "4921",
+  "opening_id": 1657211,
+  "harvest_start": "2015-08-10",
+  "area_ha": 58.2,
+  "built_road_m": 174,
+  "nearest_road_m": 12,
+  "lon": -124.19677,
+  "lat": 55.42958,
+  "road_first_seen": null,
+  "names": [
+   "4921.1000"
+  ]
+ },
+ {
+  "pair": "1171069",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A86661",
+  "cutting_permit": "003",
+  "block_id": "PHI012A",
+  "opening_id": 1728328,
+  "harvest_start": "2017-12-20",
+  "area_ha": 136.5,
+  "built_road_m": 529,
+  "nearest_road_m": 0,
+  "lon": -123.68293,
+  "lat": 55.17674,
+  "road_first_seen": null,
+  "names": [
+   "PHI012A_RD_B",
+   "PHI012A_RD_E",
+   "PHI012A_RD_G",
+   "PHI012A_RD_I"
+  ]
+ },
+ {
+  "pair": "1172846",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "13X",
+  "block_id": "10",
+  "opening_id": 1684362,
+  "harvest_start": "2016-09-10",
+  "area_ha": 83.8,
+  "built_road_m": 3211,
+  "nearest_road_m": 4,
+  "lon": -123.47285,
+  "lat": 51.63703,
+  "road_first_seen": null,
+  "names": [
+   "CP13X-10-SP1",
+   "CP13X-10-SP2",
+   "CP13X-10-SP3"
+  ]
+ },
+ {
+  "pair": "1174326",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A77955",
+  "cutting_permit": "C54",
+  "block_id": "HAT409",
+  "opening_id": 1651407,
+  "harvest_start": "2014-06-01",
+  "area_ha": 142.8,
+  "built_road_m": 3523,
+  "nearest_road_m": 0,
+  "lon": -124.62562,
+  "lat": 54.86178,
+  "road_first_seen": null,
+  "names": [
+   "HAT409.2000",
+   "HAT409.2100",
+   "HAT409.3000",
+   "HAT409.3100"
+  ]
+ },
+ {
+  "pair": "1177231",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "W92",
+  "block_id": "MUS150",
+  "opening_id": 1651102,
+  "harvest_start": "2014-11-03",
+  "area_ha": 422.7,
+  "built_road_m": 10646,
+  "nearest_road_m": 137,
+  "lon": -123.77063,
+  "lat": 54.67028,
+  "road_first_seen": null,
+  "names": [
+   "MUS150.1000  AM461",
+   "MUS150.1100  AM461",
+   "MUS150.1110  AM461",
+   "MUS150.1120  AM461"
+  ]
+ },
+ {
+  "pair": "1177234",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "W92",
+  "block_id": "MUS307",
+  "opening_id": 1628116,
+  "harvest_start": "2014-06-17",
+  "area_ha": 34.2,
+  "built_road_m": 2573,
+  "nearest_road_m": 299,
+  "lon": -123.72427,
+  "lat": 54.68058,
+  "road_first_seen": null,
+  "names": [
+   "MUS307.1000  AM455",
+   "MUS307.1000  AM461",
+   "MUS307.1100  AM455",
+   "MUS307.1200  AM461"
+  ]
+ },
+ {
+  "pair": "1183748",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "445",
+  "block_id": "002",
+  "opening_id": 1648991,
+  "harvest_start": "2014-08-11",
+  "area_ha": 33.4,
+  "built_road_m": 1299,
+  "nearest_road_m": 550,
+  "lon": -124.45217,
+  "lat": 54.90867,
+  "road_first_seen": null,
+  "names": [
+   "445-2 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1183749",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "445",
+  "block_id": "003",
+  "opening_id": 1649050,
+  "harvest_start": "2014-08-11",
+  "area_ha": 263.4,
+  "built_road_m": 65,
+  "nearest_road_m": 35,
+  "lon": -124.4137,
+  "lat": 54.88065,
+  "road_first_seen": null,
+  "names": [
+   "445-3 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1184110",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "272",
+  "block_id": "2",
+  "opening_id": 1668311,
+  "harvest_start": "2015-09-01",
+  "area_ha": 78.5,
+  "built_road_m": 3720,
+  "nearest_road_m": 0,
+  "lon": -121.76837,
+  "lat": 52.50977,
+  "road_first_seen": null,
+  "names": [
+   "CP272-2-SP1",
+   "CP272-2-SP1A",
+   "CP272-2-SP3",
+   "CP272-2-SP4"
+  ]
+ },
+ {
+  "pair": "1190058",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "B39",
+  "block_id": "NAT008",
+  "opening_id": 1645347,
+  "harvest_start": "2014-09-01",
+  "area_ha": 42.8,
+  "built_road_m": 613,
+  "nearest_road_m": 0,
+  "lon": -124.08065,
+  "lat": 55.3952,
+  "road_first_seen": null,
+  "names": [
+   "NAT008.1100",
+   "NAT008.2000"
+  ]
+ },
+ {
+  "pair": "1190931",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "732",
+  "block_id": "6",
+  "opening_id": 1636916,
+  "harvest_start": "2014-10-31",
+  "area_ha": 79.1,
+  "built_road_m": 7596,
+  "nearest_road_m": 0,
+  "lon": -122.19976,
+  "lat": 52.61946,
+  "road_first_seen": null,
+  "names": [
+   "CP732-6-SP1",
+   "CP732-6-SP2",
+   "CP732-6-SP3",
+   "CP732-6-SP4"
+  ]
+ },
+ {
+  "pair": "1191466",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "68F",
+  "block_id": "COR410",
+  "opening_id": 1656958,
+  "harvest_start": "2015-06-30",
+  "area_ha": 4.3,
+  "built_road_m": 574,
+  "nearest_road_m": 271,
+  "lon": -124.24787,
+  "lat": 53.78346,
+  "road_first_seen": null,
+  "names": [
+   "COR410.1000"
+  ]
+ },
+ {
+  "pair": "1191610",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "J35",
+  "block_id": "0665",
+  "opening_id": 1626557,
+  "harvest_start": "2014-07-07",
+  "area_ha": 83.8,
+  "built_road_m": 732,
+  "nearest_road_m": 3,
+  "lon": -123.58488,
+  "lat": 55.21668,
+  "road_first_seen": null,
+  "names": [
+   "0665.2000"
+  ]
+ },
+ {
+  "pair": "1193482",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "X86",
+  "block_id": "GOV423",
+  "opening_id": 1633997,
+  "harvest_start": "2014-08-18",
+  "area_ha": 76.9,
+  "built_road_m": 851,
+  "nearest_road_m": 0,
+  "lon": -122.44214,
+  "lat": 53.60093,
+  "road_first_seen": null,
+  "names": [
+   "GOV423.1000  AM457",
+   "GOV423.2000  AM457"
+  ]
+ },
+ {
+  "pair": "1197080",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "X92",
+  "block_id": "GOV428",
+  "opening_id": 1654056,
+  "harvest_start": "2015-06-01",
+  "area_ha": 40.6,
+  "built_road_m": 843,
+  "nearest_road_m": 0,
+  "lon": -122.44737,
+  "lat": 53.61616,
+  "road_first_seen": null,
+  "names": [
+   "GOV428.1000 AM467"
+  ]
+ },
+ {
+  "pair": "1197081",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "X92",
+  "block_id": "GOV427",
+  "opening_id": 1654479,
+  "harvest_start": "2015-05-25",
+  "area_ha": 24.7,
+  "built_road_m": 708,
+  "nearest_road_m": 3,
+  "lon": -122.43669,
+  "lat": 53.61077,
+  "road_first_seen": null,
+  "names": [
+   "GOV427.1000 AM467"
+  ]
+ },
+ {
+  "pair": "1197334",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "J29",
+  "block_id": "PHI027",
+  "opening_id": 1648353,
+  "harvest_start": "2015-01-13",
+  "area_ha": 49.2,
+  "built_road_m": 275,
+  "nearest_road_m": 0,
+  "lon": -123.63325,
+  "lat": 55.05951,
+  "road_first_seen": null,
+  "names": [
+   "PHI027.1100"
+  ]
+ },
+ {
+  "pair": "1199132",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H36",
+  "block_id": "0429",
+  "opening_id": 1651306,
+  "harvest_start": "2015-02-03",
+  "area_ha": 113.3,
+  "built_road_m": 3648,
+  "nearest_road_m": 0,
+  "lon": -123.19961,
+  "lat": 54.98256,
+  "road_first_seen": null,
+  "names": [
+   "0429.1000",
+   "0429.2000",
+   "0429.2100",
+   "0429.2200"
+  ]
+ },
+ {
+  "pair": "1199133",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H36",
+  "block_id": "0437",
+  "opening_id": 1649907,
+  "harvest_start": "2015-03-10",
+  "area_ha": 59.2,
+  "built_road_m": 1654,
+  "nearest_road_m": 3,
+  "lon": -123.12985,
+  "lat": 54.98218,
+  "road_first_seen": null,
+  "names": [
+   "0437.1000",
+   "0437.1100"
+  ]
+ },
+ {
+  "pair": "1201286",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A18165",
+  "cutting_permit": "95C",
+  "block_id": "OCO160",
+  "opening_id": 1684289,
+  "harvest_start": "2017-02-09",
+  "area_ha": 61.9,
+  "built_road_m": 81,
+  "nearest_road_m": 487,
+  "lon": -123.79208,
+  "lat": 54.54823,
+  "road_first_seen": null,
+  "names": [
+   "OCO160.1000"
+  ]
+ },
+ {
+  "pair": "1201961",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "97Q",
+  "block_id": "DOL001",
+  "opening_id": 1665707,
+  "harvest_start": "2015-08-05",
+  "area_ha": 23.6,
+  "built_road_m": 1852,
+  "nearest_road_m": 0,
+  "lon": -124.46492,
+  "lat": 54.84152,
+  "road_first_seen": null,
+  "names": [
+   "DOL001.1000"
+  ]
+ },
+ {
+  "pair": "1208017",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "P61",
+  "block_id": "4211",
+  "opening_id": 1663217,
+  "harvest_start": "2015-11-23",
+  "area_ha": 108.1,
+  "built_road_m": 185,
+  "nearest_road_m": 0,
+  "lon": -123.72684,
+  "lat": 55.1602,
+  "road_first_seen": null,
+  "names": [
+   "4211_SPUR1"
+  ]
+ },
+ {
+  "pair": "1210168",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A77955",
+  "cutting_permit": "C66",
+  "block_id": "HAT577",
+  "opening_id": 1685954,
+  "harvest_start": "2016-10-18",
+  "area_ha": 75.5,
+  "built_road_m": 125,
+  "nearest_road_m": 0,
+  "lon": -124.30237,
+  "lat": 54.84412,
+  "road_first_seen": null,
+  "names": [
+   "HAT577.1000"
+  ]
+ },
+ {
+  "pair": "1214164",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "C85",
+  "block_id": "SQU136",
+  "opening_id": 1655159,
+  "harvest_start": "2015-06-15",
+  "area_ha": 148.9,
+  "built_road_m": 6731,
+  "nearest_road_m": 4,
+  "lon": -123.72475,
+  "lat": 54.76905,
+  "road_first_seen": null,
+  "names": [
+   "SQU136.3000",
+   "SQU136.4000",
+   "SQU136.4100"
+  ]
+ },
+ {
+  "pair": "1214179",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A15429",
+  "cutting_permit": "842",
+  "block_id": "011",
+  "opening_id": 1726878,
+  "harvest_start": "2019-01-10",
+  "area_ha": 21.2,
+  "built_road_m": 285,
+  "nearest_road_m": 24,
+  "lon": -120.29412,
+  "lat": 53.75669,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "noisy_baseline",
+   "last_scene_without": "2017-08-31",
+   "first_scene_with": "2017-09-28",
+   "bracket_days": 28,
+   "block_first_cleared": null
+  },
+  "names": [
+   "842-11 ACCESS 1 A2"
+  ]
+ },
+ {
+  "pair": "1214238",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A77955",
+  "cutting_permit": "C65",
+  "block_id": "HAT041",
+  "opening_id": 1651323,
+  "harvest_start": "2015-03-01",
+  "area_ha": 98.7,
+  "built_road_m": 85,
+  "nearest_road_m": 162,
+  "lon": -124.1564,
+  "lat": 54.68519,
+  "road_first_seen": null,
+  "names": [
+   "HAT041.1000"
+  ]
+ },
+ {
+  "pair": "1219797",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UF9",
+  "block_id": "WAR038",
+  "opening_id": 1653540,
+  "harvest_start": "2015-06-01",
+  "area_ha": 43.2,
+  "built_road_m": 1709,
+  "nearest_road_m": 113,
+  "lon": -123.18971,
+  "lat": 54.84722,
+  "road_first_seen": null,
+  "names": [
+   "WAR038.1000 AM 471"
+  ]
+ },
+ {
+  "pair": "1220524",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "68G",
+  "block_id": "CO406A",
+  "opening_id": 1656994,
+  "harvest_start": "2015-05-26",
+  "area_ha": 35.5,
+  "built_road_m": 121,
+  "nearest_road_m": 2,
+  "lon": -124.27045,
+  "lat": 53.76429,
+  "road_first_seen": null,
+  "names": [
+   "CO406A.2000"
+  ]
+ },
+ {
+  "pair": "1229768",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "G57",
+  "block_id": "GER006",
+  "opening_id": 1662744,
+  "harvest_start": "2015-11-11",
+  "area_ha": 31.9,
+  "built_road_m": 177,
+  "nearest_road_m": 7,
+  "lon": -124.52311,
+  "lat": 55.67969,
+  "road_first_seen": null,
+  "names": [
+   "GER006.1000"
+  ]
+ },
+ {
+  "pair": "1271167",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues",
+   "steep_straight_alternative"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "446",
+  "block_id": "001",
+  "opening_id": 1667840,
+  "harvest_start": "2015-08-07",
+  "area_ha": 401.0,
+  "built_road_m": 11025,
+  "nearest_road_m": 670,
+  "lon": -124.43444,
+  "lat": 54.86331,
+  "road_first_seen": null,
+  "names": [
+   "446-1 ACCESS 1",
+   "446-1 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1290098",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UM8",
+  "block_id": "CHU092",
+  "opening_id": 1661644,
+  "harvest_start": "2015-11-02",
+  "area_ha": 40.4,
+  "built_road_m": 773,
+  "nearest_road_m": 123,
+  "lon": -122.3961,
+  "lat": 54.51952,
+  "road_first_seen": null,
+  "names": [
+   "CHU092.1000 A524,523"
+  ]
+ },
+ {
+  "pair": "1292520",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "356",
+  "block_id": "4",
+  "opening_id": 1740134,
+  "harvest_start": "2020-07-01",
+  "area_ha": 64.8,
+  "built_road_m": 1028,
+  "nearest_road_m": 0,
+  "lon": -120.83806,
+  "lat": 52.45517,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2018-07-15",
+   "bracket_days": null,
+   "block_first_cleared": "2020-07-26"
+  },
+  "names": [
+   "CP356-4-BR"
+  ]
+ },
+ {
+  "pair": "1292582",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "TFL53",
+  "cutting_permit": "307",
+  "block_id": "2",
+  "opening_id": 1718026,
+  "harvest_start": "2019-02-01",
+  "area_ha": 48.5,
+  "built_road_m": 1872,
+  "nearest_road_m": 646,
+  "lon": -122.24717,
+  "lat": 53.27213,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2018-10-23",
+   "first_scene_with": "2019-03-22",
+   "bracket_days": 150,
+   "block_first_cleared": "2019-05-09"
+  },
+  "names": [
+   "CP307-2_ACCESS A59"
+  ]
+ },
+ {
+  "pair": "1296200",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UF4",
+  "block_id": "WEE009",
+  "opening_id": 1661631,
+  "harvest_start": "2015-11-02",
+  "area_ha": 76.0,
+  "built_road_m": 70,
+  "nearest_road_m": 0,
+  "lon": -123.2473,
+  "lat": 54.67933,
+  "road_first_seen": null,
+  "names": [
+   "WEE009.2000 A527"
+  ]
+ },
+ {
+  "pair": "1299101",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C62",
+  "block_id": "BUR037",
+  "opening_id": 1665401,
+  "harvest_start": "2016-01-08",
+  "area_ha": 35.8,
+  "built_road_m": 614,
+  "nearest_road_m": 5,
+  "lon": -123.44141,
+  "lat": 55.5676,
+  "road_first_seen": null,
+  "names": [
+   "BUR037.2000"
+  ]
+ },
+ {
+  "pair": "1299276",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "D77",
+  "block_id": "5578",
+  "opening_id": 1665389,
+  "harvest_start": "2016-01-06",
+  "area_ha": 64.6,
+  "built_road_m": 1257,
+  "nearest_road_m": 0,
+  "lon": -124.27704,
+  "lat": 55.62395,
+  "road_first_seen": null,
+  "names": [
+   "5578.1200"
+  ]
+ },
+ {
+  "pair": "1300517",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UF3",
+  "block_id": "WEE007",
+  "opening_id": 1685641,
+  "harvest_start": "2016-12-01",
+  "area_ha": 78.3,
+  "built_road_m": 4452,
+  "nearest_road_m": 4,
+  "lon": -123.11588,
+  "lat": 54.71862,
+  "road_first_seen": null,
+  "names": [
+   "WEE007.1000  AM502",
+   "WEE007.2000  AM502",
+   "WEE007.3000  AM502",
+   "WEE007.4000  AM502"
+  ]
+ },
+ {
+  "pair": "1300748",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "G65",
+  "block_id": "GER007",
+  "opening_id": 1679046,
+  "harvest_start": "2016-05-18",
+  "area_ha": 69.7,
+  "built_road_m": 566,
+  "nearest_road_m": 0,
+  "lon": -124.53876,
+  "lat": 55.72313,
+  "road_first_seen": null,
+  "names": [
+   "GER007.1000",
+   "GER007.2000"
+  ]
+ },
+ {
+  "pair": "1305803",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15385",
+  "cutting_permit": "P73",
+  "block_id": "3332",
+  "opening_id": 1695687,
+  "harvest_start": "2016-08-01",
+  "area_ha": 81.6,
+  "built_road_m": 3200,
+  "nearest_road_m": 188,
+  "lon": -123.99315,
+  "lat": 55.40389,
+  "road_first_seen": null,
+  "names": [
+   "3332 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1310612",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "13O",
+  "block_id": "NMC043",
+  "opening_id": 1705416,
+  "harvest_start": "2018-07-18",
+  "area_ha": 32.2,
+  "built_road_m": 661,
+  "nearest_road_m": 0,
+  "lon": -121.76888,
+  "lat": 54.10653,
+  "road_first_seen": null,
+  "names": [
+   "NMC043.3000 A21",
+   "NMC043.3000 A85"
+  ]
+ },
+ {
+  "pair": "1317774",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "P70",
+  "block_id": "3331",
+  "opening_id": 1689074,
+  "harvest_start": "2016-02-24",
+  "area_ha": 37.6,
+  "built_road_m": 2984,
+  "nearest_road_m": 74,
+  "lon": -123.9611,
+  "lat": 55.39337,
+  "road_first_seen": null,
+  "names": [
+   "3331 SPUR 1",
+   "3331 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1327828",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "95R",
+  "block_id": "CA467B",
+  "opening_id": 1692999,
+  "harvest_start": "2017-07-19",
+  "area_ha": 43.2,
+  "built_road_m": 740,
+  "nearest_road_m": 108,
+  "lon": -123.42567,
+  "lat": 54.38507,
+  "road_first_seen": null,
+  "names": [
+   "CA467B.1000"
+  ]
+ },
+ {
+  "pair": "1328814",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20017",
+  "cutting_permit": "702",
+  "block_id": "1",
+  "opening_id": 1692956,
+  "harvest_start": "2017-10-10",
+  "area_ha": 77.0,
+  "built_road_m": 910,
+  "nearest_road_m": 0,
+  "lon": -122.04545,
+  "lat": 52.53859,
+  "road_first_seen": null,
+  "names": [
+   "CP702-1-SP2",
+   "CP702-1-SP3",
+   "CP702-1-TRAIL1"
+  ]
+ },
+ {
+  "pair": "1337974",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "998",
+  "block_id": "W0480",
+  "opening_id": 1745348,
+  "harvest_start": "2021-01-11",
+  "area_ha": 8.5,
+  "built_road_m": 537,
+  "nearest_road_m": 118,
+  "lon": -121.69857,
+  "lat": 52.0431,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2019-12-25",
+   "first_scene_with": "2020-05-05",
+   "bracket_days": 132,
+   "block_first_cleared": "2021-06-17"
+  },
+  "names": [
+   "W0480 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1341518",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "61J",
+  "block_id": "COR442",
+  "opening_id": 1684709,
+  "harvest_start": "2017-03-07",
+  "area_ha": 83.5,
+  "built_road_m": 227,
+  "nearest_road_m": 7,
+  "lon": -124.22208,
+  "lat": 53.77938,
+  "road_first_seen": null,
+  "names": [
+   "COR442.2000"
+  ]
+ },
+ {
+  "pair": "1342137",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "Y27",
+  "block_id": "AME010",
+  "opening_id": 1708827,
+  "harvest_start": "2018-08-20",
+  "area_ha": 47.6,
+  "built_road_m": 807,
+  "nearest_road_m": 0,
+  "lon": -121.76396,
+  "lat": 53.62015,
+  "road_first_seen": null,
+  "names": [
+   "AME010.1000 A38,51"
+  ]
+ },
+ {
+  "pair": "1344486",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "4Z",
+  "block_id": "DOJ012",
+  "opening_id": 1697299,
+  "harvest_start": "2018-01-08",
+  "area_ha": 68.4,
+  "built_road_m": 280,
+  "nearest_road_m": 0,
+  "lon": -122.39902,
+  "lat": 54.31348,
+  "road_first_seen": null,
+  "names": [
+   "DOJ012.2000 A93"
+  ]
+ },
+ {
+  "pair": "1345827",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "Y21",
+  "block_id": "AME012",
+  "opening_id": 1695787,
+  "harvest_start": "2017-08-01",
+  "area_ha": 45.4,
+  "built_road_m": 103,
+  "nearest_road_m": 4,
+  "lon": -121.81921,
+  "lat": 53.65641,
+  "road_first_seen": null,
+  "names": [
+   "AME012.1000 A38"
+  ]
+ },
+ {
+  "pair": "1345854",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "W02",
+  "block_id": "W0234",
+  "opening_id": 1712419,
+  "harvest_start": "2018-06-17",
+  "area_ha": 31.1,
+  "built_road_m": 1570,
+  "nearest_road_m": 119,
+  "lon": -121.60112,
+  "lat": 52.04824,
+  "road_first_seen": null,
+  "names": [
+   "W0234 SPUR 1",
+   "W0234 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1349118",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A77955",
+  "cutting_permit": "E26",
+  "block_id": "CUN453",
+  "opening_id": 1707946,
+  "harvest_start": "2018-01-01",
+  "area_ha": 91.6,
+  "built_road_m": 1741,
+  "nearest_road_m": 126,
+  "lon": -124.76497,
+  "lat": 54.42147,
+  "road_first_seen": null,
+  "names": [
+   "CUN453.1000"
+  ]
+ },
+ {
+  "pair": "1349626",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "905",
+  "block_id": "W0416",
+  "opening_id": 1723506,
+  "harvest_start": "2019-06-12",
+  "area_ha": 69.4,
+  "built_road_m": 4525,
+  "nearest_road_m": 298,
+  "lon": -122.18998,
+  "lat": 52.03045,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-05-29",
+   "first_scene_with": "2019-05-31",
+   "bracket_days": 2,
+   "block_first_cleared": null
+  },
+  "names": [
+   "W0416 SPUR 1",
+   "W0416 SPUR 2",
+   "W0416 SPUR 3",
+   "W0416 SPUR 4"
+  ]
+ },
+ {
+  "pair": "1350421",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "226",
+  "block_id": "017",
+  "opening_id": 1689504,
+  "harvest_start": "2016-11-07",
+  "area_ha": 129.7,
+  "built_road_m": 2540,
+  "nearest_road_m": 0,
+  "lon": -122.05108,
+  "lat": 54.49427,
+  "road_first_seen": null,
+  "names": [
+   "226-017 ACCESS 1",
+   "226-017 ACCESS 2",
+   "226-017 ACCESS 3"
+  ]
+ },
+ {
+  "pair": "1352917",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C73",
+  "block_id": "BUR033",
+  "opening_id": 1690012,
+  "harvest_start": "2017-06-15",
+  "area_ha": 22.9,
+  "built_road_m": 1194,
+  "nearest_road_m": 24,
+  "lon": -123.78154,
+  "lat": 55.60889,
+  "road_first_seen": null,
+  "names": [
+   "BUR033.1000",
+   "BUR033.1100"
+  ]
+ },
+ {
+  "pair": "1354042",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UR7",
+  "block_id": "CHU110",
+  "opening_id": 1733565,
+  "harvest_start": "2020-02-14",
+  "area_ha": 91.3,
+  "built_road_m": 185,
+  "nearest_road_m": 0,
+  "lon": -122.4006,
+  "lat": 54.46031,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2019-10-28",
+   "first_scene_with": "2020-06-04",
+   "bracket_days": 220,
+   "block_first_cleared": "2020-06-09"
+  },
+  "names": [
+   "CHU110.1100 A681"
+  ]
+ },
+ {
+  "pair": "1354618",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A77955",
+  "cutting_permit": "H38",
+  "block_id": "ELL134",
+  "opening_id": 1691483,
+  "harvest_start": "2017-06-01",
+  "area_ha": 105.7,
+  "built_road_m": 2414,
+  "nearest_road_m": 0,
+  "lon": -125.28778,
+  "lat": 55.01274,
+  "road_first_seen": null,
+  "names": [
+   "ELL134.1000",
+   "ELL134.2000",
+   "ELL134.2100"
+  ]
+ },
+ {
+  "pair": "1354854",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A20019",
+  "cutting_permit": "03W",
+  "block_id": "C1211",
+  "opening_id": 1729155,
+  "harvest_start": "2019-03-07",
+  "area_ha": 48.0,
+  "built_road_m": 2656,
+  "nearest_road_m": 205,
+  "lon": -122.59059,
+  "lat": 51.3486,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "noisy_baseline",
+   "last_scene_without": "2018-10-23",
+   "first_scene_with": "2018-10-26",
+   "bracket_days": 3,
+   "block_first_cleared": "2019-05-26"
+  },
+  "names": [
+   "C1211 SPUR 1",
+   "C1211 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1357625",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "UQ4",
+  "block_id": "ANZ027",
+  "opening_id": 1730360,
+  "harvest_start": "2019-10-07",
+  "area_ha": 36.6,
+  "built_road_m": 508,
+  "nearest_road_m": 310,
+  "lon": -122.18565,
+  "lat": 54.97367,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2018-07-18",
+   "first_scene_with": "2018-07-23",
+   "bracket_days": 5,
+   "block_first_cleared": "2020-07-14"
+  },
+  "names": [
+   "ANZ027.1000 A28"
+  ]
+ },
+ {
+  "pair": "1357978",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "53C",
+  "block_id": "BOB673",
+  "opening_id": 1692924,
+  "harvest_start": "2017-09-21",
+  "area_ha": 15.4,
+  "built_road_m": 451,
+  "nearest_road_m": 252,
+  "lon": -123.61901,
+  "lat": 53.55385,
+  "road_first_seen": null,
+  "names": [
+   "BOB673.1000"
+  ]
+ },
+ {
+  "pair": "1358368",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "908",
+  "block_id": "C3968",
+  "opening_id": 1691573,
+  "harvest_start": "2017-01-09",
+  "area_ha": 30.7,
+  "built_road_m": 832,
+  "nearest_road_m": 9,
+  "lon": -122.96816,
+  "lat": 51.32416,
+  "road_first_seen": null,
+  "names": [
+   "C3968 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1359328",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H34",
+  "block_id": "0419",
+  "opening_id": 1693928,
+  "harvest_start": "2017-05-15",
+  "area_ha": 236.4,
+  "built_road_m": 9698,
+  "nearest_road_m": 0,
+  "lon": -123.16254,
+  "lat": 54.98414,
+  "road_first_seen": null,
+  "names": [
+   "0419.1000",
+   "0419.2000",
+   "0419.2100",
+   "0419.2110"
+  ]
+ },
+ {
+  "pair": "1359330",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H44",
+  "block_id": "HOL006",
+  "opening_id": 1697758,
+  "harvest_start": "2017-12-18",
+  "area_ha": 32.5,
+  "built_road_m": 1904,
+  "nearest_road_m": 0,
+  "lon": -123.22552,
+  "lat": 54.94869,
+  "road_first_seen": null,
+  "names": [
+   "HOL006.1000",
+   "HOL006.1100"
+  ]
+ },
+ {
+  "pair": "1359785",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "L42",
+  "block_id": "RUP008",
+  "opening_id": 1685462,
+  "harvest_start": "2017-03-27",
+  "area_ha": 14.2,
+  "built_road_m": 541,
+  "nearest_road_m": 485,
+  "lon": -123.64938,
+  "lat": 55.36907,
+  "road_first_seen": null,
+  "names": [
+   "RUP008.1000"
+  ]
+ },
+ {
+  "pair": "1359880",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90829",
+  "cutting_permit": "H08",
+  "block_id": "NAT03",
+  "opening_id": 1698551,
+  "harvest_start": "2017-01-30",
+  "area_ha": 61.9,
+  "built_road_m": 4707,
+  "nearest_road_m": 10,
+  "lon": -123.60853,
+  "lat": 55.41911,
+  "road_first_seen": null,
+  "names": [
+   "NAT03-00",
+   "NAT03-01",
+   "NAT03-02",
+   "NAT03-03"
+  ]
+ },
+ {
+  "pair": "1360343",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UP7",
+  "block_id": "ANZ082",
+  "opening_id": 1684564,
+  "harvest_start": "2016-12-09",
+  "area_ha": 52.8,
+  "built_road_m": 908,
+  "nearest_road_m": 880,
+  "lon": -122.12675,
+  "lat": 54.89299,
+  "road_first_seen": null,
+  "names": [
+   "ANZ082.1000 A29"
+  ]
+ },
+ {
+  "pair": "1361046",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93086",
+  "cutting_permit": "1",
+  "block_id": "1",
+  "opening_id": 1690891,
+  "harvest_start": "2017-03-27",
+  "area_ha": 31.7,
+  "built_road_m": 140,
+  "nearest_road_m": 1,
+  "lon": -124.94583,
+  "lat": 53.68168,
+  "road_first_seen": null,
+  "names": [
+   "A93086-1-1-SP1",
+   "A93086-1-1-SP2"
+  ]
+ },
+ {
+  "pair": "1365253",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20018",
+  "cutting_permit": "887",
+  "block_id": "W0539",
+  "opening_id": 1733700,
+  "harvest_start": "2019-11-12",
+  "area_ha": 52.4,
+  "built_road_m": 1158,
+  "nearest_road_m": 0,
+  "lon": -121.36267,
+  "lat": 52.22978,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2018-04-26",
+   "first_scene_with": "2018-05-11",
+   "bracket_days": 15,
+   "block_first_cleared": "2020-05-10"
+  },
+  "names": [
+   "W0539 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1365264",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20018",
+  "cutting_permit": "887",
+  "block_id": "W0547",
+  "opening_id": 1719947,
+  "harvest_start": "2018-12-05",
+  "area_ha": 16.5,
+  "built_road_m": 2454,
+  "nearest_road_m": 208,
+  "lon": -121.26429,
+  "lat": 52.26008,
+  "road_first_seen": null,
+  "names": [
+   "W0547 SPUR 1",
+   "W0547 SPUR 2",
+   "W0547 SPUR 3"
+  ]
+ },
+ {
+  "pair": "1369043",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "095",
+  "block_id": "C2398",
+  "opening_id": 1734047,
+  "harvest_start": "2020-01-09",
+  "area_ha": 42.5,
+  "built_road_m": 968,
+  "nearest_road_m": 0,
+  "lon": -122.70368,
+  "lat": 51.14991,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2019-05-09",
+   "first_scene_with": "2019-05-29",
+   "bracket_days": 20,
+   "block_first_cleared": "2020-05-15"
+  },
+  "names": [
+   "C2398 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1371831",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "214",
+  "block_id": "060",
+  "opening_id": 1695828,
+  "harvest_start": "2017-06-01",
+  "area_ha": 6.7,
+  "built_road_m": 42,
+  "nearest_road_m": 32,
+  "lon": -122.95271,
+  "lat": 54.46718,
+  "road_first_seen": null,
+  "names": [
+   "214-060 ACCESS1 A121"
+  ]
+ },
+ {
+  "pair": "1372342",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C57",
+  "block_id": "EKL043",
+  "opening_id": 1689265,
+  "harvest_start": "2017-05-10",
+  "area_ha": 209.9,
+  "built_road_m": 660,
+  "nearest_road_m": 4,
+  "lon": -123.79105,
+  "lat": 55.73998,
+  "road_first_seen": null,
+  "names": [
+   "EKL043.1000"
+  ]
+ },
+ {
+  "pair": "1374791",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "463",
+  "block_id": "003",
+  "opening_id": 1719768,
+  "harvest_start": "2017-11-20",
+  "area_ha": 102.5,
+  "built_road_m": 702,
+  "nearest_road_m": 0,
+  "lon": -124.74655,
+  "lat": 55.2242,
+  "road_first_seen": null,
+  "names": [
+   "463-3 ACCESS 1",
+   "463-3 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1380119",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "TFL30",
+  "cutting_permit": "9CD",
+  "block_id": "RAI080",
+  "opening_id": 1719120,
+  "harvest_start": "2019-03-19",
+  "area_ha": 38.4,
+  "built_road_m": 253,
+  "nearest_road_m": 141,
+  "lon": -122.27412,
+  "lat": 54.36455,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2018-07-30",
+   "first_scene_with": "2018-08-17",
+   "bracket_days": 18,
+   "block_first_cleared": "2019-05-21"
+  },
+  "names": [
+   "RAI080.1000 A117"
+  ]
+ },
+ {
+  "pair": "1381316",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "J56",
+  "block_id": "6721",
+  "opening_id": 1769061,
+  "harvest_start": "2022-06-06",
+  "area_ha": 80.8,
+  "built_road_m": 422,
+  "nearest_road_m": 0,
+  "lon": -125.21876,
+  "lat": 55.97051,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "ahead_bracket_spans_6m",
+   "last_scene_without": "2021-12-02",
+   "first_scene_with": "2022-02-10",
+   "bracket_days": 70,
+   "block_first_cleared": "2022-07-03"
+  },
+  "names": [
+   "6721 SPUR 1",
+   "6721 SPUR 2",
+   "6721 SPUR 3"
+  ]
+ },
+ {
+  "pair": "1382285",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C70",
+  "block_id": "1612",
+  "opening_id": 1706501,
+  "harvest_start": "2018-07-21",
+  "area_ha": 45.5,
+  "built_road_m": 1507,
+  "nearest_road_m": 0,
+  "lon": -124.0555,
+  "lat": 55.8895,
+  "road_first_seen": null,
+  "names": [
+   "1612.1000"
+  ]
+ },
+ {
+  "pair": "1382453",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A77955",
+  "cutting_permit": "C81",
+  "block_id": "HAT337",
+  "opening_id": 1691468,
+  "harvest_start": "2017-06-01",
+  "area_ha": 152.2,
+  "built_road_m": 6799,
+  "nearest_road_m": 0,
+  "lon": -124.63964,
+  "lat": 54.91103,
+  "road_first_seen": null,
+  "names": [
+   "HAT337.2000",
+   "HAT337.2100",
+   "HAT337.2110",
+   "HAT337.2120"
+  ]
+ },
+ {
+  "pair": "1382900",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A93686",
+  "cutting_permit": "773",
+  "block_id": "C3933",
+  "opening_id": 1763210,
+  "harvest_start": "2020-10-14",
+  "area_ha": 6.5,
+  "built_road_m": 59,
+  "nearest_road_m": 38,
+  "lon": -123.51182,
+  "lat": 52.14253,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2018-12-20",
+   "first_scene_with": "2019-01-21",
+   "bracket_days": 32,
+   "block_first_cleared": "2021-04-25"
+  },
+  "names": [
+   "C3933 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1382909",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93686",
+  "cutting_permit": "775",
+  "block_id": "C3936",
+  "opening_id": 1763652,
+  "harvest_start": "2020-09-20",
+  "area_ha": 92.9,
+  "built_road_m": 7808,
+  "nearest_road_m": 0,
+  "lon": -123.58854,
+  "lat": 52.15876,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2018-09-26",
+   "bracket_days": null,
+   "block_first_cleared": "2021-05-20"
+  },
+  "names": [
+   "C3936 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1388437",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20017",
+  "cutting_permit": "731",
+  "block_id": "1",
+  "opening_id": 1705579,
+  "harvest_start": "2018-07-12",
+  "area_ha": 65.2,
+  "built_road_m": 639,
+  "nearest_road_m": 0,
+  "lon": -121.88337,
+  "lat": 52.47558,
+  "road_first_seen": null,
+  "names": [
+   "CP731-1-SP1",
+   "CP731-1-SP2"
+  ]
+ },
+ {
+  "pair": "1388440",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "731",
+  "block_id": "3",
+  "opening_id": 1706011,
+  "harvest_start": "2018-07-25",
+  "area_ha": 11.9,
+  "built_road_m": 340,
+  "nearest_road_m": 33,
+  "lon": -121.89005,
+  "lat": 52.48663,
+  "road_first_seen": null,
+  "names": [
+   "CP731-3-SP1"
+  ]
+ },
+ {
+  "pair": "1407967",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "561",
+  "block_id": "001",
+  "opening_id": 1719911,
+  "harvest_start": "2018-02-05",
+  "area_ha": 218.1,
+  "built_road_m": 3308,
+  "nearest_road_m": 0,
+  "lon": -123.59935,
+  "lat": 54.27282,
+  "road_first_seen": null,
+  "names": [
+   "561-1 ACCESS 1 AM1"
+  ]
+ },
+ {
+  "pair": "1410066",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "93Y",
+  "block_id": "SQU126",
+  "opening_id": 1698940,
+  "harvest_start": "2017-09-25",
+  "area_ha": 39.3,
+  "built_road_m": 330,
+  "nearest_road_m": 0,
+  "lon": -123.84404,
+  "lat": 54.69782,
+  "road_first_seen": null,
+  "names": [
+   "SQU126.1000"
+  ]
+ },
+ {
+  "pair": "1416033",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "91I",
+  "block_id": "99X015",
+  "opening_id": 1711996,
+  "harvest_start": "2018-11-19",
+  "area_ha": 59.9,
+  "built_road_m": 1691,
+  "nearest_road_m": 10,
+  "lon": -123.98709,
+  "lat": 54.5239,
+  "road_first_seen": null,
+  "names": [
+   "99X015.1000"
+  ]
+ },
+ {
+  "pair": "1416256",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20018",
+  "cutting_permit": "913",
+  "block_id": "W0893",
+  "opening_id": 1729118,
+  "harvest_start": "2019-06-17",
+  "area_ha": 14.6,
+  "built_road_m": 613,
+  "nearest_road_m": 0,
+  "lon": -121.32841,
+  "lat": 52.33079,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2019-03-22",
+   "first_scene_with": "2019-04-01",
+   "bracket_days": 10,
+   "block_first_cleared": null
+  },
+  "names": [
+   "W0893 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1416302",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "697",
+  "block_id": "7",
+  "opening_id": 1749745,
+  "harvest_start": "2020-02-14",
+  "area_ha": 167.9,
+  "built_road_m": 4631,
+  "nearest_road_m": 0,
+  "lon": -122.68507,
+  "lat": 51.94567,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2018-05-01",
+   "bracket_days": null,
+   "block_first_cleared": null
+  },
+  "names": [
+   "CP697-7-SP1",
+   "CP697-7-SP2",
+   "CP697-7-SP3",
+   "CP697-7-SP4"
+  ]
+ },
+ {
+  "pair": "1416303",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "697",
+  "block_id": "8",
+  "opening_id": 1749743,
+  "harvest_start": "2020-02-04",
+  "area_ha": 40.6,
+  "built_road_m": 3307,
+  "nearest_road_m": 363,
+  "lon": -122.65199,
+  "lat": 51.9444,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2018-04-26",
+   "first_scene_with": "2018-05-01",
+   "bracket_days": 5,
+   "block_first_cleared": "2018-05-14"
+  },
+  "names": [
+   "CP697-8-SP1",
+   "CP697-8-SP3",
+   "CP697-8-SP4"
+  ]
+ },
+ {
+  "pair": "1420736",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20019",
+  "cutting_permit": "2",
+  "block_id": "W0861",
+  "opening_id": 1727192,
+  "harvest_start": "2018-11-29",
+  "area_ha": 3.3,
+  "built_road_m": 1337,
+  "nearest_road_m": 289,
+  "lon": -121.3716,
+  "lat": 52.30655,
+  "road_first_seen": null,
+  "names": [
+   "W0861 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1428627",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "T24",
+  "block_id": "GRE205",
+  "opening_id": 1709638,
+  "harvest_start": "2018-06-18",
+  "area_ha": 13.4,
+  "built_road_m": 182,
+  "nearest_road_m": 0,
+  "lon": -123.28904,
+  "lat": 53.6529,
+  "road_first_seen": null,
+  "names": [
+   "GRE205.1000 A704",
+   "GRE205.2000 A704"
+  ]
+ },
+ {
+  "pair": "1428753",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "12I",
+  "block_id": "OOT069",
+  "opening_id": 1711105,
+  "harvest_start": "2018-10-18",
+  "area_ha": 3.7,
+  "built_road_m": 162,
+  "nearest_road_m": 84,
+  "lon": -124.97908,
+  "lat": 53.1152,
+  "road_first_seen": null,
+  "names": [
+   "OOT069.1000"
+  ]
+ },
+ {
+  "pair": "1428754",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "12I",
+  "block_id": "OOT059",
+  "opening_id": 1712980,
+  "harvest_start": "2018-10-23",
+  "area_ha": 195.3,
+  "built_road_m": 974,
+  "nearest_road_m": 10,
+  "lon": -124.9919,
+  "lat": 53.13244,
+  "road_first_seen": null,
+  "names": [
+   "OOT059.1100"
+  ]
+ },
+ {
+  "pair": "1429522",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "P44",
+  "block_id": "5812",
+  "opening_id": 1699185,
+  "harvest_start": "2018-02-21",
+  "area_ha": 27.6,
+  "built_road_m": 142,
+  "nearest_road_m": 90,
+  "lon": -123.4385,
+  "lat": 55.45616,
+  "road_first_seen": null,
+  "names": [
+   "5812-001"
+  ]
+ },
+ {
+  "pair": "1429695",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "C71",
+  "block_id": "EKL116",
+  "opening_id": 1712905,
+  "harvest_start": "2018-07-28",
+  "area_ha": 47.4,
+  "built_road_m": 1960,
+  "nearest_road_m": 126,
+  "lon": -123.95403,
+  "lat": 55.76186,
+  "road_first_seen": null,
+  "names": [
+   "EKL116.1000"
+  ]
+ },
+ {
+  "pair": "1430799",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20020",
+  "cutting_permit": "782",
+  "block_id": "5",
+  "opening_id": 1744702,
+  "harvest_start": "2020-11-03",
+  "area_ha": 26.8,
+  "built_road_m": 1979,
+  "nearest_road_m": 0,
+  "lon": -122.61895,
+  "lat": 52.19397,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2020-12-14",
+   "first_scene_with": "2021-01-15",
+   "bracket_days": 32,
+   "block_first_cleared": "2021-05-23"
+  },
+  "names": [
+   "CP782-5-SP1",
+   "CP782-5-SP2",
+   "CP782-5-SP3",
+   "CP782-5-SP4"
+  ]
+ },
+ {
+  "pair": "1431964",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A20019",
+  "cutting_permit": "987",
+  "block_id": "C4172",
+  "opening_id": 1744565,
+  "harvest_start": "2020-12-07",
+  "area_ha": 16.0,
+  "built_road_m": 7970,
+  "nearest_road_m": 91,
+  "lon": -123.56509,
+  "lat": 52.2183,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2020-10-07",
+   "first_scene_with": "2020-11-21",
+   "bracket_days": 45,
+   "block_first_cleared": "2021-04-20"
+  },
+  "names": [
+   "C4172 SPUR 1",
+   "C4172 SPUR 2",
+   "C4172 SPUR 3"
+  ]
+ },
+ {
+  "pair": "1433110",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "Y33",
+  "block_id": "TUM059",
+  "opening_id": 1711103,
+  "harvest_start": "2018-08-08",
+  "area_ha": 24.0,
+  "built_road_m": 1965,
+  "nearest_road_m": 121,
+  "lon": -121.19763,
+  "lat": 53.62324,
+  "road_first_seen": null,
+  "names": [
+   "TUM059.1000 AM28"
+  ]
+ },
+ {
+  "pair": "143493",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "9T",
+  "block_id": "138",
+  "opening_id": 1646896,
+  "harvest_start": "2014-09-25",
+  "area_ha": 41.3,
+  "built_road_m": 138,
+  "nearest_road_m": 134,
+  "lon": -122.2461,
+  "lat": 54.40536,
+  "road_first_seen": null,
+  "names": [
+   "CP 9T/138, AMEND 12"
+  ]
+ },
+ {
+  "pair": "1435520",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "02F",
+  "block_id": "W1231",
+  "opening_id": 1701979,
+  "harvest_start": "2018-02-13",
+  "area_ha": 14.5,
+  "built_road_m": 108,
+  "nearest_road_m": 0,
+  "lon": -121.69842,
+  "lat": 52.15927,
+  "road_first_seen": null,
+  "names": [
+   "W1231 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1437426",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "N2E",
+  "cutting_permit": "002",
+  "block_id": "N2E005",
+  "opening_id": 1704812,
+  "harvest_start": "2018-06-05",
+  "area_ha": 42.8,
+  "built_road_m": 1221,
+  "nearest_road_m": 0,
+  "lon": -122.22517,
+  "lat": 53.84232,
+  "road_first_seen": null,
+  "names": [
+   "N2E005.1000 A01",
+   "N2E005.1100 A01"
+  ]
+ },
+ {
+  "pair": "1438624",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UZ2",
+  "block_id": "CHU131",
+  "opening_id": 1747512,
+  "harvest_start": "2021-02-18",
+  "area_ha": 77.7,
+  "built_road_m": 927,
+  "nearest_road_m": 1,
+  "lon": -122.40472,
+  "lat": 54.54645,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2021-06-17"
+  },
+  "names": [
+   "CHU131.1000",
+   "CHU131.1100",
+   "CHU131.1300"
+  ]
+ },
+ {
+  "pair": "1442060",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "J42",
+  "block_id": "PHI167",
+  "opening_id": 1756144,
+  "harvest_start": "2021-08-09",
+  "area_ha": 16.0,
+  "built_road_m": 991,
+  "nearest_road_m": 602,
+  "lon": -123.49061,
+  "lat": 54.93982,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-08-04",
+   "first_scene_with": "2022-07-02",
+   "bracket_days": 332,
+   "block_first_cleared": "2022-06-30"
+  },
+  "names": [
+   "PHI167.1000"
+  ]
+ },
+ {
+  "pair": "1443935",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93557",
+  "cutting_permit": "H10",
+  "block_id": "HAT617",
+  "opening_id": 1717049,
+  "harvest_start": "2019-03-06",
+  "area_ha": 20.8,
+  "built_road_m": 393,
+  "nearest_road_m": 0,
+  "lon": -124.44735,
+  "lat": 54.78934,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2019-02-13",
+   "first_scene_with": "2019-02-26",
+   "bracket_days": 13,
+   "block_first_cleared": "2019-05-09"
+  },
+  "names": [
+   "HAT617.1000"
+  ]
+ },
+ {
+  "pair": "1449654",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A87724",
+  "cutting_permit": "694",
+  "block_id": "2",
+  "opening_id": 1722881,
+  "harvest_start": "2019-05-01",
+  "area_ha": 14.5,
+  "built_road_m": 2161,
+  "nearest_road_m": 300,
+  "lon": -122.63072,
+  "lat": 51.93885,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-04-26",
+   "first_scene_with": "2019-05-09",
+   "bracket_days": 13,
+   "block_first_cleared": null
+  },
+  "names": [
+   "CP694-2-SP1"
+  ]
+ },
+ {
+  "pair": "1458546",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20018",
+  "cutting_permit": "920",
+  "block_id": "W1015",
+  "opening_id": 1740916,
+  "harvest_start": "2020-03-09",
+  "area_ha": 1.5,
+  "built_road_m": 257,
+  "nearest_road_m": 192,
+  "lon": -121.27976,
+  "lat": 52.36237,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2019-12-22",
+   "first_scene_with": "2020-05-05",
+   "bracket_days": 135,
+   "block_first_cleared": "2020-05-05"
+  },
+  "names": [
+   "W1015 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1458870",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A20019",
+  "cutting_permit": "02F",
+  "block_id": "W1457",
+  "opening_id": 1712490,
+  "harvest_start": "2018-11-05",
+  "area_ha": 0.9,
+  "built_road_m": 1152,
+  "nearest_road_m": 248,
+  "lon": -122.02595,
+  "lat": 52.17153,
+  "road_first_seen": null,
+  "names": [
+   "W1457 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1459678",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A56805",
+  "cutting_permit": "999",
+  "block_id": "C3890",
+  "opening_id": 1726202,
+  "harvest_start": "2018-12-17",
+  "area_ha": 114.1,
+  "built_road_m": 317,
+  "nearest_road_m": 0,
+  "lon": -125.61736,
+  "lat": 52.52446,
+  "road_first_seen": null,
+  "names": [
+   "C3890 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1460079",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UT9",
+  "block_id": "MCG057",
+  "opening_id": 1762353,
+  "harvest_start": "2021-11-25",
+  "area_ha": 52.3,
+  "built_road_m": 2582,
+  "nearest_road_m": 0,
+  "lon": -121.19956,
+  "lat": 54.07397,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2021-09-02",
+   "first_scene_with": "2022-06-02",
+   "bracket_days": 273,
+   "block_first_cleared": "2022-06-14"
+  },
+  "names": [
+   "MCG057.1000 A716,713",
+   "MCG057.1100 A716,713"
+  ]
+ },
+ {
+  "pair": "1462357",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "91H",
+  "block_id": "MOS267",
+  "opening_id": 1717071,
+  "harvest_start": "2019-01-21",
+  "area_ha": 25.1,
+  "built_road_m": 84,
+  "nearest_road_m": 8,
+  "lon": -123.44812,
+  "lat": 54.4058,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2018-09-29",
+   "first_scene_with": "2019-04-24",
+   "bracket_days": 207,
+   "block_first_cleared": "2019-05-09"
+  },
+  "names": [
+   "MOS267.1000"
+  ]
+ },
+ {
+  "pair": "1463095",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18163",
+  "cutting_permit": "242",
+  "block_id": "729",
+  "opening_id": 1723618,
+  "harvest_start": "2019-02-25",
+  "area_ha": 37.4,
+  "built_road_m": 195,
+  "nearest_road_m": 88,
+  "lon": -123.03292,
+  "lat": 54.4039,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-02-13",
+   "first_scene_with": "2019-03-03",
+   "bracket_days": 18,
+   "block_first_cleared": "2019-04-24"
+  },
+  "names": [
+   "242-729 ACCESS 1 A29"
+  ]
+ },
+ {
+  "pair": "1464556",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "Q44",
+  "block_id": "6484",
+  "opening_id": 1721447,
+  "harvest_start": "2019-01-01",
+  "area_ha": 37.7,
+  "built_road_m": 1460,
+  "nearest_road_m": 493,
+  "lon": -124.68567,
+  "lat": 56.67817,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2018-10-27",
+   "first_scene_with": "2018-11-16",
+   "bracket_days": 20,
+   "block_first_cleared": null
+  },
+  "names": [
+   "6484.1000"
+  ]
+ },
+ {
+  "pair": "1471728",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "12L",
+  "block_id": "OOT074",
+  "opening_id": 1716755,
+  "harvest_start": "2019-01-23",
+  "area_ha": 189.5,
+  "built_road_m": 897,
+  "nearest_road_m": 53,
+  "lon": -124.97159,
+  "lat": 53.04209,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-03-28",
+   "first_scene_with": "2019-03-30",
+   "bracket_days": 2,
+   "block_first_cleared": "2019-05-27"
+  },
+  "names": [
+   "OOT074.1000"
+  ]
+ },
+ {
+  "pair": "1472794",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "P93",
+  "block_id": "2317",
+  "opening_id": 1717076,
+  "harvest_start": "2019-01-02",
+  "area_ha": 32.5,
+  "built_road_m": 464,
+  "nearest_road_m": 30,
+  "lon": -123.64231,
+  "lat": 55.21952,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-01-27",
+   "first_scene_with": "2019-04-24",
+   "bracket_days": 87,
+   "block_first_cleared": "2019-05-09"
+  },
+  "names": [
+   "2317_SPUR1",
+   "2317_SPUR3",
+   "2317_SPUR_4"
+  ]
+ },
+ {
+  "pair": "1476098",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93557",
+  "cutting_permit": "H13",
+  "block_id": "YA008B",
+  "opening_id": 1744840,
+  "harvest_start": "2020-06-19",
+  "area_ha": 5.0,
+  "built_road_m": 1033,
+  "nearest_road_m": 4,
+  "lon": -124.17894,
+  "lat": 54.69837,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2020-02-03",
+   "first_scene_with": "2020-04-16",
+   "bracket_days": 73,
+   "block_first_cleared": "2020-07-30"
+  },
+  "names": [
+   "YA008B.1000"
+  ]
+ },
+ {
+  "pair": "1477804",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "B53",
+  "block_id": "4814",
+  "opening_id": 1717771,
+  "harvest_start": "2019-03-04",
+  "area_ha": 50.6,
+  "built_road_m": 1143,
+  "nearest_road_m": 54,
+  "lon": -124.17082,
+  "lat": 55.38234,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-02-23",
+   "first_scene_with": "2019-03-28",
+   "bracket_days": 33,
+   "block_first_cleared": "2019-05-29"
+  },
+  "names": [
+   "4814.1000"
+  ]
+ },
+ {
+  "pair": "1478625",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "I49",
+  "block_id": "PHI222",
+  "opening_id": 1733196,
+  "harvest_start": "2019-10-23",
+  "area_ha": 39.7,
+  "built_road_m": 1735,
+  "nearest_road_m": 269,
+  "lon": -123.83526,
+  "lat": 55.1304,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-10-31",
+   "first_scene_with": "2020-05-13",
+   "bracket_days": 195,
+   "block_first_cleared": "2020-05-13"
+  },
+  "names": [
+   "PHI222.1000"
+  ]
+ },
+ {
+  "pair": "1482607",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_road_retired"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "923",
+  "block_id": "W0969",
+  "opening_id": 1757875,
+  "harvest_start": "2021-09-21",
+  "area_ha": 19.6,
+  "built_road_m": 485,
+  "nearest_road_m": 70,
+  "lon": -121.45274,
+  "lat": 52.79459,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2020-09-17",
+   "first_scene_with": "2020-09-30",
+   "bracket_days": 13,
+   "block_first_cleared": "2021-09-22"
+  },
+  "names": [
+   "W0969 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1485538",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "96H",
+  "block_id": "SAM0214",
+  "opening_id": 1745255,
+  "harvest_start": "2020-12-01",
+  "area_ha": 20.5,
+  "built_road_m": 60,
+  "nearest_road_m": 5,
+  "lon": -126.01411,
+  "lat": 55.22637,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2019-04-12",
+   "bracket_days": null,
+   "block_first_cleared": "2021-05-21"
+  },
+  "names": [
+   "SAM0214.1"
+  ]
+ },
+ {
+  "pair": "1492365",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "89H",
+  "block_id": "LUC214",
+  "opening_id": 1726675,
+  "harvest_start": "2019-08-09",
+  "area_ha": 3.7,
+  "built_road_m": 923,
+  "nearest_road_m": 285,
+  "lon": -125.11163,
+  "lat": 53.51653,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-08-10",
+   "first_scene_with": "2019-08-22",
+   "bracket_days": 12,
+   "block_first_cleared": "2019-08-22"
+  },
+  "names": [
+   "LUC214.1000"
+  ]
+ },
+ {
+  "pair": "1492369",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "89H",
+  "block_id": "LUC218",
+  "opening_id": 1726678,
+  "harvest_start": "2019-08-26",
+  "area_ha": 14.4,
+  "built_road_m": 261,
+  "nearest_road_m": 0,
+  "lon": -125.15623,
+  "lat": 53.52207,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2019-08-30",
+   "first_scene_with": "2019-09-06",
+   "bracket_days": 7,
+   "block_first_cleared": "2019-09-06"
+  },
+  "names": [
+   "LUC218.1000"
+  ]
+ },
+ {
+  "pair": "1499144",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "118",
+  "block_id": "258",
+  "opening_id": 1746351,
+  "harvest_start": "2021-12-01",
+  "area_ha": 22.6,
+  "built_road_m": 813,
+  "nearest_road_m": 307,
+  "lon": -122.85196,
+  "lat": 54.62436,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2021-10-25",
+   "first_scene_with": "2021-10-30",
+   "bracket_days": 5,
+   "block_first_cleared": "2022-06-10"
+  },
+  "names": [
+   "118-258 ACCESS1 A173",
+   "118-258 ACCESS2 A173"
+  ]
+ },
+ {
+  "pair": "1503768",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "VA7",
+  "block_id": "SGT025",
+  "opening_id": 1734835,
+  "harvest_start": "2019-11-25",
+  "area_ha": 202.3,
+  "built_road_m": 5670,
+  "nearest_road_m": 0,
+  "lon": -122.04652,
+  "lat": 54.76023,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2019-09-03",
+   "first_scene_with": "2020-05-13",
+   "bracket_days": 253,
+   "block_first_cleared": "2020-06-24"
+  },
+  "names": [
+   "SGT025.1000 A61",
+   "SGT025.1000 AM56",
+   "SGT025.1300 A61"
+  ]
+ },
+ {
+  "pair": "1505949",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A93557",
+  "cutting_permit": "H30",
+  "block_id": "HAT83A",
+  "opening_id": 1748815,
+  "harvest_start": "2020-04-01",
+  "area_ha": 119.5,
+  "built_road_m": 488,
+  "nearest_road_m": 101,
+  "lon": -124.5317,
+  "lat": 54.84879,
+  "road_first_seen": {
+   "result": "fire",
+   "timing": "well_ahead",
+   "last_scene_without": "2018-09-04",
+   "first_scene_with": "2018-09-29",
+   "bracket_days": 25,
+   "block_first_cleared": null
+  },
+  "names": [
+   "HAT83A.1000"
+  ]
+ },
+ {
+  "pair": "1511019",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A93061",
+  "cutting_permit": "X04",
+  "block_id": "SDCS21",
+  "opening_id": 1748008,
+  "harvest_start": "2021-01-28",
+  "area_ha": 18.7,
+  "built_road_m": 286,
+  "nearest_road_m": 193,
+  "lon": -125.94264,
+  "lat": 55.54302,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-05-24",
+   "first_scene_with": "2021-06-25",
+   "bracket_days": 32,
+   "block_first_cleared": "2021-05-21"
+  },
+  "names": [
+   "SDCS21.1000"
+  ]
+ },
+ {
+  "pair": "1512009",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A87345",
+  "cutting_permit": "DA",
+  "block_id": "NAT373",
+  "opening_id": 1733048,
+  "harvest_start": "2019-11-22",
+  "area_ha": 12.2,
+  "built_road_m": 648,
+  "nearest_road_m": 0,
+  "lon": -124.62419,
+  "lat": 55.35859,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2020-05-13"
+  },
+  "names": [
+   "NAT373.1000"
+  ]
+ },
+ {
+  "pair": "1512715",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A87345",
+  "cutting_permit": "DD",
+  "block_id": "NAT139",
+  "opening_id": 1733084,
+  "harvest_start": "2019-12-03",
+  "area_ha": 4.4,
+  "built_road_m": 110,
+  "nearest_road_m": 98,
+  "lon": -124.32516,
+  "lat": 55.3881,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "at_harvest",
+   "last_scene_without": "2020-07-27",
+   "first_scene_with": "2020-07-30",
+   "bracket_days": 3,
+   "block_first_cleared": "2020-07-27"
+  },
+  "names": [
+   "NAT139.1000"
+  ]
+ },
+ {
+  "pair": "1512866",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93557",
+  "cutting_permit": "H26",
+  "block_id": "HAT090",
+  "opening_id": 1759282,
+  "harvest_start": "2022-01-12",
+  "area_ha": 38.8,
+  "built_road_m": 17,
+  "nearest_road_m": 12,
+  "lon": -124.37043,
+  "lat": 54.90392,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2020-05-11",
+   "bracket_days": null,
+   "block_first_cleared": "2022-07-02"
+  },
+  "names": [
+   "HAT090.1000"
+  ]
+ },
+ {
+  "pair": "1512942",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90148",
+  "cutting_permit": "X96",
+  "block_id": "C3998",
+  "opening_id": 1777255,
+  "harvest_start": "2022-07-05",
+  "area_ha": 23.0,
+  "built_road_m": 479,
+  "nearest_road_m": 0,
+  "lon": -125.21067,
+  "lat": 52.29909,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2020-09-20",
+   "first_scene_with": "2020-10-03",
+   "bracket_days": 13,
+   "block_first_cleared": "2022-07-30"
+  },
+  "names": [
+   "C3998 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1514889",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A93557",
+  "cutting_permit": "H41",
+  "block_id": "HAT133",
+  "opening_id": 1788079,
+  "harvest_start": "2024-01-10",
+  "area_ha": 97.7,
+  "built_road_m": 311,
+  "nearest_road_m": 76,
+  "lon": -124.26153,
+  "lat": 54.9405,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-12-29",
+   "first_scene_with": "2024-02-15",
+   "bracket_days": 48,
+   "block_first_cleared": "2024-05-07"
+  },
+  "names": [
+   "HAT133.1000",
+   "HAT133.2000"
+  ]
+ },
+ {
+  "pair": "1516047",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "943",
+  "block_id": "114",
+  "opening_id": 1746324,
+  "harvest_start": "2020-02-01",
+  "area_ha": 248.1,
+  "built_road_m": 592,
+  "nearest_road_m": 0,
+  "lon": -122.32738,
+  "lat": 54.68662,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2020-05-10",
+   "first_scene_with": "2020-05-18",
+   "bracket_days": 8,
+   "block_first_cleared": "2020-07-27"
+  },
+  "names": [
+   "943-114 ACCESS 1 A44"
+  ]
+ },
+ {
+  "pair": "1519879",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A93061",
+  "cutting_permit": "X11",
+  "block_id": "SDCX32",
+  "opening_id": 1748292,
+  "harvest_start": "2021-02-22",
+  "area_ha": 99.0,
+  "built_road_m": 1190,
+  "nearest_road_m": 33,
+  "lon": -125.20791,
+  "lat": 55.60209,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-05-29",
+   "first_scene_with": "2021-06-25",
+   "bracket_days": 27,
+   "block_first_cleared": "2021-06-25"
+  },
+  "names": [
+   "SDCX32.1000"
+  ]
+ },
+ {
+  "pair": "1522595",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "N2O",
+  "cutting_permit": "005",
+  "block_id": "116",
+  "opening_id": 1750129,
+  "harvest_start": "2020-02-03",
+  "area_ha": 4.8,
+  "built_road_m": 1216,
+  "nearest_road_m": 0,
+  "lon": -124.72242,
+  "lat": 54.71051,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2020-05-11",
+   "first_scene_with": "2020-05-13",
+   "bracket_days": 2,
+   "block_first_cleared": "2019-11-30"
+  },
+  "names": [
+   "BLOCK 116 ACCESS"
+  ]
+ },
+ {
+  "pair": "1527583",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_is_small_separate_network",
+   "nearest_road_retired"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "Y31",
+  "block_id": "TUM071",
+  "opening_id": 1710692,
+  "harvest_start": "2018-09-20",
+  "area_ha": 31.0,
+  "built_road_m": 1395,
+  "nearest_road_m": 128,
+  "lon": -121.374,
+  "lat": 53.69603,
+  "road_first_seen": null,
+  "names": [
+   "TUM071.1000 A36",
+   "TUM071.2000 A36"
+  ]
+ },
+ {
+  "pair": "1549453",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "TA1276",
+  "cutting_permit": null,
+  "block_id": "HFS043",
+  "opening_id": 1762702,
+  "harvest_start": "2021-02-22",
+  "area_ha": 6.1,
+  "built_road_m": 1093,
+  "nearest_road_m": 375,
+  "lon": -122.81644,
+  "lat": 51.87918,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2019-03-30"
+  },
+  "names": [
+   "TA1276(HFS043)-01"
+  ]
+ },
+ {
+  "pair": "1552777",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A18165",
+  "cutting_permit": "S12",
+  "block_id": "VAL063",
+  "opening_id": 1775215,
+  "harvest_start": "2023-02-01",
+  "area_ha": 42.1,
+  "built_road_m": 7444,
+  "nearest_road_m": 695,
+  "lon": -124.82123,
+  "lat": 55.35716,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": null
+  },
+  "names": [
+   "VAL063.1000"
+  ]
+ },
+ {
+  "pair": "1553491",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A90150",
+  "cutting_permit": "994",
+  "block_id": "C4224",
+  "opening_id": 1800860,
+  "harvest_start": "2025-01-20",
+  "area_ha": 79.0,
+  "built_road_m": 10625,
+  "nearest_road_m": 524,
+  "lon": -125.44063,
+  "lat": 52.29903,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2023-05-08",
+   "bracket_days": null,
+   "block_first_cleared": "2025-05-29"
+  },
+  "names": [
+   "C4224 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1568554",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "Z55",
+  "block_id": "HAG044",
+  "opening_id": 1755388,
+  "harvest_start": "2021-06-14",
+  "area_ha": 95.5,
+  "built_road_m": 294,
+  "nearest_road_m": 31,
+  "lon": -121.54784,
+  "lat": 53.37424,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-06-12",
+   "first_scene_with": "2021-06-17",
+   "bracket_days": 5,
+   "block_first_cleared": "2021-07-02"
+  },
+  "names": [
+   "HAG044.1000"
+  ]
+ },
+ {
+  "pair": "1570366",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "TA1426",
+  "cutting_permit": null,
+  "block_id": "665",
+  "opening_id": 1760616,
+  "harvest_start": "2022-01-26",
+  "area_ha": 189.9,
+  "built_road_m": 763,
+  "nearest_road_m": 0,
+  "lon": -122.22392,
+  "lat": 52.24901,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "noisy_baseline",
+   "last_scene_without": "2020-10-02",
+   "first_scene_with": "2020-11-06",
+   "bracket_days": 35,
+   "block_first_cleared": null
+  },
+  "names": [
+   "TA1426(665)-01"
+  ]
+ },
+ {
+  "pair": "1571765",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93491",
+  "cutting_permit": "811",
+  "block_id": "W1570",
+  "opening_id": 1760393,
+  "harvest_start": "2021-10-01",
+  "area_ha": 249.8,
+  "built_road_m": 862,
+  "nearest_road_m": 0,
+  "lon": -121.98342,
+  "lat": 52.41286,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2021-09-02",
+   "first_scene_with": "2021-10-27",
+   "bracket_days": 55,
+   "block_first_cleared": null
+  },
+  "names": [
+   "W1570 SPUR 2",
+   "W1570 SPUR 3",
+   "W1570 SPUR 5",
+   "W1570 SPUR 8"
+  ]
+ },
+ {
+  "pair": "1571772",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93491",
+  "cutting_permit": "811",
+  "block_id": "W1582",
+  "opening_id": 1758219,
+  "harvest_start": "2021-07-31",
+  "area_ha": 10.1,
+  "built_road_m": 409,
+  "nearest_road_m": 0,
+  "lon": -122.03528,
+  "lat": 52.39495,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2021-04-25",
+   "first_scene_with": "2021-06-17",
+   "bracket_days": 53,
+   "block_first_cleared": "2021-08-11"
+  },
+  "names": [
+   "W1582 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1573741",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "935",
+  "block_id": "W1387",
+  "opening_id": 1759488,
+  "harvest_start": "2022-01-27",
+  "area_ha": 33.9,
+  "built_road_m": 1026,
+  "nearest_road_m": 0,
+  "lon": -120.81561,
+  "lat": 52.31812,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2021-11-01",
+   "first_scene_with": "2022-05-22",
+   "bracket_days": 202,
+   "block_first_cleared": "2022-06-26"
+  },
+  "names": [
+   "W1387 SPUR 1",
+   "W1387 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1579188",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "929",
+  "block_id": "W1350",
+  "opening_id": 1792367,
+  "harvest_start": "2023-11-13",
+  "area_ha": 15.8,
+  "built_road_m": 1896,
+  "nearest_road_m": 366,
+  "lon": -121.05348,
+  "lat": 52.28055,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2022-11-13",
+   "first_scene_with": "2023-04-30",
+   "bracket_days": 168,
+   "block_first_cleared": "2024-03-25"
+  },
+  "names": [
+   "W1350 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1581068",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A93557",
+  "cutting_permit": "H48",
+  "block_id": "HAT089",
+  "opening_id": 1803961,
+  "harvest_start": "2025-10-28",
+  "area_ha": 18.8,
+  "built_road_m": 38,
+  "nearest_road_m": 0,
+  "lon": -124.44006,
+  "lat": 54.90576,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "well_ahead",
+   "last_scene_without": "2024-10-09",
+   "first_scene_with": "2024-10-22",
+   "bracket_days": 13,
+   "block_first_cleared": "2025-10-12"
+  },
+  "names": [
+   "HAT089.1000",
+   "HAT089.2000"
+  ]
+ },
+ {
+  "pair": "1581094",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93557",
+  "cutting_permit": "H46",
+  "block_id": "HAT135",
+  "opening_id": 1812601,
+  "harvest_start": "2026-07-13",
+  "area_ha": 5.0,
+  "built_road_m": 69,
+  "nearest_road_m": 9,
+  "lon": -124.32826,
+  "lat": 54.77204,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2024-07-16",
+   "bracket_days": null,
+   "block_first_cleared": "2026-06-21"
+  },
+  "names": [
+   "HAT135.1000"
+  ]
+ },
+ {
+  "pair": "1582144",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "VI2",
+  "block_id": "OTT080",
+  "opening_id": 1761309,
+  "harvest_start": "2022-01-19",
+  "area_ha": 144.6,
+  "built_road_m": 68,
+  "nearest_road_m": 35,
+  "lon": -121.70308,
+  "lat": 54.19111,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2020-03-14",
+   "bracket_days": null,
+   "block_first_cleared": "2022-04-10"
+  },
+  "names": [
+   "OTT080.1000"
+  ]
+ },
+ {
+  "pair": "1582706",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A99439",
+  "cutting_permit": "D74",
+  "block_id": "MAN136",
+  "opening_id": 1787771,
+  "harvest_start": "2023-07-14",
+  "area_ha": 73.3,
+  "built_road_m": 897,
+  "nearest_road_m": 0,
+  "lon": -124.48029,
+  "lat": 55.59188,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-07-20",
+   "first_scene_with": "2023-08-01",
+   "bracket_days": 12,
+   "block_first_cleared": "2023-08-16"
+  },
+  "names": [
+   "MAN136.1000"
+  ]
+ },
+ {
+  "pair": "1583000",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "779",
+  "block_id": "669",
+  "opening_id": 1782257,
+  "harvest_start": "2023-01-02",
+  "area_ha": 49.2,
+  "built_road_m": 558,
+  "nearest_road_m": 11,
+  "lon": -121.68816,
+  "lat": 54.44134,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2022-11-06",
+   "first_scene_with": "2023-04-28",
+   "bracket_days": 173,
+   "block_first_cleared": "2023-05-10"
+  },
+  "names": [
+   "779-669 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1583626",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "114",
+  "block_id": "001",
+  "opening_id": 1781351,
+  "harvest_start": "2022-08-01",
+  "area_ha": 121.0,
+  "built_road_m": 103,
+  "nearest_road_m": 10,
+  "lon": -122.82295,
+  "lat": 54.57259,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": null
+  },
+  "names": [
+   "114-001 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1583856",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "K47",
+  "block_id": "PHI091",
+  "opening_id": 1773797,
+  "harvest_start": "2023-01-11",
+  "area_ha": 23.3,
+  "built_road_m": 1310,
+  "nearest_road_m": 0,
+  "lon": -123.47183,
+  "lat": 54.98273,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-01-23",
+   "first_scene_with": "2023-05-13",
+   "bracket_days": 110,
+   "block_first_cleared": "2023-05-26"
+  },
+  "names": [
+   "PHI091.1",
+   "PHI091.1.1"
+  ]
+ },
+ {
+  "pair": "1584090",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "945",
+  "block_id": "W2138",
+  "opening_id": 1788653,
+  "harvest_start": "2022-01-25",
+  "area_ha": 253.6,
+  "built_road_m": 11053,
+  "nearest_road_m": 180,
+  "lon": -120.89209,
+  "lat": 52.28721,
+  "road_first_seen": {
+   "result": "fire",
+   "timing": "within_6_months",
+   "last_scene_without": "2021-08-05",
+   "first_scene_with": "2021-08-13",
+   "bracket_days": 8,
+   "block_first_cleared": "2021-07-14"
+  },
+  "names": [
+   "W2138 SPUR 1",
+   "W2138 SPUR 10",
+   "W2138 SPUR 5",
+   "W2138 SPUR 7"
+  ]
+ },
+ {
+  "pair": "1584977",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18171",
+  "cutting_permit": "707",
+  "block_id": "043",
+  "opening_id": 1775643,
+  "harvest_start": "2022-10-06",
+  "area_ha": 186.9,
+  "built_road_m": 852,
+  "nearest_road_m": 99,
+  "lon": -122.16767,
+  "lat": 54.56663,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-10-15",
+   "first_scene_with": "2022-11-01",
+   "bracket_days": 17,
+   "block_first_cleared": "2023-05-10"
+  },
+  "names": [
+   "707-043 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1585097",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "813",
+  "block_id": "W1611",
+  "opening_id": 1809121,
+  "harvest_start": "2025-07-14",
+  "area_ha": 32.9,
+  "built_road_m": 2077,
+  "nearest_road_m": 164,
+  "lon": -122.21483,
+  "lat": 51.9404,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-07-16",
+   "first_scene_with": "2025-07-23",
+   "bracket_days": 7,
+   "block_first_cleared": "2026-05-27"
+  },
+  "names": [
+   "W1611 SPUR 1",
+   "W1611 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1593689",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A20016",
+  "cutting_permit": "919",
+  "block_id": "W1025",
+  "opening_id": 1744516,
+  "harvest_start": "2020-12-10",
+  "area_ha": 8.0,
+  "built_road_m": 2565,
+  "nearest_road_m": 370,
+  "lon": -121.19554,
+  "lat": 52.38709,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2020-10-02",
+   "first_scene_with": "2021-04-15",
+   "bracket_days": 195,
+   "block_first_cleared": "2021-04-15"
+  },
+  "names": [
+   "W1025 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1594087",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90812",
+  "cutting_permit": "VK2",
+  "block_id": "TOR043",
+  "opening_id": 1770732,
+  "harvest_start": "2022-08-19",
+  "area_ha": 13.5,
+  "built_road_m": 1820,
+  "nearest_road_m": 0,
+  "lon": -121.21568,
+  "lat": 54.00076,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2022-07-29",
+   "first_scene_with": "2022-08-23",
+   "bracket_days": 25,
+   "block_first_cleared": null
+  },
+  "names": [
+   "TOR043.1000"
+  ]
+ },
+ {
+  "pair": "1595415",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "952",
+  "block_id": "W1240",
+  "opening_id": 1792391,
+  "harvest_start": "2022-10-25",
+  "area_ha": 22.1,
+  "built_road_m": 876,
+  "nearest_road_m": 272,
+  "lon": -120.91178,
+  "lat": 52.24805,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-12-21",
+   "first_scene_with": "2023-05-12",
+   "bracket_days": 142,
+   "block_first_cleared": "2023-05-12"
+  },
+  "names": [
+   "W1240 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1597265",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "TFL30",
+  "cutting_permit": "19A",
+  "block_id": "KEG038",
+  "opening_id": 1770831,
+  "harvest_start": "2022-10-03",
+  "area_ha": 56.0,
+  "built_road_m": 1044,
+  "nearest_road_m": 568,
+  "lon": -121.50716,
+  "lat": 54.09964,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-09-27",
+   "first_scene_with": "2022-10-05",
+   "bracket_days": 8,
+   "block_first_cleared": "2022-10-15"
+  },
+  "names": [
+   "KEG038.1000"
+  ]
+ },
+ {
+  "pair": "1597348",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "TFL30",
+  "cutting_permit": "6AJ",
+  "block_id": "AVE050",
+  "opening_id": 1770788,
+  "harvest_start": "2022-10-17",
+  "area_ha": 42.6,
+  "built_road_m": 2659,
+  "nearest_road_m": 45,
+  "lon": -122.26176,
+  "lat": 54.31967,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2022-09-12",
+   "first_scene_with": "2022-09-20",
+   "bracket_days": 8,
+   "block_first_cleared": "2023-05-20"
+  },
+  "names": [
+   "AVE050.1000",
+   "AVE050.2000",
+   "AVE050.2100"
+  ]
+ },
+ {
+  "pair": "1597845",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "936",
+  "block_id": "W1759",
+  "opening_id": 1788553,
+  "harvest_start": "2023-08-28",
+  "area_ha": 12.5,
+  "built_road_m": 73,
+  "nearest_road_m": 53,
+  "lon": -121.35986,
+  "lat": 52.28482,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "too_few_scenes",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2023-09-07"
+  },
+  "names": [
+   "W1759 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1597846",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "936",
+  "block_id": "W1752",
+  "opening_id": 1774352,
+  "harvest_start": "2023-02-10",
+  "area_ha": 7.2,
+  "built_road_m": 1234,
+  "nearest_road_m": 116,
+  "lon": -121.38207,
+  "lat": 52.25036,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2022-10-17",
+   "first_scene_with": "2023-04-30",
+   "bracket_days": 195,
+   "block_first_cleared": "2023-04-30"
+  },
+  "names": [
+   "W1752 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1599006",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15385",
+  "cutting_permit": "K57",
+  "block_id": "PHI116",
+  "opening_id": 1772518,
+  "harvest_start": "2022-12-08",
+  "area_ha": 11.0,
+  "built_road_m": 669,
+  "nearest_road_m": 127,
+  "lon": -123.47064,
+  "lat": 55.13808,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-05-16",
+   "first_scene_with": "2023-05-18",
+   "bracket_days": 2,
+   "block_first_cleared": "2023-06-07"
+  },
+  "names": [
+   "PHI116.1"
+  ]
+ },
+ {
+  "pair": "1602220",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93686",
+  "cutting_permit": "023",
+  "block_id": "C4726",
+  "opening_id": 1799421,
+  "harvest_start": "2024-01-16",
+  "area_ha": 51.3,
+  "built_road_m": 45,
+  "nearest_road_m": 0,
+  "lon": -122.44786,
+  "lat": 52.24585,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "too_few_scenes",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2024-04-17"
+  },
+  "names": [
+   "C4726 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1604765",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "243",
+  "block_id": "A65",
+  "opening_id": 1799858,
+  "harvest_start": "2024-06-03",
+  "area_ha": 45.1,
+  "built_road_m": 35,
+  "nearest_road_m": 7,
+  "lon": -123.07978,
+  "lat": 54.39061,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2022-06-07",
+   "bracket_days": null,
+   "block_first_cleared": "2024-06-21"
+  },
+  "names": [
+   "243-A65 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1608198",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "969",
+  "block_id": "051",
+  "opening_id": 1788747,
+  "harvest_start": "2023-11-12",
+  "area_ha": 116.3,
+  "built_road_m": 159,
+  "nearest_road_m": 0,
+  "lon": -121.71464,
+  "lat": 54.60366,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2023-09-22",
+   "first_scene_with": "2024-04-14",
+   "bracket_days": 205,
+   "block_first_cleared": "2024-04-14"
+  },
+  "names": [
+   "969-051 ACCESS 1",
+   "969-051 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1608292",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "S09",
+  "block_id": "PHI111",
+  "opening_id": 1785046,
+  "harvest_start": "2023-10-16",
+  "area_ha": 56.8,
+  "built_road_m": 2727,
+  "nearest_road_m": 0,
+  "lon": -123.8382,
+  "lat": 55.19418,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2024-07-21",
+   "first_scene_with": "2024-08-03",
+   "bracket_days": 13,
+   "block_first_cleared": "2024-07-06"
+  },
+  "names": [
+   "PHI111.1",
+   "PHI111.2",
+   "PHI111.2.1",
+   "PHI111.2.2"
+  ]
+ },
+ {
+  "pair": "1610625",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "D97",
+  "block_id": "MAN174",
+  "opening_id": 1748646,
+  "harvest_start": "2021-03-08",
+  "area_ha": 86.2,
+  "built_road_m": 750,
+  "nearest_road_m": 529,
+  "lon": -124.63796,
+  "lat": 55.66564,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2020-12-17",
+   "first_scene_with": "2021-06-25",
+   "bracket_days": 190,
+   "block_first_cleared": "2021-06-25"
+  },
+  "names": [
+   "MAN174.1000"
+  ]
+ },
+ {
+  "pair": "1613064",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A98219",
+  "cutting_permit": "N01",
+  "block_id": "PHI022",
+  "opening_id": 1792556,
+  "harvest_start": "2023-08-31",
+  "area_ha": 33.7,
+  "built_road_m": 385,
+  "nearest_road_m": 0,
+  "lon": -123.52475,
+  "lat": 55.05277,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-09-10",
+   "first_scene_with": "2023-09-20",
+   "bracket_days": 10,
+   "block_first_cleared": "2023-09-20"
+  },
+  "names": [
+   "PHI022_1",
+   "PHI022_2"
+  ]
+ },
+ {
+  "pair": "1613331",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "VK4",
+  "block_id": "WEE340",
+  "opening_id": 1788479,
+  "harvest_start": "2023-12-01",
+  "area_ha": 8.4,
+  "built_road_m": 275,
+  "nearest_road_m": 7,
+  "lon": -123.32414,
+  "lat": 54.60175,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2023-10-15",
+   "first_scene_with": "2023-10-20",
+   "bracket_days": 5,
+   "block_first_cleared": "2023-10-28"
+  },
+  "names": [
+   "WEE340.1000"
+  ]
+ },
+ {
+  "pair": "1615913",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "N2E",
+  "cutting_permit": "020",
+  "block_id": "PUR014",
+  "opening_id": 1799005,
+  "harvest_start": "2025-01-02",
+  "area_ha": 86.4,
+  "built_road_m": 1493,
+  "nearest_road_m": 216,
+  "lon": -121.88543,
+  "lat": 53.98513,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2023-10-27",
+   "first_scene_with": "2024-02-02",
+   "bracket_days": 98,
+   "block_first_cleared": "2024-02-02"
+  },
+  "names": [
+   "PUR014.1000",
+   "PUR014.1000 A21",
+   "PUR014.1100",
+   "PUR014.1100 A21"
+  ]
+ },
+ {
+  "pair": "1616123",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A94309",
+  "cutting_permit": "F08",
+  "block_id": "OVR064",
+  "opening_id": 1789286,
+  "harvest_start": "2024-01-08",
+  "area_ha": 34.7,
+  "built_road_m": 587,
+  "nearest_road_m": 390,
+  "lon": -123.75525,
+  "lat": 55.39968,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2024-01-13",
+   "first_scene_with": "2024-02-02",
+   "bracket_days": 20,
+   "block_first_cleared": "2024-05-10"
+  },
+  "names": [
+   "ACCESS OVR064"
+  ]
+ },
+ {
+  "pair": "1617453",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A94131",
+  "cutting_permit": "693",
+  "block_id": "8",
+  "opening_id": 1799099,
+  "harvest_start": "2025-01-15",
+  "area_ha": 16.4,
+  "built_road_m": 1992,
+  "nearest_road_m": 102,
+  "lon": -122.46609,
+  "lat": 51.74834,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-01-17",
+   "first_scene_with": "2025-02-11",
+   "bracket_days": 25,
+   "block_first_cleared": "2025-04-16"
+  },
+  "names": [
+   "CP693-8-SP1"
+  ]
+ },
+ {
+  "pair": "1617558",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "99M",
+  "block_id": "LIO220",
+  "opening_id": 1788074,
+  "harvest_start": "2024-01-15",
+  "area_ha": 33.6,
+  "built_road_m": 1900,
+  "nearest_road_m": 330,
+  "lon": -126.18726,
+  "lat": 55.83526,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2023-11-02",
+   "first_scene_with": "2024-06-07",
+   "bracket_days": 218,
+   "block_first_cleared": "2024-06-07"
+  },
+  "names": [
+   "LIO220.1000",
+   "LIO220.1100"
+  ]
+ },
+ {
+  "pair": "1618027",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A89522",
+  "cutting_permit": "M05",
+  "block_id": "SDC719",
+  "opening_id": 1788563,
+  "harvest_start": "2024-02-29",
+  "area_ha": 6.6,
+  "built_road_m": 418,
+  "nearest_road_m": 364,
+  "lon": -123.92413,
+  "lat": 55.79724,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2024-04-05",
+   "first_scene_with": "2024-04-17",
+   "bracket_days": 12,
+   "block_first_cleared": "2023-11-29"
+  },
+  "names": [
+   "SDC719.1000"
+  ]
+ },
+ {
+  "pair": "1623735",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "957",
+  "block_id": "648",
+  "opening_id": 1807418,
+  "harvest_start": "2025-02-11",
+  "area_ha": 10.9,
+  "built_road_m": 371,
+  "nearest_road_m": 3,
+  "lon": -122.69658,
+  "lat": 54.62246,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2023-05-18",
+   "first_scene_with": "2023-06-07",
+   "bracket_days": 20,
+   "block_first_cleared": "2025-05-27"
+  },
+  "names": [
+   "957-648 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1624569",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "564",
+  "block_id": "003",
+  "opening_id": 1803423,
+  "harvest_start": "2025-02-05",
+  "area_ha": 11.8,
+  "built_road_m": 2268,
+  "nearest_road_m": 355,
+  "lon": -123.59841,
+  "lat": 54.26715,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2024-11-06",
+   "first_scene_with": "2025-04-25",
+   "bracket_days": 170,
+   "block_first_cleared": "2025-06-04"
+  },
+  "names": [
+   "564-3 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1624824",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "966",
+  "block_id": "W2465",
+  "opening_id": 1809299,
+  "harvest_start": "2025-06-24",
+  "area_ha": 21.6,
+  "built_road_m": 1950,
+  "nearest_road_m": 0,
+  "lon": -120.75532,
+  "lat": 52.26311,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2026-04-24"
+  },
+  "names": [
+   "W2465 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1628355",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A98541",
+  "cutting_permit": "436",
+  "block_id": "001",
+  "opening_id": 1803805,
+  "harvest_start": "2025-07-22",
+  "area_ha": 83.7,
+  "built_road_m": 923,
+  "nearest_road_m": 361,
+  "lon": -124.2019,
+  "lat": 55.0056,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-07-09",
+   "first_scene_with": "2025-07-28",
+   "bracket_days": 19,
+   "block_first_cleared": "2025-08-23"
+  },
+  "names": [
+   "436-1 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1628646",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "965",
+  "block_id": "W2456",
+  "opening_id": 1807935,
+  "harvest_start": "2026-01-20",
+  "area_ha": 68.0,
+  "built_road_m": 1126,
+  "nearest_road_m": 6,
+  "lon": -120.98498,
+  "lat": 52.3687,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2026-01-16",
+   "first_scene_with": "2026-01-19",
+   "bracket_days": 3,
+   "block_first_cleared": "2026-04-09"
+  },
+  "names": [
+   "W2456 SPUR 1",
+   "W2456 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1629213",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_road_retired",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "968",
+  "block_id": "W2184",
+  "opening_id": 1807927,
+  "harvest_start": "2025-11-25",
+  "area_ha": 20.3,
+  "built_road_m": 697,
+  "nearest_road_m": 114,
+  "lon": -121.57241,
+  "lat": 52.40663,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2025-11-02",
+   "first_scene_with": "2026-04-22",
+   "bracket_days": 171,
+   "block_first_cleared": "2026-04-22"
+  },
+  "names": [
+   "W2184 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1630035",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "978",
+  "block_id": "W2544",
+  "opening_id": 1807934,
+  "harvest_start": "2025-06-15",
+  "area_ha": 19.6,
+  "built_road_m": 836,
+  "nearest_road_m": 109,
+  "lon": -120.83435,
+  "lat": 52.17099,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-06-10",
+   "first_scene_with": "2025-06-22",
+   "bracket_days": 12,
+   "block_first_cleared": "2025-07-10"
+  },
+  "names": [
+   "W2544 SPUR 1",
+   "W2544 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1630933",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "A50",
+  "block_id": "PHI084",
+  "opening_id": 1786707,
+  "harvest_start": "2024-01-06",
+  "area_ha": 10.1,
+  "built_road_m": 138,
+  "nearest_road_m": 5,
+  "lon": -123.78531,
+  "lat": 55.20916,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2023-09-10",
+   "first_scene_with": "2023-10-13",
+   "bracket_days": 33,
+   "block_first_cleared": "2024-05-10"
+  },
+  "names": [
+   "PHI084_1"
+  ]
+ },
+ {
+  "pair": "1631367",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "J84",
+  "block_id": "MES396",
+  "opening_id": 1807026,
+  "harvest_start": "2025-08-10",
+  "area_ha": 53.1,
+  "built_road_m": 319,
+  "nearest_road_m": 0,
+  "lon": -125.46155,
+  "lat": 55.9676,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-08-01",
+   "first_scene_with": "2025-08-21",
+   "bracket_days": 20,
+   "block_first_cleared": "2025-08-23"
+  },
+  "names": [
+   "MES396_1"
+  ]
+ },
+ {
+  "pair": "1633092",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A94309",
+  "cutting_permit": "F15",
+  "block_id": "GAF404",
+  "opening_id": 1811946,
+  "harvest_start": "2024-11-20",
+  "area_ha": 51.2,
+  "built_road_m": 498,
+  "nearest_road_m": 201,
+  "lon": -123.65017,
+  "lat": 55.44621,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2023-05-16",
+   "first_scene_with": "2023-05-18",
+   "bracket_days": 2,
+   "block_first_cleared": "2025-04-25"
+  },
+  "names": [
+   "ACCESS GAF404"
+  ]
+ },
+ {
+  "pair": "1637400",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "Q05",
+  "block_id": "PHI255",
+  "opening_id": 1807243,
+  "harvest_start": "2026-02-10",
+  "area_ha": 10.5,
+  "built_road_m": 73,
+  "nearest_road_m": 72,
+  "lon": -123.36287,
+  "lat": 55.07114,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2025-10-14",
+   "first_scene_with": "2026-05-20",
+   "bracket_days": 218,
+   "block_first_cleared": "2026-05-20"
+  },
+  "names": [
+   "PHI255.1"
+  ]
+ },
+ {
+  "pair": "1637401",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15385",
+  "cutting_permit": "Q05",
+  "block_id": "PHI237",
+  "opening_id": 1807201,
+  "harvest_start": "2026-02-18",
+  "area_ha": 22.1,
+  "built_road_m": 730,
+  "nearest_road_m": 208,
+  "lon": -123.41447,
+  "lat": 55.02802,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2024-07-06",
+   "bracket_days": null,
+   "block_first_cleared": "2026-05-20"
+  },
+  "names": [
+   "PHI237.1",
+   "PHI237.ECE"
+  ]
+ },
+ {
+  "pair": "1637532",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "VL2",
+  "block_id": "CHU173",
+  "opening_id": 1800316,
+  "harvest_start": "2025-05-14",
+  "area_ha": 104.9,
+  "built_road_m": 1038,
+  "nearest_road_m": 526,
+  "lon": -122.66162,
+  "lat": 54.53352,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-05-02",
+   "first_scene_with": "2025-06-11",
+   "bracket_days": 40,
+   "block_first_cleared": "2025-06-11"
+  },
+  "names": [
+   "CHU173.1000"
+  ]
+ },
+ {
+  "pair": "1640029",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "24L",
+  "block_id": "MAL021",
+  "opening_id": 1802830,
+  "harvest_start": "2025-09-30",
+  "area_ha": 50.3,
+  "built_road_m": 96,
+  "nearest_road_m": 8,
+  "lon": -125.25777,
+  "lat": 53.18072,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2023-10-13",
+   "bracket_days": null,
+   "block_first_cleared": "2025-11-11"
+  },
+  "names": [
+   "MAL021.1000",
+   "MAL021.3000"
+  ]
+ },
+ {
+  "pair": "1640033",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "24L",
+  "block_id": "MAL180",
+  "opening_id": 1800648,
+  "harvest_start": "2025-06-16",
+  "area_ha": 26.6,
+  "built_road_m": 638,
+  "nearest_road_m": 89,
+  "lon": -125.22421,
+  "lat": 53.14888,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-06-16",
+   "first_scene_with": "2025-07-16",
+   "bracket_days": 30,
+   "block_first_cleared": "2025-07-16"
+  },
+  "names": [
+   "MAL180.1000"
+  ]
+ },
+ {
+  "pair": "1643151",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A15429",
+  "cutting_permit": "711",
+  "block_id": "708",
+  "opening_id": 1806480,
+  "harvest_start": "2025-07-07",
+  "area_ha": 54.3,
+  "built_road_m": 244,
+  "nearest_road_m": 61,
+  "lon": -119.61599,
+  "lat": 53.16126,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2025-06-10",
+   "first_scene_with": "2025-08-04",
+   "bracket_days": 55,
+   "block_first_cleared": "2025-08-22"
+  },
+  "names": [
+   "711-708 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "860171",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A20020",
+  "cutting_permit": "110",
+  "block_id": "5",
+  "opening_id": 1292612,
+  "harvest_start": "2011-11-29",
+  "area_ha": 6.4,
+  "built_road_m": 3634,
+  "nearest_road_m": 356,
+  "lon": -123.12536,
+  "lat": 52.40885,
+  "road_first_seen": null,
+  "names": [
+   "A20020 CP110-5-BR"
+  ]
+ },
+ {
+  "pair": "878445",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "V57",
+  "block_id": "DOC262",
+  "opening_id": 1288852,
+  "harvest_start": "2011-02-14",
+  "area_ha": 134.9,
+  "built_road_m": 3588,
+  "nearest_road_m": 548,
+  "lon": -123.49534,
+  "lat": 54.25554,
+  "road_first_seen": null,
+  "names": [
+   "AM 264, DOC262.2000",
+   "DOC262.2000 A485"
+  ]
+ },
+ {
+  "pair": "905757",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20017",
+  "cutting_permit": "365",
+  "block_id": "1",
+  "opening_id": 1539433,
+  "harvest_start": "2013-01-01",
+  "area_ha": 236.6,
+  "built_road_m": 25320,
+  "nearest_road_m": 0,
+  "lon": -121.579,
+  "lat": 52.44555,
+  "road_first_seen": null,
+  "names": [
+   "CP365-1-BR",
+   "CP365-1-SP1",
+   "CP365-1-SP10",
+   "CP365-1-SP11"
+  ]
+ },
+ {
+  "pair": "906333",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "V56",
+  "block_id": "MUS034",
+  "opening_id": 1398750,
+  "harvest_start": "2011-07-08",
+  "area_ha": 33.2,
+  "built_road_m": 452,
+  "nearest_road_m": 12,
+  "lon": -123.47377,
+  "lat": 54.52368,
+  "road_first_seen": null,
+  "names": [
+   "MUS034.2000 A619"
+  ]
+ },
+ {
+  "pair": "906334",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "V56",
+  "block_id": "MUS035",
+  "opening_id": 1456730,
+  "harvest_start": "2011-08-03",
+  "area_ha": 52.9,
+  "built_road_m": 592,
+  "nearest_road_m": 187,
+  "lon": -123.46879,
+  "lat": 54.53322,
+  "road_first_seen": null,
+  "names": [
+   "MUS035.1000"
+  ]
+ },
+ {
+  "pair": "909208",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18157",
+  "cutting_permit": "47B",
+  "block_id": "47B002",
+  "opening_id": 1312568,
+  "harvest_start": "2010-01-15",
+  "area_ha": 126.6,
+  "built_road_m": 796,
+  "nearest_road_m": 0,
+  "lon": -124.3049,
+  "lat": 53.66087,
+  "road_first_seen": null,
+  "names": [
+   "47B002.2000",
+   "47B002.3000",
+   "47B002.4000"
+  ]
+ },
+ {
+  "pair": "917863",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "TFL53",
+  "cutting_permit": "212",
+  "block_id": "2",
+  "opening_id": 1494410,
+  "harvest_start": "2012-07-20",
+  "area_ha": 20.3,
+  "built_road_m": 1413,
+  "nearest_road_m": 113,
+  "lon": -122.30559,
+  "lat": 53.3352,
+  "road_first_seen": null,
+  "names": [
+   "CP212-2 ACCESS RD",
+   "CP212-2 BLKRD 1"
+  ]
+ },
+ {
+  "pair": "948280",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "430",
+  "block_id": "001",
+  "opening_id": 1384110,
+  "harvest_start": "2011-02-01",
+  "area_ha": 334.5,
+  "built_road_m": 1657,
+  "nearest_road_m": 0,
+  "lon": -124.17818,
+  "lat": 55.07071,
+  "road_first_seen": null,
+  "names": [
+   "430-001 ACCESS 1",
+   "430-001 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "952347",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "A76",
+  "block_id": "1236",
+  "opening_id": 1362594,
+  "harvest_start": "2010-11-06",
+  "area_ha": 36.5,
+  "built_road_m": 343,
+  "nearest_road_m": 238,
+  "lon": -123.8306,
+  "lat": 55.63859,
+  "road_first_seen": null,
+  "names": [
+   "1236.1000"
+  ]
+ },
+ {
+  "pair": "956509",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "483",
+  "block_id": "1",
+  "opening_id": 1411130,
+  "harvest_start": "2011-01-01",
+  "area_ha": 197.9,
+  "built_road_m": 6934,
+  "nearest_road_m": 0,
+  "lon": -121.05503,
+  "lat": 52.15555,
+  "road_first_seen": null,
+  "names": [
+   "CP483-1-SP1",
+   "CP483-1-SP2",
+   "CP483-1-SP3",
+   "CP483-1-SP4"
+  ]
+ },
+ {
+  "pair": "959156",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "16B",
+  "block_id": "16B002",
+  "opening_id": 1404752,
+  "harvest_start": "2010-09-07",
+  "area_ha": 550.5,
+  "built_road_m": 7256,
+  "nearest_road_m": 4,
+  "lon": -125.02056,
+  "lat": 53.24653,
+  "road_first_seen": null,
+  "names": [
+   "16B002.3000",
+   "16B002.4000",
+   "16B002.5000"
+  ]
+ },
+ {
+  "pair": "962456",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18165",
+  "cutting_permit": "V95",
+  "block_id": "WEE283",
+  "opening_id": 1373824,
+  "harvest_start": "2011-02-15",
+  "area_ha": 59.1,
+  "built_road_m": 188,
+  "nearest_road_m": 101,
+  "lon": -123.08659,
+  "lat": 54.66841,
+  "road_first_seen": null,
+  "names": [
+   "WEE283. AM 305"
+  ]
+ },
+ {
+  "pair": "963836",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A79656",
+  "cutting_permit": "09W",
+  "block_id": "WE0094",
+  "opening_id": 1423222,
+  "harvest_start": "2011-09-15",
+  "area_ha": 25.2,
+  "built_road_m": 295,
+  "nearest_road_m": 36,
+  "lon": -123.02025,
+  "lat": 51.49591,
+  "road_first_seen": null,
+  "names": [
+   "A79656 CP09W/WE0094"
+  ]
+ },
+ {
+  "pair": "966604",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "13W",
+  "block_id": "WE142D",
+  "opening_id": 1528196,
+  "harvest_start": "2012-06-20",
+  "area_ha": 57.7,
+  "built_road_m": 684,
+  "nearest_road_m": 0,
+  "lon": -123.28466,
+  "lat": 51.56422,
+  "road_first_seen": null,
+  "names": [
+   "A20019 CP13W/WE142D"
+  ]
+ },
+ {
+  "pair": "966796",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "J20",
+  "block_id": "4004",
+  "opening_id": 1433650,
+  "harvest_start": "2011-10-13",
+  "area_ha": 80.8,
+  "built_road_m": 464,
+  "nearest_road_m": 140,
+  "lon": -123.72252,
+  "lat": 55.12676,
+  "road_first_seen": null,
+  "names": [
+   "4004.1000"
+  ]
+ },
+ {
+  "pair": "994645",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "K25",
+  "block_id": "0550",
+  "opening_id": 1457694,
+  "harvest_start": "2011-12-12",
+  "area_ha": 62.3,
+  "built_road_m": 181,
+  "nearest_road_m": 0,
+  "lon": -123.47717,
+  "lat": 55.10361,
+  "road_first_seen": null,
+  "names": [
+   "0550.1000"
+  ]
+ },
+ {
+  "pair": "1012797",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "J22",
+  "block_id": "0663",
+  "opening_id": 1433770,
+  "harvest_start": "2011-10-15",
+  "area_ha": 80.3,
+  "built_road_m": 2713,
+  "nearest_road_m": 151,
+  "lon": -123.58106,
+  "lat": 55.18715,
+  "road_first_seen": null,
+  "names": [
+   "0663.1000"
+  ]
+ },
+ {
+  "pair": "1029063",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "619",
+  "block_id": "128",
+  "opening_id": 1463857,
+  "harvest_start": "2012-03-02",
+  "area_ha": 20.1,
+  "built_road_m": 112,
+  "nearest_road_m": 0,
+  "lon": -122.7685,
+  "lat": 54.38169,
+  "road_first_seen": null,
+  "names": [
+   "618-128 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1034465",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A18169",
+  "cutting_permit": "804",
+  "block_id": "1",
+  "opening_id": 1465250,
+  "harvest_start": "2011-09-01",
+  "area_ha": 167.6,
+  "built_road_m": 224,
+  "nearest_road_m": 0,
+  "lon": -124.09401,
+  "lat": 54.69424,
+  "road_first_seen": null,
+  "names": [
+   "CP 804-1 ACCESS"
+  ]
+ },
+ {
+  "pair": "1065725",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "development_road_continues",
+   "steep_straight_alternative"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "12D",
+  "block_id": "12D12B",
+  "opening_id": 1512350,
+  "harvest_start": "2012-05-29",
+  "area_ha": 12.4,
+  "built_road_m": 800,
+  "nearest_road_m": 247,
+  "lon": -125.02917,
+  "lat": 53.11336,
+  "road_first_seen": null,
+  "names": [
+   "12D12B.1000"
+  ]
+ },
+ {
+  "pair": "1087009",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "W99",
+  "block_id": "WEE305",
+  "opening_id": 1532322,
+  "harvest_start": "2013-01-20",
+  "area_ha": 261.3,
+  "built_road_m": 2671,
+  "nearest_road_m": 14,
+  "lon": -123.3616,
+  "lat": 54.61501,
+  "road_first_seen": null,
+  "names": [
+   "WEE305.1000",
+   "WEE305.2000",
+   "WEE305.3000",
+   "WEE305.3000 AMD 429"
+  ]
+ },
+ {
+  "pair": "1087927",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "C62",
+  "block_id": "CAR721",
+  "opening_id": 1568655,
+  "harvest_start": "2013-08-06",
+  "area_ha": 86.9,
+  "built_road_m": 45,
+  "nearest_road_m": 0,
+  "lon": -123.57034,
+  "lat": 54.47635,
+  "road_first_seen": null,
+  "names": [
+   "CAR721.1000",
+   "CAR721.2000"
+  ]
+ },
+ {
+  "pair": "1126073",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "153",
+  "block_id": "010",
+  "opening_id": 1557797,
+  "harvest_start": "2013-07-05",
+  "area_ha": 13.5,
+  "built_road_m": 118,
+  "nearest_road_m": 74,
+  "lon": -122.23797,
+  "lat": 53.86949,
+  "road_first_seen": null,
+  "names": [
+   "153-10 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1146114",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A86572",
+  "cutting_permit": "S26",
+  "block_id": "TRO020",
+  "opening_id": 1561415,
+  "harvest_start": "2013-07-24",
+  "area_ha": 19.5,
+  "built_road_m": 710,
+  "nearest_road_m": 513,
+  "lon": -124.5924,
+  "lat": 54.16054,
+  "road_first_seen": null,
+  "names": [
+   "TRO020.1000"
+  ]
+ },
+ {
+  "pair": "1154693",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18667",
+  "cutting_permit": "943",
+  "block_id": "LV2163",
+  "opening_id": 1630682,
+  "harvest_start": "2014-02-27",
+  "area_ha": 26.0,
+  "built_road_m": 1928,
+  "nearest_road_m": 0,
+  "lon": -118.45235,
+  "lat": 49.99918,
+  "road_first_seen": null,
+  "names": [
+   "LV2163.02"
+  ]
+ },
+ {
+  "pair": "1163010",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "8AC",
+  "block_id": "OLS047",
+  "opening_id": 1646500,
+  "harvest_start": "2014-11-01",
+  "area_ha": 74.8,
+  "built_road_m": 911,
+  "nearest_road_m": 507,
+  "lon": -122.09193,
+  "lat": 54.26129,
+  "road_first_seen": null,
+  "names": [
+   "OLS047.1000",
+   "OLS047.1100"
+  ]
+ },
+ {
+  "pair": "1164066",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "C24",
+  "block_id": "EKL025",
+  "opening_id": 1583219,
+  "harvest_start": "2013-12-09",
+  "area_ha": 15.3,
+  "built_road_m": 462,
+  "nearest_road_m": 100,
+  "lon": -124.19439,
+  "lat": 55.89664,
+  "road_first_seen": null,
+  "names": [
+   "EKL025.1000"
+  ]
+ },
+ {
+  "pair": "1189583",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A77955",
+  "cutting_permit": "C60",
+  "block_id": "INZ015",
+  "opening_id": 1689156,
+  "harvest_start": "2016-11-01",
+  "area_ha": 78.4,
+  "built_road_m": 135,
+  "nearest_road_m": 393,
+  "lon": -124.26204,
+  "lat": 54.96416,
+  "road_first_seen": null,
+  "names": [
+   "INZ015.1000",
+   "INZ015.2000"
+  ]
+ },
+ {
+  "pair": "1190930",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "732",
+  "block_id": "7",
+  "opening_id": 1665340,
+  "harvest_start": "2015-09-10",
+  "area_ha": 18.0,
+  "built_road_m": 1120,
+  "nearest_road_m": 0,
+  "lon": -122.24195,
+  "lat": 52.61056,
+  "road_first_seen": null,
+  "names": [
+   "CP732-7-SP1"
+  ]
+ },
+ {
+  "pair": "1197149",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90127",
+  "cutting_permit": null,
+  "block_id": "K6QB",
+  "opening_id": 1651066,
+  "harvest_start": "2015-01-30",
+  "area_ha": 21.5,
+  "built_road_m": 64,
+  "nearest_road_m": 18,
+  "lon": -118.42033,
+  "lat": 50.06039,
+  "road_first_seen": null,
+  "names": [
+   "K6QB.01"
+  ]
+ },
+ {
+  "pair": "1205854",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TFL30",
+  "cutting_permit": "7T",
+  "block_id": "WMC064",
+  "opening_id": 1661959,
+  "harvest_start": "2015-10-13",
+  "area_ha": 57.6,
+  "built_road_m": 309,
+  "nearest_road_m": 0,
+  "lon": -122.01906,
+  "lat": 54.23184,
+  "road_first_seen": null,
+  "names": [
+   "WMC064.3000 AM 57"
+  ]
+ },
+ {
+  "pair": "1207957",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "P65",
+  "block_id": "4324",
+  "opening_id": 1657224,
+  "harvest_start": "2015-01-20",
+  "area_ha": 15.1,
+  "built_road_m": 1865,
+  "nearest_road_m": 1421,
+  "lon": -123.54392,
+  "lat": 55.49376,
+  "road_first_seen": null,
+  "names": [
+   "4324 SPUR 1",
+   "4324 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1209960",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20013",
+  "cutting_permit": "U05",
+  "block_id": "BAE41",
+  "opening_id": 1666758,
+  "harvest_start": "2015-07-15",
+  "area_ha": 99.2,
+  "built_road_m": 925,
+  "nearest_road_m": 0,
+  "lon": -123.87237,
+  "lat": 52.9119,
+  "road_first_seen": null,
+  "names": [
+   "NU05-BAE41(B)"
+  ]
+ },
+ {
+  "pair": "1215995",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UH5",
+  "block_id": "WEE329",
+  "opening_id": 1650674,
+  "harvest_start": "2015-03-01",
+  "area_ha": 118.4,
+  "built_road_m": 2114,
+  "nearest_road_m": 7,
+  "lon": -123.36186,
+  "lat": 54.60411,
+  "road_first_seen": null,
+  "names": [
+   "WEE329.1000",
+   "WEE329.8000"
+  ]
+ },
+ {
+  "pair": "1273373",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15429",
+  "cutting_permit": "843",
+  "block_id": "002",
+  "opening_id": 1689874,
+  "harvest_start": "2015-09-01",
+  "area_ha": 37.7,
+  "built_road_m": 1336,
+  "nearest_road_m": 0,
+  "lon": -120.26084,
+  "lat": 53.74355,
+  "road_first_seen": null,
+  "names": [
+   "843-2 ACCESS 1 AM4"
+  ]
+ },
+ {
+  "pair": "1296201",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UF4",
+  "block_id": "WEE008",
+  "opening_id": 1663207,
+  "harvest_start": "2015-11-02",
+  "area_ha": 82.3,
+  "built_road_m": 209,
+  "nearest_road_m": 0,
+  "lon": -123.14381,
+  "lat": 54.69403,
+  "road_first_seen": null,
+  "names": [
+   "WEE008.1000 A527",
+   "WEE008.2000 A527"
+  ]
+ },
+ {
+  "pair": "1311081",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C64",
+  "block_id": "EKL005",
+  "opening_id": 1673118,
+  "harvest_start": "2016-05-15",
+  "area_ha": 16.3,
+  "built_road_m": 1057,
+  "nearest_road_m": 0,
+  "lon": -124.09471,
+  "lat": 55.77636,
+  "road_first_seen": null,
+  "names": [
+   "EKL005.1000",
+   "EKL005.2000"
+  ]
+ },
+ {
+  "pair": "1326280",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network",
+   "nearest_road_retired"
+  ],
+  "licence": "A84965",
+  "cutting_permit": "91W",
+  "block_id": "WLB068",
+  "opening_id": 1694857,
+  "harvest_start": "2017-01-11",
+  "area_ha": 2.7,
+  "built_road_m": 1666,
+  "nearest_road_m": 251,
+  "lon": -121.5245,
+  "lat": 52.15244,
+  "road_first_seen": null,
+  "names": [
+   "WLB068 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1327827",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "95R",
+  "block_id": "CAR313",
+  "opening_id": 1690143,
+  "harvest_start": "2017-05-19",
+  "area_ha": 153.4,
+  "built_road_m": 950,
+  "nearest_road_m": 10,
+  "lon": -123.39027,
+  "lat": 54.36003,
+  "road_first_seen": null,
+  "names": [
+   "CAR313.1000",
+   "CAR313.1100",
+   "CAR313.2000"
+  ]
+ },
+ {
+  "pair": "1333278",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "95Y",
+  "block_id": "BOO327",
+  "opening_id": 1698908,
+  "harvest_start": "2017-11-16",
+  "area_ha": 304.8,
+  "built_road_m": 80,
+  "nearest_road_m": 22,
+  "lon": -123.6184,
+  "lat": 54.58094,
+  "road_first_seen": null,
+  "names": [
+   "BOO327.1000"
+  ]
+ },
+ {
+  "pair": "1334950",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "UQ3",
+  "block_id": "ANZ068",
+  "opening_id": 1679050,
+  "harvest_start": "2016-09-01",
+  "area_ha": 21.7,
+  "built_road_m": 699,
+  "nearest_road_m": 10,
+  "lon": -122.22059,
+  "lat": 54.89835,
+  "road_first_seen": null,
+  "names": [
+   "ANZ068.1000 A17"
+  ]
+ },
+ {
+  "pair": "1336034",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A18158",
+  "cutting_permit": "429",
+  "block_id": "007",
+  "opening_id": 1682336,
+  "harvest_start": "2016-06-17",
+  "area_ha": 113.8,
+  "built_road_m": 2368,
+  "nearest_road_m": 0,
+  "lon": -124.15162,
+  "lat": 55.06642,
+  "road_first_seen": null,
+  "names": [
+   "429-7 ACCESS 1",
+   "429-7 ACCESS 2",
+   "429-7 ACCESS 3",
+   "429-7 ACCESS 4"
+  ]
+ },
+ {
+  "pair": "1342454",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "186",
+  "block_id": "696",
+  "opening_id": 1695497,
+  "harvest_start": "2017-06-01",
+  "area_ha": 122.6,
+  "built_road_m": 122,
+  "nearest_road_m": 5,
+  "lon": -122.82247,
+  "lat": 54.21842,
+  "road_first_seen": null,
+  "names": [
+   "186-696 ACCESS 1 A8"
+  ]
+ },
+ {
+  "pair": "1344750",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "C66",
+  "block_id": "BUR025",
+  "opening_id": 1691741,
+  "harvest_start": "2017-08-10",
+  "area_ha": 35.6,
+  "built_road_m": 701,
+  "nearest_road_m": 28,
+  "lon": -123.82151,
+  "lat": 55.5568,
+  "road_first_seen": null,
+  "names": [
+   "BUR025.1000",
+   "BUR025.1100"
+  ]
+ },
+ {
+  "pair": "1349209",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "D71",
+  "block_id": "MAN027",
+  "opening_id": 1691283,
+  "harvest_start": "2017-09-14",
+  "area_ha": 12.3,
+  "built_road_m": 599,
+  "nearest_road_m": 0,
+  "lon": -124.38118,
+  "lat": 55.68542,
+  "road_first_seen": null,
+  "names": [
+   "MAN027.1000"
+  ]
+ },
+ {
+  "pair": "1351050",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A82105",
+  "cutting_permit": "604",
+  "block_id": "W0436",
+  "opening_id": 1695039,
+  "harvest_start": "2017-03-02",
+  "area_ha": 5.2,
+  "built_road_m": 359,
+  "nearest_road_m": 43,
+  "lon": -121.11622,
+  "lat": 52.27528,
+  "road_first_seen": null,
+  "names": [
+   "W0436 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1355559",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "53A",
+  "block_id": "BOB664",
+  "opening_id": 1683581,
+  "harvest_start": "2017-01-16",
+  "area_ha": 9.7,
+  "built_road_m": 1106,
+  "nearest_road_m": 37,
+  "lon": -123.69564,
+  "lat": 53.63104,
+  "road_first_seen": null,
+  "names": [
+   "BOB664.1000"
+  ]
+ },
+ {
+  "pair": "1359454",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "D82",
+  "block_id": "MAN057",
+  "opening_id": 1689294,
+  "harvest_start": "2017-01-26",
+  "area_ha": 207.8,
+  "built_road_m": 8180,
+  "nearest_road_m": 1,
+  "lon": -124.55119,
+  "lat": 55.67906,
+  "road_first_seen": null,
+  "names": [
+   "MAN057.1000",
+   "MAN057.1100",
+   "MAN057.2000",
+   "MAN057.2100"
+  ]
+ },
+ {
+  "pair": "1359499",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A15429",
+  "cutting_permit": "347",
+  "block_id": "D5",
+  "opening_id": 1717717,
+  "harvest_start": "2018-11-01",
+  "area_ha": 13.4,
+  "built_road_m": 1930,
+  "nearest_road_m": 396,
+  "lon": -120.43039,
+  "lat": 53.21549,
+  "road_first_seen": null,
+  "names": [
+   "D677-D5 MAINLINE"
+  ]
+ },
+ {
+  "pair": "1361503",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "907",
+  "block_id": "W0549",
+  "opening_id": 1718962,
+  "harvest_start": "2019-01-01",
+  "area_ha": 40.3,
+  "built_road_m": 1874,
+  "nearest_road_m": 0,
+  "lon": -121.28805,
+  "lat": 52.25751,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2018-11-17",
+   "first_scene_with": "2019-04-01",
+   "bracket_days": 135,
+   "block_first_cleared": "2019-05-26"
+  },
+  "names": [
+   "W0549 SPUR 1",
+   "W0549 SPUR 2",
+   "W0549 SPUR 3",
+   "W0549 SPUR 4"
+  ]
+ },
+ {
+  "pair": "1363926",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20013",
+  "cutting_permit": "567",
+  "block_id": "A1",
+  "opening_id": 1693273,
+  "harvest_start": "2017-01-25",
+  "area_ha": 72.1,
+  "built_road_m": 3429,
+  "nearest_road_m": 0,
+  "lon": -121.78266,
+  "lat": 53.12541,
+  "road_first_seen": null,
+  "names": [
+   "LIT-A1(C)",
+   "NLIT-A1(A)",
+   "NLIT-A1(B)",
+   "NLIT-A1(C)"
+  ]
+ },
+ {
+  "pair": "1366600",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A90829",
+  "cutting_permit": "H09",
+  "block_id": "PP07",
+  "opening_id": 1698676,
+  "harvest_start": "2017-11-27",
+  "area_ha": 86.5,
+  "built_road_m": 4155,
+  "nearest_road_m": 68,
+  "lon": -122.77084,
+  "lat": 55.19106,
+  "road_first_seen": null,
+  "names": [
+   "PP07-01",
+   "PP07-02",
+   "PP07-03",
+   "PP07-04"
+  ]
+ },
+ {
+  "pair": "1368483",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20010",
+  "cutting_permit": "900",
+  "block_id": "Q1008",
+  "opening_id": 1689810,
+  "harvest_start": "2017-02-27",
+  "area_ha": 43.5,
+  "built_road_m": 1826,
+  "nearest_road_m": 0,
+  "lon": -121.79805,
+  "lat": 53.04593,
+  "road_first_seen": null,
+  "names": [
+   "Q1008 SPUR 2",
+   "Q1008 SPUR 3"
+  ]
+ },
+ {
+  "pair": "1381422",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "D94",
+  "block_id": "MAN070",
+  "opening_id": 1700427,
+  "harvest_start": "2018-02-19",
+  "area_ha": 187.8,
+  "built_road_m": 13978,
+  "nearest_road_m": 0,
+  "lon": -124.51455,
+  "lat": 55.64792,
+  "road_first_seen": null,
+  "names": [
+   "MAN070.1000",
+   "MAN070.1200"
+  ]
+ },
+ {
+  "pair": "1384997",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "Z19",
+  "block_id": "GOV456",
+  "opening_id": 1734878,
+  "harvest_start": "2019-12-20",
+  "area_ha": 42.5,
+  "built_road_m": 319,
+  "nearest_road_m": 0,
+  "lon": -122.3397,
+  "lat": 53.52753,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2019-05-29",
+   "first_scene_with": "2019-05-31",
+   "bracket_days": 2,
+   "block_first_cleared": "2020-07-27"
+  },
+  "names": [
+   "GOV456.1000 A641"
+  ]
+ },
+ {
+  "pair": "1387981",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A18165",
+  "cutting_permit": "93R",
+  "block_id": "VAL043",
+  "opening_id": 1709581,
+  "harvest_start": "2018-07-24",
+  "area_ha": 59.7,
+  "built_road_m": 6838,
+  "nearest_road_m": 648,
+  "lon": -124.80426,
+  "lat": 55.22326,
+  "road_first_seen": null,
+  "names": [
+   "VAL043.1000"
+  ]
+ },
+ {
+  "pair": "1391261",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "TFL52",
+  "cutting_permit": "693",
+  "block_id": "3",
+  "opening_id": 1707780,
+  "harvest_start": "2017-09-15",
+  "area_ha": 55.9,
+  "built_road_m": 7899,
+  "nearest_road_m": 10,
+  "lon": -121.39208,
+  "lat": 52.98805,
+  "road_first_seen": null,
+  "names": [
+   "TFL52 CP 693-3",
+   "TFL52 CP 693-3+4"
+  ]
+ },
+ {
+  "pair": "1392187",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H43",
+  "block_id": "HOL021",
+  "opening_id": 1692667,
+  "harvest_start": "2017-09-28",
+  "area_ha": 44.9,
+  "built_road_m": 1289,
+  "nearest_road_m": 12,
+  "lon": -123.11367,
+  "lat": 54.95713,
+  "road_first_seen": null,
+  "names": [
+   "HOL021.1000",
+   "HOL021.2000",
+   "HOL021.2100"
+  ]
+ },
+ {
+  "pair": "1396832",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "C72",
+  "block_id": "RUP021",
+  "opening_id": 1690635,
+  "harvest_start": "2017-09-06",
+  "area_ha": 33.7,
+  "built_road_m": 1333,
+  "nearest_road_m": 0,
+  "lon": -123.67123,
+  "lat": 55.44308,
+  "road_first_seen": null,
+  "names": [
+   "RUP021.1000",
+   "RUP021.1100"
+  ]
+ },
+ {
+  "pair": "1398743",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "182",
+  "block_id": "689",
+  "opening_id": 1714407,
+  "harvest_start": "2018-02-01",
+  "area_ha": 274.8,
+  "built_road_m": 60,
+  "nearest_road_m": 0,
+  "lon": -122.98558,
+  "lat": 54.20526,
+  "road_first_seen": null,
+  "names": [
+   "182-689 ACCESS1 AM49"
+  ]
+ },
+ {
+  "pair": "1411118",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20013",
+  "cutting_permit": "153",
+  "block_id": "7K",
+  "opening_id": 1743481,
+  "harvest_start": "2018-07-11",
+  "area_ha": 6.2,
+  "built_road_m": 487,
+  "nearest_road_m": 5,
+  "lon": -122.3553,
+  "lat": 52.71266,
+  "road_first_seen": null,
+  "names": [
+   "DRA-7K(A)"
+  ]
+ },
+ {
+  "pair": "1416234",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A20018",
+  "cutting_permit": "981",
+  "block_id": "W0590",
+  "opening_id": 1759477,
+  "harvest_start": "2021-02-01",
+  "area_ha": 78.5,
+  "built_road_m": 2378,
+  "nearest_road_m": 0,
+  "lon": -121.07575,
+  "lat": 52.22827,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2019-05-26",
+   "bracket_days": null,
+   "block_first_cleared": "2021-05-15"
+  },
+  "names": [
+   "W0590 SPUR 1",
+   "W0590 SPUR 2",
+   "W0590 SPUR 3",
+   "W0590 SPUR 4"
+  ]
+ },
+ {
+  "pair": "1418847",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A93686",
+  "cutting_permit": "015",
+  "block_id": "C4031",
+  "opening_id": 1777521,
+  "harvest_start": "2021-05-26",
+  "area_ha": 94.3,
+  "built_road_m": 1923,
+  "nearest_road_m": 0,
+  "lon": -122.33015,
+  "lat": 52.05499,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-05-23",
+   "first_scene_with": "2021-06-17",
+   "bracket_days": 25,
+   "block_first_cleared": "2021-06-27"
+  },
+  "names": [
+   "C4031 SPUR 1",
+   "C4031 SPUR 2"
+  ]
+ },
+ {
+  "pair": "1431758",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A15384",
+  "cutting_permit": "G82",
+  "block_id": "GRV026",
+  "opening_id": 1713114,
+  "harvest_start": "2018-10-03",
+  "area_ha": 24.1,
+  "built_road_m": 2182,
+  "nearest_road_m": 2,
+  "lon": -125.02764,
+  "lat": 55.66398,
+  "road_first_seen": null,
+  "names": [
+   "GRV026.1000"
+  ]
+ },
+ {
+  "pair": "1441279",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "D95",
+  "block_id": "MAN066",
+  "opening_id": 1707638,
+  "harvest_start": "2018-07-18",
+  "area_ha": 68.3,
+  "built_road_m": 288,
+  "nearest_road_m": 0,
+  "lon": -124.55986,
+  "lat": 55.65039,
+  "road_first_seen": null,
+  "names": [
+   "MAN066.1000"
+  ]
+ },
+ {
+  "pair": "1445640",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "261",
+  "block_id": "309",
+  "opening_id": 1723619,
+  "harvest_start": "2018-09-24",
+  "area_ha": 223.2,
+  "built_road_m": 1391,
+  "nearest_road_m": 0,
+  "lon": -122.87486,
+  "lat": 54.45398,
+  "road_first_seen": null,
+  "names": [
+   "261-309 ACCESS1 A156"
+  ]
+ },
+ {
+  "pair": "1459279",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20018",
+  "cutting_permit": "982",
+  "block_id": "W1208",
+  "opening_id": 1745355,
+  "harvest_start": "2020-06-20",
+  "area_ha": 48.3,
+  "built_road_m": 1616,
+  "nearest_road_m": 0,
+  "lon": -122.04293,
+  "lat": 52.44552,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2020-05-13",
+   "first_scene_with": "2020-07-14",
+   "bracket_days": 62,
+   "block_first_cleared": "2020-07-14"
+  },
+  "names": [
+   "W1208 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1460081",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "UT9",
+  "block_id": "MCG062",
+  "opening_id": 1797998,
+  "harvest_start": "2025-02-03",
+  "area_ha": 73.0,
+  "built_road_m": 3471,
+  "nearest_road_m": 59,
+  "lon": -121.0915,
+  "lat": 54.02272,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2025-08-22"
+  },
+  "names": [
+   "MCG062.1000 A716,713",
+   "MCG062.2000 A716,713"
+  ]
+ },
+ {
+  "pair": "1461601",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90812",
+  "cutting_permit": "HA7",
+  "block_id": "MCG060",
+  "opening_id": 1762460,
+  "harvest_start": "2022-01-19",
+  "area_ha": 51.6,
+  "built_road_m": 2684,
+  "nearest_road_m": 6,
+  "lon": -121.12549,
+  "lat": 54.04411,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2021-10-20",
+   "first_scene_with": "2021-11-01",
+   "bracket_days": 12,
+   "block_first_cleared": "2022-07-29"
+  },
+  "names": [
+   "MCG060.1000 A716,713",
+   "MCG060.1100 A716,713"
+  ]
+ },
+ {
+  "pair": "1463855",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A20016",
+  "cutting_permit": "10F",
+  "block_id": "C4269",
+  "opening_id": 1715411,
+  "harvest_start": "2018-10-25",
+  "area_ha": 2.5,
+  "built_road_m": 252,
+  "nearest_road_m": 205,
+  "lon": -123.16744,
+  "lat": 51.87945,
+  "road_first_seen": null,
+  "names": [
+   "C4269 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1495916",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A74912",
+  "cutting_permit": "963",
+  "block_id": "LV3145",
+  "opening_id": 1731297,
+  "harvest_start": "2020-01-02",
+  "area_ha": 3.3,
+  "built_road_m": 410,
+  "nearest_road_m": 0,
+  "lon": -118.60679,
+  "lat": 50.28521,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2019-11-24",
+   "first_scene_with": "2020-04-19",
+   "bracket_days": 147,
+   "block_first_cleared": "2020-05-04"
+  },
+  "names": [
+   "LV3145-01 (SIHLIS)"
+  ]
+ },
+ {
+  "pair": "1498015",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A15429",
+  "cutting_permit": "531",
+  "block_id": "241",
+  "opening_id": 1756147,
+  "harvest_start": "2021-06-11",
+  "area_ha": 9.4,
+  "built_road_m": 2443,
+  "nearest_road_m": 261,
+  "lon": -119.48565,
+  "lat": 53.13892,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "well_ahead",
+   "last_scene_without": "2019-09-28",
+   "first_scene_with": "2020-07-26",
+   "bracket_days": 302,
+   "block_first_cleared": "2021-06-21"
+  },
+  "names": [
+   "531-241 ACCESS 1 A24",
+   "531-241 ACCESS 2 A24"
+  ]
+ },
+ {
+  "pair": "1498547",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90812",
+  "cutting_permit": "VB9",
+  "block_id": "SAL170",
+  "opening_id": 1723330,
+  "harvest_start": "2019-07-01",
+  "area_ha": 26.7,
+  "built_road_m": 670,
+  "nearest_road_m": 0,
+  "lon": -122.89499,
+  "lat": 54.26873,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "ahead_bracket_spans_6m",
+   "last_scene_without": "2018-10-16",
+   "first_scene_with": "2019-05-09",
+   "bracket_days": 205,
+   "block_first_cleared": "2019-08-07"
+  },
+  "names": [
+   "SAL170.1000  AM724"
+  ]
+ },
+ {
+  "pair": "1520554",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A94469",
+  "cutting_permit": "629",
+  "block_id": "02",
+  "opening_id": 1744048,
+  "harvest_start": "2020-08-11",
+  "area_ha": 93.8,
+  "built_road_m": 1022,
+  "nearest_road_m": 0,
+  "lon": -121.77858,
+  "lat": 53.08593,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2020-08-16",
+   "first_scene_with": "2020-09-02",
+   "bracket_days": 17,
+   "block_first_cleared": "2020-10-02"
+  },
+  "names": [
+   "629-2(B)",
+   "629-2(C)"
+  ]
+ },
+ {
+  "pair": "1521453",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "225",
+  "block_id": "725",
+  "opening_id": 1746353,
+  "harvest_start": "2022-01-15",
+  "area_ha": 16.8,
+  "built_road_m": 2181,
+  "nearest_road_m": 578,
+  "lon": -123.11511,
+  "lat": 54.36689,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2021-12-19",
+   "first_scene_with": "2022-03-09",
+   "bracket_days": 80,
+   "block_first_cleared": "2022-06-02"
+  },
+  "names": [
+   "225-725 ACCESS 1 A32",
+   "225-725 ACCESS 2 A32",
+   "225-725 ACCESS 3 A32"
+  ]
+ },
+ {
+  "pair": "1529933",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "nearest_road_retired",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A95158",
+  "cutting_permit": null,
+  "block_id": "K7GM",
+  "opening_id": 1759376,
+  "harvest_start": "2021-09-16",
+  "area_ha": 33.9,
+  "built_road_m": 3609,
+  "nearest_road_m": 184,
+  "lon": -119.64786,
+  "lat": 50.54346,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2020-05-02",
+   "bracket_days": null,
+   "block_first_cleared": "2022-06-01"
+  },
+  "names": [
+   "K7GM.01"
+  ]
+ },
+ {
+  "pair": "1549457",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TA1276",
+  "cutting_permit": null,
+  "block_id": "C4329",
+  "opening_id": 1760615,
+  "harvest_start": "2021-03-19",
+  "area_ha": 11.0,
+  "built_road_m": 229,
+  "nearest_road_m": 11,
+  "lon": -122.87357,
+  "lat": 51.94884,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "noisy_baseline",
+   "last_scene_without": "2019-09-01",
+   "first_scene_with": "2019-09-03",
+   "bracket_days": 2,
+   "block_first_cleared": "2021-06-17"
+  },
+  "names": [
+   "TA1276(C4329)-01"
+  ]
+ },
+ {
+  "pair": "1567696",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20017",
+  "cutting_permit": "528",
+  "block_id": "1",
+  "opening_id": 1755878,
+  "harvest_start": "2021-07-05",
+  "area_ha": 57.9,
+  "built_road_m": 3619,
+  "nearest_road_m": 0,
+  "lon": -121.85135,
+  "lat": 52.63916,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2021-07-14",
+   "first_scene_with": "2021-07-27",
+   "bracket_days": 13,
+   "block_first_cleared": "2021-09-02"
+  },
+  "names": [
+   "CP528-1-BR",
+   "CP528-1-SP1"
+  ]
+ },
+ {
+  "pair": "1572555",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A94309",
+  "cutting_permit": "H24",
+  "block_id": "BLA211",
+  "opening_id": 1759373,
+  "harvest_start": "2021-06-14",
+  "area_ha": 18.3,
+  "built_road_m": 908,
+  "nearest_road_m": 49,
+  "lon": -123.65059,
+  "lat": 55.65676,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2021-05-28",
+   "first_scene_with": "2021-06-17",
+   "bracket_days": 20,
+   "block_first_cleared": "2021-06-17"
+  },
+  "names": [
+   "BLA211-A"
+  ]
+ },
+ {
+  "pair": "1573610",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "M16",
+  "block_id": "NAT345",
+  "opening_id": 1772133,
+  "harvest_start": "2021-11-01",
+  "area_ha": 17.9,
+  "built_road_m": 19,
+  "nearest_road_m": 0,
+  "lon": -123.98541,
+  "lat": 55.48352,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2020-07-27",
+   "bracket_days": null,
+   "block_first_cleared": "2022-06-02"
+  },
+  "names": [
+   "NAT345.1000"
+  ]
+ },
+ {
+  "pair": "1574040",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues",
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A15430",
+  "cutting_permit": "51",
+  "block_id": "043",
+  "opening_id": 1758871,
+  "harvest_start": "2021-12-31",
+  "area_ha": 61.3,
+  "built_road_m": 2305,
+  "nearest_road_m": 0,
+  "lon": -120.17535,
+  "lat": 53.57779,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2021-09-27",
+   "first_scene_with": "2022-07-21",
+   "bracket_days": 297,
+   "block_first_cleared": "2022-07-21"
+  },
+  "names": [
+   "51-43 ACCESS 1",
+   "51-43 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1576477",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A90148",
+  "cutting_permit": "X90",
+  "block_id": "C3995",
+  "opening_id": 1777277,
+  "harvest_start": "2022-05-15",
+  "area_ha": 40.0,
+  "built_road_m": 2495,
+  "nearest_road_m": 0,
+  "lon": -125.61046,
+  "lat": 52.70327,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2022-02-07",
+   "first_scene_with": "2022-06-25",
+   "bracket_days": 138,
+   "block_first_cleared": "2022-06-25"
+  },
+  "names": [
+   "C3995 SPUR 1",
+   "C3995 SPUR 3"
+  ]
+ },
+ {
+  "pair": "1581549",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18667",
+  "cutting_permit": "809",
+  "block_id": "LL9111",
+  "opening_id": 1786170,
+  "harvest_start": "2024-02-01",
+  "area_ha": 13.0,
+  "built_road_m": 953,
+  "nearest_road_m": 28,
+  "lon": -118.32685,
+  "lat": 50.11929,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2022-09-04",
+   "first_scene_with": "2022-09-06",
+   "bracket_days": 2,
+   "block_first_cleared": "2024-06-07"
+  },
+  "names": [
+   "LL9111-01"
+  ]
+ },
+ {
+  "pair": "1582735",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A94309",
+  "cutting_permit": "H36",
+  "block_id": "BW23B",
+  "opening_id": 1774138,
+  "harvest_start": "2022-01-31",
+  "area_ha": 58.6,
+  "built_road_m": 2236,
+  "nearest_road_m": 847,
+  "lon": -123.91598,
+  "lat": 55.58365,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-02-10",
+   "first_scene_with": "2022-05-21",
+   "bracket_days": 100,
+   "block_first_cleared": "2022-06-02"
+  },
+  "names": [
+   "BW23B-48"
+  ]
+ },
+ {
+  "pair": "1583010",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18158",
+  "cutting_permit": "184",
+  "block_id": "002",
+  "opening_id": 1774561,
+  "harvest_start": "2022-05-20",
+  "area_ha": 30.3,
+  "built_road_m": 426,
+  "nearest_road_m": 12,
+  "lon": -122.16932,
+  "lat": 53.80229,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2022-04-28",
+   "first_scene_with": "2022-06-09",
+   "bracket_days": 42,
+   "block_first_cleared": "2022-06-09"
+  },
+  "names": [
+   "184-2 ACCESS 1",
+   "184-2 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1584077",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "TA0505",
+  "cutting_permit": null,
+  "block_id": "K0DW",
+  "opening_id": 1805825,
+  "harvest_start": "2022-02-05",
+  "area_ha": 17.7,
+  "built_road_m": 588,
+  "nearest_road_m": 0,
+  "lon": -118.55599,
+  "lat": 50.01573,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-01-27",
+   "first_scene_with": "2022-02-11",
+   "bracket_days": 15,
+   "block_first_cleared": "2022-02-11"
+  },
+  "names": [
+   "K0DW.01",
+   "K0DW.02"
+  ]
+ },
+ {
+  "pair": "1585714",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "249",
+  "block_id": "A29",
+  "opening_id": 1806581,
+  "harvest_start": "2025-01-20",
+  "area_ha": 57.7,
+  "built_road_m": 527,
+  "nearest_road_m": 7,
+  "lon": -122.98273,
+  "lat": 54.22665,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "bracket_spans_start",
+   "last_scene_without": "2024-10-24",
+   "first_scene_with": "2025-04-19",
+   "bracket_days": 177,
+   "block_first_cleared": "2025-04-19"
+  },
+  "names": [
+   "249-A29 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1586715",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18171",
+  "cutting_permit": "184",
+  "block_id": "277",
+  "opening_id": 1769429,
+  "harvest_start": "2022-06-20",
+  "area_ha": 98.1,
+  "built_road_m": 1659,
+  "nearest_road_m": 15,
+  "lon": -122.95145,
+  "lat": 54.7255,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2022-07-02",
+   "first_scene_with": "2022-07-22",
+   "bracket_days": 20,
+   "block_first_cleared": "2022-07-27"
+  },
+  "names": [
+   "184-277 ACCESS 1",
+   "184-277 ACCESS 2"
+  ]
+ },
+ {
+  "pair": "1589547",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "816",
+  "block_id": "W1613",
+  "opening_id": 1777336,
+  "harvest_start": "2022-11-24",
+  "area_ha": 26.0,
+  "built_road_m": 1113,
+  "nearest_road_m": 0,
+  "lon": -122.08801,
+  "lat": 51.99679,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-05-18",
+   "first_scene_with": "2023-05-28",
+   "bracket_days": 10,
+   "block_first_cleared": "2023-05-28"
+  },
+  "names": [
+   "W1613 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1594670",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "947",
+  "block_id": "W2232",
+  "opening_id": 1788656,
+  "harvest_start": "2022-09-15",
+  "area_ha": 38.1,
+  "built_road_m": 2204,
+  "nearest_road_m": 0,
+  "lon": -120.90208,
+  "lat": 52.27799,
+  "road_first_seen": {
+   "result": "fire",
+   "timing": "ahead_bracket_spans_6m",
+   "last_scene_without": "2021-09-27",
+   "first_scene_with": "2022-06-26",
+   "bracket_days": 272,
+   "block_first_cleared": "2021-07-14"
+  },
+  "names": [
+   "W2232 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1599523",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A94309",
+  "cutting_permit": "F02",
+  "block_id": "FIN142",
+  "opening_id": 1781594,
+  "harvest_start": "2023-07-13",
+  "area_ha": 17.4,
+  "built_road_m": 779,
+  "nearest_road_m": 255,
+  "lon": -125.19167,
+  "lat": 56.89621,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2023-05-16",
+   "first_scene_with": "2023-05-19",
+   "bracket_days": 3,
+   "block_first_cleared": "2023-06-08"
+  },
+  "names": [
+   "ACCESS FIN142"
+  ]
+ },
+ {
+  "pair": "1600860",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A63867",
+  "cutting_permit": null,
+  "block_id": "K7TJ",
+  "opening_id": 1780792,
+  "harvest_start": "2023-07-19",
+  "area_ha": 30.7,
+  "built_road_m": 1635,
+  "nearest_road_m": 0,
+  "lon": -118.95132,
+  "lat": 50.79129,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2023-06-08",
+   "first_scene_with": "2023-06-28",
+   "bracket_days": 20,
+   "block_first_cleared": "2023-07-16"
+  },
+  "names": [
+   "K7TJ.03",
+   "K7TJ.04",
+   "K7TJ.05"
+  ]
+ },
+ {
+  "pair": "1601111",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "VE2",
+  "block_id": "GOV122",
+  "opening_id": 1779434,
+  "harvest_start": "2023-07-10",
+  "area_ha": 13.6,
+  "built_road_m": 72,
+  "nearest_road_m": 0,
+  "lon": -122.55869,
+  "lat": 53.52118,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2021-07-12",
+   "bracket_days": null,
+   "block_first_cleared": "2023-07-07"
+  },
+  "names": [
+   "GOV122.2000"
+  ]
+ },
+ {
+  "pair": "1603740",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15384",
+  "cutting_permit": "H57",
+  "block_id": "HOL134",
+  "opening_id": 1787950,
+  "harvest_start": "2023-05-09",
+  "area_ha": 26.4,
+  "built_road_m": 222,
+  "nearest_road_m": 0,
+  "lon": -123.1592,
+  "lat": 55.05411,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2023-05-18",
+   "first_scene_with": "2023-05-28",
+   "bracket_days": 10,
+   "block_first_cleared": "2023-07-07"
+  },
+  "names": [
+   "HOL134.1000"
+  ]
+ },
+ {
+  "pair": "1603767",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20010",
+  "cutting_permit": "012",
+  "block_id": "Q1634",
+  "opening_id": 1803695,
+  "harvest_start": "2024-02-07",
+  "area_ha": 11.1,
+  "built_road_m": 296,
+  "nearest_road_m": 458,
+  "lon": -122.80065,
+  "lat": 53.19575,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": null
+  },
+  "names": [
+   "Q1634 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1608587",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_is_small_separate_network"
+  ],
+  "licence": "A18165",
+  "cutting_permit": "S09",
+  "block_id": "VAL017",
+  "opening_id": 1775107,
+  "harvest_start": "2022-10-17",
+  "area_ha": 69.2,
+  "built_road_m": 1690,
+  "nearest_road_m": 124,
+  "lon": -124.80586,
+  "lat": 55.35449,
+  "road_first_seen": {
+   "result": "open_before_series",
+   "timing": "before_series",
+   "last_scene_without": null,
+   "first_scene_with": "2020-12-07",
+   "bracket_days": null,
+   "block_first_cleared": null
+  },
+  "names": [
+   "VAL017.1000"
+  ]
+ },
+ {
+  "pair": "1609041",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A15429",
+  "cutting_permit": "702",
+  "block_id": "620",
+  "opening_id": 1783638,
+  "harvest_start": "2023-07-01",
+  "area_ha": 35.9,
+  "built_road_m": 1119,
+  "nearest_road_m": 0,
+  "lon": -119.60149,
+  "lat": 52.99643,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2023-01-22",
+   "first_scene_with": "2023-05-17",
+   "bracket_days": 115,
+   "block_first_cleared": null
+  },
+  "names": [
+   "MCB-620 ACCESS 1",
+   "MCB-620 ACCESS 2",
+   "MCB-620 ACCESS 3"
+  ]
+ },
+ {
+  "pair": "1611600",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "J88",
+  "block_id": "MES188",
+  "opening_id": 1802335,
+  "harvest_start": "2025-09-03",
+  "area_ha": 33.9,
+  "built_road_m": 101,
+  "nearest_road_m": 97,
+  "lon": -125.47479,
+  "lat": 55.98067,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-09-07",
+   "first_scene_with": "2025-10-09",
+   "bracket_days": 32,
+   "block_first_cleared": "2025-10-09"
+  },
+  "names": [
+   "MES188_1"
+  ]
+ },
+ {
+  "pair": "1613366",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20021",
+  "cutting_permit": "090",
+  "block_id": "1",
+  "opening_id": 1795095,
+  "harvest_start": "2024-03-01",
+  "area_ha": 16.7,
+  "built_road_m": 338,
+  "nearest_road_m": 4,
+  "lon": -120.92872,
+  "lat": 52.55659,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2024-02-19",
+   "first_scene_with": "2024-03-17",
+   "bracket_days": 27,
+   "block_first_cleared": "2024-03-17"
+  },
+  "names": [
+   "CP90-1-SP1"
+  ]
+ },
+ {
+  "pair": "1616582",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A89522",
+  "cutting_permit": "M07",
+  "block_id": "SDC709",
+  "opening_id": 1788565,
+  "harvest_start": "2024-03-25",
+  "area_ha": 17.5,
+  "built_road_m": 69,
+  "nearest_road_m": 3,
+  "lon": -124.03369,
+  "lat": 55.6247,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "well_ahead",
+   "last_scene_without": "2022-09-20",
+   "first_scene_with": "2022-10-10",
+   "bracket_days": 20,
+   "block_first_cleared": "2024-03-23"
+  },
+  "names": [
+   "SDC709.1000",
+   "SDC709.2000"
+  ]
+ },
+ {
+  "pair": "1617508",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A93686",
+  "cutting_permit": "024",
+  "block_id": "C4722",
+  "opening_id": 1799439,
+  "harvest_start": "2024-12-07",
+  "area_ha": 7.4,
+  "built_road_m": 227,
+  "nearest_road_m": 59,
+  "lon": -122.50595,
+  "lat": 52.23118,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "no_step",
+   "last_scene_without": null,
+   "first_scene_with": null,
+   "bracket_days": null,
+   "block_first_cleared": "2025-07-28"
+  },
+  "names": [
+   "C4722 SPUR 1"
+  ]
+ },
+ {
+  "pair": "1633614",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative",
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A18157",
+  "cutting_permit": "24K",
+  "block_id": "MAL015",
+  "opening_id": 1797964,
+  "harvest_start": "2025-01-27",
+  "area_ha": 76.8,
+  "built_road_m": 261,
+  "nearest_road_m": 126,
+  "lon": -125.18596,
+  "lat": 53.17712,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "at_harvest",
+   "last_scene_without": "2025-01-17",
+   "first_scene_with": "2025-02-11",
+   "bracket_days": 25,
+   "block_first_cleared": "2025-04-25"
+  },
+  "names": [
+   "MAL015.1000"
+  ]
+ },
+ {
+  "pair": "1633876",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15385",
+  "cutting_permit": "Z04",
+  "block_id": "TEN215",
+  "opening_id": 1800303,
+  "harvest_start": "2025-05-17",
+  "area_ha": 30.8,
+  "built_road_m": 453,
+  "nearest_road_m": 0,
+  "lon": -125.30504,
+  "lat": 56.21418,
+  "road_first_seen": {
+   "result": "dated",
+   "timing": "within_6_months",
+   "last_scene_without": "2024-12-31",
+   "first_scene_with": "2025-05-28",
+   "bracket_days": 148,
+   "block_first_cleared": "2025-05-28"
+  },
+  "names": [
+   "TEN215_1"
+  ]
+ },
+ {
+  "pair": "1644060",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A15429",
+  "cutting_permit": "850",
+  "block_id": "713",
+  "opening_id": 1812131,
+  "harvest_start": "2026-02-10",
+  "area_ha": 8.5,
+  "built_road_m": 291,
+  "nearest_road_m": 0,
+  "lon": -120.4829,
+  "lat": 53.65977,
+  "road_first_seen": {
+   "result": "undatable",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2024-08-12",
+   "first_scene_with": "2024-08-22",
+   "bracket_days": 10,
+   "block_first_cleared": "2026-06-18"
+  },
+  "names": [
+   "MCB-713 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "1671602",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "C96",
+  "block_id": "BOO401FIRE",
+  "opening_id": 1798510,
+  "harvest_start": "2024-03-01",
+  "area_ha": 19.8,
+  "built_road_m": 77,
+  "nearest_road_m": 68,
+  "lon": -123.50176,
+  "lat": 54.4503,
+  "road_first_seen": {
+   "result": "too_short",
+   "timing": "open_near_series_start",
+   "last_scene_without": "2022-08-19",
+   "first_scene_with": "2022-08-21",
+   "bracket_days": 2,
+   "block_first_cleared": "2024-04-20"
+  },
+  "names": [
+   "BOO401FIRE.1000"
+  ]
+ },
+ {
+  "pair": "602033",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20005",
+  "cutting_permit": "869",
+  "block_id": "2",
+  "opening_id": 1375414,
+  "harvest_start": "2010-10-01",
+  "area_ha": 10.8,
+  "built_road_m": 724,
+  "nearest_road_m": 178,
+  "lon": -122.19419,
+  "lat": 52.70208,
+  "road_first_seen": null,
+  "names": [
+   "869-2(A)"
+  ]
+ },
+ {
+  "pair": "765017",
+  "scenario": "road_at_block",
+  "tags": [
+   "laid_out_around_existing_road"
+  ],
+  "licence": "A73557",
+  "cutting_permit": "899",
+  "block_id": "4",
+  "opening_id": 1200435,
+  "harvest_start": "2010-06-30",
+  "area_ha": 90.8,
+  "built_road_m": 1190,
+  "nearest_road_m": 0,
+  "lon": -123.09313,
+  "lat": 51.71077,
+  "road_first_seen": null,
+  "names": [
+   "CP899-4-BR1"
+  ]
+ },
+ {
+  "pair": "868348",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20015",
+  "cutting_permit": "769",
+  "block_id": "WJ0010",
+  "opening_id": 1581455,
+  "harvest_start": "2013-10-15",
+  "area_ha": 7.5,
+  "built_road_m": 934,
+  "nearest_road_m": 202,
+  "lon": -121.8155,
+  "lat": 52.36037,
+  "road_first_seen": null,
+  "names": [
+   "A20015 CP 769/WJ0010"
+  ]
+ },
+ {
+  "pair": "878075",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "X49",
+  "block_id": "GOV217",
+  "opening_id": 1331750,
+  "harvest_start": "2010-06-09",
+  "area_ha": 115.5,
+  "built_road_m": 4150,
+  "nearest_road_m": 0,
+  "lon": -122.50547,
+  "lat": 53.77414,
+  "road_first_seen": null,
+  "names": [
+   "GOV217.1000 AM 001",
+   "GOV217.1000 AM 258",
+   "GOV217.1000 AM768"
+  ]
+ },
+ {
+  "pair": "880972",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20013",
+  "cutting_permit": "559",
+  "block_id": "2",
+  "opening_id": 1510170,
+  "harvest_start": "2012-03-06",
+  "area_ha": 6.6,
+  "built_road_m": 55,
+  "nearest_road_m": 0,
+  "lon": -121.86065,
+  "lat": 53.15072,
+  "road_first_seen": null,
+  "names": [
+   "559-2(A)"
+  ]
+ },
+ {
+  "pair": "884484",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "shorter_haul_to_fsr"
+  ],
+  "licence": "A40873",
+  "cutting_permit": "B92",
+  "block_id": "CAR719",
+  "opening_id": 1412030,
+  "harvest_start": "2011-07-28",
+  "area_ha": 69.9,
+  "built_road_m": 366,
+  "nearest_road_m": 74,
+  "lon": -123.48224,
+  "lat": 54.47741,
+  "road_first_seen": null,
+  "names": [
+   "CAR719.1000"
+  ]
+ },
+ {
+  "pair": "903086",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "steep_straight_alternative"
+  ],
+  "licence": "A67545",
+  "cutting_permit": "332",
+  "block_id": "10",
+  "opening_id": 1315911,
+  "harvest_start": "2010-01-24",
+  "area_ha": 4.4,
+  "built_road_m": 754,
+  "nearest_road_m": 511,
+  "lon": -123.03285,
+  "lat": 53.15548,
+  "road_first_seen": null,
+  "names": [
+   "332-10(A)"
+  ]
+ },
+ {
+  "pair": "911521",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A15429",
+  "cutting_permit": "200",
+  "block_id": "005",
+  "opening_id": 1355170,
+  "harvest_start": "2010-07-20",
+  "area_ha": 11.3,
+  "built_road_m": 244,
+  "nearest_road_m": 92,
+  "lon": -119.93187,
+  "lat": 53.22041,
+  "road_first_seen": null,
+  "names": [
+   "200-005 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "949393",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18165",
+  "cutting_permit": "V33",
+  "block_id": "DOC137",
+  "opening_id": 1331710,
+  "harvest_start": "2010-06-03",
+  "area_ha": 59.7,
+  "built_road_m": 2290,
+  "nearest_road_m": 6,
+  "lon": -123.28528,
+  "lat": 54.27217,
+  "road_first_seen": null,
+  "names": [
+   "DOC137.1000 AM 196"
+  ]
+ },
+ {
+  "pair": "949885",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A18163",
+  "cutting_permit": "152",
+  "block_id": "580",
+  "opening_id": 1382234,
+  "harvest_start": "2010-09-10",
+  "area_ha": 51.0,
+  "built_road_m": 98,
+  "nearest_road_m": 7,
+  "lon": -123.1864,
+  "lat": 54.47057,
+  "road_first_seen": null,
+  "names": [
+   "152-580 ACCESS 1"
+  ]
+ },
+ {
+  "pair": "953233",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "TFL52",
+  "cutting_permit": "360",
+  "block_id": "2",
+  "opening_id": 1341850,
+  "harvest_start": "2010-07-26",
+  "area_ha": 18.2,
+  "built_road_m": 2078,
+  "nearest_road_m": 0,
+  "lon": -121.85762,
+  "lat": 52.99557,
+  "road_first_seen": null,
+  "names": [
+   "360-2(B)"
+  ]
+ },
+ {
+  "pair": "963824",
+  "scenario": "joined_elsewhere",
+  "tags": [
+   "nearest_road_retired"
+  ],
+  "licence": "A79656",
+  "cutting_permit": "09W",
+  "block_id": "WE0095",
+  "opening_id": 1382230,
+  "harvest_start": "2011-02-08",
+  "area_ha": 18.1,
+  "built_road_m": 762,
+  "nearest_road_m": 492,
+  "lon": -123.00145,
+  "lat": 51.49254,
+  "road_first_seen": null,
+  "names": [
+   "A79656 CP09W/WE0095"
+  ]
+ },
+ {
+  "pair": "980089",
+  "scenario": "joined_nearest",
+  "tags": [],
+  "licence": "A40873",
+  "cutting_permit": "S91",
+  "block_id": "PEL345",
+  "opening_id": 1366831,
+  "harvest_start": "2011-01-25",
+  "area_ha": 43.2,
+  "built_road_m": 261,
+  "nearest_road_m": 71,
+  "lon": -123.16497,
+  "lat": 53.49786,
+  "road_first_seen": null,
+  "names": [
+   "PEL345.1000 AM 313",
+   "PEL345.2000 AM 313"
+  ]
+ },
+ {
+  "pair": "995924",
+  "scenario": "joined_elsewhere",
+  "tags": [],
+  "licence": "A20019",
+  "cutting_permit": "05W",
+  "block_id": "WE164A",
+  "opening_id": 1423102,
+  "harvest_start": "2011-07-15",
+  "area_ha": 2.3,
+  "built_road_m": 366,
+  "nearest_road_m": 238,
+  "lon": -123.08264,
+  "lat": 51.52339,
+  "road_first_seen": null,
+  "names": [
+   "A20019 CP05W/WE164A"
+  ]
+ },
+ {
+  "pair": "996636",
+  "scenario": "road_at_block",
+  "tags": [],
+  "licence": "A20018",
+  "cutting_permit": "82W",
+  "block_id": "WFF047",
+  "opening_id": 1456115,
+  "harvest_start": "2012-03-19",
+  "area_ha": 75.1,
+  "built_road_m": 852,
+  "nearest_road_m": 0,
+  "lon": -122.82388,
+  "lat": 51.34284,
+  "road_first_seen": null,
+  "names": [
+   "A20018 CP82W/WFF047"
+  ]
+ },
+ {
+  "pair": "997808",
+  "scenario": "road_at_block",
+  "tags": [
+   "development_road_continues"
+  ],
+  "licence": "A20015",
+  "cutting_permit": "864",
+  "block_id": "WJ0030",
+  "opening_id": 1481999,
+  "harvest_start": "2012-07-21",
+  "area_ha": 4.2,
+  "built_road_m": 700,
+  "nearest_road_m": 0,
+  "lon": -122.0906,
+  "lat": 52.34459,
+  "road_first_seen": null,
+  "names": [
+   "WJ0030 SPUR"
+  ]
+ }
+]
