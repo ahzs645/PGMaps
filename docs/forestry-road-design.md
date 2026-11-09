@@ -461,9 +461,16 @@ remembers the choice. The cost dialog states the cost status (current; complete 
 and the process time of the last recalculation, which runs on every edit.
 
 The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
-quantities, landing) is chosen from a **Road detail view** combobox in that pane's
-title row, beside its title and any pane action such as Section CSV, so the pane
-spends no row on a tab strip.
+quantities, landing, drainage, swept path) is chosen from a combobox labelled **View** in that
+pane's title row (accessible name **Road detail view**), beside its title and any pane action such
+as Section CSV, so the pane spends no row on a tab strip. The hydrology tools (streams, ponding,
+drain to point, watersheds) are the **Drainage** view. Engineering → Drainage, where culverts are
+entered, links to it with **Drainage check: streams, ponds, catchments**, and the view links back
+with **Culvert inputs**. The mass-haul view explains the term behind an (i).
+
+Deleting a road shows the road beside it in the list, not the first one, and a notice in the
+notification stack names the deleted road and the one now shown, with **Undo** (`roadLifecycle.ts`).
+The header's Undo also restores it.
 
 The plan keeps the road readable at every zoom (`planAnnotations.ts`). Station
 labels are small, unboxed and placed beside the line on the right of travel, at the
@@ -531,9 +538,14 @@ starting alignment on the published LiDAR tile is an editable example, not an
 existing or optimized road; its name says “review required”. It was chosen from the DTM
 (`loadLidarTerrain`) so that no no-data cell lies within 60 m of the centreline and the
 ground grade over any 50 m stays under 8 %: about 930 m with every section complete. Only
-a browser without a saved project gets it, or one replacing the training example. Action notices
-(exports, optimizer results, restores) replace the header subtitle for eight
-seconds in a polite live region instead of occupying a dismissible row.
+a browser without a saved project gets it, or one replacing the training example. The header
+line carries the open project's name (click to rename) beside the heading, and under it the save
+state: the time of the browser save and whether a project file holds the same thing. Action
+notices (exports, optimizer results, restores) take that line's place for eight seconds in a polite
+live region instead of occupying a dismissible row; a notice longer than the line has an (i) that
+shows all of it. A reopened session and a first visit's example each say so once in the
+notification stack. See
+[Autosave and restore](forestry-road-design/exports-and-project-files.md#autosave-and-restore).
 
 ## The sidebar
 
@@ -550,11 +562,15 @@ warning someone must see stays an `InlineAlert`.
   that open elsewhere are tiles at the end.
 - **Section:** the eight template numbers. Components and curve rules fold.
 - **Engineering:** four input tabs. The aggregate source sits under Haul.
-- **Review:** **Ready to review**, a checklist of the active road. Every failing row has an action that
-  leads to what clears it. A stream crossing clears on a culvert at that station, a culvert needs a price,
-  and a drainage check that no longer matches the road reads as out of date. Mapped streams come from
-  project data and modelled streams from the check, so their counts can differ.
-  Flags, limits, rates and D-lines fold.
+- **Review:** **Ready to review**, the checks a designer answers for on the active road, in three
+  states: met, needs attention, not assessed. A check the workspace could not make is never shown as
+  met. Each row states the result, the measured value and the limit it was judged on, and a row with
+  something outstanding has an action that leads to what clears it. The rules are `readiness.ts`; the
+  report prints the same rows. The **Crossing register** lists mapped and modelled crossings once and
+  says which are the same crossing. **Design standards** holds the job's limits, including the
+  short-pitch grade allowance. See
+  [Review checks, design standards and the crossing register](forestry-road-design/review-and-standards.md).
+  Model flags, sampling, rates and D-lines fold.
 
 ## Editing the road path
 

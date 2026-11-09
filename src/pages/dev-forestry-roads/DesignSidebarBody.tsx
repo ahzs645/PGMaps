@@ -85,6 +85,10 @@ export interface SidebarProps {
   onShowDrainage?: () => void
   onSelectRoad?: (id: string) => void
   onShowCulverts?: (chainage?: number) => void
+  /** Opens the design vehicle's swept-path view. */
+  onShowSwept?: () => void
+  /** The swept-path result for the active road, reduced for the Review list; null when none was run. */
+  vehicleFit?: import('./readiness').VehicleFit | null
   /** The saved drainage check no longer matches the road, its culverts or the terrain. */
   drainageStale?: boolean
   /** Rises each time the culvert inputs are asked for. */
@@ -137,6 +141,12 @@ export function DesignSidebar(p: SidebarProps) {
   const [aggregateOpen, setAggregateOpen] = useState(false)
   // A template created from the Section tab opens in the library editor on the Engineering tab.
   const [templateRequest, setTemplateRequest] = useState<{ id: string; sequence: number }>()
+  const [inputsRequest, setInputsRequest] = useState<{ tab: 'templates' | 'materials' | 'haul'; sequence: number }>()
+  const showEngineeringInputs = (inputs: 'templates' | 'materials' | 'haul') => {
+    setTab('engineering')
+    setAggregateOpen(false)
+    setInputsRequest((previous) => ({ tab: inputs, sequence: (previous?.sequence ?? 0) + 1 }))
+  }
   const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
   const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)
@@ -233,10 +243,12 @@ export function DesignSidebar(p: SidebarProps) {
               onAggregateOpenChange={setAggregateOpen}
               culvertRequest={p.engineeringRequest}
               templateRequest={templateRequest}
+              inputsRequest={inputsRequest}
+              onShowDrainage={p.onShowDrainage}
             />
           </div>
           <div hidden={tab !== 'review'}>
-            <ReviewTab {...p} onTab={setTab} />
+            <ReviewTab {...p} onTab={setTab} onEngineeringInputs={showEngineeringInputs} />
           </div>
         </div>
       </fieldset>

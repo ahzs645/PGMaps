@@ -13,7 +13,11 @@ import {
   offsetCoordinate,
   verticalCurveSummary,
 } from './engine'
-import { parseConnectorCheckOptions, type ConnectorCheckOptions } from './connectorCheckOptions'
+import {
+  MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M,
+  parseConnectorCheckOptions,
+  type ConnectorCheckOptions,
+} from './connectorCheckOptions'
 import { sectionCrossfall, templateAt } from './templates'
 import { resolveConstraint } from './constraints'
 import { conservativeRiparianRadiusM, riparianArea } from './riparian'
@@ -29,7 +33,6 @@ import type {
 export * from './connectorCheckOptions'
 
 export const MAX_CONNECTOR_SECTION_SPACING_M = 1
-export const MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M = 2
 export const MAX_CONNECTOR_HEADING_GAP_DEGREES = 0.05
 export const CONNECTOR_ENDPOINT_TOLERANCE_M = 0.05
 export const CONNECTOR_POSITION_GAP_TOLERANCE_M = 0.001

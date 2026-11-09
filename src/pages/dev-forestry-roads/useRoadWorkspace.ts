@@ -17,6 +17,7 @@ import {
   type LibraryEntry,
 } from './projectLibrary'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
+import type { BrowserSave } from './saveState'
 
 const training = () => new URLSearchParams(location.search).get('example') === 'training'
 
@@ -43,7 +44,20 @@ export function useRoadWorkspace() {
   const [ready, setReady] = useState(false)
   const [canPersist, setCanPersist] = useState(false)
   const [saving, setSaving] = useState('')
+  // The same state as `saving`, structured for the header's save line (`saveState.ts`).
+  const [browserSave, setBrowserSave] = useState<BrowserSave>({ kind: 'pending' })
   const [revision, setRevision] = useState(0)
+  const revisionRef = useRef(0)
+  // The project file last written or opened in this session, and the revision it holds.
+  const [fileSaved, setFileSaved] = useState<{ at: number; revision: number } | null>(null)
+  /** True while the example opened on a first visit is still the open project and the hint was not dismissed. */
+  const [exampleStart, setExampleStart] = useState(false)
+  /** Set once at startup when a project saved in this browser was reopened. */
+  const [sessionRestored, setSessionRestored] = useState<{
+    name: string
+    savedAt: number | null
+    restoredAt: number
+  } | null>(null)
   // The open project's slot in this browser's library; null in training mode, which keeps its own.
   const [projectId, setProjectIdState] = useState<string | null>(null)
   // Saves read the id from a ref, so two quick saves never open two slots.
@@ -71,8 +85,11 @@ export function useRoadWorkspace() {
     }
     current.current = next
     setProject(next)
-    setRevision((n) => n + 1)
+    revisionRef.current += 1
+    setRevision(revisionRef.current)
   }, [])
+  /** Records that a project file now holds exactly what is open. */
+  const markFileSaved = useCallback(() => setFileSaved({ at: Date.now(), revision: revisionRef.current }), [])
   const update = useCallback(
     (change: (previous: RoadProject) => RoadProject) => commit(change(current.current)),
     [commit],
@@ -120,6 +137,9 @@ export function useRoadWorkspace() {
       history.current = { past: [], future: [] }
       if (!training()) setProjectId(id)
       setCanPersist(true)
+      setFileSaved(null)
+      setBrowserSave({ kind: 'pending' })
+      setExampleStart(false)
     },
     [commit, setProjectId, lastValidInputs],
   )
@@ -134,6 +154,9 @@ export function useRoadWorkspace() {
       history.current = { past: [], future: [] }
       if (!training()) setProjectId(crypto.randomUUID())
       setCanPersist(true)
+      setFileSaved(null)
+      setBrowserSave({ kind: 'pending' })
+      setExampleStart(false)
     },
     [commit, setProjectId, lastValidInputs],
   )
@@ -148,13 +171,14 @@ export function useRoadWorkspace() {
           setCanPersist(true)
           return
         }
-        let saved: RoadProject | undefined, savedId: string | null
+        let saved: RoadProject | undefined, savedId: string | null, savedAt: number | null
         try {
           const stored = await readLibrary()
           setLibrary(stored.entries)
           savedId = stored.entries.some((e) => e.id === stored.activeId)
             ? stored.activeId
             : (stored.entries[0]?.id ?? null)
+          savedAt = stored.entries.find((e) => e.id === savedId)?.updatedAt ?? null
           saved = savedId ? await readProject(savedId) : undefined
         } catch {
           // A failed read does not establish that this device has no project. In
@@ -166,13 +190,19 @@ export function useRoadWorkspace() {
         }
         if (controller.signal.aborted) return
         if (saved) {
-          await restore(parseProject(saved), controller.signal, savedId)
-          if (!controller.signal.aborted) setNotice('Restored your locally saved road project.')
+          const reopened = parseProject(saved)
+          await restore(reopened, controller.signal, savedId)
+          if (controller.signal.aborted) return
+          if (savedAt !== null) setBrowserSave({ kind: 'saved', at: savedAt })
+          setSessionRestored({ name: reopened.name, savedAt, restoredAt: Date.now() })
+          setNotice(`Restored ${reopened.name} from this browser.`)
         } else {
           const loaded = await loadRoadScenario('bc-lidar', { signal: controller.signal, onProgress: setBusy })
           if (controller.signal.aborted) return
           startProject(loaded.project, loaded.source)
-          setNotice(`${loaded.notice} Start your own from Projects → New project.`)
+          setExampleStart(true)
+          // The action leads: the header shows one line, and the rest sits behind its disclosure.
+          setNotice(`This is an example road. Start your own from Projects → New project. ${loaded.notice}`)
         }
       } catch (cause) {
         if (!controller.signal.aborted)
@@ -208,18 +238,25 @@ export function useRoadWorkspace() {
     if (!ready || !canPersist || busy || error) return
     const timer = window.setTimeout(() => {
       setSaving('Saving locally…')
+      setBrowserSave((previous) => (previous.kind === 'saved' ? previous : { kind: 'saving' }))
       try {
         persist(parseProject(project))
-          .then(() =>
+          .then(() => {
             setSaving(
               training()
                 ? 'Training session saved · reload starts fresh; download to keep edits'
                 : 'Saved on this device',
-            ),
-          )
-          .catch(() => setSaving('Local save unavailable — download your project'))
+            )
+            setBrowserSave({ kind: training() ? 'training' : 'saved', at: Date.now() })
+          })
+          .catch(() => {
+            setSaving('Local save unavailable — download your project')
+            setBrowserSave({ kind: 'failed' })
+          })
       } catch (cause) {
-        setSaving(`Last valid save retained: ${cause instanceof Error ? cause.message : 'correct the current inputs'}`)
+        const reason = cause instanceof Error ? cause.message : 'correct the current inputs'
+        setSaving(`Last valid save retained: ${reason}`)
+        setBrowserSave({ kind: 'invalid', reason })
       }
     }, 650)
     return () => window.clearTimeout(timer)
@@ -284,6 +321,7 @@ export function useRoadWorkspace() {
                 referenceSurfaces,
                 verticalReference: project.terrain.verticalReference,
                 sharedCrossingCosts: project.sharedCrossingCosts,
+                gradeStandards: project.standards,
               },
               lastValidInputs.get(a.id),
             ),
@@ -301,6 +339,7 @@ export function useRoadWorkspace() {
     referenceSurfaces,
     project.terrain.verticalReference,
     project.sharedCrossingCosts,
+    project.standards,
   ])
   // Remember what calculated, after the render that calculated it, for the next invalid edit.
   useEffect(() => {
@@ -376,6 +415,14 @@ export function useRoadWorkspace() {
     error,
     setError,
     saving,
+    browserSave,
+    /** Null until a project file is saved or opened in this session. */
+    fileSave: fileSaved ? { at: fileSaved.at, current: fileSaved.revision === revision } : null,
+    markFileSaved,
+    sessionRestored,
+    dismissSessionRestored: () => setSessionRestored(null),
+    exampleStart,
+    dismissExampleStart: () => setExampleStart(false),
     undo,
     redo,
     canUndo: revision >= 0 && history.current.past.length > 0,

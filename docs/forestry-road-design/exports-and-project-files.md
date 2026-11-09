@@ -35,7 +35,7 @@ formats are specified in the
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | Project JSON (`.road.json`)     | `pgmaps-road-project-v1`: every alignment, PVIs, templates, widenings, engineering inputs, settings, context, D-lines, terrain profiles, terrain provenance, embedded raster | WGS84 lon/lat; raster in its own EPSG                              | Calculated results, drainage runs and settings, undo history, layouts, regional DEM tiles, published LiDAR cells         |
 | Library JSON                    | `pgmaps-road-library-v1`: named templates and materials only                                                                                                                 | None                                                               | Road geometry, assignments, horizons                                                                                     |
-| GeoJSON                         | Every alignment's centreline with control and design properties; crossings, culvert barrels, haul sites, context, D-lines, terrain profiles                                  | WGS84 lon/lat, no Z                                                | Sections, stations, drainage. Re-importing it gives linework and names, not PVIs or templates                            |
+| GeoJSON                         | The centreline of the road on screen, or of every road, with control and design properties; crossings, culvert barrels, haul sites, context, D-lines, terrain profiles                                  | WGS84 lon/lat, no Z                                                | Sections, stations, drainage. Re-importing it gives linework and names, not PVIs or templates                            |
 | Station CSV                     | Every calculated station: chainage, lon/lat, ground, design, grades, radius, widths, areas, interval cut and fill, mass, interval surfacing, stripping, borrow and waste, completeness, flags, terrain provenance | WGS84 lon/lat                                                      | The station table's reporting interval (this CSV is always every station; the table's own CSV button follows the interval), section offsets |
 | Station table CSV               | The Stations table as reported (`-volumes.csv`): the chosen interval and range, every column the road offers (cut, fill, surfacing, stripping, and borrow and waste once haul is on), the length each row leaves out, flags, and a last `total` row | WGS84 lon/lat                                                      | Terrain provenance, the hidden-column choice, the flagged-only filter                                                    |
 | Selected-section CSV            | One station's section samples with codes, ground, design and cut/fill                                                                                                        | WGS84 lon/lat                                                      | Other stations                                                                                                           |
@@ -43,7 +43,7 @@ formats are specified in the
 | D-line CSV / HTML               | Supports, sampled profile, assumed sag and clearance                                                                                                                         | WGS84 lon/lat                                                      | Tension, load, anchors                                                                                                   |
 | LandXML 1.2 (`.xml`)            | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m                     | Terrain's projected EPSG, else WGS84 UTM zone of the first point   | Other alternatives, surfaces (TIN), feature lines, superelevation, template/corridor model, ditches as objects, culverts |
 | Stakeout CSV                    | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill              | Same as LandXML                                                    | Reference or offset stakes, instrument data, point descriptions for a data collector                                     |
-| Shapefile (`-shapefiles.zip`)   | `road_centrelines` (every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                         | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                          | Sections, catch lines, sites, context, drainage, elevations as Z                                                         |
+| Shapefile (`-shapefiles.zip`)   | `road_centrelines` (the road on screen, or every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                         | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                          | Sections, catch lines, sites, context, drainage, elevations as Z                                                         |
 | Plot book (`-plot-book.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid | Culverts, curve data, PI table, legend, a fixed print scale                                                              |
 | Printed report (`-report.html`) | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m               | Chainage                                                           | Drainage, plan view, LandXML-level geometry                                                                              |
 
@@ -183,6 +183,31 @@ cut_fill_m, epsg`. Cut/fill is ground minus design: positive is cut.
   offset stakes, no instrument or control data and no tolerance. A surveyor needs to set out from
   control in the same CRS and datum.
 
+### One road or every road
+
+GeoJSON and the shapefile can hold more than one road. Save & export offers **This road** and
+**All _N_ roads** for them, and starts on **This road**: a file handed to someone else then carries
+the road on screen, not a superseded alternative or the starter line a project begins with
+(`exportRoads`, `exportCatalog.ts`). The choice is not saved with the project. The project file
+always holds every road.
+
+### Issue stamp
+
+The report, the map PDF and every plot-book title block print who prepared the document, the
+organisation, the revision and the date of issue. Enter them in Save & export: select one of those
+documents and switch its pane to **Issue stamp**. They are `project.issue` (`projectIssue.ts`), saved
+in the project file.
+
+- **A missing name or revision prints as "not recorded",** never as a blank, so an unstamped
+  document cannot pass for a stamped one. The line beside the pane's tabs turns amber until both are
+  entered.
+- **The date of issue defaults to the day the document is made.** The report then says "(day of
+  printing)". Enter a date to hold it on reissued copies.
+- **Nothing increments the revision for you.** Change it each time you issue.
+- **The report also prints the [readiness checks](review-and-standards.md#the-readiness-list), the
+  crossing register and the design standards,** so the printed document says what was and was not
+  checked, including every check that was not assessed.
+
 ### Shapefile
 
 - **Three layers, written without a GIS library.** Point and PolyLine geometry, dBase III tables,
@@ -214,7 +239,9 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   (`contourNote` in `plotBook.ts`); on a long road the contours are generalized well beyond the
   terrain's resolution. Without contours each plan prints "Contours unavailable", and when the
   contour build failed the notice reads "Plot book downloaded without contours (…)".
-- **Every sheet says "Preliminary planning geometry · not for construction".**
+- **Every sheet's title block carries the issue stamp:** the revision, the date of issue and who
+  prepared it, with the terrain source and "Preliminary planning geometry · not for construction".
+  See [Issue stamp](#issue-stamp).
 
 ### Printed report
 
@@ -242,17 +269,33 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   their terrain, road count and last edit; open, duplicate or delete one there (the open project
   cannot be deleted). **New project** starts from a regional DEM around a chosen place (a square
   1–10 km wide, recorded as the terrain's `bounds` so a reopened project loads the same square),
-  an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example. A project always holds
+  an imported GeoTIFF/LAS/LAZ, the BC LiDAR sample or the training example, and asks for the job's
+  [design standards](review-and-standards.md#design-standards) with starting values filled in. The
+  new project records them as confirmed that day, and its first road takes the running-surface
+  width and the design vehicle. A project always holds
   at least one road, so the first three start with a straight 300 m road (`starterAlignment`) to
   drag or replace; the BC sample brings its example road. Opening a project file, and the sidebar's
   **Training example**, start a new project too; the one that was open stays saved.
+- **A project file whose name matches a saved project asks first.** **Replace saved project** opens
+  the file in that project's place, overwriting the version in this browser. **Keep both** opens it
+  under the next free numbered name, such as "Block 12 spur (2)" (`distinctProjectName`,
+  `roadLifecycle.ts`). Names are compared exactly; the file's content is not compared.
 - **Autosave writes the whole validated project to IndexedDB** (`pgmaps-forestry-roads-v1`, key
   `project:<id>`, listed under `library`, with `active` naming the one to reopen;
   `projectLibrary.ts`) 650 ms after each edit, embedded raster included. Switching projects saves
-  the open one first. A pre-library save under `current` moves into the library on first load. The
-  header shows "Saved on this device", "Local save unavailable — download your project" or "Last
-  valid save retained: …". Below the `xl` breakpoint it shows a small dot instead, whose tooltip and
-  label carry the text.
+  the open one first. A pre-library save under `current` moves into the library on first load.
+- **The header says which project is open and where it is kept.** The project's name sits beside
+  the heading; click it to rename the project. Under it, one line gives the browser save and its
+  time and whether a project file holds the same thing: "Saved in this browser 14:02 · not yet saved
+  to a file", "· file saved 13:58" or "· not saved to a file since 13:58" once the project has
+  changed (`saveState.ts`). A file counts when it was saved with **Save** or opened in this session;
+  the workspace cannot see a file saved in an earlier session. A refused save reads "Not saved in
+  this browser", and inputs that cannot be saved read "Last valid version kept"; a red dot beside
+  the buttons marks both on narrow headers. A notice takes the line's place for eight seconds; when
+  it is longer than the line, an (i) beside it shows the whole message.
+- **A reload says what it reopened.** "Previous session restored", with the project's name and the
+  time of its save, shows once in the notification stack. A first visit opens an example road and
+  says so, with **New project** and **Open a project file** on the card.
 - **An invalid edit does not overwrite the last valid save.** The message names the problem.
 - **Autosave pauses while an error banner is shown,** and while the workspace is busy. Dismiss
   the banner to resume.

@@ -271,6 +271,43 @@ describe('vertical design and station-specific widths', () => {
     expect(result.stations[5].flags).toContain('Grade exceeds 8%')
   })
 
+  it('applies the short-pitch allowance of the design standards to the grade flag', () => {
+    // 200 m road: 4 % for 80 m, a 40 m pitch at 15 %, then 4 % again. The limit is 12 %.
+    const road = alignment(200)
+    road.vertical = [
+      { id: 'a', chainage: 0, elevation: 800, curveLength: 0 },
+      { id: 'b', chainage: 80, elevation: 803.2, curveLength: 0 },
+      { id: 'c', chainage: 120, elevation: 809.2, curveLength: 0 },
+      { id: 'd', chainage: 200, elevation: 812.4, curveLength: 0 },
+    ]
+    const flagged = (result: ReturnType<typeof analyzeRoad>) =>
+      result.stations.filter((s) => s.flags.some((f) => /^Grade exceeds|^Pitch over/.test(f))).map((s) => s.chainage)
+    const pitch = (shortPitchMaxLengthM: number) => ({
+      adverseGradePercent: null,
+      loadedDirection: null,
+      shortPitchGradePercent: 18,
+      shortPitchMaxLengthM,
+      designVehicle: null,
+      designSpeedKmh: null,
+      runningSurfaceWidthM: null,
+      maxClearingWidthM: null,
+      maxCrossDrainSpacingM: null,
+    })
+    const plain = analyzeRoad(road, flat, settings)
+    expect(flagged(plain).length).toBeGreaterThan(0)
+    expect(plain.warnings.some((w) => /stations exceed the 12% grade limit\./.test(w))).toBe(true)
+    // 18 % for pitches up to 100 m covers the 40 m pitch: nothing is flagged.
+    const allowed = analyzeRoad(road, flat, settings, [], { gradeStandards: pitch(100) })
+    expect(flagged(allowed)).toEqual([])
+    expect(allowed.warnings.some((w) => /exceed the grade/.test(w))).toBe(false)
+    // The same pitch against a 20 m allowance is too long.
+    const tooLong = analyzeRoad(road, flat, settings, [], { gradeStandards: pitch(20) })
+    expect(flagged(tooLong)).toEqual(flagged(plain))
+    expect(tooLong.warnings.some((w) => /exceed the grade standard \(12%; 18% for pitches up to 20 m\)/.test(w))).toBe(
+      true,
+    )
+  })
+
   it('has an independent vertical design with tangent-continuous parabolic curves', () => {
     const road = alignment(200)
     road.vertical = [

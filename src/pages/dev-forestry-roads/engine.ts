@@ -8,6 +8,7 @@
  */
 import { incompleteReasonSummary, incompleteReasonText } from './sectionCompleteness'
 import { checkVerticalDesign } from './verticalStandards'
+import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
 import { MAX_DRAG_GRADE } from './verticalTools'
 import type {
   Alignment,
@@ -1444,6 +1445,8 @@ export function analyzeRoad(
     referenceSurfaces?: Record<string, TerrainSource>
     verticalReference?: string
     sharedCrossingCosts?: readonly CrossingCostItem[]
+    /** The project's design standards. Omitted, grades are judged on the road-wide limit alone. */
+    gradeStandards?: DesignStandards
   },
 ): RoadAnalysis {
   validate(alignment, settings)
@@ -1573,8 +1576,6 @@ export function analyzeRoad(
         ? ((b.groundElevation - a.groundElevation) / ds) * 100
         : null
     if (!alignment.vertical.length) p.gradePercent = p.groundGradePercent
-    if (p.gradePercent !== null && Math.abs(p.gradePercent) > settings.maxGradePercent + EPS)
-      p.flags.push(`Grade exceeds ${settings.maxGradePercent}%`)
     if (!i) {
       p.cutVolumeM3 = p.complete ? 0 : null
       p.fillVolumeM3 = p.complete ? 0 : null
@@ -1611,10 +1612,15 @@ export function analyzeRoad(
     const reasons = incompleteReasonText(incompleteReasonSummary(stations))
     if (reasons) warnings.push(`Incomplete sections: ${reasons}`)
   }
-  const badGrades = stations.filter(
-    (s) => s.gradePercent !== null && Math.abs(s.gradePercent) > settings.maxGradePercent + EPS,
-  ).length
-  if (badGrades) warnings.push(`${badGrades} stations exceed the ${settings.maxGradePercent}% grade limit.`)
+  // Favourable and adverse limits and the short-pitch allowance are one rule: `designStandards.ts`.
+  const grades = reviewGrades(stations, gradeRule(settings, options?.gradeStandards))
+  for (const [index, flag] of grades.flags) stations[index].flags.push(flag)
+  if (grades.breachStationCount)
+    warnings.push(
+      grades.rule.shortPitch || grades.rule.adversePercent !== grades.rule.favourablePercent
+        ? `${grades.breachStationCount} stations exceed the grade standard (${gradeRuleText(grades.rule)}).`
+        : `${grades.breachStationCount} stations exceed the ${settings.maxGradePercent}% grade limit.`,
+    )
   const verticalChecks =
     alignment.vertical.length > 1 && (alignment.verticalStandards || alignment.verticalControls?.length)
       ? checkVerticalDesign({

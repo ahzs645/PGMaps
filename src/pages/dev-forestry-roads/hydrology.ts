@@ -605,6 +605,9 @@ function surfaceDrainage(grid: SurfaceGrid, input: DrainageInput, idPrefix: stri
  * - New ponding: 8-connected clusters of design-surface fill deeper than `pondDepthM` on cells
  *   whose existing ground was not ponded, reported as a point at each cluster's deepest cell.
  */
+/** A culvert this far along the road from a modelled crossing or low point is taken to serve it. */
+export const DEFAULT_CULVERT_SEARCH_M = 15
+
 export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const { existing, design, footprint, analysis, culverts, toGrid, toLonLat } = input
   if (existing.width !== design.width || existing.height !== design.height || footprint.length !== design.values.length)
@@ -613,7 +616,7 @@ export function analyzeDrainage(input: DrainageInput): DrainageAnalysis {
   const w = design.width,
     n = design.values.length,
     cellArea = design.cellM ** 2
-  const searchM = input.culvertSearchM ?? 15,
+  const searchM = input.culvertSearchM ?? DEFAULT_CULVERT_SEARCH_M,
     divertM = input.divertThresholdM ?? 20,
     minDepth = input.pondDepthM ?? 0.05,
     minLowArea = input.lowPointMinAreaM2 ?? 500,

@@ -44,6 +44,7 @@ problem shows up on screen. The calculations themselves are specified in the
 | [Crossing estimates](crossing-estimates.md)                                              | record each physical crossing, select a planning structure, price items or allocate shared costs                       |
 | [Provincial stream evidence and reports](provincial-stream-data.md)                      | load FWA, fish observations and community watersheds, preserve provenance, or export the stream register               |
 | [Stream-planning source audit](../research/stream-planning/source-audit-2026-11-07.md)   | review the verified DFO table and 2026 culvert appraisal references before applying numbers                            |
+| [Review checks, design standards and the crossing register](review-and-standards.md)   | sign a road off from Review, enter the job's grade, radius, width and clearing limits, or reconcile crossing counts     |
 | [Exports and project files](exports-and-project-files.md)                                | hand a file to someone else, open it in another program, or rely on autosave to keep your work                         |
 | [Drawings and vertical alternatives](drawings-and-vertical-alternatives.md)              | compare named profiles on shared horizontal geometry, or author portable report chapters and safe drawing labels       |
 | [Known issues](known-issues.md)                                                          | trust a result from an area with a known defect                                                                        |

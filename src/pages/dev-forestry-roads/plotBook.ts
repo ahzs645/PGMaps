@@ -16,6 +16,7 @@ import {
   type RoadReportSettings,
 } from './reportSettings'
 import type { Alignment, MaterialQuantity, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
+import { issueStamp, PLANNING_CAVEAT, type IssueStamp, type ProjectIssue } from './projectIssue'
 
 const formatRoadStation = (value: number) => {
   const rounded = Math.round(Math.max(0, value) * 10) / 10
@@ -59,6 +60,10 @@ function contourNote(contours: Contours | undefined) {
   }
 }
 
+/**
+ * The block on every sheet: what the drawing is, what it was made from, who issued it and when,
+ * and that it is not for construction.
+ */
 function titleBlock(
   project: string,
   road: string,
@@ -67,12 +72,15 @@ function titleBlock(
   number: number,
   total: number,
   scale: string,
+  stamp: IssueStamp,
 ) {
   const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
   const x = W - 640,
     y = H - 132,
     split = x + 470
-  return `<g font-family="system-ui,sans-serif" fill="#111827"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" font-size="16" font-weight="700">${html(clip(project, 60))}</text><text x="${x + 10}" y="${y + 48}" font-size="12">${html(clip(road, 62))}</text><text x="${x + 10}" y="${y + 66}" font-size="12" font-weight="600">${html(clip(sheet, 62))}</text><text x="${x + 10}" y="${y + 84}" font-size="10" fill="#4b5563">${html(clip(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">Preliminary planning geometry · not for construction</text><text x="${split + 10}" y="${y + 50}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 70}" font-size="10">${html(clip(scale, 24))}</text><text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">PG Maps road design</text></g>`
+  const author = [stamp.preparedBy, stamp.organisation].filter(Boolean).join(', ')
+  const revision = stamp.revision ? `Rev ${stamp.revision.replace(/^rev(ision)?\.?\s*/i, '')}` : 'Rev not recorded'
+  return `<g font-family="system-ui,sans-serif" fill="#111827" data-role="title-block"><rect x="${x}" y="${y}" width="620" height="114" fill="#fff" stroke="#111827"/><line x1="${x}" x2="${x + 620}" y1="${y + 30}" y2="${y + 30}" stroke="#111827"/><line x1="${split}" x2="${split}" y1="${y + 30}" y2="${y + 114}" stroke="#111827"/><text x="${x + 10}" y="${y + 21}" font-size="16" font-weight="700">${html(clip(project, 44))}</text><text x="${x + 610}" y="${y + 21}" font-size="13" font-weight="700" text-anchor="end" data-role="revision">${html(clip(revision, 22))}</text><text x="${x + 10}" y="${y + 45}" font-size="12">${html(clip(road, 62))}</text><text x="${x + 10}" y="${y + 60}" font-size="12" font-weight="600">${html(clip(sheet, 62))}</text><text x="${x + 10}" y="${y + 75}" font-size="10" fill="#4b5563">${html(clip(`${terrain.name} · ${terrain.verticalReference}`, 84))}</text><text x="${x + 10}" y="${y + 89}" font-size="10" data-role="prepared-by">${html(clip(author ? `Prepared by ${author}` : 'Prepared by: not recorded', 84))}</text><text x="${x + 10}" y="${y + 104}" font-size="10" fill="#b45309">${html(PLANNING_CAVEAT)}</text><text x="${split + 10}" y="${y + 48}" font-size="12" font-weight="600">Sheet ${number} of ${total}</text><text x="${split + 10}" y="${y + 63}" font-size="10">${html(clip(scale, 24))}</text><text x="${split + 10}" y="${y + 80}" font-size="10" font-weight="600" data-role="issued">Issued ${html(stamp.date)}</text><text x="${split + 10}" y="${y + 104}" font-size="10" fill="#4b5563">PG Maps road design</text></g>`
 }
 
 /** One plan-and-profile sheet for the stations between `start` and `end`. */
@@ -462,6 +470,8 @@ export function plotBookHtml({
   sheetLengthM = 250,
   sectionIntervalM = 20,
   settings: rawSettings,
+  issue,
+  today,
 }: {
   projectName: string
   alignment: Alignment
@@ -473,7 +483,12 @@ export function plotBookHtml({
   sheetLengthM?: number
   sectionIntervalM?: number
   settings?: RoadReportSettings
+  /** Printed in every title block. A missing author or revision prints as not recorded. */
+  issue?: ProjectIssue
+  /** The day of printing, used when the stamp has no date of issue. */
+  today?: Date
 }): string {
+  const stamp = issueStamp(issue, today)
   const settings = parseRoadReportSettings(rawSettings)
   // Preserve the original function's interval arguments for existing callers without settings.
   if (rawSettings === undefined)
@@ -592,7 +607,7 @@ export function plotBookHtml({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values')}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp)}</svg></section>`,
     )
     .join('')
   const paper = settings.paper === 'A3' ? { width: 420, height: 297 } : { width: 297, height: 210 }

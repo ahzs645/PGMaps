@@ -262,6 +262,8 @@ export function EngineeringControls({
   onAggregateOpenChange,
   culvertRequest,
   templateRequest,
+  inputsRequest,
+  onShowDrainage,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -273,8 +275,20 @@ export function EngineeringControls({
   culvertRequest?: number
   /** Opens the Templates tab on this library template; a new sequence repeats the request. */
   templateRequest?: { id: string; sequence: number }
+  /** Brings one input tab forward, e.g. from a Review check; a new `sequence` asks again. */
+  inputsRequest?: { tab: 'templates' | 'materials' | 'haul'; sequence: number }
+  /** Opens the drainage check (streams, ponds, catchments) beside the culvert inputs. */
+  onShowDrainage?: () => void
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
+  const [seenInputsRequest, setSeenInputsRequest] = useState(inputsRequest?.sequence)
+  if (inputsRequest?.sequence !== seenInputsRequest) {
+    setSeenInputsRequest(inputsRequest?.sequence)
+    if (inputsRequest) {
+      setTab(inputsRequest.tab)
+      if (inputsRequest.tab !== 'haul') onAggregateOpenChange?.(false)
+    }
+  }
   const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
   if (culvertRequest !== seenCulvertRequest) {
     setSeenCulvertRequest(culvertRequest)
@@ -487,6 +501,19 @@ export function EngineeringControls({
               {analysis.stations.length > 0 && ' Results show the last valid inputs.'}
             </InlineAlert>
           </div>
+        )}
+        {/* Culverts are entered here; the hydrology that sizes and places them is a view of its own. */}
+        {activeTab === 'culverts' && onShowDrainage && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-auto min-h-7 w-full justify-between whitespace-normal px-2 text-left text-xs"
+            data-testid="road-open-drainage-check"
+            onClick={onShowDrainage}
+          >
+            Drainage check: streams, ponds, catchments
+            <ArrowRight className="size-3 shrink-0" />
+          </Button>
         )}
       </div>
       {activeTab === 'templates' && (

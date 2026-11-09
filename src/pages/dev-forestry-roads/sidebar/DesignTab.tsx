@@ -638,7 +638,7 @@ function HorizontalPoints(p: SidebarProps) {
       summary={`${alignment.points.length} points · ${alignment.points.filter((x) => x.radiusM > 0).length} curves${straight.length ? ` · ${straight.length} straight` : ''}`}
       open={open}
       onOpenChange={setOpen}
-      help="Select a control point to type its position, radius and spirals, or use the bulk tools to fit every corner at once. Sharp corners need a fitted radius before the road is a design."
+      help="Each control point is an intersection point (IP, also written PI): where two straight legs of the road meet. Select one to type its position, radius and spirals, or use the bulk tools to fit every corner at once. Sharp corners need a fitted radius before the road is a design."
     >
       {straight.length > 0 && (
         <Button
@@ -856,7 +856,7 @@ function VerticalAlignment(p: SidebarProps) {
           ? `${alignment.vertical.length} PVIs · ${analysis.maxGradePercent.toFixed(1)}%`
           : 'Following the ground'
       }
-      help="Drag the diamonds in the profile, double-click the profile to add a PVI, or edit the points here. Levels are formation centre elevations; curve lengths are metres. Follow ground removes every PVI."
+      help="A PVI is a point of vertical intersection: where two grade lines of the profile meet. Drag the diamonds in the profile, double-click the profile to add a PVI, or edit the points here. Levels are formation centre elevations; curve lengths are metres. Follow ground removes every PVI."
     >
       <div className="flex gap-1">
         <Button size="sm" variant="outline" className="flex-1" onClick={addPvi}>

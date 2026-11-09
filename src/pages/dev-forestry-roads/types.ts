@@ -370,6 +370,10 @@ export interface RoadProject {
   alignments: Alignment[]
   terrain: TerrainMetadata
   settings: RoadSettings
+  /** What the roads are designed to. Grade and radius limits themselves stay in `settings`. */
+  standards?: import('./designStandards').DesignStandards
+  /** Printed on the report and every plot-book sheet: author, organisation, revision and date. */
+  issue?: import('./projectIssue').ProjectIssue
   /** Portable drawing settings; report intervals never alter analytical station spacing. */
   reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */

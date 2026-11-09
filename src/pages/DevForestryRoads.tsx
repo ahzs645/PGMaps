@@ -24,7 +24,18 @@ import { pathLengthM } from './dev-forestry-roads/mapNotes'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
+import { InfoTip } from '@/components/ui/info-tip'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
+import { ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
+import { distinctProjectName, removeRoad, restoreRoad, type RemovedRoad } from './dev-forestry-roads/roadLifecycle'
+import type { LibraryEntry } from './dev-forestry-roads/projectLibrary'
+import {
+  ExampleStartNotice,
+  HeaderStatus,
+  ProjectName,
+  SaveStateLine,
+  SessionRestoredNotice,
+} from './dev-forestry-roads/ProjectHeader'
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
@@ -42,7 +53,15 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
-import { csvPreview, geoJsonPreview, textPreview, type ExportPreview } from './dev-forestry-roads/exportCatalog'
+import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
+import {
+  csvPreview,
+  exportRoads,
+  geoJsonPreview,
+  textPreview,
+  type ExportPreview,
+  type RoadScope,
+} from './dev-forestry-roads/exportCatalog'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
@@ -88,6 +107,13 @@ import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
+import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import {
+  applyJobStandardsToNewProject,
+  startingJobStandards,
+  type JobStandards,
+} from './dev-forestry-roads/jobStandards'
+import { vehicleFit } from './dev-forestry-roads/readiness'
 import { SweptPathPanel } from './dev-forestry-roads/SweptPathPanel'
 import { StationTable } from './dev-forestry-roads/StationTable'
 import { CostBreakdown } from './dev-forestry-roads/CostBreakdown'
@@ -122,6 +148,7 @@ import {
 } from './dev-forestry-roads/project'
 import {
   createDemoProject,
+  DEFAULT_ROAD_SETTINGS,
   DEFAULT_TEMPLATE,
   demoTerrain,
   importTerrainWithAnswers,
@@ -254,6 +281,12 @@ const boundsOf = (p: RoadProject): [number, number, number, number] => {
     Math.max(...coords.map((p) => p[1])) + 0.001,
   ]
 }
+
+/** What New project's design standards start from: the workspace limits and the starting template's width. */
+const STARTING_JOB_STANDARDS = startingJobStandards(
+  DEFAULT_ROAD_SETTINGS,
+  DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
+)
 
 export default function DevForestryRoads() {
   const w = useRoadWorkspace()
@@ -619,6 +652,20 @@ export default function DevForestryRoads() {
   }
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
+  const pendingStandards = useRef<JobStandards | null>(null)
+  const [removedRoad, setRemovedRoad] = useState<RemovedRoad | null>(null)
+  const [fileConflict, setFileConflict] = useState<{
+    opened: RoadProject
+    fileName: string
+    existing: LibraryEntry
+    keepBothName: string
+    openedAt: number
+  } | null>(null)
+  // A file for someone else carries the road on screen unless every road is asked for.
+  const [roadScope, setRoadScope] = useState<RoadScope>('active')
+  // Read when Save & export opens: the date its documents print while no date of issue is entered.
+  const [exportDay, setExportDay] = useState('')
+  const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<ContextFeature | null>(null)
   const onPlanReady = useCallback((map: MapLibreMap | null) => {
@@ -723,7 +770,7 @@ export default function DevForestryRoads() {
       /* View preferences are optional. */
     }
   }, [layoutSelection])
-  useDocumentTitle('Forest road design · PGMaps')
+  useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
   useEffect(() => () => operation.current?.abort(), [])
 
   const terrainProfile = useMemo(() => {
@@ -795,6 +842,7 @@ export default function DevForestryRoads() {
       referenceSurfaces: w.referenceSurfaces,
       verticalReference: project.terrain.verticalReference,
       sharedCrossingCosts: project.sharedCrossingCosts,
+      gradeStandards: project.standards,
     })
     if (!terrainProfile) return result
     const completeLength = result.stations.slice(1).reduce((length, station, index) => {
@@ -840,6 +888,7 @@ export default function DevForestryRoads() {
     project.context,
     project.terrain.verticalReference,
     project.sharedCrossingCosts,
+    project.standards,
     terrainProfile,
     w.referenceSurfaces,
   ])
@@ -1584,25 +1633,34 @@ export default function DevForestryRoads() {
       w.setStation(0)
     })
   /** A new project on `terrain`, with one straight road at `centre` to drag or replace. */
+  /** The standards entered in New project, written into the project it creates. */
+  const withNewProjectStandards = (created: RoadProject) => {
+    const job = pendingStandards.current
+    pendingStandards.current = null
+    return job ? parseProject(applyJobStandardsToNewProject(created, job)) : created
+  }
   const startOn = (name: string, terrain: RoadProject['terrain'], terrainSource: TerrainSource, centre: Coordinate) => {
     const road = starterAlignment(centre)
     w.startProject(
-      parseProject({
-        ...createDemoProject(),
-        name,
-        terrain,
-        alignments: [road],
-        activeAlignmentId: road.id,
-        context: [],
-        cables: [],
-        profiles: [],
-        settings: project.settings,
-      }),
+      withNewProjectStandards(
+        parseProject({
+          ...createDemoProject(),
+          name,
+          terrain,
+          alignments: [road],
+          activeAlignmentId: road.id,
+          context: [],
+          cables: [],
+          profiles: [],
+          settings: project.settings,
+        }),
+      ),
       terrainSource,
     )
     setMode('edit')
   }
   const createProject = (start: NewProject) => {
+    pendingStandards.current = start.standards ?? null
     if (start.kind === 'import') {
       requestFile('terrain', start.name)
       return
@@ -1610,13 +1668,13 @@ export default function DevForestryRoads() {
     void run('Starting a new project…', async (signal) => {
       if (start.kind === 'training') {
         await w.flush()
-        w.startProject({ ...createDemoProject(), name: start.name }, demoTerrain)
+        w.startProject(withNewProjectStandards({ ...createDemoProject(), name: start.name }), demoTerrain)
       } else if (start.kind === 'lidar') {
         const loaded = await loadRoadScenario('bc-lidar', { signal, onProgress: w.setBusy })
         if (signal.aborted) return
         await w.flush()
         if (signal.aborted) return
-        w.startProject({ ...loaded.project, name: start.name }, loaded.source)
+        w.startProject(withNewProjectStandards({ ...loaded.project, name: start.name }), loaded.source)
       } else {
         const [lon, lat] = start.centre
         const dLat = start.sizeKm / 2 / 111.32,
@@ -1787,9 +1845,25 @@ export default function DevForestryRoads() {
         }
         if (signal.aborted) return
         const opened = parseProject(raw)
+        // A project of the same name is already saved here: ask which one is meant, open nothing yet.
+        const existing = w.library.find((entry) => entry.name === opened.name)
+        if (existing) {
+          setFileConflict({
+            opened,
+            fileName: file.name,
+            existing,
+            keepBothName: distinctProjectName(
+              opened.name,
+              w.library.map((entry) => entry.name),
+            ),
+            openedAt: Date.now(),
+          })
+          return
+        }
         await w.flush()
         // A project file opens as its own project; the one that was open stays saved.
         await w.restore(opened, signal)
+        w.markFileSaved()
         w.setNotice(`Opened ${file.name}.`)
       } else {
         await readSpatial(file, SPATIAL_INTENTS[fileKind.current], signal)
@@ -1850,6 +1924,27 @@ export default function DevForestryRoads() {
   /** One importer for every spatial picker; the intent only sets what the picker is for. */
   const importSpatial = (file: File, intent: ImportIntent) =>
     void run(`Reading ${file.name}…`, (signal) => readSpatial(file, intent, signal))
+  /** Opens the project file held by the name conflict, in the saved project's place or beside it. */
+  const resolveFileConflict = (choice: 'replace' | 'both') => {
+    const conflict = fileConflict
+    if (!conflict) return
+    setFileConflict(null)
+    void run(`Opening ${conflict.fileName}…`, async (signal) => {
+      await w.flush()
+      if (choice === 'replace') await w.restore(conflict.opened, signal, conflict.existing.id)
+      else await w.restore(parseProject({ ...conflict.opened, name: conflict.keepBothName }), signal)
+      if (signal.aborted) return
+      w.markFileSaved()
+      w.setNotice(
+        choice === 'replace'
+          ? `Opened ${conflict.fileName} in place of the saved ${conflict.existing.name}.`
+          : `Opened ${conflict.fileName} as ${conflict.keepBothName}. The saved ${conflict.existing.name} is unchanged.`,
+      )
+      w.enablePersistence()
+      setActiveProfile(null)
+      setFitRevision((n) => n + 1)
+    })
+  }
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
     const safe = parseProject(project)
@@ -1919,7 +2014,14 @@ export default function DevForestryRoads() {
         )
       case 'geojson':
         return text(
-          JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
+          JSON.stringify(
+            projectGeoJson(
+              { ...safe, alignments: exportRoads(safe.alignments, safe.activeAlignmentId, roadScope) },
+              w.analyses,
+            ),
+            null,
+            2,
+          ),
           `${basename}.geojson`,
           'application/geo+json',
         )
@@ -1954,6 +2056,7 @@ export default function DevForestryRoads() {
           plotBookHtml({
             projectName: safe.name,
             settings: safe.reportSettings,
+            issue: safe.issue,
             alignment,
             analysis,
             terrain: project.terrain,
@@ -1974,7 +2077,11 @@ export default function DevForestryRoads() {
         ])
         const zip = new JSZip(),
           warnings: string[] = []
-        for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id)) {
+        for (const layer of roadShapefileLayers(
+          exportRoads(safe.alignments, alignment.id, roadScope),
+          w.analyses,
+          alignment.id,
+        )) {
           const written = writeShapefileLayer(layer)
           warnings.push(...written.warnings)
           for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
@@ -2029,11 +2136,12 @@ export default function DevForestryRoads() {
             const map = planMap.current
             if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
             resizeMap(map)
+            // The stamp and the caveat ride on the page's source line, under the project name.
             await exportMapPdf(
               map,
               safe.name,
               project.terrain.name,
-              project.terrain.verticalReference,
+              `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}`,
               `${basename}-map.pdf`,
               signal,
             )
@@ -2045,6 +2153,7 @@ export default function DevForestryRoads() {
       const download = (file: Awaited<ReturnType<typeof exportFile>>) => {
         if (typeof file.content === 'string') downloadText(file.content, file.filename, file.mime)
         else downloadBlob(file.content, file.filename)
+        if (kind === 'project') w.markFileSaved()
         w.setNotice(file.notice)
         w.setError('')
       }
@@ -2063,8 +2172,8 @@ export default function DevForestryRoads() {
   }
   // A preview is rebuilt when anything its file is made from changes.
   const exportPreviewVersion = useMemo(
-    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels }),
-    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels],
+    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope }),
+    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
@@ -2082,7 +2191,11 @@ export default function DevForestryRoads() {
       // The zip holds binary layers; preview the same layers' geometry instead.
       return {
         type: 'geometry',
-        layers: roadShapefileLayers(safe.alignments, w.analyses, alignment.id).map((layer) =>
+        layers: roadShapefileLayers(
+          exportRoads(safe.alignments, alignment.id, roadScope),
+          w.analyses,
+          alignment.id,
+        ).map((layer) =>
           layer.type === 'point'
             ? { name: layer.name, points: layer.features.map((f) => f.point), lines: [] }
             : { name: layer.name, points: [], lines: layer.features.flatMap((f) => f.parts) },
@@ -2310,6 +2423,11 @@ export default function DevForestryRoads() {
       return { result: null, error: cause instanceof Error ? cause.message : 'The swept path could not be calculated.' }
     }
   }, [sweptAlignment, terrainProfile])
+  // Review reads the result only once it is for the road on screen, never a deferred earlier one.
+  const vehicleFitOnRoad = useMemo(
+    () => (sweptState.result && sweptAlignment === alignment ? vehicleFit(sweptState.result) : null),
+    [sweptState.result, sweptAlignment, alignment],
+  )
   const swept: SweptPathProps = {
     ...sweptState,
     showOnPlan: showSwept,
@@ -2389,17 +2507,17 @@ export default function DevForestryRoads() {
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-tight">
-              {investigation ? 'Forest access investigation' : 'Forest road design'}
-            </h1>
-            <p
-              role="status"
-              aria-live="polite"
-              title={w.notice || undefined}
-              className={`max-w-[58vw] truncate text-xs ${w.notice ? 'text-teal-700 dark:text-teal-400' : 'text-muted-foreground'}`}
-            >
-              {w.notice}
-            </p>
+            {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
+            <div className="flex min-w-0 items-center gap-1">
+              <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">
+                {investigation ? 'Forest access investigation' : 'Forest road design'}
+              </h1>
+              <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
+            </div>
+            <HeaderStatus
+              notice={w.notice}
+              idle={w.ready && <SaveStateLine browser={w.browserSave} file={w.fileSave} />}
+            />
           </div>
           {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
           {project.terrain.kind !== 'geotiff' && (
@@ -2572,7 +2690,11 @@ export default function DevForestryRoads() {
             className="size-8 px-0 md:w-auto md:px-3"
             title="Save & export"
             disabled={!!w.busy}
-            onClick={() => (investigation ? save('project') : setFilesOpen(true))}
+            onClick={() => {
+              if (investigation) return save('project')
+              setExportDay(isoDate(new Date()))
+              setFilesOpen(true)
+            }}
           >
             <Download className="size-4 md:mr-1 md:size-3" />
             <span className="sr-only md:not-sr-only">Save</span>
@@ -2607,6 +2729,8 @@ export default function DevForestryRoads() {
         onScenario={openScenario}
         onOpenBcOpening={openBcOpening}
         portalContainer={ref.current}
+        newProjectRequest={newProjectRequest}
+        startingStandards={STARTING_JOB_STANDARDS}
       />
       <NetworkPlanningDialog
         workspace={w}
@@ -2689,6 +2813,15 @@ export default function DevForestryRoads() {
         onSave={save}
         reportSettings={project.reportSettings}
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
+        issue={project.issue}
+        onIssue={(issue) => update((p) => ({ ...p, issue }))}
+        today={exportDay}
+        roads={{
+          count: project.alignments.filter((road) => road.id !== project.designPlaceholderId).length,
+          activeName: alignment.name,
+        }}
+        roadScope={roadScope}
+        onRoadScope={setRoadScope}
         busy={!!busy}
         portalContainer={ref.current}
         context={{
@@ -2783,6 +2916,36 @@ export default function DevForestryRoads() {
           }}
         />
       )}
+      <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
+      <RoadRemovedNotice
+        removed={removedRoad}
+        shownName={project.alignments.find((road) => road.id === removedRoad?.shownId)?.name ?? alignment.name}
+        onDismiss={() => setRemovedRoad(null)}
+        onUndo={() => {
+          if (removedRoad) w.update((p) => parseProject(restoreRoad(p, removedRoad)))
+          setRemovedRoad(null)
+        }}
+      />
+      <ProjectFileConflictDialog
+        conflict={fileConflict}
+        portalContainer={ref.current}
+        onCancel={() => setFileConflict(null)}
+        onReplace={() => resolveFileConflict('replace')}
+        onKeepBoth={() => resolveFileConflict('both')}
+      />
+      <ExampleStartNotice
+        show={w.exampleStart && !busy}
+        onDismiss={w.dismissExampleStart}
+        onNewProject={() => {
+          w.dismissExampleStart()
+          setNewProjectRequest((n) => n + 1)
+          setProjectsOpen(true)
+        }}
+        onOpenFile={() => {
+          w.dismissExampleStart()
+          requestFile('project')
+        }}
+      />
       <RoadNotifications
         items={[
           ...(w.error
@@ -2856,7 +3019,14 @@ export default function DevForestryRoads() {
                 groundOnly ? 'Ground grade' : 'Max grade',
               ),
               value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
-              tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
+              // A designed road warns where the grade standard is broken, so a permitted short pitch does not.
+              tone: (
+                groundOnly
+                  ? displayedAnalysis.maxGradePercent > project.settings.maxGradePercent
+                  : displayedAnalysis.stations.some((s) => s.flags.some(isGradeBreachFlag))
+              )
+                ? 'warning'
+                : 'default',
             },
             ...(groundOnly
               ? [
@@ -3026,13 +3196,13 @@ export default function DevForestryRoads() {
                     return
                   setActiveProfile(null)
                 }}
-                onRemoveAlignment={() =>
-                  w.update((p) => ({
-                    ...p,
-                    alignments: p.alignments.filter((a) => a.id !== alignment.id),
-                    activeAlignmentId: p.alignments.find((a) => a.id !== alignment.id)!.id,
-                  }))
-                }
+                onRemoveAlignment={() => {
+                  // The neighbouring road is shown, and a notice names the deleted one with a way back.
+                  const result = removeRoad(project, alignment.id)
+                  if (!result) return
+                  w.update(() => result.project)
+                  setRemovedRoad(result.removed)
+                }}
                 onSuggest={suggest}
                 onLoadMappedRoad={loadMappedRoad}
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
@@ -3068,6 +3238,8 @@ export default function DevForestryRoads() {
                 onShowDrainage={() => setDetail('drainage')}
                 onSelectRoad={selectAlignment}
                 onShowCulverts={showCulverts}
+                onShowSwept={() => setDetail('swept')}
+                vehicleFit={vehicleFitOnRoad}
                 engineeringRequest={engineeringRequest}
                 drainageStale={drainageStale}
                 templatePreviewActive={!!templatePreview}
@@ -3491,6 +3663,18 @@ export default function DevForestryRoads() {
                           }
                           actions={
                             <>
+                              {detail === 'mass' && (
+                                <InfoTip label="About mass haul">
+                                  Mass haul is the running total of usable cut minus fill, from the road&apos;s start.
+                                  The line rises through cut and falls through fill. Where it comes back to zero the
+                                  earthwork balances up to that station; where it ends is the surplus (above zero) or
+                                  the shortfall (below) for the whole road.
+                                </InfoTip>
+                              )}
+                              {/* The picker holds eleven views, drainage among them: its label says so. */}
+                              <span className="hidden shrink-0 text-2xs text-muted-foreground sm:inline" aria-hidden>
+                                View
+                              </span>
                               <RoadSelect
                                 className="min-w-0 h-8 w-32"
                                 value={detail}

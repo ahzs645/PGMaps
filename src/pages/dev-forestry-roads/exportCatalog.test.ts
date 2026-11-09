@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   csvPreview,
   EXPORT_ITEMS,
+  exportRoads,
   exportUnavailable,
   fitGeometry,
   geoJsonPreview,
@@ -126,5 +127,15 @@ describe('previews', () => {
       expect(y).toBeLessThanOrEqual(100)
     }
     expect(b[1]).toBeLessThan(a[1])
+  })
+})
+
+describe('exportRoads', () => {
+  const roads = [{ id: 'starter' }, { id: 'spur' }, { id: 'spur-optimized' }]
+  it('writes the road on screen unless every road is asked for', () => {
+    expect(exportRoads(roads, 'spur-optimized', 'active')).toEqual([{ id: 'spur-optimized' }])
+    expect(exportRoads(roads, 'spur-optimized', 'all')).toEqual(roads)
+    // An id that names no road keeps the file whole rather than empty.
+    expect(exportRoads(roads, 'missing', 'active')).toEqual(roads)
   })
 })

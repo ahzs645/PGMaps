@@ -114,6 +114,18 @@ export function DrainagePanel({
           <Button size="sm" className="h-8 shrink-0" disabled={busy} onClick={onRun}>
             {run ? 'Re-run drainage' : 'Run drainage check'}
           </Button>
+          {/* The culverts this check routes through are entered in the sidebar, under Engineering → Drainage. */}
+          {onShowCulverts && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 shrink-0"
+              data-testid="road-drainage-culvert-inputs"
+              onClick={() => onShowCulverts()}
+            >
+              Culvert inputs
+            </Button>
+          )}
           <p className="min-w-48 flex-1 text-muted-foreground">
             Routes flow (D8) over the existing ground and over a design surface with the road and its culverts burned
             in, then marks redirected streams, ditch low points without a culvert and new ponding.

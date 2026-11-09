@@ -1,4 +1,6 @@
 /** Explicit final-connector criteria. Numeric bounds are computation limits, not road standards. */
+/** Terrain coarser than this cannot support site-level sections; the Review list reads it too. */
+export const MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M = 2
 export interface ApprovedConnectorCrossing {
   featureId: string
   structureId: string

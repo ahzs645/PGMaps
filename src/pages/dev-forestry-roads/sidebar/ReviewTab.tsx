@@ -1,15 +1,20 @@
-import { useRef, useState, type ReactNode } from 'react'
-import { AlertTriangle, ArrowRight, CheckCircle2, Circle, Trash2 } from 'lucide-react'
+import { useMemo, useRef, useState, type ReactNode } from 'react'
+import { ArrowRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
-import { formatRoadStation } from '../Charts'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadSettings } from '../types'
-import { assessCostReadiness, crossingsWithoutStructure } from '../costReadiness'
 import { surfacingSupplyCost } from '../gravel'
+import { crossingRegisterSummary } from '../crossingRegister'
+import { gradeRule, gradeRuleText } from '../designStandards'
+import { DesignStandardsFields } from '../DesignStandardsFields'
+import { jobStandardsOf, standardVehicleCheck, withJobStandards } from '../jobStandards'
+import { isoDate } from '../projectIssue'
+import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
+import { projectReadiness, type ReadinessRow } from '../readiness'
 
-const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
+const SAMPLING: [keyof RoadSettings, string, number, number, ReactNode][] = [
   [
     'stationInterval',
     'Station spacing (m)',
@@ -24,20 +29,6 @@ const SCREENING: [keyof RoadSettings, string, number, number, ReactNode][] = [
     100,
     'How far out from the centreline each section looks for where the cut or fill batter meets the ground. A high fill or deep cut needs more; a station whose batter runs past it is drawn red on the plan and left out of quantities.',
   ],
-  [
-    'maxGradePercent',
-    'Grade limit (%)',
-    0.1,
-    100,
-    'Station grades above this threshold are flagged. Terrain-cost route search accepts limits above 0% up to 60%; the corridor optimizer needs 1–30%. This input does not certify a road standard.',
-  ],
-  [
-    'minRadius',
-    'Minimum radius (m)',
-    0,
-    10000,
-    'Horizontal curves tighter than this are flagged. The corridor optimizer needs 5–1,000 m; a route from the terrain-cost search gets curves of at least this radius where they fit.',
-  ],
 ]
 const RATES = [
   ['cutRate', 'Cut ($/m³)'],
@@ -47,159 +38,74 @@ const RATES = [
   ['shrinkFactor', 'Reusable cut factor'],
 ] as const
 
-const RATE_NAMES = { cutRate: 'cut', fillRate: 'fill', surfacingRate: 'surfacing', clearingRate: 'clearing' }
-
-type Check = {
-  id: string
-  label: string
-  /** One short line of what was found. Absent when `ok` says it all. */
-  detail?: string
-  ok: boolean | null
-  action?: { label: string; onClick: () => void }
-}
-
-/** The first thing a reviewer needs: is this road ready, and if not, where to go next. */
-function ReadinessChecks({ checks }: { checks: Check[] }) {
-  return (
-    <ul className="divide-y rounded-md border" data-testid="road-readiness-checks">
-      {checks.map((check) => (
-        <li key={check.id} className="flex items-center gap-2 px-2 py-1.5 text-xs" data-check={check.id}>
-          {check.ok === true ? (
-            <CheckCircle2 className="size-3.5 shrink-0 text-emerald-600" aria-label="Passed" />
-          ) : check.ok === false ? (
-            <AlertTriangle className="size-3.5 shrink-0 text-amber-600" aria-label="Needs attention" />
-          ) : (
-            <Circle className="size-3.5 shrink-0 text-muted-foreground" aria-label="Not checked yet" />
-          )}
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium">{check.label}</span>
-            {check.detail && <span className="block text-2xs leading-4 text-muted-foreground">{check.detail}</span>}
-          </span>
-          {check.action && (
-            <Button size="sm" variant="ghost" className="h-6 shrink-0 px-1.5 text-2xs" onClick={check.action.onClick}>
-              {check.action.label}
-            </Button>
-          )}
-        </li>
-      ))}
-    </ul>
-  )
-}
-
-export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }) {
-  const { project, alignment, analysis, update } = p.workspace
+export function ReviewTab(
+  p: SidebarProps & {
+    onTab: (tab: SidebarTab) => void
+    onEngineeringInputs?: (inputs: 'templates' | 'materials' | 'haul') => void
+  },
+) {
+  const { project, alignment, analysis, update, updateAlignment, setStation } = p.workspace
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
   const setting = (key: keyof RoadSettings, value: number) =>
     update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))
   const settings = project.settings
-  const stream = analysis.crossings.filter((c) => c.kind === 'stream')
-  const sharp = new Set(
-    analysis.stations.filter((s) => s.flags.some((f) => /Sharp horizontal PI/i.test(f))).map((s) => s.chainage),
-  ).size
-  const drainageRecord = project.drainage?.records.find((record) => record.alignmentId === alignment.id)
-  const redirectedFlow = drainageRecord?.summary.redirected ?? 0
-  const placeholders = assessCostReadiness(analysis, alignment, settings).placeholderRates
+  const { rows, register } = useMemo(
+    () => projectReadiness(project, alignment, analysis, { drainageStale: !!p.drainageStale, vehicle: p.vehicleFit }),
+    [project, alignment, analysis, p.drainageStale, p.vehicleFit],
+  )
   const [ratesOpen, setRatesOpen] = useState(false)
+  const [standardsOpen, setStandardsOpen] = useState(false)
   const rates = useRef<HTMLDivElement>(null)
-  const openRates = () => {
-    setRatesOpen(true)
-    requestAnimationFrame(() => rates.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  const standards = useRef<HTMLDivElement>(null)
+  const reveal = (target: { current: HTMLDivElement | null }) =>
+    requestAnimationFrame(() => target.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
+  /** Each check leads to the place it is cleared. */
+  const act = (action: NonNullable<ReadinessRow['action']>) => {
+    if (action.chainage !== undefined) setStation(action.chainage)
+    switch (action.target) {
+      case 'standards':
+        setStandardsOpen(true)
+        return reveal(standards)
+      case 'rates':
+        setRatesOpen(true)
+        return reveal(rates)
+      case 'terrain':
+      case 'streams':
+      case 'constraints':
+        return p.onTab('terrain')
+      case 'profile':
+      case 'curves':
+      case 'vertical-standards':
+        return p.onTab('design')
+      case 'template':
+        return p.onTab('template')
+      case 'materials':
+      case 'haul':
+        return p.onEngineeringInputs ? p.onEngineeringInputs(action.target) : p.onTab('engineering')
+      case 'culverts':
+        return p.onShowCulverts?.(action.chainage)
+      case 'drainage':
+        return p.onShowDrainage?.()
+      case 'vehicle': {
+        // The standards' design vehicle is run on a road that has no check of its own yet.
+        const check = alignment.vehicleCheck ? null : standardVehicleCheck(project.standards)
+        if (check) updateAlignment((road) => ({ ...road, vehicleCheck: check }))
+        return p.onShowSwept?.()
+      }
+      case 'station':
+        return
+    }
   }
-  const uncrossed = crossingsWithoutStructure(analysis, alignment.engineering)
-  const unpriced = (alignment.engineering?.culverts ?? []).filter((c) => c.unitCost === 0 && c.fixedCost === 0)
-  const checks: Check[] = [
-    {
-      id: 'sections',
-      label: 'Sections complete',
-      detail: `${analysis.coveragePercent.toFixed(1)}%`,
-      ok: analysis.coveragePercent >= 99.95,
-    },
-    {
-      id: 'profile',
-      label: 'Designed profile',
-      detail: alignment.vertical.length ? undefined : 'The formation follows the ground.',
-      ok: alignment.vertical.length > 1,
-      action: alignment.vertical.length > 1 ? undefined : { label: 'Design', onClick: () => p.onTab('design') },
-    },
-    {
-      id: 'grade',
-      label: `Grade within ${settings.maxGradePercent}%`,
-      detail: `Steepest ${analysis.maxGradePercent.toFixed(1)}%`,
-      ok: analysis.maxGradePercent <= settings.maxGradePercent + 1e-6,
-    },
-    {
-      id: 'curves',
-      label: 'Curves fitted',
-      detail: sharp ? `${sharp} sharp corner${sharp === 1 ? '' : 's'}` : undefined,
-      ok: !sharp,
-      action: sharp ? { label: 'Design', onClick: () => p.onTab('design') } : undefined,
-    },
-    {
-      id: 'drainage',
-      label: !drainageRecord
-        ? 'Drainage not checked'
-        : p.drainageStale
-          ? 'Drainage check is out of date'
-          : redirectedFlow
-            ? 'Road turns modelled streams'
-            : 'Drainage checked',
-      detail: !drainageRecord
-        ? 'Run it from the Drainage view.'
-        : p.drainageStale
-          ? 'The road, its culverts or the terrain changed.'
-          : drainageRecord.summary.redirected || drainageRecord.summary.lowPoints
-            ? `${redirectedFlow} of ${drainageRecord.summary.crossings} modelled streams redirected · ${drainageRecord.summary.lowPoints} low points`
-            : undefined,
-      ok: drainageRecord ? !p.drainageStale && !redirectedFlow : null,
-      action:
-        drainageRecord && !p.drainageStale && !redirectedFlow
-          ? undefined
-          : { label: 'Open', onClick: () => p.onShowDrainage?.() },
-    },
-    uncrossed.length
-      ? {
-          id: 'crossings',
-          label: `${uncrossed.length} mapped stream crossing${uncrossed.length === 1 ? ' needs' : 's need'} a culvert`,
-          detail: `${uncrossed[0].name} at ${formatRoadStation(uncrossed[0].chainage)}${uncrossed.length > 1 ? ` and ${uncrossed.length - 1} more` : ''}`,
-          ok: false,
-          action: { label: 'Add culvert', onClick: () => p.onShowCulverts?.(uncrossed[0].chainage) },
-        }
-      : {
-          id: 'crossings',
-          label: stream.length
-            ? `Mapped stream crossing${stream.length === 1 ? ' has a culvert' : 's have culverts'}`
-            : 'No mapped stream crossings',
-          ok: true,
-        },
-    ...(unpriced.length
-      ? [
-          {
-            id: 'culvert-prices',
-            label: `${unpriced.length} culvert${unpriced.length === 1 ? ' has' : 's have'} no price`,
-            detail: 'They add nothing to the estimate yet.',
-            ok: false,
-            action: { label: 'Set price', onClick: () => p.onShowCulverts?.(unpriced[0].chainage) },
-          },
-        ]
-      : []),
-    {
-      id: 'rates',
-      label: placeholders.length ? 'Unit rates need checking' : 'Unit rates entered',
-      detail: placeholders.length
-        ? `Still at the default: ${placeholders.map((key) => RATE_NAMES[key]).join(', ')}`
-        : undefined,
-      ok: !placeholders.length,
-      action: placeholders.length ? { label: 'Enter rates', onClick: openRates } : undefined,
-    },
-  ]
+  const job = jobStandardsOf(project)
+  const confirmedOn = project.standards?.confirmedOn
   return (
     <>
       <RoadSection
         title="Ready to review"
-        help="Checks on the active road, each with its next step. None of them certifies a road standard. Mapped streams come from your data; modelled streams come from the drainage check's terrain model, so the counts can differ. A rate counts as checked once it differs from the default."
+        help="The checks a designer answers for on the active road. Met means the check was made and nothing is outstanding. Needs attention means a limit is broken or an input is still to do. Not assessed means the workspace could not make the check, which is not a pass. Every limit is this project's own input; none of this certifies a road standard. The same list is printed in the report."
       >
-        <ReadinessChecks checks={checks} />
+        <ReadinessList rows={rows} onAction={act} />
         <SectionReachAlert workspace={p.workspace} />
         <Button
           size="sm"
@@ -210,24 +116,58 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
           Review connected access & complete route costs
         </Button>
       </RoadSection>
-      {/* Empty, it would only repeat the checklist's "No mapped stream crossings". */}
-      {analysis.crossings.length + analysis.warnings.length > 0 && (
+      <RoadSection
+        title="Crossing register"
+        summary={crossingRegisterSummary(register)}
+        defaultOpen={register.rows.length > 0}
+        help={`Every place water crosses the active road, listed once. Mapped crossings are where the road meets a stream line in the project. Modelled crossings are where the drainage check's flow routing over the terrain enters the road. A mapped stream and a modelled flow line within ${register.matchDistanceM} m along the road are one crossing; anything else is listed as unmatched. Route comparison prices crossings from its own coarser flow model, so its stream and drain counts are a pricing allowance, not this register.`}
+        data-testid="road-crossing-register-section"
+      >
+        <CrossingRegisterList register={register} station={p.workspace.station} onStation={setStation} />
+        {register.drainage !== 'current' && (
+          <Button size="sm" variant="outline" className="w-full" onClick={() => p.onShowDrainage?.()}>
+            {register.drainage === 'stale' ? 'Run the drainage check again' : 'Run the drainage check'} for modelled
+            crossings
+          </Button>
+        )}
+      </RoadSection>
+      <div ref={standards} className="scroll-mt-2" />
+      <RoadSection
+        title="Design standards"
+        summary={`${gradeRuleText(gradeRule(settings, project.standards))} · R${settings.minRadius} · ${confirmedOn ? 'confirmed' : 'not confirmed'}`}
+        open={standardsOpen}
+        onOpenChange={setStandardsOpen}
+        help="What this job's roads are designed to, entered once for the project. The grade check, the curve check, the swept path and the Review list all read these. They are your inputs, not a claim of compliance with a road standard."
+        data-testid="road-design-standards-section"
+      >
+        <DesignStandardsFields value={job} onChange={(next) => update((x) => withJobStandards(x, next))} />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-2xs text-muted-foreground" data-testid="road-standards-confirmed">
+            {confirmedOn ? `Confirmed ${confirmedOn}` : 'Not confirmed: these are the starting values'}
+          </span>
+          <Button
+            size="sm"
+            variant={confirmedOn ? 'outline' : 'default'}
+            className="h-7 shrink-0 text-xs"
+            onClick={() =>
+              update((x) =>
+                withJobStandards(x, {
+                  ...jobStandardsOf(x),
+                  standards: { ...jobStandardsOf(x).standards, confirmedOn: isoDate(new Date()) },
+                }),
+              )
+            }
+          >
+            {confirmedOn ? 'Confirm again today' : 'Confirm standards'}
+          </Button>
+        </div>
+      </RoadSection>
+      {analysis.warnings.length > 0 && (
         <RoadSection
-          title="Crossings & review flags"
-          summary={`${analysis.crossings.length + analysis.warnings.length}`}
-          defaultOpen={analysis.warnings.length > 0}
-          help="Stream intersections flag crossing sites. Engineering → Drainage adds culvert dimensions, inverts, cover checks and costs at these stations. Hydraulic capacity needs more site inputs."
+          title="Model flags"
+          summary={`${analysis.warnings.length}`}
+          help="What the calculation itself reported about the active road. The checks above judge it against the project's limits."
         >
-          {analysis.crossings.map((c) => (
-            <button
-              key={c.id}
-              className="mb-1 block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
-              onClick={() => p.workspace.setStation(c.chainage)}
-            >
-              {c.name} · {formatRoadStation(c.chainage)}
-              <span className="block text-muted-foreground">{c.kind} crossing · field review</span>
-            </button>
-          ))}
           {analysis.warnings.map((w, i) => (
             <p key={i} className="mb-1 border-l-2 border-amber-500 pl-2 text-xs">
               {w}
@@ -236,12 +176,12 @@ export function ReviewTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void }
         </RoadSection>
       )}
       <RoadSection
-        title="Limits & sampling"
-        summary={`${settings.maxGradePercent}% · R${settings.minRadius}`}
-        help="These thresholds are project inputs, not a claim of compliance with a road standard."
+        title="Sampling"
+        summary={`${settings.stationInterval} m · reach ${settings.crossSectionHalfWidth} m`}
+        help="How closely the road is sampled and how far out each section looks. Grade and radius limits are under Design standards."
       >
         <div className="grid grid-cols-2 items-end gap-2">
-          {SCREENING.map(([key, label, min, max, hint]) => (
+          {SAMPLING.map(([key, label, min, max, hint]) => (
             <NumberField
               key={key}
               label={label}
