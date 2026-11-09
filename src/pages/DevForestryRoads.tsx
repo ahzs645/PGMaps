@@ -49,7 +49,15 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
-import { csvPreview, geoJsonPreview, textPreview, type ExportPreview } from './dev-forestry-roads/exportCatalog'
+import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
+import {
+  csvPreview,
+  exportRoads,
+  geoJsonPreview,
+  textPreview,
+  type ExportPreview,
+  type RoadScope,
+} from './dev-forestry-roads/exportCatalog'
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
@@ -601,6 +609,10 @@ export default function DevForestryRoads() {
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
+  // A file for someone else carries the road on screen unless every road is asked for.
+  const [roadScope, setRoadScope] = useState<RoadScope>('active')
+  // Read when Save & export opens: the date its documents print while no date of issue is entered.
+  const [exportDay, setExportDay] = useState('')
   const [newProjectRequest, setNewProjectRequest] = useState(0)
   const planMap = useRef<MapLibreMap | null>(null)
   const pendingLocate = useRef<ContextFeature | null>(null)
@@ -1754,7 +1766,14 @@ export default function DevForestryRoads() {
         )
       case 'geojson':
         return text(
-          JSON.stringify(projectGeoJson(safe, w.analyses), null, 2),
+          JSON.stringify(
+            projectGeoJson(
+              { ...safe, alignments: exportRoads(safe.alignments, safe.activeAlignmentId, roadScope) },
+              w.analyses,
+            ),
+            null,
+            2,
+          ),
           `${basename}.geojson`,
           'application/geo+json',
         )
@@ -1789,6 +1808,7 @@ export default function DevForestryRoads() {
           plotBookHtml({
             projectName: safe.name,
             settings: safe.reportSettings,
+            issue: safe.issue,
             alignment,
             analysis,
             terrain: project.terrain,
@@ -1809,7 +1829,11 @@ export default function DevForestryRoads() {
         ])
         const zip = new JSZip(),
           warnings: string[] = []
-        for (const layer of roadShapefileLayers(safe.alignments, w.analyses, alignment.id)) {
+        for (const layer of roadShapefileLayers(
+          exportRoads(safe.alignments, alignment.id, roadScope),
+          w.analyses,
+          alignment.id,
+        )) {
           const written = writeShapefileLayer(layer)
           warnings.push(...written.warnings)
           for (const [name, bytes] of Object.entries(written.files)) zip.file(name, bytes)
@@ -1864,11 +1888,12 @@ export default function DevForestryRoads() {
             const map = planMap.current
             if (!map) throw Error('The plan map is still loading. Try again once it is ready.')
             resizeMap(map)
+            // The stamp and the caveat ride on the page's source line, under the project name.
             await exportMapPdf(
               map,
               safe.name,
               project.terrain.name,
-              project.terrain.verticalReference,
+              `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}`,
               `${basename}-map.pdf`,
               signal,
             )
@@ -1899,8 +1924,8 @@ export default function DevForestryRoads() {
   }
   // A preview is rebuilt when anything its file is made from changes.
   const exportPreviewVersion = useMemo(
-    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels }),
-    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels],
+    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope }),
+    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
@@ -1918,7 +1943,11 @@ export default function DevForestryRoads() {
       // The zip holds binary layers; preview the same layers' geometry instead.
       return {
         type: 'geometry',
-        layers: roadShapefileLayers(safe.alignments, w.analyses, alignment.id).map((layer) =>
+        layers: roadShapefileLayers(
+          exportRoads(safe.alignments, alignment.id, roadScope),
+          w.analyses,
+          alignment.id,
+        ).map((layer) =>
           layer.type === 'point'
             ? { name: layer.name, points: layer.features.map((f) => f.point), lines: [] }
             : { name: layer.name, points: [], lines: layer.features.flatMap((f) => f.parts) },
@@ -2391,7 +2420,11 @@ export default function DevForestryRoads() {
             className="size-8 px-0 md:w-auto md:px-3"
             title="Save & export"
             disabled={!!w.busy}
-            onClick={() => (investigation ? save('project') : setFilesOpen(true))}
+            onClick={() => {
+              if (investigation) return save('project')
+              setExportDay(isoDate(new Date()))
+              setFilesOpen(true)
+            }}
           >
             <Download className="size-4 md:mr-1 md:size-3" />
             <span className="sr-only md:not-sr-only">Save</span>
@@ -2510,6 +2543,15 @@ export default function DevForestryRoads() {
         onSave={save}
         reportSettings={project.reportSettings}
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
+        issue={project.issue}
+        onIssue={(issue) => update((p) => ({ ...p, issue }))}
+        today={exportDay}
+        roads={{
+          count: project.alignments.filter((road) => road.id !== project.designPlaceholderId).length,
+          activeName: alignment.name,
+        }}
+        roadScope={roadScope}
+        onRoadScope={setRoadScope}
         busy={!!busy}
         portalContainer={ref.current}
         context={{

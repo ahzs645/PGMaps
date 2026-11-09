@@ -66,3 +66,38 @@ describe('report', () => {
     expect(report).toContain('Not confirmed: starting values')
   })
 })
+
+describe('plot book title block', () => {
+  it('carries the revision, the date of issue and the author on every sheet', async () => {
+    const { plotBookHtml } = await import('./plotBook')
+    const project = createDemoProject()
+    const active = project.alignments[0]
+    const analysis = analyzeRoad(active, demoTerrain, project.settings, project.context)
+    const book = plotBookHtml({
+      projectName: project.name,
+      alignment: active,
+      analysis,
+      terrain: project.terrain,
+      toGrid: ([lon, lat]) => [lon * 70_000, lat * 111_000],
+      issue: { preparedBy: 'J. Smith', organisation: 'Northwood', revision: 'B', issuedOn: '2026-10-30', note: '' },
+    })
+    const sheets = book.match(/<section class="sheet">/g)?.length ?? 0
+    expect(sheets).toBeGreaterThan(1)
+    expect(book.match(/data-role="revision">Rev B</g)).toHaveLength(sheets)
+    expect(book.match(/data-role="issued">Issued 2026-10-30</g)).toHaveLength(sheets)
+    expect(book.match(/data-role="prepared-by">Prepared by J\. Smith, Northwood</g)).toHaveLength(sheets)
+    expect(book.match(/not for construction/g)?.length).toBeGreaterThanOrEqual(sheets)
+    // Nothing entered: the block says so and dates the sheet on the day it is made.
+    const blank = plotBookHtml({
+      projectName: project.name,
+      alignment: active,
+      analysis,
+      terrain: project.terrain,
+      toGrid: ([lon, lat]) => [lon * 70_000, lat * 111_000],
+      today,
+    })
+    expect(blank).toContain('data-role="revision">Rev not recorded<')
+    expect(blank).toContain('data-role="issued">Issued 2026-11-09<')
+    expect(blank).toContain('data-role="prepared-by">Prepared by: not recorded<')
+  })
+})

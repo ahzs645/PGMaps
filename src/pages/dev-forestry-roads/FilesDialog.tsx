@@ -10,12 +10,17 @@ import {
   EXPORT_GROUP_LABELS,
   EXPORT_ITEMS,
   exportUnavailable,
+  MULTI_ROAD_EXPORTS,
+  STAMPED_EXPORTS,
   type ExportContext,
   type ExportGroup,
   type ExportPreview,
   type RoadExport,
+  type RoadScope,
 } from './exportCatalog'
 import { ExportPreviewView } from './ExportPreview'
+import { IssueStampEditor } from './IssueStampEditor'
+import { issueLine, issueStamp, type ProjectIssue } from './projectIssue'
 import type { RoadReportSettings } from './reportSettings'
 import { ReportSettingsEditor } from './ReportSettingsEditor'
 
@@ -24,6 +29,9 @@ export type { RoadExport } from './exportCatalog'
 const GROUPS = Object.keys(EXPORT_GROUP_LABELS) as ExportGroup[]
 // Edits in Sheet setup rebuild the plot book; a short pause keeps typing from rebuilding it per key.
 const PREVIEW_DELAY_MS = 250
+
+/** A road name short enough for a choice chip; the whole name is in the header's road switcher. */
+const clipName = (name: string) => (name.length > 30 ? `${name.slice(0, 29)}…` : name)
 
 type PreviewResult =
   | { request: object; preview: ExportPreview; error?: undefined }
@@ -44,6 +52,12 @@ export function FilesDialog({
   portalContainer,
   reportSettings,
   onReportSettings,
+  issue,
+  onIssue,
+  today = '',
+  roads,
+  roadScope = 'active',
+  onRoadScope,
   context,
   buildPreview,
   previewVersion,
@@ -58,6 +72,15 @@ export function FilesDialog({
   portalContainer?: HTMLElement | null
   reportSettings?: RoadReportSettings
   onReportSettings?: (settings: RoadReportSettings) => void
+  /** The project's issue stamp, printed on the report, the map PDF and the plot book. */
+  issue?: ProjectIssue
+  onIssue?: (issue: ProjectIssue) => void
+  /** The day the dialog was opened (YYYY-MM-DD), printed while the stamp has no date of its own. */
+  today?: string
+  /** The project's roads, for outputs that can hold one or all of them. */
+  roads?: { count: number; activeName: string }
+  roadScope?: RoadScope
+  onRoadScope?: (scope: RoadScope) => void
   context: ExportContext
   /** Builds one output's preview; `signal` aborts when the selection or project changes. */
   buildPreview: (kind: RoadExport, signal: AbortSignal) => Promise<ExportPreview>
@@ -65,7 +88,7 @@ export function FilesDialog({
   previewVersion: unknown
 }) {
   const [selected, setSelected] = useState<RoadExport>('project')
-  const [view, setView] = useState<'preview' | 'setup'>('preview')
+  const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
   // Each opening starts on the project file, which the header's Save button is for.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -77,7 +100,13 @@ export function FilesDialog({
   }
   const item = EXPORT_ITEMS.find((entry) => entry.kind === selected) ?? EXPORT_ITEMS[0]
   const unavailable = exportUnavailable(item.kind, context)
-  const settingUp = item.kind === 'plotbook' && view === 'setup' && !!onReportSettings
+  const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
+  const setupAvailable = item.kind === 'plotbook' && !!onReportSettings
+  // A view the selected output does not have falls back to its preview.
+  const shownView =
+    view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
+  const settingUp = shownView !== 'preview'
+  const chooseRoads = MULTI_ROAD_EXPORTS.includes(item.kind) && !!onRoadScope && (roads?.count ?? 0) > 1
   // A new object per selection or content change: a preview is current only for its own request.
   const request = useMemo(() => ({ kind: item.kind, version: previewVersion }), [item.kind, previewVersion])
   const [result, setResult] = useState<PreviewResult | null>(null)
@@ -85,6 +114,7 @@ export function FilesDialog({
   useEffect(() => {
     latestBuild.current = buildPreview
   })
+  const stamp = issueStamp(issue, today ? new Date(`${today}T12:00:00`) : undefined)
   useEffect(() => {
     if (!open || unavailable || settingUp) return
     const controller = new AbortController()
@@ -204,22 +234,48 @@ export function FilesDialog({
                 {item.kind === 'project' ? 'Save' : 'Download'}
               </Button>
             </div>
-            {item.kind === 'plotbook' && onReportSettings && (
+            {(stamped || setupAvailable) && (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                <SegmentedControl
+                  size="sm"
+                  fullWidth={false}
+                  label={`${item.label} view`}
+                  value={shownView}
+                  onChange={setView}
+                  options={[
+                    { value: 'preview' as const, label: 'Preview' },
+                    ...(setupAvailable ? [{ value: 'setup' as const, label: 'Sheet setup' }] : []),
+                    ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
+                  ]}
+                />
+                {stamped && today && (
+                  <span
+                    className={`text-xs ${stamp.missing.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                    data-testid="road-issue-line"
+                  >
+                    {issueLine(stamp)}
+                  </span>
+                )}
+              </div>
+            )}
+            {chooseRoads && (
               <SegmentedControl
                 size="sm"
                 fullWidth={false}
-                label="Plot book view"
-                value={view}
-                onChange={setView}
+                label="Roads in this file"
+                value={roadScope}
+                onChange={(scope) => onRoadScope?.(scope)}
                 options={[
-                  { value: 'preview', label: 'Preview' },
-                  { value: 'setup', label: 'Sheet setup' },
+                  { value: 'active' as const, label: `This road: ${clipName(roads?.activeName ?? '')}` },
+                  { value: 'all' as const, label: `All ${roads?.count} roads` },
                 ]}
               />
             )}
             {/* Side by side the preview scrolls in its pane; stacked on a phone it flows with the dialog. */}
             <div className="min-h-0 flex-1 sm:overflow-y-auto">
-              {settingUp ? (
+              {shownView === 'issue' && onIssue ? (
+                <IssueStampEditor value={issue} onChange={onIssue} today={stamp.date} />
+              ) : shownView === 'setup' && onReportSettings ? (
                 <ReportSettingsEditor value={reportSettings} onChange={onReportSettings} />
               ) : unavailable ? (
                 <p className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">{unavailable}</p>

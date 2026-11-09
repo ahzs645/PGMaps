@@ -35,14 +35,14 @@ formats are specified in the
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
 | Project JSON (`.road.json`)     | `pgmaps-road-project-v1`: every alignment, PVIs, templates, widenings, engineering inputs, settings, context, D-lines, terrain profiles, terrain provenance, embedded raster | WGS84 lon/lat; raster in its own EPSG                              | Calculated results, drainage runs and settings, undo history, layouts, regional DEM tiles, published LiDAR cells         |
 | Library JSON                    | `pgmaps-road-library-v1`: named templates and materials only                                                                                                                 | None                                                               | Road geometry, assignments, horizons                                                                                     |
-| GeoJSON                         | Every alignment's centreline with control and design properties; crossings, culvert barrels, haul sites, context, D-lines, terrain profiles                                  | WGS84 lon/lat, no Z                                                | Sections, stations, drainage. Re-importing it gives linework and names, not PVIs or templates                            |
+| GeoJSON                         | The centreline of the road on screen, or of every road, with control and design properties; crossings, culvert barrels, haul sites, context, D-lines, terrain profiles                                  | WGS84 lon/lat, no Z                                                | Sections, stations, drainage. Re-importing it gives linework and names, not PVIs or templates                            |
 | Station CSV                     | Every calculated station: chainage, lon/lat, ground, design, grades, radius, widths, areas, interval volumes, mass, completeness, flags, terrain provenance                  | WGS84 lon/lat                                                      | The station table's reporting interval (the CSV is always every station), section offsets                                |
 | Selected-section CSV            | One station's section samples with codes, ground, design and cut/fill                                                                                                        | WGS84 lon/lat                                                      | Other stations                                                                                                           |
 | Engineering CSV                 | Material quantities, culvert inventory, haul movements, itemized costs                                                                                                       | Chainage only                                                      | Geometry                                                                                                                 |
 | D-line CSV / HTML               | Supports, sampled profile, assumed sag and clearance                                                                                                                         | WGS84 lon/lat                                                      | Tension, load, anchors                                                                                                   |
 | LandXML 1.2 (`.xml`)            | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m                     | Terrain's projected EPSG, else WGS84 UTM zone of the first point   | Other alternatives, surfaces (TIN), feature lines, superelevation, template/corridor model, ditches as objects, culverts |
 | Stakeout CSV                    | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill              | Same as LandXML                                                    | Reference or offset stakes, instrument data, point descriptions for a data collector                                     |
-| Shapefile (`-shapefiles.zip`)   | `road_centrelines` (every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                         | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                          | Sections, catch lines, sites, context, drainage, elevations as Z                                                         |
+| Shapefile (`-shapefiles.zip`)   | `road_centrelines` (the road on screen, or every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                         | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                          | Sections, catch lines, sites, context, drainage, elevations as Z                                                         |
 | Plot book (`-plot-book.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid | Culverts, curve data, PI table, legend, a fixed print scale                                                              |
 | Printed report (`-report.html`) | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m               | Chainage                                                           | Drainage, plan view, LandXML-level geometry                                                                              |
 
@@ -143,6 +143,31 @@ cut_fill_m, epsg`. Cut/fill is ground minus design: positive is cut.
   offset stakes, no instrument or control data and no tolerance. A surveyor needs to set out from
   control in the same CRS and datum.
 
+### One road or every road
+
+GeoJSON and the shapefile can hold more than one road. Save & export offers **This road** and
+**All _N_ roads** for them, and starts on **This road**: a file handed to someone else then carries
+the road on screen, not a superseded alternative or the starter line a project begins with
+(`exportRoads`, `exportCatalog.ts`). The choice is not saved with the project. The project file
+always holds every road.
+
+### Issue stamp
+
+The report, the map PDF and every plot-book title block print who prepared the document, the
+organisation, the revision and the date of issue. Enter them in Save & export: select one of those
+documents and switch its pane to **Issue stamp**. They are `project.issue` (`projectIssue.ts`), saved
+in the project file.
+
+- **A missing name or revision prints as "not recorded",** never as a blank, so an unstamped
+  document cannot pass for a stamped one. The line beside the pane's tabs turns amber until both are
+  entered.
+- **The date of issue defaults to the day the document is made.** The report then says "(day of
+  printing)". Enter a date to hold it on reissued copies.
+- **Nothing increments the revision for you.** Change it each time you issue.
+- **The report also prints the [readiness checks](review-and-standards.md#the-readiness-list), the
+  crossing register and the design standards,** so the printed document says what was and was not
+  checked, including every check that was not assessed.
+
 ### Shapefile
 
 - **Three layers, written without a GIS library.** Point and PolyLine geometry, dBase III tables,
@@ -174,7 +199,9 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   (`contourNote` in `plotBook.ts`); on a long road the contours are generalized well beyond the
   terrain's resolution. Without contours each plan prints "Contours unavailable", and when the
   contour build failed the notice reads "Plot book downloaded without contours (…)".
-- **Every sheet says "Preliminary planning geometry · not for construction".**
+- **Every sheet's title block carries the issue stamp:** the revision, the date of issue and who
+  prepared it, with the terrain source and "Preliminary planning geometry · not for construction".
+  See [Issue stamp](#issue-stamp).
 
 ### Printed report
 

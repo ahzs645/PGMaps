@@ -31,6 +31,26 @@ export interface ExportItem {
   description: string
 }
 
+/** Outputs that print the issue stamp: who prepared them, the revision and the date of issue. */
+export const STAMPED_EXPORTS: readonly RoadExport[] = ['report', 'report-pdf', 'plotbook', 'map-pdf']
+/** Outputs that can hold one road or every road of the project. */
+export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile']
+export type RoadScope = 'active' | 'all'
+
+/**
+ * The roads a multi-road output writes. A file handed to someone else carries the road on screen
+ * unless every road is asked for, so a superseded alternative or a starter line does not go with it.
+ */
+export function exportRoads<T extends { id: string }>(
+  alignments: readonly T[],
+  activeId: string,
+  scope: RoadScope,
+): T[] {
+  if (scope === 'all') return [...alignments]
+  const active = alignments.filter((alignment) => alignment.id === activeId)
+  return active.length ? active : [...alignments]
+}
+
 export const EXPORT_GROUP_LABELS: Record<ExportGroup, string> = {
   project: 'Project',
   documents: 'Documents',
@@ -59,7 +79,8 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     group: 'documents',
     label: 'Report PDF',
     extension: '.pdf',
-    description: 'Planning report: summary, profile, sections, quantities, flags and the station schedule.',
+    description:
+      'Planning report: issue stamp, readiness checks, profile, sections, quantities, flags and the station schedule.',
   },
   {
     kind: 'report',
@@ -88,14 +109,15 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'GeoJSON',
     extension: '.geojson',
     description:
-      'Every road alternative with its totals, plus crossings, culverts and material sites, in WGS84 longitude/latitude.',
+      'The road on screen, or every road, with totals, crossings, culverts and material sites, in WGS84 longitude/latitude.',
   },
   {
     kind: 'shapefile',
     group: 'gis',
     label: 'Shapefile',
     extension: '.zip',
-    description: 'Road centrelines, stations and culverts as shapefile layers, zipped with their projection files.',
+    description:
+      'Road centrelines, stations and culverts as shapefile layers, zipped with their projection files. One road or all.',
   },
   {
     kind: 'csv',
