@@ -11,7 +11,7 @@ import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { NOTE_LAYER_IDS, NotesLayer, NotesToolbar, type NoteTool } from './PlanNotes'
-import { ReferenceLayer } from './ReferenceLayer'
+import { ReferenceLayer, referenceLegend } from './ReferenceLayer'
 import type { ReferenceFeature } from './referenceFeatures'
 import { CutblockCard } from './CutblockCard'
 import { ExistingRoadCard } from './ExistingRoadCard'
@@ -174,6 +174,8 @@ function Layers(
     showLabels: boolean
     showEarthwork: boolean
     hiddenContextKinds: ContextFeature['kind'][]
+    /** Reference layers are shown, so the legend lists them. */
+    referenceVisible: boolean
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
     /** The road without any drag preview. A handle in use has to stay mounted, so handles follow this. */
@@ -1622,6 +1624,7 @@ function Layers(
             cableSupports: !!activeCable,
           }),
           ...historicalMap.legend,
+          ...referenceLegend(props.referenceVisible ? (props.project.reference ?? NO_REFERENCE) : NO_REFERENCE),
           ...(selectedMappedRoad.features.length
             ? [
                 {
@@ -1926,6 +1929,7 @@ export function PlanView(input: PlanProps) {
           showLabels={showLabels}
           showEarthwork={showEarthwork}
           hiddenContextKinds={hiddenContextKinds}
+          referenceVisible={referenceVisible}
           noteTool={noteTool}
         />
         <ReferenceLayer features={reference} visible={referenceVisible} selectedId={props.focusedReferenceId} />

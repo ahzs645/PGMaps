@@ -126,7 +126,10 @@ reference layer**. The picker only says what it is for; the file's contents deci
   no name column is named by that column. An unnamed feature takes the file's name.
 - **Nothing is classified without a choice.** A picker with one purpose settles its own shape: a
   road picker's lines are roads. Features that carry a PGMaps export's `kind`, or evidence only one
-  kind carries, keep it. For everything else the import asks what the lines, polygons and points
+  kind carries, keep it, and each picker takes only the stated kinds it is for
+  (`STATED_BY_INTENT`): an exported project given to a road picker adds its roads and not a second
+  copy of its streams, and roads come in only through a road picker. The notice counts what was
+  left out. For everything else the import asks what the lines, polygons and points
   are (`proposeRoles`): road, existing road, stream, planned or harvested cutblock, avoidance area,
   or reference. The streams import asks unless the file reads as stream data, by Freshwater Atlas
   attributes or by what the file and its features are called. A plain polygon is never planned or
@@ -134,7 +137,9 @@ reference layer**. The picker only says what it is for; the file's contents deci
 - **Reference features** are their own project collection (`reference`, `referenceFeatures.ts`).
   The plan draws them and the Terrain tab lists them; no analysis, route search or estimate reads
   them. A named point can start a road (**Peg from**) or take the active road's start or end. The
-  GeoJSON export writes them with `kind: "reference"`, so they import back as reference.
+  plan legend lists them and **Map settings** can hide them. The GeoJSON export writes them with
+  `kind: "reference"`, so they import back as reference. The printed report and the map PDF do not
+  draw them.
 - **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum.
 
 ### LandXML

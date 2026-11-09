@@ -4,6 +4,7 @@ import { PanelDialog } from '@/components/ui/dialog-shell'
 import {
   ROLE_OPTIONS,
   spatialInventory,
+  type ImportIntent,
   type ImportRole,
   type RoleChoice,
   type SpatialFile,
@@ -35,12 +36,15 @@ const listed = (names: string[]) =>
  */
 export function SpatialImportDialog({
   file,
+  intent,
   initial,
   onImport,
   onCancel,
   portalContainer,
 }: {
   file: SpatialFile
+  /** The picker the file came through: it decides which stated kinds are kept. */
+  intent: ImportIntent
   /** The roles offered first; a null shape has no suggestion and must be chosen. */
   initial: RoleChoice
   onImport: (roles: RoleChoice) => void
@@ -48,11 +52,12 @@ export function SpatialImportDialog({
   portalContainer?: HTMLElement | null
 }) {
   const [roles, setRoles] = useState<RoleChoice>(initial)
-  const inventory = useMemo(() => spatialInventory(file), [file])
+  const inventory = useMemo(() => spatialInventory(file, intent), [file, intent])
   const shapes = (['line', 'polygon', 'point'] as const).filter((shape) => inventory.open[shape].length)
   const ready = shapes.every((shape) => roles[shape] !== null)
-  const nothing =
-    ready && shapes.every((shape) => roles[shape] === 'skip') && !inventory.stated.some((g) => g.role !== 'skip')
+  const kept = inventory.stated.filter((group) => group.kept)
+  const leftOut = inventory.stated.filter((group) => !group.kept)
+  const nothing = ready && shapes.every((shape) => roles[shape] === 'skip') && !kept.length
   return (
     <PanelDialog
       open
@@ -106,17 +111,16 @@ export function SpatialImportDialog({
             </fieldset>
           )
         })}
-        {inventory.stated.length > 0 && (
+        {kept.length > 0 && (
           <p className="text-xs text-muted-foreground" data-testid="road-spatial-import-stated">
             The file says what these are, so they keep it:{' '}
-            {inventory.stated
-              .map((group) =>
-                group.role === 'skip'
-                  ? `${counted(group.features.length, STATED_NOUNS.skip)} (left out)`
-                  : counted(group.features.length, STATED_NOUNS[group.role]),
-              )
-              .join(', ')}
-            .
+            {kept.map((group) => counted(group.features.length, STATED_NOUNS[group.role])).join(', ')}.
+          </p>
+        )}
+        {leftOut.length > 0 && (
+          <p className="text-xs text-muted-foreground" data-testid="road-spatial-import-left-out">
+            Left out, because this import does not take them:{' '}
+            {leftOut.map((group) => counted(group.features.length, STATED_NOUNS[group.role])).join(', ')}.
           </p>
         )}
       </div>

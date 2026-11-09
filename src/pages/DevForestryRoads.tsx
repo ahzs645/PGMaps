@@ -381,7 +381,11 @@ export default function DevForestryRoads() {
   const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
   const [focusedReferenceId, setFocusedReferenceId] = useState<string | null>(null)
   // A file whose features the reader could not settle: the dialog asks, and nothing is added until then.
-  const [spatialChoice, setSpatialChoice] = useState<{ file: SpatialFile; roles: RoleChoice } | null>(null)
+  const [spatialChoice, setSpatialChoice] = useState<{
+    file: SpatialFile
+    roles: RoleChoice
+    intent: ImportIntent
+  } | null>(null)
   // A terrain import waiting to be told a CRS or vertical datum its files do not state.
   const [terrainQuestion, setTerrainQuestion] = useState<{
     needs: TerrainImportNeeds
@@ -1744,8 +1748,8 @@ export default function DevForestryRoads() {
     })
   }
   /** Adds what the chosen roles make of a spatial file, then brings what was created forward. */
-  const commitSpatial = (file: SpatialFile, roles: RoleChoice) => {
-    const result = buildSpatialImport(file, roles)
+  const commitSpatial = (file: SpatialFile, roles: RoleChoice, intent: ImportIntent) => {
+    const result = buildSpatialImport(file, roles, intent)
     const next = applySpatialImport(project, result, uid)
     w.commit(next)
     w.enablePersistence()
@@ -1774,19 +1778,21 @@ export default function DevForestryRoads() {
       setCutblockReviewRequest((previous) => ({ id: block.id, sequence: (previous?.sequence ?? 0) + 1 }))
       setWorkflowTab('terrain')
     } else if (mapped) openRoadReview(mapped.id)
-    showOnPlan({
-      id: 'import-extent',
-      name: file.fileName,
-      kind: 'existing-road',
-      geometry: { type: 'LineString', coordinates: extent },
-    })
+    // Fit the plan without changing which panes show: the sidebar is where the import is reviewed.
+    if (planMap.current && boxes.length)
+      fitContextFeature(planMap.current, {
+        id: 'import-extent',
+        name: file.fileName,
+        kind: 'existing-road',
+        geometry: { type: 'LineString', coordinates: extent },
+      })
   }
   const readSpatial = async (file: File, intent: ImportIntent, signal?: AbortSignal) => {
     const read = await readSpatialImport(file)
     if (signal?.aborted) return
     const proposal = proposeRoles(read, intent)
-    if (proposal.ask) setSpatialChoice({ file: read, roles: proposal.roles })
-    else commitSpatial(read, proposal.roles)
+    if (proposal.ask) setSpatialChoice({ file: read, roles: proposal.roles, intent })
+    else commitSpatial(read, proposal.roles, intent)
   }
   /** One importer for every spatial picker; the intent only sets what the picker is for. */
   const importSpatial = (file: File, intent: ImportIntent) =>
@@ -2661,6 +2667,7 @@ export default function DevForestryRoads() {
         <SpatialImportDialog
           key={spatialChoice.file.fileName}
           file={spatialChoice.file}
+          intent={spatialChoice.intent}
           initial={spatialChoice.roles}
           portalContainer={ref.current}
           onCancel={() => {
@@ -2669,7 +2676,7 @@ export default function DevForestryRoads() {
           }}
           onImport={(roles) => {
             try {
-              commitSpatial(spatialChoice.file, roles)
+              commitSpatial(spatialChoice.file, roles, spatialChoice.intent)
             } catch (cause) {
               w.setError(cause instanceof Error ? cause.message : 'Could not import this file.')
             }

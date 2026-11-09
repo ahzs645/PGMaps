@@ -557,13 +557,39 @@ const looksLikeStream = (feature: GeoJSON.Feature, fileName: string) =>
   Object.keys(feature.properties ?? {}).some((key) => STREAM_KEYS.includes(key.toLowerCase())) ||
   says(feature, fileName, STREAM_WORDS)
 
+/**
+ * The stated kinds each picker brings in. A picker with one purpose takes only its own, so an
+ * exported project given to the road picker adds its roads and not a second copy of its streams;
+ * the streams import is the general one and takes every kind of context. Roads come in only
+ * through a road picker.
+ */
+const STATED_BY_INTENT: Record<ImportIntent, ReadonlySet<ImportRole>> = {
+  road: new Set<ImportRole>(['road']),
+  'mapped-road': new Set<ImportRole>(['mapped-road']),
+  cutblocks: new Set<ImportRole>(['planned-block', 'harvested-block']),
+  reference: new Set<ImportRole>(['reference']),
+  streams: new Set<ImportRole>([
+    'stream',
+    'constraint',
+    'mapped-road',
+    'planned-block',
+    'harvested-block',
+    'reference',
+  ]),
+}
+/** The role a feature states, when this picker takes it; `'skip'` when it states one the picker does not. */
+function statedFor(feature: GeoJSON.Feature, intent: ImportIntent | undefined): ImportRole | null {
+  const role = statedRole(feature)
+  return role === null || !intent || STATED_BY_INTENT[intent].has(role) ? role : 'skip'
+}
+
 export interface SpatialInventory {
   /** Features the user's choice applies to, by shape. */
   open: Record<SpatialShape, GeoJSON.Feature[]>
-  /** Features whose role the file states, by role. */
-  stated: Array<{ role: ImportRole; features: GeoJSON.Feature[] }>
+  /** Features whose role the file states, by role; `kept` is false for a kind this picker leaves out. */
+  stated: Array<{ role: ImportRole; features: GeoJSON.Feature[]; kept: boolean }>
 }
-export function spatialInventory(file: SpatialFile): SpatialInventory {
+export function spatialInventory(file: SpatialFile, intent?: ImportIntent): SpatialInventory {
   const open: SpatialInventory['open'] = { point: [], line: [], polygon: [] }
   const stated = new Map<ImportRole, GeoJSON.Feature[]>()
   for (const feature of file.collection.features) {
@@ -571,7 +597,14 @@ export function spatialInventory(file: SpatialFile): SpatialInventory {
     if (role) stated.set(role, [...(stated.get(role) ?? []), feature])
     else open[shapeOf(feature)].push(feature)
   }
-  return { open, stated: [...stated].map(([role, features]) => ({ role, features })) }
+  return {
+    open,
+    stated: [...stated].map(([role, features]) => ({
+      role,
+      features,
+      kept: role !== 'skip' && (!intent || STATED_BY_INTENT[intent].has(role)),
+    })),
+  }
 }
 
 /**
@@ -667,9 +700,10 @@ function parts(geometry: GeoJSON.Geometry): Array<GeoJSON.Point | GeoJSON.LineSt
 /**
  * Builds what the chosen roles make of the file. Every feature goes through the validator a project
  * file passes, so an import can never put something in the project that a saved project would refuse.
- * A shape whose role is null is refused: nothing is classified without a choice.
+ * A shape whose role is null is refused: nothing is classified without a choice. With `intent`, a
+ * feature that states a kind the picker does not take is left out.
  */
-export function buildSpatialImport(file: SpatialFile, roles: RoleChoice): SpatialImportResult {
+export function buildSpatialImport(file: SpatialFile, roles: RoleChoice, intent?: ImportIntent): SpatialImportResult {
   const stem = fileStem(file.fileName).slice(0, 150) || 'Imported feature'
   const byRole = new Map<
     string,
@@ -678,7 +712,7 @@ export function buildSpatialImport(file: SpatialFile, roles: RoleChoice): Spatia
   let leftOut = 0
   for (const feature of file.collection.features) {
     const shape = shapeOf(feature)
-    const role = statedRole(feature) ?? roles[shape]
+    const role = statedFor(feature, intent) ?? roles[shape]
     if (role === null)
       throw new SpatialImportError(
         `Choose what the ${shape === 'polygon' ? 'polygons' : `${shape}s`} in ${file.fileName} are before importing.`,
@@ -753,7 +787,12 @@ export function buildSpatialImport(file: SpatialFile, roles: RoleChoice): Spatia
     }
     result.created.push({ role, shape, names })
   }
-  if (!result.created.length) throw new SpatialImportError(`Nothing in ${file.fileName} was chosen to import.`)
+  if (!result.created.length)
+    throw new SpatialImportError(
+      intent && file.collection.features.some((feature) => statedRole(feature) && statedFor(feature, intent) === 'skip')
+        ? `${file.fileName} has nothing this import takes. Bring roads in with Import line on the Design tab, and streams, areas and cutblocks with Streams → Import on the Terrain tab.`
+        : `Nothing in ${file.fileName} was chosen to import.`,
+    )
   result.notice =
     `Imported ${result.created.map(describe).join('; ')} from ${file.fileName}, read as ${file.crs}.` +
     (leftOut ? ` ${leftOut} feature${leftOut === 1 ? ' was' : 's were'} left out.` : '')

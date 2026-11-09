@@ -1,12 +1,40 @@
 import { useEffect, useMemo } from 'react'
 import type { GeoJSONSource } from 'maplibre-gl'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-import { referenceGeoJson, type ReferenceFeature } from './referenceFeatures'
+import type { PlanLegendSection } from './planLegendModel'
+import { referenceGeoJson, referenceShape, type ReferenceFeature } from './referenceFeatures'
 
 const SOURCE = 'road-reference'
 const LAYERS = ['road-reference-fill', 'road-reference-casing', 'road-reference-line', 'road-reference-point'] as const
 /** Point names drawn on the plan; beyond this the dots stay and the sidebar list names them. */
 export const MAX_REFERENCE_LABELS = 80
+const LINE_COLOR = '#334155',
+  POINT_COLOR = '#f59e0b'
+
+/** The legend section for the reference features on the plan; empty when there are none. */
+export function referenceLegend(features: readonly ReferenceFeature[]): PlanLegendSection[] {
+  const has = (shape: ReturnType<typeof referenceShape>) => features.some((f) => referenceShape(f) === shape)
+  const entries = [
+    ...(has('line')
+      ? [
+          {
+            id: 'reference-line',
+            label: 'Reference line',
+            color: LINE_COLOR,
+            shape: 'dashed-line' as const,
+            dash: [4, 2.5] as [number, number],
+          },
+        ]
+      : []),
+    ...(has('area')
+      ? [{ id: 'reference-area', label: 'Reference area', color: LINE_COLOR, shape: 'area' as const }]
+      : []),
+    ...(has('point')
+      ? [{ id: 'reference-point', label: 'Named point', color: POINT_COLOR, shape: 'circle' as const }]
+      : []),
+  ]
+  return entries.length ? [{ id: 'reference', title: 'Reference layers', entries }] : []
+}
 
 /**
  * Draws the project's reference features: grey dashed linework with a light casing so it reads on
@@ -36,7 +64,7 @@ export function ReferenceLayer({
       type: 'fill',
       source: SOURCE,
       filter: ['==', ['geometry-type'], 'Polygon'],
-      paint: { 'fill-color': '#334155', 'fill-opacity': 0.06 },
+      paint: { 'fill-color': LINE_COLOR, 'fill-opacity': 0.06 },
     })
     add({
       id: 'road-reference-casing',
@@ -52,7 +80,7 @@ export function ReferenceLayer({
       source: SOURCE,
       filter: ['!=', ['geometry-type'], 'Point'],
       layout: { 'line-join': 'round' },
-      paint: { 'line-color': '#334155', 'line-width': 1.75, 'line-dasharray': [4, 2.5] },
+      paint: { 'line-color': LINE_COLOR, 'line-width': 1.75, 'line-dasharray': [4, 2.5] },
     })
     add({
       id: 'road-reference-point',
@@ -61,7 +89,7 @@ export function ReferenceLayer({
       filter: ['==', ['geometry-type'], 'Point'],
       paint: {
         'circle-radius': 6,
-        'circle-color': '#f59e0b',
+        'circle-color': POINT_COLOR,
         'circle-stroke-color': '#0f172a',
         'circle-stroke-width': 2,
       },

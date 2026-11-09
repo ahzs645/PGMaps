@@ -11,6 +11,7 @@ import {
   proposeRoles,
   readSpatialImport,
   spatialFeatureName,
+  spatialInventory,
   SpatialImportError,
   statedRole,
   type SpatialFile,
@@ -336,7 +337,7 @@ describe('what an imported feature becomes', () => {
     expect(project.activeAlignmentId).toBe(project.alignments.at(-1)?.id)
   })
 
-  it('keeps what a PGMaps export says a feature is, whatever picker it comes through', () => {
+  it('keeps what a PGMaps export says a feature is, and each picker takes only the kinds it is for', () => {
     const exported = spatial('project.geojson', [
       line(road, { kind: 'alignment', name: 'Road 1' }),
       line(road, { kind: 'stream', name: 'Tabor Creek', riparianClass: 'S3' }),
@@ -352,17 +353,41 @@ describe('what an imported feature becomes', () => {
         geometry: { type: 'Point', coordinates: road[1] },
       },
     ])
-    expect(proposeRoles(exported, 'streams')).toEqual({ roles: { point: null, line: null, polygon: null }, ask: false })
-    const built = buildSpatialImport(exported, { point: null, line: null, polygon: null })
-    expect(built.alignments.map((a) => a.name)).toEqual(['Road 1'])
-    expect(built.context.map((f) => [f.kind, f.name])).toEqual([
+    const none = { point: null, line: null, polygon: null }
+    // Nothing is asked: the file says what everything is.
+    expect(proposeRoles(exported, 'streams')).toEqual({ roles: none, ask: false })
+    // The general import takes every kind of context, with its evidence, and leaves the road to a road picker.
+    const context = buildSpatialImport(exported, none, 'streams')
+    expect(context.alignments).toEqual([])
+    expect(context.context.map((f) => [f.kind, f.name])).toEqual([
       ['stream', 'Tabor Creek'],
       ['avoid', 'Wetland'],
       ['harvest', 'CP 12'],
     ])
-    expect(built.context[0].streamAssessment?.importedClass).toBe('S3')
-    expect(built.context[2].harvestEvidence?.status).toBe('proposed')
-    expect(built.leftOut).toBe(1)
+    expect(context.context[0].streamAssessment?.importedClass).toBe('S3')
+    expect(context.context[2].harvestEvidence?.status).toBe('proposed')
+    expect(context.leftOut).toBe(2)
+    // The road picker adds the road and not a second copy of the project's streams and areas.
+    const roads = buildSpatialImport(exported, none, 'road')
+    expect(roads.alignments.map((a) => a.name)).toEqual(['Road 1'])
+    expect(roads.context).toEqual([])
+    expect(roads.notice).toBe(
+      'Imported 1 road (Road 1) from project.geojson, read as WGS84 longitude/latitude. 4 features were left out.',
+    )
+    expect(buildSpatialImport(exported, none, 'cutblocks').context.map((f) => f.name)).toEqual(['CP 12'])
+    expect(spatialInventory(exported, 'road').stated.map((g) => [g.role, g.kept])).toEqual([
+      ['road', true],
+      ['stream', false],
+      ['constraint', false],
+      ['planned-block', false],
+      ['skip', false],
+    ])
+    // A picker given only kinds it does not take says where they go instead.
+    expect(() =>
+      buildSpatialImport(spatial('streams.geojson', [exported.collection.features[1]]), none, 'road'),
+    ).toThrow(
+      'streams.geojson has nothing this import takes. Bring roads in with Import line on the Design tab, and streams, areas and cutblocks with Streams → Import on the Terrain tab.',
+    )
   })
 
   it('adds an import to the project, replacing a cutblock imported twice and keeping everything else', () => {
