@@ -609,7 +609,8 @@ function allocateOrReport(
       movements: [],
       costs: { haul: 0, borrow: 0, waste: 0, sitePreparation: 0 },
       warnings: [
-        `Material plan not solved: ${cause instanceof Error ? cause.message : 'the allocation failed.'} The road, sections and quantities are unaffected, but no material movement, borrow, waste or haul cost is included; zero there does not mean the work is free.`,
+        // The allocator states its limits in plain sentences; anything else is an internal fault.
+        `Material plan not solved: ${cause instanceof Error && cause.constructor === Error ? cause.message : 'the allocation stopped on an internal error.'} The road, sections and quantities are unaffected, but no material movement, borrow, waste or haul cost is included; zero there does not mean the work is free.`,
       ],
     }
   }
