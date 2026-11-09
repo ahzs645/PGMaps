@@ -9,6 +9,7 @@ import type { FileKind } from './DesignSidebarBody'
 import {
   EXPORT_GROUP_LABELS,
   EXPORT_ITEMS,
+  exportStampNote,
   exportUnavailable,
   MULTI_ROAD_EXPORTS,
   STAMPED_EXPORTS,
@@ -100,6 +101,7 @@ export function FilesDialog({
   }
   const item = EXPORT_ITEMS.find((entry) => entry.kind === selected) ?? EXPORT_ITEMS[0]
   const unavailable = exportUnavailable(item.kind, context)
+  const stampNote = exportStampNote(item.kind, context)
   const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
   const setupAvailable = item.kind === 'plotbook' && !!onReportSettings
   // A view the selected output does not have falls back to its preview.
@@ -201,7 +203,10 @@ export function FilesDialog({
                       accent="teal"
                       selected={entry.kind === item.kind}
                       title={entry.label}
-                      subtitle={reason ?? undefined}
+                      subtitle={
+                        reason ??
+                        (exportStampNote(entry.kind, context) ? 'Stamped: leaves out an invalid input' : undefined)
+                      }
                       trailing={<span className="text-3xs font-normal text-muted-foreground">{entry.extension}</span>}
                       className={`py-2 ${reason ? '[&_span]:text-muted-foreground' : ''}`}
                       aria-label={reason ? `${entry.label}, unavailable: ${reason}` : entry.label}
@@ -270,6 +275,15 @@ export function FilesDialog({
                   { value: 'all' as const, label: `All ${roads?.count} roads` },
                 ]}
               />
+            )}
+            {stampNote && (
+              <p
+                role="status"
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs"
+                data-testid="road-export-stamp-note"
+              >
+                {stampNote}
+              </p>
             )}
             {/* Side by side the preview scrolls in its pane; stacked on a phone it flows with the dialog. */}
             <div className="min-h-0 flex-1 sm:overflow-y-auto">

@@ -408,6 +408,56 @@ describe('road exports', () => {
     expect(html).toContain('reusable-cut factor')
     expect(html).toContain('default-src')
   })
+  it('stamps the report, and refuses the data files, while the results leave out an invalid input', () => {
+    const p = createDemoProject()
+    const active = p.alignments.find((a) => a.id === p.activeAlignmentId)!
+    // The road as entered holds a 60 m half-width; the results were calculated with the last valid 3 m.
+    const calculated = { ...active.template, leftWidth: 3, rightWidth: 3 }
+    active.template = { ...calculated, leftWidth: 60 }
+    const stale: RoadAnalysis = {
+      ...analysis,
+      invalidInput: {
+        message: 'Road section: left half-width (m) must be 0.1 to 50.',
+        target: { list: 'template', field: 'leftWidth' },
+        leftOut: 'input',
+      },
+      calculatedInputs: {
+        template: calculated,
+        engineering: active.engineering,
+        overrides: active.overrides,
+        curveDesign: active.curveDesign,
+      },
+    }
+    const html = projectReportHtml(p, stale)
+    // The stamp leads the document, before the issue block and the totals.
+    expect(html).toContain(
+      '<p class="invalid" data-invalid-input><strong>Not current: this report leaves out an invalid input</strong>',
+    )
+    expect(html.indexOf('data-invalid-input')).toBeLessThan(html.indexOf('<dl class="issue">'))
+    expect(html).toContain(
+      'These results leave out one invalid input and use its last valid value: Road section: left half-width (m) must be 0.1 to 50. Every quantity, cost and check below is calculated without it.',
+    )
+    // The readiness list says it first, and quotes the template the quantities came from.
+    expect(html).toContain('The results leave out 1 invalid input')
+    expect(html).toContain('6 m top')
+    expect(html).not.toContain('63 m top')
+    expect(projectReportHtml(createDemoProject(), analysis)).not.toContain('data-invalid-input')
+
+    expect(() => stationsCsv(stale, p.terrain)).toThrow(
+      'Station CSV was not exported: an input is invalid, and this file would leave it out without saying so. Road section: left half-width (m) must be 0.1 to 50. Correct it and export again.',
+    )
+    expect(() => projectGeoJson(p, new Map([[p.activeAlignmentId, stale]]))).toThrow(/^GeoJSON was not exported: /)
+    expect(() => stationsCsv(analysis, p.terrain)).not.toThrow()
+  })
+  it('refuses a template whose ditch bottom is wider than its top, as the engine does', () => {
+    const p = createDemoProject()
+    p.alignments[0].template = { ...p.alignments[0].template, ditchWidth: 0.3, leftDitchBottomWidth: 0.5 }
+    expect(() => parseProject(JSON.parse(JSON.stringify(p)))).toThrow(
+      'Road section: the left ditch bottom width (0.5 m) must be 0 to the ditch top width (0.3 m).',
+    )
+    p.alignments[0].template = { ...p.alignments[0].template, ditchWidth: 0.5 }
+    expect(() => parseProject(JSON.parse(JSON.stringify(p)))).not.toThrow()
+  })
 })
 
 describe('stream assessments in saved and exchanged files', () => {

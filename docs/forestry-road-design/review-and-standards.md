@@ -64,6 +64,12 @@ a button that leads to where it is cleared.
 A cost prompt from `costReadiness.ts` that the list has no row for is shown as its own row, so a
 prompt added there is never dropped here.
 
+**While an input is invalid** the list leads with one more row, under **Inputs**: "The results
+leave out 1 invalid input", outside a limit, with the input's message and a button to where it is
+corrected. Every row after it is judged on the results, which use that input's last valid value,
+and rows that quote an input quote the one the results used. See
+[While an input is invalid](sections-quantities-and-costs.md#while-an-input-is-invalid).
+
 **A vertical curve counts only where it is applied.** The engine drops an entered curve that is
 longer than its tangents, or that overlaps the curve at the next PVI, and keeps the tangent grades
 (`verticalProfile`, `engine.ts`). That PVI is then a grade break without a curve. The curve row

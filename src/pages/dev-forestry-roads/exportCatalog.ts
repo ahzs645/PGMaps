@@ -3,6 +3,10 @@
  * why one is unavailable, and how a built file turns into its preview. No DOM or network access.
  */
 
+import { invalidInputMessages, type InvalidInput } from './inputErrors'
+
+export { invalidInputRefusal } from './inputErrors'
+
 export type RoadExport =
   | 'project'
   | 'geojson'
@@ -49,6 +53,33 @@ export function exportRoads<T extends { id: string }>(
   if (scope === 'all') return [...alignments]
   const active = alignments.filter((alignment) => alignment.id === activeId)
   return active.length ? active : [...alignments]
+}
+
+/**
+ * What an output does while a road's results leave out an invalid input (`RoadAnalysis.invalidInput`).
+ *
+ * - `stamp`: a document a person reads. It is written, and says prominently which input it leaves out.
+ * - `refuse`: a file handed to a contractor or read by other software. It has nowhere to carry a
+ *   notice its reader will see, so it is not written until the input is corrected.
+ * - `unaffected`: holds no calculated design result.
+ */
+export type InvalidInputRule = 'stamp' | 'refuse' | 'unaffected'
+export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
+  project: 'unaffected',
+  notes: 'unaffected',
+  'terrain-landxml': 'unaffected',
+  'terrain-ascii': 'unaffected',
+  'streams-csv': 'unaffected',
+  'provincial-evidence': 'unaffected',
+  report: 'stamp',
+  'report-pdf': 'stamp',
+  'map-pdf': 'stamp',
+  plotbook: 'refuse',
+  landxml: 'refuse',
+  stakeout: 'refuse',
+  csv: 'refuse',
+  geojson: 'refuse',
+  shapefile: 'refuse',
 }
 
 export const EXPORT_GROUP_LABELS: Record<ExportGroup, string> = {
@@ -179,7 +210,13 @@ export interface ExportContext {
   hasTerrainGrid: boolean
   hasProvincialEvidence: boolean
   hasNotes: boolean
+  /** The invalid input the roads an output would write leave out, if any. */
+  invalidInput?: (kind: RoadExport) => InvalidInput | undefined
 }
+
+/** The invalid input an output is affected by, under its rule; undefined when it is unaffected. */
+const invalidFor = (kind: RoadExport, context: ExportContext) =>
+  INVALID_INPUT_RULES[kind] === 'unaffected' ? undefined : context.invalidInput?.(kind)
 
 /** Why an output cannot be made right now, or null when it can. */
 export function exportUnavailable(kind: RoadExport, context: ExportContext): string | null {
@@ -192,7 +229,18 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'
   if (kind === 'provincial-evidence' && !context.hasProvincialEvidence) return 'Load provincial stream evidence first.'
+  const invalid = invalidFor(kind, context)
+  if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
+    return `Correct the invalid input first. ${invalidInputMessages(invalid).join(' ')}`
   return null
+}
+
+/** What an available output says about itself: a stamped document names the input it leaves out. */
+export function exportStampNote(kind: RoadExport, context: ExportContext): string | null {
+  const invalid = invalidFor(kind, context)
+  if (!invalid || INVALID_INPUT_RULES[kind] !== 'stamp' || exportUnavailable(kind, context)) return null
+  const count = invalidInputMessages(invalid).length
+  return `Stamped: leaves out ${count === 1 ? 'an invalid input' : `${count} invalid inputs`}. ${invalidInputMessages(invalid).join(' ')}`
 }
 
 type Position = [number, number]

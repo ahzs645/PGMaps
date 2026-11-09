@@ -80,6 +80,7 @@ export function ReviewTab(
         return p.onTab('design')
       case 'template':
         return p.onTab('template')
+      case 'templates':
       case 'materials':
       case 'haul':
         return p.onEngineeringInputs ? p.onEngineeringInputs(action.target) : p.onTab('engineering')

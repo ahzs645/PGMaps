@@ -5,6 +5,7 @@
  */
 import { sectionStations, type ToGrid } from './designExports'
 import { horizontalCurveSummary } from './engine'
+import { refuseInvalidResults } from './inputErrors'
 import { unknownEarthworkSpans } from './massHaul'
 import {
   createRoadReportSettings,
@@ -488,6 +489,9 @@ export function plotBookHtml({
   /** The day of printing, used when the stamp has no date of issue. */
   today?: Date
 }): string {
+  // Drawing sheets go to the people who build the road: they are not printed from results that
+  // leave an input out. The report is, with a stamp (`INVALID_INPUT_RULES`, `exportCatalog.ts`).
+  refuseInvalidResults('Plot book', analysis)
   const stamp = issueStamp(issue, today)
   const settings = parseRoadReportSettings(rawSettings)
   // Preserve the original function's interval arguments for existing callers without settings.

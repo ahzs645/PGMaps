@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, horizontalGeometry, offsetCoordinate } from './engine'
-import { landXml, sectionStations, stakeoutCsv } from './designExports'
+import { landXml, roadShapefileLayers, sectionStations, stakeoutCsv } from './designExports'
 import { DEFAULT_ROAD_SETTINGS, exportGrid } from './terrain'
 import type { Alignment, Coordinate, TerrainMetadata } from './types'
 import { createEngineeringDesign } from './engineeringTypes'
@@ -39,6 +39,20 @@ const analysis = analyzeRoad(road, flat, DEFAULT_ROAD_SETTINGS)
 const grid = exportGrid(terrain, origin)
 
 describe('engineering exports', () => {
+  it('writes no contractor file from results that leave out an invalid input', () => {
+    const stale = {
+      ...analysis,
+      invalidInput: { message: 'Culvert 1: diameter (m) must be 0.1 to 10.', leftOut: 'input' as const },
+    }
+    expect(() => landXml({ name: 'N', alignment: road, analysis: stale, terrain, ...grid })).toThrow(
+      'LandXML alignment was not exported: an input is invalid, and this file would leave it out without saying so. Culvert 1: diameter (m) must be 0.1 to 10. Correct it and export again.',
+    )
+    expect(() => stakeoutCsv({ alignment: road, analysis: stale, ...grid })).toThrow(/^Stakeout was not exported: /)
+    expect(() => roadShapefileLayers([road], new Map([[road.id, stale]]), road.id)).toThrow(
+      /^Shapefile was not exported: /,
+    )
+    expect(() => roadShapefileLayers([road], new Map([[road.id, analysis]]), road.id)).not.toThrow()
+  })
   it('keeps missing cross-section and profile intervals as separate LandXML surface runs', () => {
     const samples = structuredClone(analysis)
     const first = samples.stations[0]

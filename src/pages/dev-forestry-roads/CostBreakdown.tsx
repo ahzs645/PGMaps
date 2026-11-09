@@ -11,6 +11,7 @@ import type { HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
 import { unpricedQuantities } from './costReadiness'
+import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
 
 const money = (value: number, digits = 0) =>
@@ -314,6 +315,7 @@ export function CostBreakdown({
       // Coverage is in the subtitle; this line names only what is incomplete, and the run time.
       summary={
         <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
+          {analysis.invalidInput ? 'Leaves out an invalid input · ' : ''}
           {hasCompleteCoverage(analysis) ? '' : 'Section coverage partial · '}
           {result?.complete === false ? 'Engineering inputs incomplete · ' : ''}
           {unpriced.length ? `${unpriced.length} unpriced ${unpriced.length === 1 ? 'quantity' : 'quantities'} · ` : ''}
@@ -360,6 +362,13 @@ export function CostBreakdown({
             </InfoTip>
           </span>
         </div>
+        {analysis.invalidInput && (
+          <div data-testid="road-cost-invalid-input">
+            <InlineAlert tone="warning" title="This estimate leaves out an invalid input">
+              {invalidInputNotice(analysis.invalidInput)} The amounts below change when it is corrected.
+            </InlineAlert>
+          </div>
+        )}
         {unpriced.length > 0 && (
           <div data-testid="road-cost-unpriced">
             <InlineAlert

@@ -3,9 +3,12 @@ import {
   csvPreview,
   EXPORT_ITEMS,
   exportRoads,
+  exportStampNote,
   exportUnavailable,
   fitGeometry,
   geoJsonPreview,
+  INVALID_INPUT_RULES,
+  invalidInputRefusal,
   parseCsv,
   textPreview,
   type ExportContext,
@@ -38,6 +41,48 @@ describe('export catalog', () => {
     expect(exportUnavailable('notes', { ...ready, designPreview: true, hasResults: false })).toBeNull()
     expect(exportUnavailable('notes', { ...ready, hasNotes: false })).toMatch(/Draw a note/)
     for (const item of EXPORT_ITEMS) expect(exportUnavailable(item.kind, ready)).toBeNull()
+  })
+})
+
+describe('exports while an input is invalid', () => {
+  const invalid = { message: 'Road section: left half-width (m) must be 0.1 to 50.', leftOut: 'input' as const }
+  const context: ExportContext = { ...ready, invalidInput: () => invalid }
+
+  it('gives every output a rule', () => {
+    for (const item of EXPORT_ITEMS) expect(INVALID_INPUT_RULES[item.kind]).toBeDefined()
+  })
+
+  it('refuses the files a contractor or another program reads, and names the input', () => {
+    for (const kind of ['landxml', 'stakeout', 'plotbook', 'csv', 'geojson', 'shapefile'] as const)
+      expect(exportUnavailable(kind, context)).toBe(
+        'Correct the invalid input first. Road section: left half-width (m) must be 0.1 to 50.',
+      )
+    expect(invalidInputRefusal('LandXML alignment', invalid)).toBe(
+      'LandXML alignment was not exported: an input is invalid, and this file would leave it out without saying so. Road section: left half-width (m) must be 0.1 to 50. Correct it and export again.',
+    )
+    expect(
+      invalidInputRefusal('Stakeout', { ...invalid, others: ['Road section: cut batter (H:V) must be 0.1 to 10.'] }),
+    ).toMatch(
+      /^Stakeout was not exported: 2 inputs are invalid, and this file would leave them out .* Correct them and/,
+    )
+  })
+
+  it('writes the documents a person reads, stamped', () => {
+    for (const kind of ['report', 'report-pdf', 'map-pdf'] as const) {
+      expect(exportUnavailable(kind, context)).toBeNull()
+      expect(exportStampNote(kind, context)).toBe(
+        'Stamped: leaves out an invalid input. Road section: left half-width (m) must be 0.1 to 50.',
+      )
+    }
+    expect(exportStampNote('report', ready)).toBeNull()
+    expect(exportStampNote('landxml', context)).toBeNull()
+  })
+
+  it('leaves alone the files that hold no calculated design result', () => {
+    for (const kind of ['project', 'notes', 'terrain-landxml', 'terrain-ascii', 'streams-csv'] as const) {
+      expect(exportUnavailable(kind, context)).toBeNull()
+      expect(exportStampNote(kind, context)).toBeNull()
+    }
   })
 })
 

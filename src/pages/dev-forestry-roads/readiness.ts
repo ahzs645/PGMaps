@@ -10,7 +10,7 @@
  *
  * None of this certifies a road standard: the limits are the project's own inputs.
  */
-import { hasCompleteCoverage } from './analysisResult'
+import { calculatedAlignment, hasCompleteCoverage } from './analysisResult'
 import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions'
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
@@ -18,6 +18,7 @@ import { buildCrossingRegister, type CrossingRegister } from './crossingRegister
 import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
 import { DEFAULT_TEMPLATE } from './terrain'
@@ -32,7 +33,7 @@ import type {
 } from './types'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
-export type ReadinessGroup = 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
+export type ReadinessGroup = 'inputs' | 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
 /** Where a row's action leads. The interface maps each to the place the check is cleared. */
 export type ReadinessTarget =
   | 'terrain'
@@ -43,6 +44,7 @@ export type ReadinessTarget =
   | 'vehicle'
   | 'vertical-standards'
   | 'template'
+  | 'templates'
   | 'materials'
   | 'haul'
   | 'rates'
@@ -69,6 +71,8 @@ export interface ReadinessRow {
 }
 
 export const READINESS_GROUP_LABELS: Record<ReadinessGroup, string> = {
+  // Shown only while an input cannot be calculated; it leads because it qualifies every row after it.
+  inputs: 'Inputs',
   terrain: 'Terrain',
   alignment: 'Alignment',
   earthwork: 'Section and earthwork',
@@ -188,6 +192,22 @@ export function isStartingTemplate(template: RoadTemplate): boolean {
   )
 }
 
+/** Where each kind of engineering input is corrected. */
+const INPUT_TARGETS: Record<EngineeringInputList, ReadinessTarget> = {
+  template: 'template',
+  templates: 'templates',
+  assignments: 'templates',
+  materials: 'materials',
+  strata: 'materials',
+  sitePreparation: 'materials',
+  culverts: 'culverts',
+  sites: 'haul',
+  fillRequirements: 'haul',
+  directionRanges: 'haul',
+  sidecastRanges: 'haul',
+  haul: 'haul',
+}
+
 const COST_FLAG_OWNERS: Record<string, string> = {
   'partial-sections': 'terrain-coverage',
   'placeholder-rates': 'rates',
@@ -220,6 +240,38 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const mapped = !!alignment.mappedRoad
   const designed = alignment.vertical.length > 1
   const costFlags = (owner: string) => cost.flags.filter((flag) => COST_FLAG_OWNERS[flag.id] === owner)
+
+  // ---- Inputs --------------------------------------------------------------------------------
+  // An input that cannot be calculated is left out of the results, so every row below is judged on
+  // its last valid value. The list says so first, and cannot read as clear while it stands.
+  const invalid = analysis.invalidInput
+  if (invalid) {
+    const messages = invalidInputMessages(invalid)
+    add({
+      id: 'invalid-input',
+      group: 'inputs',
+      check: 'Every input can be calculated',
+      state: 'attention',
+      severity: 'limit',
+      result: !stations.length
+        ? 'Nothing is calculated: an input is invalid'
+        : invalid.leftOut === 'all'
+          ? 'The results leave out every section and engineering edit since the inputs were last valid'
+          : `The results leave out ${plural(messages.length, 'invalid input')}`,
+      measured: `${messages.join(' ')}${
+        !stations.length
+          ? ''
+          : invalid.leftOut === 'all'
+            ? ' The checks below are judged on the last valid inputs.'
+            : ` The checks below use ${messages.length === 1 ? 'its last valid value' : 'their last valid values'}.`
+      }`,
+      judgedOn: 'Every section and engineering input inside its allowed range',
+      action: {
+        label: 'Correct the input',
+        target: invalid.target ? INPUT_TARGETS[invalid.target.list] : 'template',
+      },
+    })
+  }
 
   // ---- Terrain -------------------------------------------------------------------------------
   const sourceText = `${terrain.name} · ${trim(terrain.resolutionM, 2)} m cells · ${terrain.verticalReference || 'no vertical datum'}`
@@ -1371,6 +1423,8 @@ export function projectReadiness(
     record: project.drainage?.records.find((record) => record.alignmentId === alignment.id),
     stale: options.drainageStale,
   }
+  // Rows that quote an input (the template, a culvert price) quote the one the results used.
+  alignment = calculatedAlignment(alignment, analysis)
   const register = buildCrossingRegister({ alignment, analysis, context: project.context, drainage })
   return {
     register,

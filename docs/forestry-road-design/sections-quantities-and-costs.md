@@ -275,6 +275,38 @@ tools require an entered density or loose-to-compacted factor, full truck cycle 
 payload, or net crew productivity as appropriate. See
 [BC cost evidence and estimation roadmap](bc-cost-evidence.md).
 
+## While an input is invalid
+
+A section or engineering input the engine refuses does not blank the road (`safeAnalyzeRoad`,
+`analysisResult.ts`).
+
+- **Only the invalid input is left out.** The road is calculated on the current line with that
+  input at its last valid value. A valid edit made afterwards takes effect: a culvert price changed
+  after an out-of-range width is in the estimate. The engine finds the input by putting back one
+  difference at a time (a field, or one entry of a list) until its checks pass. Two inputs invalid
+  at once are both left out and both named.
+- **"Last valid value" is the value the last calculated results used,** so it includes the valid
+  edits made while another input was invalid (`useRoadWorkspace.ts`).
+- **A rule two inputs break together leaves out one of them.** A ditch top narrowed below its
+  bottom width leaves out whichever of the two restores a valid ditch; the message names the rule.
+- **When the input cannot be told apart** (more than 500 differences, or the failure is raised
+  after the input checks) the results fall back to the whole last valid set of section and
+  engineering inputs, and every notice says that the edits since then are left out.
+- **Every figure says so.** The Cut / fill and Estimate tiles read "invalid input left out", an
+  alert above the charts and one in the cost dialog give the input's message, Review leads with
+  "The results leave out 1 invalid input" as a row outside a limit, and the same sentence is the
+  first Model flag. Review and the report quote the inputs the results used.
+- **Exports** are stamped or refused; see
+  [Exports and project files](exports-and-project-files.md#while-an-input-is-invalid).
+- **A ditch bottom cannot be typed wider than its top.** Each of the two width fields takes the
+  other as its limit (`ditchWidthRange`, `templates.ts`), and a project file with such a ditch is
+  refused on open, as the engine refuses it.
+
+| Limit                                      | Value | Enforced by                                  |
+| ------------------------------------------ | ----- | -------------------------------------------- |
+| Differences tried one at a time            | 500   | `MAX_INPUT_DIFFERENCES`, `analysisResult.ts` |
+| Inputs invalid at once that are told apart | 8     | `MAX_INVALID_AT_ONCE`, `analysisResult.ts`   |
+
 ## How problems show up
 
 | What you see                                                             | Likely cause                                                                                                                    | What to do                                                                               |
@@ -288,7 +320,7 @@ payload, or net crew productivity as appropriate. See
 | Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                           |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
-| "The road and results below leave out your latest edit"                  | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results show the last valid inputs on the current line     |
+| "The charts, quantities and cost leave out an invalid input"             | A section or engineering input failed validation; the message names the entry, field and allowed range, beside that input       | Correct the input; until then results use its last valid value and every other edit      |
 | "Correct this alignment before calculating: …"                           | The line cannot be calculated, or an input was invalid before any valid result existed                                          | Read the message; quantities are unavailable until it is fixed                           |
 | Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                 |
 | "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                          |

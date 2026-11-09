@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { designInputsOf, safeAnalyzeRoad } from './analysisResult'
 import { assessCostReadiness } from './costReadiness'
 import { buildCrossingRegister, CROSSING_MATCH_DISTANCE_M, crossingRegisterSummary } from './crossingRegister'
 import { DEFAULT_DESIGN_STANDARDS, type DesignStandards } from './designStandards'
@@ -8,6 +9,7 @@ import { createEngineeringDesign } from './engineeringTypes'
 import {
   assessReadiness,
   isStartingTemplate,
+  projectReadiness,
   readinessCounts,
   readinessReportHtml,
   readinessSummary,
@@ -592,6 +594,72 @@ describe('assessReadiness: vertical curves the engine did not apply', () => {
     expect(assess().row('vertical-curves')).toMatchObject({
       state: 'met',
       result: 'The 1 grade break has a vertical curve',
+    })
+  })
+})
+
+describe('projectReadiness: results that leave out an invalid input', () => {
+  const project = (alignment: Alignment) => ({
+    settings: DEFAULT_ROAD_SETTINGS,
+    standards: undefined,
+    terrain: { ...terrain, source: 'imported' } as never,
+    context: [] as ContextFeature[],
+    drainage: undefined,
+    alignments: [alignment],
+  })
+
+  it('says so first, cannot read as clear, and judges the inputs the results used', () => {
+    const valid = road({ template: { ...DEFAULT_TEMPLATE, leftWidth: 2.5, rightWidth: 2.5 } })
+    const edited: Alignment = { ...valid, template: { ...valid.template, leftWidth: 60 } }
+    const analysis = safeAnalyzeRoad(edited, hillside, DEFAULT_ROAD_SETTINGS, [], {}, designInputsOf(valid))
+    const { rows } = projectReadiness(project(edited), edited, analysis, { drainageStale: false })
+    expect(rows[0]).toMatchObject({
+      id: 'invalid-input',
+      group: 'inputs',
+      state: 'attention',
+      severity: 'limit',
+      result: 'The results leave out 1 invalid input',
+      measured: 'Road section: left half-width (m) must be 0.1 to 50. The checks below use its last valid value.',
+      action: { label: 'Correct the input', target: 'template' },
+    })
+    expect(readinessCounts(rows).limits).toBeGreaterThan(0)
+    // The template row quotes the 5 m top the sections were calculated with, not the 62.5 m entered.
+    const template = rows.find((row) => row.id === 'template')!
+    expect(template.measured).toMatch(/^5 m top/)
+    // The printed list leads with the same row, under its own heading.
+    const report = readinessReportHtml(rows)
+    expect(report.indexOf('>Inputs<')).toBeGreaterThan(0)
+    expect(report.indexOf('>Inputs<')).toBeLessThan(report.indexOf('>Terrain<'))
+    // A road with nothing invalid has no such row.
+    const clean = safeAnalyzeRoad(valid, hillside, DEFAULT_ROAD_SETTINGS)
+    expect(
+      projectReadiness(project(valid), valid, clean, { drainageStale: false }).rows.some(
+        (row) => row.group === 'inputs',
+      ),
+    ).toBe(false)
+  })
+
+  it('leads to where each kind of input is corrected', () => {
+    const valid = road()
+    const edited = structuredClone(valid)
+    edited.engineering!.culverts = [culvert({ diameterM: -1 })]
+    const analysis = safeAnalyzeRoad(edited, hillside, DEFAULT_ROAD_SETTINGS, [], {}, designInputsOf(valid))
+    const { rows } = projectReadiness(project(edited), edited, analysis, { drainageStale: false })
+    expect(rows[0]).toMatchObject({ id: 'invalid-input', action: { target: 'culverts' } })
+    // The invalid culvert is left out, so no row counts or prices it.
+    expect(rows.find((row) => row.id === 'structure-costs')?.state).toBe('not-assessed')
+  })
+
+  it('says nothing is calculated when no valid inputs are known', () => {
+    const bad = road({ template: { ...DEFAULT_TEMPLATE, cutSlope: 0 } })
+    const analysis = safeAnalyzeRoad(bad, hillside, DEFAULT_ROAD_SETTINGS)
+    const { rows } = projectReadiness(project(bad), bad, analysis, { drainageStale: false })
+    expect(rows[0]).toMatchObject({
+      id: 'invalid-input',
+      state: 'attention',
+      severity: 'limit',
+      result: 'Nothing is calculated: an input is invalid',
+      measured: 'Road section: cut batter (H:V) must be 0.1 to 10.',
     })
   })
 })
