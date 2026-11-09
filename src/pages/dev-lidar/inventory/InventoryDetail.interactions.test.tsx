@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs'
-import { useState } from 'react'
+import { createElement, useState, type ReactNode } from 'react'
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
+import { FORM_INPUT_CLASS } from '@/components/ui/form-field'
 import { InventoryDetail } from './InventoryDetail'
 import { treeEstimate } from './summary'
 import { DEFAULT_RULES, EMPTY_REVIEW, type InventoryData, type TreeReview } from './types'
+
+// The method notes sit behind an InfoTip, whose popover needs a browser window; render its text inline.
+vi.mock('@/components/ui/info-tip', () => ({
+  InfoTip: ({ children, label }: { children: ReactNode; label: string }) =>
+    createElement('span', { 'aria-label': label }, children),
+}))
 
 const data: InventoryData = JSON.parse(readFileSync(new URL('./inventory.generated.json', import.meta.url), 'utf8'))
 const tree = data.crowns.features[0]
@@ -31,7 +38,7 @@ describe('inventory DBH review field', () => {
     try {
       const input = () =>
         view!.root.findAllByType('input').find((node) => node.props['aria-label'] === 'Inventory entered DBH')!
-      expect(input().props.className).toBe('mt-1 w-full rounded border bg-background p-1.5')
+      expect(input().props.className).toBe(FORM_INPUT_CLASS)
       // min/step remain browser hints; the original source guard accepted every positive value up to 500.
       act(() => input().props.onChange({ target: { value: '0.05' } }))
       expect(onReview).toHaveBeenLastCalledWith({ dbh_cm: 0.05 })
