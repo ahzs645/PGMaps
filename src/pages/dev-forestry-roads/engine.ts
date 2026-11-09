@@ -1474,6 +1474,7 @@ export function analyzeRoad(
     if (!i) {
       p.cutVolumeM3 = p.complete ? 0 : null
       p.fillVolumeM3 = p.complete ? 0 : null
+      p.surfaceVolumeM3 = p.complete ? 0 : null
       p.massM3 = 0
       continue
     }
@@ -1486,15 +1487,16 @@ export function analyzeRoad(
       fillVolumeM3 += p.fillVolumeM3
       completeLength += ds
       // Width and surface depth may both transition linearly: their product is quadratic.
-      surfaceVolumeM3 +=
+      p.surfaceVolumeM3 =
         ((surfaceArea(a.chainage) + 4 * surfaceArea((a.chainage + p.chainage) / 2) + surfaceArea(p.chainage)) / 6) * ds
+      surfaceVolumeM3 += p.surfaceVolumeM3
       clearingAreaM2 +=
         (((a.clearingWidthM ?? a.leftDaylightM! + a.rightDaylightM!) +
           (p.clearingWidthM ?? p.leftDaylightM! + p.rightDaylightM!)) /
           2) *
         ds
       mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
-    }
+    } else p.surfaceVolumeM3 = null
     p.massM3 = mass
   }
   const coveragePercent = clamp((completeLength / path.length) * 100, 0, 100)

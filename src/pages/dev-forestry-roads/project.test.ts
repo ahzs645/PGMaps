@@ -383,6 +383,19 @@ describe('road exports', () => {
     expect(csv).toContain('"\'+CMD"')
     expect(csv).toContain(',-60,')
     expect(csv).toContain('terrain_resolution_m')
+    // Every row has a cell for every header, the per-interval volumes included.
+    const [header, ...rows] = csv.trimEnd().split('\r\n')
+    const columns = header.split(',')
+    expect(columns.slice(columns.indexOf('mass_balance_m3'), columns.indexOf('complete'))).toEqual([
+      'mass_balance_m3',
+      'interval_surfacing_volume_m3',
+      'interval_stripping_bank_m3',
+      'interval_borrow_compacted_m3',
+      'interval_waste_bank_m3',
+    ])
+    // A hand-built station without them leaves the cells blank rather than shifting the row.
+    expect(rows.every((row) => row.split(',').length === columns.length)).toBe(true)
+    expect(rows.every((row) => ['"yes"', '"no"'].includes(row.split(',')[columns.indexOf('complete')]))).toBe(true)
   })
   it('escapes untrusted names and flags in printable HTML; reports partial totals and assumptions', () => {
     const p = createDemoProject()

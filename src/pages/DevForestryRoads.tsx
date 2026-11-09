@@ -2180,6 +2180,7 @@ export default function DevForestryRoads() {
     >
       <StationTable
         terrainOnly={!!terrainProfile}
+        roadName={displayedAlignment.name}
         analysis={displayedAnalysis}
         station={station}
         onStation={w.setStation}

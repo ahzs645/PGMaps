@@ -703,6 +703,12 @@ describe('mass-haul allocation and unit costs', () => {
     const e = analyzeRoad(a, flat, settings).engineering!
     expect(e.haul.wasteBankM3).toBeCloseTo(1600, 4)
     expect(e.haul.unallocatedWasteM3).toBeCloseTo(1100, 4)
+    // Stripping is reported by interval too, and the intervals add up to the road's stripping.
+    expect(e.strippingCutM3).toBeCloseTo(1600, 4)
+    expect(e.stations[0].strippingCutVolumeM3).toBe(0)
+    expect(e.stations.find((s) => s.chainage === 30)!.strippingCutVolumeM3).toBeCloseTo(160, 4)
+    expect(e.stations.reduce((sum, s) => sum + s.strippingCutVolumeM3!, 0)).toBeCloseTo(e.strippingCutM3, 6)
+    expect(e.stations.reduce((sum, s) => sum + (s.wasteVolumeM3 ?? 0), 0)).toBeCloseTo(1600, 4)
     expect(e.haul.freeHaulM3 + e.haul.overhaulM3 + e.haul.endHaulM3).toBe(0)
     expect(e.haul.wasteFreeHaulBankM3 + e.haul.wasteOverhaulBankM3 + e.haul.wasteEndHaulBankM3).toBeCloseTo(500, 6)
     expect(e.movements.every((p) => p.volumeBasis === 'bank' && p.compactedVolumeM3 === null)).toBe(true)
@@ -793,6 +799,37 @@ describe('mass-haul allocation and unit costs', () => {
         5,
       )
       expect(e.haul.unallocatedWasteM3).toBe(0)
+    })
+
+    it('reports borrow and waste by interval, adding up to the haul totals', () => {
+      const sum = (values: (number | null | undefined)[]) => values.reduce<number>((total, v) => total + (v ?? 0), 0)
+      for (const allocation of ['nearest', 'economic'] as const) {
+        const a = nearlyBalanced()
+        a.engineering!.haul.allocation = allocation
+        // A pit too small for the fill, so part of the borrow has no site and still counts.
+        a.vertical[1].elevation = 801
+        a.engineering!.sites = [{ ...site('pit', 'borrow', 20), capacityM3: allocation === 'nearest' ? 50 : null }]
+        const short = analyzeRoad(a, hole, balancing),
+          e = short.engineering!
+        expect(e.haul.borrowCompactedM3).toBeCloseTo(short.fillVolumeM3, 5)
+        expect(sum(e.stations.map((s) => s.borrowVolumeM3))).toBeCloseTo(e.haul.borrowCompactedM3, 5)
+        expect(sum(e.stations.map((s) => s.wasteVolumeM3))).toBeCloseTo(e.haul.wasteBankM3, 5)
+        // Unknown intervals carry no value; known ones in fill borrow what they place.
+        expect(e.stations.find((s) => s.chainage === 100)!.borrowVolumeM3).toBeUndefined()
+        const at50 = short.stations.find((s) => s.chainage === 50)!
+        expect(e.stations.find((s) => s.chainage === 50)!.borrowVolumeM3).toBeCloseTo(at50.fillVolumeM3!, 5)
+      }
+      const surplus = nearlyBalanced()
+      surplus.vertical[0].elevation = 799
+      const cut = analyzeRoad(surplus, hole, balancing),
+        e = cut.engineering!
+      expect(e.haul.wasteBankM3).toBeGreaterThan(100)
+      expect(sum(e.stations.map((s) => s.wasteVolumeM3))).toBeCloseTo(e.haul.wasteBankM3, 5)
+      expect(sum(e.stations.map((s) => s.borrowVolumeM3))).toBeCloseTo(e.haul.borrowCompactedM3, 5)
+      // With haul off there is no allocation to report.
+      surplus.engineering!.haul.enabled = false
+      const off = analyzeRoad(surplus, hole, balancing).engineering!
+      expect(off.stations.every((s) => s.borrowVolumeM3 == null && s.wasteVolumeM3 == null)).toBe(true)
     })
 
     it('still stops material at a blocked range the user entered', () => {

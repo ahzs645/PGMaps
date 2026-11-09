@@ -826,6 +826,7 @@ export function calculateEngineering(
       materialAreas: materials.map((m) => ({ materialId: m.id, cutAreaM2: s.complete ? areas.get(m.id)! : null })),
       usableCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       unusableCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
+      strippingCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       massM3: null,
     }
   })
@@ -833,7 +834,9 @@ export function calculateEngineering(
   // it, and the balance carries on past it: the road is continuous where the data is not.
   let mass = 0
   if (stations.length) stations[0].massM3 = 0
-  const intervals: EarthworkInterval[] = []
+  const intervals: EarthworkInterval[] = [],
+    // The station each interval ends at, which carries the interval's quantities.
+    intervalStations: EngineeringStation[] = []
   for (let i = 1; i < stations.length; i++) {
     const a = analysis.stations[i - 1],
       b = analysis.stations[i],
@@ -846,7 +849,8 @@ export function calculateEngineering(
     const ds = b.chainage - a.chainage,
       cut: MaterialCut[] = []
     let usable = 0,
-      unusable = 0
+      unusable = 0,
+      stripping = 0
     for (let j = 0; j < materials.length; j++) {
       const m = materials[j]
       const preparation = (station: RoadStation) =>
@@ -869,11 +873,13 @@ export function calculateEngineering(
       q.excavationCost += bank * m.cutRate
       usable += reusable
       unusable += waste
+      if (m.purpose === 'stripping') stripping += bank
       if (bank > EPS)
         cut.push({ materialId: m.id, bank, usable: reusable, unusable: waste, factor: m.compactionFactor })
     }
     current.usableCutVolumeM3 = usable
     current.unusableCutVolumeM3 = unusable
+    current.strippingCutVolumeM3 = stripping
     const chainage = (a.chainage + b.chainage) / 2
     const demands: NonNullable<EarthworkInterval['demands']> = []
     const addLayer = (id: string, materialId: string | undefined, areaA: number, areaB: number, subgrade = false) => {
@@ -924,6 +930,7 @@ export function calculateEngineering(
     }
     mass += usable - b.fillVolumeM3! - demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
     current.massM3 = mass
+    intervalStations.push(current)
     intervals.push({
       id: `interval-${i}`,
       start: a.chainage,
@@ -945,6 +952,27 @@ export function calculateEngineering(
     coverageComplete,
     Math.max(0, analysis.length - analysis.completeLength),
   )
+  // What each interval takes from, and sends, off the road: its fill not met by cut hauled to it,
+  // and its bank cut not placed as fill. An infeasible economic model adopts no prescription.
+  if (haul.summary.enabled && haul.summary.optimizationStatus !== 'infeasible') {
+    const received = new Map<string, number>(),
+      placed = new Map<string, number>()
+    for (const m of haul.movements) {
+      if (m.kind !== 'cut-to-fill') continue
+      received.set(m.targetId, (received.get(m.targetId) ?? 0) + (m.compactedVolumeM3 ?? 0))
+      placed.set(m.sourceId, (placed.get(m.sourceId) ?? 0) + (m.bankVolumeM3 ?? 0))
+    }
+    if (analysis.stations[0]?.complete) stations[0].borrowVolumeM3 = stations[0].wasteVolumeM3 = 0
+    intervals.forEach((p, k) => {
+      const station = intervalStations[k]
+      const demand = p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
+      const borrow = demand - (received.get(p.id) ?? 0),
+        waste = p.cut.reduce((sum, m) => sum + m.bank, 0) - (placed.get(p.id) ?? 0)
+      // A fully placed interval leaves rounding residue, not a volume.
+      station.borrowVolumeM3 = borrow > EPS ? borrow : 0
+      station.wasteVolumeM3 = waste > EPS ? waste : 0
+    })
+  }
   const warnings = [...haul.warnings]
   if (
     !e.sitePreparation?.length &&

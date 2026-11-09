@@ -441,7 +441,16 @@ the calculated station nearest each multiple, plus both ends, and sums cut and f
 previous row. A row whose road holds an interval with unknown earthwork reports the known part,
 in amber, with a flag stating the metres it leaves out; a row is blank only when none of its
 road is known. The Cum. tot. row is therefore the sum of the rows at every interval, and it
-states the total length left out. The first row starts the table and sums nothing. Its Columns
+states the total length left out. The first row starts the table and sums nothing.
+
+Besides cut and fill the table reports, per row and in the totals, **surfacing** (m³),
+**stripping** (bank m³: the cut of materials marked as stripping, which is part of the cut
+volume) and, once haul is allocated, **borrow** (compacted m³) and **waste** (bank m³). Borrow
+is the fill an interval takes from off the road and waste the cut it sends off the road or
+sidecasts, whether or not a site had room, so their totals are the haul summary's
+(`calculateEngineering`). The table's CSV button downloads the reported rows at the chosen
+interval with every column and a `total` row (`stationReportCsv`, `stationReport.ts`); the
+Station CSV in Save carries the same four volumes for every calculated station. Its Columns
 menu shows or hides each column, including optional mass, width and coordinate columns, and
 remembers the choice. The cost dialog states the cost status (current; complete or partial)
 and the process time of the last recalculation, which runs on every edit.

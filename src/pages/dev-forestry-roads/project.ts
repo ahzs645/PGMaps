@@ -1215,6 +1215,10 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
     'interval_cut_volume_m3',
     'interval_fill_volume_m3',
     'mass_balance_m3',
+    'interval_surfacing_volume_m3',
+    'interval_stripping_bank_m3',
+    'interval_borrow_compacted_m3',
+    'interval_waste_bank_m3',
     'complete',
     'flags',
     'terrain',
@@ -1222,7 +1226,7 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
     'vertical_reference',
     'terrain_sha256',
   ]
-  const rows = analysis.stations.map((s) =>
+  const rows = analysis.stations.map((s, i) =>
     [
       s.chainage,
       ...s.coordinate,
@@ -1238,6 +1242,11 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
       s.cutVolumeM3,
       s.fillVolumeM3,
       s.massM3,
+      s.surfaceVolumeM3,
+      // Blank without ground materials, and borrow and waste blank until haul is allocated.
+      analysis.engineering?.stations[i]?.strippingCutVolumeM3,
+      analysis.engineering?.stations[i]?.borrowVolumeM3,
+      analysis.engineering?.stations[i]?.wasteVolumeM3,
       s.complete ? 'yes' : 'no',
       s.flags.join('; '),
       metadata.name,

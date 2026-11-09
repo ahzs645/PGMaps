@@ -403,6 +403,8 @@ export interface RoadStation {
   /** Since the previous station; null when the section at either end is incomplete. */
   cutVolumeM3: number | null
   fillVolumeM3: number | null
+  /** Surfacing since the previous station, on the same terms. The stations' values add up to the road's. */
+  surfaceVolumeM3?: number | null
   /**
    * Cumulative usable cut minus fill of the known earthwork up to this station. An interval with
    * unknown volumes adds nothing, so the ordinate is carried across it rather than cut off.
