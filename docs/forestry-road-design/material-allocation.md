@@ -71,8 +71,15 @@ claim of numerical equivalence with proprietary OptiHaul.
 An **infeasible** result adopts no material prescription and no movement cost. The summary names
 the unresolved demand/disposal and says the model is infeasible. Zero haul on that result does
 not mean that construction is free. Missing compatible capacity is not replaced by a fictitious
-pit at the default rate. A timeout, numerical cycle, model budget failure or failed conservation
-check produces an explicit calculation error; a partial solver incumbent is not adopted.
+pit at the default rate.
+
+A timeout, pivot limit, numerical cycle, model budget failure or failed conservation check gives a
+**not solved** result (`allocateOrReport` in `engineering.ts`, status `unsolved`): no partial
+solver incumbent is adopted and no movement, borrow, waste or haul cost is included. The road, its
+sections and its quantities do not depend on the allocation, so they stay on screen; the estimate
+tile reads **Material plan not solved**, the allocation warning names the limit that was reached,
+and the cost review flags it. It is different from infeasible: the entered rules may well be
+satisfiable, but this model could not be calculated.
 
 The solver result is independently checked against every supply, demand and capacity equation,
 its opening binaries, and the reconstructed movement cost before it reaches the workspace.
@@ -130,10 +137,24 @@ joint optimum over every route, pit and construction sequence.
 | 1,200 constraints; 3,000,000 conservative tableau cells | `MAX_ALLOCATION_CONSTRAINTS`, `MAX_ALLOCATION_TABLEAU_CELLS` |
 | 12 positive-price site openings | `MAX_ALLOCATION_OPENINGS` |
 | 2,048 branch iterations; 3-second integer-search timeout | `MAX_ALLOCATION_BRANCHES`, solver options |
-| At most 8,192 simplex pivots, reduced for larger tableaux | `MAX_ALLOCATION_TABLEAU_UPDATES`, approximately 500 million tableau updates |
+| Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000 | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS` |
 
 The sparse formulation has the same 20,000-variable / 1,200-constraint / 3,000,000-cell ceilings,
 enforced by `MAX_SPARSE_ALLOCATION_*` in `sparseMaterialAllocation.ts`.
+
+The pivot limit grows with the model. These flows finish in about one pivot per tableau row
+(two rows per equality constraint), so four per row leaves room; an earlier limit divided a fixed
+500 million tableau updates by the tableau size and so allowed fewer pivots the larger the model
+was. A 930 m road with three materials that could substitute for one another by quality needed
+about 1,300 pivots and was allowed 268, which was reported as a numerical cycle.
+`qualitySubstitution.test.ts` holds that case, a three-interval quality case worked by hand
+($1,228) and a road-sized case checked against a closed-form optimum.
+
+A stepped haul quote still needs the dense model, which has one variable per compatible
+cut-interval/fill-interval pair. With a free-haul distance above zero and any distance rate, a
+road of about 90 intervals whose cut can be placed as fill exceeds the tableau limit and reads
+**Material plan not solved**. A quote with the free-haul distance at 0 m and one distance rate is
+linear and uses the sparse model. See [known issues](known-issues.md).
 
 Economic work grows with the number of source/demand interval pairs. A long road at a fine station
 interval may exceed the browser budget even when its ordinary quantities calculate. Increase
@@ -146,6 +167,8 @@ optima, shared fixed pit openings, scarce quality capacity, unknown material, ba
 conservation, course/component demand, finite disposal, direction/gap rules and local sidecast.
 `fullCostComparison.test.ts` additionally checks exact named courses, external quality reservation,
 direction-blocked deliveries and internal rock used in a surface course without double buying.
+`qualitySubstitution.test.ts` checks substitution by quality against a hand-worked optimum, a
+road-sized model and the not-solved result.
 `sparseMaterialAllocation.test.ts` compares sparse results to independent dense solutions and
 exhaustive small assignment oracles, including mixed conversion factors and fixed site openings.
 The all-scenario source check uses an explicitly continuous entered haul quote; it does not change

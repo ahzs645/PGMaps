@@ -13,7 +13,32 @@ export const MAX_ALLOCATION_CONSTRAINTS = 1200
 export const MAX_ALLOCATION_TABLEAU_CELLS = 3_000_000
 export const MAX_ALLOCATION_OPENINGS = 12
 export const MAX_ALLOCATION_BRANCHES = 2048
-export const MAX_ALLOCATION_TABLEAU_UPDATES = 500_000_000
+export const MAX_ALLOCATION_PIVOTS = 10_000
+/** Pivots allowed per tableau row before a solve is given up. */
+export const ALLOCATION_PIVOTS_PER_ROW = 4
+
+/**
+ * Simplex pivots allowed in each phase of one solve. These material-flow models finish in about
+ * one pivot per tableau row (1,110 pivots for 1,077 rows and 1,770 for 1,617, measured on roads
+ * of 93 and 140 intervals with three interchangeable materials), so the limit is a multiple of
+ * the rows. It must never shrink as the model grows: an earlier limit of 500 million tableau
+ * updates divided by the tableau size allowed 268 pivots where about 1,300 were needed, and a
+ * 930 m road with a quality-substitution rule was reported as a numerical cycle.
+ */
+export function allocationPivotLimit(tableauRows: number): number {
+  return Math.min(MAX_ALLOCATION_PIVOTS, Math.max(256, ALLOCATION_PIVOTS_PER_ROW * Math.ceil(tableauRows)))
+}
+
+/** Why a solve that is neither optimal nor infeasible stopped, in words a designer can act on. */
+export function unfinishedSolveReason(status: string, maxPivots: number): string {
+  return status === 'cycled'
+    ? `the solver reached its limit of ${maxPivots.toLocaleString('en-CA')} pivots, or its pivots began to repeat, before finding an optimum`
+    : status === 'timedout'
+      ? 'the search over site openings ran out of time'
+      : status === 'unbounded'
+        ? 'the model has no finite minimum cost'
+        : `the solver stopped with status "${status}"`
+}
 const EPS = 1e-7
 export interface AllocationParcel {
   id: string
@@ -378,7 +403,7 @@ export function solveDenseMaterialAllocation(
       'No compatible, reachable material source or disposal capacity satisfies the entered demand and construction rules.',
     )
   const model: Model = { direction: 'minimize', objective: 'cost', variables, constraints, binaries }
-  const maxPivots = Math.min(8192, Math.max(128, Math.floor(MAX_ALLOCATION_TABLEAU_UPDATES / Math.max(1, cells))))
+  const maxPivots = allocationPivotLimit(m * 2 + binaries.length + 1)
   const result = solve(model, {
     precision: 1e-8,
     tolerance: 0,
@@ -393,7 +418,7 @@ export function solveDenseMaterialAllocation(
     )
   if (result.status !== 'optimal' || !Number.isFinite(result.result))
     throw Error(
-      `Economic allocation did not finish an optimal solution (${result.status}; ${n} variables, ${m} constraints, ${maxPivots} pivots); reduce the model. No partial prescription was adopted.`,
+      `Economic allocation did not finish: ${unfinishedSolveReason(result.status, maxPivots)} (${n} variables, ${m} constraints). Increase station spacing, reduce materials or sites, or split the road. No partial prescription was adopted.`,
     )
   const values = new Map(result.variables)
   // Independently check every equality/capacity and binary after the solver's floating-point solve.

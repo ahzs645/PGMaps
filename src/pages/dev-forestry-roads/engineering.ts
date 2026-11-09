@@ -582,6 +582,39 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
   return { summary, movements, costs, warnings }
 }
 
+/**
+ * The material plan, or an explicit "unsolved" plan when it cannot be calculated: a model over
+ * its size limit, a solver that did not finish or a failed conservation check. The road, its
+ * sections and its quantities do not depend on the plan, so they are kept; only movements and
+ * the haul, borrow and waste costs are left out, and the result says so.
+ */
+function allocateOrReport(
+  alignment: Alignment,
+  intervals: EarthworkInterval[],
+  coverageComplete: boolean,
+): ReturnType<typeof allocateHaul> {
+  try {
+    return allocateHaul(alignment, intervals, coverageComplete)
+  } catch (cause) {
+    const h = alignment.engineering!.haul
+    const summary = emptyHaul(h.enabled, false)
+    summary.optimizationStatus = 'unsolved'
+    summary.unallocatedBorrowM3 = intervals.reduce(
+      (sum, p) => sum + p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
+      0,
+    )
+    summary.unallocatedWasteM3 = intervals.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
+    return {
+      summary,
+      movements: [],
+      costs: { haul: 0, borrow: 0, waste: 0, sitePreparation: 0 },
+      warnings: [
+        `Material plan not solved: ${cause instanceof Error ? cause.message : 'the allocation failed.'} The road, sections and quantities are unaffected, but no material movement, borrow, waste or haul cost is included; zero there does not mean the work is free.`,
+      ],
+    }
+  }
+}
+
 function planarOffset(origin: Coordinate, coordinate: Coordinate): [number, number] {
   return [(coordinate[0] - origin[0]) * RAD * R * Math.cos(origin[1] * RAD), (coordinate[1] - origin[1]) * RAD * R]
 }
@@ -945,7 +978,7 @@ export function calculateEngineering(
     })
   }
   const coverageComplete = hasCompleteCoverage(analysis)
-  const haul = allocateHaul(alignment, intervals, coverageComplete)
+  const haul = allocateOrReport(alignment, intervals, coverageComplete)
   const warnings = [...haul.warnings]
   if (
     !e.sitePreparation?.length &&

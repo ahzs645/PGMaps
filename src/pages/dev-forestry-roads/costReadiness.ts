@@ -89,6 +89,13 @@ export function assessCostReadiness(
       detail:
         'The entered material quality, capacities, movement directions or sidecast limits cannot meet all demands. The displayed work subtotal omits an unresolved material prescription and cannot establish a complete estimate. Review the allocation warnings and sources.',
     })
+  if (result?.haul.optimizationStatus === 'unsolved')
+    flags.push({
+      id: 'unsolved-material-plan',
+      label: 'The material plan could not be calculated',
+      detail:
+        'The material allocation did not finish, so the estimate has no material movement, borrow, waste or haul cost. See the allocation warning for the limit that was reached; increase station spacing, reduce materials or sites, or split the road.',
+    })
   if (placeholderItems.length)
     flags.push({
       id: 'placeholder-rates',

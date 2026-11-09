@@ -247,13 +247,15 @@ export function EngineeringSummary({
             ) : (
               <>
                 <p className="my-2 text-xs" role="status" data-testid="road-haul-allocation-status">
-                  {result.haul.allocationMethod === 'economic'
-                    ? result.haul.optimizationStatus === 'optimal'
-                      ? 'Economic material flow · optimal within the entered model'
-                      : result.haul.optimizationStatus === 'infeasible'
-                        ? 'Material prescription infeasible · no movement cost adopted'
-                        : 'Internal or disabled material plan · external supply not resolved'
-                    : 'Nearest-source material scenario'}
+                  {result.haul.optimizationStatus === 'unsolved'
+                    ? 'Material plan not solved · no movement cost adopted'
+                    : result.haul.allocationMethod === 'economic'
+                      ? result.haul.optimizationStatus === 'optimal'
+                        ? 'Economic material flow · optimal within the entered model'
+                        : result.haul.optimizationStatus === 'infeasible'
+                          ? 'Material prescription infeasible · no movement cost adopted'
+                          : 'Internal or disabled material plan · external supply not resolved'
+                      : 'Nearest-source material scenario'}
                   {(result.haul.sidecastBankM3 ?? 0) > 0 &&
                     ` · ${fmt(result.haul.sidecastBankM3)} bank m³ permitted sidecast`}
                 </p>
