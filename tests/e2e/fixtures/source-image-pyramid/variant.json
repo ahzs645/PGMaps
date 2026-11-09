@@ -1,0 +1,39 @@
+{
+  "id": "synthetic-original",
+  "label": "Synthetic grid original",
+  "role": "original-scan",
+  "image": {
+    "url": "source.png",
+    "sha256": "42ee3de9b73d5b50a7a492f2906657c1a4895d4ad322ff1d49a733861bd52b9a",
+    "bytes": 9426,
+    "width": 2049,
+    "height": 1025,
+    "mimeType": "image/png"
+  },
+  "thumbnail": {
+    "url": "thumbnail.webp",
+    "sha256": "c25d5fb79e98b3033c6ab719331db410b39fa04ba650eee9cc7acc51a5d3f2d2",
+    "bytes": 3594,
+    "width": 320,
+    "height": 160,
+    "mimeType": "image/webp"
+  },
+  "preview": {
+    "url": "preview.webp",
+    "sha256": "e868c71519224f583911f9397f4f37e8b0c0c092eaf67311a1d2673b05c8a064",
+    "bytes": 15242,
+    "width": 640,
+    "height": 320,
+    "mimeType": "image/webp"
+  },
+  "pyramid": {
+    "url": "pyramid.pmtiles",
+    "sha256": "c9549e48d032fc4190aad3fd35c2f4d3e72de8958b5d88ab76f1236c7b3dba5b",
+    "bytes": 47058,
+    "format": "pmtiles-image-v1",
+    "width": 2049,
+    "height": 1025,
+    "tileSize": 512,
+    "maxZoom": 3
+  }
+}

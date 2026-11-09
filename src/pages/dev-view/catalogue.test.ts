@@ -29,6 +29,8 @@ describe('Shared map catalogue boundary', () => {
     expect(result.items[0].georeferenceProject).toBeUndefined()
   })
   it.each([
+    '',
+    '   ',
     'javascript:alert(1)',
     'http://example.test/map.pmtiles',
     'https://user:password@example.test/a',
@@ -196,5 +198,143 @@ describe('Optional organization and source-image records', () => {
         origin,
       ),
     ).toThrow(/unique/)
+  })
+})
+
+describe('Linked original images and rectified downloads', () => {
+  const variant = {
+    id: 'original-page-1',
+    label: 'Original page 1',
+    role: 'original-scan',
+    image: { url: 'sheets/page1.jpg', width: 8192, height: 4096, sha256: 'A'.repeat(64), bytes: 1200000 },
+    preview: { url: 'sheets/page1-preview.webp', width: 2048, height: 1024 },
+    thumbnail: { url: 'previews/page1.webp', width: 512, height: 256 },
+    pyramid: {
+      format: 'pmtiles-image-v1',
+      url: 'sheets/page1.pmtiles',
+      width: 8192,
+      height: 4096,
+      tileSize: 512,
+      maxZoom: 4,
+      sha256: 'B'.repeat(64),
+    },
+    source: { title: 'Original document', url: 'https://example.test/archive.pdf', page: 1 },
+  }
+  function parse(update: Record<string, unknown> = {}) {
+    return parseCatalogue(
+      { schema: 'raster-catalog-v1', items: [{ ...item, imageVariants: [variant], ...update }] },
+      origin,
+    ).items[0]
+  }
+  it('keeps original pixel identity separate from rectified dimensions and sampling', () => {
+    const parsed = parse({
+      download: {
+        url: 'raw/one.tif',
+        role: 'rectified',
+        label: 'Rectified map',
+        width: 600,
+        height: 700,
+        crs: 'EPSG:3005',
+        pixelSize: [2, 2],
+        sourceVariantId: 'original-page-1',
+        mimeType: 'image/tiff',
+        sha256: 'C'.repeat(64),
+      },
+    })
+    expect(parsed.imageVariants?.[0].image).toMatchObject({ width: 8192, height: 4096, sha256: 'a'.repeat(64) })
+    expect(parsed.imageVariants?.[0].preview?.url).toBe(
+      'https://maps.example.test/collection/sheets/page1-preview.webp',
+    )
+    expect(parsed.imageVariants?.[0].pyramid?.url).toBe('https://maps.example.test/collection/sheets/page1.pmtiles')
+    expect(parsed.downloads[0]).toMatchObject({
+      width: 600,
+      height: 700,
+      pixelSize: [2, 2],
+      sourceVariantId: 'original-page-1',
+      sha256: 'c'.repeat(64),
+    })
+    expect(parsed.bounds).toEqual(item.bounds)
+  })
+  it('preserves distinct source pages and explicit download references in a multi-panel selection', () => {
+    const other = {
+      ...variant,
+      id: 'original-page-2',
+      image: { ...variant.image, url: 'sheets/page2.jpg', sha256: 'D'.repeat(64) },
+      source: { ...variant.source, page: 2 },
+    }
+    const parsed = parse({
+      imageVariants: [variant, other],
+      downloads: [
+        { url: 'raw/one.tif', sourceVariantId: variant.id },
+        { url: 'raw/two.tif', sourceVariantId: other.id },
+      ],
+    })
+    expect(parsed.imageVariants?.map((v) => v.source?.page)).toEqual([1, 2])
+    expect(parsed.downloads.map((d) => d.sourceVariantId)).toEqual(['original-page-1', 'original-page-2'])
+    expect(() => parse({ download: { url: 'raw/one.tif', sourceVariantId: 'missing-source' } })).toThrow(/missing/)
+  })
+  it.each([
+    { pyramid: { ...variant.pyramid, width: 4096 } },
+    { pyramid: { ...variant.pyramid, maxZoom: 3 } },
+    { pyramid: { ...variant.pyramid, tileSize: 0 } },
+    { pyramid: { ...variant.pyramid, tileSize: 511 } },
+    { pyramid: { ...variant.pyramid, format: 'geographic-tiles' } },
+  ])('rejects a different or ambiguous source-image pyramid frame: %j', (update) => {
+    expect(() => parse({ imageVariants: [{ ...variant, ...update }] })).toThrow(/pyramid/)
+  })
+  it.each([
+    { image: { ...variant.image, url: 'javascript:alert(1)' } },
+    { preview: { ...variant.preview, url: 'https://localhost/preview.png' } },
+    { thumbnail: { ...variant.thumbnail, url: 'http://example.test/thumbnail.jpg' } },
+    { pyramid: { ...variant.pyramid, url: 'https://user:secret@example.test/image.pmtiles' } },
+    { source: { ...variant.source, url: 'https://127.0.0.1/original.pdf' } },
+  ])('checks every nested image URL: %j', (update) => {
+    expect(() => parse({ imageVariants: [{ ...variant, ...update }] })).toThrow()
+  })
+  it.each([
+    { role: 'thumbnail' },
+    { role: ['original-scan'] },
+    { role: undefined },
+    { image: { ...variant.image, width: 0 } },
+    { image: { ...variant.image, height: 1.5 } },
+    { image: { ...variant.image, width: 200001 } },
+    { image: { ...variant.image, sha256: 'not-a-checksum' } },
+    { image: { ...variant.image, bytes: -1 } },
+    { thumbnail: { ...variant.thumbnail, width: 10000 } },
+    { source: { ...variant.source, page: 0 } },
+  ])('rejects invalid source metadata instead of claiming an original: %j', (update) => {
+    expect(() => parse({ imageVariants: [{ ...variant, ...update }] })).toThrow()
+  })
+  it('requires distinct variant identities and bounds the list without silently dropping pages', () => {
+    expect(() => parse({ imageVariants: [variant, variant] })).toThrow(/unique/)
+    expect(() =>
+      parse({ imageVariants: Array.from({ length: 65 }, (_, i) => ({ ...variant, id: String(i) })) }),
+    ).toThrow(/64/)
+  })
+  it.each([
+    { width: 0, height: 700 },
+    { width: 600 },
+    { pixelSize: [2, 0] },
+    { pixelSize: [2, Infinity] },
+    { pixelSize: [2] },
+    { role: 'original-scan' },
+    { sha256: 'thumbnail' },
+  ])('rejects contradictory rectified download metadata: %j', (update) => {
+    expect(() => parse({ download: { url: 'raw/one.tif', ...update } })).toThrow()
+  })
+  it('keeps legacy sheets usable without claiming their full original resolution', () => {
+    const legacy = parseCatalogue(
+      {
+        schema: 'raster-catalog-v1',
+        items: [{ ...item, fullSheets: [{ image: 'sheets/legacy.jpg', label: 'Sheet' }] }],
+      },
+      origin,
+    ).items[0]
+    expect(legacy.imageVariants).toEqual([])
+    expect(legacy.fullSheets[0].width).toBeUndefined()
+    const measured = parse({
+      fullSheets: [{ image: 'sheets/legacy.jpg', width: 1800, height: 1000, sha256: 'D'.repeat(64) }],
+    })
+    expect(measured.fullSheets[0]).toMatchObject({ width: 1800, height: 1000, sha256: 'd'.repeat(64) })
   })
 })

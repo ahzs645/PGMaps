@@ -26,6 +26,7 @@ import {
 import { RasterMapLayer } from './dev-view/RasterMapLayer'
 import { MapLibrary } from './dev-view/MapLibrary'
 import { MapImagePreview } from './dev-view/MapImagePreview'
+import { sourceImageChoices } from './dev-view/sourceImages'
 import { SourceImagePreview } from './dev-view/SourceImagePreview'
 import { LibraryFilters } from './dev-view/LibraryFilters'
 import { OrganizationSummary } from './dev-view/OrganizationSummary'
@@ -474,10 +475,10 @@ export default function DevView() {
                     Adjust alignment
                   </Button>
                 )}
-                {!!selected.fullSheets.length && (
-                  <Button variant="outline" size="sm" onClick={() => setSheetOpen(true)}>
+                {(!!sourceImageChoices(selected).length || !!selected.sources.length) && (
+                  <Button variant="outline" size="sm" onClick={() => setPreview(selected)}>
                     <FileImage />
-                    Full sheet / legend
+                    Original / source image
                   </Button>
                 )}
               </div>
@@ -648,6 +649,9 @@ export default function DevView() {
         onMap={openMap}
         onGeoreference={(item) => navigate(georeferenceLink(source, item.id))}
         onSheet={() => {
+          const page = preview?.fullSheets.findIndex((sheet) => !!sheet.legend) ?? -1
+          setSheetPage(Math.max(0, page))
+          setLegend(page >= 0)
           setPreview(null)
           setSheetOpen(true)
         }}
@@ -674,10 +678,11 @@ export default function DevView() {
           <OrganizationSummary value={selected?.organization} facets={catalogue?.facets} detail />
           <p className="text-sm leading-relaxed">{selected?.alignmentReview?.summary}</p>
           <p className="text-sm leading-relaxed">{selected?.caveat}</p>
-          <h3 className="mt-2 font-semibold">Original-resolution GeoTIFFs</h3>
+          <h3 className="mt-2 font-semibold">Rectified GeoTIFFs</h3>
           {selected?.downloads.map((d, i) => (
             <ExternalLink key={d.url} href={d.url} className="flex break-all text-sm">
-              Download panel {i + 1}
+              {d.label || `Download rectified panel ${i + 1}`}
+              {d.width && d.height ? ` · ${d.width.toLocaleString()} × ${d.height.toLocaleString()} px` : ''}
               {d.bytes ? ` · ${formatBytes(d.bytes)}` : ''}
             </ExternalLink>
           ))}
@@ -696,10 +701,10 @@ export default function DevView() {
       <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
         <DialogContent elevated className="max-h-[92dvh] overflow-y-auto sm:max-w-5xl">
           <DialogHeader>
-            <DialogTitle>{selected?.title} · source sheet</DialogTitle>
+            <DialogTitle>{selected?.title} · reading sheet and legend</DialogTitle>
             <DialogDescription>
-              Read the original available page and margins. This reading view does not apply the map panel’s geographic
-              position.
+              Read the available page and margins. The source-image view includes any linked original scan and zoomable
+              detail.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap items-center gap-2">
