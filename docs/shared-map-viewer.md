@@ -64,6 +64,21 @@ Optional top-level `coverage` can report `sourceDocuments`, `sourceRecords` and 
 
 ## Cloudflare resources
 
+### Original scans alongside rectified maps
+
+Optional `imageVariants` keep original scans, recovered edit sources and reading
+previews on the same logical map record. The image dialog offers source, map and
+comparison views, with separate downloads and native pixel dimensions. Large
+source images use a flat-image PMTiles pyramid for progressive zoom; existing
+geographic assets and saved project frames retain their own identities.
+
+See [source-image preparation and publication](shared-map-image-variants.md) for
+the metadata contract, lossless source retention, thumbnail/preview generation,
+large-image preparation and conditional catalogue publication. This uses the
+existing Worker/R2 service and does not require a new tile server.
+
+### Delivery resources
+
 - Worker: `pgmaps-shared-maps`, source/config in `scripts/shared-maps-worker/`.
 - Private R2 Standard bucket: `pgmaps-shared-maps`, binding `MAPS`.
 - Public Worker root and incomplete URLs reveal no collection listing. Objects are served only through `/c/<43-character random capability>/<allowed path>`.

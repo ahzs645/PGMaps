@@ -3,7 +3,59 @@ import { PMTiles, TileType } from 'pmtiles'
 export type Bounds = [number, number, number, number]
 export type RasterAsset = { url?: string; tiles?: string[]; bounds: Bounds; minZoom: number; maxZoom: number }
 export type SourceLink = { title: string; url: string }
-export type Sheet = { image: string; label: string; sourceNote?: string; legend?: { image: string; label?: string } }
+export type Sheet = {
+  image: string
+  label: string
+  width?: number
+  height?: number
+  bytes?: number
+  sha256?: string
+  sourceNote?: string
+  legend?: { image: string; label?: string; width?: number; height?: number }
+}
+export type ImageFile = {
+  url: string
+  width: number
+  height: number
+  sha256?: string
+  bytes?: number
+  mimeType?: string
+}
+/** This archive uses image coordinates, never longitude/latitude or a map's bounds. */
+export type ImagePyramid = {
+  format: 'pmtiles-image-v1'
+  url: string
+  width: number
+  height: number
+  tileSize: number
+  maxZoom: number
+  sha256?: string
+  bytes?: number
+}
+export type ImageVariant = {
+  id: string
+  label: string
+  role: 'original-scan' | 'edit-source' | 'reading-preview'
+  image: ImageFile
+  preview?: ImageFile
+  thumbnail?: ImageFile
+  pyramid?: ImagePyramid
+  source?: SourceLink & { page?: number | string; sha256?: string }
+  note?: string
+}
+export type RasterDownload = {
+  url: string
+  bytes?: number
+  sha256?: string
+  label?: string
+  role?: 'rectified'
+  width?: number
+  height?: number
+  crs?: string
+  pixelSize?: [number, number]
+  sourceVariantId?: string
+  mimeType?: string
+}
 export type Organization = {
   subjects: string[]
   primarySubject?: string
@@ -60,7 +112,8 @@ export type RasterRecord = {
   bounds: Bounds
   sources: SourceLink[]
   fullSheets: Sheet[]
-  downloads: { url: string; bytes?: number; sha256?: string }[]
+  imageVariants?: ImageVariant[]
+  downloads: RasterDownload[]
   georeferenceProject?: GeoreferenceProjectReference
   alignmentReview?: { label: string; summary: string }
   dateLabel?: string
@@ -82,7 +135,8 @@ function object(v: unknown): Record<string, unknown> {
   return v as Record<string, unknown>
 }
 export function httpsURL(value: unknown, base?: string): string {
-  if (typeof value !== 'string' || value.length > 12000) throw Error('A valid HTTPS map URL is required.')
+  if (typeof value !== 'string' || !value.trim() || value.length > 12000)
+    throw Error('A valid HTTPS map URL is required.')
   const url = new URL(value, base)
   const h = url.hostname.toLowerCase()
   if (
@@ -161,6 +215,148 @@ function asset(value: unknown, base: string): RasterAsset {
 function positiveCount(value: unknown) {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : undefined
 }
+const MAX_IMAGE_SIDE = 200_000
+function imageDimension(value: unknown, label: string): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1 || value > MAX_IMAGE_SIDE)
+    throw Error(`${label} must be an integer from 1 to ${MAX_IMAGE_SIDE} pixels.`)
+  return value
+}
+function optionalDimensions(value: Record<string, unknown>, label: string) {
+  if (value.width === undefined && value.height === undefined) return {}
+  return {
+    width: imageDimension(value.width, `${label} width`),
+    height: imageDimension(value.height, `${label} height`),
+  }
+}
+function optionalHash(value: unknown, label: string): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !/^[a-f0-9]{64}$/i.test(value))
+    throw Error(`${label} needs a valid SHA256 checksum.`)
+  return value.toLowerCase()
+}
+function optionalBytes(value: unknown, label: string): number | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1)
+    throw Error(`${label} byte size must be a positive integer.`)
+  return value
+}
+function optionalDescription(value: unknown, label: string, maximum = 1000): string | undefined {
+  if (value === undefined) return undefined
+  if (typeof value !== 'string' || !value.trim() || value.length > maximum)
+    throw Error(`${label} must be non-empty text of at most ${maximum} characters.`)
+  return value
+}
+function imageFile(value: unknown, base: string, label: string): ImageFile {
+  const v = object(value)
+  return {
+    url: httpsURL(v.url, base),
+    width: imageDimension(v.width, `${label} width`),
+    height: imageDimension(v.height, `${label} height`),
+    sha256: optionalHash(v.sha256, label),
+    bytes: optionalBytes(v.bytes, label),
+    mimeType: optionalDescription(v.mimeType, `${label} MIME type`, 100),
+  }
+}
+function imagePyramid(value: unknown, image: ImageFile, base: string): ImagePyramid | undefined {
+  if (value === undefined) return undefined
+  const v = object(value)
+  if (v.format !== 'pmtiles-image-v1') throw Error('The source-image pyramid format is unsupported.')
+  const width = imageDimension(v.width, 'Source-image pyramid width')
+  const height = imageDimension(v.height, 'Source-image pyramid height')
+  if (width !== image.width || height !== image.height)
+    throw Error('The source-image pyramid must use the same pixel dimensions as its source image.')
+  if (typeof v.tileSize !== 'number' || ![128, 256, 512, 1024].includes(v.tileSize))
+    throw Error('The source-image pyramid tile size must be 128, 256, 512 or 1024 pixels.')
+  const maxZoom = Math.max(0, Math.ceil(Math.log2(Math.max(width, height) / v.tileSize)))
+  if (v.maxZoom !== maxZoom)
+    throw Error('The source-image pyramid zoom must preserve the declared native image resolution.')
+  return {
+    format: 'pmtiles-image-v1',
+    url: httpsURL(v.url, base),
+    width,
+    height,
+    tileSize: v.tileSize,
+    maxZoom,
+    sha256: optionalHash(v.sha256, 'Source-image pyramid'),
+    bytes: optionalBytes(v.bytes, 'Source-image pyramid'),
+  }
+}
+function imageVariants(value: unknown, base: string): ImageVariant[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value) || value.length > 64) throw Error('A map can have at most 64 source-image variants.')
+  const variants = value.map((entry): ImageVariant => {
+    const v = object(entry)
+    const id = optionalDescription(v.id, 'Source-image variant identifier', 200)
+    if (!id) throw Error('Each source-image variant needs an identifier.')
+    if (typeof v.role !== 'string' || !['original-scan', 'edit-source', 'reading-preview'].includes(v.role))
+      throw Error('A source-image variant needs an explicit original-scan, edit-source or reading-preview role.')
+    const image = imageFile(v.image, base, 'Source image')
+    const preview = v.preview === undefined ? undefined : imageFile(v.preview, base, 'Source preview')
+    const thumbnail = v.thumbnail === undefined ? undefined : imageFile(v.thumbnail, base, 'Source thumbnail')
+    for (const display of [preview, thumbnail])
+      if (display && (display.width > image.width || display.height > image.height))
+        throw Error('A source-image display derivative cannot exceed its source dimensions.')
+    let source: ImageVariant['source']
+    if (v.source !== undefined) {
+      const s = object(v.source)
+      let page: number | string | undefined
+      if (s.page !== undefined) {
+        if (typeof s.page === 'number' && Number.isSafeInteger(s.page) && s.page >= 1 && s.page <= 100_000)
+          page = s.page
+        else page = optionalDescription(s.page, 'Source document page', 1000)
+      }
+      source = {
+        title: text(s.title, 'Original source document'),
+        url: httpsURL(s.url, base),
+        page,
+        sha256: optionalHash(s.sha256, 'Source document'),
+      }
+    }
+    return {
+      id,
+      label: text(v.label, 'Source image'),
+      role: v.role as ImageVariant['role'],
+      image,
+      preview,
+      thumbnail,
+      pyramid: imagePyramid(v.pyramid, image, base),
+      source,
+      note: optionalDescription(v.note, 'Source-image note', 6000),
+    }
+  })
+  if (new Set(variants.map((variant) => variant.id)).size !== variants.length)
+    throw Error('Source-image variants must have unique identifiers within a map.')
+  return variants
+}
+function rasterDownload(value: unknown, variants: ImageVariant[], base: string): RasterDownload {
+  const d = object(value)
+  if (d.role !== undefined && d.role !== 'rectified') throw Error('A raster download role must be rectified.')
+  let pixelSize: [number, number] | undefined
+  if (d.pixelSize !== undefined) {
+    if (
+      !Array.isArray(d.pixelSize) ||
+      d.pixelSize.length !== 2 ||
+      !d.pixelSize.every((v) => typeof v === 'number' && Number.isFinite(v) && v > 0)
+    )
+      throw Error('Rectified raster cell spacing must contain two positive finite values.')
+    pixelSize = d.pixelSize as [number, number]
+  }
+  const sourceVariantId = optionalDescription(d.sourceVariantId, 'Rectified raster source variant', 200)
+  if (sourceVariantId && !variants.some((variant) => variant.id === sourceVariantId))
+    throw Error('The rectified raster refers to a source-image variant that is missing from this map.')
+  return {
+    url: httpsURL(d.url, base),
+    bytes: optionalBytes(d.bytes, 'Rectified raster'),
+    sha256: optionalHash(d.sha256, 'Rectified raster'),
+    label: optionalDescription(d.label, 'Rectified raster label'),
+    role: d.role as RasterDownload['role'],
+    ...optionalDimensions(d, 'Rectified raster'),
+    crs: optionalDescription(d.crs, 'Rectified raster CRS', 6000),
+    pixelSize,
+    sourceVariantId,
+    mimeType: optionalDescription(d.mimeType, 'Rectified raster MIME type', 100),
+  }
+}
 function organization(value: unknown): Organization | undefined {
   if (!value) return undefined
   const v = object(value)
@@ -237,19 +433,22 @@ function record(value: unknown, base: string): RasterRecord {
     return {
       image: httpsURL(s.image, base),
       label: text(s.label, 'Full source sheet'),
+      ...optionalDimensions(s, 'Reading sheet'),
+      bytes: optionalBytes(s.bytes, 'Reading sheet'),
+      sha256: optionalHash(s.sha256, 'Reading sheet'),
       sourceNote: text(s.sourceNote),
-      legend: l ? { image: httpsURL(l.image, base), label: text(l.label, 'Legend / notes') } : undefined,
+      legend: l
+        ? {
+            image: httpsURL(l.image, base),
+            label: text(l.label, 'Legend / notes'),
+            ...optionalDimensions(l, 'Legend image'),
+          }
+        : undefined,
     }
   })
+  const variants = imageVariants(v.imageVariants, base)
   const downloadList = Array.isArray(v.downloads) ? v.downloads : v.download ? [v.download] : []
-  const downloads = downloadList.slice(0, 16).map((x) => {
-    const d = object(x)
-    return {
-      url: httpsURL(d.url, base),
-      bytes: typeof d.bytes === 'number' ? d.bytes : undefined,
-      sha256: text(d.sha256),
-    }
-  })
+  const downloads = downloadList.slice(0, 16).map((x) => rasterDownload(x, variants, base))
   const review = v.alignmentReview ? object(v.alignmentReview) : null
   return {
     id,
@@ -265,6 +464,7 @@ function record(value: unknown, base: string): RasterRecord {
     thumbnail: v.thumbnail ? httpsURL(v.thumbnail, base) : undefined,
     sources: links,
     fullSheets: sheets,
+    imageVariants: variants,
     downloads,
     georeferenceProject: parseGeoreferenceProjectReference(v.georeferenceProject, base),
     alignmentReview: review ? { label: text(review.label), summary: text(review.summary) } : undefined,
