@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
+import { CheckboxField } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { POINT_CLOUD_CRS_CHOICES, type TerrainImportAnswers, type TerrainImportNeeds } from './terrain'
@@ -157,10 +158,12 @@ export function TerrainImportDialog({
                 />
               </Field>
             )}
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={metres} onChange={(event) => setMetres(event.target.checked)} />
-              Elevations are in metres
-            </label>
+            <CheckboxField
+              label="Elevations are in metres"
+              description="Heights are recorded as metres and never converted."
+              checked={metres}
+              onCheckedChange={setMetres}
+            />
           </div>
         )}
       </div>
