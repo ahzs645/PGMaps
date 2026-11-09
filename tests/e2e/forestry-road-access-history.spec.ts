@@ -2,6 +2,14 @@ import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './road-select'
 import { openRoadPanel } from './road-sidebar'
+import {
+  createAccessHistoryTrainingProject,
+  ACCESS_HISTORY_TRAINING_IDS,
+  accessHistoryTrainingCoordinate,
+} from '../../src/pages/dev-forestry-roads/trainingAccessHistoryScenario'
+import { createAccessHistoryState } from '../../src/pages/dev-forestry-roads/accessHistory'
+import { starterAlignment } from '../../src/pages/dev-forestry-roads/terrain'
+import { INTERNAL_ACCESS_DRAFT_NAME } from '../../src/pages/dev-forestry-roads/investigationWorkspace'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000 })
 test.setTimeout(180_000)
@@ -81,18 +89,98 @@ async function mapHistory(page: Page) {
         const layer = map
           .getStyle()
           .layers.find((item) => item.type === 'line' && item.source === 'line-shared-road-access-history-route')
+        const features = (id: string) => {
+          const source = map.getSource(id)
+          return source?.type === 'geojson' ? (source.serialize().data as GeoJSON.FeatureCollection).features : []
+        }
         return {
           route: (route.serialize().data as GeoJSON.FeatureCollection).features[0]?.properties,
           structures: (structures.serialize().data as GeoJSON.FeatureCollection).features.map(
             (feature) => feature.properties,
           ),
           dash: layer ? map.getPaintProperty(layer.id, 'line-dasharray') : null,
+          designRoads: features('road-roads'),
+          context: features('road-context'),
+          selectedRoad: features('line-shared-road-access-history-selected-road'),
         }
       }
     }
     return null
   })
 }
+
+test.describe('source-only access investigation', () => {
+  test.use({ viewport: { width: 1512, height: 982 } })
+  test('keeps the internal starter off the actual map and engineering views until an explicit design action', async ({
+    page,
+    baseURL,
+  }, info) => {
+    // Invented source geometry with offline terrain; this test makes no claim about a BC opening.
+    const study = createAccessHistoryTrainingProject()
+    study.name = 'Access investigation · synthetic browser fixture'
+    const recordIds = new Set<string>([ACCESS_HISTORY_TRAINING_IDS.blockA, ACCESS_HISTORY_TRAINING_IDS.spurA])
+    study.context = study.context.filter((feature) => recordIds.has(feature.id))
+    const road = study.context.find((feature) => feature.kind === 'existing-road')!
+    const internal = starterAlignment(accessHistoryTrainingCoordinate(600, 0))
+    internal.name = INTERNAL_ACCESS_DRAFT_NAME
+    study.alignments = [internal]
+    study.activeAlignmentId = internal.id
+    study.workspaceMode = 'access-investigation'
+    study.investigation = { openingId: '12345', draftAlignmentId: internal.id }
+    study.accessHistory = createAccessHistoryState('2010-06-30')
+    study.cables = []
+    study.profiles = []
+    await page.addInitScript(() => localStorage.setItem('pgmaps-road-layout', 'engineering'))
+    const { errors } = await prepare(page, baseURL!)
+    const open = async (project: RoadProject) => {
+      const picker = page.waitForEvent('filechooser')
+      await page.getByRole('button', { name: 'Open', exact: true }).click()
+      await (
+        await picker
+      ).setFiles({
+        name: 'access-study.json',
+        mimeType: 'application/json',
+        buffer: Buffer.from(JSON.stringify(project)),
+      })
+      await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-workspace-mode', 'access-investigation')
+    }
+    await open(study)
+    await expect(page.getByTestId('road-connected-layout')).toHaveAttribute('data-layout', 'plan')
+    await expect(page.getByTestId('access-investigation-sidebar')).toBeVisible()
+    await expect(page.getByTestId('road-access-history')).toBeVisible()
+    await expect(page.locator('.road-summary')).toHaveCount(0)
+    await expect(page.getByTestId('road-profile-chart')).not.toBeVisible()
+    await expect(page.getByTestId('road-station-controller')).toHaveCount(0)
+    await expect(page.getByTestId('road-active-map-station')).toHaveCount(0)
+    await expect(page.getByText('Mapped block parts', { exact: true })).toBeVisible()
+    await expect(page.getByText('Tenure road records', { exact: true })).toBeVisible()
+    await expect.poll(async () => (await mapHistory(page))?.designRoads.length).toBe(0)
+    await expect
+      .poll(
+        async () =>
+          (await mapHistory(page))?.context.filter((feature) => feature.properties?.kind === 'existing-road').length,
+      )
+      .toBe(1)
+    await page.getByRole('button', { name: `Inspect nearby road ${road.name}`, exact: true }).click()
+    await expect.poll(async () => (await mapHistory(page))?.selectedRoad[0]?.properties?.id).toBe(road.id)
+    expect((await mapHistory(page))?.selectedRoad[0]?.geometry).toEqual(road.geometry)
+    await page.screenshot({ path: info.outputPath('access-investigation-records.png') })
+    const downloading = page.waitForEvent('download')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    const stream = await (await downloading).createReadStream()
+    const chunks: Buffer[] = []
+    for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
+    const saved = JSON.parse(Buffer.concat(chunks).toString('utf8')) as RoadProject
+    expect(saved.workspaceMode).toBe('access-investigation')
+    await open(saved)
+    await expect.poll(async () => (await mapHistory(page))?.designRoads.length).toBe(0)
+    await page.getByRole('button', { name: 'Start design', exact: true }).click()
+    await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-workspace-mode', 'design')
+    await expect(page.locator('.road-summary')).toBeVisible()
+    await expect.poll(async () => (await mapHistory(page))?.designRoads.length ?? 0).toBeGreaterThan(0)
+    expect(errors).toEqual([])
+  })
+})
 
 async function saveProject(page: Page): Promise<RoadProject> {
   await showMap(page)

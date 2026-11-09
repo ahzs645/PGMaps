@@ -1,10 +1,13 @@
-import { useState } from 'react'
-import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Trash2, Upload } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Copy, FolderOpen, LibraryBig, Mountain, Plus, Search, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ListHeader } from '@/components/ui/result-list'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
+import { BcAccessDiscoveryPanel } from './BcAccessDiscoveryPanel'
+import { BC_ACCESS_EXAMPLES } from './bcAccessExamples'
 import type { LibraryEntry } from './projectLibrary'
 import type { Coordinate } from './types'
 import { ROAD_SCENARIOS, type RoadScenarioId, type ScenarioContent } from './scenarios'
@@ -71,6 +74,7 @@ export function ProjectsDialog({
   onOpenFile,
   onCreate,
   onScenario,
+  onOpenBcOpening,
   portalContainer,
 }: {
   open: boolean
@@ -86,10 +90,26 @@ export function ProjectsDialog({
   onOpenFile: () => void
   onCreate: (start: NewProject) => void
   onScenario?: (id: RoadScenarioId) => void
+  /** Resolves only after a new investigation workspace has loaded; rejection leaves discovery open. */
+  onOpenBcOpening?: (openingId: string) => Promise<void>
   portalContainer?: HTMLElement | null
 }) {
-  const [view, setView] = useState<'list' | 'new' | 'scenarios'>('list')
+  const [view, setView] = useState<'list' | 'new' | 'scenarios' | 'discover'>('list')
   const [cutblockFilter, setCutblockFilter] = useState<'all' | 'with' | 'without'>('all')
+  const [scenarioFilter, setScenarioFilter] = useState<'all' | 'records' | 'design' | 'training'>('all')
+  const [scenarioSearch, setScenarioSearch] = useState('')
+  const [savedSearch, setSavedSearch] = useState('')
+  const [savedFilter, setSavedFilter] = useState<'all' | 'studies' | 'designs'>('all')
+  const [openingExample, setOpeningExample] = useState<string | null>(null)
+  const [exampleError, setExampleError] = useState('')
+  const pendingExample = useRef(false)
+  const mounted = useRef(false)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
   const [confirm, setConfirm] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [kind, setKind] = useState<NewProject['kind']>('regional')
@@ -99,11 +119,49 @@ export function ProjectsDialog({
   const [sizeKm, setSizeKm] = useState(3)
   const preset = PLACES[place].centre ?? centre
   const at: Coordinate = [lon ?? preset[0], lat ?? preset[1]]
+  const savedNeedle = savedSearch.trim().toLowerCase()
+  const savedEntries = library.filter(
+    (entry) =>
+      (!savedNeedle ||
+        [entry.name, entry.openingId, entry.terrain].some((text) => text?.toLowerCase().includes(savedNeedle))) &&
+      (savedFilter === 'all' || (entry.workspaceMode === 'access-investigation') === (savedFilter === 'studies')),
+  )
+  const scenarioNeedle = scenarioSearch.trim().toLowerCase()
+  const examples = onOpenBcOpening
+    ? BC_ACCESS_EXAMPLES.filter(
+        (example) =>
+          (scenarioFilter === 'all' || scenarioFilter === 'records') &&
+          cutblockFilter !== 'without' &&
+          (!scenarioNeedle ||
+            [example.title, example.description, example.openingId].some((text) =>
+              text.toLowerCase().includes(scenarioNeedle),
+            )),
+      )
+    : []
+  const scenarios = ROAD_SCENARIOS.filter((scenario) => {
+    if (scenario.kind === 'history-pilot' && onOpenBcOpening) return false
+    if (!onScenario) return false
+    const category =
+      scenario.kind === 'history-pilot' ? 'records' : scenario.kind === 'training' ? 'training' : 'design'
+    return (
+      (scenarioFilter === 'all' || category === scenarioFilter) &&
+      (cutblockFilter === 'all' || (scenario.contents.cutblocks !== 'none') === (cutblockFilter === 'with')) &&
+      (!scenarioNeedle ||
+        [scenario.name, scenario.terrain, scenario.detail, scenario.focus].some((text) =>
+          text.toLowerCase().includes(scenarioNeedle),
+        ))
+    )
+  })
+  const scenarioCount =
+    (onScenario
+      ? ROAD_SCENARIOS.filter((scenario) => !onOpenBcOpening || scenario.kind !== 'history-pilot').length
+      : 0) + (onOpenBcOpening ? BC_ACCESS_EXAMPLES.length : 0)
   const close = (next: boolean) => {
     onOpenChange(next)
     if (!next) {
       setView('list')
       setConfirm(null)
+      setExampleError('')
     }
   }
   const create = () => {
@@ -112,25 +170,69 @@ export function ProjectsDialog({
     setName('')
     close(false)
   }
+  const openBcStudy = async (openingId: string) => {
+    if (!onOpenBcOpening) throw Error('Opening BC studies is unavailable in this workspace.')
+    await onOpenBcOpening(openingId)
+    if (mounted.current) close(false)
+  }
+  const openExample = async (openingId: string) => {
+    if (pendingExample.current || busy) return
+    pendingExample.current = true
+    setOpeningExample(openingId)
+    setExampleError('')
+    try {
+      await openBcStudy(openingId)
+    } catch (cause) {
+      if (mounted.current)
+        setExampleError(
+          `Could not open study for opening ${openingId}. ${cause instanceof Error ? cause.message : String(cause)}`,
+        )
+    } finally {
+      pendingExample.current = false
+      if (mounted.current) setOpeningExample(null)
+    }
+  }
   return (
     <PanelDialog
       open={open}
       onOpenChange={close}
-      title={view === 'list' ? 'Projects & scenarios' : view === 'scenarios' ? 'Scenario library' : 'New project'}
+      title={
+        view === 'list'
+          ? 'Projects & scenarios'
+          : view === 'scenarios'
+            ? 'Scenario library'
+            : view === 'discover'
+              ? 'Find BC cutblocks'
+              : 'New project'
+      }
       subtitle={
         view === 'list'
           ? 'Saved in this browser'
           : view === 'scenarios'
-            ? 'Each example loads its own terrain and map context'
-            : 'Choose where its terrain comes from'
+            ? 'Live BC investigations, design examples and synthetic training'
+            : view === 'discover'
+              ? 'Search ministry records, then open an access study'
+              : 'Choose where its terrain comes from'
       }
       size="lg"
       portalContainer={portalContainer}
       contentProps={{ 'data-testid': 'road-projects-dialog' }}
     >
-      <fieldset disabled={busy} className="min-w-0 space-y-4">
+      <fieldset disabled={busy || openingExample !== null} className="min-w-0 space-y-4">
         {view === 'list' ? (
           <>
+            {onOpenBcOpening && (
+              <div className="min-w-0 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <Button className="w-full" onClick={() => setView('discover')}>
+                  <Search className="size-4" />
+                  Find BC cutblocks
+                </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Search by opening, licence, cutting permit or timber mark. Start a study with actual block and road
+                  records.
+                </p>
+              </div>
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
               <Button onClick={() => setView('new')}>
                 <Plus className="size-4" />
@@ -147,20 +249,43 @@ export function ProjectsDialog({
                 Open project file
               </Button>
             </div>
-            {onScenario && (
+            {(onScenario || onOpenBcOpening) && (
               <Button variant="outline" className="w-full" onClick={() => setView('scenarios')}>
                 <LibraryBig className="size-4" />
-                Browse {ROAD_SCENARIOS.length} example scenarios
+                Browse {scenarioCount} example scenarios
               </Button>
             )}
+            <Field label="Search saved projects">
+              <input
+                className={roadFieldClass}
+                value={savedSearch}
+                placeholder="Project name or opening ID"
+                onChange={(event) => {
+                  setSavedSearch(event.target.value)
+                  setConfirm(null)
+                }}
+              />
+            </Field>
+            <SegmentedControl
+              label="Saved project type"
+              size="sm"
+              value={savedFilter}
+              onChange={setSavedFilter}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'studies', label: 'Access studies' },
+                { value: 'designs', label: 'Design projects' },
+              ]}
+            />
+            <ListHeader count={savedEntries.length} noun={['saved project', 'saved projects']} sticky={false} />
             <ul className="divide-y rounded-lg border" aria-label="Saved projects">
-              {library.map((entry) => {
+              {savedEntries.map((entry) => {
                 const current = entry.id === activeId
                 return (
-                  <li key={entry.id} className="flex items-center gap-2 p-2.5">
+                  <li key={entry.id} className="flex min-w-0 flex-wrap items-center gap-2 p-2.5">
                     <Mountain className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium">
+                      <p className="break-words text-sm font-medium">
                         {entry.name}
                         {current && (
                           <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-3xs font-semibold text-primary">
@@ -168,13 +293,17 @@ export function ProjectsDialog({
                           </span>
                         )}
                       </p>
+                      <p className="text-xs font-medium text-primary">
+                        {entry.workspaceMode === 'access-investigation' ? 'Access study' : 'Design project'}
+                        {entry.openingId && ` · Opening ${entry.openingId}`}
+                      </p>
+                      <p className="break-words text-xs text-muted-foreground">{savedRecordSummary(entry)}</p>
                       <p className="truncate text-xs text-muted-foreground" title={entry.terrain}>
-                        {entry.roads} road{entry.roads === 1 ? '' : 's'} · {entry.terrain} · edited{' '}
-                        {ago(entry.updatedAt)}
+                        {entry.terrain} · edited {ago(entry.updatedAt)}
                       </p>
                     </div>
                     {confirm === entry.id ? (
-                      <span className="flex shrink-0 items-center gap-1">
+                      <span className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
                         <span className="text-xs">Delete?</span>
                         <Button
                           size="sm"
@@ -192,7 +321,7 @@ export function ProjectsDialog({
                         </Button>
                       </span>
                     ) : (
-                      <span className="flex shrink-0 items-center gap-1">
+                      <span className="flex w-full shrink-0 items-center justify-end gap-1 sm:w-auto">
                         {!current && (
                           <Button
                             size="sm"
@@ -233,8 +362,12 @@ export function ProjectsDialog({
                   </li>
                 )
               })}
-              {!library.length && (
-                <li className="p-3 text-sm text-muted-foreground">No projects saved in this browser yet.</li>
+              {!savedEntries.length && (
+                <li className="p-3 text-sm text-muted-foreground">
+                  {library.length
+                    ? 'No saved projects match this search and type.'
+                    : 'No projects saved in this browser yet.'}
+                </li>
               )}
             </ul>
             <p className="text-xs text-muted-foreground">
@@ -248,6 +381,28 @@ export function ProjectsDialog({
               <ArrowLeft className="size-4" />
               All projects
             </Button>
+            <Field label="Search example scenarios">
+              <input
+                className={roadFieldClass}
+                value={scenarioSearch}
+                placeholder="Place, opening ID or learning topic"
+                onChange={(event) => setScenarioSearch(event.target.value)}
+              />
+            </Field>
+            <Field label="Scenario purpose">
+              <RoadSelect
+                ariaLabel="Scenario purpose"
+                className={roadFieldClass}
+                value={scenarioFilter}
+                onValueChange={(value) => setScenarioFilter(value as typeof scenarioFilter)}
+                options={[
+                  { value: 'all', label: 'All examples' },
+                  { value: 'records', label: 'Actual BC record investigations' },
+                  { value: 'design', label: 'Road design examples' },
+                  { value: 'training', label: 'Synthetic training examples' },
+                ]}
+              />
+            </Field>
             <SegmentedControl
               label="Show scenarios"
               size="sm"
@@ -260,21 +415,64 @@ export function ProjectsDialog({
                 { value: 'without', label: 'No cutblocks' },
               ]}
             />
+            <ListHeader count={examples.length + scenarios.length} noun={['example', 'examples']} sticky={false} />
+            {openingExample && <InlineAlert loading>Opening study for {openingExample}…</InlineAlert>}
+            {exampleError && (
+              <InlineAlert tone="error" title="Study not opened">
+                {exampleError}
+              </InlineAlert>
+            )}
             <div className="grid gap-3 sm:grid-cols-2" aria-label="Road scenario library">
-              {ROAD_SCENARIOS.filter((scenario) =>
-                cutblockFilter === 'all'
-                  ? true
-                  : (scenario.contents.cutblocks !== 'none') === (cutblockFilter === 'with'),
-              ).map((scenario) => (
+              {examples.map((example) => (
+                <article
+                  key={example.id}
+                  className="flex min-w-0 flex-col gap-2 rounded-lg border border-emerald-600/30 bg-emerald-600/5 p-3"
+                  data-scenario={example.id}
+                  data-cutblocks="mapped"
+                >
+                  <div>
+                    <h3 className="break-words text-sm font-semibold">{example.title}</h3>
+                    <p className="mt-0.5 text-xs font-medium text-emerald-800 dark:text-emerald-300">
+                      Actual BC record investigation
+                    </p>
+                  </div>
+                  <ul className="flex flex-wrap gap-1" aria-label={`${example.title} contents`}>
+                    <ContentChip kind="cutblocks" content="mapped" />
+                    <ContentChip kind="roads" content="mapped" />
+                  </ul>
+                  <p className="text-xs text-muted-foreground">{example.description}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Opening {example.openingId} · loads current ministry records
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-auto w-full"
+                    aria-label={`Open study for ${example.title}`}
+                    onClick={() => void openExample(example.openingId)}
+                  >
+                    <Search className="size-3.5" />
+                    Open study
+                  </Button>
+                </article>
+              ))}
+              {scenarios.map((scenario) => (
                 <article
                   key={scenario.id}
-                  className="flex flex-col gap-2 rounded-lg border p-3"
+                  className="flex min-w-0 flex-col gap-2 rounded-lg border p-3"
                   data-scenario={scenario.id}
                   data-cutblocks={scenario.contents.cutblocks}
                 >
                   <div>
-                    <h3 className="text-sm font-semibold">{scenario.name}</h3>
+                    <h3 className="break-words text-sm font-semibold">{scenario.name}</h3>
                     <p className="mt-0.5 text-xs font-medium text-primary">{scenario.terrain}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {scenario.kind === 'training'
+                        ? 'Synthetic training example'
+                        : scenario.kind === 'history-pilot'
+                          ? 'Actual BC record investigation'
+                          : 'Road design example'}
+                    </p>
                   </div>
                   <ul className="flex flex-wrap gap-1" aria-label={`${scenario.name} contents`}>
                     <ContentChip kind="cutblocks" content={scenario.contents.cutblocks} />
@@ -298,12 +496,23 @@ export function ProjectsDialog({
                 </article>
               ))}
             </div>
+            {examples.length + scenarios.length === 0 && (
+              <p className="text-sm text-muted-foreground">No examples match this search and the selected filters.</p>
+            )}
             <InlineAlert>
-              Every scenario opens as a new editable project. Your current project stays in Projects. Mapped roads and
-              cutblocks load live from BC services for the real landscapes, so the loaded counts can differ from these
-              labels; the load reports what arrived and any source that failed. A mapped road does not establish its
-              age, condition or permission to use it.
+              Every example opens a new project; your current project stays saved. BC record investigations load source
+              evidence without a designed road. Design examples include proposed alignments, and training examples use
+              synthetic context. Live record counts can change. A nearby or intersecting road does not establish that it
+              was constructed for or used by a block.
             </InlineAlert>
+          </>
+        ) : view === 'discover' ? (
+          <>
+            <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
+              <ArrowLeft className="size-4" />
+              All projects
+            </Button>
+            <BcAccessDiscoveryPanel onOpenStudy={openBcStudy} disabled={busy} active={open} />
           </>
         ) : (
           <>
@@ -402,6 +611,17 @@ export function ProjectsDialog({
       </fieldset>
     </PanelDialog>
   )
+}
+
+function savedRecordSummary(entry: LibraryEntry) {
+  const counts = [
+    `${entry.roads} designed alignment${entry.roads === 1 ? '' : 's'}`,
+    ...(entry.blocks === undefined ? [] : [`${entry.blocks} block part${entry.blocks === 1 ? '' : 's'}`]),
+    ...(entry.roadRecords === undefined
+      ? []
+      : [`${entry.roadRecords} context road record${entry.roadRecords === 1 ? '' : 's'}`]),
+  ]
+  return counts.join(' · ')
 }
 
 const CONTENT_LABELS = {

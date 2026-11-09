@@ -52,6 +52,10 @@ async function harness(initial = parseProject(createAccessHistoryTrainingProject
     project = change(project)
     renderer.update(view())
   })
+  const selectBlock = vi.fn((id: string) => {
+    selection = { kind: 'block', id, revision: (selection?.revision ?? 0) + 1 }
+    renderer.update(view())
+  })
   const workspace = () =>
     ({
       project,
@@ -63,7 +67,13 @@ async function harness(initial = parseProject(createAccessHistoryTrainingProject
       canUndo: false,
       undo: vi.fn(),
     }) as unknown as RoadWorkspace
-  const view = () => createElement(AccessHistoryPanel, { workspace: workspace(), onLocate: locate, selection })
+  const view = () =>
+    createElement(AccessHistoryPanel, {
+      workspace: workspace(),
+      onLocate: locate,
+      selection,
+      onSelectBlock: selectBlock,
+    })
   await act(async () => {
     renderer = create(view())
   })
@@ -73,6 +83,10 @@ async function harness(initial = parseProject(createAccessHistoryTrainingProject
     locate,
     notice,
     update,
+    selectBlock,
+    get selection() {
+      return selection
+    },
     get project() {
       return project
     },
@@ -106,14 +120,15 @@ const content = (node: ReactTestInstance | string): string =>
   typeof node === 'string' ? node : node.children.map(content).join('')
 
 /** Invented test geometry and codes exercise live-source semantics without storing a ministry extract. */
-function pilotFixture(): pilotSources.BcAccessPilotResult {
+function pilotFixture(
+  openingId: string = pilotSources.BC_ACCESS_PILOT_RECIPE.openingId,
+): pilotSources.BcAccessPilotResult {
   const template = createAccessHistoryTrainingProject()
-  const openingId = pilotSources.BC_ACCESS_PILOT_RECIPE.openingId
   const retrievedAt = '2026-11-09T18:00:00Z'
   const original = template.context.find((feature) => feature.id === ACCESS_HISTORY_TRAINING_IDS.blockA)!
   if (original.geometry.type !== 'Polygon') throw Error('Expected test polygon.')
   const block: ContextFeature = {
-    id: 'fixture-ministry-block',
+    id: `fixture-ministry-block:${openingId}`,
     name: 'Fixture ministry block',
     kind: 'harvest',
     geometry: {
@@ -122,7 +137,7 @@ function pilotFixture(): pilotSources.BcAccessPilotResult {
     },
     harvestEvidence: {
       source: 'bc-ften',
-      sourceId: '99001',
+      sourceId: openingId,
       openingId,
       yearMethod: 'estimated-range',
       startDate: '2004-06-01',
@@ -159,7 +174,7 @@ function pilotFixture(): pilotSources.BcAccessPilotResult {
     retrievedAt,
     missingSources: [],
     records: (['results-opening', 'ften-cutblock'] as const).map((source) => ({
-      id: `fixture-${source}`,
+      id: `fixture-${source}:${openingId}`,
       source,
       sourceUrl: 'https://example.invalid/fixture-identity',
       retrievedAt,
@@ -172,8 +187,8 @@ function pilotFixture(): pilotSources.BcAccessPilotResult {
     })),
     matches: [
       {
-        resultsRecordId: 'fixture-results-opening',
-        ftenRecordId: 'fixture-ften-cutblock',
+        resultsRecordId: `fixture-results-opening:${openingId}`,
+        ftenRecordId: `fixture-ften-cutblock:${openingId}`,
         basis: 'opening-id',
         conflicts: [],
       },
@@ -223,6 +238,21 @@ function pilotFixture(): pilotSources.BcAccessPilotResult {
 }
 
 describe('historical access workflow', () => {
+  it('replaces a selected road with the chosen block in parent selection and the sidebar', async () => {
+    const h = await harness()
+    await act(async () => h.select({ kind: 'road', id: ACCESS_HISTORY_TRAINING_IDS.spurA, revision: 1 }))
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-selected-road-record' })).toHaveLength(1)
+    await act(async () =>
+      h.renderer.root
+        .findByProps({ 'aria-label': 'Access-history cutblock' })
+        .props.onChange({ target: { value: ACCESS_HISTORY_TRAINING_IDS.blockB } }),
+    )
+    expect(h.selectBlock).toHaveBeenLastCalledWith(ACCESS_HISTORY_TRAINING_IDS.blockB)
+    expect(h.selection).toMatchObject({ kind: 'block', id: ACCESS_HISTORY_TRAINING_IDS.blockB })
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-selected-road-record' })).toHaveLength(0)
+    expect(content(h.renderer.root.findByProps({ 'data-testid': 'history-block-overview' }))).toContain('block B')
+  })
+
   it('previews actual-source records before adding them and keeps unrelated training records out of the selected-block summary', async () => {
     const result = pilotFixture()
     vi.spyOn(pilotSources, 'loadBcAccessPilot').mockResolvedValue(result)
@@ -273,6 +303,62 @@ describe('historical access workflow', () => {
     expect(structure).toContain('SYNTHETIC-BRIDGE-01')
     expect(structure).toContain('Invented closure effective 2019-01-01')
     expect(structure).toContain('reported 0 t')
+  })
+
+  it('adds two requested openings through separate previews and keeps an identical shared road record once', async () => {
+    const first = pilotFixture('99011')
+    const second = pilotFixture('99012')
+    const loader = vi
+      .spyOn(pilotSources, 'loadBcAccessPilot')
+      .mockResolvedValueOnce(first)
+      .mockResolvedValueOnce(second)
+    const h = await harness()
+    const before = h.project
+    await act(async () => control(h.renderer, 'Opening ID to add').props.onChange({ target: { value: '99011' } }))
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(loader.mock.calls[0][0]).toBe('99011')
+    expect(h.project).toBe(before)
+    await act(async () => button(h.renderer, 'Add records to this project').props.onClick())
+    const afterFirst = h.project
+    await act(async () => h.select({ kind: 'road', id: first.roads[0].id, revision: 10 }))
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-selected-road-record' })).toHaveLength(1)
+    await act(async () => control(h.renderer, 'Opening ID to add').props.onChange({ target: { value: '99012' } }))
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(loader.mock.calls[1][0]).toBe('99012')
+    expect(h.project).toBe(afterFirst)
+    expect(content(h.renderer.root.findByProps({ 'data-testid': 'history-pilot-preview' }))).toContain('Opening 99012')
+    await act(async () => button(h.renderer, 'Add records to this project').props.onClick())
+    expect(h.selectBlock).toHaveBeenLastCalledWith(second.blocks[0].id)
+    expect(h.selection).toMatchObject({ kind: 'block', id: second.blocks[0].id })
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-selected-road-record' })).toHaveLength(0)
+    expect(h.project.context.filter((feature) => feature.id === first.roads[0].id)).toHaveLength(1)
+    expect(
+      h.project.context.filter((feature) => [first.blocks[0].id, second.blocks[0].id].includes(feature.id)),
+    ).toHaveLength(2)
+    expect(h.project.accessHistory!.anchors).toEqual(before.accessHistory!.anchors)
+    expect(h.project.accessHistory!.paths).toEqual(before.accessHistory!.paths)
+    expect(h.notice).toHaveBeenLastCalledWith(
+      expect.stringContaining('1 road record matched retained source IDs and was kept once'),
+    )
+    expect(h.locate).toHaveBeenCalledTimes(2)
+  })
+
+  it('validates a requested opening before loading and discards a preview when the requested ID changes', async () => {
+    const loader = vi.spyOn(pilotSources, 'loadBcAccessPilot').mockResolvedValue(pilotFixture('99011'))
+    const h = await harness()
+    const before = h.project
+    await act(async () => control(h.renderer, 'Opening ID to add').props.onChange({ target: { value: '-1' } }))
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(loader).not.toHaveBeenCalled()
+    expect(content(h.renderer.root)).toContain('Opening ID must be a positive integer identifier.')
+    await act(async () => control(h.renderer, 'Opening ID to add').props.onChange({ target: { value: '99011' } }))
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-pilot-preview' })).toHaveLength(1)
+    await act(async () => control(h.renderer, 'Opening ID to add').props.onChange({ target: { value: '99012' } }))
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-pilot-preview' })).toHaveLength(0)
+    expect(h.update).not.toHaveBeenCalled()
+    expect(h.project).toBe(before)
+    expect(content(h.renderer.root)).toContain('Opening ID changed. Load the requested opening again.')
   })
 
   it('rejects a stale pilot preview and distinguishes a source failure from an empty response', async () => {

@@ -77,6 +77,8 @@ export interface SidebarProps {
   /** Fits a saved historical path or structure without changing current road reuse. */
   onLocateHistory?: (coordinates: Coordinate[]) => void
   historySelection?: AccessHistorySelection
+  onInspectHistoryRecord?: (kind: 'road' | 'structure', id: string) => void
+  onSelectHistoryBlock?: (id: string) => void
   focusedConstraintId?: string | null
   cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void

@@ -200,7 +200,16 @@ export function harvestAgeSummary(evidence: HarvestEvidence | undefined, year: n
   const age = harvestAge(evidence, year)
   if (age.kind === 'proposed') return 'Proposed cutblock · no harvest history'
   if (age.kind === 'unknown') return 'Harvest date unknown'
-  if (age.kind === 'future') return `Harvest record is after reference year ${year}`
+  if (age.kind === 'future') {
+    if (
+      evidence?.startYear !== undefined &&
+      evidence.startYear <= year &&
+      evidence.endYear !== undefined &&
+      evidence.endYear > year
+    )
+      return `Reported harvest interval spans reference year ${year} · completion recorded for ${evidence.endYear}${evidence.yearMethod === 'estimated-range' ? ' (may be estimated)' : ''}`
+    return `Harvest record is after reference year ${year}`
+  }
   if (age.kind === 'start-only') return `Harvest started ${evidence!.startYear} · completion unknown`
   if (age.kind === 'estimated') {
     const range = age.minYears === age.maxYears ? String(age.minYears) : `${age.minYears}–${age.maxYears}`

@@ -4,6 +4,7 @@ import { safeAnalyzeRoad } from './analysisResult'
 import { createDemoProject, demoTerrain, terrainFromMetadata } from './terrain'
 import { loadRoadScenario } from './scenarios'
 import { parseProject } from './project'
+import { investigationAnalysis, isAccessInvestigation } from './investigationWorkspace'
 import { snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import { terrainReferenceSurfaces } from './terrain'
 import {
@@ -260,22 +261,26 @@ export function useRoadWorkspace() {
   )
 
   // Every edit recalculates every alternative; the time is reported as the cost process time.
+  const investigation = isAccessInvestigation(project)
   const referenceSurfaces = useMemo(() => terrainReferenceSurfaces(project.terrain), [project.terrain])
   const { analyses, processMs } = useMemo(() => {
     const started = performance.now()
     const analyses = new Map(
       project.alignments.map((a): [string, RoadAnalysis] => [
         a.id,
-        safeAnalyzeRoad(a, source, project.settings, project.context, {
-          referenceSurfaces,
-          verticalReference: project.terrain.verticalReference,
-          sharedCrossingCosts: project.sharedCrossingCosts,
-        }),
+        investigation
+          ? investigationAnalysis()
+          : safeAnalyzeRoad(a, source, project.settings, project.context, {
+              referenceSurfaces,
+              verticalReference: project.terrain.verticalReference,
+              sharedCrossingCosts: project.sharedCrossingCosts,
+            }),
       ]),
     )
     return { analyses, processMs: performance.now() - started }
   }, [
     project.alignments,
+    investigation,
     project.settings,
     project.context,
     source,

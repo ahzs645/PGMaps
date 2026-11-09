@@ -5,8 +5,8 @@ identified network outlet through roads and structures that are compatible with 
 chosen historical date. It keeps the evidence, assumptions, rejected candidates,
 source identifiers and review decisions with the road project.
 
-The workflow now includes a live investigation of **BC opening 60677**, a selected-block
-evidence overview, map-to-record navigation, portable evidence, and an offline worked
+The workflow now includes live **BC cutblock search**, four checked real opening recipes, a selected-block
+evidence overview, ranked nearby roads, map-to-record navigation, portable evidence, and an offline worked
 reconstruction. Public source records establish identities and mapped candidates;
 dated evidence and reviewed operational records are still needed to establish historical
 access. The last section describes the additional data and validation needed for a
@@ -15,17 +15,24 @@ province-wide road-purpose database.
 ## Open the real BC investigation
 
 1. In a local or preview build of this PR, open **Forest road design**
-   and choose **Projects → Browse example scenarios → BC records · opening 60677**.
+   and choose **Projects → Find BC cutblocks**. Search by opening ID, forest licence,
+   cutting permit, timber mark or cutblock ID, then **Open study**. Filled fields
+   match exactly. Alternatively browse the scenario library and filter **BC records**
+   to open a checked real example. See [the four cases and shared-road investigation](bc-access-discovery.md).
 2. The app queries RESULTS and FTEN, then loads regional terrain for the opening's
    local study area. The existing project is retained until both stages succeed.
    **Cancel** stops loading without opening a partial investigation.
-3. The new project opens with the actual FTEN polygon and road geometry. **Terrain →
-   Access history** selects the block and shows its opening, licence, cutting permit,
+3. The new project opens in **Access investigation** mode with the actual FTEN polygon
+   and road geometry, a map and the open evidence panel. The panel shows its opening, licence, cutting permit,
    source block, timber mark, client and reported harvest timing.
 4. Expand **Evidence coverage and remaining gaps**. Inspect each retained query's
    count, date and request URL. The overview explains which physical road dates,
    access locations and structure records are still missing.
-5. Use **Inspect road or structure** to select a loaded road, or click a road/block
+5. The **Roads near this block** list sorts actual lines by footprint separation,
+   including zero-separation intersections, and reports exact client/mark comparisons.
+   Filter it by road permit, section, timber mark or client. Selecting a row locates
+   its source geometry and opens its evidence. Use **Inspect road or structure** for
+   all records in scope, or click a road/block
    on the map and choose **Access evidence**. The record view retains its business
    identifiers and sources; **Locate** returns to its actual geometry.
 6. Follow **Next** to add the missing evidence or locations. A source-only project
@@ -33,14 +40,19 @@ province-wide road-purpose database.
    snapshots and query outcomes for later investigation.
 
 This scenario starts a clean investigation with real regional DEM metadata and only
-the fetched block/road context. The orange alignment is labelled **Design draft · no
-historical-use assertion**. It provides a normal design workspace; it does not depict
-an as-built or inferred historical road. The history ledger begins with source records
+the fetched block/road context. It displays no starter design alignment, stations,
+profiles, earthwork quantities or engineering cost. Record counts describe mapped
+blocks and tenure road parts. **Start design** explicitly switches to a proposed-road
+workspace. The project schema still retains an internal unused alignment to preserve
+compatibility, but it is not analysed, drawn or counted as a mapped road in investigation
+mode. Existing untouched opening-60677 starter projects migrate to this mode when opened;
+edited road designs are preserved. The history ledger begins with source records
 and empty road-event, entrance/outlet, structure and path collections. Imported roads
 have unknown condition and reuse disabled.
 
-To investigate within an existing project, use **Terrain → Access history → Load
-actual BC records**. This stages the same bounded opening lookup. Review **What the
+To investigate within an existing project, open **Access history → Source records**,
+enter an **Opening ID** and use **Load actual BC records**. This stages the same bounded
+opening lookup. Review **What the
 records establish and leave open**, then choose **Add records to this project** or
 **Dismiss preview**. Applying the preview preserves the other project data and selects
 the imported block. A changed project, conflicting retained feature, failed request,
@@ -49,7 +61,8 @@ when the current project contains an unrelated training example.
 
 ### The exact scope of the live recipe
 
-The recipe `bc-opening-60677-v1` makes three source requests:
+The recipe `bc-opening-60677-v1` is the default; the same pipeline accepts any positive
+opening ID. For opening 60677 it makes three source requests:
 
 | Request | Filter and returned evidence | Coverage limit |
 | --- | --- | --- |
@@ -417,6 +430,8 @@ user-imported evidence: its source rights still apply to subsequent sharing.
 | 100 identity records per dataset / 1 MiB response / 20 s request timeout | `MAX_BLOCK_IDENTITY_RECORDS`, `MAX_IDENTITY_RESPONSE_BYTES`, `ACCESS_SOURCE_TIMEOUT_MS` |
 | FTEN opening footprint: 25 polygon parts / 20,000 vertices / 5 MiB response | `MAX_BC_OPENING_POLYGONS`, `MAX_BC_OPENING_VERTICES`, `MAX_BC_OPENING_POLYGON_BYTES` |
 | Actual-opening pilot: 250 road records/parts / 30,000 combined context vertices / 30 s per source request / 65 s overall source assembly | `BC_PILOT_MAX_ROADS`, `BC_PILOT_MAX_VERTICES`, `BC_PILOT_SOURCE_TIMEOUT_MS`, `BC_PILOT_TIMEOUT_MS` |
+| Cutblock search: default 25, maximum 50 displayed records; one extra row detects truncation | `BC_CUTBLOCK_SEARCH_DEFAULT_LIMIT`, `BC_CUTBLOCK_SEARCH_MAX_LIMIT` in `bcAccessSearch.ts` |
+| Cutblock search: 0.3° maximum extent span / 5 MiB response / 100,000 geometry positions / 30 s request | `BC_CUTBLOCK_SEARCH_MAX_SPAN`, `BC_CUTBLOCK_SEARCH_MAX_BYTES`, `BC_CUTBLOCK_SEARCH_MAX_VERTICES`, `BC_CUTBLOCK_SEARCH_TIMEOUT_MS` |
 | FTEN road query: 0.3° maximum span, 500 roads, 10 MiB response | Existing-road query/import constants reused by `accessHistorySources.ts` |
 | 5 MiB / 500 imported structure points | `MAX_STRUCTURE_IMPORT_BYTES`, `MAX_IMPORTED_STRUCTURES` |
 

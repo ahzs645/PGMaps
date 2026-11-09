@@ -1,7 +1,7 @@
-# Historical access examples and the real-source pilot
+# Historical access examples and real BC studies
 
-The application provides two complementary investigations. **BC records · opening
-60677** queries actual ministry sources and shows the connections those records
+The application provides live cutblock search and four real opening investigations
+(`60677`, `56944`, `11981`, `11984`). They query actual ministry sources and show the connections those records
 support and the evidence still missing. **Training · reconstruct block access and
 bridges** demonstrates dated routing, shared infrastructure, conflicting reports
 and review using invented evidence.
@@ -13,15 +13,17 @@ See the [workflow, observed source findings and expansion guide](../../../docs/f
 ## Inspect the actual BC opening
 
 In a local or preview build of this PR, open **Forest road design** and
-choose **Projects → Browse example scenarios → BC records · opening 60677**. The app
+choose **Projects → Find BC cutblocks**, or filter the scenario library to **BC records**. The app
 loads the real source records and regional terrain before opening a clean project.
-The orange alignment is explicitly labelled a new design draft. Its historical
+The **Access investigation** workspace displays the actual source geometry with
+record counts and evidence; the old 300 m starter road, engineering profile and cost
+are suppressed. **Start design** explicitly opens a proposed-road workspace. Its historical
 ledger initially contains only sources: no road construction/presence events,
 entrances, outlets, structures or historical routes are invented. Source/terrain
 failure or cancellation keeps the previous project.
 
-Within an existing project, **Terrain → Access history → Load actual BC records**
-stages the same lookup. Inspect the preview, then choose **Add records to this
+Within an existing project, **Access history → Source records → Opening ID → Load actual BC records**
+stages the lookup for another opening. Inspect the preview, then choose **Add records to this
 project** or **Dismiss preview**. Retained project geometry and evidence are not
 silently overwritten. The selected-block overview excludes unrelated synthetic
 records unless they are explicitly associated; explicit mixing is flagged.
@@ -36,7 +38,7 @@ polygon parts, 250 road records/parts and 30,000 combined vertices, and has a
 65-second source-assembly limit, with up to 30 seconds per source request. Query URLs, geographic bounds, record counts,
 retrieval time and typed identity snapshots are retained in the project.
 
-The overview shows licence/permit/block/client identifiers, reported harvest timing,
+The same recipe accepts other positive opening IDs. The overview shows licence/permit/block/client identifiers, reported harvest timing,
 dated-road evidence counts, crossing-attachment gaps and the next useful action.
 Use **Evidence coverage and remaining gaps** to distinguish successful zero-row
 queries from skipped or unretained requests. Click a road/block and choose **Access
@@ -50,6 +52,18 @@ configuration. Structure inventories are not queried by the open-data recipe.
 The next evidence is a reviewed entrance/outlet, dated imagery or engineering
 records for the necessary road extents, permitted crossing records, and an
 applicable operating/haul record against which to check a candidate trace.
+
+### Four checked real cases
+
+![Actual source geometry for four BC opening studies](review/real-bc-cases.png)
+
+The [case guide](../../../docs/forestry-road-design/bc-access-discovery.md) records their
+source keys, query counts, footprint distances and exact source requests. Openings
+11981 and 11984 share the same R03890/A and R03890/B records. Open one study and add
+the other opening to compare both footprints with the shared road linework.
+The figure is derived from actual returned source coordinates and is not an app
+screenshot or a historical-route reconstruction. Its generator consumes locally
+retained pilot JSON; raw provincial extracts are not checked into PGMaps.
 
 ### Observed results on 2026-11-09
 
@@ -132,6 +146,20 @@ includes the live-source and export/import observations, full source typechecks,
 application build, regression results and remaining full-map acceptance gate.
 
 ### Captured interface
+
+The current discovery and shared-road review uses the same production controls.
+Search opening 11981, add opening 11984, then filter the candidate list by R03890.
+The blue line below is the selected source geometry; it is not an inferred
+historical haul route. The portable study contains two blocks and thirteen unique
+road records. Exact source requests and the four checked examples are documented
+in the [discovery guide](../../../docs/forestry-road-design/bc-access-discovery.md).
+
+![Shared actual road records, searchable candidates and source evidence](review/bc-shared-road-study.jpg)
+
+[Live cutblock discovery](review/bc-cutblock-discovery.jpg) ·
+[320 px live search](review/bc-cutblock-search-320px.jpg)
+
+#### Earlier opening-60677 review
 
 The screenshot below shows actual opening 60677 and the returned road geometry.
 The left panel is the production evidence interface; the right pane is the

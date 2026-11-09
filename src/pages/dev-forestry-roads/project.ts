@@ -15,6 +15,7 @@ import { resolvedCableLine } from './cableGeometry'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseAccessHistoryState } from './accessHistory'
+import { legacyAccessInvestigation } from './investigationWorkspace'
 import { parseRouteSearchOptions } from './routing'
 import { parseNetworkPlanning } from './roads/planning'
 import { parseTotalCostPlanning } from './fullCostPlanning'
@@ -610,6 +611,26 @@ export function parseProject(raw: unknown): RoadProject {
     throw Error('A project supports at most 2,000 horizontal control points.')
   const activeAlignmentId = id(r.activeAlignmentId, 'Active alignment')
   if (!alignments.some((a) => a.id === activeAlignmentId)) throw Error('The active alignment is missing.')
+  if (r.workspaceMode !== undefined && r.workspaceMode !== 'design' && r.workspaceMode !== 'access-investigation')
+    throw Error('Workspace mode must be design or access-investigation.')
+  const investigation = r.investigation === undefined ? undefined : object(r.investigation, 'Access investigation')
+  const investigationMetadata = investigation
+    ? {
+        openingId: text(investigation.openingId, 'Investigation opening ID', 30),
+        draftAlignmentId: id(investigation.draftAlignmentId, 'Investigation draft'),
+      }
+    : undefined
+  if (investigationMetadata && !/^\d+$/.test(investigationMetadata.openingId))
+    throw Error('Investigation opening ID must contain digits only.')
+  if (investigationMetadata && !alignments.some((alignment) => alignment.id === investigationMetadata.draftAlignmentId))
+    throw Error('The investigation design placeholder is missing.')
+  if (r.workspaceMode === 'access-investigation' && !investigationMetadata)
+    throw Error('An access investigation needs its opening ID and internal draft reference.')
+  if (
+    r.workspaceMode === 'access-investigation' &&
+    (alignments.length !== 1 || activeAlignmentId !== investigationMetadata?.draftAlignmentId)
+  )
+    throw Error('Start design before adding road alignments to an access investigation.')
   const context = list(r.context, 'Context features', 500).map(parseContext)
   validateContextBudget(context)
   const cables = list(r.cables, 'D-lines', 100).map(parseCable)
@@ -636,9 +657,11 @@ export function parseProject(raw: unknown): RoadProject {
     if (profiles.reduce((count, p) => count + p.points.length, 0) > MAX_POINTS)
       throw Error('Terrain profiles support at most 2,000 vertices per project.')
   }
-  return {
+  const project: RoadProject = {
     schema: 'pgmaps-road-project-v1',
     name: text(r.name, 'Project name'),
+    ...(r.workspaceMode === undefined ? {} : { workspaceMode: r.workspaceMode }),
+    ...(investigationMetadata ? { investigation: investigationMetadata } : {}),
     ...(r.harvestHistoryYear === undefined
       ? {}
       : { harvestHistoryYear: parseHarvestHistoryYear(r.harvestHistoryYear) }),
@@ -675,6 +698,8 @@ export function parseProject(raw: unknown): RoadProject {
     cables,
     ...(profiles ? { profiles } : {}),
   }
+  const migrated = legacyAccessInvestigation(project)
+  return migrated ? { ...project, workspaceMode: 'access-investigation', investigation: migrated } : project
 }
 export function serializeProject(project: RoadProject): string {
   return JSON.stringify(parseProject(project), null, project.terrain.raster ? 0 : 2) + '\n'

@@ -307,6 +307,9 @@ export interface TerrainMetadata {
 export interface RoadProject {
   schema: 'pgmaps-road-project-v1'
   name: string
+  /** Investigation workspaces expose source records, never the schema's internal design placeholder. */
+  workspaceMode?: 'design' | 'access-investigation'
+  investigation?: { openingId: string; draftAlignmentId: string }
   /** Persistent library loading/coverage evidence, retained when a scenario is saved. */
   scenario?: { id: string; contextWarnings: string[]; terrainCoveragePercent: number }
   /** Calendar year for reproducible harvest-age displays; absent uses the current year. */

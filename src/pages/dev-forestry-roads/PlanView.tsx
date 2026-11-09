@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent } from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
+import { MapLineLayer } from '@/components/ui/map-layers'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { MapIconButton } from '@/components/ui/map-icon-button'
@@ -36,6 +37,7 @@ import {
 } from './planAnnotations'
 import { terrainBounds } from './terrain'
 import { roadPlanFitCoordinates } from './planFit'
+import { investigationAnalysis, investigationCoordinates, isAccessInvestigation } from './investigationWorkspace'
 import { buildTerrainDisplay } from './terrainDisplay'
 import { formatRoadStation } from './Charts'
 import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
@@ -169,6 +171,20 @@ function Layers(
   },
 ) {
   const { map, isLoaded } = useMap()
+  const investigation = isAccessInvestigation(props.project)
+  const selectedMappedRoad = useMemo(() => {
+    const feature =
+      props.historySelection?.kind === 'road'
+        ? props.project.context.find(
+            (candidate) => candidate.id === props.historySelection?.id && candidate.kind === 'existing-road',
+          )
+        : undefined
+    return fc(
+      feature
+        ? [{ type: 'Feature', geometry: feature.geometry, properties: { id: feature.id, name: feature.name } }]
+        : [],
+    )
+  }, [props.historySelection, props.project.context])
   const historicalMap = useMemo(
     () => historicalMapFeatures(props.project.context, props.project.accessHistory),
     [props.project.context, props.project.accessHistory],
@@ -195,7 +211,10 @@ function Layers(
     pourPointPicking,
     onPourPoint,
   } = props
-  const projectCables = props.project.cables
+  const projectCables = useMemo(
+    () => (investigation ? [] : props.project.cables),
+    [investigation, props.project.cables],
+  )
   const resolvedCables = useMemo(
     () =>
       projectCables.flatMap((cable) => {
@@ -383,6 +402,7 @@ function Layers(
     }
   }, [props.alignment, props.terrainOnly, pixelMetres])
   const allLines = useMemo(() => {
+    if (investigation) return fc([])
     const colors = distinctRoadColors(props.project.alignments)
     return fc(
       props.project.alignments.flatMap((a) => {
@@ -408,6 +428,7 @@ function Layers(
       }),
     )
   }, [
+    investigation,
     props.project.alignments,
     props.project.settings.maxGradePercent,
     props.analyses,
@@ -626,13 +647,16 @@ function Layers(
     const manual = previousManualFit.current !== props.fitRequest.revision
     // A new DEM may be hundreds of kilometres from the existing roads. Reveal its
     // coverage rather than silently refitting those unrelated controls.
-    const target = manual
-      ? props.fitRequest.target
-      : bounds && !intersects
-        ? 'terrain'
-        : props.project.totalCostPlanning
-          ? 'roads'
-          : 'active'
+    const target =
+      investigation && !manual
+        ? 'roads'
+        : manual
+          ? props.fitRequest.target
+          : bounds && !intersects
+            ? 'terrain'
+            : props.project.totalCostPlanning
+              ? 'roads'
+              : 'active'
     const coordinates = target === 'terrain' ? [] : roadPlanFitCoordinates(props.project, target, props.alignment)
     const fitBounds =
       target === 'terrain' && bounds
@@ -646,7 +670,7 @@ function Layers(
     if (fitBounds) map.fitBounds(fitBounds, { padding: 45, maxZoom: 16, duration: 0 })
     previousFit.current = key
     previousManualFit.current = props.fitRequest.revision
-  }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest])
+  }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest, investigation])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1463,6 +1487,14 @@ function Layers(
           )
         })}
       <AccessHistoryLayers data={historicalMap} selection={props.historySelection} />
+      <MapLineLayer
+        sourceKey="road-access-history-selected-road"
+        data={selectedMappedRoad}
+        color="#0891b2"
+        width={6}
+        opacity={1}
+        layerOrder={65}
+      />
       <PlanLegend
         sections={[
           ...buildPlanLegend({
@@ -1506,6 +1538,22 @@ function Layers(
             cableSupports: !!activeCable,
           }),
           ...historicalMap.legend,
+          ...(selectedMappedRoad.features.length
+            ? [
+                {
+                  id: 'selected-mapped-road',
+                  title: 'Selected record',
+                  entries: [
+                    {
+                      id: 'selected-mapped-road',
+                      label: 'Selected mapped road · association unverified',
+                      color: '#0891b2',
+                      shape: 'line' as const,
+                    },
+                  ],
+                },
+              ]
+            : []),
         ]}
         display={display}
         terrainLayer={props.terrainLayer}
@@ -1526,7 +1574,31 @@ const MIN_BEND_DRAG_PX = 10
 /** A shared empty list, so a project without notes does not re-send the notes source every render. */
 const NO_NOTES: MapNote[] = []
 
-export function PlanView(props: PlanProps) {
+export function PlanView(input: PlanProps) {
+  const investigation = isAccessInvestigation(input.project)
+  const analyses = useMemo(
+    () =>
+      investigation
+        ? new globalThis.Map(input.project.alignments.map((alignment) => [alignment.id, investigationAnalysis()]))
+        : input.analyses,
+    [investigation, input.project.alignments, input.analyses],
+  )
+  // A caller cannot accidentally expose the internal draft through stale mode or preview props.
+  const props: PlanProps = investigation
+    ? {
+        ...input,
+        analyses,
+        mode: 'inspect',
+        onMode: undefined,
+        draft: [],
+        selectedRange: undefined,
+        terrainOnly: true,
+        activeCableId: undefined,
+        overlay: undefined,
+        drainage: undefined,
+        swept: undefined,
+      }
+    : input
   const [drag, setDrag] = useState<{ original: Alignment; id: string; coordinate: Coordinate } | null>(null)
   const [bend, setBend] = useState<{ original: Alignment; afterId: string; coordinate: Coordinate } | null>(null)
   const newPointRadius = props.project.settings.minRadius
@@ -1700,7 +1772,9 @@ export function PlanView(props: PlanProps) {
     }
   }, [settingsOpen])
   const drawing = props.pourPointPicking || roadDrawing || !!noteTool
-  const center = props.alignment.points[0]?.coordinate ?? [-122.82, 53.89]
+  const center = (investigation
+    ? investigationCoordinates(props.project)[0]
+    : props.alignment.points[0]?.coordinate) ?? [-122.82, 53.89]
   return (
     <div
       className={`isolate relative h-full min-h-0 overflow-hidden rounded-lg ${drawing ? '[&_.maplibregl-marker]:pointer-events-none [&_.maplibregl-marker_*]:pointer-events-none' : ''}`}
@@ -1719,8 +1793,8 @@ export function PlanView(props: PlanProps) {
                 size="icon"
                 variant="outline"
                 className="size-8 bg-background shadow-sm"
-                aria-label="Fit road alignments"
-                title="Fit all road alignments"
+                aria-label={investigation ? 'Fit mapped study records' : 'Fit road alignments'}
+                title={investigation ? 'Fit all mapped blocks and road records' : 'Fit all road alignments'}
                 onClick={() => fit('roads')}
               >
                 <LocateFixed className="size-4" />
@@ -1948,7 +2022,9 @@ export function PlanView(props: PlanProps) {
             )}
           </AnchoredPopover>
         </div>
-        <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
+        {!investigation && (
+          <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
+        )}
         <Button
           size="icon"
           variant="outline"

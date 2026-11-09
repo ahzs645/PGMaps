@@ -78,10 +78,16 @@ export function AccessHistoryPanel({
   workspace: w,
   onLocate,
   selection,
+  defaultOpen = false,
+  onInspectRecord,
+  onSelectBlock,
 }: {
   workspace: AccessHistoryWorkspace
   onLocate?: (coordinates: Coordinate[]) => void
   selection?: AccessHistorySelection | null
+  defaultOpen?: boolean
+  onInspectRecord?: (kind: 'road' | 'structure', id: string) => void
+  onSelectBlock?: (id: string) => void
 }) {
   const fallback = useMemo(() => createAccessHistoryState(), [])
   const history = w.project.accessHistory ?? fallback
@@ -222,6 +228,7 @@ export function AccessHistoryPanel({
   return (
     <RoadSection
       title="Access history"
+      defaultOpen={defaultOpen}
       summary={`${blocks.length} blocks · ${history.paths.length} route assertions`}
       toggleTestId="road-access-history-toggle"
       help={
@@ -259,6 +266,7 @@ export function AccessHistoryPanel({
                   ...state,
                   selectedPathId: state.paths.find((path) => path.blockId === id)?.id ?? null,
                 }))
+                onSelectBlock?.(id)
               }}
               options={blocks.map((feature) => ({ value: feature.id, label: feature.name }))}
             />
@@ -266,6 +274,7 @@ export function AccessHistoryPanel({
         )}
         <AccessHistoryOverview
           coverage={coverage}
+          context={w.project.context}
           query={queryStatus}
           selection={focusedRecord}
           disabled={disabled}
@@ -275,6 +284,7 @@ export function AccessHistoryPanel({
             setDismissedSelection(selection?.revision ?? null)
             if (block) setSelectedBlock(block.id)
             setRecordSelection({ kind, id, scope })
+            onInspectRecord?.(kind, id)
           }}
         />
         {focusedRecord && (
@@ -299,6 +309,7 @@ export function AccessHistoryPanel({
             setSelectedBlock(blockId)
             setRecordSelection(null)
             setLastTrace(null)
+            onSelectBlock?.(blockId)
             onLocate?.(coordinates)
           }}
         />

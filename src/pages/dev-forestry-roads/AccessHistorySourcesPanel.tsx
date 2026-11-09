@@ -24,7 +24,7 @@ import {
   type BcAccessPilotResult,
 } from './bcAccessPilot'
 import type { AccessHistoryQueryStatus, AccessHistoryWorkspace } from './AccessHistorySelection'
-import { Field, RoadSelect } from './Controls'
+import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { existingRoadQueryBounds } from './existingRoads'
 import { parseProject } from './project'
 import type { ContextFeature, Coordinate, RoadProject } from './types'
@@ -136,6 +136,7 @@ export function AccessHistorySourcesPanel({
 }) {
   const [loading, setLoading] = useState<'pilot' | 'identity' | 'roads' | 'structures' | null>(null)
   const [pilot, setPilot] = useState<{ project: RoadProject; result: BcAccessPilotResult } | null>(null)
+  const [pilotOpeningId, setPilotOpeningId] = useState<string>(BC_ACCESS_PILOT_RECIPE.openingId)
   const [error, setError] = useState('')
   const [warnings, setWarnings] = useState<string[]>([])
   const [lookup, setLookup] = useState<BlockIdentityLookup | null>(null)
@@ -154,6 +155,14 @@ export function AccessHistorySourcesPanel({
     blockId = block?.id ?? null,
   ) => onStatus?.({ kind, status, blockId, message: text, occurredAt: new Date().toISOString() })
   const loadPilot = async () => {
+    const requestedOpeningId = pilotOpeningId.trim()
+    try {
+      buildBcBlockIdentityQuery(requestedOpeningId, 'results-opening')
+    } catch (cause) {
+      setError(message(cause))
+      report('pilot', 'error', message(cause), null)
+      return
+    }
     pending.current?.abort()
     const controller = new AbortController()
     pending.current = controller
@@ -162,9 +171,9 @@ export function AccessHistorySourcesPanel({
     setLoading('pilot')
     setError('')
     setWarnings([])
-    report('pilot', 'loading', `Loading actual ministry records for opening ${BC_ACCESS_PILOT_RECIPE.openingId}.`, null)
+    report('pilot', 'loading', `Loading actual ministry records for opening ${requestedOpeningId}.`, null)
     try {
-      const result = await loadBcAccessPilot(BC_ACCESS_PILOT_RECIPE.openingId, controller.signal)
+      const result = await loadBcAccessPilot(requestedOpeningId, controller.signal)
       if (controller.signal.aborted) return
       if (latest.current.project !== project)
         throw Error('The project changed while the sample records loaded. Load them again in the intended project.')
@@ -318,20 +327,41 @@ export function AccessHistorySourcesPanel({
   }
   return (
     <div className="space-y-2 text-xs">
+      <Field label="Opening ID to add">
+        <input
+          className={roadFieldClass}
+          value={pilotOpeningId}
+          inputMode="numeric"
+          maxLength={15}
+          disabled={blocked}
+          onChange={(event) => {
+            if (loading === 'pilot') {
+              pending.current?.abort()
+              pending.current = null
+              setLoading(null)
+            }
+            if (loading === 'pilot' || pilot)
+              report('pilot', 'cancelled', 'Opening ID changed. Load the requested opening again.', null)
+            setPilotOpeningId(event.target.value)
+            setPilot(null)
+            setError('')
+          }}
+        />
+      </Field>
       <div className="flex items-center gap-1">
         <Button
           size="sm"
           variant="outline"
           className="min-w-0 flex-1"
-          disabled={blocked}
+          disabled={blocked || !pilotOpeningId.trim()}
           onClick={() => void loadPilot()}
         >
           {loading === 'pilot' ? 'Loading actual BC records…' : 'Load actual BC records'}
         </Button>
-        <InfoTip label="About the actual BC record sample">
-          {BC_ACCESS_PILOT_RECIPE.title}. The bounded query loads a real FTEN block, RESULTS identity and nearby FTEN
-          road segments. Preview the records before adding them to this project. Road use, physical construction dates
-          and crossings remain evidence questions.
+        <InfoTip label="About loading actual BC records">
+          Load one opening's FTEN polygons, RESULTS identity and nearby FTEN road segments. Preview the records before
+          adding them to this project. Add a neighbouring opening to compare its road candidates; matching source record
+          IDs are retained once. Road use, physical construction dates and crossings remain evidence questions.
         </InfoTip>
       </div>
       {error && <InlineAlert tone="warning">{error}</InlineAlert>}
@@ -387,9 +417,13 @@ export function AccessHistorySourcesPanel({
                 try {
                   if (latest.current.project !== pilot.project)
                     throw Error('The project changed after this preview. Load the sample again before adding it.')
+                  const retained = new Set(latest.current.project.context.map((feature) => feature.id))
+                  const newBlocks = pilot.result.blocks.filter((feature) => !retained.has(feature.id)).length
+                  const newRoads = pilot.result.roads.filter((feature) => !retained.has(feature.id)).length
+                  const sharedRoads = pilot.result.roads.length - newRoads
                   latest.current.update((project) => addPilotRecords(project, pilot.result))
                   const selected = pilot.result.blocks[0]
-                  const text = `Added ${pilot.result.blocks.length} real block polygons and ${pilot.result.roads.length} road records. Historical use is not established.`
+                  const text = `Added ${newBlocks} block polygon${newBlocks === 1 ? '' : 's'} and ${newRoads} new road record${newRoads === 1 ? '' : 's'}.${sharedRoads ? ` ${sharedRoads} road record${sharedRoads === 1 ? '' : 's'} matched retained source IDs and ${sharedRoads === 1 ? 'was' : 'were'} kept once.` : ''} Historical use is not established.`
                   report('pilot', 'success', text, selected?.id ?? null)
                   setLookup(pilot.result.identity)
                   setPilot(null)
