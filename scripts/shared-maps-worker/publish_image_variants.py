@@ -24,6 +24,9 @@ SHA = re.compile(r"^[a-f0-9]{64}$")
 KEY = re.compile(r"^(?:raw|previews|sheets)/([a-f0-9]{64})\.[a-z0-9]+$")
 ETAG = re.compile(r'^"[^"\r\n]+"$')
 DOWNLOAD_METADATA = {"label", "role", "width", "height", "crs", "pixelSize", "mimeType", "sourceVariantId"}
+DISPLAY_FIELDS = {"preview", "thumbnail", "pyramid", "note"}
+REVIEWED_TEXT_LIMITS = {"title": 500, "dateLabel": 500, "description": 12000}
+REVIEWED_CHANGE_LIMIT = 128
 
 
 def digest(path: Path) -> str:
@@ -31,8 +34,85 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(handle, "sha256").hexdigest()
 
 
-def protected_catalogue(value: dict) -> dict:
+def same_json(left: object, right: object) -> bool:
+    # Python's ordinary equality treats 1, 1.0 and True as equal. Protected
+    # metadata must retain its JSON types as well as its values.
+    return json.dumps(left, sort_keys=True, allow_nan=False) == json.dumps(right, sort_keys=True, allow_nan=False)
+
+
+def catalogue_records(value: dict) -> dict:
+    records = {}
+    for group in ("items", "featured"):
+        members = value.get(group, [])
+        if not isinstance(members, list):
+            raise ValueError("Catalogue record groups must be arrays")
+        for member in members:
+            if not isinstance(member, dict) or not isinstance(member.get("id"), str) or not member["id"].strip():
+                raise ValueError("Catalogue records need explicit identifiers")
+            target = (group, member["id"])
+            if target in records:
+                raise ValueError("Catalogue record identifiers must be unique within their group")
+            records[target] = member
+    return records
+
+
+def reviewed_metadata_updates(stage: dict, before: dict, after: dict) -> list[dict]:
+    """Validate exact, bounded display-text changes before normalizing any field."""
+    updates = stage.get("metadataUpdates", [])
+    if not isinstance(updates, list) or len(updates) > REVIEWED_CHANGE_LIMIT:
+        raise ValueError("Reviewed metadata updates must be a bounded array")
+    old_records, new_records = catalogue_records(before), catalogue_records(after)
+    seen = set()
+    for update in updates:
+        if not isinstance(update, dict) or set(update) != {"group", "id", "field", "before", "after"}:
+            raise ValueError("A reviewed metadata update needs exactly group, id, field, before and after")
+        group, record_id, field = update["group"], update["id"], update["field"]
+        if group not in ("items", "featured") or not isinstance(record_id, str) or not isinstance(field, str) or field not in REVIEWED_TEXT_LIMITS:
+            raise ValueError("Reviewed metadata updates may change only existing title, dateLabel or description fields")
+        target = (group, record_id, field)
+        if target in seen:
+            raise ValueError("Reviewed metadata update targets must be unique")
+        seen.add(target)
+        old, new = old_records.get(target[:2]), new_records.get(target[:2])
+        if old is None or new is None or field not in old or field not in new:
+            raise ValueError("A reviewed metadata update names an unavailable existing field")
+        if (
+            not isinstance(update["before"], str) or not isinstance(update["after"], str)
+            or not update["after"].strip() or len(update["after"]) > REVIEWED_TEXT_LIMITS[field]
+            or old[field] != update["before"] or new[field] != update["after"]
+            or update["before"] == update["after"]
+        ):
+            raise ValueError("Reviewed metadata update values must exactly match a changed, bounded text field")
+    return updates
+
+
+def reviewed_display_refreshes(stage: dict) -> set[tuple[str, str, str]]:
+    refreshes = stage.get("displayRefreshes", [])
+    if not isinstance(refreshes, list) or len(refreshes) > REVIEWED_CHANGE_LIMIT:
+        raise ValueError("Reviewed display refreshes must be a bounded array")
+    targets = set()
+    for refresh in refreshes:
+        if not isinstance(refresh, dict) or set(refresh) != {"group", "id", "variantId"}:
+            raise ValueError("A reviewed display refresh needs exactly group, id and variantId")
+        if refresh["group"] not in ("items", "featured") or any(
+            not isinstance(refresh[field], str) or not refresh[field].strip() for field in ("id", "variantId")
+        ):
+            raise ValueError("A reviewed display refresh needs an explicit existing record and variant")
+        target = (refresh["group"], refresh["id"], refresh["variantId"])
+        if target in targets:
+            raise ValueError("Reviewed display refresh targets must be unique")
+        targets.add(target)
+    return targets
+
+
+def protected_catalogue(value: dict, metadata_updates: list[dict] | None = None) -> dict:
     result = copy.deepcopy(value)
+    # Callers pass only updates already checked against both exact catalogue
+    # snapshots. Restore their old values; all other metadata remains protected.
+    if metadata_updates:
+        records = catalogue_records(result)
+        for update in metadata_updates:
+            records[(update["group"], update["id"])][update["field"]] = update["before"]
     for group in ("items", "featured"):
         for item in result.get(group, []):
             item.pop("imageVariants", None)
@@ -43,8 +123,10 @@ def protected_catalogue(value: dict) -> dict:
     return result
 
 
-def validate_variant_references(before: dict, after: dict, objects: dict, base: str) -> None:
-    """Only publish added sources whose exact files are present in this stage."""
+def validate_variant_references(before: dict, after: dict, objects: dict, base: str, refreshes: set | None = None) -> None:
+    """Added/refreshed images require exact files; refreshes preserve source identity."""
+    refreshes = refreshes or set()
+    used_refreshes = set()
     for group in ("items", "featured"):
         for old, new in zip(before.get(group, []), after.get(group, [])):
             old_variants, new_variants = old.get("imageVariants", []), new.get("imageVariants", [])
@@ -59,11 +141,31 @@ def validate_variant_references(before: dict, after: dict, objects: dict, base: 
             for variant in old_variants:
                 if not isinstance(variant, dict) or not isinstance(variant.get("id"), str):
                     raise ValueError("An existing image variant is invalid")
-                if variant["id"] in old_ids or by_id.get(variant["id"]) != variant:
+                replacement = by_id.get(variant["id"])
+                target = (group, old["id"], variant["id"])
+                if variant["id"] in old_ids or replacement is None:
                     raise ValueError("Source publication must preserve every existing image variant")
+                if target in refreshes:
+                    if same_json(replacement, variant):
+                        raise ValueError("A reviewed display refresh must change an existing variant")
+                    if not same_json(
+                        {key: value for key, value in variant.items() if key not in DISPLAY_FIELDS},
+                        {key: value for key, value in replacement.items() if key not in DISPLAY_FIELDS},
+                    ):
+                        raise ValueError("A display refresh must preserve the exact original image, source, identity and pixel frame")
+                    if any(field in variant and field not in replacement for field in ("preview", "thumbnail", "pyramid")):
+                        raise ValueError("A display refresh cannot remove an existing display derivative")
+                    used_refreshes.add(target)
+                elif not same_json(replacement, variant):
+                    raise ValueError("Source publication must preserve every existing image variant unless its display refresh is explicitly reviewed")
                 old_ids.add(variant["id"])
+            if any(target[:2] == (group, old["id"]) for target in used_refreshes) and (
+                [variant["id"] for variant in new_variants if variant["id"] in old_ids]
+                != [variant["id"] for variant in old_variants]
+            ):
+                raise ValueError("A display refresh must preserve the order of existing image variants")
             for variant_id, value in by_id.items():
-                if variant_id in old_ids:
+                if variant_id in old_ids and (group, old["id"], variant_id) not in used_refreshes:
                     continue
                 variant = prepared_variant(value, base)
                 for field in ("image", "thumbnail", "preview", "pyramid"):
@@ -78,11 +180,13 @@ def validate_variant_references(before: dict, after: dict, objects: dict, base: 
                         or descriptor.get("bytes") != entry["bytes"]
                         or ("mimeType" in descriptor and descriptor["mimeType"] != entry["contentType"])
                     ):
-                        raise ValueError("Every added source-image file must match a staged immutable object in this collection")
+                        raise ValueError("Every added or refreshed source-image file must match a staged immutable object in this collection")
             native_downloads = new.get("downloads", []) + ([new["download"]] if new.get("download") else [])
             for download in native_downloads:
                 if "sourceVariantId" in download and download["sourceVariantId"] not in by_id:
                     raise ValueError("A rectified download refers to an unavailable source-image variant")
+    if used_refreshes != refreshes:
+        raise ValueError("A reviewed display refresh names an unavailable existing record or variant")
 
 
 def validate_stage(stage_path: Path) -> tuple[dict, bytes, list[dict]]:
@@ -97,7 +201,9 @@ def validate_stage(stage_path: Path) -> tuple[dict, bytes, list[dict]]:
     before, after = json.loads(before_bytes), json.loads(body)
     if before.get("schema") != "raster-catalog-v1" or after.get("schema") != "raster-catalog-v1":
         raise ValueError("Source-image publication requires raster-catalog-v1 catalogues")
-    if protected_catalogue(before) != protected_catalogue(after):
+    metadata_updates = reviewed_metadata_updates(stage, before, after)
+    refreshes = reviewed_display_refreshes(stage)
+    if not same_json(protected_catalogue(before), protected_catalogue(after, metadata_updates)):
         raise ValueError("Source-image publication cannot change geography, maps or saved projects")
     if not 0 < len(body) <= 6_000_000:
         raise ValueError("The catalogue exceeds the viewer's transfer budget")
@@ -118,9 +224,9 @@ def validate_stage(stage_path: Path) -> tuple[dict, bytes, list[dict]]:
             if key in objects and any(objects[key][field] != entry[field] for field in ("sha256", "bytes", "contentType")):
                 raise ValueError("Conflicting immutable objects")
             objects[key] = {**entry, "localPath": path}
-    if not objects:
+    if not objects and not metadata_updates:
         raise ValueError("The stage has no prepared image objects")
-    validate_variant_references(before, after, objects, collection_base(stage.get("collectionBase")))
+    validate_variant_references(before, after, objects, collection_base(stage.get("collectionBase")), refreshes)
     return stage, body, list(objects.values())
 
 
@@ -156,7 +262,8 @@ def publish(stage_path: Path, config: dict, *, client=None, receipt_path: Path |
         receipt_path.parent.mkdir(parents=True, exist_ok=True)
     own_client = client is None
     client = client or httpx.Client(timeout=180, follow_redirects=False, headers={"Accept-Encoding":"identity", "User-Agent":"PGMaps-source-variants/1.0"})
-    receipt = {"schema":"pgmaps-image-variant-publication-receipt-v1", "activated":False, "beforeSha256":stage["beforeSha256"], "afterSha256":stage["afterSha256"], "objects":[], "geometryChanged":False, "savedProjectsChanged":False}
+    receipt = {"schema":"pgmaps-image-variant-publication-receipt-v1", "activated":False, "beforeSha256":stage["beforeSha256"], "afterSha256":stage["afterSha256"], "objects":[], "geometryChanged":False, "savedProjectsChanged":False,
+               "reviewedDisplayRefreshCount":len(stage.get("displayRefreshes", [])), "reviewedMetadataUpdateCount":len(stage.get("metadataUpdates", []))}
 
     def save():
         if receipt_path:

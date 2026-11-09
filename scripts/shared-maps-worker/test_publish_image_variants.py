@@ -182,5 +182,232 @@ class PublicationTests(unittest.TestCase):
         self.assertNotIn(self.config['uploadToken'],receipt_path.read_text())
         self.assertNotIn(self.config['shareId'],receipt_path.read_text())
 
+    def prepare_refresh(self):
+        original = copy.deepcopy(self.after['items'][0]['imageVariants'][0])
+        original['source'] = {'title': 'Synthetic archive', 'url': 'https://archive.example.invalid/map.pdf', 'page': 1}
+        original['preview'] = {'url': self.base + 'previews/' + 'a'*64 + '.png', 'sha256': 'a'*64,
+                               'bytes': 9, 'mimeType': 'image/png', 'width': 8, 'height': 6}
+        original['note'] = 'Previously reviewed display.'
+        self.before['items'][0]['imageVariants'] = [copy.deepcopy(original)]
+        self.after['items'][0]['imageVariants'] = [copy.deepcopy(original)]
+        payload = b'synthetic-corrected-display'
+        checksum = hashlib.sha256(payload).hexdigest()
+        self.derived_key = f'previews/{checksum}.png'
+        (self.root/'previews').mkdir()
+        (self.root/self.derived_key).write_bytes(payload)
+        self.manifest['objects'].append({'key': self.derived_key, 'path': self.derived_key, 'sha256': checksum,
+                                        'bytes': len(payload), 'contentType': 'image/png'})
+        (self.root/'manifest.json').write_text(json.dumps(self.manifest))
+        replacement = self.after['items'][0]['imageVariants'][0]
+        replacement['preview'] = {**original['preview'], 'url': self.base+self.derived_key,
+                                  'sha256': checksum, 'bytes': len(payload)}
+        replacement['note'] = 'Reviewed corrected display; original archive remains unchanged.'
+        self.stage['displayRefreshes'] = [{'group': 'items', 'id': 'map-a', 'variantId': 'source-a'}]
+        self.write_stage()
+        return original, replacement
+
+    def prepare_text_update(self, field='description', *, group='items', record_id='map-a'):
+        old = next(record for record in self.before[group] if record['id'] == record_id)
+        new = next(record for record in self.after[group] if record['id'] == record_id)
+        old[field] = 'Previously reviewed text.'
+        new[field] = 'Source-verified drawing identity and supersession.'
+        update = {'group': group, 'id': record_id, 'field': field, 'before': old[field], 'after': new[field]}
+        self.stage.setdefault('metadataUpdates', []).append(update)
+        self.write_stage()
+        return update
+
+    def test_explicit_display_refresh_and_text_update_publish_with_original_preserved(self):
+        original, replacement = self.prepare_refresh()
+        self.prepare_text_update()
+        with self.client() as client:
+            receipt = p.publish(self.root/'stage.json', self.config, client=client)
+        self.assertEqual(self.puts, [self.key, self.derived_key, 'catalog.json'])
+        self.assertEqual(replacement['image'], original['image'])
+        self.assertEqual(replacement['source'], original['source'])
+        self.assertEqual(receipt['reviewedDisplayRefreshCount'], 1)
+        self.assertEqual(receipt['reviewedMetadataUpdateCount'], 1)
+        self.assertTrue(receipt['activated'])
+        self.assertFalse(receipt['geometryChanged'])
+        self.assertFalse(receipt['savedProjectsChanged'])
+
+    def test_display_refresh_requires_explicit_scoped_review(self):
+        self.prepare_refresh()
+        self.stage.pop('displayRefreshes')
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'explicitly reviewed'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_display_refresh_cannot_change_original_identity_or_source_frame(self):
+        _, replacement = self.prepare_refresh()
+        changes = {'label': 'Different source', 'role': 'edit-source', 'source': {'title': 'Another archive'},
+                   'image': {**replacement['image'], 'width': 17}, 'unreviewedIdentity': 'new property'}
+        for field, value in changes.items():
+            with self.subTest(field=field):
+                saved = copy.deepcopy(replacement)
+                replacement[field] = value
+                self.write_stage()
+                with self.assertRaisesRegex(ValueError, 'exact original image, source, identity and pixel frame'):
+                    p.validate_stage(self.root/'stage.json')
+                replacement.clear()
+                replacement.update(saved)
+
+    def test_display_refresh_must_keep_existing_derivatives_and_source_order(self):
+        original, replacement = self.prepare_refresh()
+        preview = replacement.pop('preview')
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'cannot remove an existing display derivative'):
+            p.validate_stage(self.root/'stage.json')
+        replacement['preview'] = preview
+        other = {**copy.deepcopy(original), 'id': 'source-b'}
+        self.before['items'][0]['imageVariants'].append(other)
+        self.after['items'][0]['imageVariants'].insert(0, copy.deepcopy(other))
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'preserve the order'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_display_refresh_requires_every_descriptor_in_verified_immutable_manifests(self):
+        _, replacement = self.prepare_refresh()
+        preview = replacement['preview']
+        for field, value in [('url', 'https://external.example.invalid/corrected.png'), ('sha256', 'f'*64),
+                             ('bytes', preview['bytes']+1), ('mimeType', 'image/jpeg')]:
+            with self.subTest(field=field):
+                old = preview[field]
+                preview[field] = value
+                self.write_stage()
+                with self.assertRaisesRegex(ValueError, 'match a staged immutable object'):
+                    p.validate_stage(self.root/'stage.json')
+                preview[field] = old
+        self.manifest['objects'] = self.manifest['objects'][1:]
+        (self.root/'manifest.json').write_text(json.dumps(self.manifest))
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'match a staged immutable object'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_display_refresh_cannot_change_pyramid_pixel_frame(self):
+        _, replacement = self.prepare_refresh()
+        replacement['pyramid'] = {'format': 'pmtiles-image-v1', 'url': self.base+self.derived_key,
+                                   'width': 17, 'height': 12, 'tileSize': 256, 'maxZoom': 0}
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'different pixel frames'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_display_refresh_rejects_missing_duplicate_or_noop_targets(self):
+        original, replacement = self.prepare_refresh()
+        target = copy.deepcopy(self.stage['displayRefreshes'][0])
+        invalid = [([target, target], 'unique'),
+                   ([{**target, 'id': 'map-missing'}], 'explicitly reviewed'),
+                   ([{**target, 'variantId': 'source-missing'}], 'explicitly reviewed'),
+                   ([{**target, 'group': 'unplacedSources'}], 'explicit existing'),
+                   ([{**target, 'unknown': True}], 'exactly group')]
+        for refreshes, message in invalid:
+            with self.subTest(refreshes=refreshes):
+                self.stage['displayRefreshes'] = refreshes
+                self.write_stage()
+                with self.assertRaisesRegex(ValueError, message):
+                    p.validate_stage(self.root/'stage.json')
+        self.stage['displayRefreshes'] = [target]
+        replacement.clear()
+        replacement.update(original)
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'must change an existing variant'):
+            p.validate_stage(self.root/'stage.json')
+        self.stage['displayRefreshes'] = [{**target, 'variantId': 'source-missing'}]
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'unavailable existing record or variant'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_refreshed_variant_shared_by_native_and_featured_requires_both_targets(self):
+        self.prepare_refresh()
+        self.before['featured'] = [copy.deepcopy(self.before['items'][0])]
+        self.after['featured'] = [copy.deepcopy(self.after['items'][0])]
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'explicitly reviewed'):
+            p.validate_stage(self.root/'stage.json')
+        self.stage['displayRefreshes'].append({'group': 'featured', 'id': 'map-a', 'variantId': 'source-a'})
+        self.write_stage()
+        p.validate_stage(self.root/'stage.json')
+
+    def test_reviewed_text_updates_cover_exact_native_and_featured_fields(self):
+        self.before['featured'] = [{'id': 'feature-a', 'title': 'Earlier title', 'bounds': [0, 0, 1, 1]}]
+        self.after['featured'] = copy.deepcopy(self.before['featured'])
+        for field in ('title', 'dateLabel', 'description'):
+            self.prepare_text_update(field)
+        self.prepare_text_update('title', group='featured', record_id='feature-a')
+        p.validate_stage(self.root/'stage.json')
+        self.after['featured'][0]['bounds'] = [1, 1, 2, 2]
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'geography, maps or saved projects'):
+            p.validate_stage(self.root/'stage.json')
+
+    def test_reviewed_text_updates_reject_stale_wrong_duplicate_or_unbounded_values(self):
+        update = self.prepare_text_update()
+        invalid = [([{**update, 'before': 'Stale value'}], 'exactly match'),
+                   ([{**update, 'after': 'Not the staged value'}], 'exactly match'),
+                   ([{**update, 'id': 'missing-map'}], 'unavailable existing field'),
+                   ([{**update, 'field': 'caveat'}], 'only existing'),
+                   ([{**update, 'field': ['description']}], 'only existing'),
+                   ([{**update, 'group': 'coverage'}], 'only existing'),
+                   ([{**update, 'extra': True}], 'exactly group'),
+                   ([update, update], 'unique'), ([update]*129, 'bounded array')]
+        for updates, message in invalid:
+            with self.subTest(message=message):
+                self.stage['metadataUpdates'] = updates
+                self.write_stage()
+                with self.assertRaisesRegex(ValueError, message):
+                    p.validate_stage(self.root/'stage.json')
+        for value in ('', ' '*4, 'x'*12001):
+            self.stage['metadataUpdates'] = [{**update, 'after': value}]
+            self.after['items'][0]['description'] = value
+            self.write_stage()
+            with self.assertRaisesRegex(ValueError, 'exactly match'):
+                p.validate_stage(self.root/'stage.json')
+
+    def test_reviewed_text_permission_cannot_hide_other_metadata_or_geometry_changes(self):
+        self.prepare_refresh()
+        self.prepare_text_update()
+        protected_changes = {'title': 'An unlisted title change', 'confidence': 'verified', 'caveat': 'Removed uncertainty',
+                             'alignmentReview': {'status': 'verified'}, 'bounds': [2, 2, 3, 3],
+                             'assets': [], 'georeferenceProject': {'sourceSha256': '3'*64}}
+        for field, value in protected_changes.items():
+            with self.subTest(field=field):
+                saved = copy.deepcopy(self.after['items'][0])
+                self.after['items'][0][field] = value
+                self.write_stage()
+                with self.assertRaisesRegex(ValueError, 'geography, maps or saved projects'):
+                    p.validate_stage(self.root/'stage.json')
+                self.after['items'][0] = saved
+
+    def test_metadata_only_publication_uses_same_conditional_catalogue_guard(self):
+        self.after = copy.deepcopy(self.before)
+        self.stage['uploadManifests'] = []
+        self.prepare_text_update()
+        with self.client() as client:
+            receipt = p.publish(self.root/'stage.json', self.config, client=client)
+        self.assertEqual(self.puts, ['catalog.json'])
+        self.assertEqual(receipt['verifiedObjectCount'], 0)
+        with self.client(reject_match=True) as client, self.assertRaisesRegex(RuntimeError, 'HTTP 412'):
+            p.publish(self.root/'stage.json', self.config, client=client)
+        self.assertEqual(self.puts, [])
+
+    def test_combined_display_and_text_refresh_still_refuses_racing_catalogue(self):
+        self.prepare_refresh()
+        self.prepare_text_update()
+        with self.client(race=True) as client, self.assertRaisesRegex(ValueError, 'changed during upload'):
+            p.publish(self.root/'stage.json', self.config, client=client)
+        self.assertEqual(self.puts, [self.key, self.derived_key])
+
+    def test_json_type_changes_cannot_evade_protected_geography_or_source_identity(self):
+        _, replacement = self.prepare_refresh()
+        self.prepare_text_update()
+        self.after['items'][0]['bounds'][0] = False
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'geography, maps or saved projects'):
+            p.validate_stage(self.root/'stage.json')
+        self.after['items'][0]['bounds'][0] = 0
+        replacement['source']['page'] = True
+        self.write_stage()
+        with self.assertRaisesRegex(ValueError, 'exact original image, source, identity and pixel frame'):
+            p.validate_stage(self.root/'stage.json')
+
 
 if __name__=='__main__':unittest.main()
