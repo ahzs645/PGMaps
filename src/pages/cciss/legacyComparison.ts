@@ -9,6 +9,7 @@ import {
   type LegacyReference,
 } from './legacyAnalysis'
 import type { RasterSample } from './raster'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 export interface LegacyPointSample extends LegacyRaster {
   sample: RasterSample
@@ -81,11 +82,6 @@ export interface LegacyComparisonReport {
     trends: ReturnType<typeof import('./legacyAnalysis').regionalOutlook>
   }
 }
-const escapeHtml = (s: unknown) =>
-  String(s ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
-  )
 /** Standalone report: all sampled members and periods, with unknowns preserved. */
 export function legacyComparisonHtml(report: LegacyComparisonReport) {
   const c = report.comparison

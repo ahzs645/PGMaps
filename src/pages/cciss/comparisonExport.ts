@@ -1,4 +1,5 @@
 import type { ComparisonResult, ComparisonRow, ComparisonSnapshot, ComparisonValue } from './comparison'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 export interface ComparisonReport {
   schema: 'cciss-comparison-report-v1'
@@ -11,11 +12,6 @@ export interface ComparisonReport {
 }
 
 const number = (value: number) => Number(value.toPrecision(10)).toString()
-const escapeHtml = (value: unknown) =>
-  String(value ?? '').replace(
-    /[&<>"']/g,
-    (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
-  )
 
 export function comparisonValue(value: ComparisonValue, row: ComparisonRow, side?: 'left' | 'right'): string {
   if (value === null) return 'Missing'

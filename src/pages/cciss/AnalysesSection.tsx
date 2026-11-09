@@ -12,21 +12,19 @@ const LAUNCHERS: { mode: OpenMode; label: string; icon: LucideIcon; description:
     mode: 'report',
     label: 'Open species report',
     icon: FileSpreadsheet,
-    description: 'View and reweight a published or exported Shiny result.',
+    description: 'Read and reweight a published or exported Shiny result.',
   },
   {
     mode: 'legacy',
     label: 'Open legacy analysis',
     icon: History,
-    description:
-      'Calculate species suitability at the selected point and explore regional trends using the older numeric dataset.',
+    description: 'Species suitability at the map point from the older numeric dataset.',
   },
   {
     mode: 'current',
     label: 'Open current data analysis',
     icon: FileJson,
-    description:
-      'Import a CCISS site-data bundle to explore its climate projections and run the calculations its reference tables support. The file stays in this browser.',
+    description: 'Assess an imported CCISS site-data bundle. The file stays in this browser.',
   },
 ]
 
@@ -65,14 +63,14 @@ export function AnalysesSection({
 }) {
   return (
     <SidebarSection title="Analyses">
-      <ul className="space-y-3">
+      <ul className="space-y-2.5">
         {LAUNCHERS.map((launcher) => (
           <Launcher key={launcher.mode} {...launcher} onOpen={() => onOpen(launcher.mode)} />
         ))}
         <Launcher
           label={`Open comparisons (${comparisonCount})`}
           icon={GitCompareArrows}
-          description="Save analyses before changing a location or settings, then compare their results. Saved comparisons stay while this page is open and can be downloaded."
+          description="Results saved from any analysis, side by side. They stay until the page closes."
           onOpen={() => onOpen('compare')}
         />
       </ul>
