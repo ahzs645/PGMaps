@@ -274,6 +274,17 @@ export function flowPenalty(
   }
 }
 
+/**
+ * Why a road's estimate is not a complete price: its material plan was not solved, or cannot be met
+ * as entered, so no movement was adopted and haul, borrow, waste and site preparation are all zero.
+ * Such a road reads cheaper than the same road with its plan solved. '' when the plan stands.
+ */
+export function materialPlanGap(analysis: RoadAnalysis) {
+  const status = analysis.engineering?.haul.optimizationStatus
+  if (status !== 'unsolved' && status !== 'infeasible') return ''
+  return `${status === 'unsolved' ? 'Material plan not solved' : 'Material plan cannot be met as entered'}: this cost leaves out haul, borrow and waste. Fix the plan under Engineering before comparing costs.`
+}
+
 function metrics(
   analysis: RoadAnalysis,
   limit: number,
@@ -282,6 +293,8 @@ function metrics(
   const blockers = constraintRouteIssues(analysis.centerline, context)
   if (analysis.crossingEstimate?.complete === false)
     blockers.push('Crossing estimates are incomplete or need review; the known subtotal is not a complete road price.')
+  const plan = materialPlanGap(analysis)
+  if (plan) blockers.push(plan)
   if (analysis.maxGradePercent > limit + 1e-6) blockers.push(`Grade ${analysis.maxGradePercent.toFixed(1)}% over limit`)
   if (analysis.coveragePercent < 99.95) blockers.push(`${analysis.coveragePercent.toFixed(0)}% of sections complete`)
   const sharp = new Set(
@@ -704,7 +717,7 @@ export async function compareRoutes(
         }
     candidate.color = goal.color
     const length = alignmentLength(candidate)
-    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean }[] = []
+    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }[] = []
     let failure: unknown
     const fit = async (objective: 'earthwork' | 'total') => {
       try {
@@ -724,6 +737,7 @@ export async function compareRoutes(
           vertical,
           cost: analysis.estimatedCost,
           withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
+          priced: !materialPlanGap(analysis),
         })
       } catch (cause) {
         aborted()
@@ -737,7 +751,10 @@ export async function compareRoutes(
       throw Error(
         `A line was found, but no profile fits it. ${failure instanceof Error ? failure.message : 'The profile search failed.'}`,
       )
-    const best = fitted.sort((a, b) => Number(b.withinGrade) - Number(a.withinGrade) || a.cost - b.cost)[0]
+    // A profile whose material plan is not solved is priced without haul: it must not win on that.
+    const best = fitted.sort(
+      (a, b) => Number(b.withinGrade) - Number(a.withinGrade) || Number(b.priced) - Number(a.priced) || a.cost - b.cost,
+    )[0]
     return { candidate: { ...candidate, vertical: best.vertical }, cost: best.cost, withinGrade: best.withinGrade }
   }
 
@@ -810,7 +827,11 @@ export async function compareRoutes(
   /** Build plus drainage allowance: the same total a row shows. */
   const totalOf = (alignment: Alignment) => {
     const analysis = analyse(alignment)
-    if (analysis.crossingEstimate?.complete === false || constraintRouteIssues(analysis.centerline, context).length)
+    if (
+      analysis.crossingEstimate?.complete === false ||
+      materialPlanGap(analysis) ||
+      constraintRouteIssues(analysis.centerline, context).length
+    )
       return Infinity
     try {
       const drainage = screen(alignment, analysis)

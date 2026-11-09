@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { safeAnalyzeRoad } from './analysisResult'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
+import { createEngineeringDesign } from './engineeringTypes'
 import {
   assignGoals,
   compareRoutes,
@@ -220,6 +221,62 @@ describe('compareRoutes', () => {
     expect(rows[0].blockers.join(' ')).toContain('Crossing estimates are incomplete')
     expect(rows[0].best).toEqual([])
   })
+
+  it('keeps a road whose material plan is not solved from leading on a cost that leaves haul out', async () => {
+    const plane: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.04 * (lat - origin[1]) * M }
+    // Thirteen priced sites are one more than the economic allocation takes, so the plan stays unsolved.
+    const withSites = (priced: number): Alignment => {
+      const engineering = createEngineeringDesign()
+      Object.assign(engineering.haul, {
+        enabled: true,
+        allocation: 'economic',
+        freeHaulDistanceM: 0,
+        overhaulDistanceM: 150,
+        freeHaulRate: 5,
+        overhaulRate: 5,
+        endHaulRate: 5,
+      })
+      engineering.sites = Array.from({ length: 14 }, (_, i) => ({
+        id: `s${i}`,
+        name: `Site ${i}`,
+        kind: i % 2 ? ('borrow' as const) : ('waste' as const),
+        chainage: 10 + i * 20,
+        accessDistanceM: 50,
+        capacityM3: null,
+        unitRate: 6,
+        fixedCost: i < priced ? 100 : 0,
+      }))
+      return {
+        ...road([at(0, 0), at(300, 60)]),
+        // 1 m into the hill at the start and 1 m above it at the end: cut, then fill.
+        vertical: [
+          { id: 'v0', chainage: 0, elevation: 699, curveLength: 0 },
+          { id: 'v1', chainage: 305.94, elevation: 703.4, curveLength: 0 },
+        ],
+        engineering,
+      }
+    }
+    const compared = async (priced: number) => {
+      const base = withSites(priced)
+      const original = input(base, [])
+      const baseAnalysis = safeAnalyzeRoad(base, plane, original.settings)
+      const { rows } = await compareRoutes({ ...original, terrain: plane, baseAnalysis })
+      return { row: rows[0], status: baseAnalysis.engineering!.haul.optimizationStatus }
+    }
+    const solved = await compared(12),
+      unsolved = await compared(13)
+    expect([solved.status, unsolved.status]).toEqual(['optimal', 'unsolved'])
+    expect(solved.row.blockers).toEqual([])
+    // The same road reads cheaper with its plan unsolved: haul, borrow and waste are all missing.
+    expect(unsolved.row.totalCost!).toBeLessThan(solved.row.totalCost! - 1000)
+    expect(unsolved.row.blockers).toEqual([
+      'Material plan not solved: this cost leaves out haul, borrow and waste. Fix the plan under Engineering before comparing costs.',
+    ])
+    const rival: RouteRow = { ...solved.row, id: 'rival', goal: 'cost', best: [] }
+    assignGoals([unsolved.row, rival], ['cost'])
+    expect(unsolved.row.best).toEqual([])
+    expect(rival.best).toEqual(['cost'])
+  }, 60_000)
 
   it('reports progress that only moves forward and ends full', async () => {
     const seen: { step: number; total: number }[] = []

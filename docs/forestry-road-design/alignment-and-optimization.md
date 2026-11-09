@@ -434,6 +434,10 @@ does not enter the road's estimate, because no culvert has been sized or placed.
 **A row with a blocker cannot lead.** Grades over the limit, incomplete sections and sharp corners
 keep a road out of the Cheapest, Shortest, Gentlest and Best drainage tags, however low its price. A
 road with no designed profile follows the ground, so it can look cheap while breaking the limit.
+So does a road whose material plan is not solved or cannot be met (`materialPlanGap`): no movement
+is adopted, so its estimate has no haul, borrow, waste or site preparation. One road read $38,873
+with its plan unsolved and $41,215 solved. Its row says the cost leaves those out, and of two
+profiles fitted to one line the one with a solved plan is kept.
 
 **Comparing like with like.** New roads carry the active road's template only. If the current road
 has culverts, materials or haul inputs, its estimate includes them and theirs does not.
