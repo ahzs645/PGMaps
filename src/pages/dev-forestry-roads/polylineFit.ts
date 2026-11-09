@@ -15,13 +15,13 @@
  * The reported deviation is measured on the fitted centreline, both ways, not assumed from the
  * tolerances. Pure: no DOM, network or terrain access.
  */
-import { corridorFrame } from './corridorOptimizer'
+import { corridorFrame, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import type { Coordinate } from './types'
 
 export interface PolylineFitOptions {
   /** Farthest the fitted centreline may sit from the source line, and the source from it, m. */
   maxDeviationM: number
-  /** Smallest radius a fitted curve may take, m. */
+  /** Smallest radius a fitted curve may take, m. 0 means no minimum was entered: see `fittedMinimumRadius`. */
   minRadiusM: number
   /** Largest radius fitted; beyond it a curve changes nothing a plan shows. */
   maxRadiusM?: number
@@ -44,6 +44,13 @@ type XY = [number, number]
 export const MIN_FIT_DEVIATION_M = 0.1
 export const MAX_FIT_DEVIATION_M = 500
 export const MAX_FIT_SOURCE_POINTS = 5000
+/** A curve tighter than this is not worth having over a sharp corner; it is the least the corridor search takes. */
+export const SMALLEST_CURVE_M = MIN_SEARCH_RADIUS_M
+/**
+ * The radius curves are fitted down to. A minimum radius of 0 means none was entered, and a fit then
+ * goes no tighter than `SMALLEST_CURVE_M`: a smaller curve is a sharp corner in all but name.
+ */
+export const fittedMinimumRadius = (minRadiusM: number) => (minRadiusM > 0 ? minRadiusM : SMALLEST_CURVE_M)
 /** Tangents may use this share of a leg, as in `horizontalTools.ts`, so the engine's own fit accepts them. */
 const FIT = 0.98
 /** Below this a point does not turn the line by anything a plan could show. */
@@ -155,19 +162,16 @@ function centreline(ips: XY[], radii: number[]) {
 }
 
 export function fitPolylineAlignment(coordinates: Coordinate[], options: PolylineFitOptions): PolylineFitResult {
-  const { maxDeviationM, minRadiusM, maxRadiusM = 1000 } = options
-  if (
-    !Number.isFinite(maxDeviationM) ||
-    maxDeviationM < MIN_FIT_DEVIATION_M ||
-    maxDeviationM > MAX_FIT_DEVIATION_M ||
-    !Number.isFinite(minRadiusM) ||
-    minRadiusM <= 0 ||
-    !Number.isFinite(maxRadiusM) ||
-    maxRadiusM < minRadiusM
-  )
-    throw Error(
-      `Use a maximum deviation of ${MIN_FIT_DEVIATION_M}–${MAX_FIT_DEVIATION_M} m and a minimum radius above 0 m.`,
-    )
+  const { maxDeviationM } = options
+  if (!Number.isFinite(maxDeviationM) || maxDeviationM < MIN_FIT_DEVIATION_M || maxDeviationM > MAX_FIT_DEVIATION_M)
+    throw Error(`Use a maximum deviation of ${MIN_FIT_DEVIATION_M}–${MAX_FIT_DEVIATION_M} m.`)
+  if (!Number.isFinite(options.minRadiusM) || options.minRadiusM < 0)
+    throw Error('Use a minimum radius of 0 m or more; 0 sets no minimum.')
+  const minRadiusM = fittedMinimumRadius(options.minRadiusM)
+  // A minimum above the usual ceiling is still a minimum: fit at it rather than refuse the line.
+  const maxRadiusM = options.maxRadiusM ?? Math.max(1000, minRadiusM)
+  if (!Number.isFinite(maxRadiusM) || maxRadiusM < minRadiusM)
+    throw Error('The largest radius to fit must be at least the minimum radius.')
   if (coordinates.length < 2) throw Error('A line needs at least two points.')
   if (coordinates.length > MAX_FIT_SOURCE_POINTS)
     throw Error(
@@ -343,8 +347,9 @@ export function describePolylineFit(fit: PolylineFitResult, limits: PolylineFitO
   const curves = fit.curves
     ? `${plural(fit.curves, 'curve')}, the tightest ${fit.smallestRadiusM!.toFixed(1)} m`
     : 'no curves'
+  // With no minimum entered there is no radius to lower: the fit already went to the smallest curve it draws.
   const sharp = fit.sharpCorners
-    ? ` ${plural(fit.sharpCorners, 'corner')} could not take a ${limits.minRadiusM} m curve within ${limits.maxDeviationM} m and ${fit.sharpCorners === 1 ? 'stays' : 'stay'} sharp: allow more deviation or a smaller radius.`
+    ? ` ${plural(fit.sharpCorners, 'corner')} could not take a ${fittedMinimumRadius(limits.minRadiusM)} m curve within ${limits.maxDeviationM} m and ${fit.sharpCorners === 1 ? 'stays' : 'stay'} sharp: allow more deviation${limits.minRadiusM > 0 ? ' or a smaller radius' : ''}.`
     : ''
   return (
     `${plural(fit.sourcePoints, 'point')} reduced to ${fit.fittedPoints} with ${curves}. ` +

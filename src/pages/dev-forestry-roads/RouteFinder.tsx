@@ -16,7 +16,7 @@ import {
   type RouteGoal,
   type RouteRow,
 } from './routeComparison'
-import { corridorSearchResolution } from './corridorOptimizer'
+import { corridorSearchResolution, MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
@@ -261,9 +261,14 @@ export function RouteFinder({
           <NumberField
             label="Tightest curve (m)"
             value={project.settings.minRadius}
-            min={5}
-            max={1000}
+            min={0}
+            max={MAX_SEARCH_RADIUS_M}
             step={5}
+            hint={
+              project.settings.minRadius < MIN_SEARCH_RADIUS_M
+                ? `The search draws no curve tighter than ${MIN_SEARCH_RADIUS_M} m.`
+                : undefined
+            }
             onChange={(minRadius) => w.update((x) => ({ ...x, settings: { ...x.settings, minRadius } }))}
           />
         </div>

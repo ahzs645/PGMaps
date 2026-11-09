@@ -55,6 +55,15 @@ describe('roadFromRoute', () => {
     expect(road.fit!.smallestRadiusM).toBeLessThanOrEqual(50)
   })
 
+  it('fits curves from 5 m up, and counts none as tight, when no minimum radius is set', () => {
+    const road = roadFromRoute(route, withHole(500, 500, 10), [], 0)
+    expect(road.fit).toMatchObject({ fittedPoints: 3, curves: 1, sharpCorners: 0 })
+    expect(road.points[1].radiusM).toBeGreaterThanOrEqual(5)
+    expect(road.points[1].radiusM).toBeLessThanOrEqual(10)
+    expect(road).toMatchObject({ tightCurves: 0, sharpCorners: 0 })
+    expect(routeRoadFlags(road, 0)).toBe('')
+  })
+
   it('takes the minimum radius rather than run a wider curve over a gap in the terrain', () => {
     // A hole where the 16 m fit's curve would pass. The minimum radius turns inside it.
     const terrain = withHole(188.7, 11.3, 3)

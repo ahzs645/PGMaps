@@ -65,6 +65,23 @@ describe('terrain-cost alternatives', () => {
     }
   })
 
+  it('makes a curved road from a route when the project sets no minimum radius', () => {
+    const found = terrainCostAlternatives({
+      source,
+      roads: [source],
+      routes: [route(0, 1)],
+      terrain: flat,
+      context: [],
+      minRadiusM: 0,
+      make,
+    })
+    expect(found.created).toHaveLength(1)
+    const radii = found.created[0].points.slice(1, -1).map((point) => point.radiusM)
+    expect(radii.length).toBeGreaterThan(0)
+    expect(radii.every((radius) => radius >= 5)).toBe(true)
+    expect(found.notes).toEqual([])
+  })
+
   it('leaves a corner sharp, and says so, where its curve would leave the terrain', () => {
     // No ground inside the right-angle corner at (400, 0).
     const holed: TerrainSource = {

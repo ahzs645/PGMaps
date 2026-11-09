@@ -12,6 +12,7 @@ import { crossingScreeningOverlapCount } from './crossingPlan'
 import {
   corridorFrame,
   CorridorSearchError,
+  MIN_SEARCH_RADIUS_M,
   optimizeRoadCorridorAsync,
   type CorridorFailure,
   type RoadOptimizationObjective,
@@ -674,7 +675,7 @@ export async function compareRoutes(
       return (
         describeCorridorFailure(nearest.failure, {
           maxGradePercent: settings.maxGradePercent,
-          minRadiusM: settings.minRadius,
+          minRadiusM: Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M),
           halfWidthM: nearest.halfWidthM,
         }) + grid
       )

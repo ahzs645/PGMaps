@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { corridorFrame } from './corridorOptimizer'
 import { analyzeRoad, centrelineSamples, horizontalCurveSummary } from './engine'
-import { describePolylineFit, fitPolylineAlignment } from './polylineFit'
+import { describePolylineFit, fitPolylineAlignment, SMALLEST_CURVE_M } from './polylineFit'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate } from './types'
 
@@ -135,6 +135,24 @@ describe('polyline to alignment', () => {
     )
   })
 
+  it('reads a minimum radius of 0 as no minimum, and still fits no curve tighter than 5 m', () => {
+    // A right angle: within 4 m a 9.6 m curve fits; within 1 m only a 2.4 m one would.
+    const source = [at(0, 0), at(200, 0), at(200, 200)]
+    const roomy = fitPolylineAlignment(source, { maxDeviationM: 4, minRadiusM: 0 })
+    expect(roomy).toMatchObject({ fittedPoints: 3, curves: 1, sharpCorners: 0 })
+    expect(roomy.smallestRadiusM).toBeGreaterThanOrEqual(SMALLEST_CURVE_M)
+    const tight = fitPolylineAlignment(source, { maxDeviationM: 1, minRadiusM: 0 })
+    expect(tight).toMatchObject({ curves: 0, sharpCorners: 1 })
+    expect(describePolylineFit(tight, { maxDeviationM: 1, minRadiusM: 0 })).toMatch(
+      /1 corner could not take a 5 m curve within 1 m and stays sharp: allow more deviation\.$/,
+    )
+    // A minimum above the usual 1,000 m ceiling is fitted at, not refused.
+    const gentle = [at(0, 0), at(3000, 0), at(6000, 200)]
+    expect(fitPolylineAlignment(gentle, { maxDeviationM: 5, minRadiusM: 2000 }).smallestRadiusM).toBeGreaterThanOrEqual(
+      2000,
+    )
+  })
+
   it('drops points that do not turn the line', () => {
     const source = Array.from({ length: 41 }, (_, i) => at(i * 10, i * 2.5))
     const fit = fitPolylineAlignment(source, { maxDeviationM: 0.5, minRadiusM: 25 })
@@ -147,7 +165,12 @@ describe('polyline to alignment', () => {
     expect(() => fitPolylineAlignment(line, { maxDeviationM: 0, minRadiusM: 25 })).toThrow(
       /maximum deviation of 0\.1–500 m/,
     )
-    expect(() => fitPolylineAlignment(line, { maxDeviationM: 5, minRadiusM: 0 })).toThrow(/minimum radius above 0 m/)
+    expect(() => fitPolylineAlignment(line, { maxDeviationM: 5, minRadiusM: -1 })).toThrow(
+      /minimum radius of 0 m or more/,
+    )
+    expect(() => fitPolylineAlignment(line, { maxDeviationM: 5, minRadiusM: 50, maxRadiusM: 40 })).toThrow(
+      /largest radius/,
+    )
     expect(() => fitPolylineAlignment([at(0, 0)], { maxDeviationM: 5, minRadiusM: 25 })).toThrow(/at least two points/)
   })
 })

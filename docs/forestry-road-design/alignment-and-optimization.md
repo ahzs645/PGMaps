@@ -112,7 +112,7 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 | Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                       | `corridorOptimizer.ts`                          | Error                                         |
 | Corridor half-width                     | 25–1,000 m (default 180 m)                                             | `corridorOptimizer.ts`, `sidebar/DesignTab.tsx` | Error or button disabled                      |
 | Ground-grade limit                      | 1–30 %, taken from the road's grade limit                              | `corridorOptimizer.ts`                          | Error                                         |
-| Minimum radius                          | 5–1,000 m, taken from the road settings                                | `corridorOptimizer.ts`                          | Error                                         |
+| Minimum radius                          | 0–1,000 m, from the road settings; searched at no less than 5 m        | `corridorOptimizer.ts` `MIN_SEARCH_RADIUS_M`    | Error above 1,000 m                           |
 | Search states                           | 50,000 (`maxStates`)                                                   | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
 | Search weight                           | 1–5 (`searchWeight`); 1, or 2 with a ground penalty                    | `corridorOptimizer.ts`                          | Error                                         |
 | Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 200,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
@@ -234,6 +234,10 @@ value, **Max deviation**, and the road-wide minimum radius.
 - Every fitted curve is at least the minimum radius and as large as the deviation and its tangents
   allow, up to 1,000 m. A corner that cannot take the minimum radius inside the deviation stays
   sharp and is counted; **Fit sharp corners** then gives it the largest curve its tangents hold.
+- A minimum radius of 0 means none is set. Curves are then fitted from 5 m up (`SMALLEST_CURVE_M`,
+  `fittedMinimumRadius`): a tighter one is a sharp corner in all but name. The same holds wherever
+  a search or fit reads the minimum radius: found routes, **Find the best route** and the corridor
+  optimizer, which draws no curve under 5 m (`MIN_SEARCH_RADIUS_M`).
 - The notice gives points before and after, the number of curves and the tightest, the largest
   distance between the old line and the new centreline, and both lengths. That distance is measured
   on the result at 1 m samples, both ways; it is not assumed from the tolerances.
@@ -296,7 +300,8 @@ in `routeFit.ts`):
   between one and two times the minimum, kept only if every metre of its centreline has ground under
   it and it enters no blocked area. A corner with no room for the minimum radius takes the largest
   curve its tangents hold, of 5 m or more, and is flagged below the minimum radius. A corner where
-  no curve stays on the terrain stays sharp. The notice counts both.
+  no curve stays on the terrain stays sharp. The notice counts both. With no minimum radius set (0),
+  radii run from 5 to 10 m and none is flagged as tight.
 - **Name.** `<road> · terrain-cost route <n>`: the lowest number free, an identifier only. A search
   run from a found route names its roads after the original road, not after the route.
 - **Record.** The road keeps the search's rank, score, length and crossing count (`routeSearch`,
@@ -319,7 +324,7 @@ in `routeFit.ts`):
 **Corridor optimizer** (`corridorOptimizer.ts`) checks ground grade between 1 m samples
 against the road grade limit, uphill and downhill alike in the UI. Its turns are arcs with
 2 m tangents between them, so one bend can become several PIs. Radii are a few discrete values
-at or above the minimum radius (`nominalTurnRadiusM` in the report). Exclusions apply to the
+at or above the minimum radius, and never under 5 m (`nominalTurnRadiusM` in the report). Exclusions apply to the
 centreline only, with no clearance in the UI. There are no spirals and no vertical design.
 
 ## Ground trend
@@ -538,7 +543,7 @@ engineering assumptions and sampling, and review the geometric and material flag
 | A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart, or reduce points with more deviation            |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
 | "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
-| "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                                                                       | Set a minimum radius in that range                                     |
+| "The corridor search takes a minimum radius of up to 1,000 m."            | Road minimum radius above 1,000 m                                                                            | Lower the minimum radius, or leave it at 0 for none                    |
 | "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps                                                          | Change the grade, bearing or distance                                  |
 
 ## What it does not do

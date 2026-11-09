@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   corridorFrame,
   CorridorSearchError,
+  MIN_SEARCH_RADIUS_M,
   optimizeRoadCorridor,
   optimizeRoadCorridorAsync,
 } from './corridorOptimizer'
@@ -237,12 +238,24 @@ describe('verified sketched-corridor search', () => {
     expect(contour.lengthM).toBeGreaterThan(shortest.lengthM)
     expect(contour.maxSampledGroundPitchPercent).toBeLessThanOrEqual(20.00001)
   }, 60000)
+  it('searches a road with no minimum radius at the tightest curve it draws', () => {
+    // A box across the direct line, so the road has to turn.
+    const guide = [point(0, 0), point(200, 0)]
+    for (const minRadius of [0, 3]) {
+      const found = optimizeRoadCorridor(guide, flat, { ...settings, minRadius }, [box(90, -40, 110, 40)], options)
+      expect(found.controlPoints.length).toBeGreaterThan(2)
+      expect(found.minimumRadiusM).toBeGreaterThanOrEqual(MIN_SEARCH_RADIUS_M - 1e-6)
+    }
+  }, 60000)
   it('enforces budgets and invalid dimensions', () => {
     const guide = [point(0, 0), point(200, 0)]
     expect(() => optimizeRoadCorridor(guide, flat, settings, [], { ...options, corridorHalfWidthM: NaN })).toThrow(
       /half-width/,
     )
-    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: 0 }, [], options)).toThrow(/radius/)
+    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: 1001 }, [], options)).toThrow(
+      /minimum radius of up to 1,000 m/,
+    )
+    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: -1 }, [], options)).toThrow(/radius/)
     expect(() =>
       optimizeRoadCorridor([point(0, 0), point(9000, 0), point(200, 0)], flat, settings, [], options),
     ).toThrow(/entire sketch/)
