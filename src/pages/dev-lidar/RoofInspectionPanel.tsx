@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Button } from '@/components/ui/button'
-import { SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
 import { ResultRow } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { roofInspections, roofSnapshot, type RoofFeature, type RoofInspection } from './roofInspection'
+
+const LOADING = 'Loading roof candidates…'
 
 export function RoofInspectionPanel({
   analysisBase,
@@ -20,7 +23,7 @@ export function RoofInspectionPanel({
   const root = useRef<HTMLDivElement>(null)
   const [candidates, setCandidates] = useState<RoofFeature[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [status, setStatus] = useState('Loading roof candidates…')
+  const [status, setStatus] = useState(LOADING)
   const [verified, setVerified] = useState(false)
   const [attempt, setAttempt] = useState(0)
   useEffect(() => {
@@ -69,9 +72,14 @@ export function RoofInspectionPanel({
           establish that it is a building.
         </p>
         {status && (
-          <p role="status" className="mt-2 text-xs">
-            {status}
-          </p>
+          <div role={candidates.length || status === LOADING ? 'status' : undefined} className="mt-2">
+            <InlineAlert
+              loading={status === LOADING}
+              tone={status === LOADING ? 'info' : candidates.length ? 'warning' : 'error'}
+            >
+              {status}
+            </InlineAlert>
+          </div>
         )}
         {!candidates.length && (
           <Button variant="outline" size="sm" className="mt-2" onClick={() => setAttempt((value) => value + 1)}>
@@ -81,36 +89,26 @@ export function RoofInspectionPanel({
       </SidebarSection>
       {selected && (
         <SidebarSection title={selected.properties.id}>
-          <div className="grid grid-cols-2 gap-2 text-xs tabular-nums">
-            <p>
-              <span className="block text-3xs text-muted-foreground">Plan area</span>
-              {selected.properties.area_m2.toFixed(0)} m²
-            </p>
-            <p>
-              <span className="block text-3xs text-muted-foreground">Candidate median height</span>
-              {selected.properties.height_m.toFixed(1)} m
-            </p>
-            {record && (
-              <>
-                <p>
-                  <span className="block text-3xs text-muted-foreground">Height P95 · sampled patch</span>
-                  {record.height_p95_m.toFixed(1)} m
-                </p>
-                <p>
-                  <span className="block text-3xs text-muted-foreground">Ground-support P95</span>
-                  {record.ground_support_p95_m.toFixed(1)} m
-                </p>
-                <p>
-                  <span className="block text-3xs text-muted-foreground">Whole-patch plane pitch</span>
-                  {record.plane?.pitch_deg.toFixed(1) ?? 'Unknown'}°
-                </p>
-                <p>
-                  <span className="block text-3xs text-muted-foreground">Plane fit RMSE</span>
-                  {record.plane?.plane_rmse_m.toFixed(2) ?? 'Unknown'} m
-                </p>
-              </>
-            )}
-          </div>
+          <StatGroup
+            variant="tiles"
+            size="sm"
+            columns={2}
+            items={[
+              { label: 'Plan area', value: `${selected.properties.area_m2.toFixed(0)} m²` },
+              { label: 'Candidate median height', value: `${selected.properties.height_m.toFixed(1)} m` },
+              ...(record
+                ? [
+                    { label: 'Height P95 · sampled patch', value: `${record.height_p95_m.toFixed(1)} m` },
+                    { label: 'Ground-support P95', value: `${record.ground_support_p95_m.toFixed(1)} m` },
+                    {
+                      label: 'Whole-patch plane pitch',
+                      value: `${record.plane?.pitch_deg.toFixed(1) ?? 'Unknown'}°`,
+                    },
+                    { label: 'Plane fit RMSE', value: `${record.plane?.plane_rmse_m.toFixed(2) ?? 'Unknown'} m` },
+                  ]
+                : []),
+            ]}
+          />
           {record?.plane && (
             <p className="mt-2 text-3xs leading-4 text-muted-foreground">
               {record.plane.plane_rmse_m > 0.3

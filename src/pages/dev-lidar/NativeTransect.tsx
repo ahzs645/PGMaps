@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { SelectField } from '@/components/ui/form-field'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { useEffect, useMemo } from 'react'
 import { useKeyedState } from './useKeyedState'
 import type { ElevationProfile, LidarControl } from 'maplibre-gl-lidar'
@@ -98,21 +99,18 @@ export function NativeTransect({
         Draw two endpoints on the map using GeoLibre’s native cross-section tool. The full cloud streams while this tab
         is open; crown selection pauses.
       </p>
-      <label className="block">
-        Total transect width
-        <NativeSelect
-          className="ml-2 rounded border bg-background p-1"
-          aria-label="Native transect total width"
-          value={control.width}
-          onChange={(e) => onControl({ ...control, width: +e.target.value })}
-        >
-          {[1, 2, 5, 10, 20, 40].map((n) => (
-            <option key={n} value={n}>
-              {n} m
-            </option>
-          ))}
-        </NativeSelect>
-      </label>
+      <SelectField
+        label="Total transect width"
+        aria-label="Native transect total width"
+        value={control.width}
+        onChange={(e) => onControl({ ...control, width: +e.target.value })}
+      >
+        {[1, 2, 5, 10, 20, 40].map((n) => (
+          <option key={n} value={n}>
+            {n} m
+          </option>
+        ))}
+      </SelectField>
       <div className="flex gap-2">
         <Button
           size="sm"
@@ -133,8 +131,16 @@ export function NativeTransect({
         Loaded-point preview · 750,000 input-return streaming budget. This is not a complete extraction of every source
         return along the line. Refresh after loading settles.
       </p>
-      {!profile && <p role="status">Pick the first endpoint, then the second on the map. Escape cancels drawing.</p>}
-      {error && <p role="alert">Terrain normalization unavailable: {error}</p>}
+      {!profile && (
+        <div role="status">
+          <InlineAlert>Pick the first endpoint, then the second on the map. Escape cancels drawing.</InlineAlert>
+        </div>
+      )}
+      {error && (
+        <InlineAlert tone="error" title="Terrain normalization unavailable">
+          {error}
+        </InlineAlert>
+      )}
       {profile && (
         <>
           <p>

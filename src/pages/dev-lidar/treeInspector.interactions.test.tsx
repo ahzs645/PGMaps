@@ -151,9 +151,7 @@ describe('tree inspector interactions without a browser renderer', () => {
   it('picks actual returns, saves view parameters and restores comparison IDs across workflow switches and reload', async () => {
     await click('Test pick observed return')
     expect(renderer.root.findByProps({ 'aria-label': 'Picked original return' })).toBeTruthy()
-    await act(async () =>
-      renderer.root.findByProps({ 'aria-label': 'Tree profile rotation' }).props.onChange({ target: { value: '90' } }),
-    )
+    await act(async () => renderer.root.findByProps({ 'aria-label': 'Tree profile rotation' }).props.onChange(90))
     await click('Pin for comparison')
     await click('Next')
     await click('Pin for comparison')

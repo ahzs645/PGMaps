@@ -1,7 +1,11 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { ShareBars } from '@/components/ui/share-bars'
+import { TextButton } from '@/components/ui/text-button'
+import { X } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { KeyValueRows, SearchInput, CollapsibleSection } from '@/components/ui/map-panels'
+import { KeyValueRows, SearchInput, CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { TabBar } from '@/components/ui/tab-bar'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
@@ -187,11 +191,11 @@ export function TreeInspector({
           />
         </div>
         {query && (
-          <div className="mt-1 flex gap-2 text-3xs">
+          <div className="mt-1 flex items-center gap-2 text-3xs">
             {filtered.length} matching IDs{' '}
-            <button className="underline" disabled={!filtered[0]} onClick={() => onSelect(filtered[0])}>
+            <TextButton className="text-3xs" disabled={!filtered[0]} onClick={() => onSelect(filtered[0])}>
               Select first match
-            </button>
+            </TextButton>
           </div>
         )}
         <TabBar
@@ -242,49 +246,43 @@ export function TreeInspector({
                     Fit / lock scale
                   </Button>
                 </div>
-                <label className="block">
-                  Rotation {settings.angle}° east toward north
-                  <input
-                    aria-label="Tree profile rotation"
-                    className="w-full"
-                    type="range"
-                    min={0}
-                    max={180}
-                    step={5}
-                    value={settings.angle}
-                    onChange={(e) => settingsPatch({ angle: +e.target.value })}
-                  />
-                </label>
+                <NumericRangeField
+                  label="Rotation east toward north"
+                  aria-label="Tree profile rotation"
+                  className="space-y-1"
+                  min={0}
+                  max={180}
+                  step={5}
+                  unit="°"
+                  display={`${settings.angle}°`}
+                  value={settings.angle}
+                  onChange={(angle) => settingsPatch({ angle })}
+                />
                 {settings.mode === 'slice' && (
                   <div className="grid grid-cols-2 gap-2">
-                    <label>
-                      Total slice width
-                      <NativeSelect
-                        aria-label="Total slice width"
-                        className="mt-1 w-full rounded border bg-background p-1"
-                        value={settings.width}
-                        onChange={(e) => settingsPatch({ width: +e.target.value })}
-                      >
-                        {[0.5, 1, 2, 5, 10, 20, 40].map((n) => (
-                          <option key={n} value={n}>
-                            {n} m
-                          </option>
-                        ))}
-                      </NativeSelect>
-                    </label>
-                    <label>
-                      Offset {settings.offset.toFixed(1)} m
-                      <input
-                        aria-label="Slice offset"
-                        className="w-full"
-                        type="range"
-                        min={-20}
-                        max={20}
-                        step={0.25}
-                        value={settings.offset}
-                        onChange={(e) => settingsPatch({ offset: +e.target.value })}
-                      />
-                    </label>
+                    <SelectField
+                      label="Total slice width"
+                      aria-label="Total slice width"
+                      value={settings.width}
+                      onChange={(e) => settingsPatch({ width: +e.target.value })}
+                    >
+                      {[0.5, 1, 2, 5, 10, 20, 40].map((n) => (
+                        <option key={n} value={n}>
+                          {n} m
+                        </option>
+                      ))}
+                    </SelectField>
+                    <NumericRangeField
+                      label="Offset"
+                      aria-label="Slice offset"
+                      className="space-y-1"
+                      min={-20}
+                      max={20}
+                      step={0.25}
+                      display={`${settings.offset.toFixed(1)} m`}
+                      value={settings.offset}
+                      onChange={(offset) => settingsPatch({ offset })}
+                    />
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
@@ -299,19 +297,16 @@ export function TreeInspector({
                     ]}
                     onChange={(colour) => settingsPatch({ colour: colour as typeof settings.colour })}
                   />
-                  <label>
-                    Point size
-                    <input
-                      aria-label="Profile point size"
-                      className="w-20"
-                      type="range"
-                      min={0.5}
-                      max={4}
-                      step={0.5}
-                      value={settings.pointSize}
-                      onChange={(e) => settingsPatch({ pointSize: +e.target.value })}
-                    />
-                  </label>
+                  <NumericRangeField
+                    label="Point size"
+                    aria-label="Profile point size"
+                    className="w-28 space-y-1"
+                    min={0.5}
+                    max={4}
+                    step={0.5}
+                    value={settings.pointSize}
+                    onChange={(pointSize) => settingsPatch({ pointSize })}
+                  />
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button
@@ -344,32 +339,28 @@ export function TreeInspector({
                   </Button>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <label>
-                    Lowest shown {settings.minHeight} m
-                    <input
-                      aria-label="Lowest shown height"
-                      className="w-full"
-                      type="range"
-                      min={2}
-                      max={settings.maxHeight}
-                      step={1}
-                      value={settings.minHeight}
-                      onChange={(e) => settingsPatch({ minHeight: +e.target.value })}
-                    />
-                  </label>
-                  <label>
-                    Highest shown {settings.maxHeight} m
-                    <input
-                      aria-label="Highest shown height"
-                      className="w-full"
-                      type="range"
-                      min={settings.minHeight}
-                      max={80}
-                      step={1}
-                      value={settings.maxHeight}
-                      onChange={(e) => settingsPatch({ maxHeight: +e.target.value })}
-                    />
-                  </label>
+                  <NumericRangeField
+                    label="Lowest shown"
+                    aria-label="Lowest shown height"
+                    className="space-y-1"
+                    min={2}
+                    max={settings.maxHeight}
+                    step={1}
+                    unit="m"
+                    value={settings.minHeight}
+                    onChange={(minHeight) => settingsPatch({ minHeight })}
+                  />
+                  <NumericRangeField
+                    label="Highest shown"
+                    aria-label="Highest shown height"
+                    className="space-y-1"
+                    min={settings.minHeight}
+                    max={80}
+                    step={1}
+                    unit="m"
+                    value={settings.maxHeight}
+                    onChange={(maxHeight) => settingsPatch({ maxHeight })}
+                  />
                 </div>
                 <p className="text-3xs text-muted-foreground">
                   {settings.lockScale
@@ -400,14 +391,22 @@ export function TreeInspector({
                   sharedRadius={sharedRadius}
                 />
               ) : (
-                <p className="p-4 text-xs" role="status">
-                  {error || status || 'Loading selected crown’s original returns…'}
-                  {error && (
-                    <Button size="sm" onClick={onRetry}>
-                      Retry
-                    </Button>
+                <div className="p-4">
+                  {error ? (
+                    <InlineAlert tone="error">
+                      {error}{' '}
+                      <Button size="sm" onClick={onRetry}>
+                        Retry
+                      </Button>
+                    </InlineAlert>
+                  ) : status ? (
+                    <div role="status">
+                      <InlineAlert>{status}</InlineAlert>
+                    </div>
+                  ) : (
+                    <InlineAlert loading>Loading selected crown’s original returns…</InlineAlert>
                   )}
-                </p>
+                </div>
               )}
             </div>
             <div className="space-y-2 p-2 text-xs">
@@ -500,8 +499,13 @@ export function TreeInspector({
                   </Button>
                 </div>
               )}
-              <details onToggle={(e) => setPointsOpen(e.currentTarget.open)}>
-                <summary>Return counts by height / keyboard point inspection</summary>
+              <CollapsibleSection
+                label="Return counts by height / keyboard point inspection"
+                open={pointsOpen}
+                onOpenChange={setPointsOpen}
+                className="rounded-md border"
+                contentClassName="px-3 pb-2"
+              >
                 <ReturnHistogram points={visible} />
                 {pointsOpen && (
                   <VirtualResultList label="Original returns" items={visible} getKey={pointKey} estimateSize={42}>
@@ -514,44 +518,40 @@ export function TreeInspector({
                     )}
                   </VirtualResultList>
                 )}
-              </details>
+              </CollapsibleSection>
             </div>
           </>
         )}
         {tab === 'review' && (
           <div className="space-y-3 p-3 text-xs">
-            <label className="block">
-              Reviewer decision
-              <NativeSelect
-                aria-label="Tree review decision"
-                className="mt-1 w-full rounded border bg-background p-2"
-                disabled={!id}
-                value={id ? (state.reviews[id]?.decision ?? 'unreviewed') : 'unreviewed'}
-                onChange={(e) =>
-                  id &&
-                  commit({
-                    ...state,
-                    reviews: { ...state.reviews, [id]: { decision: e.target.value as ReviewDecision, note } },
-                  })
-                }
-              >
-                {REVIEW_DECISIONS.map((d) => (
-                  <option key={d}>{d}</option>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className="block">
-              Review notes
+            <SelectField
+              label="Reviewer decision"
+              aria-label="Tree review decision"
+              disabled={!id}
+              value={id ? (state.reviews[id]?.decision ?? 'unreviewed') : 'unreviewed'}
+              onChange={(e) =>
+                id &&
+                commit({
+                  ...state,
+                  reviews: { ...state.reviews, [id]: { decision: e.target.value as ReviewDecision, note } },
+                })
+              }
+            >
+              {REVIEW_DECISIONS.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </SelectField>
+            <FormField label="Review notes">
               <textarea
                 aria-label="Tree review notes"
-                className="mt-1 w-full rounded border bg-background p-2"
+                className={FORM_INPUT_CLASS}
                 rows={3}
                 maxLength={2000}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 onBlur={saveNote}
               />
-            </label>
+            </FormField>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" disabled={!controller.canUndo} onClick={controller.undo}>
                 Undo
@@ -560,26 +560,26 @@ export function TreeInspector({
                 Redo
               </Button>
             </div>
-            <label className="block">
-              Review queue
-              <NativeSelect
-                aria-label="Tree review queue"
-                className="mt-1 w-full rounded border bg-background p-1"
-                value={reviewFilter}
-                onChange={(e) => setReviewFilter(e.target.value)}
-              >
-                <option value="all">All candidates</option>
-                {REVIEW_DECISIONS.map((d) => (
-                  <option key={d}>{d}</option>
-                ))}
-              </NativeSelect>
-            </label>
+            <SelectField
+              label="Review queue"
+              aria-label="Tree review queue"
+              value={reviewFilter}
+              onChange={(e) => setReviewFilter(e.target.value)}
+            >
+              <option value="all">All candidates</option>
+              {REVIEW_DECISIONS.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </SelectField>
             <p>
               {filtered.length.toLocaleString(DEFAULT_LOCALE)} candidates in queue. Previous/Next follows this filter.
             </p>
-            <details>
-              <summary>Point-group editing · bounded loaded returns</summary>
-              <p className="my-2 text-muted-foreground">
+            <CollapsibleSection
+              label="Point-group editing · bounded loaded returns"
+              className="rounded-md border"
+              contentClassName="px-3 pb-3"
+            >
+              <p className="mb-2 text-muted-foreground">
                 Edits create a review assignment layer over loaded returns. Original points and crown cells stay intact.
                 Groups are not validated complete trees.
               </p>
@@ -629,39 +629,35 @@ export function TreeInspector({
                   {settings.showRejected ? 'Hide' : 'Show'} rejected
                 </Button>
               </div>
-              <label className="mt-2 block">
-                Assign selection to group
-                <NativeSelect
-                  aria-label="Target point group"
-                  className="m-1 rounded border bg-background p-1"
-                  value={target}
-                  onChange={(e) => setTarget(e.target.value)}
-                >
-                  <option value="">Choose…</option>
-                  {groups.map((g) => (
-                    <option key={g}>{g}</option>
-                  ))}
-                </NativeSelect>
-              </label>
+              <SelectField
+                label="Assign selection to group"
+                fieldClassName="mt-2"
+                aria-label="Target point group"
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+              >
+                <option value="">Choose…</option>
+                {groups.map((g) => (
+                  <option key={g}>{g}</option>
+                ))}
+              </SelectField>
               <Button size="sm" variant="outline" disabled={!target || !selected.size} onClick={() => assign(target)}>
                 Assign selected
               </Button>
-              <label className="mt-2 block">
-                Merge loaded group into target
-                <NativeSelect
-                  aria-label="Merge point group"
-                  className="m-1 rounded border bg-background p-1"
-                  value={mergeFrom}
-                  onChange={(e) => setMergeFrom(e.target.value)}
-                >
-                  <option value="">Choose…</option>
-                  {groups
-                    .filter((g) => g !== target)
-                    .map((g) => (
-                      <option key={g}>{g}</option>
-                    ))}
-                </NativeSelect>
-              </label>
+              <SelectField
+                label="Merge loaded group into target"
+                fieldClassName="mt-2"
+                aria-label="Merge point group"
+                value={mergeFrom}
+                onChange={(e) => setMergeFrom(e.target.value)}
+              >
+                <option value="">Choose…</option>
+                {groups
+                  .filter((g) => g !== target)
+                  .map((g) => (
+                    <option key={g}>{g}</option>
+                  ))}
+              </SelectField>
               <Button
                 size="sm"
                 variant="outline"
@@ -723,7 +719,7 @@ export function TreeInspector({
                 Seed splitting is a manual Euclidean partition of the selected/visible returns, not a trained tree
                 segmentation model. Review its groups from several angles.
               </p>
-            </details>
+            </CollapsibleSection>
             <div className="flex flex-wrap gap-2">
               <Button
                 size="sm"
@@ -748,26 +744,28 @@ export function TreeInspector({
               >
                 Export review & edits
               </Button>
-              <label className="cursor-pointer rounded border px-3 py-2">
-                Import review
-                <input
-                  aria-label="Import tree review manifest"
-                  className="sr-only"
-                  type="file"
-                  accept=".json"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    try {
-                      if (file.size > 3000000) throw Error('Manifest exceeds 3 MB')
-                      controller.importReview(await file.text())
-                    } catch (err) {
-                      setLocalMessage(String(err))
-                    }
-                    e.target.value = ''
-                  }}
-                />
-              </label>
+              <Button asChild size="sm" variant="outline">
+                <label className="cursor-pointer">
+                  Import review
+                  <input
+                    aria-label="Import tree review manifest"
+                    className="sr-only"
+                    type="file"
+                    accept=".json"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      try {
+                        if (file.size > 3000000) throw Error('Manifest exceeds 3 MB')
+                        controller.importReview(await file.text())
+                      } catch (err) {
+                        setLocalMessage(String(err))
+                      }
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+              </Button>
             </div>
           </div>
         )}
@@ -779,40 +777,41 @@ export function TreeInspector({
         </div>
       </div>
       <div className="max-h-[35%] shrink-0 overflow-auto border-t">
-        <button
-          className="w-full p-2 text-left text-xs font-medium"
-          aria-expanded={galleryOpen}
-          onClick={() => setGalleryOpen((v) => !v)}
+        <CollapsibleSection
+          label="Comparison gallery"
+          summary={`${state.pins.length}/4 saved IDs`}
+          open={galleryOpen}
+          onOpenChange={setGalleryOpen}
+          className="border-b-0"
         >
-          Comparison gallery · {state.pins.length}/4 saved IDs {galleryOpen ? '▾' : '▸'}
-        </button>
-        {galleryOpen && (
-          <>
-            <div className="flex flex-wrap gap-1 p-1">
-              {state.pins.map((id) => (
-                <div key={id} className="flex rounded border">
-                  <Button size="sm" variant="ghost" onClick={() => onSelect(id)}>
-                    {id}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label={`Remove comparison ${id}`}
-                    onClick={() => setState((s) => ({ ...s, pins: s.pins.filter((p) => p !== id) }))}
-                  >
-                    ×
-                  </Button>
-                </div>
-              ))}
-            </div>
-            <div
-              className="overflow-auto bg-white"
-              dangerouslySetInnerHTML={{
-                __html: prepared.length ? figure() : '',
-              }}
-            />
-          </>
-        )}
+          {galleryOpen && (
+            <>
+              <div className="flex flex-wrap gap-1 p-1">
+                {state.pins.map((id) => (
+                  <div key={id} className="flex rounded border">
+                    <Button size="sm" variant="ghost" onClick={() => onSelect(id)}>
+                      {id}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Remove comparison ${id}`}
+                      onClick={() => setState((s) => ({ ...s, pins: s.pins.filter((p) => p !== id) }))}
+                    >
+                      <X className="size-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <div
+                className="overflow-auto bg-white"
+                dangerouslySetInnerHTML={{
+                  __html: prepared.length ? figure() : '',
+                }}
+              />
+            </>
+          )}
+        </CollapsibleSection>
       </div>
     </section>
   )
@@ -822,16 +821,15 @@ function ReturnHistogram({ points }: { points: IsolatedPoint[] }) {
   for (const p of points) bins[Math.min(7, Math.floor(p.height / 10))]++
   const max = Math.max(1, ...bins)
   return (
-    <div className="my-2 space-y-1" aria-label="Observed return counts by height">
-      {bins.map((count, i) => (
-        <div key={i} className="flex items-center gap-2 text-3xs">
-          <span className="w-12">
-            {i * 10}–{(i + 1) * 10} m
-          </span>
-          <span className="h-2 bg-emerald-600" style={{ width: `${(count / max) * 55}%` }} />
-          <span>{count}</span>
-        </div>
-      ))}
+    <div className="my-2 space-y-1">
+      <ShareBars
+        aria-label="Observed return counts by height"
+        items={bins.map((count, i) => ({ key: String(i), label: `${i * 10}–${(i + 1) * 10} m`, values: [count] }))}
+        series={[{ className: 'bg-emerald-600' }]}
+        max={max}
+        formatValue={(count) => count.toLocaleString(DEFAULT_LOCALE)}
+        className="space-y-1"
+      />
       <p className="text-3xs text-muted-foreground">Sampling counts; not foliage density or leaf area.</p>
     </div>
   )

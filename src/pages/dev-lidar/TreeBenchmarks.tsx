@@ -1,9 +1,10 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { SelectField } from '@/components/ui/form-field'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import proj4 from 'proj4'
 import type { FeatureCollection, Polygon, Point } from 'geojson'
 import { Button } from '@/components/ui/button'
-import { KeyValueRows } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { METRIC_CRS } from './sourceGrids'
 import type { TreeCrop, TreeIsolation, IsolatedPoint } from './treeIsolation'
@@ -196,14 +197,18 @@ export function TreeBenchmarks({
   }, [plot?.id, onPick])
   if (!data || !plot || !a || !b || !previewA || !previewB)
     return (
-      <p className="p-3 text-xs" role="status">
-        {error || 'Loading actual segmentation benchmark results…'}
-        {error && (
-          <Button size="sm" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
-            Retry benchmark results
-          </Button>
+      <div className="p-3">
+        {error ? (
+          <InlineAlert tone="error">
+            {error}{' '}
+            <Button size="sm" variant="outline" onClick={() => setAttempt((n) => n + 1)}>
+              Retry benchmark results
+            </Button>
+          </InlineAlert>
+        ) : (
+          <InlineAlert loading>Loading actual segmentation benchmark results…</InlineAlert>
         )}
-      </p>
+      </div>
     )
   const agreement = plot.pairwise_agreement.find(
     (p) => (p.left === a.id && p.right === b.id) || (p.left === b.id && p.right === a.id),
@@ -217,57 +222,50 @@ export function TreeBenchmarks({
         views display a deterministic sample of {plot.sample.sampled.toLocaleString(DEFAULT_LOCALE)} /{' '}
         {plot.sample.total.toLocaleString(DEFAULT_LOCALE)} returns.
       </p>
-      <label className="block">
-        Benchmark plot
-        <NativeSelect
-          className="mt-1 w-full rounded border bg-background p-1"
-          aria-label="Segmentation benchmark plot"
-          value={plot.id}
-          onChange={(e) => setPlotId(e.target.value)}
-        >
-          {data.plots.map((p) => (
-            <option key={p.id}>{p.id}</option>
-          ))}
-        </NativeSelect>
-      </label>
+      <SelectField
+        label="Benchmark plot"
+        aria-label="Segmentation benchmark plot"
+        value={plot.id}
+        onChange={(e) => setPlotId(e.target.value)}
+      >
+        {data.plots.map((p) => (
+          <option key={p.id}>{p.id}</option>
+        ))}
+      </SelectField>
       <div className="grid grid-cols-2 gap-2">
         {[
           [methodA, setMethodA, 'A · map'],
           [methodB, setMethodB, 'B · comparison'],
         ].map(([value, set, label]) => (
-          <label key={String(label)}>
-            {String(label)}
-            <NativeSelect
-              className="mt-1 w-full rounded border bg-background p-1"
-              aria-label={`Segmentation method ${String(label)}`}
-              value={String(value)}
-              onChange={(e) => (set as (s: string) => void)(e.target.value)}
-            >
-              {plot.methods.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </NativeSelect>
-          </label>
+          <SelectField
+            key={String(label)}
+            label={String(label)}
+            aria-label={`Segmentation method ${String(label)}`}
+            value={String(value)}
+            onChange={(e) => (set as (s: string) => void)(e.target.value)}
+          >
+            {plot.methods.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+          </SelectField>
         ))}
       </div>
       <Button size="sm" variant="outline" onClick={() => onFocus(plot.centre, previewA.crop.ground_m)}>
         Focus benchmark plot on map
       </Button>
-      <label className="block">
-        Comparison rotation {angle}°
-        <input
-          aria-label="Benchmark rotation"
-          className="w-full"
-          type="range"
-          min={0}
-          max={180}
-          step={5}
-          value={angle}
-          onChange={(e) => setAngle(+e.target.value)}
-        />
-      </label>
+      <NumericRangeField
+        label="Comparison rotation"
+        aria-label="Benchmark rotation"
+        className="space-y-1"
+        min={0}
+        max={180}
+        step={5}
+        display={`${angle}°`}
+        value={angle}
+        onChange={setAngle}
+      />
       <div className="grid grid-cols-2 gap-1">
         {[
           [a, previewA],
@@ -343,8 +341,11 @@ export function TreeBenchmarks({
         timing measures existing cell-membership lookup, not recomputation; timings do not rank algorithm speed. TreeX
         uses its own terrain processing.
       </p>
-      <details>
-        <summary>Parameters, screening and limitations</summary>
+      <CollapsibleSection
+        label="Parameters, screening and limitations"
+        className="rounded-md border"
+        contentClassName="px-3 pb-2"
+      >
         <pre className="max-h-60 overflow-auto whitespace-pre-wrap text-3xs">
           {JSON.stringify(
             {
@@ -357,7 +358,7 @@ export function TreeBenchmarks({
             2,
           )}
         </pre>
-      </details>
+      </CollapsibleSection>
       <Button
         size="sm"
         variant="outline"

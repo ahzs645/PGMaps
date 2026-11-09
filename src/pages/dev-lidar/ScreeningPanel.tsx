@@ -1,6 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, FORM_INPUT_CLASS, FormField, SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, KeyValueRows, SidebarSection } from '@/components/ui/map-panels'
 import { ResultRow } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { downloadText } from '@/lib/download'
@@ -77,41 +77,32 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
           <>
             <SidebarSection title={mode?.label} subtitle={mode?.note}>
               {(options.mode === 'gaps' || options.mode === 'clearance') && (
-                <label className="block text-xs">
-                  Height threshold
-                  <NativeSelect
-                    aria-label="Workflow height threshold"
-                    className="mt-1 w-full rounded border bg-background p-2"
-                    value={options.threshold}
-                    onChange={(e) => props.onOptions({ threshold: Number(e.target.value) as 2 | 5, selectedId: null })}
-                  >
-                    <option value={2}>2 m · low vegetation / openings</option>
-                    <option value={5}>5 m · taller surface threshold</option>
-                  </NativeSelect>
-                </label>
+                <SelectField
+                  label="Height threshold"
+                  aria-label="Workflow height threshold"
+                  value={options.threshold}
+                  onChange={(e) => props.onOptions({ threshold: Number(e.target.value) as 2 | 5, selectedId: null })}
+                >
+                  <option value={2}>2 m · low vegetation / openings</option>
+                  <option value={5}>5 m · taller surface threshold</option>
+                </SelectField>
               )}
               {options.mode === 'gaps' && (
                 <div className="mt-3 space-y-3 text-xs">
-                  <label className="block">
-                    Minimum opening area
-                    <NativeSelect
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      value={options.minGap}
-                      onChange={(e) => props.onOptions({ minGap: Number(e.target.value), selectedId: null })}
-                    >
-                      <option value={25}>25 m²</option>
-                      <option value={100}>100 m²</option>
-                      <option value={500}>500 m²</option>
-                    </NativeSelect>
-                  </label>
-                  <label className="flex gap-2">
-                    <input
-                      type="checkbox"
-                      checked={options.enclosed}
-                      onChange={(e) => props.onOptions({ enclosed: e.target.checked, selectedId: null })}
-                    />
-                    Enclosed candidates only
-                  </label>
+                  <SelectField
+                    label="Minimum opening area"
+                    value={options.minGap}
+                    onChange={(e) => props.onOptions({ minGap: Number(e.target.value), selectedId: null })}
+                  >
+                    <option value={25}>25 m²</option>
+                    <option value={100}>100 m²</option>
+                    <option value={500}>500 m²</option>
+                  </SelectField>
+                  <CheckboxField
+                    label="Enclosed candidates only"
+                    checked={options.enclosed}
+                    onCheckedChange={(enclosed) => props.onOptions({ enclosed, selectedId: null })}
+                  />
                   <p className="text-3xs leading-4 text-muted-foreground">
                     Enclosed: ≥80% of the boundary borders higher cells, with no tile/missing-data or roof contact. This
                     is a geometric screen. Roads, lawns and fields need review; no authoritative forest mask is
@@ -121,32 +112,24 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
               )}
               {options.mode === 'plots' && (
                 <div className="space-y-3 text-xs">
-                  <label className="block">
-                    Plot size
-                    <NativeSelect
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      value={options.plotSize}
-                      onChange={(e) =>
-                        props.onOptions({ plotSize: Number(e.target.value) as 25 | 50, selectedId: null })
-                      }
-                    >
-                      <option value={25}>25 × 25 m</option>
-                      <option value={50}>50 × 50 m</option>
-                    </NativeSelect>
-                  </label>
-                  <label className="block">
-                    Minimum supported coverage
-                    <NativeSelect
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      value={options.support}
-                      onChange={(e) => props.onOptions({ support: Number(e.target.value), selectedId: null })}
-                    >
-                      <option value={0}>All plots, including partial</option>
-                      <option value={80}>80%</option>
-                      <option value={95}>95%</option>
-                      <option value={100}>100%</option>
-                    </NativeSelect>
-                  </label>
+                  <SelectField
+                    label="Plot size"
+                    value={options.plotSize}
+                    onChange={(e) => props.onOptions({ plotSize: Number(e.target.value) as 25 | 50, selectedId: null })}
+                  >
+                    <option value={25}>25 × 25 m</option>
+                    <option value={50}>50 × 50 m</option>
+                  </SelectField>
+                  <SelectField
+                    label="Minimum supported coverage"
+                    value={options.support}
+                    onChange={(e) => props.onOptions({ support: Number(e.target.value), selectedId: null })}
+                  >
+                    <option value={0}>All plots, including partial</option>
+                    <option value={80}>80%</option>
+                    <option value={95}>95%</option>
+                    <option value={100}>100%</option>
+                  </SelectField>
                   <p className="text-3xs leading-4 text-muted-foreground">
                     Colour: P95 surface height, 0–35 m, pale to dark purple. Percentiles use all supported 1 m surface
                     cells, including structures. These are not return-height percentiles or field inventory estimates.
@@ -155,18 +138,15 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
               )}
               {options.mode === 'clearance' && (
                 <div className="mt-3 text-xs">
-                  <label className="block">
-                    Show centre distance up to
-                    <NativeSelect
-                      className="mt-1 w-full rounded border bg-background p-2"
-                      value={options.clearance}
-                      onChange={(e) => props.onOptions({ clearance: Number(e.target.value), selectedId: null })}
-                    >
-                      <option value={5}>5 m</option>
-                      <option value={10}>10 m</option>
-                      <option value={30}>30 m · entire search radius</option>
-                    </NativeSelect>
-                  </label>
+                  <SelectField
+                    label="Show centre distance up to"
+                    value={options.clearance}
+                    onChange={(e) => props.onOptions({ clearance: Number(e.target.value), selectedId: null })}
+                  >
+                    <option value={5}>5 m</option>
+                    <option value={10}>10 m</option>
+                    <option value={30}>30 m · entire search radius</option>
+                  </SelectField>
                   <p className="mt-2 text-3xs leading-4 text-muted-foreground">
                     Pink lines connect roof polygons to nearest elevated cell centres. Roofs plus 2 m are excluded to
                     reduce edge contamination: vegetation within that buffer is not assessed. Distances are horizontal,
@@ -188,14 +168,11 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                     original cropped points. {data.models.records.filter((r) => r.success).length}/{models.length}{' '}
                     engine successes; {models.filter((r) => r.closed_edge_incidence).length} pass closed-edge incidence.
                   </p>
-                  <label className="flex gap-2">
-                    <input
-                      type="checkbox"
-                      checked={props.meshVisible}
-                      onChange={(e) => props.onMeshVisible(e.target.checked)}
-                    />
-                    Show selected LoD2.2 mesh
-                  </label>
+                  <CheckboxField
+                    label="Show selected LoD2.2 mesh"
+                    checked={props.meshVisible}
+                    onCheckedChange={props.onMeshVisible}
+                  />
                   <Button size="sm" variant="outline" onClick={props.onPoints}>
                     Compare original 3D points
                   </Button>
@@ -292,33 +269,30 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                 <Button size="sm" variant="outline" className="mt-2" onClick={() => choose(model.id)}>
                   Focus model
                 </Button>
-                <label className="mt-3 block text-xs">
-                  Review decision
-                  <NativeSelect
-                    className="mt-1 w-full rounded border bg-background p-2"
-                    value={review.decision}
-                    onChange={(e) =>
-                      save({ ...ledger, [model.id]: { ...review, decision: e.target.value as typeof review.decision } })
-                    }
-                  >
-                    <option value="unreviewed">Unreviewed</option>
-                    <option value="retain">Retain for further inspection</option>
-                    <option value="reject">Reject candidate</option>
-                  </NativeSelect>
-                </label>
-                <label className="mt-2 block text-xs">
-                  Review notes
+                <SelectField
+                  label="Review decision"
+                  fieldClassName="mt-3"
+                  value={review.decision}
+                  onChange={(e) =>
+                    save({ ...ledger, [model.id]: { ...review, decision: e.target.value as typeof review.decision } })
+                  }
+                >
+                  <option value="unreviewed">Unreviewed</option>
+                  <option value="retain">Retain for further inspection</option>
+                  <option value="reject">Reject candidate</option>
+                </SelectField>
+                <FormField label="Review notes" className="mt-2">
                   <textarea
-                    className="mt-1 min-h-16 w-full rounded border bg-background p-2"
+                    className={`${FORM_INPUT_CLASS} min-h-16`}
                     maxLength={2000}
                     value={review.note}
                     onChange={(e) => save({ ...ledger, [model.id]: { ...review, note: e.target.value } })}
                   />
-                </label>
+                </FormField>
                 {reviewStatus && (
-                  <p className="mt-1 text-3xs" role="status">
-                    {reviewStatus}
-                  </p>
+                  <div className="mt-2" role="status">
+                    <InlineAlert>{reviewStatus}</InlineAlert>
+                  </div>
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
@@ -343,30 +317,32 @@ export function ScreeningPanel({ props, choose }: { props: WorkflowPanelProps; c
                   >
                     Export review
                   </Button>
-                  <label className="cursor-pointer rounded border px-3 py-2 text-xs">
-                    Import review
-                    <input
-                      type="file"
-                      accept="application/json,.json"
-                      className="sr-only"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        e.target.value = ''
-                        if (!file) return
-                        try {
-                          if (file.size > 1000000) throw Error('Review file exceeds 1 MB')
-                          const next = readReviewLedger(
-                            await file.text(),
-                            data.models.source_sha256,
-                            new Set(models.map((r) => r.id)),
-                          )
-                          save(next)
-                        } catch (error) {
-                          setReviewStatus(String(error))
-                        }
-                      }}
-                    />
-                  </label>
+                  <Button asChild size="sm" variant="outline" className="cursor-pointer">
+                    <label>
+                      Import review
+                      <input
+                        type="file"
+                        accept="application/json,.json"
+                        className="sr-only"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          e.target.value = ''
+                          if (!file) return
+                          try {
+                            if (file.size > 1000000) throw Error('Review file exceeds 1 MB')
+                            const next = readReviewLedger(
+                              await file.text(),
+                              data.models.source_sha256,
+                              new Set(models.map((r) => r.id)),
+                            )
+                            save(next)
+                          } catch (error) {
+                            setReviewStatus(String(error))
+                          }
+                        }}
+                      />
+                    </label>
+                  </Button>
                 </div>
               </SidebarSection>
             )}
