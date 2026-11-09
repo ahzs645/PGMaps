@@ -1,7 +1,17 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import {
+  MapGradientLegendItem,
+  MapSidebarShell,
+  SearchInput,
+  SidebarSection,
+  KeyValueRows,
+} from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { ResultRow } from '@/components/ui/result-list'
+import { TextButton } from '@/components/ui/text-button'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { RASTER_RAMP_CSS } from './raster'
 import { featureName } from './vector'
 import { getImportSession, setImportSession } from './session'
 import type { ImportSession } from './types'
@@ -57,6 +67,7 @@ export function ImportSidebar({
               <div className="flex items-center gap-2">
                 <input
                   aria-label={'Show ' + l.name}
+                  className="size-3.5 accent-primary"
                   type="checkbox"
                   checked={l.visible}
                   onChange={(e) => update(l.id, { visible: e.target.checked })}
@@ -70,9 +81,9 @@ export function ImportSidebar({
                 >
                   {l.name}
                 </button>
-                <button
+                <TextButton
                   aria-label={'Remove ' + l.name}
-                  className="underline"
+                  tone="muted"
                   onClick={() => {
                     const old = getImportSession()
                     setImportSession({ ...old, layers: old.layers.filter((v) => v.id !== l.id) })
@@ -80,21 +91,21 @@ export function ImportSidebar({
                   }}
                 >
                   Remove
-                </button>
+                </TextButton>
               </div>
-              <label className="mt-1 block">
-                Opacity {Math.round(l.opacity * 100)}%
-                <input
-                  aria-label={'Opacity ' + l.name}
-                  className="block w-full"
-                  type="range"
-                  min="0"
-                  max="1"
-                  step=".05"
-                  value={l.opacity}
-                  onChange={(e) => update(l.id, { opacity: Number(e.target.value) })}
-                />
-              </label>
+              <NumericRangeField
+                label="Opacity"
+                aria-label={'Opacity ' + l.name}
+                layout="inline"
+                valueSeparator=" "
+                display={`${Math.round(l.opacity * 100)}%`}
+                className="mt-1 space-y-1"
+                min={0}
+                max={1}
+                step={0.05}
+                value={l.opacity}
+                onChange={(opacity) => update(l.id, { opacity })}
+              />
             </div>
           ))}
         </SidebarSection>
@@ -129,9 +140,11 @@ export function ImportSidebar({
                   Native range {layer.minimum.toPrecision(6)} – {layer.maximum.toPrecision(6)} ·{' '}
                   {layer.valid.toLocaleString(DEFAULT_LOCALE)} valid cells.
                 </p>
-                <div
-                  className="my-1 h-2"
-                  style={{ background: 'linear-gradient(to right,#440154,#3b528b,#21918c,#5ec962,#fde725)' }}
+                <MapGradientLegendItem
+                  className="my-1"
+                  colors={RASTER_RAMP_CSS}
+                  minLabel={layer.minimum.toPrecision(3)}
+                  maxLabel={layer.maximum.toPrecision(3)}
                 />
                 <p>
                   Display preview ≤1024 px. Map clicks read native cells. NoData is transparent. Values retain the
@@ -147,9 +160,10 @@ export function ImportSidebar({
         )}
         {layer?.kind === 'vector' && (
           <SidebarSection title={'Features · ' + rows.length.toLocaleString(DEFAULT_LOCALE)}>
-            <input
+            <SearchInput
               aria-label="Search imported feature IDs"
-              className="mb-2 w-full rounded border bg-background p-2 text-sm"
+              wrapperClassName="mb-2"
+              icon
               placeholder="Search IDs"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -160,15 +174,14 @@ export function ImportSidebar({
             </p>
             <VirtualResultList items={rows} getKey={(r) => String(r.i)} estimateSize={42} label="Imported features">
               {(r) => (
-                <button
-                  className={
-                    'w-full truncate p-2 text-left text-xs ' +
-                    (feature === r.i ? 'bg-emerald-100 dark:bg-emerald-950' : '')
-                  }
+                <ResultRow
+                  className="py-2"
+                  accent="green"
+                  title={r.name}
+                  subtitle={r.f.geometry.type}
+                  selected={feature === r.i}
                   onClick={() => onFeature(r.i)}
-                >
-                  {r.name} · {r.f.geometry.type}
-                </button>
+                />
               )}
             </VirtualResultList>
           </SidebarSection>

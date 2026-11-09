@@ -1,6 +1,7 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { DEFAULT_LOCALE } from '@/lib/format'
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -109,10 +110,7 @@ export function LidarComparison({
             { value: 'profile', label: 'Side profiles' },
           ]}
         />
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
-          Link cameras
-        </label>
+        <CheckboxField label="Link cameras" checked={linked} onCheckedChange={setLinked} className="self-center" />
         <Button
           variant="outline"
           size="sm"
@@ -124,18 +122,19 @@ export function LidarComparison({
           Fit plot
         </Button>
         {view === 'profile' && (
-          <label>
-            Rotation {angle}°
-            <input
-              aria-label="Comparison profile rotation"
-              type="range"
-              min={0}
-              max={180}
-              step={5}
-              value={angle}
-              onChange={(e) => setAngle(+e.target.value)}
-            />
-          </label>
+          <NumericRangeField
+            label="Rotation"
+            aria-label="Comparison profile rotation"
+            layout="inline"
+            valueSeparator=" "
+            display={`${angle}°`}
+            className="w-32 space-y-1"
+            min={0}
+            max={180}
+            step={5}
+            value={angle}
+            onChange={setAngle}
+          />
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">

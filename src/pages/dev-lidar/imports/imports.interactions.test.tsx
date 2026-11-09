@@ -76,7 +76,7 @@ describe('import workspace interface', () => {
     )
     await act(async () =>
       root()
-        .findByProps({ 'aria-label': 'Opacity sat.geojson' })
+        .findAll((n) => typeof n.type === 'string' && n.props['aria-label'] === 'Opacity sat.geojson')[0]
         .props.onChange({ target: { value: '.35' } }),
     )
     expect(mapProps().session.layers[0]).toMatchObject({ visible: false, opacity: 0.35 })

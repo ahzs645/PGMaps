@@ -1,10 +1,11 @@
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
-import { NativeSelect, NumberField } from '@/components/ui/form-field'
+import { CheckboxField, NumberField, SelectField } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -80,12 +81,16 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
   }
   if (!data)
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm" role="status">
-        {error || 'Loading BC VRI volume estimates…'}
-        {error && (
-          <Button className="ml-2" onClick={retry}>
-            Retry VRI
-          </Button>
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+        {error ? (
+          <div className="max-w-md space-y-3">
+            <InlineAlert tone="error" title="Could not load the BC VRI estimates">
+              {error}
+            </InlineAlert>
+            <Button onClick={retry}>Retry VRI</Button>
+          </div>
+        ) : (
+          <InlineAlert loading>Loading BC VRI volume estimates…</InlineAlert>
         )}
       </div>
     )
@@ -139,43 +144,39 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   PG planning rules
                 </Button>
               </div>
-              <label className="mt-3 block text-xs">
-                Utilization level
-                <NativeSelect
-                  aria-label="VRI utilization"
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value={String(rules.utilization)}
-                  onChange={(e) =>
-                    patch({
-                      utilization: (e.target.value === 'species'
-                        ? 'species'
-                        : Number(e.target.value)) as VriUtilizationRule,
-                    })
-                  }
-                >
-                  <option value="125">12.5 cm · all stands</option>
-                  <option value="175">17.5 cm · all stands</option>
-                  <option value="225">22.5 cm · unreported in this tile</option>
-                  <option value="species">Pine 12.5 cm · others 17.5 cm</option>
-                </NativeSelect>
-              </label>
+              <SelectField
+                label="Utilization level"
+                aria-label="VRI utilization"
+                fieldClassName="mt-3"
+                value={String(rules.utilization)}
+                onChange={(e) =>
+                  patch({
+                    utilization: (e.target.value === 'species'
+                      ? 'species'
+                      : Number(e.target.value)) as VriUtilizationRule,
+                  })
+                }
+              >
+                <option value="125">12.5 cm · all stands</option>
+                <option value="175">17.5 cm · all stands</option>
+                <option value="225">22.5 cm · unreported in this tile</option>
+                <option value="species">Pine 12.5 cm · others 17.5 cm</option>
+              </SelectField>
               <p className="mt-1 text-3xs leading-5">
                 Same utilization choices as PGMaps AVAST. These are inventory DBH utilization levels, not measured top
                 diameters.
               </p>
-              <label className="mt-2 block text-xs">
-                Dead volume
-                <NativeSelect
-                  aria-label="VRI dead volume"
-                  className="mt-1 w-full rounded border bg-background p-2"
-                  value={rules.dead}
-                  onChange={(e) => patch({ dead: e.target.value as VriDeadRule })}
-                >
-                  <option value="none">Live only</option>
-                  <option value="full">Live + reported dead</option>
-                  <option value="shelf">Live + reported dead · PG shelf-life scenario</option>
-                </NativeSelect>
-              </label>
+              <SelectField
+                label="Dead volume"
+                aria-label="VRI dead volume"
+                fieldClassName="mt-2"
+                value={rules.dead}
+                onChange={(e) => patch({ dead: e.target.value as VriDeadRule })}
+              >
+                <option value="none">Live only</option>
+                <option value="full">Live + reported dead</option>
+                <option value="shelf">Live + reported dead · PG shelf-life scenario</option>
+              </SelectField>
               <NumberField
                 label="Minimum projected stand age · years"
                 aria-label="VRI minimum stand age"
@@ -185,8 +186,6 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                 clampOn="never"
                 blankValue="zero"
                 fieldClassName="mt-2"
-                contentClassName="text-xs"
-                inputClassName="mt-1 w-full rounded border bg-background p-2"
                 onValueChange={(value) => patch({ minAge: Math.max(0, value || 0) })}
               />
               <p className="mt-1 text-3xs leading-5">
@@ -202,8 +201,6 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                     min={0}
                     clampOn="never"
                     blankValue="zero"
-                    contentClassName="text-xs"
-                    inputClassName="mt-1 w-full rounded border bg-background p-2"
                     onValueChange={(value) => patch({ unknownDeathYears: Math.max(0, value || 0) })}
                   />
                   <NumberField
@@ -214,8 +211,6 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                     max={2200}
                     clampOn="never"
                     blankValue="zero"
-                    contentClassName="text-xs"
-                    inputClassName="mt-1 w-full rounded border bg-background p-2"
                     onValueChange={(value) => patch({ asOfYear: Math.max(1900, Math.min(2200, value || 2026)) })}
                   />
                   <p className="col-span-2 text-3xs leading-5">
@@ -259,10 +254,10 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                 · {ha(totals.missing_treed_ha)} treed area excluded or unavailable.
               </p>
               {partial && (
-                <p className="mt-2 text-xs text-amber-700 dark:text-amber-300" role="status">
+                <InlineAlert tone="warning" className="mt-2">
                   Dead volume is unreported over {ha(totals.partial_dead_ha)}. The sum includes known live volume there;
                   the missing dead component is not inferred.
-                </p>
+                </InlineAlert>
               )}
             </SidebarSection>
             {active && (
@@ -341,15 +336,12 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
               </p>
             </SidebarSection>
             <SidebarSection title="Compare with the existing AVAST tool">
-              <label className="flex items-start gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  aria-label="VRI historical audit comparison"
-                  checked={audit}
-                  onChange={(e) => setAudit(e.target.checked)}
-                />
-                Historical PG audit comparison
-              </label>
+              <CheckboxField
+                label="Historical PG audit comparison"
+                aria-label="VRI historical audit comparison"
+                checked={audit}
+                onCheckedChange={setAudit}
+              />
               {audit && (
                 <>
                   <p className="mt-2 text-sm font-semibold">
@@ -362,14 +354,9 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                   </p>
                 </>
               )}
-              <a
-                className="mt-2 block text-xs underline"
-                href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume"
-                target="_blank"
-                rel="noreferrer"
-              >
+              <ExternalLink className="mt-2 flex w-fit" href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume">
                 Open PGMaps AVAST volume tool
-              </a>
+              </ExternalLink>
             </SidebarSection>
             <SidebarSection title="Coverage & source">
               <KeyValueRows
@@ -385,17 +372,12 @@ export function VriVolumeWorkspace({ summary, basemap }: { summary: AnalysisSumm
                 {data.area_method} No substand LiDAR volume model is implied. This snapshot does not automatically
                 remove disturbance after its projected date.
               </p>
-              <a className="mt-2 block text-xs underline" href={data.source.catalogue} target="_blank" rel="noreferrer">
+              <ExternalLink className="mt-2 flex w-fit" href={data.source.catalogue}>
                 BC VRI rank-1 · data catalogue
-              </a>
-              <a
-                className="mt-2 block text-xs underline"
-                href={data.source.dictionary}
-                target="_blank"
-                rel="noreferrer"
-              >
+              </ExternalLink>
+              <ExternalLink className="mt-2 flex w-fit" href={data.source.dictionary}>
                 VRI net-volume field definitions
-              </a>
+              </ExternalLink>
               <p className="mt-2 text-3xs">
                 {data.source.licence} · retrieved {data.source.retrieved_utc.slice(0, 10)}
               </p>

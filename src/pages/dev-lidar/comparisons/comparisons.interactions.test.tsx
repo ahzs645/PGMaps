@@ -107,7 +107,9 @@ describe('comparison workspace interactions', () => {
       await act(async () => catalogueButton('DeepForest').props.onClick())
       expect(renderer!.root.findByProps({ 'aria-label': 'RGB comparison map A' }).props['data-feature-count']).toBe(55)
       await act(async () =>
-        renderer!.root.findByProps({ 'aria-label': 'RGB score threshold' }).props.onChange({ target: { value: '.5' } }),
+        renderer!.root
+          .findAll((n) => typeof n.type === 'string' && n.props['aria-label'] === 'RGB score threshold')[0]
+          .props.onChange({ target: { value: '.5' } }),
       )
       expect(renderer!.root.findByProps({ 'aria-label': 'RGB comparison map A' }).props['data-feature-count']).toBe(35)
       await act(async () =>

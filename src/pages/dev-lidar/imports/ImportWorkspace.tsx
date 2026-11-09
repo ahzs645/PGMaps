@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { isMobileViewport } from '@/hooks/useIsMobile'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { NativeSelect } from '@/components/ui/form-field'
+import { cn } from '@/lib/utils'
 import { downloadBlob, downloadText } from '@/lib/download'
 import type { Basemap } from '../basemaps'
 import { ImportMap } from './ImportMap'
@@ -144,7 +146,12 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="LiDAR import and project workspace">
       <div className="max-h-[32dvh] shrink-0 overflow-y-auto overscroll-contain">
         <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-xs">
-          <label className="cursor-pointer rounded border px-3 py-2 font-medium">
+          <label
+            className={cn(
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'cursor-pointer focus-within:ring-2 focus-within:ring-ring',
+            )}
+          >
             Import files
             <input
               aria-label="Import LiDAR or processed layers"
@@ -160,7 +167,12 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               }}
             />
           </label>
-          <label className="cursor-pointer rounded border px-3 py-2">
+          <label
+            className={cn(
+              buttonVariants({ variant: 'outline', size: 'sm' }),
+              'cursor-pointer focus-within:ring-2 focus-within:ring-ring',
+            )}
+          >
             Restore project
             <input
               aria-label="Restore LiDAR project"
@@ -194,7 +206,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
           </Button>
           <label title="Used for files without an embedded CRS; an embedded EPSG code always wins.">
             Layer CRS{' '}
-            <select
+            <NativeSelect
               aria-label="Imported layer CRS"
               value={crs}
               onChange={(e) => setCrs(e.target.value)}
@@ -210,7 +222,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
                   ))}
                 </optgroup>
               ))}
-            </select>
+            </NativeSelect>
           </label>
           <Button
             size="sm"

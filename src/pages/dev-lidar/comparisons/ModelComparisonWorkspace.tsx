@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Basemap } from '../basemaps'
@@ -151,9 +152,9 @@ export function ModelComparisonWorkspace({
                 cleared when you select it.
               </p>
               {model.url && (
-                <a href={model.url} target="_blank" rel="noreferrer" className="text-sm underline">
+                <ExternalLink href={model.url} className="text-sm">
                   Model source and documentation
-                </a>
+                </ExternalLink>
               )}
               <Button onClick={() => setSelected(undefined)}>
                 Compare available {family === 'lidar' ? 'LiDAR' : 'RGB'} outputs
@@ -162,15 +163,19 @@ export function ModelComparisonWorkspace({
           ) : family === 'neural' ? (
             <NeuralComparison basemap={basemap} sourceSha={summary?.source_sha256} />
           ) : !data ? (
-            <div className="flex h-full items-center justify-center p-6 text-sm" role="status">
-              <div>
-                {loadError || error || 'Loading and checking saved model outputs…'}
-                {(loadError || error) && (
-                  <Button size="sm" onClick={loadError ? retry : onRetry} className="ml-2">
+            <div className="flex h-full items-center justify-center p-6">
+              {loadError || error ? (
+                <div className="max-w-md space-y-3">
+                  <InlineAlert tone="error" title="Could not load the comparison data">
+                    {loadError || error}
+                  </InlineAlert>
+                  <Button size="sm" onClick={loadError ? retry : onRetry}>
                     Retry comparison data
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <InlineAlert loading>Loading and checking saved model outputs…</InlineAlert>
+              )}
             </div>
           ) : family === 'lidar' ? (
             <LidarComparison data={data} basemap={basemap} selectedModel={selected} />

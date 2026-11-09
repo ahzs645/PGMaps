@@ -81,7 +81,7 @@ describe('individual neural tree examples', () => {
     expect(map().props['data-crop'].id).toBe(examples.trees[2].id)
     await act(async () =>
       renderer!.root
-        .findByProps({ 'aria-label': 'Individual tree rotation' })
+        .findAll((n) => typeof n.type === 'string' && n.props['aria-label'] === 'Individual tree rotation')[0]
         .props.onChange({ target: { value: '90' } }),
     )
     expect(renderer!.root.find((n) => !!n.props['data-profile']).props['data-angle']).toBe(90)
@@ -91,7 +91,7 @@ describe('individual neural tree examples', () => {
     expect(Object.values(map().props['data-labels']).every((v) => String(v).startsWith('forainet-class-'))).toBe(true)
     await act(async () =>
       renderer!.root
-        .findByProps({ 'aria-label': 'Show neighbouring points' })
+        .findAll((n) => typeof n.type === 'string' && n.props['aria-label'] === 'Show neighbouring points')[0]
         .props.onChange({ target: { checked: true } }),
     )
     expect(Object.values(map().props['data-labels'])).toContain('0')

@@ -1,4 +1,5 @@
 import { LidarMap, pointCloudFrame } from '../LidarMap'
+import { TextButton } from '@/components/ui/text-button'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { GeoJSONSource, LayerSpecification, Map as MapLibreMap } from 'maplibre-gl'
 import { LidarControl } from 'maplibre-gl-lidar'
@@ -344,15 +345,15 @@ export function ImportMap(props: Props) {
       {(error || contextError) && (
         <p role="alert" className="absolute bottom-2 left-2 right-12 rounded bg-background/95 p-2 text-xs">
           {error || contextError}
-          <button
-            className="ml-2 underline"
+          <TextButton
+            className="ml-2"
             onClick={() => {
               setError('')
               setContextError('')
             }}
           >
             Dismiss
-          </button>
+          </TextButton>
         </p>
       )}
     </div>

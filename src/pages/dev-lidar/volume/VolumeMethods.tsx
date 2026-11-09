@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { SidebarSection } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
 
 export function VolumeMethods() {
   return (
@@ -18,22 +19,18 @@ export function VolumeMethods() {
             equations compile those measurements into a consistently defined plot volume. Plot coordinates, footprint
             and survey dates must match the LiDAR.
           </p>
-          <a
-            className="mt-2 block text-xs underline"
+          <ExternalLink
+            className="mt-2 flex w-fit"
             href="https://publications.gc.ca/site/eng/9.843782/publication.html"
-            target="_blank"
-            rel="noreferrer"
           >
             NRCan · area-based model development guide
-          </a>
-          <a
-            className="mt-2 block text-xs underline"
+          </ExternalLink>
+          <ExternalLink
+            className="mt-2 flex w-fit"
             href="https://www2.gov.bc.ca/gov/content/industry/forestry/managing-our-forest-resources/forest-inventory/forest-cover-inventories/light-detection-and-ranging"
-            target="_blank"
-            rel="noreferrer"
           >
             BC · LEFI Tier 2 uses area-based volume modelling
-          </a>
+          </ExternalLink>
         </SidebarSection>
         <SidebarSection title="2 · Estimate individual trees and logs">
           <p className="text-sm leading-6">
@@ -45,22 +42,15 @@ export function VolumeMethods() {
             breast-height diameter or a complete stem. A dense ground or mobile scan can help measure stems; TreeQSM can
             model woody cylinders where the scan supports that geometry.
           </p>
-          <a
-            className="mt-2 block text-xs underline"
+          <ExternalLink
+            className="mt-2 flex w-fit"
             href="https://www2.gov.bc.ca/gov/content/industry/forestry/competitive-forest-industry/timber-pricing/timber-cruising/cruise-compilation-manual"
-            target="_blank"
-            rel="noreferrer"
           >
             BC · Cruise Compilation Manual and amendments
-          </a>
-          <a
-            className="mt-2 block text-xs underline"
-            href="https://github.com/InverseTampere/TreeQSM"
-            target="_blank"
-            rel="noreferrer"
-          >
+          </ExternalLink>
+          <ExternalLink className="mt-2 flex w-fit" href="https://github.com/InverseTampere/TreeQSM">
             TreeQSM · dense single-tree laser scans
-          </a>
+          </ExternalLink>
         </SidebarSection>
         <SidebarSection title="Keep these volumes separate">
           <dl className="space-y-3 text-sm leading-6">
@@ -104,14 +94,9 @@ export function VolumeMethods() {
             dead volumes remain unreported; a live-only partial sum is clearly labelled when dead inclusion is
             requested. LiDAR heights provide structural context without silently changing the inventory estimate.
           </p>
-          <a
-            className="mt-2 block text-xs underline"
-            href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume"
-            target="_blank"
-            rel="noreferrer"
-          >
+          <ExternalLink className="mt-2 flex w-fit" href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume">
             Compare PGMaps AVAST's VRI planning rules
-          </a>
+          </ExternalLink>
           <h3 className="mt-3 text-sm font-semibold">Optional local calibration</h3>
           <ol className="list-decimal space-y-2 pl-4 text-sm leading-6">
             <li>Download the matching 50 × 50 m reference footprints from the calibration view.</li>

@@ -2,7 +2,10 @@ import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
+import { InlineAlert, MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
+import { cn } from '@/lib/utils'
 import { downloadText } from '@/lib/download'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { AnalysisSummary } from '../types'
@@ -222,11 +225,10 @@ export function ForestVolumeWorkspace({
               </p>
             </SidebarSection>
             <SidebarSection title="2 · Fit a local model">
-              <label className="block text-xs">
-                Reference dataset, year & volume definition
+              <FormField label="Reference dataset, year & volume definition">
                 <input
                   aria-label="Volume reference source"
-                  className="mt-1 w-full rounded border bg-background p-2"
+                  className={FORM_INPUT_CLASS}
                   value={referenceSource}
                   onChange={(e) => {
                     setReferenceSource(e.target.value)
@@ -234,14 +236,13 @@ export function ForestVolumeWorkspace({
                   }}
                   placeholder="Field inventory · year · bark/DBH conventions"
                 />
-              </label>
-              <label className="mt-2 block text-xs">
-                Reference CSV
+              </FormField>
+              <FormField label="Reference CSV" className="mt-2">
                 <input
                   aria-label="Upload volume reference CSV"
                   type="file"
                   accept=".csv,text/csv"
-                  className="mt-1 block w-full text-xs"
+                  className="block w-full text-xs"
                   onChange={async (e) => {
                     const file = e.target.files?.[0]
                     if (!file) return
@@ -254,10 +255,10 @@ export function ForestVolumeWorkspace({
                     setFitError('')
                   }}
                 />
-              </label>
+              </FormField>
               <textarea
                 aria-label="Volume reference CSV"
-                className="mt-2 w-full rounded border bg-background p-2 font-mono text-3xs"
+                className={cn(FORM_INPUT_CLASS, 'mt-2 font-mono text-3xs md:text-3xs')}
                 rows={5}
                 value={csv}
                 onChange={(e) => {
@@ -270,9 +271,9 @@ export function ForestVolumeWorkspace({
                 Fit volume model
               </Button>
               {fitError && (
-                <p className="mt-2 text-xs" role="alert">
+                <InlineAlert tone="error" className="mt-2">
                   {fitError}
-                </p>
+                </InlineAlert>
               )}
               <p className="mt-2 text-3xs text-muted-foreground">
                 CSV stays in this browser. OLS uses CHM surface p95 and canopy fraction. Predictions outside the
@@ -428,9 +429,9 @@ export function ForestVolumeWorkspace({
             <SidebarSection title="Research & methods">
               <div className="space-y-2">
                 {SOURCES.map(([title, url]) => (
-                  <a key={url} href={url} target="_blank" rel="noreferrer" className="block text-xs underline">
+                  <ExternalLink key={url} href={url} className="flex w-fit">
                     {title}
-                  </a>
+                  </ExternalLink>
                 ))}
               </div>
             </SidebarSection>
@@ -438,8 +439,14 @@ export function ForestVolumeWorkspace({
         </aside>
         <div className="relative min-h-[180px] flex-1 overflow-hidden">
           {!summary || !data ? (
-            <div className="flex h-full items-center justify-center p-4 text-sm" role="status">
-              {loadError || summaryError || 'Loading verified forest plot metrics…'}
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
+              {loadError || summaryError ? (
+                <InlineAlert tone="error" title="Could not load the forest plot metrics" className="max-w-md">
+                  {loadError || summaryError}
+                </InlineAlert>
+              ) : (
+                <InlineAlert loading>Loading verified forest plot metrics…</InlineAlert>
+              )}
               {loadError && (
                 <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>
                   Retry

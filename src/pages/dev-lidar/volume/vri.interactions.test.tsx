@@ -101,7 +101,8 @@ describe('VRI estimates through the interface', () => {
         )
       })
       expect(renderer!.root.findAllByProps({ 'aria-label': 'BC VRI volume map' })).toHaveLength(0)
-      expect(renderer!.root.findByProps({ role: 'status' }).children.join('')).toContain('source mismatch')
+      expect(renderer!.root.findAllByProps({ role: 'alert' })).toHaveLength(1)
+      expect(JSON.stringify(renderer!.toJSON())).toContain('source mismatch')
       await act(async () => renderer!.unmount())
     } finally {
       vi.unstubAllGlobals()

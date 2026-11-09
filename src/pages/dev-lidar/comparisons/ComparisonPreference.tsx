@@ -1,5 +1,6 @@
 import { useKeyedState } from '../useKeyedState'
 import { Button } from '@/components/ui/button'
+import { FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
 
 export function ComparisonPreference({
   scope,
@@ -48,17 +49,16 @@ export function ComparisonPreference({
   }
   return (
     <div className="space-y-2">
-      <label className="block text-xs">
-        Review note
+      <FormField label="Review note">
         <textarea
           aria-label="Comparison review note"
-          className="mt-1 block w-full rounded border bg-background p-2"
+          className={FORM_INPUT_CLASS}
           rows={2}
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Splits, merges, missed crowns or structures…"
         />
-      </label>
+      </FormField>
       <div className="flex flex-wrap gap-1">
         <Button size="sm" variant={preferred === left.id ? 'default' : 'outline'} onClick={() => save(left.id)}>
           Prefer A

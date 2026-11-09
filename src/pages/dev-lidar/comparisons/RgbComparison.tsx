@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { downloadText } from '@/lib/download'
@@ -101,44 +102,40 @@ export function RgbComparison({
             </NativeSelect>
           </label>
         ))}
-        <label>
-          Score ≥ {threshold.toFixed(2)}
-          <input
-            className="ml-1 w-20 align-middle"
-            aria-label="RGB score threshold"
-            type="range"
-            min={0.05}
-            max={0.95}
-            step={0.05}
-            value={threshold}
-            onChange={(e) => setThreshold(+e.target.value)}
-          />
-        </label>
-        <label>
-          <input type="checkbox" checked={masks} onChange={(e) => setMasks(e.target.checked)} />
-          Masks when available
-        </label>
-        <label>
-          <input type="checkbox" checked={truth} onChange={(e) => setTruth(e.target.checked)} />
-          Reference boxes
-        </label>
-        <label>
-          <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
-          Link cameras
-        </label>
-        <label>
-          Fill
-          <input
-            aria-label="RGB mask opacity"
-            className="ml-1 w-16 align-middle"
-            type="range"
-            min={0}
-            max={0.8}
-            step={0.05}
-            value={opacity}
-            onChange={(e) => setOpacity(+e.target.value)}
-          />
-        </label>
+        <NumericRangeField
+          label="Score ≥"
+          aria-label="RGB score threshold"
+          layout="inline"
+          valueSeparator=" "
+          display={threshold.toFixed(2)}
+          className="w-24 space-y-1"
+          min={0.05}
+          max={0.95}
+          step={0.05}
+          value={threshold}
+          onChange={setThreshold}
+        />
+        <CheckboxField
+          label="Masks when available"
+          checked={masks}
+          onCheckedChange={setMasks}
+          className="self-center"
+        />
+        <CheckboxField label="Reference boxes" checked={truth} onCheckedChange={setTruth} className="self-center" />
+        <CheckboxField label="Link cameras" checked={linked} onCheckedChange={setLinked} className="self-center" />
+        <NumericRangeField
+          label="Fill"
+          aria-label="RGB mask opacity"
+          layout="inline"
+          valueSeparator=" "
+          display={`${Math.round(opacity * 100)}%`}
+          className="w-20 space-y-1"
+          min={0}
+          max={0.8}
+          step={0.05}
+          value={opacity}
+          onChange={setOpacity}
+        />
         <Button
           size="sm"
           variant="outline"

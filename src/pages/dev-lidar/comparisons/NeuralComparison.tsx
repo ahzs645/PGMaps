@@ -1,4 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { NeuralTreeInspector } from './NeuralTreeInspector'
@@ -53,8 +55,14 @@ export function NeuralComparison({ basemap, sourceSha }: { basemap: Basemap; sou
   }, [sourceSha, attempt])
   if (!data || (sourceSha && data.source_sha256 !== sourceSha))
     return (
-      <div role="status" className="p-6 text-sm">
-        {error || 'Loading verified preliminary neural results…'}
+      <div className="space-y-3 p-6">
+        {error ? (
+          <InlineAlert tone="error" title="Could not load the neural results">
+            {error}
+          </InlineAlert>
+        ) : (
+          <InlineAlert loading>Loading verified preliminary neural results…</InlineAlert>
+        )}
         {error && (
           <Button
             onClick={() => {
@@ -157,10 +165,11 @@ export function NeuralViews({
           ]}
         />
         {view === 'coverage' ? (
-          <label>
-            <input type="checkbox" checked={difference} onChange={(e) => setDifference(e.target.checked)} /> Show
-            assigned / unassigned disagreement
-          </label>
+          <CheckboxField
+            label="Show assigned / unassigned disagreement"
+            checked={difference}
+            onCheckedChange={setDifference}
+          />
         ) : (
           view !== 'trees' && (
             <>
@@ -198,18 +207,19 @@ export function NeuralViews({
           )
         )}
         {view === 'profile' && (
-          <label>
-            Rotation {angle}°{' '}
-            <input
-              aria-label="Neural profile rotation"
-              type="range"
-              min="0"
-              max="180"
-              step="5"
-              value={angle}
-              onChange={(e) => setAngle(+e.target.value)}
-            />
-          </label>
+          <NumericRangeField
+            label="Rotation"
+            aria-label="Neural profile rotation"
+            layout="inline"
+            valueSeparator=" "
+            display={`${angle}°`}
+            className="w-32 space-y-1"
+            min={0}
+            max={180}
+            step={5}
+            value={angle}
+            onChange={setAngle}
+          />
         )}
         {view !== 'trees' && (
           <Button

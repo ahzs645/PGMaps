@@ -1,4 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -55,8 +57,14 @@ export function NeuralTreeInspector({ snapshot, basemap }: { snapshot: NeuralSna
   }, [snapshot, attempt])
   if (!data || data.source_sha256 !== snapshot.source_sha256 || data.snapshot_utc !== snapshot.snapshot_utc)
     return (
-      <div className="p-4 text-sm" role="status">
-        {error || 'Loading full individual-candidate point sets…'}
+      <div className="space-y-3 p-4">
+        {error ? (
+          <InlineAlert tone="error" title="Could not load the tree examples">
+            {error}
+          </InlineAlert>
+        ) : (
+          <InlineAlert loading>Loading full individual-candidate point sets…</InlineAlert>
+        )}
         {error && (
           <Button
             onClick={() => {
@@ -213,27 +221,25 @@ export function NeuralTreeViews({
             { value: 'semantic', label: 'Point classes' },
           ]}
         />
-        <label>
-          <input
-            aria-label="Show neighbouring points"
-            type="checkbox"
-            checked={context}
-            onChange={(e) => setContext(e.target.checked)}
-          />{' '}
-          Nearby points
-        </label>
-        <label>
-          Side rotation {angle}°{' '}
-          <input
-            aria-label="Individual tree rotation"
-            type="range"
-            min="0"
-            max="180"
-            step="5"
-            value={angle}
-            onChange={(e) => setAngle(+e.target.value)}
-          />
-        </label>
+        <CheckboxField
+          label="Nearby points"
+          aria-label="Show neighbouring points"
+          checked={context}
+          onCheckedChange={setContext}
+        />
+        <NumericRangeField
+          label="Side rotation"
+          aria-label="Individual tree rotation"
+          layout="inline"
+          valueSeparator=" "
+          display={`${angle}°`}
+          className="w-32 space-y-1"
+          min={0}
+          max={180}
+          step={5}
+          value={angle}
+          onChange={setAngle}
+        />
         <Button size="sm" variant="outline" onClick={() => setReset((n) => n + 1)}>
           Fit tree
         </Button>

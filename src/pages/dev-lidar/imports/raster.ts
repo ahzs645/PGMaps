@@ -97,15 +97,18 @@ export function rasterValue(layer: RasterLayer, lon: number, lat: number) {
   const value = layer.values[row * layer.width + col]
   return !Number.isFinite(value) || value === layer.noData ? null : value
 }
+/** Viridis stops for imported rasters; the preview and its legend both read this. */
+export const RASTER_RAMP = [
+  [68, 1, 84],
+  [59, 82, 139],
+  [33, 145, 140],
+  [94, 201, 98],
+  [253, 231, 37],
+] as const
+export const RASTER_RAMP_CSS = RASTER_RAMP.map(([r, g, b]) => `rgb(${r}, ${g}, ${b})`)
 export function rasterColour(value: number, min: number, max: number): [number, number, number, number] {
   const t = Math.max(0, Math.min(1, (value - min) / (max - min || 1)))
-  const stops = [
-    [68, 1, 84],
-    [59, 82, 139],
-    [33, 145, 140],
-    [94, 201, 98],
-    [253, 231, 37],
-  ]
+  const stops = RASTER_RAMP
   const i = Math.min(3, Math.floor(t * 4)),
     f = t * 4 - i
   return [...stops[i].map((v, j) => Math.round(v + f * (stops[i + 1][j] - v))), 255] as [number, number, number, number]

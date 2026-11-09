@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -70,37 +71,33 @@ export function ShapeComparison({ data, basemap }: { data: ComparisonData; basem
             { value: 'profile', label: 'Side profiles' },
           ]}
         />
-        <label>
-          <input type="checkbox" checked={linked} onChange={(e) => setLinked(e.target.checked)} />
-          Link relative cameras
-        </label>
-        <label>
-          Point size
-          <input
-            aria-label="Shape point size"
-            className="ml-1 w-16 align-middle"
-            type="range"
-            min={1}
-            max={5}
-            step={0.5}
-            value={pointSize}
-            onChange={(e) => setPointSize(+e.target.value)}
-          />
-        </label>
+        <CheckboxField label="Link relative cameras" checked={linked} onCheckedChange={setLinked} />
+        <NumericRangeField
+          label="Point size"
+          aria-label="Shape point size"
+          layout="inline"
+          valueSeparator=" "
+          className="w-24 space-y-1"
+          min={1}
+          max={5}
+          step={0.5}
+          value={pointSize}
+          onChange={setPointSize}
+        />
         {view === 'profile' && (
-          <label>
-            Rotation {angle}°
-            <input
-              aria-label="Shape profile rotation"
-              className="ml-1 w-20 align-middle"
-              type="range"
-              min={0}
-              max={180}
-              step={5}
-              value={angle}
-              onChange={(e) => setAngle(+e.target.value)}
-            />
-          </label>
+          <NumericRangeField
+            label="Rotation"
+            aria-label="Shape profile rotation"
+            layout="inline"
+            valueSeparator=" "
+            display={`${angle}°`}
+            className="w-28 space-y-1"
+            min={0}
+            max={180}
+            step={5}
+            value={angle}
+            onChange={setAngle}
+          />
         )}
         <Button
           size="sm"

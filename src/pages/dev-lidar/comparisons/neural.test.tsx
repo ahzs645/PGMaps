@@ -87,7 +87,7 @@ describe('matched preliminary neural results', () => {
     expect(maps()).toHaveLength(0)
     await act(async () =>
       renderer!.root
-        .findByProps({ 'aria-label': 'Neural profile rotation' })
+        .findAll((n) => typeof n.type === 'string' && n.props['aria-label'] === 'Neural profile rotation')[0]
         .props.onChange({ target: { value: '90' } }),
     )
     expect(renderer!.root.findAll((n) => n.props['data-profile']).map((n) => n.props['data-angle'])).toEqual([90, 90])

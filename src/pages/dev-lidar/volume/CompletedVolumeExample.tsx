@@ -2,7 +2,10 @@ import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { KeyValueRows, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { CheckboxField } from '@/components/ui/form-field'
+import { InlineAlert, KeyValueRows, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
+import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { downloadText } from '@/lib/download'
@@ -78,12 +81,16 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
   const reference = data?.references.features.find((f) => f.properties.id === referenceId)?.properties
   if (!data || !features)
     return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-sm" role="status">
-        {error || 'Loading completed LiDAR volume example…'}
-        {error && (
-          <Button className="ml-2" onClick={() => setAttempt((n) => n + 1)}>
-            Retry
-          </Button>
+      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+        {error ? (
+          <div className="max-w-md space-y-3">
+            <InlineAlert tone="error" title="Could not load the completed example">
+              {error}
+            </InlineAlert>
+            <Button onClick={() => setAttempt((n) => n + 1)}>Retry</Button>
+          </div>
+        ) : (
+          <InlineAlert loading>Loading completed LiDAR volume example…</InlineAlert>
         )}
       </div>
     )
@@ -95,20 +102,17 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
           <Badge tone="success">Completed example</Badge>
           <p className="mt-1 font-semibold">Forêt Montmorency · Québec · 2015–2016</p>
         </div>
-        <div>
-          <strong className="block text-lg tabular-nums">
-            {Math.round(data.map.modelled_merchantable_m3).toLocaleString(DEFAULT_LOCALE)} m³
-          </strong>
-          Modelled merchantable stem volume
-        </div>
-        <div>
-          <strong className="block text-lg tabular-nums">{data.map.supported_area_ha.toFixed(2)} ha</strong>Supported
-          forest grid
-        </div>
-        <div>
-          <strong className="block text-lg tabular-nums">{data.map.mean_m3_ha.toFixed(1)} m³/ha</strong>Mean predicted
-          volume
-        </div>
+        <StatGroup
+          className="justify-start gap-5"
+          items={[
+            {
+              label: 'Modelled merchantable stem volume',
+              value: `${Math.round(data.map.modelled_merchantable_m3).toLocaleString(DEFAULT_LOCALE)} m³`,
+            },
+            { label: 'Supported forest grid', value: `${data.map.supported_area_ha.toFixed(2)} ha` },
+            { label: 'Mean predicted volume', value: `${data.map.mean_m3_ha.toFixed(1)} m³/ha` },
+          ]}
+        />
         <Button
           className="ml-auto"
           size="sm"
@@ -209,9 +213,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
               </p>
             </SidebarSection>
             <SidebarSection title="Source and reproducibility">
-              <a href={data.source.tutorial} target="_blank" rel="noreferrer" className="text-xs underline">
-                UBC workshop: area-based forest inventory
-              </a>
+              <ExternalLink href={data.source.tutorial}>UBC workshop: area-based forest inventory</ExternalLink>
               <p className="mt-2 text-3xs leading-5">
                 {data.source.attribution}. The supplied metrics were precomputed; we reran the volume regression,
                 spatial diagnostics and mapped predictions. {data.source.note}
@@ -278,10 +280,7 @@ export function CompletedVolumeExample({ basemap }: { basemap: Basemap }) {
                 { value: 'height', label: 'LiDAR height' },
               ]}
             />
-            <label className="flex items-center gap-1">
-              <input type="checkbox" checked={showReferences} onChange={(e) => setShowReferences(e.target.checked)} />
-              Field plots
-            </label>
+            <CheckboxField label="Field plots" checked={showReferences} onCheckedChange={setShowReferences} />
             <Button
               size="sm"
               variant="outline"
