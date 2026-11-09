@@ -6,11 +6,15 @@ import { RoadSection } from './SidebarParts'
 import { burnRoad } from './designSurface'
 import {
   exportGrid,
+  importTerrainWithAnswers,
   loadLas,
   loadRaster,
   parseTerrainReferenceSurfaces,
   preparedTerrain,
+  TerrainImportQuestion,
   type PointCloudImport,
+  type TerrainImportAnswers,
+  type TerrainImportNeeds,
 } from './terrain'
 import {
   gradePad,
@@ -35,6 +39,9 @@ const sourceRecord = (m: TerrainMetadata) => {
   if (!m.raster) throw Error('Import a local terrain grid first.')
   return { name: m.name, sha256: m.raster.sha256, epsg: m.raster.epsg, verticalReference: m.verticalReference }
 }
+/** How a resampled background is shown, as a notice and the layer's own line say it. */
+const backgroundResolution = (layer: TerrainBackgroundLayer) =>
+  `resampled for display from ${layer.sourceSize![0].toLocaleString('en-CA')} × ${layer.sourceSize![1].toLocaleString('en-CA')} to ${layer.width.toLocaleString('en-CA')} × ${layer.height.toLocaleString('en-CA')} pixels${layer.epsg === 4326 ? '' : ` (${layer.pixelSize[0].toFixed(2)} m)`}`
 const download = (text: string, name: string, type = 'text/plain') => {
   const url = URL.createObjectURL(new Blob([text], { type })),
     a = document.createElement('a')
@@ -47,10 +54,13 @@ export function TerrainPreparationPanel({
   workspace: w,
   verticalReference,
   pointCloud,
+  onAskTerrain,
 }: {
   workspace: RoadWorkspace
   verticalReference: string
   pointCloud?: Pick<PointCloudImport, 'classify' | 'surface' | 'preserveCorridorM' | 'retainTin'>
+  /** Asks for a CRS or vertical datum the chosen files do not state; null when cancelled. */
+  onAskTerrain?: (needs: TerrainImportNeeds) => Promise<TerrainImportAnswers | null>
 }) {
   const { project, alignment } = w,
     metadata = project.terrain,
@@ -91,6 +101,12 @@ export function TerrainPreparationPanel({
   const cloudFiles = useRef<HTMLInputElement>(null)
   const backgroundFile = useRef<HTMLInputElement>(null),
     [backgroundKind, setBackgroundKind] = useState<TerrainBackgroundLayer['kind']>('canopy')
+  // The vertical datum is the entered one or the one asked for now. The open terrain's is never
+  // taken silently: it is offered in the question, where choosing it is a statement.
+  const ask = (needs: TerrainImportNeeds) => {
+    if (!onAskTerrain) throw new TerrainImportQuestion('Enter the vertical datum under Import options first.', needs)
+    return onAskTerrain(needs)
+  }
   const run = async (action: () => Promise<void>) => {
     setWorking(true)
     w.setError('')
@@ -190,9 +206,12 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (!files.length) return
               void run(async () => {
-                const loaded = await Promise.all(
-                  files.map((f) => loadRaster(f, verticalReference || metadata.verticalReference)),
+                const loaded = await importTerrainWithAnswers(
+                  (answers) => Promise.all(files.map((f) => loadRaster(f, answers.verticalReference ?? ''))),
+                  ask,
+                  { verticalReference },
                 )
+                if (!loaded) return
                 const all = [...(raster ? [metadata] : []), ...loaded.map((l) => l.metadata)],
                   grids = all.map((m) => m.raster!)
                 const raw = mosaicRasters(grids, overlap)
@@ -220,13 +239,20 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (!files.length) return
               void run(async () => {
-                const loaded = await loadLas(files[0], verticalReference || metadata.verticalReference, {
-                  classify: 'auto',
-                  surface: 'tin',
-                  ...pointCloud,
-                  additionalFiles: files.slice(1),
-                  preservePath: alignment.points.map((p) => p.coordinate),
-                })
+                const loaded = await importTerrainWithAnswers(
+                  (answers) =>
+                    loadLas(files[0], answers.verticalReference ?? '', {
+                      classify: 'auto',
+                      surface: 'tin',
+                      ...pointCloud,
+                      additionalFiles: files.slice(1),
+                      assumedEpsg: answers.epsg,
+                      preservePath: alignment.points.map((p) => p.coordinate),
+                    }),
+                  ask,
+                  { verticalReference },
+                )
+                if (!loaded) return
                 ensureCurrentSource()
                 w.setSource(loaded.source)
                 w.update((p) => ({
@@ -468,7 +494,7 @@ export function TerrainPreparationPanel({
       <RoadSection
         title="Canopy and image backgrounds"
         summary={metadata.backgrounds?.length ? `${metadata.backgrounds.length}` : ''}
-        help="Independent display layers with their own CRS, opacity and visibility. A canopy height image or orthophoto never replaces bare-earth analytical ground."
+        help="Independent display layers with their own CRS, opacity and visibility. A canopy height image or orthophoto never replaces bare-earth analytical ground. An image larger than the display budget is resampled, and its line says so."
       >
         <fieldset disabled={working || !!w.busy} className="space-y-2" data-testid="road-terrain-backgrounds">
           <Field label="Background GeoTIFF type">
@@ -493,7 +519,7 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (f)
                 void run(async () => {
-                  const layer = await loadTerrainBackground(f, backgroundKind)
+                  const layer = await loadTerrainBackground(f, backgroundKind, metadata.backgrounds)
                   if (latest.current.projectId !== w.projectId)
                     throw Error(
                       'The project changed while importing this background; import it again in the selected project.',
@@ -508,7 +534,9 @@ export function TerrainPreparationPanel({
                       ]),
                     },
                   }))
-                  w.setNotice(`${layer.name} added as display background. Analytical ground is unchanged.`)
+                  w.setNotice(
+                    `${layer.name} added as display background${layer.sourceSize ? `, ${backgroundResolution(layer)}` : ''}. Analytical ground is unchanged.`,
+                  )
                 })
             }}
           />
@@ -535,6 +563,11 @@ export function TerrainPreparationPanel({
                 />
                 <span className="min-w-0 break-words">{layer.name}</span>
               </label>
+              {layer.sourceSize && (
+                <p className="text-2xs text-muted-foreground" data-background-resampled={layer.id}>
+                  {backgroundResolution(layer)[0].toUpperCase() + backgroundResolution(layer).slice(1)}
+                </p>
+              )}
               <NumberField
                 label={`${layer.name} opacity (%)`}
                 value={layer.opacity * 100}

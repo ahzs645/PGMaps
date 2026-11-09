@@ -11,6 +11,8 @@ import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { NOTE_LAYER_IDS, NotesLayer, NotesToolbar, type NoteTool } from './PlanNotes'
+import { ReferenceLayer, referenceLegend } from './ReferenceLayer'
+import type { ReferenceFeature } from './referenceFeatures'
 import { CutblockCard } from './CutblockCard'
 import { ExistingRoadCard } from './ExistingRoadCard'
 import { MAP_NOTE_COLORS, type MapNote } from './mapNotes'
@@ -121,6 +123,8 @@ interface PlanProps {
   historySelection?: AccessHistorySelection
   /** Saves the project's map notes; without it notes show but cannot be drawn or edited. */
   onNotesChange?: (notes: MapNote[]) => void
+  /** The reference feature the sidebar last located; the plan draws it heavier. */
+  focusedReferenceId?: string | null
   /** Set while a note tool is in hand, so the plan's own clicks stand aside. */
   noteTool?: NoteTool
   /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
@@ -170,6 +174,8 @@ function Layers(
     showLabels: boolean
     showEarthwork: boolean
     hiddenContextKinds: ContextFeature['kind'][]
+    /** Reference layers are shown, so the legend lists them. */
+    referenceVisible: boolean
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
     /** The road without any drag preview. A handle in use has to stay mounted, so handles follow this. */
@@ -1618,6 +1624,7 @@ function Layers(
             cableSupports: !!activeCable,
           }),
           ...historicalMap.legend,
+          ...referenceLegend(props.referenceVisible ? (props.project.reference ?? NO_REFERENCE) : NO_REFERENCE),
           ...(selectedMappedRoad.features.length
             ? [
                 {
@@ -1653,6 +1660,7 @@ const MIN_BEND_DRAG_PX = 10
 
 /** A shared empty list, so a project without notes does not re-send the notes source every render. */
 const NO_NOTES: MapNote[] = []
+const NO_REFERENCE: ReferenceFeature[] = []
 
 export function PlanView(input: PlanProps) {
   const investigation = isAccessInvestigation(input.project)
@@ -1742,6 +1750,9 @@ export function PlanView(input: PlanProps) {
   const [hiddenContextKinds, setHiddenContextKinds] = useState<ContextFeature['kind'][]>([])
   // Map notes: their own project collection, drawn with the notes bar and hidden as one layer.
   const notes = props.project.notes ?? NO_NOTES
+  // Reference features: imported points, lines and areas that only the plan draws.
+  const reference = props.project.reference ?? NO_REFERENCE
+  const [referenceVisible, setReferenceVisible] = useState(true)
   const [notesOpen, setNotesOpen] = useState(false)
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
@@ -1918,8 +1929,10 @@ export function PlanView(input: PlanProps) {
           showLabels={showLabels}
           showEarthwork={showEarthwork}
           hiddenContextKinds={hiddenContextKinds}
+          referenceVisible={referenceVisible}
           noteTool={noteTool}
         />
+        <ReferenceLayer features={reference} visible={referenceVisible} selectedId={props.focusedReferenceId} />
         <NotesLayer
           notes={notes}
           visible={notesVisible}
@@ -2065,6 +2078,7 @@ export function PlanView(input: PlanProps) {
                 ['Contours', showContours, setShowContours],
                 ['Labels', showLabels, setShowLabels],
                 ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
+                ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
               ] as const
             ).map(([label, checked, set]) => (

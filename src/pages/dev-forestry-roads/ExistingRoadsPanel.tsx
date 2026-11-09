@@ -11,13 +11,12 @@ import {
   BC_ROADS_CATALOGUE,
   BC_ROADS_SERVICE,
   existingRoadQueryBounds,
-  importExistingRoads,
   loadBcExistingRoads,
-  MAX_ROAD_RESPONSE_BYTES,
   type RoadQueryBounds,
 } from './existingRoads'
 import type { ContextFeature, ExistingRoadEvidence } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { SPATIAL_ACCEPT } from './spatialImport'
 import { RoadConditionEditor } from './RoadConditionEditor'
 import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
@@ -43,10 +42,13 @@ export function ExistingRoadsPanel({
   initialSelectedRoadId,
   open,
   onOpenChange,
+  onImportFile,
 }: {
   workspace: RoadWorkspace
   bounds?: RoadQueryBounds
   initialSelectedRoadId?: string
+  /** Reads a chosen spatial file as existing roads; the workspace's one importer does the reading. */
+  onImportFile?: (file: File) => void
   open?: boolean
   onOpenChange?: (open: boolean) => void
   /** Highlight and fit this section when the reviewer explicitly asks to locate it. */
@@ -152,10 +154,11 @@ export function ExistingRoadsPanel({
       help={
         <>
           <p>
-            Load BC Forest Tenure road sections near the project, or import your own GeoJSON road network. The FSR
-            button loads active Forest Service Road tenures for the current area. A tenure can represent an unbuilt
-            road. Permit status and award/retirement dates do not establish construction age, physical deactivation or
-            current condition. Review access, structures and rehabilitation before enabling reuse.
+            Load BC Forest Tenure road sections near the project, or import your own road network as GeoJSON, a zipped
+            shapefile, KML or KMZ. The FSR button loads active Forest Service Road tenures for the current area. A
+            tenure can represent an unbuilt road. Permit status and award/retirement dates do not establish construction
+            age, physical deactivation or current condition. Review access, structures and rehabilitation before
+            enabling reuse.
           </p>
           <p className="mt-2">
             Check{' '}
@@ -177,8 +180,13 @@ export function ExistingRoadsPanel({
           <Button size="sm" variant="outline" disabled={loading || !!w.busy} onClick={() => void load(false)}>
             {loading ? 'Loading roads…' : 'Load BC roads'}
           </Button>
-          <Button size="sm" variant="outline" disabled={loading || !!w.busy} onClick={() => input.current?.click()}>
-            Import road GeoJSON
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={loading || !!w.busy || !onImportFile}
+            onClick={() => input.current?.click()}
+          >
+            Import existing roads
           </Button>
         </div>
         <Button
@@ -193,28 +201,15 @@ export function ExistingRoadsPanel({
         <input
           ref={input}
           type="file"
-          accept=".json,.geojson,application/geo+json,application/json"
+          accept={SPATIAL_ACCEPT}
           className="hidden"
           data-testid="road-existing-roads-input"
-          onChange={async (e) => {
+          onChange={(e) => {
             const file = e.target.files?.[0]
             e.target.value = ''
             if (!file) return
             setError('')
-            try {
-              if (file.size > MAX_ROAD_RESPONSE_BYTES)
-                throw Error('Import at most 10 MB of road GeoJSON; split larger networks.')
-              const features = importExistingRoads(JSON.parse(await file.text())).map((f) => ({
-                ...f,
-                id: crypto.randomUUID(),
-              }))
-              if (projectKey !== latestProjectKey.current)
-                throw Error('The open project changed during import. Import the roads again in the intended project.')
-              merge(features)
-              latest.current.setNotice(`Imported ${features.length} existing-road lines for review.`)
-            } catch (cause) {
-              setError(cause instanceof Error ? cause.message : 'Could not import road linework.')
-            }
+            onImportFile?.(file)
           }}
         />
         {error && <InlineAlert tone="warning">{error}</InlineAlert>}

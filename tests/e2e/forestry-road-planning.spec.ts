@@ -494,7 +494,7 @@ test('mobile controls stay above map chrome and expose existing-road review and 
     )
     .toBe(true)
   await controls.getByRole('button', { name: 'Review existing roads', exact: true }).click()
-  await expect(controls.getByRole('button', { name: 'Import road GeoJSON', exact: true })).toBeInViewport()
+  await expect(controls.getByRole('button', { name: 'Import existing roads', exact: true })).toBeInViewport()
   await controls.getByRole('button', { name: 'Locate selected road on plan', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Show road controls', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Show road controls', exact: true }).click()

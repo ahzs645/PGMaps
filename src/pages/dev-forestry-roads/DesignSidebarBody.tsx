@@ -16,7 +16,16 @@ import type { RoadWorkspace } from './useRoadWorkspace'
 import type { ContextFeature, Coordinate, RoadTemplate } from './types'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 
-export type FileKind = 'project' | 'terrain' | 'alignment' | 'context' | 'breaklines'
+export type FileKind =
+  | 'project'
+  | 'terrain'
+  | 'breaklines'
+  /** Spatial files: road lines, the streams import, cutblocks, existing roads, reference layers. */
+  | 'alignment'
+  | 'context'
+  | 'cutblocks'
+  | 'mapped-roads'
+  | 'reference'
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'
@@ -90,6 +99,19 @@ export interface SidebarProps {
   onInspectHistoryRecord?: (kind: 'road' | 'structure', id: string) => void
   onSelectHistoryBlock?: (id: string) => void
   focusedConstraintId?: string | null
+  /** Reads a spatial file a panel's own picker was given; the intent says what that picker is for. */
+  onImportSpatial?: (file: File, intent: import('./spatialImport').ImportIntent) => void
+  /** Asks for a CRS or vertical datum a terrain file does not state; null when the question is cancelled. */
+  onAskTerrain?: (
+    needs: import('./terrain').TerrainImportNeeds,
+  ) => Promise<import('./terrain').TerrainImportAnswers | null>
+  /** Shows a reference feature on the plan; the sidebar marks `focusedReferenceId` as the one shown. */
+  onLocateReference?: (feature: import('./referenceFeatures').ReferenceFeature) => void
+  focusedReferenceId?: string | null
+  /** Starts pegging a road at a named point, or pegs the point next while a road is being pegged. */
+  onPegAt?: (at: Coordinate, name: string) => void
+  /** Moves the active road's start or end onto a named point. */
+  onRoadEndAt?: (at: Coordinate, name: string, end: 'start' | 'end') => void
   cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void
   onShowExistingRoads?: () => void
@@ -168,6 +190,7 @@ export function DesignSidebar(p: SidebarProps) {
                     workspace={p.workspace}
                     onLocateRoad={p.onLocateRoad}
                     onReviewRoad={tab === 'terrain' ? p.onReviewRoad : undefined}
+                    onImportFile={p.onImportSpatial ? (file) => p.onImportSpatial!(file, 'mapped-road') : undefined}
                     open={existingRoadsOpen}
                     onOpenChange={setExistingRoadsOpen}
                   />

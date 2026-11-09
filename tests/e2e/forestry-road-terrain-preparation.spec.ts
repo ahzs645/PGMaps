@@ -77,6 +77,10 @@ test('phone terrain preparation, independent imagery and survey evidence survive
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
+  // The tiles name no vertical datum. It is entered here; left empty, the import asks for it rather
+  // than taking the training terrain's.
+  await openRoadPanel(page, 'Import options')
+  await page.getByLabel('Imported DEM vertical datum (metres)', { exact: true }).fill('CGVD2013; metres')
   await page
     .getByLabel('Terrain mosaic files', { exact: true })
     .setInputFiles([tile('ground-a.tif'), tile('ground-b.tif', 400)])
@@ -97,10 +101,10 @@ test('phone terrain preparation, independent imagery and survey evidence survive
   const survey = page.getByTestId('road-survey-field-book')
   await survey.getByRole('button', { name: /^Fill start from station / }).click()
   await page
-    .getByRole('textbox',{name:'Traverse CSV (station, bearing°, horizontal m, grade %)', exact: true })
+    .getByRole('textbox', { name: 'Traverse CSV (station, bearing°, horizontal m, grade %)', exact: true })
     .fill('station,bearing_deg,horizontal_m,grade_pct\nA,0,50,2\nB,90,50,-2')
   await page
-    .getByRole('textbox',{name:'Side shots (id, station index, signed offset m, height difference m)', exact: true })
+    .getByRole('textbox', { name: 'Side shots (id, station index, signed offset m, height difference m)', exact: true })
     .fill('left,0,-5,1')
   await survey.getByRole('button', { name: 'Reduce survey observations', exact: true }).click()
   await expect(survey).toContainText('3 stations · 100.00 m')

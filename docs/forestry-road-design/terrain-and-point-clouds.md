@@ -13,10 +13,15 @@ companion.
   active. The training hillside is synthetic. The regional DEM is screening only. Only the
   published 1 m LiDAR, or ground you imported and checked yourself, supports site-level numbers.
 - **Confirm the vertical datum.** The tool records the datum text; it never converts between
-  datums. For a GeoTIFF you must type it. For LAS/LAZ, a value in the "Imported DEM vertical
-  datum" field **overrides** the file's own vertical key, so clear the field (or correct it)
-  if it still holds text from an earlier import. Breakline heights, vertical controls and any
-  survey you compare against must be in the same datum.
+  datums. An import asks for it, at that moment, when the file names none: a GeoTIFF always, a
+  LAS/LAZ without a vertical key. It never takes the open terrain's datum unless you choose that
+  in the question. A value already in the "Imported DEM vertical datum" field is used without
+  asking and, for LAS/LAZ, **overrides** the file's own vertical key, so clear the field (or
+  correct it) if it still holds text from an earlier import. Breakline heights, vertical controls
+  and any survey you compare against must be in the same datum.
+- **Check a CRS you stated.** A LAS/LAZ with no CRS is imported in the EPSG code you give. The
+  question shows the header extent; make sure those numbers are metres in that zone. The tool
+  cannot check the claim, and the import summary records that the CRS was entered.
 - **Confirm the units are metres.** GeoTIFF vertical units are checked only when the file
   declares them. LAS/LAZ heights are never checked: a cloud in feet imports as metres.
 - **Check that it sits in the right place.** Look at the hillshade against the basemap's roads
@@ -26,10 +31,14 @@ companion.
   default) must be inside the terrain's data. Read the coverage: below 100 % means part of the
   road is missing from every total (see
   [Geometric quantities and coverage](../forestry-road-design.md#geometric-quantities-and-coverage)).
-- **Read the import summary for a point cloud.** It gives ground and total points, whether the
-  cloud was thinned, whether ground was classified here and how long it took, the grid size and
-  cell, the breakline segments held and skipped, and the cells left missing. A cell larger than
-  1.00 m, a low ground share or many missing cells all need an explanation before you go on.
+- **Read the import summary for a point cloud.** The notice gives ground and total points, whether
+  the cloud was thinned, whether ground was classified here and how long it took, the grid size and
+  cell, the breakline segments held and skipped, the cells left missing, and where the CRS and
+  datum came from. The notice goes after a few seconds; **Import summary** on the terrain card
+  keeps the ground share and density, the classes found, the extent, the grid, the CRS and the
+  datum, and it is saved with the project (`pointCloudImportSummary` in `terrain.ts`). A cell
+  larger than 1.00 m, a low ground share or many missing cells all need an explanation before
+  you go on.
 - **Look at the slope and hillshade layers for artefacts:** pits or spikes (undeclared no-data),
   flat smooth patches (cell-mean gap fill), long straight facets (TIN across sparse ground),
   shrub-like bumps (vegetation kept as ground).
@@ -114,7 +123,8 @@ use a bounded orientation screen and terrain-sampled starting profiles; they sti
 | GeoTIFF file size                     | 64,000,000 bytes                                                                              | `terrain.ts`, `loadRaster`                                                                              | Refused: crop first                                                                                                                              |
 | GeoTIFF cells                         | 2 × 2 to 4,194,304 cells (2,048 × 2,048 at 1 m)                                               | `terrain.ts`, `MAX_ROAD_RASTER_CELLS`                                                                   | Refused; no automatic downsampling                                                                                                               |
 | Elevation values                      | −12,000 to 12,000 m                                                                           | `terrain.ts`, `validateRoadRaster`                                                                      | Whole raster refused as invalid                                                                                                                  |
-| Vertical datum text                   | Required; at most 300 characters                                                              | `terrain.ts`, `loadRaster` / `loadLas`                                                                  | GeoTIFF refused; LAS/LAZ text is cut to 300 characters                                                                                           |
+| Vertical datum text                   | Required; at most 300 characters                                                              | `terrain.ts`, `loadRaster` / `loadLas` (`TerrainImportQuestion`)                                        | Asked for when the file names none and the field is empty; a GeoTIFF's text over 300 characters is refused, LAS/LAZ text is cut to 300           |
+| Point clouds in one import            | 12 files, 1,000,000,000 bytes in all; one CRS and one vertical key                            | `terrain.ts`, `loadLas`                                                                                 | Refused, naming the files that disagree; tiles without a CRS take the one stated                                                                 |
 | LAS/LAZ file size                     | 1,000,000,000 bytes                                                                           | `terrain.ts`, `loadLas`                                                                                 | Refused: crop first                                                                                                                              |
 | Points kept after reading             | 3,000,000                                                                                     | `pointCloud.ts`, `DEFAULT_MAX_POINTS`                                                                   | Thinned to one point per cell (ground first, then lowest); the summary says so                                                                   |
 | Ground-filter run size                | 40,000 points per tile; one run up to 60,000                                                  | `pointCloud.ts`, `classifyGround` (`tilePoints`)                                                        | Larger clouds run in tiles overlapping by max(6 m, 3 × search radius)                                                                            |
@@ -124,7 +134,7 @@ use a bounded orientation screen and terrain-sampled starting profiles; they sti
 | Cell-mean gap fill                    | 3 passes, each needing 3 of 8 known neighbours                                                | `terrain.ts` (`gapCells: 3`), `lasSurface.ts`                                                           | Wider gaps stay missing                                                                                                                          |
 | TIN input points                      | 1,500,000                                                                                     | `tinSurface.ts`, `MAX_POINTS`                                                                           | Thinned to the lowest point per 0.5 m cell (`THIN_CELL_M`), grown by 1.25× until it fits                                                         |
 | TIN triangle edge                     | 8 grid cells                                                                                  | `tinSurface.ts`, `rasterizeTin` (`maxEdgeM` default)                                                    | Triangle left missing                                                                                                                            |
-| Breakline file                        | 50,000,000 bytes                                                                              | `DevForestryRoads.tsx`, `importFile`                                                                    | Refused                                                                                                                                          |
+| Breakline file                        | 50,000,000 bytes; 500 features, 50,000 vertices                                               | `DevForestryRoads.tsx`, `importFile`; `spatialImport.ts`, `readSpatialImport`                           | Refused                                                                                                                                          |
 | Breakline vertex spacing              | 2 × thinning cell (1 m unless thinned)                                                        | `tinSurface.ts`, `buildTin`                                                                             | Longer segments get intermediate vertices                                                                                                        |
 | Ground points cleared near breaklines | 0.02 m                                                                                        | `tinSurface.ts`, `CLEAR_M`                                                                              | Dropped from the TIN                                                                                                                             |
 | Breakline height conflict             | 0.01 m at a shared vertex                                                                     | `tinSurface.ts`, `densify`                                                                              | Earlier line's z kept; reported in the summary                                                                                                   |
@@ -182,15 +192,23 @@ geometry after switching between them.
 NAD83(CSRS) UTM 10N (3157) only (`localRaster.ts`, `rasterProjection`). BC data in NAD83(CSRS)
 UTM zones 8, 9 or 11 (EPSG:3155, 3156, 2955) is refused; reproject it to EPSG:3005 or 3157 first.
 For LAS/LAZ only a projected CRS is read, from the GeoTIFF keys VLR or the OGC WKT VLR (EVLRs
-included). An uncompressed LAS without one is refused at once. A LAZ without one is decoded first:
-the worker asks WhiteboxTools' `lidar_info` for the CRS and reports it back before the ground
-filter runs, and breaklines are projected into that CRS (`readPointCloud` in `pointCloud.ts`, the
-`crs` message in `pointCloud.worker.ts`). Only if that also finds none is the LAZ refused. The page
-takes no vertical datum from that fallback, so for such a file type the datum unless the header
-carries a vertical key.
+included). An uncompressed LAS without one stops at once and asks for the EPSG code, from the
+accepted projected codes (`POINT_CLOUD_CRS_CHOICES` in `terrain.ts`), showing the header extent. A
+LAZ without one is decoded first: the worker asks WhiteboxTools' `lidar_info` for the CRS and
+reports it back before the ground filter runs, and breaklines are projected into that CRS
+(`readPointCloud` in `pointCloud.ts`, the `crs` message in `pointCloud.worker.ts`). Only if that
+also finds none is the LAZ asked about, and it is then read a second time. A stated CRS applies
+only to files that carry none (`assumeCrs`): a file that states a different one is refused, never
+overridden. Tiles imported together must agree, and tiles without a CRS can join tiles that state
+one once you confirm it. The stated code is part of the terrain's checksum, so the same bytes in
+another zone are different terrain. The page takes no vertical datum from the `lidar_info`
+fallback, so such a file is asked for the datum unless the header carries a vertical key.
 
 **Vertical datum from a point cloud.** When the field is empty, the file's vertical EPSG key is
-used and recorded as `EPSG:<code>; metres`. "Metres" is written, not checked.
+used and recorded as `EPSG:<code>; metres`. "Metres" is written, not checked. With no key and an
+empty field the import asks; the question lists the common BC datums, the open terrain's datum
+as one choice among them, and a box to confirm the elevations are metres. The CGVD2013 choice is
+the published LiDAR sample's own text, because sources combine only on identical datum text.
 
 **Ground classification.**
 
@@ -222,8 +240,9 @@ cells.
 
 **Breaklines.**
 
-- The file must be WGS84 GeoJSON (longitude, latitude); it is projected into the cloud's CRS.
-  Lines, multi-lines and polygon rings are read; points are ignored.
+- The file is GeoJSON, a zipped shapefile, KML or KMZ, read by the workspace's one spatial reader
+  with heights kept, and projected into the cloud's CRS. Lines, multi-lines and polygon rings are
+  read; points are ignored. KML altitude is not read, so KML lines are draped.
 - Height comes from the third coordinate, else a `z`, `Z`, `elevation`, `ELEVATION` or `elev`
   property, else it is draped on a triangulation of the ground points. That draping triangulation
   has no edge limit, so a draped line across a data gap takes heights bridged across the gap.
@@ -236,11 +255,12 @@ cells.
 | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Coverage below 100 %; stations flagged "Missing terrain inside the road footprint" or "daylight unresolved" | The road or its sections leave the footprint, or cross no-data or a gap                                                                       | Move the line inside, shorten the half-width if the template allows, or import terrain that covers the corridor               |
 | Every station missing after an import                                                                       | The new terrain is somewhere else; alignments are not moved to it                                                                             | Zoom out to find the hillshade; draw or import the road there, or check the file's CRS                                        |
-| Terrain appears in the wrong part of BC, or offset from basemap roads                                       | Wrong or mislabelled EPSG (zone, or NAD83 vs NAD83(CSRS))                                                                                     | Fix the CRS in the source file (GDAL, PDAL) and import again                                                                  |
+| Terrain appears in the wrong part of BC, or offset from basemap roads                                       | Wrong or mislabelled EPSG (zone, or NAD83 vs NAD83(CSRS)), in the file or as stated at import                                                 | Undo, then import again stating the right CRS; fix a wrong CRS in the source file with GDAL or PDAL                           |
 | "Use WGS84, Web Mercator, BC Albers, or NAD83/WGS84 UTM zones 7–11."                                        | A CRS outside the list, including NAD83(CSRS) UTM other than zone 10                                                                          | Reproject to EPSG:3005 or 3157                                                                                                |
 | "Invalid terrain raster…" for a file that opens in GIS                                                      | A no-data sentinel such as −32768 or −3.4e38, undeclared or declared with a value that does not match the cells exactly, is outside ±12,000 m | Set the no-data value in the file (for example `gdal_translate -a_nodata`)                                                    |
 | Deep pits or cliffs to −9999 m                                                                              | No-data sentinel without a `GDAL_NODATA` tag                                                                                                  | Same as above, then import again                                                                                              |
-| "This point cloud has no projected CRS key."                                                                | No GeoTIFF keys or WKT VLR, or a geographic CRS; for a LAZ, the decoder found none either (after reading the file)                            | Assign a projected CRS, for example with PDAL, before importing                                                               |
+| "… has no CRS in the header. State the EPSG code to import."                                                | No GeoTIFF keys or WKT VLR, or a geographic CRS; for a LAZ, the decoder found none either (after reading the file)                            | Choose the CRS in the question. Check the header extent it shows against the zone                                             |
+| "… states EPSG:… , not the EPSG:… entered."                                                                 | A CRS was stated for files of which one carries its own                                                                                       | Import again and state the files' own CRS, or leave the differing file out                                                    |
 | "No ground-classified (class 2) points" or "Fewer than three ground points"                                 | "Use the file's only" on an unclassified cloud                                                                                                | Choose "Use the file's; classify if none" or classify externally                                                              |
 | Classification takes minutes                                                                                | Millions of points; tiles of a long diagonal corridor hold more points than average                                                           | Crop to the corridor, or classify once externally and import the classified file                                              |
 | Surface lifted by shrubs or slash, or hollow on steep cut banks                                             | Filter thresholds do not suit this cloud                                                                                                      | Classify externally with tuned settings and use "Use the file's only"                                                         |

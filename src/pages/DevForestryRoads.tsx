@@ -63,6 +63,19 @@ import {
   ProfileChart,
 } from './dev-forestry-roads/Charts'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
+import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
+import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
+import {
+  applySpatialImport,
+  buildSpatialImport,
+  proposeRoles,
+  readSpatialImport,
+  SPATIAL_ACCEPT,
+  type ImportIntent,
+  type RoleChoice,
+  type SpatialFile,
+} from './dev-forestry-roads/spatialImport'
+import { referenceBounds, type ReferenceFeature } from './dev-forestry-roads/referenceFeatures'
 import type { PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
@@ -97,8 +110,6 @@ import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, distance, nearestStation, offsetCoordinate } from './dev-forestry-roads/engine'
 import {
-  importAlignmentGeoJson,
-  importContextGeoJson,
   engineeringCsv,
   parseProject,
   projectGeoJson,
@@ -112,6 +123,7 @@ import {
   createDemoProject,
   DEFAULT_TEMPLATE,
   demoTerrain,
+  importTerrainWithAnswers,
   loadLas,
   loadRaster,
   loadRegionalTerrain,
@@ -119,6 +131,8 @@ import {
   localMetricGrid,
   starterAlignment,
   terrainBounds,
+  type TerrainImportAnswers,
+  type TerrainImportNeeds,
 } from './dev-forestry-roads/terrain'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
@@ -154,6 +168,14 @@ import {
 } from './dev-forestry-roads/historyShortcut'
 
 const uid = () => crypto.randomUUID()
+/** What each spatial picker is for; the reader asks about anything in the file outside it. */
+const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines'>, ImportIntent> = {
+  alignment: 'road',
+  context: 'streams',
+  cutblocks: 'cutblocks',
+  'mapped-roads': 'mapped-road',
+  reference: 'reference',
+}
 const number = (v: number | null | undefined, decimals = 1) =>
   v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-CA', { maximumFractionDigits: decimals })
 const compactNumber = new Intl.NumberFormat('en-CA', { notation: 'compact', maximumFractionDigits: 1 })
@@ -357,6 +379,18 @@ export default function DevForestryRoads() {
       : null
   const [reviewedRoad, setReviewedRoad] = useState<{ id: string; source: TerrainSource } | null>(null)
   const [focusedConstraintId, setFocusedConstraintId] = useState<string | null>(null)
+  const [focusedReferenceId, setFocusedReferenceId] = useState<string | null>(null)
+  // A file whose features the reader could not settle: the dialog asks, and nothing is added until then.
+  const [spatialChoice, setSpatialChoice] = useState<{
+    file: SpatialFile
+    roles: RoleChoice
+    intent: ImportIntent
+  } | null>(null)
+  // A terrain import waiting to be told a CRS or vertical datum its files do not state.
+  const [terrainQuestion, setTerrainQuestion] = useState<{
+    needs: TerrainImportNeeds
+    resolve: (answers: TerrainImportAnswers | null) => void
+  } | null>(null)
   const [cutblockReviewRequest, setCutblockReviewRequest] = useState<{ id: string; sequence: number }>()
   const [historySelection, setHistorySelection] = useState<AccessHistorySelection>()
   const reviewRoad = useCallback(
@@ -633,6 +667,25 @@ export default function DevForestryRoads() {
     (area: ContextFeature) => {
       setFocusedConstraintId(area.id)
       showOnPlan(area)
+    },
+    [showOnPlan],
+  )
+  const locateReference = useCallback(
+    (feature: ReferenceFeature) => {
+      setFocusedReferenceId(feature.id)
+      const [west, south, east, north] = referenceBounds(feature)
+      showOnPlan({
+        id: feature.id,
+        name: feature.name,
+        kind: 'existing-road',
+        geometry: {
+          type: 'LineString',
+          coordinates: [
+            [west, south],
+            [east, north],
+          ],
+        },
+      })
     },
     [showOnPlan],
   )
@@ -1256,6 +1309,40 @@ export default function DevForestryRoads() {
     setMode('inspect')
     w.setStation(0)
   }
+  /** A named point as a road point: the first peg of a new road, or the next peg of the one being drawn. */
+  const pegAt = (at: Coordinate, name: string) => {
+    if (w.busy || investigation) return
+    if (mode === 'road' || mode === 'extend') {
+      onDraw(at)
+      w.setNotice(`Pegged ${name}. Click the next point, or Finish road.`)
+      return
+    }
+    if (roadCount(project) >= MAX_PROJECT_ROADS) {
+      w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Delete one first.`)
+      return
+    }
+    beginMode('road')
+    setDraft([at])
+    if (focusMode) setControlsOpen(false)
+    w.setNotice(`Pegging a road from ${name}. Click the next points on the plan, then Finish road.`)
+  }
+  /** Puts the active road's start or end exactly on a named point. */
+  const moveRoadEnd = (at: Coordinate, name: string, end: 'start' | 'end') => {
+    if (w.busy || investigation || isMappedRoad(alignment) || awaitingFirstRoad(project)) return
+    const point = end === 'start' ? alignment.points[0] : alignment.points[alignment.points.length - 1]
+    if (
+      !commitValidated({
+        ...project,
+        alignments: project.alignments.map((a) =>
+          a.id === alignment.id
+            ? { ...a, points: a.points.map((p) => (p.id === point.id ? { ...p, coordinate: at } : p)) }
+            : a,
+        ),
+      })
+    )
+      return
+    w.setNotice(`${alignment.name} now ${end === 'start' ? 'starts' : 'ends'} at ${name}.`)
+  }
   const run = async (
     message: string,
     action: (signal: AbortSignal) => Promise<void>,
@@ -1464,8 +1551,7 @@ export default function DevForestryRoads() {
   }
   const createProject = (start: NewProject) => {
     if (start.kind === 'import') {
-      pendingProject.current = start.name
-      requestFile('terrain')
+      requestFile('terrain', start.name)
       return
     }
     void run('Starting a new project…', async (signal) => {
@@ -1550,44 +1636,70 @@ export default function DevForestryRoads() {
       { label: 'Cancel opening study', notice: 'Opening study cancelled. The current project was kept.' },
       true,
     )
-  const requestFile = (kind: FileKind) => {
+  /** Opens the file picker for `kind`. `newProject` names the project a terrain file is to start. */
+  const requestFile = (kind: FileKind, newProject: string | null = null) => {
     if (w.busy) return
     fileKind.current = kind
+    // Set on every request, so a cancelled picker cannot leave a later terrain import starting a project.
+    pendingProject.current = newProject
     if (fileRef.current) {
       fileRef.current.accept =
-        kind === 'terrain'
-          ? '.tif,.tiff,.las,.laz'
-          : kind === 'project'
-            ? '.json'
-            : kind === 'breaklines'
-              ? '.json,.geojson'
-              : '.json,.geojson,.zip,.kml,.kmz'
+        kind === 'terrain' ? '.tif,.tiff,.las,.laz' : kind === 'project' ? '.json' : SPATIAL_ACCEPT
+      // Several LAS/LAZ tiles of one job import together as one surface.
+      fileRef.current.multiple = kind === 'terrain'
       fileRef.current.value = ''
       fileRef.current.click()
     }
   }
-  const importFile = (file: File) =>
-    void run(`Opening ${file.name}…`, async (signal) => {
+  /** Asks for what a terrain file does not state; resolves to null when the question is cancelled. */
+  const askTerrain = useCallback(
+    (needs: TerrainImportNeeds) =>
+      new Promise<TerrainImportAnswers | null>((resolve) => setTerrainQuestion({ needs, resolve })),
+    [],
+  )
+  const importFile = (files: File[]) => {
+    const file = files[0]
+    const label = files.length > 1 ? `${files.length} point-cloud tiles` : file.name
+    return void run(`Opening ${label}…`, async (signal) => {
       if (fileKind.current === 'terrain') {
-        const loaded = /\.la[sz]$/i.test(file.name)
-          ? await loadLas(file, verticalReference, {
-              ...pointCloud,
-              preservePath: alignment.points.map((point) => point.coordinate),
-              breaklines: breaklines?.data,
-              signal,
-              onProgress: (message) => w.setBusy(`${file.name}: ${message}`),
-            })
-          : { ...(await loadRaster(file, verticalReference)), summary: '' }
-        if (signal.aborted) return
         const name = pendingProject.current
         pendingProject.current = null
+        const clouds = files.filter((f) => /\.la[sz]$/i.test(f.name))
+        const unknown = files.find((f) => !/\.(la[sz]|tiff?)$/i.test(f.name))
+        if (unknown) throw Error(`${unknown.name} is not terrain this import reads. Use a GeoTIFF (.tif), LAS or LAZ.`)
+        if (files.length > 1 && clouds.length !== files.length)
+          throw Error(
+            'Choose one GeoTIFF, or one or more LAS/LAZ tiles. To join GeoTIFFs, use Prepare and combine terrain → Add GeoTIFFs to ground mosaic.',
+          )
+        // Whatever the files do not state is asked for here, for this import only.
+        const loaded = await importTerrainWithAnswers(
+          (answers) =>
+            clouds.length
+              ? loadLas(file, answers.verticalReference ?? '', {
+                  ...pointCloud,
+                  additionalFiles: files.slice(1),
+                  assumedEpsg: answers.epsg,
+                  preservePath: alignment.points.map((point) => point.coordinate),
+                  breaklines: breaklines?.data,
+                  signal,
+                  onProgress: (message) => w.setBusy(`${label}: ${message}`),
+                })
+              : loadRaster(file, answers.verticalReference ?? '').then((raster) => ({ ...raster, summary: '' })),
+          askTerrain,
+          { verticalReference },
+        )
+        if (signal.aborted) return
+        if (!loaded) {
+          w.setNotice('Terrain import cancelled. Nothing was changed.')
+          return
+        }
         if (name !== null) {
           const bounds = terrainBounds(loaded.metadata)
           if (!bounds) throw Error('Could not locate the imported terrain.')
           await w.flush()
           startOn(name, loaded.metadata, loaded.source, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
           w.setNotice(
-            `${loaded.summary ? `${loaded.summary} ` : ''}New project on ${file.name}. Drag the ends of the first road, or use Peg road to draw your own.`,
+            `${loaded.summary ? `${loaded.summary} ` : ''}New project on ${label}. Drag the ends of the first road, or use Peg road to draw your own.`,
           )
           w.enablePersistence()
           setFitRevision((n) => n + 1)
@@ -1600,7 +1712,8 @@ export default function DevForestryRoads() {
         )
       } else if (fileKind.current === 'breaklines') {
         if (file.size > 50_000_000) throw Error('Breakline file is too large; the limit is 50 MB.')
-        const data: unknown = JSON.parse(await file.text())
+        // Heights are what a breakline is for, so this one read keeps the third coordinate.
+        const data: unknown = (await readSpatialImport(file, { keepHeights: true })).collection
         const { readBreaklines } = await import('./dev-forestry-roads/tinSurface')
         const lines = readBreaklines(data, (lon, lat) => [lon, lat])
         if (!lines.length) throw Error('No lines or polygon rings in that file to use as breaklines.')
@@ -1609,47 +1722,81 @@ export default function DevForestryRoads() {
           `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
         )
         return
-      } else {
-        if (file.size > 120_000_000)
-          throw Error('Import is too large. Use a cropped project or fewer context features.')
+      } else if (fileKind.current === 'project') {
+        if (file.size > 120_000_000) throw Error(`${file.name} is over 120 MB. Open a cropped project.`)
         let raw: unknown
-        if (file.name.toLowerCase().endsWith('.zip')) {
-          const shp = (await import('shpjs')).default
-          const layers = await shp(await file.arrayBuffer())
-          raw = Array.isArray(layers)
-            ? { type: 'FeatureCollection', features: layers.flatMap((layer) => layer.features) }
-            : layers
-        } else if (/\.km[lz]$/i.test(file.name)) {
-          const { readSpatialFile } = await import('./dev-forestry-roads/surveyInterchange')
-          raw = await readSpatialFile(file)
-        } else raw = JSON.parse(await file.text())
-        if (signal.aborted) return
-        if (fileKind.current === 'project') {
-          const opened = parseProject(raw)
-          await w.flush()
-          // A project file opens as its own project; the one that was open stays saved.
-          await w.restore(opened, signal)
-        } else if (fileKind.current === 'alignment') {
-          const lines = importAlignmentGeoJson(raw).map((a) => ({
-            ...a,
-            id: uid(),
-            points: a.points.map((p) => ({ ...p, id: uid() })),
-          }))
-          if (project.alignments.length + lines.length > 20) throw Error('A project supports up to 20 road alignments.')
-          w.commit(
-            parseProject({ ...project, alignments: [...project.alignments, ...lines], activeAlignmentId: lines[0].id }),
+        try {
+          raw = JSON.parse(await file.text())
+        } catch {
+          throw Error(
+            `${file.name} is not a road project file. Open a .road.json saved from this workspace; bring layers in with an Import button.`,
           )
-        } else {
-          const features = importContextGeoJson(raw).map((c) => ({ ...c, id: uid() }))
-          const next = parseProject({ ...project, context: [...project.context, ...features] })
-          w.commit(next)
         }
+        if (signal.aborted) return
+        const opened = parseProject(raw)
+        await w.flush()
+        // A project file opens as its own project; the one that was open stays saved.
+        await w.restore(opened, signal)
         w.setNotice(`Opened ${file.name}.`)
+      } else {
+        await readSpatial(file, SPATIAL_INTENTS[fileKind.current], signal)
+        return
       }
       w.enablePersistence()
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
+  }
+  /** Adds what the chosen roles make of a spatial file, then brings what was created forward. */
+  const commitSpatial = (file: SpatialFile, roles: RoleChoice, intent: ImportIntent) => {
+    const result = buildSpatialImport(file, roles, intent)
+    const next = applySpatialImport(project, result, uid)
+    w.commit(next)
+    w.enablePersistence()
+    w.setNotice(result.notice)
+    setActiveProfile(null)
+    setSpatialChoice(null)
+    // Show the import where it landed: it may be far from the roads the plan was fitted to.
+    const boxes = [
+      ...result.alignments.map((road) => ({
+        geometry: { type: 'LineString' as const, coordinates: road.points.map((point) => point.coordinate) },
+      })),
+      ...result.context,
+      ...result.reference,
+    ].map(referenceBounds)
+    const extent = [
+      [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1]))],
+      [Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))],
+    ]
+    const before = new Set(project.context.map((feature) => feature.id))
+    const block = result.context.find((feature) => feature.kind === 'harvest')
+    const mapped = next.context.find((feature) => feature.kind === 'existing-road' && !before.has(feature.id))
+    if (result.alignments.length) {
+      setWorkflowTab('design')
+      w.setStation(0)
+    } else if (block) {
+      setCutblockReviewRequest((previous) => ({ id: block.id, sequence: (previous?.sequence ?? 0) + 1 }))
+      setWorkflowTab('terrain')
+    } else if (mapped) openRoadReview(mapped.id)
+    // Fit the plan without changing which panes show: the sidebar is where the import is reviewed.
+    if (planMap.current && boxes.length)
+      fitContextFeature(planMap.current, {
+        id: 'import-extent',
+        name: file.fileName,
+        kind: 'existing-road',
+        geometry: { type: 'LineString', coordinates: extent },
+      })
+  }
+  const readSpatial = async (file: File, intent: ImportIntent, signal?: AbortSignal) => {
+    const read = await readSpatialImport(file)
+    if (signal?.aborted) return
+    const proposal = proposeRoles(read, intent)
+    if (proposal.ask) setSpatialChoice({ file: read, roles: proposal.roles, intent })
+    else commitSpatial(read, proposal.roles, intent)
+  }
+  /** One importer for every spatial picker; the intent only sets what the picker is for. */
+  const importSpatial = (file: File, intent: ImportIntent) =>
+    void run(`Reading ${file.name}…`, (signal) => readSpatial(file, intent, signal))
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
     const safe = parseProject(project)
@@ -2516,16 +2663,51 @@ export default function DevForestryRoads() {
                 )
         }
       />
+      {spatialChoice && (
+        <SpatialImportDialog
+          key={spatialChoice.file.fileName}
+          file={spatialChoice.file}
+          intent={spatialChoice.intent}
+          initial={spatialChoice.roles}
+          portalContainer={ref.current}
+          onCancel={() => {
+            setSpatialChoice(null)
+            w.setNotice(`Nothing was imported from ${spatialChoice.file.fileName}.`)
+          }}
+          onImport={(roles) => {
+            try {
+              commitSpatial(spatialChoice.file, roles, spatialChoice.intent)
+            } catch (cause) {
+              w.setError(cause instanceof Error ? cause.message : 'Could not import this file.')
+            }
+          }}
+        />
+      )}
       <input
         ref={fileRef}
         type="file"
         className="hidden"
         data-testid="road-file-input"
         onChange={(e) => {
-          const file = e.target.files?.[0]
-          if (file) importFile(file)
+          const files = Array.from(e.target.files ?? [])
+          if (files.length) importFile(files)
         }}
       />
+      {terrainQuestion && (
+        <TerrainImportDialog
+          needs={terrainQuestion.needs}
+          current={project.terrain}
+          portalContainer={ref.current}
+          onAnswer={(answers) => {
+            setTerrainQuestion(null)
+            terrainQuestion.resolve(answers)
+          }}
+          onCancel={() => {
+            setTerrainQuestion(null)
+            terrainQuestion.resolve(null)
+          }}
+        />
+      )}
       <RoadNotifications
         items={[
           ...(w.error
@@ -2773,6 +2955,12 @@ export default function DevForestryRoads() {
                 onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
                 onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
                 focusedConstraintId={focusedConstraintId}
+                onImportSpatial={importSpatial}
+                onAskTerrain={askTerrain}
+                focusedReferenceId={focusedReferenceId}
+                onLocateReference={locateReference}
+                onPegAt={pegAt}
+                onRoadEndAt={moveRoadEnd}
                 cutblockReviewRequest={cutblockReviewRequest}
                 onReviewRoad={reviewRoad}
                 onPreviewRoute={previewRoute}
@@ -3056,6 +3244,7 @@ export default function DevForestryRoads() {
                             project={displayProject}
                             // Notes are their own collection; a note edit is an ordinary, undoable project edit.
                             onNotesChange={busy ? undefined : (notes) => update((p) => ({ ...p, notes }))}
+                            focusedReferenceId={focusedReferenceId}
                             onHighlightRoad={(road) =>
                               investigation
                                 ? inspectHistoryEvidence({ kind: 'road', id: road.id })

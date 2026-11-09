@@ -18,6 +18,65 @@ export interface TerrainBackgroundLayer {
   sha256: string
   visible: boolean
   opacity: number
+  /** The file's own width and height, when the image was resampled to the display budget. */
+  sourceSize?: [number, number]
+}
+/** Display pixels all background layers share. They are stored in the project, so this bounds its size. */
+export const MAX_BACKGROUND_PIXELS = 1_048_576
+/** A layer larger than what is left is resampled to at most this, so a canopy image and an orthophoto fit together. */
+export const BACKGROUND_LAYER_PIXELS = MAX_BACKGROUND_PIXELS / 2
+/** Below this a resampled image is too coarse to read; the import asks for a layer to be removed instead. */
+export const MIN_BACKGROUND_PIXELS = 16_384
+
+/**
+ * A north-up RGBA image averaged down to at most `budget` pixels, keeping its footprint. Each source
+ * pixel goes to the display pixel under its centre; colour is weighted by opacity, so no-data does
+ * not darken its neighbours. Returns the image unchanged when it already fits.
+ */
+export function resampleBackground<T extends Pick<TerrainBackgroundLayer, 'origin' | 'pixelSize' | 'width' | 'height'>>(
+  image: T & { rgba: ArrayLike<number> },
+  budget: number,
+): T & { rgba: number[]; sourceSize?: [number, number] } {
+  const { width, height } = image
+  if (width * height <= budget) return { ...image, rgba: Array.from(image.rgba) }
+  const factor = Math.sqrt(budget / (width * height))
+  const w = Math.max(2, Math.floor(width * factor)),
+    h = Math.max(2, Math.floor(height * factor))
+  const sums = new Float64Array(w * h * 4),
+    counts = new Uint32Array(w * h)
+  for (let y = 0; y < height; y++) {
+    const ty = Math.min(h - 1, Math.floor(((y + 0.5) * h) / height))
+    for (let x = 0; x < width; x++) {
+      const t = ty * w + Math.min(w - 1, Math.floor(((x + 0.5) * w) / width)),
+        s = (y * width + x) * 4,
+        alpha = image.rgba[s + 3]
+      sums[t * 4] += image.rgba[s] * alpha
+      sums[t * 4 + 1] += image.rgba[s + 1] * alpha
+      sums[t * 4 + 2] += image.rgba[s + 2] * alpha
+      sums[t * 4 + 3] += alpha
+      counts[t]++
+    }
+  }
+  const rgba = new Array<number>(w * h * 4)
+  for (let t = 0; t < w * h; t++) {
+    const alpha = sums[t * 4 + 3]
+    for (let b = 0; b < 3; b++) rgba[t * 4 + b] = alpha ? Math.round(sums[t * 4 + b] / alpha) : 0
+    rgba[t * 4 + 3] = counts[t] ? Math.round(alpha / counts[t]) : 0
+  }
+  // `origin` is the centre of the first pixel: keep the image's outer corner where it was.
+  const pixelSize: [number, number] = [(image.pixelSize[0] * width) / w, (image.pixelSize[1] * height) / h]
+  return {
+    ...image,
+    origin: [
+      image.origin[0] - image.pixelSize[0] / 2 + pixelSize[0] / 2,
+      image.origin[1] - image.pixelSize[1] / 2 + pixelSize[1] / 2,
+    ],
+    pixelSize,
+    width: w,
+    height: h,
+    rgba,
+    sourceSize: [width, height],
+  }
 }
 export function parseTerrainBackgrounds(raw: unknown): TerrainBackgroundLayer[] {
   if (!Array.isArray(raw) || raw.length > 6) throw Error('At most six independent terrain backgrounds are supported.')
@@ -52,13 +111,20 @@ export function parseTerrainBackgrounds(raw: unknown): TerrainBackgroundLayer[] 
       typeof l.visible !== 'boolean' ||
       !Number.isFinite(l.opacity) ||
       l.opacity < 0 ||
-      l.opacity > 1
+      l.opacity > 1 ||
+      (l.sourceSize !== undefined &&
+        (!Array.isArray(l.sourceSize) ||
+          l.sourceSize.length !== 2 ||
+          !l.sourceSize.every((n) => Number.isInteger(n) && n >= 2 && n <= 1_000_000)))
     )
       throw Error('Invalid independent terrain background.')
     pixels += l.width * l.height
     ids.add(l.id)
   }
-  if (pixels > 1_048_576) throw Error('Background stack exceeds 1,048,576 pixels; crop or resample imagery explicitly.')
+  if (pixels > MAX_BACKGROUND_PIXELS)
+    throw Error(
+      `Background layers hold at most ${MAX_BACKGROUND_PIXELS.toLocaleString('en-CA')} display pixels in all. Remove a background before adding another.`,
+    )
   return structuredClone(raw) as TerrainBackgroundLayer[]
 }
 export interface PointPreservation {

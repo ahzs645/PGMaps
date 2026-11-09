@@ -655,12 +655,81 @@ export async function loadLidarTerrain(
   return { metadata, source, alignments: [alignment] }
 }
 
+/** What a terrain import cannot take from its files and has to be told. */
+export interface TerrainImportNeeds {
+  /**
+   * Point clouds that carry no CRS, with the header extent so the numbers can be checked against a
+   * zone, and the CRS the other files of the same import state, when some do.
+   */
+  crs?: { files: string[]; bounds: [minX: number, minY: number, maxX: number, maxY: number]; suggestedEpsg?: number }
+  /** Files whose elevations name no vertical datum. */
+  verticalDatum?: { files: string[] }
+}
+export interface TerrainImportAnswers {
+  /** The CRS of point clouds that carry none. Never overrides a CRS a file states. */
+  epsg?: number
+  verticalReference?: string
+}
+/**
+ * A terrain import stopped to ask. It is an error only until someone answers: `needs` says what to
+ * ask for, and the import runs again with the answers.
+ */
+export class TerrainImportQuestion extends Error {
+  readonly needs: TerrainImportNeeds
+  constructor(message: string, needs: TerrainImportNeeds) {
+    super(message)
+    this.name = 'TerrainImportQuestion'
+    this.needs = needs
+  }
+}
+/** The projected CRSs a point cloud can be stated in: the ones terrain is accepted in. */
+export const POINT_CLOUD_CRS_CHOICES: ReadonlyArray<{ epsg: number; label: string }> = [
+  { epsg: 3157, label: 'EPSG:3157 · NAD83(CSRS) / UTM zone 10N' },
+  { epsg: 3005, label: 'EPSG:3005 · NAD83 / BC Albers' },
+  ...[7, 8, 9, 10, 11].map((zone) => ({
+    epsg: 26900 + zone,
+    label: `EPSG:${26900 + zone} · NAD83 / UTM zone ${zone}N`,
+  })),
+  ...[7, 8, 9, 10, 11].map((zone) => ({
+    epsg: 32600 + zone,
+    label: `EPSG:${32600 + zone} · WGS84 / UTM zone ${zone}N`,
+  })),
+]
+/**
+ * Runs a terrain import, asking for whatever its files do not state and running it again with the
+ * answers. `attempt` throws {@link TerrainImportQuestion} to ask; `ask` resolves to null when the
+ * person cancels, and the import then resolves to null with nothing changed.
+ */
+export async function importTerrainWithAnswers<T>(
+  attempt: (answers: TerrainImportAnswers) => Promise<T>,
+  ask: (needs: TerrainImportNeeds) => Promise<TerrainImportAnswers | null>,
+  given: TerrainImportAnswers = {},
+): Promise<T | null> {
+  let answers = given
+  // Each round answers what the last one asked, so two rounds cover a file missing both.
+  for (let round = 0; round < 4; round++) {
+    try {
+      return await attempt(answers)
+    } catch (error) {
+      if (!(error instanceof TerrainImportQuestion)) throw error
+      const reply = await ask(error.needs)
+      if (!reply) return null
+      answers = { ...answers, ...reply }
+    }
+  }
+  throw Error('The terrain import kept asking for the same details. Check the files and try again.')
+}
+
 export async function loadRaster(
   file: File,
   verticalReference: string,
 ): Promise<{ metadata: TerrainMetadata; source: TerrainSource }> {
-  if (!verticalReference.trim() || verticalReference.trim().length > 300)
-    throw Error('Enter the terrain vertical datum and confirm elevation values are metres.')
+  if (!verticalReference.trim())
+    throw new TerrainImportQuestion(
+      `${file.name} does not say what its elevations are measured from. State its vertical datum to import it.`,
+      { verticalDatum: { files: [file.name] } },
+    )
+  if (verticalReference.trim().length > 300) throw Error('Shorten the vertical datum to at most 300 characters.')
   if (file.size > 64_000_000) throw Error('Crop the terrain GeoTIFF first; the file limit is 64 MB.')
   const bytes = await file.arrayBuffer(),
     { fromArrayBuffer } = await import('geotiff'),
@@ -726,6 +795,8 @@ export async function loadRaster(
 
 export interface PointCloudImport {
   additionalFiles?: File[]
+  /** The CRS of a cloud that carries none, as the person stated it. A file's own CRS always wins. */
+  assumedEpsg?: number
   /** Full-density corridor around WGS84 source line; 0 or omitted disables preservation. */
   preserveCorridorM?: number
   preservePath?: Coordinate[]
@@ -757,32 +828,77 @@ export async function loadLas(
   const bytes = await file.arrayBuffer()
   const additionalBytes = await Promise.all(files.slice(1).map((f) => f.arrayBuffer()))
   const { readPointCloudHeader } = await import('./pointCloud')
-  const header = readPointCloudHeader(new Uint8Array(bytes))
-  const extraHeaders = additionalBytes.map((b) => readPointCloudHeader(new Uint8Array(b)))
-  if (extraHeaders.some((h) => h.epsg !== header.epsg || h.verticalEpsg !== header.verticalEpsg))
-    throw Error('Point-cloud mosaics require matching horizontal and vertical CRS keys.')
-  const noCrs = 'This point cloud has no projected CRS key. Assign one (for example with PDAL) before importing.'
+  const headers = [bytes, ...additionalBytes].map((b) => readPointCloudHeader(new Uint8Array(b)))
+  const header = headers[0]
+  const named = (indices: number[]) => indices.map((i) => files[i].name)
+  const all = headers.map((_, i) => i)
+  // Files that state a CRS must agree; files that state none take the one the person entered.
+  const stated = all.filter((i) => headers[i].epsg !== null)
+  const unstated = all.filter((i) => headers[i].epsg === null)
+  if (new Set(stated.map((i) => headers[i].epsg)).size > 1)
+    throw Error(
+      `These point clouds are in different CRSs (${stated.map((i) => `${files[i].name}: EPSG:${headers[i].epsg}`).join(', ')}). Combine files that share one CRS.`,
+    )
+  if (new Set(headers.map((h) => h.verticalEpsg)).size > 1)
+    throw Error(
+      `These point clouds name different vertical datums (${headers.map((h, i) => `${files[i].name}: ${h.verticalEpsg ? `EPSG:${h.verticalEpsg}` : 'none'}`).join(', ')}). Combine files that share one.`,
+    )
+  const fileEpsg = stated.length ? headers[stated[0]].epsg : null
+  const assumed = options.assumedEpsg ?? null
+  if (assumed !== null) roadProjection(assumed)
+  if (fileEpsg !== null) roadProjection(fileEpsg)
+  if (fileEpsg !== null && assumed !== null && fileEpsg !== assumed)
+    throw Error(
+      `${files[stated[0]].name} states EPSG:${fileEpsg}, not the EPSG:${assumed} entered. Import again and enter EPSG:${fileEpsg} for the files without a CRS, or leave them out.`,
+    )
+  const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
   // A LAS header is the whole story, but whitebox may still find a LAZ's CRS where the header
-  // keys have none, so that case waits for the worker's read (`breaklinesFor` below).
-  if (header.epsg === null && !header.compressed) throw Error(noCrs)
-  if (header.epsg !== null) roadProjection(header.epsg)
+  // keys have none. A LAZ alone therefore waits for the worker's read (`breaklinesFor` below);
+  // it is asked about up front only alongside a question that has to be asked anyway.
+  const unstatedLas = unstated.filter((i) => !headers[i].compressed)
+  const askCrs = assumed === null && unstated.length > 0 && (unstatedLas.length > 0 || stated.length > 0 || !vertical)
+  const crsNeed = (indices: number[]): NonNullable<TerrainImportNeeds['crs']> => ({
+    files: named(indices),
+    bounds: [
+      Math.min(...indices.map((i) => headers[i].min[0])),
+      Math.min(...indices.map((i) => headers[i].min[1])),
+      Math.max(...indices.map((i) => headers[i].max[0])),
+      Math.max(...indices.map((i) => headers[i].max[1])),
+    ],
+    ...(fileEpsg !== null ? { suggestedEpsg: fileEpsg } : {}),
+  })
+  const several = (indices: number[]) =>
+    indices.length === 1
+      ? files[indices[0]].name
+      : `${indices.length} point clouds (${files[indices[0]].name} and others)`
+  if (askCrs || !vertical)
+    throw new TerrainImportQuestion(
+      askCrs && !vertical
+        ? `${several(unstated)} state neither a CRS nor a vertical datum. State both to import.`
+        : askCrs
+          ? `${several(unstated)} ${unstated.length === 1 ? 'has' : 'have'} no CRS in the header. State the EPSG code to import.`
+          : `${several(all)} ${all.length === 1 ? 'does' : 'do'} not name a vertical datum. State it to import.`,
+      {
+        ...(askCrs ? { crs: crsNeed(unstated) } : {}),
+        ...(!vertical ? { verticalDatum: { files: named(all) } } : {}),
+      },
+    )
+  const knownEpsg = fileEpsg ?? assumed
   const preserve =
     options.preserveCorridorM && options.preservePath?.length
       ? {
           corridor: {
             points: options.preservePath.map((p) => {
-              if (header.epsg === null)
+              if (knownEpsg === null)
                 throw Error(
-                  'Corridor preservation needs the projected CRS in the point-cloud header. Assign it before importing this LAZ.',
+                  'Keeping the road corridor at full density needs the CRS before the cloud is read. Set the corridor to 0, or import the LAZ once to state its CRS.',
                 )
-              return roadProjection(header.epsg).forward([...p]) as [number, number]
+              return roadProjection(knownEpsg).forward([...p]) as [number, number]
             }),
             halfWidthM: options.preserveCorridorM,
           },
         }
       : undefined
-  const vertical = verticalReference.trim() || (header.verticalEpsg ? `EPSG:${header.verticalEpsg}; metres` : '')
-  if (!vertical) throw Error('Enter the vertical datum of the point-cloud elevations before importing.')
   const tinSurface = options.surface === 'tin' && options.breaklines ? await import('./tinSurface') : null
   const sha256 = Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', bytes)), (b) =>
     b.toString(16).padStart(2, '0'),
@@ -804,6 +920,8 @@ export async function loadLas(
     preserve,
     retainTin: options.retainTin ?? false,
     breaklines: options.breaklines ?? null,
+    // The same bytes in another stated CRS are different terrain.
+    ...(unstated.length && assumed !== null ? { assumedEpsg: assumed } : {}),
   })
   const { runPointCloudWorker } = await import('./pointCloudClient')
   const stages = { reading: 'Reading points', classifying: 'Classifying ground', gridding: 'Building the surface' }
@@ -815,6 +933,7 @@ export async function loadLas(
     additionalBytes,
     classify: options.classify,
     preserve,
+    ...(assumed !== null ? { assumedEpsg: assumed } : {}),
     surface: {
       method: options.surface,
       cellM: 1,
@@ -825,7 +944,16 @@ export async function loadLas(
     },
     transfer: true,
     breaklinesFor: (epsg) => {
-      if (epsg === null) throw Error(noCrs)
+      // The worker has read every file: a LAZ with no CRS even there is asked about now.
+      if (epsg === null)
+        throw new TerrainImportQuestion(
+          `${several(unstated)} ${unstated.length === 1 ? 'has' : 'have'} no CRS the reader could find. State the EPSG code to import.`,
+          { crs: crsNeed(unstated) },
+        )
+      if (assumed !== null && epsg !== assumed)
+        throw Error(
+          `${files[0].name} states EPSG:${epsg}, not the EPSG:${assumed} entered. Import it again without entering a CRS.`,
+        )
       const projection = roadProjection(epsg)
       return tinSurface
         ? tinSurface.readBreaklines(
@@ -839,9 +967,12 @@ export async function loadLas(
       options.onProgress?.(`${stages[stage]}${total > 1 ? ` · ${done} of ${total} tiles` : ''}…`),
   })
   const epsg = result.cloud.epsg
-  if (epsg === null) throw Error(noCrs)
+  if (epsg === null) throw Error(`${files[0].name} came back from the reader without a CRS. Import it again.`)
   const projection = roadProjection(epsg)
   const grid = result.surface!.grid
+  // Where the CRS and the datum came from, for the summary: a stated value is the person's claim.
+  const crsEntered = unstated.length > 0 && fileEpsg === null && assumed !== null
+  const datumEntered = !!verticalReference.trim()
   const raster = validateRoadRaster({
     id: `terrain-${terrainHash.slice(0, 16)}`,
     name: `${files.length > 1 ? `${files.length} point-cloud sources` : file.name.slice(0, 160)} · ground ${options.surface === 'tin' ? 'TIN' : 'mean'} ${grid.cellM.toFixed(2)} m`,
@@ -882,6 +1013,17 @@ export async function loadLas(
         cellM: grid.cellM,
         gapCells: options.surface === 'mean' ? 3 : 0,
         breaklinesSha256: options.breaklines ? await hashPreparation(options.breaklines) : '',
+        // The import summary, kept so it can be read after its notice has gone (`pointCloudImportSummary`).
+        groundPoints: result.summary.ground,
+        points: result.cloud.count,
+        sourcePoints: result.cloud.sourceCount,
+        classes: result.summary.byClass.map((c) => `${c.cls}:${c.count}`).join(' '),
+        extent: result.cloud.bounds.map((v) => v.toFixed(2)).join(' '),
+        gridWidth: grid.width,
+        gridHeight: grid.height,
+        missingCells: grid.width * grid.height - grid.values.filter((v) => v !== null).length,
+        crsSource: crsEntered ? 'entered' : 'file',
+        verticalSource: datumEntered ? 'entered' : 'file',
       },
       ...(result.surface?.retainedTin ? { tin: result.surface.retainedTin } : {}),
     },
@@ -901,8 +1043,88 @@ export async function loadLas(
       ? ` from a TIN with ${count(tin.constrained)} breakline segments${tin.skipped.length ? ` (${tin.skipped.length} skipped: ${tin.skipped[0].reason})` : ''}`
       : `, ${count(grid.filledCells)} short gaps filled`,
     `, ${count(grid.width * grid.height - known)} cells left missing.`,
+    ` CRS EPSG:${epsg} ${crsEntered ? 'as entered (the file states none)' : 'from the file'}; vertical datum ${raster.verticalReference} ${datumEntered ? 'as entered' : 'from the file'}.`,
   ]
   return { metadata, source: rasterSource(raster), summary: parts.join('') }
+}
+
+/** ASPRS point classes a forestry cloud usually carries, for the import summary. */
+const POINT_CLASS_NAMES: Record<number, string> = {
+  0: 'never classified',
+  1: 'unclassified',
+  2: 'ground',
+  3: 'low vegetation',
+  4: 'medium vegetation',
+  5: 'high vegetation',
+  6: 'building',
+  7: 'low noise',
+  9: 'water',
+  17: 'bridge deck',
+  18: 'high noise',
+}
+
+/**
+ * The point-cloud import summary as label and value rows, from what the import recorded in the
+ * terrain's preparation record. Null for terrain that is not a point-cloud import, or one saved
+ * before the summary was kept.
+ */
+export function pointCloudImportSummary(metadata: TerrainMetadata): Array<{ label: string; value: string }> | null {
+  const record = metadata.preparation
+  const p = record?.parameters
+  if (!record || record.operation !== 'point-cloud' || !p || typeof p.groundPoints !== 'number') return null
+  const count = (n: unknown) => (typeof n === 'number' ? n.toLocaleString('en-CA') : '?')
+  const ground = p.groundPoints,
+    points = typeof p.points === 'number' ? p.points : 0
+  const classes =
+    typeof p.classes === 'string' && p.classes
+      ? p.classes
+          .split(' ')
+          .map((entry) => entry.split(':').map(Number))
+          .map(([cls, n]) => `${cls} ${POINT_CLASS_NAMES[cls] ?? 'other'} ${count(n)}`)
+          .join(' · ')
+      : ''
+  const extent = typeof p.extent === 'string' ? p.extent.split(' ').map(Number) : []
+  const range = (a: number, b: number, digits = 0) =>
+    `${a.toLocaleString('en-CA', { maximumFractionDigits: digits })} to ${b.toLocaleString('en-CA', { maximumFractionDigits: digits })}`
+  const cells = typeof p.gridWidth === 'number' && typeof p.gridHeight === 'number' ? p.gridWidth * p.gridHeight : 0
+  const area = cells && typeof p.cellM === 'number' ? (cells - Number(p.missingCells ?? 0)) * p.cellM * p.cellM : 0
+  return [
+    {
+      label: 'Ground points',
+      value:
+        `${count(ground)} of ${count(points)}` +
+        (typeof p.sourcePoints === 'number' && p.sourcePoints > points
+          ? ` kept from ${count(p.sourcePoints)} in the files`
+          : '') +
+        (area ? ` · ${(ground / area).toFixed(1)} per m² of gridded ground` : ''),
+    },
+    ...(classes ? [{ label: 'Classes found', value: classes }] : []),
+    ...(extent.length === 6 && extent.every(Number.isFinite)
+      ? [
+          {
+            label: 'Extent',
+            value: `E ${range(extent[0], extent[3])} · N ${range(extent[1], extent[4])} · Z ${range(extent[2], extent[5], 1)} m`,
+          },
+        ]
+      : []),
+    ...(cells
+      ? [
+          {
+            label: 'Grid',
+            value: `${count(p.gridWidth)} × ${count(p.gridHeight)} cells at ${typeof p.cellM === 'number' ? p.cellM.toFixed(2) : '?'} m · ${count(p.missingCells)} left missing`,
+          },
+        ]
+      : []),
+    {
+      label: 'CRS',
+      value: `EPSG:${metadata.epsg} ${p.crsSource === 'entered' ? 'as entered; the files state none' : 'from the files'}`,
+    },
+    {
+      label: 'Vertical datum',
+      value: `${metadata.verticalReference} ${p.verticalSource === 'entered' ? 'as entered' : 'from the files'}`,
+    },
+    { label: 'Sources', value: record.sources.map((source) => source.name).join(', ') },
+  ]
 }
 
 async function hashPreparation(value: unknown): Promise<string> {

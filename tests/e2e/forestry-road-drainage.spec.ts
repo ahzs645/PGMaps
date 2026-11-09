@@ -96,7 +96,7 @@ test('LAZ import classifies ground in the browser and builds a TIN with breaklin
   const utm = proj4('+proj=utm +zone=10 +datum=NAD83 +units=m +no_defs', 'EPSG:4326')
   const line = [utm.forward([515005, 5970020]), utm.forward([515035, 5970020])]
   let chooser = page.waitForEvent('filechooser')
-  await page.getByRole('button', { name: 'Add breaklines (GeoJSON)', exact: true }).click()
+  await page.getByRole('button', { name: 'Add breaklines', exact: true }).click()
   await (
     await chooser
   ).setFiles({

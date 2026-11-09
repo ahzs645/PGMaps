@@ -207,11 +207,13 @@ stays responsive and only the grid comes back.
   cloud is thinned to one point per cell, preferring ground and then the lowest non-noise
   return, and the summary says so.
 - **CRS.** The CRS comes from the GeoTIFF keys VLR or the OGC WKT VLR (EVLRs included).
-  An uncompressed LAS without one is refused from its header. For a LAZ without one, the
-  worker takes the CRS from whitebox's `lidar_info` once the cloud is decoded, posts it to
-  the page (`crs`) and waits; the page projects the breaklines into it, or refuses the cloud
-  if there is still none, before the ground filter runs. The vertical datum comes from the
-  entered field or, failing that, the header's vertical key.
+  An uncompressed LAS without one stops at its header and asks for the EPSG code. For a LAZ
+  without one, the worker takes the CRS from whitebox's `lidar_info` once the cloud is
+  decoded, posts it to the page (`crs`) and waits; the page projects the breaklines into it,
+  or asks for the code if there is still none, before the ground filter runs. A stated code
+  applies only to files that carry none and is recorded as entered. The vertical datum comes
+  from the entered field or, failing that, the header's vertical key; with neither, the
+  import asks for it. Several LAS/LAZ tiles chosen together import as one surface.
 - **Ground classification.**
   - "Use the file's; classify if none" (the default) runs the filter only when the cloud
     has no class 2 points. "Re-classify here" always runs it. "Use the file's only"
@@ -248,12 +250,15 @@ stays responsive and only the grid comes back.
 
 The grid then behaves exactly like an imported GeoTIFF, including checksum restoration.
 The import summary gives ground and total points, thinning, classification time, the grid,
-the breakline count and how many cells were left missing.
+the breakline count, how many cells were left missing, and whether the CRS and datum came
+from the file or were entered. It is kept in the terrain's preparation record and shown on
+the terrain card after its notice has gone.
 
 ### Imported GeoTIFF
 
 Import requires a north-up, single-band bare-earth elevation raster and a
-user-entered vertical reference. Preserve native cell values and no-data. Do
+user-entered vertical reference, asked for at import when the field is empty.
+Preserve native cell values and no-data. Do
 not treat a DSM/canopy-height surface as bare-earth ground. The application
 cannot establish from pixel values alone that the submitted raster represents
 bare earth; the source description matters.
@@ -518,8 +523,8 @@ adding to it: a number or a button belongs in the panel, a paragraph belongs in 
 warning someone must see stays an `InlineAlert`.
 
 - **Terrain:** the source and its three loads, then [streams, constraints and terrain
-  profiles](forestry-road-design/streams-and-constraints.md). Import options, terrain preparation,
-  imagery, the field book and existing roads fold.
+  profiles](forestry-road-design/streams-and-constraints.md). Cutblocks, reference layers, import
+  options, terrain preparation, imagery, the field book and existing roads fold.
 - **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
   that open elsewhere are tiles at the end.
 - **Section:** the eight template numbers. Components and curve rules fold.
@@ -604,10 +609,10 @@ lengths. A rejected requested radius must not appear as a fitted curve in the
 schedule. `planAnnotations.ts` shares BC/EC or TS/SC/CS/ST event stations between
 the map, curve schedule and profile band.
 
-Imported GeoJSON keeps the input vertices and initially assigns zero radii.
-A third GeoJSON coordinate is not taken as a ground observation or invented
-vertical grade. Explicit non-WGS84 CRS declarations are rejected instead of
-being treated as longitude/latitude.
+An imported road line keeps the input vertices and initially assigns zero radii.
+A third coordinate is not taken as a ground observation or invented vertical
+grade. A file in a CRS the workspace knows is reprojected to WGS84; one it does
+not know is refused instead of being treated as longitude/latitude.
 
 ### Vertical alignment
 
@@ -1476,9 +1481,13 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   costs, source provenance and assumptions. User text is escaped;
   the document has no scripts or network resources.
 
-The UI can import line/context GeoJSON and zipped shapefiles. Shapefile
-conversion produces geographic GeoJSON before the same geometry validation;
-check that the source's projection metadata is present and correct. Project
+The UI imports GeoJSON, zipped shapefiles, KML and KMZ through one reader
+(`spatialImport.ts`) for every picker: road lines, streams, cutblocks, existing
+roads and reference layers. It reprojects from the file's CRS, keeps feature
+names, and asks what features are when neither the picker nor the file settles
+it; see [Bringing spatial files in](forestry-road-design/exports-and-project-files.md#bringing-spatial-files-in).
+Every imported feature then passes the same geometry validation a project file
+does. Check that the source's projection metadata is present and correct. Project
 JSON is the editable round-trip format. Importing an exported road GeoJSON as
 linework preserves its spatial vertices and names, but does not reconstruct
 independent PVIs, templates, widenings or every project field from those

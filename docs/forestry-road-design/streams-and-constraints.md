@@ -5,6 +5,17 @@ holds areas the road keeps out of or pays to cross, and **Terrain profiles** hol
 and samples any mapped line. Opening a stream shows its assessment; **View terrain profile** is an action
 inside that view.
 
+## Importing streams and areas
+
+**Streams → Import** reads GeoJSON, a zipped shapefile, KML or KMZ. It imports lines as streams
+without asking only when the file reads as stream data: Freshwater Atlas attributes, or a file or
+features called stream, creek or river. Otherwise it asks what the lines, polygons and points are
+before anything is added, because a stream draws a riparian screen and prices a crossing, and an
+avoidance area blocks route search. A cutblock, a road line or a property boundary given to this
+picker is offered as what it is. A polygon becomes an **Excluded** constraint only when **Avoidance
+area** is chosen. Feature names come from the file. See
+[Bringing spatial files in](exports-and-project-files.md#bringing-spatial-files-in).
+
 ## B.C. riparian class
 
 `streamClass.ts` suggests a class from the Forest Planning and Practices Regulation, section 47, read

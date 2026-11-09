@@ -15,8 +15,12 @@ weighted missing source cell. The original source hashes and overlap choice are 
 
 **Combine LAS / LAZ sources** reads up to twelve files in a worker, checks their horizontal and
 vertical CRS keys, combines the points, classifies when requested and creates one grid/TIN.
-It uses the point-cloud options shown above the preparation panel. Sources with conflicting
-CRS keys are rejected. Identical missing vertical keys need an explicitly entered vertical datum.
+It uses the point-cloud options shown above the preparation panel. **Import GeoTIFF, LAS or LAZ**
+at the top of the tab does the same when several LAS/LAZ tiles are chosen at once. Sources with
+conflicting CRS keys are rejected, naming the files. Tiles that carry no CRS are asked about once
+and take the EPSG code stated. Missing vertical keys are asked about in the same question; neither
+this action nor the GeoTIFF mosaic takes the open terrain's vertical datum unless that is the
+choice made there (`importTerrainWithAnswers` in `terrain.ts`).
 
 **Preserve road corridor each side** retains full point density within the requested distance
 of the active road's control line. It applies both to decoded-point thinning and the subsequent
@@ -80,8 +84,17 @@ Import a single-band canopy-height GeoTIFF or byte-valued RGB(A) orthophoto in *
 backgrounds**. Each keeps its own source CRS, opacity and visibility. The plan displays the
 projected image over the basemap/terrain, with road graphics above it. Canopy values use a
 0–40 m green ramp. A background layer never becomes analytical ground or supplies missing
-ground elevations. Background pixels and hashes survive project save/reopen. Rotated images,
-unknown CRS and images over the budget are rejected; resampling must be an explicit external step.
+ground elevations. Background pixels and hashes survive project save/reopen. Rotated images and
+images with no CRS are rejected.
+
+The display pixels are stored in the project, so all backgrounds share one budget. An image that
+fits what is left keeps its own pixels. A larger one is resampled for display, never refused for
+its size: each source pixel is averaged into the display pixel under its centre, weighted by
+opacity so no-data does not tint its neighbours, and the footprint stays the file's
+(`resampleBackground` in `terrainPreparation.ts`). It takes at most half the budget, so a canopy
+image and an orthophoto fit together. The notice and the layer's own line give the file's size,
+the displayed size and the displayed pixel in metres. When the budget is spent the import says to
+remove a background first.
 
 ## Survey field book and geographic linework
 
@@ -102,11 +115,11 @@ editable horizontal road line. Observed levels remain survey evidence; they are 
 adopted as the road's engineered formation. **Export survey CSV** includes traverse stations and
 side shots, with text protected against spreadsheet formula execution.
 
-Road/context import additionally accepts KML and KMZ. KMZ needs `doc.kml` or one unambiguous
-KML file. Imported lines and polygon holes become normal geographic linework and pass through
-the existing alignment/context validation. KML altitude is discarded, because it does not
-establish ground or a compatible vertical datum. XML entities/DTDs and external network links
-are not followed. Native RoadEng, DWG and proprietary field-collector projects still need a
+Every spatial import accepts KML and KMZ ([how files are read and classified](exports-and-project-files.md#bringing-spatial-files-in)).
+KMZ needs `doc.kml` or one unambiguous KML file. Placemark points, lines and polygons with their
+holes are read with their names; a placemark never says what a feature is, so `parseKml` assigns
+no kind and the import asks. KML altitude is discarded, because it does not establish ground or
+a compatible vertical datum. XML entities/DTDs and external network links are not followed. Native RoadEng, DWG and proprietary field-collector projects still need a
 documented exchange specification; these open imports/exports do not imply binary compatibility.
 
 ## Limits and checks
@@ -120,7 +133,9 @@ documented exchange specification; these open imports/exports do not imply binar
 | TIN elevation editing: 100,000,000 triangle-cell checks | `editTinElevation` |
 | Named analytical reference surfaces: twelve / 4,194,304 total cells | `parseTerrainReferenceSurfaces` |
 | Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations | `preservedPointMask` |
-| Six backgrounds / 1,048,576 combined display pixels | `parseTerrainBackgrounds`, `loadTerrainBackground` |
+| Six backgrounds / 1,048,576 combined display pixels | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds` |
+| Resampled background: at most 524,288 display pixels; refused under 16,384 left | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground` |
+| Background file: 64 MB / 33,554,432 source pixels | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS` |
 | Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V | `gradePad` |
 | 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse | `parseSurveyBooks`, `reduceTraverse` |
 | KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements | `xmlTree`, `parseKml`, `readSpatialFile` |

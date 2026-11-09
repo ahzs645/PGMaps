@@ -9,20 +9,14 @@ import { NumberField, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { existingRoadQueryBounds, loadBcExistingRoads } from './existingRoads'
 import { refreshExistingRoadFeature } from './existingRoadEvidence'
-import {
-  harvestAgeSummary,
-  harvestHistoryStyle,
-  importHarvestHistory,
-  loadBcHarvestHistory,
-  nearbyRoadCandidates,
-} from './harvestHistory'
+import { harvestAgeSummary, harvestHistoryStyle, loadBcHarvestHistory, nearbyRoadCandidates } from './harvestHistory'
 import { roadHistoryStyle } from './roadHistory'
 import { parseProject } from './project'
 import { polygonAreaM2 } from './mapNotes'
 import type { ContextFeature, Coordinate } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { SPATIAL_ACCEPT } from './spatialImport'
 
-export const MAX_CUTBLOCK_IMPORT_BYTES = 10 * 1024 * 1024
 export const HISTORY_LOAD_TIMEOUT_MS = 20_000
 export const NEARBY_CUTBLOCK_ROAD_M = 1000
 
@@ -89,8 +83,11 @@ export function CutblockHistoryPanel({
   reviewRequest,
   onDraw,
   onReviewRoad,
+  onImportFile,
 }: {
   workspace: RoadWorkspace
+  /** Reads a chosen spatial file as cutblocks; the workspace's one importer does the reading. */
+  onImportFile?: (file: File) => void
   onLocate?: (block: ContextFeature) => void
   focusedId?: string | null
   reviewRequest?: { id: string; sequence: number }
@@ -256,7 +253,7 @@ export function CutblockHistoryPanel({
         summary={`${planned.length} planned · ${harvested.length} harvested`}
         open={open}
         onOpenChange={setOpen}
-        help="Load historical harvested areas near the project roads, or import cutblock polygons with their source evidence. Ages are elapsed calendar years since the reported harvest dates or estimated source year, not tree age. Nearby road sections are geographic candidates; their connection, surface, bridges, access and rehabilitation still need review."
+        help="Load historical harvested areas near the project roads, or import cutblock polygons as GeoJSON, a zipped shapefile, KML or KMZ. A polygon with no harvest evidence is planned or harvested as you choose. Ages are elapsed calendar years since the reported harvest dates or estimated source year, not tree age. Nearby road sections are geographic candidates; their connection, surface, bridges, access and rehabilitation still need review."
       >
         <div className="space-y-3" data-testid="road-cutblock-history">
           {/* Planned blocks are the ones roads get built to; harvested ones are history to read. */}
@@ -264,7 +261,7 @@ export function CutblockHistoryPanel({
             <Button size="sm" variant="outline" disabled={busy} onClick={() => void load('blocks')}>
               {loading === 'blocks' ? 'Loading…' : 'Load BC cutblocks'}
             </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
+            <Button size="sm" variant="outline" disabled={busy || !onImportFile} onClick={() => input.current?.click()}>
               Import cutblocks
             </Button>
             {onDraw && (
@@ -276,30 +273,15 @@ export function CutblockHistoryPanel({
           <input
             ref={input}
             type="file"
-            accept=".json,.geojson,application/geo+json,application/json"
+            accept={SPATIAL_ACCEPT}
             className="hidden"
             data-testid="road-cutblock-history-input"
-            onChange={async (event) => {
+            onChange={(event) => {
               const file = event.target.files?.[0]
               event.target.value = ''
               if (!file) return
               setError('')
-              const key = projectKey
-              const targetProject = latest.current.project
-              try {
-                if (file.size > MAX_CUTBLOCK_IMPORT_BYTES) throw Error('Import at most 10 MB of cutblock GeoJSON.')
-                const features = importHarvestHistory(JSON.parse(await file.text()))
-                if (key !== keyRef.current || targetProject !== latest.current.project)
-                  throw Error('The open project changed. Import into the intended project again.')
-                merge(features)
-                if (features[0]) setSelected(features[0].id)
-                latest.current.setNotice(
-                  `${features.length} cutblock polygons imported with available harvest evidence.`,
-                )
-              } catch (cause) {
-                if (key === keyRef.current)
-                  setError(cause instanceof Error ? cause.message : 'Could not import cutblocks.')
-              }
+              onImportFile?.(file)
             }}
           />
           {error && <InlineAlert tone="warning">{error}</InlineAlert>}

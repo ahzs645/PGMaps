@@ -68,7 +68,8 @@ book.
 | Embedded raster                      | 2 × 2 to 4,194,304 cells; values −12,000 to 12,000 m                                                                          | `terrain.ts`, `MAX_ROAD_RASTER_CELLS`, `validateRoadRaster`                | Refused as invalid                                                                              |
 | Saved complete-access comparison     | Canonical input signature at most 8 MiB; 1,000 source allocations; 75,000 IDs per path list; 4,000 unique network cost items | `fullCostRecord.ts`, `MAX_FULL_COST_SIGNATURE_BYTES`, `MAX_RECORD_ALLOCATIONS`, `MAX_RECORD_PATH_IDS`, `MAX_RECORD_COST_ITEMS` | Adoption or project import refuses an oversized record                                          |
 | Vertical datum text                  | 1–300 characters                                                                                                              | `project.ts`, `parseTerrain`                                               | Refused                                                                                         |
-| GeoJSON import                       | 20,000,000 characters, 500 features; lines: 20 roads, 2,000 vertices                                                          | `project.ts`, `features`, `importAlignmentGeoJson`                         | Refused                                                                                         |
+| Spatial file import                  | 120,000,000 bytes; 500 features and 50,000 vertices a file; lines as roads: 20 roads, 2,000 vertices                          | `spatialImport.ts`, `MAX_SPATIAL_FILE_BYTES`, `MAX_SPATIAL_FEATURES`, `MAX_SPATIAL_VERTICES`; `project.ts`, `importAlignmentGeoJson` | Refused, naming the file and what to crop                                                       |
+| Reference features                   | 500 features, 50,000 vertices; names 1–200 characters                                                                         | `referenceFeatures.ts`, `MAX_REFERENCE_FEATURES`, `MAX_REFERENCE_VERTICES` | Refused                                                                                         |
 | Library JSON                         | 2,000,000 characters                                                                                                          | `project.ts`, `importRoadLibrary`                                          | Refused                                                                                         |
 | Autosave delay                       | 650 ms after the last edit                                                                                                    | `useRoadWorkspace.ts`                                                      | —                                                                                               |
 | New project from a regional DEM      | A 1–10 km square around the chosen point (default 3 km); at most 64 z12 DEM tiles                                             | `ProjectsDialog.tsx`; `terrain.ts` `loadRegionalTerrain`                   | Field clamps; error before loading                                                              |
@@ -102,6 +103,44 @@ book.
   from the geometry will not reproduce the workspace's stations exactly.
 - **Offsets are perpendicular to the station bearing,** negative to the left looking up-station,
   in every file.
+
+### Bringing spatial files in
+
+Every spatial picker reads GeoJSON, a zipped shapefile, KML and KMZ through one reader
+(`readSpatialImport` in `spatialImport.ts`): **Import line** on the Design tab, **Import road lines**
+under Save, the **Streams** import, **Import cutblocks**, **Import existing roads** and **Import
+reference layer**. The picker only says what it is for; the file's contents decide the rest.
+
+- **Format comes from the content, not the name.** A KMZ renamed `.zip` or a shapefile given to any
+  picker still reads. Anything else is refused with a message naming the file and the formats
+  accepted. A loose `.shp` is refused with the instruction to zip its parts.
+- **Coordinates are reprojected from the file's CRS** to the WGS84 longitude/latitude the project
+  stores. A shapefile's `.prj` is matched to an EPSG code by its authority tag or its UTM or BC Albers
+  parameters (`epsgFromPrj`), and a code the workspace has its own definition for uses that
+  definition. This matters for NAD83(CSRS): a generic reader ignores its datum shift and lands a
+  line 1 to 2 m from terrain in the same CRS. GeoJSON with a named CRS the workspace knows is
+  reprojected; one it does not know is refused. A shapefile without a `.prj` is read only when its
+  coordinates already are longitude/latitude. The notice names the CRS that was read.
+- **Names are kept.** A `name`, `NAME` or `Name` attribute, a KML placemark name, then `label`,
+  `title` or `GNIS_NAME`, names the feature (`spatialFeatureName`). A layer with one text column and
+  no name column is named by that column. An unnamed feature takes the file's name.
+- **Nothing is classified without a choice.** A picker with one purpose settles its own shape: a
+  road picker's lines are roads. Features that carry a PGMaps export's `kind`, or evidence only one
+  kind carries, keep it, and each picker takes only the stated kinds it is for
+  (`STATED_BY_INTENT`): an exported project given to a road picker adds its roads and not a second
+  copy of its streams, and roads come in only through a road picker. The notice counts what was
+  left out. For everything else the import asks what the lines, polygons and points
+  are (`proposeRoles`): road, existing road, stream, planned or harvested cutblock, avoidance area,
+  or reference. The streams import asks unless the file reads as stream data, by Freshwater Atlas
+  attributes or by what the file and its features are called. A plain polygon is never planned or
+  harvested by default, so the cutblock picker asks too. The notice lists what was created.
+- **Reference features** are their own project collection (`reference`, `referenceFeatures.ts`).
+  The plan draws them and the Terrain tab lists them; no analysis, route search or estimate reads
+  them. A named point can start a road (**Peg from**) or take the active road's start or end. The
+  plan legend lists them and **Map settings** can hide them. The GeoJSON export writes them with
+  `kind: "reference"`, so they import back as reference. The printed report and the map PDF do not
+  draw them.
+- **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum.
 
 ### LandXML
 
@@ -283,7 +322,9 @@ and unchecksummed regional terrain needs a fresh run after reopening.
 ## What it does not do
 
 - **No native RoadEng, Civil 3D or DWG project.** Open handoff includes LandXML alignment/profile/sections
-  and terrain surfaces, ASCII grids and KML/KMZ import; product-specific corridor objects are not reconstructed.
+  and terrain surfaces, ASCII grids and GeoJSON, shapefile, KML and KMZ import; product-specific corridor
+  objects are not reconstructed. A file geodatabase, GeoPackage, DWG or DXF has to be exported to one of
+  those first.
 - **No instrument-specific construction stakeout package.** Portable survey field books, traverse reduction,
   closure adjustment, side shots and CSV exports are available; instrument/control workflows remain separate.
 - **No projected shapefile.** Reproject in a GIS if you need grid coordinates.

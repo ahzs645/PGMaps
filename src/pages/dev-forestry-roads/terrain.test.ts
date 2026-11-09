@@ -3,22 +3,29 @@ import { fromArrayBuffer, writeArrayBuffer } from 'geotiff'
 import type { PointCloudResult, RunPointCloudOptions } from './pointCloudClient'
 import {
   LIDAR_BASE,
+  TerrainImportQuestion,
   exportGrid,
+  importTerrainWithAnswers,
   localMetricGrid,
   loadLas,
   loadRaster,
   loadTerrainMetadata,
+  pointCloudImportSummary,
   roadProjection,
   terrainBounds,
   terrainFromMetadata,
+  type TerrainImportNeeds,
 } from './terrain'
+import { encodeLas, type PointCloud } from './pointCloud'
+import { assumeCrs } from './pointCloud.worker'
 import type { TerrainMetadata } from './types'
 import { offsetCoordinate } from './engine'
 
 afterEach(() => vi.unstubAllGlobals())
 
 // Worker stand-in: records the call, detaches the bytes as a transfer does, and reports the CRS
-// a LAZ read found (`worker.epsg`) before returning a 2 × 2 grid.
+// a read found (`worker.epsg`), or failing that the stated one as the worker's `assumeCrs` does,
+// before returning a 2 × 2 grid.
 const worker = vi.hoisted(() => ({
   epsg: null as number | null,
   calls: [] as Array<{ bytes: unknown; options: RunPointCloudOptions; breaklines?: unknown }>,
@@ -28,7 +35,8 @@ vi.mock('./pointCloudClient', () => ({
     const call: (typeof worker.calls)[number] = { bytes, options }
     worker.calls.push(call)
     if (options.transfer) structuredClone(bytes, { transfer: [bytes] })
-    call.breaklines = options.breaklinesFor?.(worker.epsg)
+    const epsg = worker.epsg ?? options.assumedEpsg ?? null
+    call.breaklines = options.breaklinesFor?.(epsg)
     const empty = { x: new Float64Array(), y: new Float64Array(), z: new Float64Array() }
     return {
       type: 'done',
@@ -36,7 +44,7 @@ vi.mock('./pointCloudClient', () => ({
         ...empty,
         classification: new Uint8Array(),
         count: 4,
-        epsg: worker.epsg,
+        epsg,
         verticalEpsg: null,
         version: '1.4',
         format: 'laz',
@@ -46,7 +54,7 @@ vi.mock('./pointCloudClient', () => ({
       },
       surface: {
         grid: {
-          epsg: worker.epsg,
+          epsg,
           origin: [500000.5, 6000000.5],
           pixelSize: [1, -1],
           width: 2,
@@ -292,10 +300,188 @@ describe('point-cloud import', () => {
     expect(line.points[0][2]).toBe(700)
   })
 
-  it('refuses a cloud without a CRS: a LAS at once, a LAZ once the worker finds none either', async () => {
-    await expect(loadLas(headerOnly(false), 'CGVD2013; metres')).rejects.toThrow('no projected CRS key')
+  /** A small LAS 1.2 tile with real header bounds, with or without CRS keys. */
+  const tile = (name: string, epsg?: number, verticalEpsg?: number, east = 511800) =>
+    new File(
+      [
+        encodeLas({
+          x: Float64Array.of(east, east + 300),
+          y: Float64Array.of(5971300, 5971850),
+          z: Float64Array.of(750, 760),
+          classification: Uint8Array.of(2, 2),
+          epsg,
+          verticalEpsg,
+        }).buffer as ArrayBuffer,
+      ],
+      name,
+    )
+  const question = async (attempt: Promise<unknown>): Promise<TerrainImportNeeds> => {
+    const error = await attempt.then(
+      () => null,
+      (cause: unknown) => cause,
+    )
+    expect(error).toBeInstanceOf(TerrainImportQuestion)
+    return (error as TerrainImportQuestion).needs
+  }
+
+  it('asks for the CRS of a cloud without one: a LAS at once, a LAZ once the worker finds none either', async () => {
+    const needs = await question(loadLas(tile('Tile_1.las'), 'CGVD2013; metres'))
+    // The header extent comes with the question, so the numbers can be checked against a zone.
+    expect(needs).toEqual({ crs: { files: ['Tile_1.las'], bounds: [511800, 5971300, 512100, 5971850] } })
     expect(worker.calls).toHaveLength(0)
-    await expect(loadLas(headerOnly(true), 'CGVD2013; metres')).rejects.toThrow('no projected CRS key')
+    expect((await question(loadLas(headerOnly(true), 'CGVD2013; metres'))).crs?.files).toEqual(['cloud.laz'])
     expect(worker.calls).toHaveLength(1)
+    await expect(loadLas(tile('Tile_1.las'), 'CGVD2013; metres')).rejects.toThrow(
+      'Tile_1.las has no CRS in the header. State the EPSG code to import.',
+    )
+  })
+
+  it('imports a cloud without a CRS in the one that was stated, and says so', async () => {
+    const { metadata, summary } = await loadLas(tile('Tile_1.las'), 'CGVD2013; metres', {
+      classify: 'auto',
+      surface: 'mean',
+      assumedEpsg: 3157,
+    })
+    expect(worker.calls[0].options.assumedEpsg).toBe(3157)
+    expect(metadata).toMatchObject({ epsg: 3157, verticalReference: 'CGVD2013; metres', raster: { epsg: 3157 } })
+    expect(metadata.preparation?.sources[0]).toMatchObject({ name: 'Tile_1.las', epsg: 3157 })
+    expect(summary).toContain(
+      'CRS EPSG:3157 as entered (the file states none); vertical datum CGVD2013; metres as entered.',
+    )
+    // The stated CRS is part of the terrain's identity: the same bytes in another zone are other ground.
+    const other = await loadLas(tile('Tile_1.las'), 'CGVD2013; metres', {
+      classify: 'auto',
+      surface: 'mean',
+      assumedEpsg: 26910,
+    })
+    expect(other.metadata.sha256).not.toBe(metadata.sha256)
+    // A CRS outside the accepted list is refused before anything is read into it.
+    await expect(
+      loadLas(tile('Tile_1.las'), 'CGVD2013; metres', { classify: 'auto', surface: 'mean', assumedEpsg: 2955 }),
+    ).rejects.toThrow(/Use WGS84, Web Mercator, BC Albers/)
+  })
+
+  it('never lets a stated CRS override the one a file carries', async () => {
+    await expect(
+      loadLas(tile('Tile_1.las', 26910), 'CGVD2013; metres', { classify: 'auto', surface: 'mean', assumedEpsg: 3157 }),
+    ).rejects.toThrow('Tile_1.las states EPSG:26910, not the EPSG:3157 entered.')
+    // A file with its own CRS and vertical key needs no answer at all, and the summary says where they came from.
+    const { summary, metadata } = await (async () => {
+      worker.epsg = 3157
+      return loadLas(tile('Tile_1.las', 3157, 6647), '')
+    })()
+    expect(metadata.verticalReference).toBe('EPSG:6647; metres')
+    expect(summary).toContain('CRS EPSG:3157 from the file; vertical datum EPSG:6647; metres from the file.')
+  })
+
+  it('asks for the vertical datum when the field is empty and the file names none, never borrowing one', async () => {
+    expect(await question(loadLas(tile('Tile_1.las', 3157), ''))).toEqual({
+      verticalDatum: { files: ['Tile_1.las'] },
+    })
+    // A cloud missing both is asked for both in one go.
+    expect(await question(loadLas(tile('Tile_1.las'), '  '))).toEqual({
+      crs: { files: ['Tile_1.las'], bounds: [511800, 5971300, 512100, 5971850] },
+      verticalDatum: { files: ['Tile_1.las'] },
+    })
+    expect(await question(loadRaster(fixture(), ''))).toEqual({ verticalDatum: { files: ['native-1m-fixture.tif'] } })
+    expect(worker.calls).toHaveLength(0)
+  })
+
+  it('combines tiles that state no CRS under one stated CRS, and refuses tiles that disagree', async () => {
+    const tiles = [tile('Tile_1.las'), tile('Tile_2.las', undefined, undefined, 512100)]
+    const needs = await question(
+      loadLas(tiles[0], '', { classify: 'auto', surface: 'mean', additionalFiles: tiles.slice(1) }),
+    )
+    expect(needs).toEqual({
+      crs: { files: ['Tile_1.las', 'Tile_2.las'], bounds: [511800, 5971300, 512400, 5971850] },
+      verticalDatum: { files: ['Tile_1.las', 'Tile_2.las'] },
+    })
+    const { metadata } = await loadLas(tiles[0], 'CGVD2013', {
+      classify: 'auto',
+      surface: 'mean',
+      additionalFiles: tiles.slice(1),
+      assumedEpsg: 3157,
+    })
+    expect(metadata.preparation?.sources.map((source) => [source.name, source.epsg])).toEqual([
+      ['Tile_1.las', 3157],
+      ['Tile_2.las', 3157],
+    ])
+    expect(metadata.name).toMatch(/^2 point-cloud sources/)
+    // One tile states its CRS: the others are asked about, with that CRS offered.
+    const mixed = await question(
+      loadLas(tile('A.las', 3157), 'CGVD2013', { classify: 'auto', surface: 'mean', additionalFiles: [tile('B.las')] }),
+    )
+    expect(mixed.crs).toMatchObject({ files: ['B.las'], suggestedEpsg: 3157 })
+    await expect(
+      loadLas(tile('A.las', 3157), 'CGVD2013', {
+        classify: 'auto',
+        surface: 'mean',
+        additionalFiles: [tile('B.las', 26910)],
+      }),
+    ).rejects.toThrow('These point clouds are in different CRSs (A.las: EPSG:3157, B.las: EPSG:26910).')
+  })
+
+  it('runs an import again with the answers, and changes nothing when the question is cancelled', async () => {
+    const asked: TerrainImportNeeds[] = []
+    const loaded = await importTerrainWithAnswers(
+      (answers) =>
+        loadLas(tile('Tile_1.las'), answers.verticalReference ?? '', {
+          classify: 'auto',
+          surface: 'mean',
+          assumedEpsg: answers.epsg,
+        }),
+      async (needs) => {
+        asked.push(needs)
+        return { epsg: 3157, verticalReference: 'CGVD2013 (CGG2013), EPSG:6647; metres' }
+      },
+    )
+    expect(asked).toHaveLength(1)
+    expect(Object.keys(asked[0])).toEqual(['crs', 'verticalDatum'])
+    expect(loaded?.metadata).toMatchObject({ epsg: 3157, verticalReference: 'CGVD2013 (CGG2013), EPSG:6647; metres' })
+    worker.calls.length = 0
+    expect(
+      await importTerrainWithAnswers(
+        (answers) => loadLas(tile('Tile_1.las'), answers.verticalReference ?? ''),
+        async () => null,
+      ),
+    ).toBeNull()
+    expect(worker.calls).toHaveLength(0)
+    // Any other failure is still a failure.
+    await expect(
+      importTerrainWithAnswers(
+        async () => {
+          throw Error('The LAS point records are truncated.')
+        },
+        async () => ({}),
+      ),
+    ).rejects.toThrow('truncated')
+  })
+
+  it('gives a stated CRS only to a cloud that carries none', () => {
+    const cloud = { epsg: null, count: 0 } as unknown as PointCloud
+    expect(assumeCrs(cloud, 3157).epsg).toBe(3157)
+    expect(assumeCrs({ ...cloud, epsg: 26910 }, 3157).epsg).toBe(26910)
+    expect(assumeCrs(cloud, undefined).epsg).toBeNull()
+  })
+
+  it('keeps the import summary with the terrain so it can be read after the notice has gone', async () => {
+    const { metadata } = await loadLas(tile('Tile_1.las'), 'CGVD2013', {
+      classify: 'auto',
+      surface: 'mean',
+      assumedEpsg: 3157,
+    })
+    expect(pointCloudImportSummary(metadata)).toEqual([
+      { label: 'Ground points', value: '4 of 4 · 1.0 per m² of gridded ground' },
+      { label: 'Classes found', value: '2 ground 4' },
+      { label: 'Extent', value: 'E 500,000 to 500,001 · N 6,000,000 to 6,000,001 · Z 800 to 803 m' },
+      { label: 'Grid', value: '2 × 2 cells at 1.00 m · 0 left missing' },
+      { label: 'CRS', value: 'EPSG:3157 as entered; the files state none' },
+      { label: 'Vertical datum', value: 'CGVD2013 as entered' },
+      { label: 'Sources', value: 'Tile_1.las' },
+    ])
+    // It survives the project file, and terrain that is not a point-cloud import has none.
+    const reopened = JSON.parse(JSON.stringify(metadata)) as TerrainMetadata
+    expect(pointCloudImportSummary(reopened)).toEqual(pointCloudImportSummary(metadata))
+    expect(pointCloudImportSummary((await loadRaster(fixture(), 'CGVD2013; metres')).metadata)).toBeNull()
   })
 })
