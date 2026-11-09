@@ -177,8 +177,12 @@ screenshots do not demonstrate those features. The existing full-page suite is:
 
 ```sh
 PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 \
-  npx playwright test tests/e2e/forestry-access-history.spec.ts --workers=1
+  npx playwright test tests/e2e/forestry-road-access-history.spec.ts --workers=1
 ```
+
+The spec follows the existing `forestry-road-*.spec.ts` naming pattern, so the
+manual `forestry-roads.yml` workflow includes it in lint and browser shards.
+That workflow's trigger remains `workflow_dispatch` only.
 
 **Repository CI:** full source typechecking and the whole application bundle
 passed locally, but this record does not claim the complete repository-wide

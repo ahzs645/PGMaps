@@ -9,7 +9,7 @@
     "../../src/pages/dev-forestry-roads/*AccessHistory*.tsx",
     "../../src/pages/dev-forestry-roads/bcAccessPilot*.ts",
     "../../examples/forestry/access-history/interface-review.tsx",
-    "../../tests/e2e/forestry-access-history.spec.ts",
+    "../../tests/e2e/forestry-road-access-history.spec.ts",
     "./generate-access-history-example.ts",
     "./inspect-bc-access-pilot.ts"
   ],

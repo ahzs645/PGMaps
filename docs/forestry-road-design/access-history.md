@@ -559,7 +559,7 @@ assertion must never become an implicit operational road approval.
 - `trainingAccessHistoryScenario.ts`: deterministic worked example.
 - `scripts/forestry/inspect-bc-access-pilot.ts`: manual bounded live review; prints
   a source/evidence summary without writing a provincial data snapshot into the repo.
-- `tests/e2e/forestry-access-history.spec.ts`: desktop and 320 px phone acceptance
+- `tests/e2e/forestry-road-access-history.spec.ts`: desktop and 320 px phone acceptance
   workflow. Run locally; no feature-specific automatic workflow was added.
 
 After initializing the existing toolkit and json-url submodules, run
