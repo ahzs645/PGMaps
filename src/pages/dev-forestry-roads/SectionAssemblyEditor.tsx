@@ -11,15 +11,29 @@ export function SectionAssemblyEditor({
   materials = [],
   features = [],
   surfaces = [],
+  onRockFillTemplate,
 }: {
   template: RoadTemplate
   onChange: (template: RoadTemplate) => void
   materials?: GroundMaterial[]
   features?: ContextFeature[]
   surfaces?: { id: string; name: string }[]
+  /**
+   * Starts a keyed rock-fill template as a new named template. It never edits `template`: a rock
+   * fill belongs to the station ranges and sides it is assigned to, not to the whole road.
+   */
+  onRockFillTemplate?: () => void
 }) {
   const components = template.components ?? [],
     layers = template.layers ?? []
+  // A course stack is at most 5 m per side, so a new course takes what room is left.
+  const stackRoomM =
+    5 -
+    Math.max(
+      ...(['left', 'right'] as const).map((side) =>
+        layers.filter((l) => l.side === side || l.side === 'both').reduce((sum, l) => sum + l.depthM, 0),
+      ),
+    )
   const update = (id: string, patch: Partial<SectionComponent>) =>
     onChange({ ...template, components: components.map((c) => (c.id === id ? { ...c, ...patch } : c)) })
   const updateLayer = (id: string, patch: Partial<SectionLayer>) =>
@@ -78,36 +92,11 @@ export function SectionAssemblyEditor({
         >
           Add component
         </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={components.length > 38}
-          onClick={() =>
-            onChange({
-              ...template,
-              ditchWidth: 0,
-              leftDitchWidth: 0,
-              rightDitchWidth: 0,
-              fillSlope: 0.75,
-              components: [
-                ...components,
-                ...(['left', 'right'] as const).map((side) => ({
-                  id: crypto.randomUUID(),
-                  name: `${side} keyed rock fill`,
-                  side,
-                  kind: 'key' as const,
-                  condition: 'fill' as const,
-                  widthM: 2,
-                  riseM: 0,
-                  depthM: 1,
-                  offsetM: 0,
-                })),
-              ],
-            })
-          }
-        >
-          Keyed rock-fill starter
-        </Button>
+        {onRockFillTemplate && (
+          <Button size="sm" variant="outline" onClick={onRockFillTemplate}>
+            New keyed rock-fill template
+          </Button>
+        )}
       </div>
       {components.map((c, i) => (
         <div key={c.id} className="space-y-2 rounded border p-2">
@@ -182,6 +171,7 @@ export function SectionAssemblyEditor({
                   value={c.depthM ?? 1}
                   min={0}
                   max={20}
+                  hint="How far the key is dug below the ground, after any stripping. The width above is the key's width, measured outward from its edge offset."
                   onChange={(depthM) => update(c.id, { depthM })}
                 />
                 <NumberField
@@ -189,7 +179,25 @@ export function SectionAssemblyEditor({
                   value={c.offsetM ?? 0}
                   min={0}
                   max={50}
+                  hint="Distance from the formation edge to the key's inner edge. The key must end inside the slope's footprint; where the fill is narrower than the key, the section is left incomplete and says so."
                   onChange={(offsetM) => update(c.id, { offsetM })}
+                />
+                {/* The rest of a rock fill is this template's own lane width and fill batter. */}
+                <NumberField
+                  label={`Key ${i + 1} subgrade width, ${c.side} (m)`}
+                  value={template[`${c.side}Width`]}
+                  min={0.1}
+                  max={50}
+                  hint="This template's lane width on the key's side."
+                  onChange={(width) => onChange({ ...template, [`${c.side}Width`]: width })}
+                />
+                <NumberField
+                  label={`Key ${i + 1} rock slope, ${c.side} (H:V)`}
+                  value={template[`${c.side}FillSlope`] ?? template.fillSlope}
+                  min={0.1}
+                  max={10}
+                  hint="This template's fill batter on the key's side. A rock-fill thickness is not an input: the embankment is one fill volume, not a rock zone over ordinary fill."
+                  onChange={(slope) => onChange({ ...template, [`${c.side}FillSlope`]: slope })}
                 />
               </>
             ) : (
@@ -315,13 +323,18 @@ export function SectionAssemblyEditor({
         <Button
           size="sm"
           variant="outline"
-          disabled={layers.length >= 20}
+          disabled={layers.length >= 20 || stackRoomM <= 0}
           onClick={() =>
             onChange({
               ...template,
               layers: [
                 ...layers,
-                { id: crypto.randomUUID(), name: `Course ${layers.length + 1}`, side: 'both', depthM: 0.15 },
+                {
+                  id: crypto.randomUUID(),
+                  name: `Course ${layers.length + 1}`,
+                  side: 'both',
+                  depthM: Math.min(0.15, stackRoomM),
+                },
               ],
             })
           }

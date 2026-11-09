@@ -408,6 +408,8 @@ export interface RoadStation {
   rightDaylightM: number | null
   complete: boolean
   flags: string[]
+  /** Why this section is incomplete, in the section builder's words; absent when it is complete. */
+  incompleteReasons?: string[]
 }
 export interface Crossing {
   id: string

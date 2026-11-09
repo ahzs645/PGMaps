@@ -133,6 +133,7 @@ import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
 import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { incompleteReasonSummary, incompleteReasonText } from './dev-forestry-roads/sectionCompleteness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
@@ -805,6 +806,7 @@ export default function DevForestryRoads() {
     () => new Map([...w.analyses, [displayedAlignment.id, displayedAnalysis]]),
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
+  const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
   const at = nearestStation(displayedAnalysis.stations, w.station)
   const station = at?.chainage ?? 0
   // The header subtitle shows the latest notice briefly, in place of a status row.
@@ -2673,6 +2675,17 @@ export default function DevForestryRoads() {
                     label: summaryLabel('Complete sections', 'Coverage'),
                     value: `${number(displayedAnalysis.coveragePercent)}%`,
                     tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
+                    // Below 100 %, the tile opens the first incomplete section, where its reason is stated.
+                    ...(incompleteReasons.length
+                      ? {
+                          onToggle: () => {
+                            setStation(incompleteReasons[0].firstChainage)
+                            setDetail('section')
+                          },
+                          pressed: false,
+                          toggleLabel: `Show the first incomplete section. ${incompleteReasonText(incompleteReasons)}`,
+                        }
+                      : {}),
                   },
                 ]),
           ]}

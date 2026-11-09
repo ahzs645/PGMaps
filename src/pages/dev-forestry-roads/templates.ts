@@ -150,6 +150,63 @@ const STARTER_DIMENSIONS: Record<Exclude<TemplateStarter, 'current'>, Partial<Ro
  * other starter is symmetric, so it drops all side-specific values (ditch bottom widths included)
  * and keeps the ditch bottom within the ditch. Throws when the result is out of range.
  */
+/**
+ * What a keyed rock-fill template sets. The rock slope is the template's fill batter and the
+ * subgrade width its lane width on each side; each key is an excavated-key component on the fill
+ * side. A rock-fill thickness is not an input: the model does not divide an embankment into a rock
+ * zone and ordinary fill, so there is nothing for it to change.
+ */
+export interface RockFillOptions {
+  /** Fill batter H:V. */
+  rockSlope: number
+  keyWidthM: number
+  keyDepthM: number
+  /** Lane width per side; omitted keeps the widths of the section it starts from. */
+  subgradeWidthM?: number
+}
+export const ROCK_FILL_DEFAULTS: RockFillOptions = { rockSlope: 1, keyWidthM: 2, keyDepthM: 1 }
+
+/**
+ * A new template for a keyed-in rock fill, built from `base` without changing it: the same lane,
+ * crossfall, ditches, cut batter and surfacing, with the fill batter at the rock slope and a key
+ * under each fill-side toe. A key is built only where its side is in fill, so cut sides keep their
+ * ditch. `newId` supplies the two component ids. Throws when the result is out of range.
+ */
+export function keyedRockFillTemplate(
+  base: RoadTemplate,
+  newId: () => string,
+  options: Partial<RockFillOptions> = {},
+): RoadTemplate {
+  const { rockSlope, keyWidthM, keyDepthM, subgradeWidthM } = { ...ROCK_FILL_DEFAULTS, ...options }
+  const template: RoadTemplate = { ...base, fillSlope: rockSlope }
+  delete template.leftFillSlope
+  delete template.rightFillSlope
+  if (subgradeWidthM !== undefined) {
+    template.leftWidth = subgradeWidthM
+    template.rightWidth = subgradeWidthM
+  }
+  template.components = [
+    // Keys the base already has would overlap the new ones; its benches and walls are kept.
+    ...(base.components ?? []).filter((component) => component.kind !== 'key').map((c) => ({ ...c })),
+    ...(['left', 'right'] as const).map(
+      (side): SectionComponent => ({
+        id: newId(),
+        name: `${side === 'left' ? 'Left' : 'Right'} keyed rock fill`,
+        side,
+        kind: 'key',
+        condition: 'fill',
+        widthM: keyWidthM,
+        riseM: 0,
+        depthM: keyDepthM,
+        offsetM: 0,
+      }),
+    ),
+  ]
+  if (base.layers) template.layers = base.layers.map((layer) => ({ ...layer }))
+  validateTemplate(template)
+  return template
+}
+
 export function templateFromStarter(base: RoadTemplate, starter: TemplateStarter): RoadTemplate {
   const template: RoadTemplate = { ...base }
   if (starter !== 'current') {

@@ -68,12 +68,15 @@ export function TemplateComponents({
   features,
   surfaces,
   problem,
+  onRockFillTemplate,
 }: {
   template: RoadTemplate
   onChange: (template: RoadTemplate) => void
   materials?: GroundMaterial[]
   features?: ContextFeature[]
   surfaces?: { id: string; name: string }[]
+  /** Starts a keyed rock-fill template as a new named template, leaving this one as it is. */
+  onRockFillTemplate?: () => void
   /** The current invalid edit to this template, if any; its message is shown at the field it names. */
   problem?: InvalidInput
 }) {
@@ -180,6 +183,7 @@ export function TemplateComponents({
         materials={materials}
         features={features}
         surfaces={surfaces}
+        onRockFillTemplate={onRockFillTemplate}
       />
     </div>
   )

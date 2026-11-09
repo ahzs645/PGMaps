@@ -1577,6 +1577,10 @@ export function CrossSectionChart({
   const preparedCentre = station ? sectionSampleAt(station, 0).preparedGround : undefined
   const preparedDepth =
     finite(preparedCentre) && finite(station?.designElevation) ? preparedCentre - station.designElevation : null
+  const incompleteLabel =
+    station && !terrainOnly && !station.complete
+      ? `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`
+      : null
   // Section status block, in the abbreviations of a road-design section window.
   const sectionReadout: Array<ReadoutItem | null | undefined> = !station
     ? []
@@ -1650,7 +1654,7 @@ export function CrossSectionChart({
               : 'incomplete',
             title: station.complete
               ? 'Daylight offsets left / right of the centreline (m)'
-              : 'Incomplete section: terrain coverage or daylight limit',
+              : `Incomplete section: ${station.incompleteReasons?.join('; ') || 'terrain coverage or daylight limit'}`,
             tone: station.complete ? ('default' as const) : ('warning' as const),
           },
           { label: 'Cut A', value: `${fixed(station.cutAreaM2)} m²`, title: 'Cut area of this section' },
@@ -1699,6 +1703,16 @@ export function CrossSectionChart({
             )}
           </div>
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
+          {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
+          {incompleteLabel && (
+            <p
+              role="status"
+              data-testid="road-section-incomplete"
+              className="text-3xs leading-4 text-amber-700 dark:text-amber-400"
+            >
+              {incompleteLabel}. It is left out of quantities.
+            </p>
+          )}
           {(onShift || (!terrainOnly && onVerticalShift)) && (
             <div
               role="group"
@@ -2132,6 +2146,21 @@ export function CrossSectionChart({
             {!station && (
               <text x={width / 2} y={height / 2} fill="hsl(var(--muted-foreground))" fontSize="12" textAnchor="middle">
                 Select a road station
+              </text>
+            )}
+            {/* On the chart itself, because the readout below folds away on a short pane. */}
+            {incompleteLabel && (
+              <text
+                x={f.left + 6}
+                y={f.top + 13}
+                fontSize="11"
+                fill="#b45309"
+                data-testid="road-section-incomplete-label"
+              >
+                <title>{incompleteLabel}</title>
+                {incompleteLabel.length > Math.floor(f.plotWidth / 5.6)
+                  ? `${incompleteLabel.slice(0, Math.max(12, Math.floor(f.plotWidth / 5.6) - 1))}…`
+                  : incompleteLabel}
               </text>
             )}
           </svg>

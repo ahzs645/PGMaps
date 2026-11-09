@@ -327,8 +327,11 @@ export function assembledSection({
       )
         continue
       if (side.daylight === null || from + c.widthM > side.daylight + EPS) {
+        // Say how much room there is, so the cure (a narrower key, or a shorter range) is plain.
         keyWarnings.add(
-          `${c.name}: requested key extends outside the constructed section footprint; revise its width or offset`,
+          side.daylight === null
+            ? `${c.name}: the key cannot be placed because the batter does not reach ground here`
+            : `${c.name}: the key reaches ${(from + c.widthM - side.width).toFixed(2)} m past the formation edge but the slope meets ground at ${Math.max(0, side.daylight - side.width).toFixed(2)} m; narrow the key or end its range before here`,
         )
         continue
       }

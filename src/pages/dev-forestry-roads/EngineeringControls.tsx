@@ -22,7 +22,7 @@ import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements } from './groundHorizons'
 import { nearestStation } from './engine'
-import { templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
+import { keyedRockFillTemplate, templateFromStarter, validateTemplate, type TemplateStarter } from './templates'
 import { formatRoadStation } from './Charts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type {
@@ -244,6 +244,7 @@ export function EngineeringControls({
   aggregateOpen = false,
   onAggregateOpenChange,
   culvertRequest,
+  templateRequest,
 }: {
   workspace: RoadWorkspace
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
@@ -253,6 +254,8 @@ export function EngineeringControls({
   aggregateOpen?: boolean
   onAggregateOpenChange?: (open: boolean) => void
   culvertRequest?: number
+  /** Opens the Templates tab on this library template; a new sequence repeats the request. */
+  templateRequest?: { id: string; sequence: number }
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
   const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
@@ -271,7 +274,13 @@ export function EngineeringControls({
     setTab('haul')
   }
   const [templateId, setTemplateId] = useState('')
-  const [preset, setPreset] = useState<TemplateStarter>('current')
+  const [seenTemplateRequest, setSeenTemplateRequest] = useState(templateRequest?.sequence)
+  if (templateRequest && templateRequest.sequence !== seenTemplateRequest) {
+    setSeenTemplateRequest(templateRequest.sequence)
+    setTab('templates')
+    setTemplateId(templateRequest.id)
+  }
+  const [preset, setPreset] = useState<TemplateStarter | 'rockfill'>('current')
   const [libraryMode, setLibraryMode] = useState<'merge' | 'replace'>('merge')
   const libraryInput = useRef<HTMLInputElement>(null)
   const { alignment, analysis, project } = w
@@ -540,13 +549,14 @@ export function EngineeringControls({
                 ariaLabel="Template starting point"
                 className={roadFieldClass}
                 value={preset}
-                onValueChange={(value) => setPreset(value as TemplateStarter)}
+                onValueChange={(value) => setPreset(value as typeof preset)}
               >
                 <option value="current">Current road section</option>
                 <option value="single">Forest single lane</option>
                 <option value="double">Forest double lane</option>
                 <option value="landing">Wide landing</option>
                 <option value="urban">Crowned road</option>
+                <option value="rockfill">Keyed rock fill</option>
               </RoadSelect>
             </Field>
             <Button
@@ -555,16 +565,21 @@ export function EngineeringControls({
               className="mt-2 w-full"
               disabled={design.templates.length >= 50}
               onClick={() => {
-                const names: Record<TemplateStarter, string> = {
+                const names: Record<typeof preset, string> = {
                   current: 'Road section',
                   single: 'Forest single lane',
                   double: 'Forest double lane',
                   landing: 'Wide landing',
                   urban: 'Crowned road',
+                  rockfill: 'Keyed rock fill',
                 }
                 let template: RoadTemplate
                 try {
-                  template = templateFromStarter(alignment.template, preset)
+                  // A rock fill keeps the road's section and adds a key under each fill-side toe.
+                  template =
+                    preset === 'rockfill'
+                      ? keyedRockFillTemplate(alignment.template, uid)
+                      : templateFromStarter(alignment.template, preset)
                 } catch (error) {
                   w.setError(error instanceof Error ? error.message : 'Could not create template.')
                   return
@@ -743,6 +758,7 @@ export function EngineeringControls({
                 </div>
                 <TemplateSandbox
                   template={candidate}
+                  materials={design.materials}
                   name={`${selected.name}${templateDirty ? ' · unsaved candidate' : ''}`}
                 />
               </div>
