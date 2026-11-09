@@ -129,7 +129,7 @@ import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
-import { fitHorizontalRadii } from './dev-forestry-roads/horizontalTools'
+import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/horizontalTools'
 import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
@@ -150,6 +150,7 @@ import { resizeMap } from '@pgmaps/geo-toolkit/map/map-resize'
 import {
   historyShortcut,
   historyShortcutLabels,
+  isRemoveKey,
   isApplePlatform,
   keepsNativeUndo,
 } from './dev-forestry-roads/historyShortcut'
@@ -1028,8 +1029,10 @@ export default function DevForestryRoads() {
     (id: string, coordinate: Coordinate) => {
       if (busy) return
       updateAlignment((a) => ({ ...a, points: a.points.map((p) => (p.id === id ? { ...p, coordinate } : p)) }))
+      const kept = profileKeptNotice(alignment.vertical.length)
+      if (kept) setNotice(kept)
     },
-    [updateAlignment, busy],
+    [updateAlignment, busy, alignment.vertical.length, setNotice],
   )
   const commitValidated = (next: RoadProject) => {
     if (busy) return false
@@ -2091,12 +2094,32 @@ export default function DevForestryRoads() {
   // ⌘Z / Ctrl+Z undo outside text fields; while drawing they take back the last point first.
   const [applePlatform] = useState(isApplePlatform)
   const shortcutKeys = historyShortcutLabels(applePlatform)
-  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length })
+  // Delete removes the point selected for editing, as the sidebar's Remove selected point does.
+  const removablePoint =
+    mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
+      ? (selectedPoint ?? null)
+      : null
+  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length, removablePoint })
   useEffect(() => {
-    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length }
+    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length, removablePoint }
   })
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.defaultPrevented && isRemoveKey(event) && !keepsNativeUndo(event.target)) {
+        const { w: workspace, busy: working, removablePoint: id } = historyKeys.current
+        const index = workspace.alignment.points.findIndex((point) => point.id === id)
+        if (working || index < 0) return
+        event.preventDefault()
+        workspace.updateAlignment((a) =>
+          a.points.length > 2 ? { ...a, points: a.points.filter((point) => point.id !== id) } : a,
+        )
+        setSelectedPoint(null)
+        workspace.setNotice(
+          profileKeptNotice(workspace.alignment.vertical.length, `Point ${index + 1} removed`) ??
+            `Point ${index + 1} removed. Undo brings it back.`,
+        )
+        return
+      }
       const action = event.defaultPrevented ? null : historyShortcut(event, applePlatform)
       if (!action || keepsNativeUndo(event.target)) return
       event.preventDefault()

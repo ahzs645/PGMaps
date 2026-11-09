@@ -556,7 +556,13 @@ warning someone must see stays an `InlineAlert`.
 Design → **Peg road** starts a new alignment: click the start, any middle guide points and the end,
 then **Finish road**. **Inspect** selects roads and stations. **Edit points** shows draggable
 numbered controls for the start, end and middle points. **Select start** and **Select end** in
-Horizontal points also enter edit mode and reveal their numeric coordinates.
+Horizontal points also enter edit mode and reveal their numeric coordinates. In edit mode,
+Delete (or Backspace) removes the selected point, as **Remove selected point** does, unless the
+keys are being typed into a field or a dialog; a road keeps at least two points.
+
+A profile's PVIs are stored by station, so a plan edit leaves the grade line where it was and
+puts different ground under it. Moving or removing a point on a road with PVIs says so in the
+header notice (`profileKeptNotice`, `horizontalTools.ts`).
 
 In edit mode, drag a **+** off the road to add a middle control where you drop it, with a curve at the
 minimum radius. A click adds nothing, so a point always changes the road; Enter on a focused **+** adds one at

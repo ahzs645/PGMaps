@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
-import { fitHorizontalRadii, straightPointIds } from './horizontalTools'
+import { fitHorizontalRadii, profileKeptNotice, straightPointIds } from './horizontalTools'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, RoadPoint } from './types'
 
@@ -83,5 +83,15 @@ describe('straightPointIds', () => {
     })
     const kept = points.length - straightPointIds(points).length
     expect(kept).toBeGreaterThan(5)
+  })
+})
+
+describe('a plan edit on a road with a designed profile', () => {
+  it('says the PVIs kept their stations, and nothing when the road follows the ground', () => {
+    expect(profileKeptNotice(0)).toBeNull()
+    expect(profileKeptNotice(6)).toBe(
+      "Point moved. The profile's 6 PVIs keep their stations, so the grade line now runs over different ground: check the profile and the cut and fill.",
+    )
+    expect(profileKeptNotice(1, 'Point 3 removed')).toMatch(/^Point 3 removed\. The profile's 1 PVI keeps its station,/)
   })
 })

@@ -21,7 +21,7 @@ import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import { RouteFinder } from '../RouteFinder'
-import { straightPointIds } from '../horizontalTools'
+import { profileKeptNotice, straightPointIds } from '../horizontalTools'
 import type { SidebarProps } from '../DesignSidebarBody'
 import { FirstRoadPanel } from '../FirstRoadPanel'
 import { isLoadableMappedRoad } from '../mappedRoad'
@@ -583,13 +583,16 @@ function HorizontalPoints(p: SidebarProps) {
     setShownPoint(point?.id)
     if (point) setOpen(true)
   }
-  const movePoint = (axis: 0 | 1, value: number) =>
+  const movePoint = (axis: 0 | 1, value: number) => {
     updateAlignment((a) => ({
       ...a,
       points: a.points.map((x) =>
         x.id === point?.id ? { ...x, coordinate: axis === 0 ? [value, x.coordinate[1]] : [x.coordinate[0], value] } : x,
       ),
     }))
+    const kept = profileKeptNotice(alignment.vertical.length)
+    if (kept) p.workspace.setNotice(kept)
+  }
   // What became of the radius typed at this point: held to the range, or not fitted to its legs.
   const [limited, setLimited] = useState<{ pointId: string; radiusM: number; note: string } | null>(null)
   const limitedNote =
