@@ -137,10 +137,7 @@ describe('explicit planning constraints', () => {
 describe('a road end inside an area closed to routes', () => {
   // The creek runs along x = 200; unclassified, it screens 100 m either side until its review is recorded.
   const near =
-    'The road\u2019s start is 50 m from Test creek, inside its 100 m riparian screening area, which is closed to routes until its review is recorded. Move that end at least 51 m further from the stream, or record the review or change the stream\u2019s route treatment under Terrain → Streams.'.replaceAll(
-      '\u2019',
-      "'",
-    )
+    "The road's start is 50 m from Test creek, inside its 100 m riparian screening area, which is closed to routes until its review is recorded. Move that end at least 51 m further from the stream, or record the review or change the stream's route treatment under Terrain → Streams."
   it('names the end, the stream, the distance and what to change', () => {
     expect(blockedRouteEnds(p(150, 0), p(600, 0), [stream()])).toEqual([
       { end: 'start', featureId: 'creek', message: near },
