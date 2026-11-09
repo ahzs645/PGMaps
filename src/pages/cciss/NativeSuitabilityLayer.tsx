@@ -1,10 +1,8 @@
 import { useEffect, useMemo } from 'react'
-import type { GeoTIFF } from 'geotiff'
 import MapLibreGL from 'maplibre-gl'
 import { MapRasterLayer } from '@/components/ui/map-layers'
-import { suitabilityColor } from './raster'
-
-type GeoTIFFImage = Awaited<ReturnType<GeoTIFF['getImage']>>
+import { suitabilityColor } from './palette'
+import type { GeoTIFFImage } from './raster'
 
 const TILE_SIZE = 256
 const SOURCE_MAX_ZOOM = 16
