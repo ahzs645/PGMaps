@@ -103,7 +103,8 @@ left) copies the lane, crossfall, surfacing, ditch, batters, components and one-
 one side to the other (`copyTemplateSide`).
 
 **Section geometry.** Negative offsets are left looking up-station, on the plan, the section, the
-templates and the tables. A ditch is built only where ground at the hinge is above the formation
+templates and the tables. The cross-section draws the surfacing above the subgrade line: the
+explicit course stack, or the template's surfacing depth on each side where there is no stack. A ditch is built only where ground at the hinge is above the formation
 edge, so a fill side never gets one. Each batter is searched outward from the hinge (or ditch) at
 the sampling pitch and refined by bisection. The first crossing with ground is the daylight, so a
 narrow bench or gully narrower than the pitch can be stepped over.

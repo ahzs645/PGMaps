@@ -22,7 +22,7 @@ import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
-import type { Alignment, CableAnalysis, RoadAnalysis, RoadStation, VerticalPoint } from './types'
+import type { Alignment, CableAnalysis, RoadAnalysis, RoadStation, SectionLayer, VerticalPoint } from './types'
 
 export const ROAD_CHART_COLORS = {
   ground: '#a07845',
@@ -1510,6 +1510,22 @@ export function CrossSectionChart({
       ? analysis?.engineering?.stations.find((s) => Math.abs(s.chainage - station.chainage) < 0.001)
       : undefined
   const template = engineering?.template.template ?? alignment?.template
+  // The courses above the subgrade: an explicit stack, or the template's single surfacing depth
+  // per side, so the surfacing that is measured and priced is also drawn.
+  const courses: SectionLayer[] =
+    terrainOnly || !template
+      ? []
+      : (template.layers ??
+        (['left', 'right'] as const).flatMap((side) => {
+          const depthM = template[`${side}SurfaceDepth`] ?? template.surfaceDepth
+          return depthM > 0 ? [{ id: `surfacing-${side}`, name: 'Surfacing', side, depthM }] : []
+        }))
+  const courseStackM = Math.max(
+    0,
+    ...(['left', 'right'] as const).map((side) =>
+      courses.filter((l) => l.side === side || l.side === 'both').reduce((sum, l) => sum + l.depthM, 0),
+    ),
+  )
   const culverts =
     !terrainOnly && station
       ? (analysis?.engineering?.culverts.filter((c) => Math.abs(c.chainage - station.chainage) < 0.001) ?? [])
@@ -1557,9 +1573,7 @@ export function CrossSectionChart({
   const [low, high] = extent([
     ...points.flatMap((p) => [p.ground, p.design]),
     ...preparedPoints.map((p) => p.ground),
-    ...points.flatMap((p) =>
-      finite(p.design) ? [p.design + (template?.layers ?? []).reduce((s, l) => s + l.depthM, 0)] : [],
-    ),
+    ...points.flatMap((p) => (finite(p.design) ? [p.design + courseStackM] : [])),
     ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
   ])
   const halfWidth = Math.max(
@@ -1677,6 +1691,7 @@ export function CrossSectionChart({
                   : [
                       { label: 'Ground', color: ROAD_CHART_COLORS.ground },
                       { label: 'Template', color: ROAD_CHART_COLORS.design },
+                      ...(courses.length ? [{ label: 'Surfacing', color: '#d6a84b' }] : []),
                       ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
                       { label: 'Cut', color: ROAD_CHART_COLORS.cut },
                       { label: 'Fill', color: ROAD_CHART_COLORS.fill },
@@ -1915,15 +1930,13 @@ export function CrossSectionChart({
                 </path>
               )}
               {!terrainOnly &&
-                template?.layers?.map((layer, layerIndex) => {
+                courses.map((layer, layerIndex) => {
                   const widthLeft = station?.leftWidth ?? 0,
                     widthRight = station?.rightWidth ?? 0
                   return (['left', 'right'] as const).flatMap((side) => {
                     if (layer.side !== 'both' && layer.side !== side) return []
-                    const lower = template
-                      .layers!.slice(0, layerIndex)
-                      .filter((l) => l.side === side || l.side === 'both')
-                      .reduce((sum, l) => sum + l.depthM, 0)
+                    const below = courses.slice(0, layerIndex).filter((l) => l.side === side || l.side === 'both')
+                    const lower = below.reduce((sum, l) => sum + l.depthM, 0)
                     const a = side === 'left' ? -widthLeft : 0,
                       b = side === 'left' ? 0 : widthRight
                     const za = station && sectionSampleAt(station, a).design,
@@ -1933,7 +1946,9 @@ export function CrossSectionChart({
                       <polygon
                         key={`${layer.id}-${side}`}
                         points={`${f.x(a)},${f.y(za + lower)} ${f.x(b)},${f.y(zb + lower)} ${f.x(b)},${f.y(zb + lower + layer.depthM)} ${f.x(a)},${f.y(za + lower + layer.depthM)}`}
-                        fill={['#d6a84b', '#a3a36e', '#8296b3'][layerIndex % 3]}
+                        // Coloured by its place in this side's stack, so a course matches across the crown.
+                        fill={['#d6a84b', '#a3a36e', '#8296b3'][below.length % 3]}
+                        data-testid="road-section-course"
                         opacity={0.5}
                       >
                         <title>
