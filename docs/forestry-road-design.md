@@ -750,6 +750,13 @@ that its bottom falls at the entered grade to the inlet invert, to at most 4 m b
 ditch hinge in total (`MAX_DITCH_DIP_DEPTH`). It needs a known inlet invert.
 
 Landing and turnout ranges add width after the station template resolves.
+Start and End are the outer ends of a range, so its tapers lie inside them and the
+whole extra width runs from Start + entry taper to End − exit taper; the form states
+that full-width range. The entry and exit tapers together cannot be longer than the
+range. A typed taper that would be is held to the room the other taper leaves, and
+the form says what it was held to and why (`limitedTaper`, `wideningEntry.ts`); an
+unset end follows the shared Taper, at most half the range. Duplicate asks for the
+copy's start station and refuses one that would run off the road.
 Their extra width tapers in/out; overlapping width overrides use the maximum
 extra width per side rather than stacking widths. Added landing width is
 unsurfaced; added turnout width uses that side's resolved surface depth. The

@@ -58,7 +58,7 @@ the optional delivered-cost borrow/waste allocation.
 | Surfacing depth                      | 0–2 m                                                                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
 | Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                   | `templates.ts` `validateEngineering`                                       | Calculation error; add buttons disable at the limit                              |
 | Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                        | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
-| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; an oversized taper is shortened silently                                  |
+| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; the form holds a typed taper to the room left and says so                 |
 | Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                 | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
@@ -110,7 +110,9 @@ runoff is not a calculation station, so the change in crossfall and width there 
 interval.
 
 **Widening ranges.** Overlapping landing and turnout ranges take the larger extra width per side;
-they do not add. Landing extra width is unsurfaced and turnout extra width is surfaced.
+they do not add. Landing extra width is unsurfaced and turnout extra width is surfaced. Start and End
+are the outer ends, tapers included: a pullout meant to be full width from 682.5 to 697.5 with
+7.5 m tapers is entered as Start 675, End 705. The form states the full-width range it builds.
 
 **Volumes.** Earthwork uses average end areas over the centreline chainage between stations. There
 is no prismoidal correction and no curvature correction for asymmetric sections on curves, so on

@@ -39,6 +39,11 @@ that fixes it, and add one, with the file and function, when you find a new defe
   vertical curve showed only in Stations → Curves or as "Unfitted" in a table. The note under the
   field gives the tangent needed, what is available and the largest value that fits
   (`horizontalCurveFits`, `engine.ts`; `curveFit.ts`).
+- Turnout and landing entry: the form states that Start and End include the tapers and shows the
+  full-width range. A typed entry taper of 7.5 m on a 15 m range became 5 without a word, because
+  the field's limit used the raw shared taper; the limit now uses the tapers as applied and says
+  when it holds a value (`limitedTaper`, `wideningEntry.ts`). Duplicate asks for the copy's start
+  instead of stacking it on the original.
 - A typed station is kept. 85 used to land on 80 and 716.1 on 720, and a pit added from the
   selected station took the snapped value. The section is now evaluated at the typed chainage
   (`roadStationAt`, `stationAt.ts`), and a value past either end says it was held to the road.

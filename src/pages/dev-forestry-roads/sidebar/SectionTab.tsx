@@ -9,6 +9,7 @@ import { TemplateComponents } from '../TemplateComponents'
 import { RoadSection } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
+import { appliedTapers, duplicateWideningAt, fullWidthRange, limitedTaper } from '../wideningEntry'
 
 const id = () => crypto.randomUUID()
 type NumericTemplateKey = {
@@ -79,6 +80,12 @@ export function SectionTab(p: SidebarProps & { onTab: (tab: SidebarTab) => void 
 function Widenings(p: SidebarProps) {
   const { alignment, analysis, updateAlignment } = p.workspace
   const [open, setOpen] = useState(false)
+  // A taper the range could not carry: what it was held to, shown until that value changes.
+  const [limited, setLimited] = useState<{ id: string; side: 'entry' | 'exit'; taperM: number; note: string } | null>(
+    null,
+  )
+  // The widening being copied and the start typed for its copy.
+  const [copying, setCopying] = useState<{ id: string; start: number } | null>(null)
   const tweak = (key: string, changes: Partial<WidthOverride>) =>
     updateAlignment((a) => ({ ...a, overrides: a.overrides.map((x) => (x.id === key ? { ...x, ...changes } : x)) }))
   const add = (kind: WidthOverride['kind']) =>
@@ -195,12 +202,9 @@ function Widenings(p: SidebarProps) {
                 size="icon"
                 className="size-7 shrink-0"
                 aria-label={`Duplicate ${v.name}`}
-                onClick={() =>
-                  updateAlignment((a) => ({
-                    ...a,
-                    overrides: [...a.overrides, { ...v, id: id(), name: `${v.name} copy` }],
-                  }))
-                }
+                aria-expanded={copying?.id === v.id}
+                title="Copy this widening to another station"
+                onClick={() => setCopying(copying?.id === v.id ? null : { id: v.id, start: v.end })}
               >
                 <Copy className="size-3" />
               </Button>
@@ -214,6 +218,43 @@ function Widenings(p: SidebarProps) {
                 <Trash2 className="size-3" />
               </Button>
             </div>
+            {copying?.id === v.id &&
+              (() => {
+                const result = duplicateWideningAt(v, copying.start, analysis.length, v.id)
+                return (
+                  <div className="space-y-1.5 rounded border border-dashed p-2" data-testid="road-widening-copy">
+                    <div className="flex items-end gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <NumberField
+                          label="Start of the copy (m)"
+                          value={copying.start}
+                          max={100000}
+                          onChange={(start) => setCopying({ id: v.id, start })}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        disabled={!result.copy}
+                        onClick={() => {
+                          if (!result.copy) return
+                          const copy = { ...result.copy, id: id() }
+                          updateAlignment((a) => ({ ...a, overrides: [...a.overrides, copy] }))
+                          setCopying(null)
+                        }}
+                      >
+                        Add copy
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setCopying(null)}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <p className={`text-xs ${result.error ? 'text-red-600' : 'text-muted-foreground'}`} role="status">
+                      {result.error ??
+                        `Copy at ${formatRoadStation(result.copy.start)}–${formatRoadStation(result.copy.end)}`}
+                    </p>
+                  </div>
+                )
+              })()}
             <div className="grid grid-cols-2 gap-2">
               <Field label="Widening type">
                 <RoadSelect
@@ -249,21 +290,40 @@ function Widenings(p: SidebarProps) {
                   onChange={(value) => tweak(v.id, { [key]: value })}
                 />
               ))}
-              <NumberField
-                label="Entry taper (m)"
-                value={v.entryTaperM ?? v.taper}
-                min={0}
-                max={Math.max(0, v.end - v.start - (v.exitTaperM ?? v.taper))}
-                onChange={(entryTaperM) => tweak(v.id, { entryTaperM })}
-              />
-              <NumberField
-                label="Exit taper (m)"
-                value={v.exitTaperM ?? v.taper}
-                min={0}
-                max={Math.max(0, v.end - v.start - (v.entryTaperM ?? v.taper))}
-                onChange={(exitTaperM) => tweak(v.id, { exitTaperM })}
-              />
+              {/* The field's own limit would change a typed taper without a word; `limitedTaper` says so. */}
+              {(['entry', 'exit'] as const).map((side) => (
+                <NumberField
+                  key={side}
+                  label={`${side === 'entry' ? 'Entry' : 'Exit'} taper (m)`}
+                  value={v[`${side}TaperM`] ?? appliedTapers(v)[side]}
+                  min={-1e9}
+                  max={1e9}
+                  onChange={(entered) => {
+                    const { taperM, note } = limitedTaper(v, side, entered)
+                    // Leaving the field repeats the value now shown; that must not withdraw the note.
+                    setLimited((shown) =>
+                      note
+                        ? { id: v.id, side, taperM, note }
+                        : shown?.id === v.id && shown.side === side && shown.taperM === taperM
+                          ? shown
+                          : null,
+                    )
+                    tweak(v.id, { [`${side}TaperM`]: taperM })
+                  }}
+                />
+              ))}
             </div>
+            {v.end > v.start && (
+              <p className="text-xs text-muted-foreground" data-testid="road-widening-full-width">
+                Start and End include the tapers · full width {formatRoadStation(fullWidthRange(v)!.from)}–
+                {formatRoadStation(fullWidthRange(v)!.to)}
+              </p>
+            )}
+            {limited?.id === v.id && v[`${limited.side}TaperM`] === limited.taperM && (
+              <p role="status" className="text-xs text-amber-800 dark:text-amber-300" data-testid="road-taper-note">
+                {limited.note}
+              </p>
+            )}
             {v.end <= v.start && (
               <p role="alert" className="text-xs text-red-600">
                 End station must be after start.
