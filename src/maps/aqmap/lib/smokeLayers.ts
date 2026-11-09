@@ -1,3 +1,5 @@
+import type * as GeoJSON from 'geojson'
+
 export type SmokeLayerKey = 'modelledSmoke' | 'visibleSmoke'
 
 export type SmokeFeatureCollection = GeoJSON.FeatureCollection<
