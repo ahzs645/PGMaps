@@ -84,8 +84,17 @@ Import a single-band canopy-height GeoTIFF or byte-valued RGB(A) orthophoto in *
 backgrounds**. Each keeps its own source CRS, opacity and visibility. The plan displays the
 projected image over the basemap/terrain, with road graphics above it. Canopy values use a
 0–40 m green ramp. A background layer never becomes analytical ground or supplies missing
-ground elevations. Background pixels and hashes survive project save/reopen. Rotated images,
-unknown CRS and images over the budget are rejected; resampling must be an explicit external step.
+ground elevations. Background pixels and hashes survive project save/reopen. Rotated images and
+images with no CRS are rejected.
+
+The display pixels are stored in the project, so all backgrounds share one budget. An image that
+fits what is left keeps its own pixels. A larger one is resampled for display, never refused for
+its size: each source pixel is averaged into the display pixel under its centre, weighted by
+opacity so no-data does not tint its neighbours, and the footprint stays the file's
+(`resampleBackground` in `terrainPreparation.ts`). It takes at most half the budget, so a canopy
+image and an orthophoto fit together. The notice and the layer's own line give the file's size,
+the displayed size and the displayed pixel in metres. When the budget is spent the import says to
+remove a background first.
 
 ## Survey field book and geographic linework
 
@@ -124,7 +133,9 @@ documented exchange specification; these open imports/exports do not imply binar
 | TIN elevation editing: 100,000,000 triangle-cell checks | `editTinElevation` |
 | Named analytical reference surfaces: twelve / 4,194,304 total cells | `parseTerrainReferenceSurfaces` |
 | Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations | `preservedPointMask` |
-| Six backgrounds / 1,048,576 combined display pixels | `parseTerrainBackgrounds`, `loadTerrainBackground` |
+| Six backgrounds / 1,048,576 combined display pixels | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds` |
+| Resampled background: at most 524,288 display pixels; refused under 16,384 left | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground` |
+| Background file: 64 MB / 33,554,432 source pixels | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS` |
 | Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V | `gradePad` |
 | 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse | `parseSurveyBooks`, `reduceTraverse` |
 | KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements | `xmlTree`, `parseKml`, `readSpatialFile` |

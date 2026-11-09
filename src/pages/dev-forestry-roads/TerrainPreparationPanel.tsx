@@ -39,6 +39,9 @@ const sourceRecord = (m: TerrainMetadata) => {
   if (!m.raster) throw Error('Import a local terrain grid first.')
   return { name: m.name, sha256: m.raster.sha256, epsg: m.raster.epsg, verticalReference: m.verticalReference }
 }
+/** How a resampled background is shown, as a notice and the layer's own line say it. */
+const backgroundResolution = (layer: TerrainBackgroundLayer) =>
+  `resampled for display from ${layer.sourceSize![0].toLocaleString('en-CA')} × ${layer.sourceSize![1].toLocaleString('en-CA')} to ${layer.width.toLocaleString('en-CA')} × ${layer.height.toLocaleString('en-CA')} pixels${layer.epsg === 4326 ? '' : ` (${layer.pixelSize[0].toFixed(2)} m)`}`
 const download = (text: string, name: string, type = 'text/plain') => {
   const url = URL.createObjectURL(new Blob([text], { type })),
     a = document.createElement('a')
@@ -491,7 +494,7 @@ export function TerrainPreparationPanel({
       <RoadSection
         title="Canopy and image backgrounds"
         summary={metadata.backgrounds?.length ? `${metadata.backgrounds.length}` : ''}
-        help="Independent display layers with their own CRS, opacity and visibility. A canopy height image or orthophoto never replaces bare-earth analytical ground."
+        help="Independent display layers with their own CRS, opacity and visibility. A canopy height image or orthophoto never replaces bare-earth analytical ground. An image larger than the display budget is resampled, and its line says so."
       >
         <fieldset disabled={working || !!w.busy} className="space-y-2" data-testid="road-terrain-backgrounds">
           <Field label="Background GeoTIFF type">
@@ -516,7 +519,7 @@ export function TerrainPreparationPanel({
               e.target.value = ''
               if (f)
                 void run(async () => {
-                  const layer = await loadTerrainBackground(f, backgroundKind)
+                  const layer = await loadTerrainBackground(f, backgroundKind, metadata.backgrounds)
                   if (latest.current.projectId !== w.projectId)
                     throw Error(
                       'The project changed while importing this background; import it again in the selected project.',
@@ -531,7 +534,9 @@ export function TerrainPreparationPanel({
                       ]),
                     },
                   }))
-                  w.setNotice(`${layer.name} added as display background. Analytical ground is unchanged.`)
+                  w.setNotice(
+                    `${layer.name} added as display background${layer.sourceSize ? `, ${backgroundResolution(layer)}` : ''}. Analytical ground is unchanged.`,
+                  )
                 })
             }}
           />
@@ -558,6 +563,11 @@ export function TerrainPreparationPanel({
                 />
                 <span className="min-w-0 break-words">{layer.name}</span>
               </label>
+              {layer.sourceSize && (
+                <p className="text-2xs text-muted-foreground" data-background-resampled={layer.id}>
+                  {backgroundResolution(layer)[0].toUpperCase() + backgroundResolution(layer).slice(1)}
+                </p>
+              )}
               <NumberField
                 label={`${layer.name} opacity (%)`}
                 value={layer.opacity * 100}
