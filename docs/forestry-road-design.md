@@ -1032,7 +1032,8 @@ It replaced Block access and the FSR connector.
 on an eight-neighbour grid between the current road's endpoints. It is
 deterministic route assistance, not an AI model or a call to an external
 optimizer. It creates editable alternatives and keeps the original alignment.
-It does not design PVIs, fit road curves or compute earthworks.
+It does not design PVIs or compute earthworks. Each route found becomes a road with curves of at
+least the minimum radius where they fit and stay on the terrain (`routeFit.ts`).
 
 The search prices a route in dollars:
 
@@ -1050,15 +1051,21 @@ Optional **start and end headings** keep the first and last legs within ±45° o
 bearing. **Alternatives** (1–5) are found by repeating the search with a 60% surcharge on
 edges that earlier routes used. A new route is kept only if no more than 70% of its edges
 are shared with a route already kept, and the routes are returned ranked by their own cost.
-Each becomes a separate road, named with its rank and cost. The entered maximum grade constrains sampled **ground** slope;
-it does not prove that a designed road can be constructed at that grade.
+Each becomes a separate road named `<road> · terrain-cost route <n>`. The search's score stays
+out of the name: it is kept on the road (`routeSearch`) and listed under **Routes found**, as a
+ranking figure and not an estimate. A later search replaces the found roads that have not been
+changed since; see the
+[alignment guide](forestry-road-design/alignment-and-optimization.md#built-in-assumptions). The
+entered maximum grade constrains sampled **ground** slope; it does not prove that a designed road
+can be constructed at that grade.
 
 Candidate grid edges are sampled at intervals no greater than 5 m during the
 search. Before returning a route, every chosen segment is checked again at
 intervals no greater than 1 m. A failing segment is excluded and the search
-can retry, up to four attempts. Returned vertices are retained without
-unconstrained smoothing, which could otherwise cross an exclusion or change
-the checked grade. All terrain reads still use the selected source: checking a
+can retry, up to four attempts. The search returns its vertices as found. Curves
+are fitted to them afterwards only where the whole fitted centreline has ground
+under it and stays out of blocked areas; the ground grade along those curves is
+not rechecked. All terrain reads still use the selected source: checking a
 coarse regional DEM at 1 m spacing does not turn it into 1 m terrain.
 
 The search is local and bounded. Endpoints must be at least 2 m and no more

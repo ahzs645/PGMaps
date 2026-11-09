@@ -193,6 +193,15 @@ describe('compareRoutes', () => {
     expect(rows[0].best).toEqual([])
   })
 
+  it('counts curves tighter than the minimum radius against a road, once per curve', async () => {
+    const base = road([at(0, 0), at(150, 0), at(150, 150), at(300, 150)])
+    base.points[1].radiusM = 12
+    base.points[2].radiusM = 40
+    const { rows } = await compareRoutes(input(base, []))
+    expect(rows[0].blockers).toContain('1 curve tighter than the 25 m minimum radius')
+    expect(rows[0].best).toEqual([])
+  })
+
   it('keeps an unpriced crossing explicit in the final road comparison', async () => {
     const base = road([at(0, 0), at(100, 0)])
     const stream: ContextFeature = {

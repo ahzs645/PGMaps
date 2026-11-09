@@ -66,7 +66,8 @@ describe('bounded terrain-cost route suggestion', () => {
     expect(a.coordinates[0]).toEqual(start)
     expect(a.coordinates[a.coordinates.length - 1]).toEqual(end)
     expect(a.visited).toBeLessThanOrEqual(40_000)
-    expect(a.message).toContain('Terrain-cost route suggestion')
+    expect(a.message).toMatch(/^One terrain-cost route \(search score \$[\d,]+\), found on a /)
+    expect(a.message).toContain('not an estimate')
     expect(a.message).toContain('≤1 m')
   })
 
@@ -128,7 +129,7 @@ describe('route search costs, headings and alternatives', () => {
     const costs = result.routes.map((r) => r.cost)
     expect([...costs].sort((a, b) => a - b)).toEqual(costs)
     expect(result.routes[0].lengthM).toBeCloseTo(400, -1)
-    expect(result.message).toContain('ranked alternatives')
+    expect(result.message).toMatch(/^\d terrain-cost routes, ranked by search score \(\$[\d,]+, /)
   })
 
   it('prices stream crossings in dollars and detours when a crossing costs more than the way round', () => {

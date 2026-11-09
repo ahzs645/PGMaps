@@ -6,6 +6,7 @@
  * Pure: takes terrain and constraints as arguments and touches neither the DOM nor the network.
  */
 import { centrelineSamples } from './engine'
+import { fitHorizontalRadii } from './horizontalTools'
 import { fitPolylineAlignment, type PolylineFitResult } from './polylineFit'
 import { constraintRouteIssues } from './riparian'
 import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource } from './types'
@@ -19,6 +20,8 @@ import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource
 export const ROUTE_FIT_DEVIATIONS_M = [2, 4, 8, 16]
 /** Curves are fitted between the minimum radius and this many times it: wider ones wander from the route. */
 const ROUTE_FIT_RADIUS_FACTOR = 2
+/** A curve tighter than this is not worth having over a sharp corner; 5 m is the least the corridor search takes. */
+export const SMALLEST_CURVE_M = 5
 const CHECK_STEP_M = 1
 
 export type RoutePoint = { coordinate: Coordinate; radiusM: number }
@@ -62,12 +65,20 @@ export interface RouteRoad {
   fit: PolylineFitResult | null
   /** The deviation limit the kept fit was held to, m. */
   maxDeviationM: number | null
+  /** Corners given the largest curve their tangents hold, which is tighter than the minimum radius. */
+  tightCurves: number
+  /** Corners with no curve at all. */
+  sharpCorners: number
 }
 
 /**
  * The route with fewer points and a curve at each corner, taking the fit with the fewest sharp
  * corners among those whose whole centreline stays on the terrain and off blocked areas. When none
- * does, the route comes back as found, with sharp corners.
+ * does, the route is taken as found.
+ *
+ * A corner the minimum radius does not fit then gets the largest curve its tangents hold, of at
+ * least `SMALLEST_CURVE_M`, if the road still stays clear with it: a tight curve is flagged against
+ * the minimum radius and can be driven round, where a sharp corner is no road at all.
  */
 export function roadFromRoute(
   route: Coordinate[],
@@ -76,24 +87,58 @@ export function roadFromRoute(
   minRadiusM: number,
   deviationsM: readonly number[] = ROUTE_FIT_DEVIATIONS_M,
 ): RouteRoad {
-  let best: RouteRoad | null = null
+  let best: { points: RoutePoint[]; fit: PolylineFitResult; maxDeviationM: number } | null = null
   for (const maxDeviationM of deviationsM) {
     const fit = fitPolylineAlignment(route, {
       maxDeviationM,
       minRadiusM,
       maxRadiusM: minRadiusM * ROUTE_FIT_RADIUS_FACTOR,
     })
-    if (best && fit.sharpCorners >= best.fit!.sharpCorners) continue
+    if (best && fit.sharpCorners >= best.fit.sharpCorners) continue
     const check = checkCentreline(fit.points, terrain, context)
     if (check.offTerrainM || check.blocked.length) continue
     best = { points: fit.points, fit, maxDeviationM }
     if (!fit.sharpCorners) break
   }
-  return (
-    best ?? {
-      points: route.map((coordinate) => ({ coordinate: [...coordinate], radiusM: 0 })),
-      fit: null,
-      maxDeviationM: null,
-    }
+  const kept = best?.points ?? route.map((coordinate) => ({ coordinate: [...coordinate] as Coordinate, radiusM: 0 }))
+  const tightened = fitHorizontalRadii(
+    kept.map((point, i) => ({ id: `route-fit-${i}`, ...point })),
+    { kind: 'radius', radiusM: minRadiusM },
+    { minRadiusM, onlySharp: true },
   )
+  const tight = new Set(
+    tightened.report.filter((corner) => corner.radiusM >= SMALLEST_CURVE_M).map((corner) => corner.index),
+  )
+  const curved = kept.map((point, i) => (tight.has(i) ? { ...point, radiusM: tightened.points[i].radiusM } : point))
+  const clear = (points: RoutePoint[]) => {
+    const check = checkCentreline(points, terrain, context)
+    return !check.offTerrainM && !check.blocked.length
+  }
+  let points = kept
+  if (tight.size && clear(curved)) points = curved
+  // One curve that leaves the terrain should not cost the others theirs: take them a corner at a time.
+  else
+    for (const i of tight) {
+      const trial = points.map((point, k) => (k === i ? curved[k] : point))
+      if (clear(trial)) points = trial
+    }
+  return {
+    points,
+    fit: best?.fit ?? null,
+    maxDeviationM: best?.maxDeviationM ?? null,
+    tightCurves: points.filter((point) => point.radiusM > 0 && point.radiusM < minRadiusM - 1e-6).length,
+    // The engine flags every interior point without a curve, as this does.
+    sharpCorners: points.slice(1, -1).filter((point) => !(point.radiusM > 0)).length,
+  }
+}
+
+/** "3 curves tighter than 35 m, 1 sharp corner": what a road made from a route still breaks, or ''. */
+export function routeRoadFlags(road: Pick<RouteRoad, 'tightCurves' | 'sharpCorners'>, minRadiusM: number) {
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
+  return [
+    road.tightCurves > 0 && `${plural(road.tightCurves, 'curve')} tighter than ${minRadiusM} m`,
+    road.sharpCorners > 0 && plural(road.sharpCorners, 'sharp corner'),
+  ]
+    .filter(Boolean)
+    .join(', ')
 }

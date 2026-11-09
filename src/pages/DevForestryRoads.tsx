@@ -124,6 +124,7 @@ import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDi
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
 import type { AccessHistorySelection } from './dev-forestry-roads/AccessHistorySelection'
 import { suggestRoutes, type RouteSearchOptions } from './dev-forestry-roads/routing'
+import { replaceableRouteAlternatives, terrainCostAlternatives } from './dev-forestry-roads/routeAlternatives'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
@@ -1899,6 +1900,8 @@ export default function DevForestryRoads() {
   const suggest = (options: RouteSearchOptions) =>
     void run('Searching terrain-cost routes…', async () => {
       await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()))
+      // A search replaces the roads of an earlier one that nobody changed, so those leave room for it.
+      const replaceable = replaceableRouteAlternatives(project.alignments, alignment.id).length
       const result = suggestRoutes(
         alignment.points[0].coordinate,
         alignment.points[alignment.points.length - 1].coordinate,
@@ -1907,25 +1910,24 @@ export default function DevForestryRoads() {
         project.context,
         {
           ...options,
-          alternatives: Math.min(options.alternatives, 20 - project.alignments.length),
+          alternatives: Math.min(options.alternatives, 20 - project.alignments.length + replaceable),
           groundWindowM: resolvedGroundWindow(options, project.terrain.resolutionM),
         },
       )
-      const created = result.routes.map((route, rank) =>
-        generatedAlignment(
-          route.coordinates,
-          `${derivedRoadName(alignment)} · terrain-cost ${result.routes.length > 1 ? `#${rank + 1} ` : ''}($${Math.round(route.cost).toLocaleString('en-CA')})`,
-          alignment.template,
-          project.settings.minRadius,
-        ),
-      )
-      const next = created[0]
-      w.commit(
-        parseProject({ ...project, alignments: [...project.alignments, ...created], activeAlignmentId: next.id }),
-      )
+      const found = terrainCostAlternatives({
+        source: alignment,
+        baseName: derivedRoadName(alignment),
+        roads: project.alignments,
+        routes: result.routes,
+        terrain: source,
+        context: project.context,
+        minRadiusM: project.settings.minRadius,
+        make: (coordinates, name) => newAlignment(coordinates, name, alignment.template),
+      })
+      w.commit(parseProject({ ...project, alignments: found.roads, activeAlignmentId: found.created[0].id }))
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
-      w.setNotice(result.message)
+      w.setNotice([result.message, ...found.notes].join(' '))
     })
   const findFsrContext = async (origin: Coordinate, signal: AbortSignal, minimumCandidates = 1) => {
     let context = project.context

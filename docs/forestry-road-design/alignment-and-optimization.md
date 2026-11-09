@@ -40,22 +40,23 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 
 ### Horizontal geometry and curve design
 
-| Limit                                       | Value                                    | Enforced in                                                                | When exceeded                                                   |
-| ------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Horizontal points per alignment             | 2,000                                    | `engine.ts` `compile`                                                      | Error                                                           |
-| Alignment length; distance from first point | 100 km each                              | `engine.ts` `compile`                                                      | Error                                                           |
-| Horizontal radius                           | 0–10,000 m                               | `engine.ts` `compile`, `project.ts`                                        | Error                                                           |
-| Curve tangent (trim)                        | must be shorter than both legs           | `engine.ts` `compile`                                                      | Sharp PI kept, warning                                          |
-| Adjacent curves                             | trims must not overlap on the shared leg | `engine.ts` `compile`                                                      | Both become sharp PIs, warning                                  |
-| Spiral length each side                     | 0–2,000 m                                | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
-| Spiral against deflection                   | Ls / R must be less than Δ               | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
-| Bulk fit: tangent use                       | 98 % of each leg (`FIT`)                 | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
-| Bulk fit: largest radius                    | 10,000 m                                 | `horizontalTools.ts`                                                       | Capped                                                          |
-| Design speed                                | 1–150 km/h                               | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Maximum superelevation; side friction f     | 0–20 %; 0–1                              | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Runoff; widening vehicle length             | 0–1,000 m; 0–50 m                        | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Stations per analysis                       | 3,000 (`MAX_STATIONS`)                   | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
-| Road alternatives per project               | 20                                       | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
+| Limit                                        | Value                                                                       | Enforced in                                                                | When exceeded                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Horizontal points per alignment              | 2,000                                                                       | `engine.ts` `compile`                                                      | Error                                                           |
+| Alignment length; distance from first point  | 100 km each                                                                 | `engine.ts` `compile`                                                      | Error                                                           |
+| Horizontal radius                            | 0–10,000 m                                                                  | `engine.ts` `compile`, `project.ts`                                        | Error                                                           |
+| Curve tangent (trim)                         | must be shorter than both legs                                              | `engine.ts` `compile`                                                      | Sharp PI kept, warning                                          |
+| Adjacent curves                              | trims must not overlap on the shared leg                                    | `engine.ts` `compile`                                                      | Both become sharp PIs, warning                                  |
+| Spiral length each side                      | 0–2,000 m                                                                   | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
+| Spiral against deflection                    | Ls / R must be less than Δ                                                  | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
+| Bulk fit: tangent use                        | 98 % of each leg (`FIT`)                                                    | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
+| Bulk fit: largest radius                     | 10,000 m                                                                    | `horizontalTools.ts`                                                       | Capped                                                          |
+| Road from a found route: fit; smallest curve | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`) | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
+| Design speed                                 | 1–150 km/h                                                                  | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Maximum superelevation; side friction f      | 0–20 %; 0–1                                                                 | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Runoff; widening vehicle length              | 0–1,000 m; 0–50 m                                                           | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Stations per analysis                        | 3,000 (`MAX_STATIONS`)                                                      | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
+| Road alternatives per project                | 20                                                                          | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
 
 ### Vertical alignment and profile optimizer
 
@@ -212,8 +213,8 @@ volumes all use chainage. LandXML writes grid lengths beside chainage stations a
 ratio (see [Exports and project files](exports-and-project-files.md#landxml)).
 
 **Bulk radius fit** keeps radii you set when you use **Fit sharp corners** (default 35 m). It
-rounds radii down to 0.1 m. It reports a radius below the minimum in the notice only; the
-station flag then marks it.
+rounds radii down to 0.1 m, and a radius its tangents hold comes back exactly as asked. It reports
+a radius below the minimum in the notice only; the station flag then marks it.
 
 **Pegging.** Bearings are true bearings. **L-Stn** in the pegging table is the running
 peg-to-peg distance, not road chainage: fitted curves cut the corners, so road stations are
@@ -260,13 +261,36 @@ and last tangents are exempt from the minimum tangent length.
   prices lowest, haul, borrow and waste included.
 
 **Route search** (`routing.ts`) uses only the first and last points of the active road. It
-moves in eight directions on the grid, so every bend is a multiple of 45° and every grid turn
-is a sharp PI. The grade limit applies to ground slope in both directions. Edge cost is road
-$/m × (1 + 3(g/gmax)²), plus crossings and zone costs. The defaults, $100/m and $8,000 per
-crossing (`DEFAULT_ROUTE_OPTIONS`), are placeholders. A stream's explicit **crossing cost** overrides
-its named class, then the default. Class prices are saved in `routeSearch.crossingGroups` (at most
-100 classes; `parseRouteSearchOptions`), while feature prices/classes are saved with context and GeoJSON.
-Shared vertices within a feature are counted once. Existing no-go line/polygon constraints remain separate.
+moves in eight directions on the grid, so every bend of the route it finds is a multiple of 45°.
+The grade limit applies to ground slope in both directions, read on the ground trend where one is
+set.
+
+Each route then becomes a road (`terrainCostAlternatives` in `routeAlternatives.ts`, `roadFromRoute`
+in `routeFit.ts`):
+
+- **Curves.** The tightest polyline fit of 2, 4, 8 or 16 m that rounds every corner, with radii
+  between one and two times the minimum, kept only if every metre of its centreline has ground under
+  it and it enters no blocked area. A corner with no room for the minimum radius takes the largest
+  curve its tangents hold, of 5 m or more, and is flagged below the minimum radius. A corner where
+  no curve stays on the terrain stays sharp. The notice counts both.
+- **Name.** `<road> · terrain-cost route <n>`: the lowest number free, an identifier only. A search
+  run from a found route names its roads after the original road, not after the route.
+- **Record.** The road keeps the search's rank, score, length and crossing count (`routeSearch`,
+  saved with the project). **Search tools → Routes found** lists them with the score and what each
+  road breaks as it stands: sharp corners, curves under the minimum radius, sections with no ground,
+  and ground steeper than the limit while the road has no profile. That last figure is raw ground
+  between stations, which reads steeper than the trend the search held to the limit; fit a profile
+  to see the designed grade.
+- **Replacement.** The next search removes the found roads nobody has changed: same points and name,
+  no profile, widenings, standards, controls or engineering. A road you rename, edit or design is
+  kept, and so is the road the search runs from. One Undo brings the replaced roads back. Replaced
+  roads leave room for new ones against the 20-road limit.
+  Edge cost is road
+  $/m × (1 + 3(g/gmax)²), plus crossings and zone costs. The defaults, $100/m and $8,000 per
+  crossing (`DEFAULT_ROUTE_OPTIONS`), are placeholders. A stream's explicit **crossing cost** overrides
+  its named class, then the default. Class prices are saved in `routeSearch.crossingGroups` (at most
+  100 classes; `parseRouteSearchOptions`), while feature prices/classes are saved with context and GeoJSON.
+  Shared vertices within a feature are counted once. Existing no-go line/polygon constraints remain separate.
 
 **Corridor optimizer** (`corridorOptimizer.ts`) checks ground grade between 1 m samples
 against the road grade limit, uphill and downhill alike in the UI. Its turns are arcs with
@@ -445,9 +469,11 @@ line may exist.
 
 - Profile optimizer: dollars at your entered rates. The notice compares covered estimates
   before and after. A line with less coverage can look cheaper.
-- Route search: dollars under the route model only, written into each new road's name. It is
-  not the road's analysis estimate. Edges are priced at sampling of at most 5 m; the final 1 m
-  check accepts or rejects them but does not reprice.
+- Route search: a **search score** in dollars under the route model only (road $/m scaled by ground
+  grade, plus crossing and zone costs). It ranks the routes of one search and is shown under
+  **Routes found**, never in a road's name. It is not the road's estimate and will not match it:
+  the estimate prices earthworks, surfacing and clearing at your rates. Edges are priced at sampling
+  of at most 5 m; the final 1 m check accepts or rejects them but does not reprice.
 - Corridor optimizer: relative units, never dollars. A mapped stream contact adds 150 units.
 
 **New alternatives start from different inputs.** The profile optimizer copies the whole road,
@@ -485,6 +511,7 @@ engineering assumptions and sampling, and review the geometric and material flag
 | "No profile meets the limits between _a_ and _b_"                         | The named limit or control cannot be met over that interval inside the band                                  | Change what the message names, then run again                          |
 | The road end drops far below the ground in the profile and 3D view        | Two PVIs almost on top of each other make a near-vertical tangent, and the road extends it past the last PVI | Remove or move the PVI beside the end; the warning names both stations |
 | Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | Simplify the PIs, fit curves, then recheck grade                       |
+| A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart or remove one                                    |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
 | "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
 | "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                                                                       | Set a minimum radius in that range                                     |
@@ -503,8 +530,11 @@ engineering assumptions and sampling, and review the geometric and material flag
   express that disjoint condition. Sag/crest/range K, required curve length and occupied tangent
   are enforced by the updated profile search.
 - Keep culvert cover, ditch drainage or crossing grades in mind while optimizing the profile.
-- Fit curves or spirals to a route result, or keep route and corridor results inside the
-  original road's engineering, curve design and vertical inputs.
+- Fit spirals to a route result, check the ground grade along the curves it fits to one, or keep
+  route and corridor results inside the original road's engineering, curve design and vertical
+  inputs.
+- Keep a found road's sections whole. The searches check ground under the centreline, so a batter
+  can still run onto a gap in the terrain.
 - Treat interior sketch points as compulsory waypoints, or validate the constructed footprint
   against exclusions. The terrain-cost search applies the entered centreline clearance only.
 - Prove that no road exists where a search fails. Failure means none was found inside these

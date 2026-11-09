@@ -22,7 +22,7 @@ import { alignmentLength } from './engine'
 import { fillDepressions, flowAccumulation, flowDirections } from './hydrology'
 import { MAX_JOINT_MOVABLE_POINTS, refinePlanAndProfile } from './jointOptimizer'
 import { derivedRoadName } from './roadNames'
-import { roadFromRoute } from './routeFit'
+import { roadFromRoute, routeRoadFlags } from './routeFit'
 import { suggestRoutes, type RouteSearchOptions } from './routing'
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import { optimizeVerticalProfileAsync } from './verticalOptimizer'
@@ -287,6 +287,17 @@ function metrics(
     analysis.stations.flatMap((s) => s.flags.filter((f) => /Sharp horizontal PI/i.test(f)).map(() => s.chainage)),
   ).size
   if (sharp) blockers.push(`${sharp} sharp corner${sharp === 1 ? '' : 's'}`)
+  // The flag is on every station inside a tight curve; count the curves.
+  let tight = 0,
+    minimum = '',
+    inside = false
+  for (const station of analysis.stations) {
+    const flag = station.flags.find((f) => /^Radius below /.test(f))
+    if (flag && !inside) tight++
+    if (flag) minimum = flag.replace('Radius below ', '')
+    inside = !!flag
+  }
+  if (tight) blockers.push(`${tight} curve${tight === 1 ? '' : 's'} tighter than the ${minimum} minimum radius`)
   return {
     lengthM: analysis.length,
     maxGradePercent: analysis.maxGradePercent,
@@ -573,13 +584,13 @@ export async function compareRoutes(
   const roadFromGridRoute = (route: Coordinate[]) => {
     if (gridRoad) return gridRoad
     const road = roadFromRoute(route, terrain, context, settings.minRadius)
-    const sharp = road.fit?.sharpCorners ?? 0
+    const flags = routeRoadFlags(road, settings.minRadius)
     return (gridRoad = {
       points: road.points.map((point) => ({ id: id(), ...point })),
       note: road.fit
-        ? `Built from a terrain-cost grid route, with curves fitted within ${road.maxDeviationM} m of it${sharp ? `; ${sharp} corner${sharp === 1 ? ' is' : 's are'} too tight for a ${settings.minRadius} m curve` : ''}. Its ground grades were checked along the grid route, not along the curves.`
+        ? `Built from a terrain-cost grid route, with curves fitted within ${road.maxDeviationM} m of it${flags ? `: ${flags}` : ''}. Its ground grades were checked along the grid route, not along the curves.`
         : // Every leg of the route as found was checked for ground, grade and blocked areas by its own search.
-          'This is a terrain-cost grid route as found. No curves fit it without leaving the terrain or entering a blocked area, so its corners are sharp.',
+          `This is a terrain-cost grid route as found: no simpler line stays on the terrain and off blocked areas${flags ? `. It has ${flags}` : ''}.`,
     })
   }
   /** One line per objective and stream set: the cost goal shares the other goals' lines. */

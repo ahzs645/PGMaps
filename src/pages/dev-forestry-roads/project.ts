@@ -110,6 +110,21 @@ function parseFsrConnection(raw: unknown): NonNullable<Alignment['fsrConnection'
     searchCost: number(r.searchCost, 'FSR search cost', 0, 1e15),
   }
 }
+function parseRouteSearch(raw: unknown): NonNullable<Alignment['routeSearch']> {
+  const r = object(raw, 'Route search record')
+  if (r.kind !== 'terrain-cost') throw Error('Invalid route search record.')
+  const of = number(r.of, 'Route search count', 1, 5)
+  return {
+    kind: r.kind,
+    rank: number(r.rank, 'Route search rank', 1, of),
+    of,
+    searchScore: number(r.searchScore, 'Route search score', 0, 1e15),
+    lengthM: number(r.lengthM, 'Searched route length', 0, 100000),
+    crossings: number(r.crossings, 'Searched route crossings', 0, 100000),
+    name: text(r.name, 'Route search name'),
+    pointsKey: text(r.pointsKey, 'Route search fingerprint', 100),
+  }
+}
 function parseTemplate(raw: unknown): RoadTemplate {
   const r = object(raw, 'Road template')
   const result: RoadTemplate = {
@@ -407,6 +422,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
     ...(r.fsrConnection === undefined ? {} : { fsrConnection: parseFsrConnection(r.fsrConnection) }),
+    ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
     ...(r.networkEntryRoadId === undefined
       ? {}

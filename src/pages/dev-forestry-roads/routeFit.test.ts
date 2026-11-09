@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { corridorFrame } from './corridorOptimizer'
-import { checkCentreline, roadFromRoute } from './routeFit'
+import { checkCentreline, roadFromRoute, routeRoadFlags } from './routeFit'
 import type { ContextFeature, Coordinate, TerrainSource } from './types'
 
 const ORIGIN: Coordinate = [-122.8, 53.9]
@@ -55,13 +55,43 @@ describe('roadFromRoute', () => {
     expect(road.fit!.smallestRadiusM).toBeLessThanOrEqual(50)
   })
 
-  it('leaves a corner sharp rather than run its curve over a gap in the terrain', () => {
-    // A hole where the only curve that fits would pass, 16 m inside the corner.
+  it('takes the minimum radius rather than run a wider curve over a gap in the terrain', () => {
+    // A hole where the 16 m fit's curve would pass. The minimum radius turns inside it.
     const terrain = withHole(188.7, 11.3, 3)
     const road = roadFromRoute(route, terrain, [], 25)
     expect(road.maxDeviationM).toBe(2)
-    expect(road.fit).toMatchObject({ fittedPoints: 3, curves: 0, sharpCorners: 1 })
+    expect(road.fit).toMatchObject({ fittedPoints: 3, curves: 0 })
+    expect(road.points.map((point) => point.radiusM)).toEqual([0, 25, 0])
+    expect(road).toMatchObject({ tightCurves: 0, sharpCorners: 0 })
     expect(checkCentreline(road.points, terrain, []).offTerrainM).toBe(0)
+  })
+
+  it('gives corners with no room for the minimum radius the largest curve that fits, and counts them', () => {
+    // Two 45° turns 28 m apart, against a 60 m minimum. The hole keeps the fit from straightening them out.
+    const jog = [at(0, 0), at(200, 0), at(220, 20), at(420, 20)]
+    const terrain = withHole(100, 4.8, 3)
+    const road = roadFromRoute(jog, terrain, [], 60)
+    const radii = road.points.map((point) => point.radiusM)
+    expect(radii[1]).toBeGreaterThan(25)
+    expect(radii[1]).toBeLessThan(60)
+    expect(radii[2]).toBeCloseTo(radii[1], 0)
+    expect(road).toMatchObject({ tightCurves: 2, sharpCorners: 0 })
+    expect(routeRoadFlags(road, 60)).toBe('2 curves tighter than 60 m')
+    expect(checkCentreline(road.points, terrain, []).offTerrainM).toBe(0)
+  })
+
+  it('leaves a corner sharp where any curve would leave the terrain', () => {
+    // No ground anywhere inside the corner.
+    const terrain: TerrainSource = {
+      elevationAt: (lon, lat) => {
+        const [x, y] = frame.toXY([lon, lat])
+        return x < 199.5 && y > 0.5 ? NaN : 700
+      },
+    }
+    const road = roadFromRoute(route, terrain, [], 25)
+    expect(road.points.map((point) => point.radiusM)).toEqual([0, 0, 0])
+    expect(road).toMatchObject({ tightCurves: 0, sharpCorners: 1 })
+    expect(routeRoadFlags(road, 25)).toBe('1 sharp corner')
   })
 
   it('returns the route as found when every simpler line leaves the terrain', () => {
@@ -78,6 +108,8 @@ describe('roadFromRoute', () => {
     const road = roadFromRoute(jog, terrain, [], 25)
     expect(road).toMatchObject({ fit: null, maxDeviationM: null })
     expect(road.points.map((point) => point.coordinate)).toEqual(jog)
+    // Its corners are 1.5 m and 10 m apart: no curve of 5 m or more fits them.
     expect(road.points.every((point) => point.radiusM === 0)).toBe(true)
+    expect(road.sharpCorners).toBe(4)
   })
 })
