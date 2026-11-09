@@ -79,6 +79,49 @@ describe('vertical standards', () => {
     expect(unrounded.some((m) => m.startsWith('Unrounded crest grade break at 0+200.0'))).toBe(true)
   })
 
+  it('judges a curve the engine did not apply as the unrounded break it leaves, not on its entered length', () => {
+    // PVIs 20 m apart, each with a 60 m curve: neither fits, so the tangent grades are kept.
+    // On its entered length the crest at 190 m has K 60 / 17.9 = 3.4 and would pass a minimum of 3.
+    const a = road([pvi('v0', 0, 800), pvi('v1', 190, 815, 60), pvi('v2', 210, 813, 60), pvi('v3', 400, 806)])
+    a.verticalStandards = { ...EMPTY_VERTICAL_STANDARDS, minSagK: 3, minCrestK: 3 }
+    const result = analyzeRoad(a, flat, settings)
+    expect(result.warnings.filter((w) => w.includes('tangent grades are retained'))).toHaveLength(2)
+    const checks = result.verticalChecks ?? []
+    expect(checks.map((c) => [c.kind, c.chainage])).toEqual([
+      ['k', 190],
+      ['k', 210],
+    ])
+    expect(checks[0].message).toBe(
+      'The 60 m vertical curve at 0+190.0 does not fit its tangents and is not applied: the crest grade break is unrounded, and crest minimum K 3.0 needs a 54 m curve',
+    )
+    expect(checks[1].message).toMatch(
+      /^The 60 m vertical curve at 0\+210\.0 does not fit .* sag minimum K 3\.0 needs a 19 m curve$/,
+    )
+    expect(checks.some((c) => /^K \d/.test(c.message))).toBe(false)
+
+    // A minimum curve length is not met by a curve that is not there.
+    a.verticalStandards = { ...EMPTY_VERTICAL_STANDARDS, minCurveLengthM: 40 }
+    expect(analyzeRoad(a, flat, settings).verticalChecks?.map((c) => [c.kind, c.message])).toEqual([
+      [
+        'curve-length',
+        'The 60 m vertical curve at 0+190.0 does not fit its tangents and is not applied; the minimum curve length is 40 m',
+      ],
+      [
+        'curve-length',
+        'The 60 m vertical curve at 0+210.0 does not fit its tangents and is not applied; the minimum curve length is 40 m',
+      ],
+    ])
+
+    // Two curves that fit their own tangents and overlap each other are both dropped.
+    const b = road([pvi('v0', 0, 800), pvi('v1', 150, 812, 80), pvi('v2', 200, 808, 80), pvi('v3', 400, 812)])
+    b.verticalStandards = { ...EMPTY_VERTICAL_STANDARDS, minSagK: 3, minCrestK: 3 }
+    const overlapping = analyzeRoad(b, flat, settings).verticalChecks ?? []
+    expect(overlapping).toHaveLength(2)
+    expect(overlapping[0].message).toMatch(
+      /^The 80 m vertical curve at 0\+150\.0 overlaps its neighbour and is not applied/,
+    )
+  })
+
   it('checks short tangents between curves', () => {
     const a = road([pvi('v0', 0, 800), pvi('v1', 150, 810, 60), pvi('v2', 200, 800, 40), pvi('v3', 400, 810)])
     a.verticalStandards = { ...EMPTY_VERTICAL_STANDARDS, minTangentLengthM: 30 }

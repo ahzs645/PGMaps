@@ -516,6 +516,86 @@ describe('assessReadiness: limits and states', () => {
   })
 })
 
+describe('assessReadiness: vertical curves the engine did not apply', () => {
+  // PVIs 20 m apart, each with a 60 m curve. Neither fits, so the road keeps two unrounded breaks.
+  const crowded = (patch: Partial<Alignment> = {}) =>
+    road({
+      vertical: [
+        { id: 'v0', chainage: 0, elevation: 800, curveLength: 0 },
+        { id: 'v1', chainage: 190, elevation: 815, curveLength: 60 },
+        { id: 'v2', chainage: 210, elevation: 813, curveLength: 60 },
+        { id: 'v3', chainage: 396, elevation: 806, curveLength: 0 },
+      ],
+      ...patch,
+    })
+
+  it('reads a curve that does not fit as a grade break without a curve, and names the stations', () => {
+    const { row, analysis } = assess({ alignment: crowded() })
+    expect(analysis.warnings.filter((w) => w.includes('tangent grades are retained'))).toHaveLength(2)
+    expect(row('vertical-curves')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '2 of 2 grade breaks have no vertical curve: 2 entered curves do not fit and are not applied',
+    })
+    expect(row('vertical-curves').measured).toBe(
+      'Entered curve not applied at 0+190.0 (60 m, does not fit its tangents), 0+210.0 (60 m, does not fit its tangents) · largest unrounded break 17.9% at 0+190.0',
+    )
+    expect(row('vertical-curves').action).toMatchObject({ target: 'profile', chainage: 190 })
+    // With no minimum K the K row is not assessed, and it does not quote a K the road does not have.
+    expect(row('vertical-k').state).toBe('not-assessed')
+    expect(row('vertical-k').measured).toBe('No vertical curve is applied')
+  })
+
+  it('does not pass the minimum K on the entered length of a curve that was not applied', () => {
+    const { row, analysis } = assess({
+      alignment: crowded({
+        verticalStandards: {
+          gradeRanges: [],
+          minSagK: 3,
+          minCrestK: 3,
+          minCurveLengthM: null,
+          minTangentLengthM: null,
+        },
+      }),
+    })
+    // On its entered 60 m the crest at 190 m would have K 3.4 and pass.
+    expect(analysis.verticalChecks?.map((check) => check.kind)).toEqual(['k', 'k'])
+    expect(row('vertical-k')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '2 vertical curve checks failed',
+    })
+    expect(row('vertical-k').measured).toMatch(/^The 60 m vertical curve at 0\+190\.0 does not fit its tangents/)
+    expect(row('vertical-k').action).toMatchObject({ target: 'profile', chainage: 190 })
+  })
+
+  it('still lists a break with no curve entered beside one whose curve was dropped', () => {
+    const mixed = road({
+      vertical: [
+        { id: 'v0', chainage: 0, elevation: 800, curveLength: 0 },
+        { id: 'v1', chainage: 100, elevation: 808, curveLength: 0 },
+        { id: 'v2', chainage: 190, elevation: 815, curveLength: 60 },
+        { id: 'v3', chainage: 210, elevation: 813, curveLength: 0 },
+        { id: 'v4', chainage: 396, elevation: 806, curveLength: 0 },
+      ],
+    })
+    const { row } = assess({ alignment: mixed })
+    // 100 m: 8 % to 7.8 % is under the 0.5 % that needs a curve. 190 m: dropped. 210 m: none entered.
+    expect(row('vertical-curves')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: '2 of 2 grade breaks have no vertical curve: 1 entered curve does not fit and is not applied',
+    })
+    expect(row('vertical-curves').measured).toContain('Entered curve not applied at 0+190.0')
+    expect(row('vertical-curves').measured).toContain('no curve entered at 0+210.0')
+    // The fitted profile of the shared fixture is unchanged.
+    expect(assess().row('vertical-curves')).toMatchObject({
+      state: 'met',
+      result: 'The 1 grade break has a vertical curve',
+    })
+  })
+})
+
 describe('buildCrossingRegister', () => {
   const at = (alignment: Alignment, chainage: number) => positionAt(alignment, chainage).coordinate
   it('lists a mapped stream and a modelled flow line near it as one crossing, and the rest as unmatched', () => {

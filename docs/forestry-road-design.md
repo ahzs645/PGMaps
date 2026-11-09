@@ -1193,7 +1193,9 @@ says there is no grade to read.
 Any value left empty is not checked, and the road-wide maximum grade still applies. Each
 failure becomes a station flag (in the tables and on the plan), a workspace warning and a
 line in the sidebar that selects the station when clicked. An unrounded grade break counts
-as K = 0. The profile draws control points as squares with tolerance bars, green when met and
+as K = 0, and so does a break whose entered curve does not fit its tangents or overlaps its
+neighbour: the engine does not apply that curve, so it is never judged on the length that was
+typed. The profile draws control points as squares with tolerance bars, green when met and
 red when not, and labels a failing curve in red. “Set every curve from K” gives each interior
 PVI a curve length of K × its grade change (and at least the minimum length). Curves are
 rounded up to 0.1 m, and a curve is shrunk only when its tangents cannot hold it.

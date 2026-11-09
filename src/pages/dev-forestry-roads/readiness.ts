@@ -17,7 +17,7 @@ import { assessCostReadiness, type CostReadinessAssessment } from './costReadine
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
 import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
-import { horizontalCurveSummary } from './engine'
+import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
 import { DEFAULT_TEMPLATE } from './terrain'
@@ -530,8 +530,21 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: `Wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
     })
 
-  // Grade breaks and K from the PVIs themselves, so the row holds when no K limit is entered.
+  // Grade breaks from the PVIs themselves, so the row holds when no K limit is entered. A curve
+  // counts only where the engine applied it: one that does not fit its tangents, or overlaps its
+  // neighbour, is dropped there and leaves the break unrounded.
   const pvis = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  // The engine refuses PVIs it cannot order or read; the rows then have nothing to judge.
+  const curveSummary = (() => {
+    try {
+      return verticalCurveSummary(alignment)
+    } catch {
+      return null
+    }
+  })()
+  const profileRead = designed && curveSummary !== null
+  const noProfile = designed ? 'The profile could not be calculated' : 'No designed profile to check'
+  const enteredCurves = new Map((curveSummary ?? []).map((curve) => [curve.pviId, curve]))
   const breaks = pvis.slice(1, -1).flatMap((pvi, i) => {
     const before = pvis[i],
       after = pvis[i + 2]
@@ -541,31 +554,66 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     const g1 = ((pvi.elevation - before.elevation) / run1) * 100,
       g2 = ((after.elevation - pvi.elevation) / run2) * 100
     const change = Math.abs(g2 - g1)
-    return change < MIN_GRADE_BREAK_PERCENT
-      ? []
-      : [{ pvi, change, k: pvi.curveLength > 0 ? pvi.curveLength / change : 0 }]
+    if (change < MIN_GRADE_BREAK_PERCENT) return []
+    const curve = enteredCurves.get(pvi.id)
+    const applied = !!curve?.valid
+    return [
+      {
+        pvi,
+        change,
+        applied,
+        /** Set when a curve was entered and the engine did not apply it. */
+        dropped: curve && !applied ? curve : null,
+        k: applied ? pvi.curveLength / change : 0,
+      },
+    ]
   })
-  const unrounded = breaks.filter((item) => item.pvi.curveLength <= 0)
-  if (!designed)
+  const unrounded = breaks.filter((item) => !item.applied)
+  const droppedBreaks = unrounded.filter((item) => item.dropped)
+  const bareBreaks = unrounded.filter((item) => !item.dropped)
+  const stationList = <T>(items: readonly T[], text: (item: T) => string, limit = 4) =>
+    `${items.slice(0, limit).map(text).join(', ')}${items.length > limit ? ` and ${items.length - limit} more` : ''}`
+  const curveRule = `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`
+  if (!profileRead)
     add({
       id: 'vertical-curves',
       group: 'alignment',
       check: 'Vertical curve at every grade break',
       state: 'not-assessed',
-      result: 'No designed profile to check',
+      result: noProfile,
     })
   else if (unrounded.length) {
     const largest = unrounded.reduce((best, item) => (item.change > best.change ? item : best))
+    const first = droppedBreaks[0] ?? largest
     add({
       id: 'vertical-curves',
       group: 'alignment',
       check: 'Vertical curve at every grade break',
       state: 'attention',
-      severity: 'todo',
-      result: `${unrounded.length} of ${plural(breaks.length, 'grade break')} ${unrounded.length === 1 ? 'has' : 'have'} no vertical curve`,
-      measured: `Largest unrounded break ${largest.change.toFixed(1)}% at ${station(largest.pvi.chainage)}`,
-      judgedOn: `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`,
-      action: { label: `Go to ${station(largest.pvi.chainage)}`, target: 'profile', chainage: largest.pvi.chainage },
+      // An entered curve the road does not have is a broken design, not an input still to make.
+      severity: droppedBreaks.length ? 'limit' : 'todo',
+      result: `${unrounded.length} of ${plural(breaks.length, 'grade break')} ${unrounded.length === 1 ? 'has' : 'have'} no vertical curve${
+        droppedBreaks.length
+          ? `: ${plural(droppedBreaks.length, 'entered curve does', 'entered curves do')} not fit and ${droppedBreaks.length === 1 ? 'is' : 'are'} not applied`
+          : ''
+      }`,
+      measured: [
+        droppedBreaks.length
+          ? `Entered curve not applied at ${stationList(
+              droppedBreaks,
+              (item) =>
+                `${station(item.pvi.chainage)} (${trim(item.pvi.curveLength)} m, ${item.dropped!.reason === 'overlap' ? 'overlaps its neighbour' : 'does not fit its tangents'})`,
+            )}`
+          : '',
+        droppedBreaks.length && bareBreaks.length
+          ? `no curve entered at ${stationList(bareBreaks, (item) => station(item.pvi.chainage))}`
+          : '',
+        `${droppedBreaks.length ? 'largest' : 'Largest'} unrounded break ${largest.change.toFixed(1)}% at ${station(largest.pvi.chainage)}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      judgedOn: droppedBreaks.length ? `${curveRule}; a curve counts only where it fits and is applied` : curveRule,
+      action: { label: `Go to ${station(first.pvi.chainage)}`, target: 'profile', chainage: first.pvi.chainage },
     })
   } else
     add({
@@ -576,7 +624,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       result: breaks.length
         ? `${every(breaks.length, 'grade break has', 'grade breaks have')} a vertical curve`
         : 'No grade breaks',
-      judgedOn: `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`,
+      judgedOn: curveRule,
     })
 
   const vertical = alignment.verticalStandards
@@ -589,20 +637,35 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const kFailures = (analysis.verticalChecks ?? []).filter(
     (check) => check.kind === 'k' || check.kind === 'curve-length' || check.kind === 'tangent',
   )
+  // K is quoted for applied curves only: a dropped curve has no K to report.
   const smallestK = breaks
     .filter((item) => item.k > 0)
     .reduce<(typeof breaks)[number] | null>((best, item) => (!best || item.k < best.k ? item : best), null)
-  const kMeasured = smallestK ? `Smallest K ${smallestK.k.toFixed(1)} at ${station(smallestK.pvi.chainage)}` : undefined
-  if (!designed || !kEntered)
+  const notApplied = droppedBreaks.length
+    ? `${plural(droppedBreaks.length, 'entered curve')} not applied at ${stationList(droppedBreaks, (item) => station(item.pvi.chainage))}`
+    : ''
+  const kMeasured =
+    [
+      smallestK
+        ? `Smallest K ${smallestK.k.toFixed(1)} at ${station(smallestK.pvi.chainage)}`
+        : droppedBreaks.length
+          ? 'No vertical curve is applied'
+          : '',
+      smallestK ? notApplied : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || undefined
+  const kLimit = `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`
+  if (!profileRead || !kEntered)
     add({
       id: 'vertical-k',
       group: 'alignment',
       check: 'Vertical curves long enough for sight distance (K)',
       state: 'not-assessed',
-      result: designed ? 'No minimum K is entered, so curve length is not checked' : 'No designed profile to check',
-      measured: kMeasured,
+      result: profileRead ? 'No minimum K is entered, so curve length is not checked' : noProfile,
+      measured: profileRead ? kMeasured : undefined,
       judgedOn: 'K is curve length divided by the grade change in percent',
-      action: designed ? { label: 'Set minimum K', target: 'vertical-standards' } : undefined,
+      action: profileRead ? { label: 'Set minimum K', target: 'vertical-standards' } : undefined,
     })
   else if (kFailures.length)
     add({
@@ -613,7 +676,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       severity: 'limit',
       result: `${plural(kFailures.length, 'vertical curve check')} failed`,
       measured: kFailures[0].message,
-      judgedOn: `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`,
+      judgedOn: kLimit,
       action: { label: `Go to ${station(kFailures[0].chainage)}`, target: 'profile', chainage: kFailures[0].chainage },
     })
   else
@@ -622,9 +685,12 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       group: 'alignment',
       check: 'Vertical curves long enough for sight distance (K)',
       state: 'met',
-      result: 'Every vertical curve meets the minimum K',
+      // A dropped curve reaches here only where no minimum applies to its kind of break.
+      result: droppedBreaks.length
+        ? 'Every applied vertical curve meets the minimum K'
+        : 'Every vertical curve meets the minimum K',
       measured: kMeasured,
-      judgedOn: `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`,
+      judgedOn: kLimit,
     })
 
   // ---- Section and earthwork -----------------------------------------------------------------

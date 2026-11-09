@@ -45,7 +45,7 @@ a button that leads to where it is cleared.
 | Every corner fitted with a curve            | No station carries a sharp-PI flag                                                                                                                  | never                                                                                                                   |
 | Curve radius at or above the minimum        | Every fitted curve is at or above the minimum radius                                                                                                | the minimum radius is 0                                                                                                 |
 | Design vehicle stays on the running surface | The swept path fits at every turn                                                                                                                   | no vehicle has been run on this road                                                                                    |
-| Vertical curve at every grade break         | Every PVI whose grade changes by 0.5 % or more has a curve                                                                                          | there is no designed profile                                                                                            |
+| Vertical curve at every grade break         | Every PVI whose grade changes by 0.5 % or more has a curve the engine applied                                                                       | there is no designed profile                                                                                            |
 | Vertical curves long enough (K)             | No K, curve-length or tangent check fails                                                                                                           | no minimum K or curve length is entered                                                                                 |
 | Cross-section template set                  | The template differs from the starting one, or matches a confirmed running-surface width                                                            | the road is a mapped road                                                                                               |
 | Ground materials entered                    | No cut is unclassified                                                                                                                              | no earthwork was calculated                                                                                             |
@@ -63,6 +63,14 @@ a button that leads to where it is cleared.
 
 A cost prompt from `costReadiness.ts` that the list has no row for is shown as its own row, so a
 prompt added there is never dropped here.
+
+**A vertical curve counts only where it is applied.** The engine drops an entered curve that is
+longer than its tangents, or that overlaps the curve at the next PVI, and keeps the tangent grades
+(`verticalProfile`, `engine.ts`). That PVI is then a grade break without a curve. The curve row
+reads "outside a limit" and lists each dropped curve with its station, entered length and reason,
+separately from breaks where no curve was entered ("to do"). K is never quoted or judged on the
+entered length of a dropped curve: with a minimum K or a minimum curve length entered,
+`checkVerticalDesign` raises a failed check at that station instead.
 
 ### What the list does not do
 
