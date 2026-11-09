@@ -17,9 +17,15 @@
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { analyzeRoad, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
-import { gradeWindowAt, curvatureRuleAt, formatStation, type VerticalControl } from './verticalStandards'
+import {
+  gradeWindowAt,
+  curvatureRuleAt,
+  formatStation,
+  type VerticalCheckKind,
+  type VerticalControl,
+} from './verticalStandards'
 import { simplifyProfile } from './verticalTools'
-import type { Alignment, ContextFeature, RoadSettings, TerrainSource, VerticalPoint } from './types'
+import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource, VerticalPoint } from './types'
 import type { CrossingCostItem } from './crossingPlanTypes'
 
 export interface VerticalOptimizationOptions {
@@ -138,6 +144,42 @@ const EPS = 1e-9
 /** Shares of the simplification tolerance tried, widest first, until a line's curves all fit. */
 const SIMPLIFY_SHARES = [1, 0.5, 0.25]
 const pct = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
+
+/** Why a fitted line was not adopted, and what to change: the remedy always belongs to the cause. */
+type ProfileFailure = { message: string; remedy: string }
+const CHECK_REMEDY: Record<VerticalCheckKind, string> = {
+  grade: 'Relax that grade range, or widen “Search ±” so the line can cut or fill more.',
+  k: 'Lower the minimum sag or crest K, or widen the PVI spacing.',
+  'curve-length': 'Shorten “Min curve”, or widen the PVI spacing.',
+  tangent: 'Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.',
+  'control-elevation': 'Widen that control’s tolerance, or move it away from a grade break.',
+  'control-grade': 'Widen that control’s grade tolerance, or move it away from a grade break.',
+}
+
+/**
+ * What a profile's earthwork leaves undone when its material plan is not solved or cannot be met:
+ * the borrow or waste it needs and the site it lacks. '' when the plan stands or haul is off. The
+ * profile is still a valid geometry result; this goes in the run's notes.
+ */
+export function materialPlanNote(
+  analysis: Pick<RoadAnalysis, 'balanceM3' | 'engineering'>,
+  alignment: Pick<Alignment, 'engineering'>,
+) {
+  const status = analysis.engineering?.haul.optimizationStatus
+  if (status !== 'infeasible' && status !== 'unsolved') return ''
+  const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
+  const sites = (alignment.engineering?.sites ?? []).filter((site) => site.enabled !== false)
+  const has = (kind: 'borrow' | 'waste') => sites.some((site) => site.kind === kind)
+  const borrowM3 = Math.max(0, -analysis.balanceM3),
+    surplusM3 = Math.max(0, analysis.balanceM3)
+  const need =
+    borrowM3 >= 0.5 && !has('borrow')
+      ? ` It needs ${whole(borrowM3)} m³ of borrow and no borrow site is entered: add one under Engineering → Haul.`
+      : surplusM3 >= 0.5 && !has('waste')
+        ? ` It leaves ${whole(surplusM3)} m³ of usable cut over and no waste site is entered: add one under Engineering → Haul.`
+        : ' The allocation warning under Engineering → Haul says which rule or limit stopped it.'
+  return `The material plan for this profile ${status === 'unsolved' ? 'was not solved' : 'cannot be met as entered'}, so its estimate leaves out haul, borrow and waste.${need} The profile itself meets its grade, curve and control limits.`
+}
 
 /** Fitted parabolic profile, including endpoint tangent extension; independent of terrain. */
 export function designElevationAt(points: readonly VerticalPoint[], station: number): number {
@@ -902,8 +944,13 @@ function* profileSearch(
   const unit = Math.max(1, settings.fillRate, haul?.borrowRate ?? 0, haul?.wasteRate ?? 0)
   const prices = o.objective === 'total' ? [0, 0.25, 0.5, 1, 2].map((x) => x * unit) : [0]
   let chosenResult: (ReturnType<typeof finish> & { cost: number; price: number }) | null = null
-  let failedCheck = '',
+  let failed: ProfileFailure | null = null,
     failedLines = 0
+  /** A line whose material plan stands ranks ahead of one priced without haul, borrow and waste. */
+  const planOpen = (a: ReturnType<typeof check>) =>
+    a.engineering?.haul.optimizationStatus === 'infeasible' || a.engineering?.haul.optimizationStatus === 'unsolved'
+  const better = (a: ReturnType<typeof check>, b: ReturnType<typeof check>) =>
+    Number(planOpen(a)) - Number(planOpen(b)) || score(a) - score(b)
   runs = prices.length
   for (const price of prices) {
     imbalancePrice = price
@@ -911,32 +958,39 @@ function* profileSearch(
     const result = finish(solved.chosen)
     run++
     yield progress(0)
-    // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it
-    // outside a station-range limit. Only a rechecked candidate can be adopted.
-    const checkFailure =
-      (result.unfitted &&
-        `${result.unfitted} Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`) ||
-      result.analysis.verticalChecks?.[0]?.message ||
-      (o.objective === 'total' && result.analysis.crossingEstimate?.complete === false
-        ? 'Stream crossing estimates need review or prices before total-cost optimization.'
-        : '') ||
-      (result.analysis.engineering?.haul.optimizationStatus === 'infeasible' ||
-      result.analysis.engineering?.haul.optimizationStatus === 'unsolved' ||
-      (o.objective === 'total' && result.analysis.engineering?.haul.enabled && !result.analysis.engineering.complete)
-        ? 'The engineering material/haul prescription is incomplete or infeasible.'
-        : '') ||
-      (result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6 ? 'Road-wide maximum grade exceeded.' : '')
-    if (checkFailure) {
-      failedCheck = checkFailure
+    // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it outside a
+    // station-range limit. Only a rechecked candidate can be adopted. The material plan is not one
+    // of these checks: a profile is a geometry result, and what its earthwork needs is reported.
+    const check = result.analysis.verticalChecks?.[0]
+    const failure: ProfileFailure | null = result.unfitted
+      ? {
+          message: result.unfitted,
+          remedy: 'Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.',
+        }
+      : check
+        ? { message: `${check.message}.`, remedy: CHECK_REMEDY[check.kind] }
+        : o.objective === 'total' && result.analysis.crossingEstimate?.complete === false
+          ? {
+              message: 'A total cost cannot be compared while stream crossing estimates need review or prices.',
+              remedy: 'Review or price the crossings under Engineering, or optimize for “Cut and fill”.',
+            }
+          : result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6
+            ? {
+                message: `The fitted line reaches ${pct(result.analysis.maxGradePercent)}, over the ${settings.maxGradePercent}% grade limit.`,
+                remedy: 'Widen “Search ±” so the line can cut or fill more, or raise the grade limit.',
+              }
+            : null
+    if (failure) {
+      failed = failure
       failedLines++
       continue
     }
-    if (!chosenResult || score(result.analysis) < score(chosenResult.analysis))
+    if (!chosenResult || better(result.analysis, chosenResult.analysis) < 0)
       chosenResult = { ...result, cost: solved.cost, price }
   }
   if (!chosenResult)
     throw Error(
-      `The fitted profile failed a vertical standard or control: ${failedCheck} Adjust Curve K, PVI spacing, search depth or control tolerances and run again; no road was changed.`,
+      `No profile passed its final check once curves were fitted. ${failed!.message} ${failed!.remedy} Nothing was changed.`,
     )
   const { vertical, simplified, analysis } = chosenResult
   const endSetBy = (i: number) =>
@@ -983,8 +1037,10 @@ function* profileSearch(
     )
   if (failedLines)
     notes.push(
-      `${failedLines} of ${prices.length} trial lines failed a check once curves were fitted and were dropped: ${failedCheck}`,
+      `${failedLines} of ${prices.length} trial lines failed a check once curves were fitted and were dropped: ${failed!.message}`,
     )
+  const plan = materialPlanNote(analysis, alignment)
+  if (plan) notes.push(plan)
   const gradeOf = (station: number) => {
     const a = Math.max(0, station - 0.01),
       b = Math.min(length, station + 0.01)

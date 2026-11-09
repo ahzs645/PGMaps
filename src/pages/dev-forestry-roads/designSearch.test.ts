@@ -45,7 +45,7 @@ const road = (): Alignment => ({
   },
 })
 describe('richer bounded design searches', () => {
-  it('does not rank infeasible material procurement as a cheap total-cost profile or joint winner', async () => {
+  it('does not pass off infeasible material procurement as a priced total-cost profile or joint winner', async () => {
     const a = road()
     a.vertical = a.vertical.map((p) => ({ ...p, elevation: 802 }))
     a.engineering = createEngineeringDesign()
@@ -60,9 +60,15 @@ describe('richer bounded design searches', () => {
       gradePercent: null,
       gradeTolerancePercent: 0,
     }))
-    expect(() =>
-      optimizeVerticalProfile(a, 100, flat, settings, { objective: 'total', pviSpacingM: 100, maxDepthM: 1 }),
-    ).toThrow(/material.*incomplete|material.*infeasible/)
+    // The profile is a geometry result and is returned; its log says the cost leaves the material plan out.
+    const profile = optimizeVerticalProfile(a, 100, flat, settings, {
+      objective: 'total',
+      pviSpacingM: 100,
+      maxDepthM: 1,
+    })
+    expect(profile.report.notes.join(' ')).toMatch(
+      /material plan for this profile cannot be met as entered, so its estimate leaves out haul, borrow and waste/,
+    )
     a.points.splice(1, 0, { id: 'middle', coordinate: point(0, 50), radiusM: 0 })
     await expect(refinePlanAndProfile(a, flat, settings, [], { maxEvaluations: 1 })).rejects.toThrow(
       /prescription.*incomplete|prescription.*infeasible/,

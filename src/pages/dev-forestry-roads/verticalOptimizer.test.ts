@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate, verticalCurveSummary } from './engine'
+import { createEngineeringDesign } from './engineeringTypes'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import {
   designElevationAt,
+  materialPlanNote,
   optimizeVerticalProfile,
   optimizeVerticalProfileAsync,
   verticalOptimizationLog,
@@ -201,6 +203,61 @@ describe('profile optimizer vertical curves', () => {
     const unsimplified = optimizeVerticalProfile(road(400), 400, terrain, settings, { k, simplifyToleranceM: 0 })
     expect(result.vertical.length).toBeLessThanOrEqual(unsimplified.vertical.length)
     expect(result.message).toMatch(/K ≥ 10/)
+  })
+})
+
+describe('profile optimizer and the material plan', () => {
+  // A control 2.5 m above the ground at mid-road forces a fill the cut cannot supply.
+  const terrain = hillside()
+  const raised = (allocation: 'nearest' | 'economic') => {
+    const engineering = createEngineeringDesign()
+    Object.assign(engineering.haul, { enabled: true, allocation })
+    engineering.sites = [
+      {
+        id: 'spoil',
+        name: 'Spoil',
+        kind: 'waste',
+        chainage: 50,
+        accessDistanceM: 20,
+        capacityM3: null,
+        unitRate: 2,
+        fixedCost: 0,
+      },
+    ]
+    const ground = terrain.elevationAt(...offsetCoordinate(ORIGIN, 90, 300))
+    return road(600, {
+      engineering,
+      verticalControls: [
+        control({ chainage: 300, elevation: ground + 2.5, toleranceAboveM: 0.5, toleranceBelowM: 0.5 }),
+      ],
+    })
+  }
+
+  it('returns a valid profile whose haul plan cannot close, and says what the earthwork needs', () => {
+    for (const objective of ['earthwork', 'total'] as const) {
+      const alignment = raised('economic')
+      // Borrow is needed and only a waste site is entered. This used to be refused, with advice to adjust Curve K.
+      const result = optimizeVerticalProfile(alignment, 600, terrain, settings, { objective })
+      const checked = analyzeRoad({ ...alignment, vertical: result.vertical }, terrain, settings)
+      expect(checked.engineering!.haul.optimizationStatus).toBe('infeasible')
+      expect(checked.verticalChecks ?? []).toEqual([])
+      expect(checked.maxGradePercent).toBeLessThanOrEqual(settings.maxGradePercent)
+      const borrow = Math.round(-checked.balanceM3).toLocaleString('en-CA')
+      expect(result.report.notes).toContain(
+        `The material plan for this profile cannot be met as entered, so its estimate leaves out haul, borrow and waste. It needs ${borrow} m³ of borrow and no borrow site is entered: add one under Engineering → Haul. The profile itself meets its grade, curve and control limits.`,
+      )
+      expect(result.report.notes.join(' ')).not.toMatch(/Curve K/)
+    }
+  })
+
+  it('adds no plan note when the plan stands or haul is off', () => {
+    const nearest = raised('nearest')
+    expect(
+      optimizeVerticalProfile(nearest, 600, terrain, settings).report.notes.filter((note) =>
+        /material plan/i.test(note),
+      ),
+    ).toEqual([])
+    expect(materialPlanNote({ balanceM3: -800, engineering: undefined }, road(600))).toBe('')
   })
 })
 

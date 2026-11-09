@@ -294,6 +294,13 @@ and last tangents are exempt from the minimum tangent length.
 - **Cut and fill** minimizes cut × cut rate + fill × fill rate only. Surfacing and clearing are
   left out. **Total cost** picks, from five imbalance prices, the line that the full analysis
   prices lowest, haul, borrow and waste included.
+- **The material plan never refuses a profile.** A profile is a geometry result. When its haul plan
+  is not solved or cannot be met, the profile is still returned, and the log says what the
+  earthwork needs: the borrow or waste volume and the site that is missing (`materialPlanNote`).
+  Its estimate then leaves out haul, borrow and waste, so of the five **Total cost** lines one with
+  a solved plan is preferred. A line fails its final check only on geometry (a curve that does not
+  fit, a vertical standard, a control, the grade limit) or, for **Total cost**, on crossings with
+  no price, and each failure carries the remedy for its own cause (`CHECK_REMEDY`).
 
 **Route search** (`routing.ts`) uses only the first and last points of the active road. It
 moves in eight directions on the grid, so every bend of the route it finds is a multiple of 45°.
@@ -496,7 +503,8 @@ a short tangent: on rolling 400 m roads that happened on 2 of 25 terrains at K 1
 K 20. Half and a quarter of the tolerance are then tried, and the message gives the one used.
 Both simplified and unsimplified candidates must pass the final vertical standards,
 controls and road-wide grade checks before a result is returned. If no tested candidate
-passes, optimization reports an error and creates no road.
+passes, optimization reports an error that names the failed check and its remedy, and creates no
+road.
 
 **Infeasible.** "No profile meets the limits between _a_ and _b_" names the first PVI interval
 where no line survives, then the check that removed the last of them, in the order the search
@@ -567,7 +575,8 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent                                                     | Inspect the crossfall rotation rate and lengthen the tangent if needed |
 | Design speed requires more e than the maximum                             | Radius below V²/(127(e + f)); geometry is capped and flagged                                                 | Increase radius, reduce speed or review the sourced criteria           |
 | "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Use the length the note gives, or **Set every curve from K**           |
-| Optimized profile fails a standard                                        | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints   |
+| "No profile passed its final check once curves were fitted"               | No fitted candidate passed the discrete band, range and control constraints                                  | Change what the message names: it gives the check and its remedy       |
+| Log: "The material plan for this profile cannot be met as entered"        | Haul allocation is on and the profile's borrow or waste has no site                                          | Add the site under Engineering → Haul; the profile itself is valid     |
 | Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
