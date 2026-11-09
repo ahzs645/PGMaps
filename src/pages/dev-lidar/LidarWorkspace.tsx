@@ -1,7 +1,7 @@
 import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
-import { Layers3 } from 'lucide-react'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { NativeLidarMap } from './NativeLidarMap'
 import { NativeTransect } from './NativeTransect'
 import { TreeBenchmarks } from './TreeBenchmarks'
@@ -14,10 +14,10 @@ import { LidarMapToolbar } from './LidarMapToolbar'
 import { LidarSidebar } from './LidarSidebar'
 import { LidarToolLibrary } from './LidarToolLibrary'
 import { lidarTableSources } from './lidarTable'
-import { useLidarWorkspace } from './useLidarWorkspace'
+import { useLidarWorkspace, type LidarController } from './useLidarWorkspace'
 import { ModelComparisonWorkspace } from './comparisons/ModelComparisonWorkspace'
 import { InventoryWorkspace } from './inventory/InventoryWorkspace'
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useMemo, type ReactNode } from 'react'
 import { VolumeWorkspace } from './volume/VolumeWorkspace'
 
 const ImportWorkspace = lazy(() => import('./imports/ImportWorkspace').then((m) => ({ default: m.ImportWorkspace })))
@@ -100,55 +100,56 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
   })
   if (tool?.id === 'data')
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-        <LidarHeader controller={controller} />
+      <WorkspaceFrame controller={controller}>
         <Suspense
           fallback={
-            <p role="status" className="p-4 text-sm">
+            <InlineAlert loading className="m-4">
               Opening import workspace…
-            </p>
+            </InlineAlert>
           }
         >
           <ImportWorkspace basemap={basemap} cloudBase={cloudBase} />
         </Suspense>
-      </div>
+      </WorkspaceFrame>
     )
   if (tool?.id === 'inventory')
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-        <LidarHeader controller={controller} />
+      <WorkspaceFrame controller={controller}>
         <InventoryWorkspace basemap={basemap} sourceSha={summary?.source_sha256} />
-      </div>
+      </WorkspaceFrame>
     )
   if (tool?.id === 'volume')
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-        <LidarHeader controller={controller} />
+      <WorkspaceFrame controller={controller}>
         <VolumeWorkspace summary={summary} error={error} basemap={basemap} />
-      </div>
+      </WorkspaceFrame>
     )
   if (tool?.id === 'compare')
     return (
-      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-        <LidarHeader controller={controller} />
+      <WorkspaceFrame controller={controller}>
         <ModelComparisonWorkspace summary={summary} error={error} basemap={basemap} onRetry={retrySummary} />
-      </div>
+      </WorkspaceFrame>
     )
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-      <LidarHeader controller={controller} />
+    <WorkspaceFrame controller={controller}>
       {isLibrary && <LidarToolLibrary valid={navigation.valid} />}
       {isLibrary ? null : !summary ? (
-        !isLibrary && (
-          <div
-            className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6 text-center"
-            role="status"
-          >
-            <Layers3 className="size-8 text-muted-foreground" />
-            <p className="text-sm">{error || 'Loading the completed LiDAR analysis…'}</p>
-            {error && <Button onClick={retrySummary}>Retry</Button>}
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6">
+          <div className="w-full max-w-sm space-y-3">
+            {error ? (
+              <>
+                <InlineAlert tone="error" title="Could not load the LiDAR analysis">
+                  {error}
+                </InlineAlert>
+                <Button size="sm" variant="outline" onClick={retrySummary}>
+                  Retry
+                </Button>
+              </>
+            ) : (
+              <InlineAlert loading>Loading the completed LiDAR analysis…</InlineAlert>
+            )}
           </div>
-        )
+        </div>
       ) : (
         <div
           className={isLibrary ? 'hidden' : 'flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row'}
@@ -310,6 +311,16 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
           </FullscreenPanel>
         </div>
       )}
+    </WorkspaceFrame>
+  )
+}
+
+/** Every LiDAR tool shares the header above its own workspace. */
+function WorkspaceFrame({ controller, children }: { controller: LidarController; children: ReactNode }) {
+  return (
+    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
+      <LidarHeader controller={controller} />
+      {children}
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Crosshair, Eye, EyeOff, Settings2 } from 'lucide-react'
 import { isHeatmapMode } from './canopyHeatmaps'
@@ -100,19 +101,20 @@ export function LidarMapToolbar({ controller }: { controller: LidarController })
         <Crosshair className="size-4" />
       </Button>
       {analysisOptions.mode === 'trees' && (
-        <label className="hidden items-center gap-1 text-3xs lg:flex">
-          Inspector width
-          <input
-            aria-label="Inspector pane width"
-            className="w-20"
-            type="range"
-            min={32}
-            max={65}
-            step={1}
-            value={inspectorWidth}
-            onChange={(e) => setInspectorWidth(+e.target.value)}
-          />
-        </label>
+        <NumericRangeField
+          className="hidden items-center gap-1 space-y-0 text-3xs lg:flex"
+          label="Inspector width"
+          aria-label="Inspector pane width"
+          layout="inline"
+          hideValue
+          inputClassName="w-20"
+          min={32}
+          max={65}
+          step={1}
+          value={inspectorWidth}
+          display={`${inspectorWidth}%`}
+          onChange={setInspectorWidth}
+        />
       )}
     </>
   )

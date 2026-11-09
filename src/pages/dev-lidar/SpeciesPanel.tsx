@@ -1,7 +1,17 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
-import { ResultRow } from '@/components/ui/result-list'
+import {
+  CollapsibleSection,
+  KeyValueRows,
+  MapGradientLegendItem,
+  MapSwatch,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { EmptyHint, ResultRow } from '@/components/ui/result-list'
+import { StackedShareBar } from '@/components/ui/share-bars'
+import { ExternalLink } from '@/components/ui/text-button'
+import { Download } from 'lucide-react'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { downloadText } from '@/lib/download'
 import { speciesUrl, contextUrl } from './useWorkflowData'
@@ -37,19 +47,15 @@ function Range({
   onChange: (value: number) => void
 }) {
   return (
-    <label className="mt-3 block text-xs">
-      {label} · {value}
-      <input
-        aria-label={label}
-        className="mt-1 block w-full"
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
-    </label>
+    <NumericRangeField
+      className="mt-3 text-xs"
+      label={label}
+      min={min}
+      max={max}
+      step={step}
+      value={value}
+      onChange={onChange}
+    />
   )
 }
 export function SpeciesPanel({
@@ -115,9 +121,14 @@ export function SpeciesPanel({
   return (
     <>
       <SidebarSection title={view.label} subtitle={view.note}>
-        <details open={mode === 'species'} className="text-xs">
-          <summary className="cursor-pointer font-medium">Explore all forestry views</summary>
-          <div className="mt-2 grid grid-cols-2 gap-1" aria-label="Species view gallery">
+        <CollapsibleSection
+          key={String(mode === 'species')}
+          label="Explore all forestry views"
+          defaultOpen={mode === 'species'}
+          className="-mx-3 -mt-1 border-b-0 bg-transparent"
+          contentClassName="px-3"
+        >
+          <div className="grid grid-cols-2 gap-1" aria-label="Species view gallery">
             {SPECIES_VIEWS.map((v) => (
               <Button
                 key={v.id}
@@ -130,28 +141,26 @@ export function SpeciesPanel({
               </Button>
             ))}
           </div>
-        </details>
+        </CollapsibleSection>
         <p className="mt-3 text-3xs leading-4 text-muted-foreground">
           Species: BC inventory records · structure: measured LiDAR proxies · model: experimental held-out estimates.
           Species colours do not identify individual trees.
         </p>
         {mode === 'species-share' && (
           <>
-            <label className="mt-3 block text-xs">
-              Species share
-              <NativeSelect
-                aria-label="Species share"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.speciesCode}
-                onChange={(e) => set({ speciesCode: e.target.value })}
-              >
-                {Object.entries(data.species).map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {code} · {name}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
+            <SelectField
+              aria-label="Species share"
+              label="Species share"
+              fieldClassName="mt-3"
+              value={options.speciesCode}
+              onChange={(e) => set({ speciesCode: e.target.value })}
+            >
+              {Object.entries(data.species).map(([code, name]) => (
+                <option key={code} value={code}>
+                  {code} · {name}
+                </option>
+              ))}
+            </SelectField>
             <Range
               label="Minimum recorded species share (%)"
               value={options.speciesShareMinimum}
@@ -162,39 +171,35 @@ export function SpeciesPanel({
           </>
         )}
         {isComparison && (
-          <label className="mt-3 block text-xs">
-            Composition to compare
-            <NativeSelect
-              aria-label="Species comparison metric"
-              className="mt-1 w-full rounded border bg-background p-2"
-              value={options.speciesCompare}
-              onChange={(e) => set({ speciesCompare: e.target.value })}
-            >
-              <option value="broadleaf">Broadleaf · EP + AT + AC</option>
-              {Object.entries(data.species).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {code} · {name}
-                </option>
-              ))}
-            </NativeSelect>
-          </label>
-        )}
-        <label className="mt-3 block text-xs">
-          Filter by leading inventory species
-          <NativeSelect
-            aria-label="Leading species filter"
-            className="mt-1 w-full rounded border bg-background p-2"
-            value={options.speciesFilter}
-            onChange={(e) => set({ speciesFilter: e.target.value })}
+          <SelectField
+            aria-label="Species comparison metric"
+            label="Composition to compare"
+            fieldClassName="mt-3"
+            value={options.speciesCompare}
+            onChange={(e) => set({ speciesCompare: e.target.value })}
           >
-            <option value="all">All · include unknown context</option>
+            <option value="broadleaf">Broadleaf · EP + AT + AC</option>
             {Object.entries(data.species).map(([code, name]) => (
               <option key={code} value={code}>
                 {code} · {name}
               </option>
             ))}
-          </NativeSelect>
-        </label>
+          </SelectField>
+        )}
+        <SelectField
+          aria-label="Leading species filter"
+          label="Filter by leading inventory species"
+          fieldClassName="mt-3"
+          value={options.speciesFilter}
+          onChange={(e) => set({ speciesFilter: e.target.value })}
+        >
+          <option value="all">All · include unknown context</option>
+          {Object.entries(data.species).map(([code, name]) => (
+            <option key={code} value={code}>
+              {code} · {name}
+            </option>
+          ))}
+        </SelectField>
         {mode === 'species-disagreement' && (
           <Range
             label="Minimum model disagreement (pp)"
@@ -244,34 +249,30 @@ export function SpeciesPanel({
         )}
         {isPlot && (
           <>
-            <label className="mt-3 block text-xs">
-              Structure metric
-              <NativeSelect
-                aria-label="Species structure metric"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.speciesStructureMetric}
-                onChange={(e) =>
-                  set({ speciesStructureMetric: e.target.value as WorkflowOptions['speciesStructureMetric'] })
-                }
-              >
-                <option value="height">Surface P95 height</option>
-                <option value="density">Canopy cover above 5 m</option>
-                <option value="texture">Mean 5 m surface texture</option>
-                <option value="layers">Return-height dispersion</option>
-              </NativeSelect>
-            </label>
-            <label className="mt-3 block text-xs">
-              Map colour
-              <NativeSelect
-                aria-label="Species structure map colour"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.speciesColour}
-                onChange={(e) => onOptions({ speciesColour: e.target.value as 'species' | 'metric' })}
-              >
-                <option value="species">Leading inventory species</option>
-                <option value="metric">Selected LiDAR metric</option>
-              </NativeSelect>
-            </label>
+            <SelectField
+              aria-label="Species structure metric"
+              label="Structure metric"
+              fieldClassName="mt-3"
+              value={options.speciesStructureMetric}
+              onChange={(e) =>
+                set({ speciesStructureMetric: e.target.value as WorkflowOptions['speciesStructureMetric'] })
+              }
+            >
+              <option value="height">Surface P95 height</option>
+              <option value="density">Canopy cover above 5 m</option>
+              <option value="texture">Mean 5 m surface texture</option>
+              <option value="layers">Return-height dispersion</option>
+            </SelectField>
+            <SelectField
+              aria-label="Species structure map colour"
+              label="Map colour"
+              fieldClassName="mt-3"
+              value={options.speciesColour}
+              onChange={(e) => onOptions({ speciesColour: e.target.value as 'species' | 'metric' })}
+            >
+              <option value="species">Leading inventory species</option>
+              <option value="metric">Selected LiDAR metric</option>
+            </SelectField>
             <p className="mt-2 text-3xs text-muted-foreground">
               Plots require ≥95% eligible support. Species context requires ≥80% overlap with one supported inventory
               stand. Unmatched plots stay grey when colouring by species.
@@ -290,7 +291,7 @@ export function SpeciesPanel({
             <div className="grid grid-cols-2 gap-2 text-3xs">
               {Object.entries(SPECIES_COLOURS).map(([code, colour]) => (
                 <span key={code} className="flex items-center gap-1">
-                  <i className="size-3 shrink-0 rounded" style={{ backgroundColor: colour }} />
+                  <MapSwatch color={colour} className="size-3" />
                   {code} · {data.species[code]}
                 </span>
               ))}
@@ -298,20 +299,13 @@ export function SpeciesPanel({
             </div>
           ) : (
             <>
-              <div
-                className="h-2 rounded"
-                style={{ background: `linear-gradient(to right,${legend.colors.join(',')})` }}
+              <MapGradientLegendItem
+                barClassName="rounded border-0"
+                labelClassName="text-3xs text-foreground"
+                colors={legend.colors}
+                minLabel={`${legend.min}${legend.unit}`}
+                maxLabel={`${legend.max}${legend.unit}`}
               />
-              <div className="mt-1 flex justify-between text-3xs">
-                <span>
-                  {legend.min}
-                  {legend.unit}
-                </span>
-                <span>
-                  {legend.max}
-                  {legend.unit}
-                </span>
-              </div>
               <p className="mt-1 text-3xs">{legend.label} · grey: unavailable</p>
             </>
           )}
@@ -367,30 +361,33 @@ export function SpeciesPanel({
           <p className="mt-2 text-3xs">
             Return proportions describe laser returns; they do not measure vegetation volume or biodiversity.
           </p>
-          <Button className="mt-3" size="sm" variant="outline" onClick={() => onPoints(plot)}>
-            Inspect original 3D points
-          </Button>
-          <Button className="mt-3 ml-2" size="sm" variant="outline" onClick={() => onSelect(plot.id)}>
-            Focus selected plot
-          </Button>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" onClick={() => onPoints(plot)}>
+              Inspect original 3D points
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onSelect(plot.id)}>
+              Focus selected plot
+            </Button>
+          </div>
         </SidebarSection>
       )}
       {stand && (
         <SidebarSection title={stand.id} subtitle="Selected inventory stand · recorded mixture">
-          <div className="flex h-4 overflow-hidden rounded" aria-label="Recorded species composition">
-            {composition(stand.composition).map(([code, value]) => (
-              <div
-                key={code}
-                title={`${data.species[code]} ${value}%`}
-                style={{ width: `${value}%`, backgroundColor: SPECIES_COLOURS[code] }}
-              />
-            ))}
-          </div>
+          <StackedShareBar
+            className="h-4"
+            aria-label="Recorded species composition"
+            segments={composition(stand.composition).map(([code, value]) => ({
+              key: code,
+              value,
+              color: SPECIES_COLOURS[code],
+              title: `${data.species[code]} ${value}%`,
+            }))}
+          />
           <div className="mt-2 space-y-1">
             {data.species_order.map((code) => (
               <div key={code} className="flex justify-between gap-1 text-3xs">
                 <span className="flex items-center gap-1">
-                  <i className="size-2 shrink-0 rounded-sm" style={{ backgroundColor: SPECIES_COLOURS[code] }} />
+                  <MapSwatch color={SPECIES_COLOURS[code]} className="size-2" />
                   {code} · {data.species[code]}
                 </span>
                 <span className="shrink-0">
@@ -446,7 +443,9 @@ export function SpeciesPanel({
         title={isPlot ? 'Matching plots' : 'Inventory stands'}
         subtitle={`${features.length} shown · select to inspect`}
       >
-        {!features.length && <p className="text-xs">No matches. Adjust the filters to broaden the search.</p>}
+        {!features.length && (
+          <EmptyHint variant="plain">No matches. Adjust the filters to broaden the search.</EmptyHint>
+        )}
         <VirtualResultList items={features} getKey={(f) => f.properties.id} label="Species results" estimateSize={60}>
           {(f) => (
             <ResultRow
@@ -464,11 +463,15 @@ export function SpeciesPanel({
         </VirtualResultList>
       </SidebarSection>
       <SidebarSection title="Tile inventory summary" subtitle="Area-weighted recorded composition · labelled area only">
-        <div className="flex h-3 overflow-hidden rounded">
-          {composition(data.area_weighted_inventory_index).map(([code, value]) => (
-            <div key={code} style={{ width: `${value}%`, backgroundColor: SPECIES_COLOURS[code] }} />
-          ))}
-        </div>
+        <StackedShareBar
+          aria-label="Area-weighted recorded composition"
+          segments={composition(data.area_weighted_inventory_index).map(([code, value]) => ({
+            key: code,
+            value,
+            color: SPECIES_COLOURS[code],
+            title: `${data.species[code]} ${value.toFixed(1)}%`,
+          }))}
+        />
         {composition(data.area_weighted_inventory_index).map(([code, value]) => (
           <p key={code} className="mt-1 text-xs">
             {code} · {data.species[code]}: {value.toFixed(1)}%
@@ -491,20 +494,23 @@ export function SpeciesPanel({
           proven inventory errors or calibrated uncertainty. Geographic transfer and independent field accuracy remain
           unvalidated. No species-model retraining occurs when changing views or saving notes.
         </p>
-        <a href={speciesUrl} download="species-model-experiment.json" className="mt-3 block text-xs underline">
-          Download predictions, folds & provenance
-        </a>
-        <a href={contextUrl} download="species-plot-context.json" className="mt-2 block text-xs underline">
-          Download plot links & review coordinates
-        </a>
-        <a
-          href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-species.md"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 block text-xs underline"
-        >
-          Methods, interpretation & rerun ↗
-        </a>
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <Button asChild size="sm" variant="outline">
+            <a href={speciesUrl} download="species-model-experiment.json">
+              <Download className="size-3.5" aria-hidden="true" />
+              Download predictions, folds & provenance
+            </a>
+          </Button>
+          <Button asChild size="sm" variant="outline">
+            <a href={contextUrl} download="species-plot-context.json">
+              <Download className="size-3.5" aria-hidden="true" />
+              Download plot links & review coordinates
+            </a>
+          </Button>
+          <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-species.md">
+            Methods, interpretation & rerun
+          </ExternalLink>
+        </div>
       </SidebarSection>
     </>
   )

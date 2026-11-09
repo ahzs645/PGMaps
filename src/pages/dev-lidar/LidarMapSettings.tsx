@@ -1,6 +1,8 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
+import { ToggleRow } from '@/components/ui/toggle-row'
 import type { ColorSchemeType } from 'maplibre-gl-lidar'
 import { ImageryProvenance } from './ImageryProvenance'
 import type { AnalysisSummary, RasterKey } from './types'
@@ -37,96 +39,76 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
   if (!summary) return null
   return (
     <>
-      <SidebarSection title="Map comparison" className="p-3">
-        <label className="flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
-            checked={surfaceVisible}
-            onChange={(event) => setSurfaceVisible(event.target.checked)}
-          />
-          Show processed surface
-        </label>
-        <label className="mt-3 flex items-center gap-2 text-xs">
-          <input
-            type="checkbox"
+      <SidebarSection title="Map comparison">
+        <div className="space-y-3">
+          <CheckboxField label="Show processed surface" checked={surfaceVisible} onCheckedChange={setSurfaceVisible} />
+          <CheckboxField
+            label="Basemap labels"
             checked={labels}
-            onChange={(event) => setLabels(event.target.checked)}
+            onCheckedChange={setLabels}
             disabled={basemap === 'none'}
           />
-          Basemap labels
-        </label>
-        <label className="mt-3 flex items-center gap-2 text-xs">
-          <input type="checkbox" checked={hillshade} onChange={(event) => setHillshade(event.target.checked)} />
-          Regional hillshade
-        </label>
-        <label className="mt-3 block text-xs">
-          Surface opacity · {Math.round(surfaceOpacity * 100)}%
-          <input
-            type="range"
+          <CheckboxField label="Regional hillshade" checked={hillshade} onCheckedChange={setHillshade} />
+          <NumericRangeField
+            className="text-xs"
+            label="Surface opacity"
             min={0}
             max={1}
             step={0.05}
             value={surfaceOpacity}
-            onChange={(event) => setSurfaceOpacity(Number(event.target.value))}
-            className="mt-2 w-full"
+            display={`${Math.round(surfaceOpacity * 100)}%`}
+            onChange={setSurfaceOpacity}
           />
-        </label>
-        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-          {basemap === 'vector'
-            ? 'OpenFreeMap vector roads, buildings and labels. OSM footprints are context, not verified building truth.'
-            : basemap === 'satellite'
-              ? 'Esri satellite/aerial imagery. Hide the surface to see imagery beneath candidate features.'
-              : 'Basemap geometry and labels are hidden to isolate the measured data.'}{' '}
-          The eye button toggles the surface without hiding candidates.
-        </p>
+          <p className="text-3xs leading-4 text-muted-foreground">
+            {basemap === 'vector'
+              ? 'OpenFreeMap vector roads, buildings and labels. OSM footprints are context, not verified building truth.'
+              : basemap === 'satellite'
+                ? 'Esri satellite/aerial imagery. Hide the surface to see imagery beneath candidate features.'
+                : 'Basemap geometry and labels are hidden to isolate the measured data.'}{' '}
+            The eye button toggles the surface without hiding candidates.
+          </p>
+        </div>
         {basemap === 'satellite' && <ImageryProvenance bounds={summary.bounds_wgs84} />}
       </SidebarSection>
-      <SidebarSection title="Surface layers" className="p-3">
-        <div className="space-y-1">
+      <SidebarSection title="Surface layers">
+        <div className="space-y-1" role="group" aria-label="Processed surface">
           {(Object.entries(summary.rasters) as [RasterKey, AnalysisSummary['rasters'][RasterKey]][])
             .filter(([key]) => key !== 'crowns' || tool?.id === 'trees')
             .map(([key, layer]) => (
-              <label
+              <ToggleRow
                 key={key}
-                className={`flex cursor-pointer items-center gap-2 rounded px-2 py-2 text-xs ${raster === key ? 'bg-emerald-500/10 text-emerald-800 dark:text-emerald-300' : 'hover:bg-muted'}`}
-              >
-                <input type="radio" name="surface" checked={raster === key} onChange={() => selectRaster(key)} />
-                {layer.title}
-              </label>
+                active={raster === key}
+                tone="emerald"
+                label={layer.title}
+                onClick={() => selectRaster(key)}
+              />
             ))}
         </div>
       </SidebarSection>
       {tool?.id !== 'transects' && (
-        <SidebarSection title="Candidate overlays" className="p-3">
-          <div className="space-y-3 text-xs">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" checked={trees} onChange={(e) => setTrees(e.target.checked)} />
-              Dominant crown candidates
-            </label>
+        <SidebarSection title="Candidate overlays">
+          <div className="space-y-3">
+            <CheckboxField label="Dominant crown candidates" checked={trees} onCheckedChange={setTrees} />
             {(tool?.id === 'buildings' || tool?.id === 'forestry') && (
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={buildings} onChange={(e) => setBuildings(e.target.checked)} />
-                Roof-like planar patches
-              </label>
+              <CheckboxField label="Roof-like planar patches" checked={buildings} onCheckedChange={setBuildings} />
             )}
             {tool?.id === 'trees' && (
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={reference} onChange={(e) => setReference(e.target.checked)} />
-                GeoLibre tree test · 1 ha (pink)
-              </label>
-            )}
-            <label className="block text-muted-foreground">
-              Show crown candidates ≥ {minTreeHeight} m
-              <input
-                className="mt-2 w-full"
-                type="range"
-                min={5}
-                max={40}
-                step={1}
-                value={minTreeHeight}
-                onChange={(e) => setMinTreeHeight(Number(e.target.value))}
+              <CheckboxField
+                label="GeoLibre tree test · 1 ha (pink)"
+                checked={reference}
+                onCheckedChange={setReference}
               />
-            </label>
+            )}
+            <NumericRangeField
+              className="text-xs"
+              label="Show crown candidates ≥"
+              unit="m"
+              min={5}
+              max={40}
+              step={1}
+              value={minTreeHeight}
+              onChange={setMinTreeHeight}
+            />
             <p className="text-3xs leading-4 text-muted-foreground">
               Filters displayed candidates; detection is not rerun. Green markers are crowns; amber outlines are
               roof-like patches.
@@ -134,19 +116,12 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
           </div>
         </SidebarSection>
       )}
-      <SidebarSection title="GeoLibre point cloud" className="p-3">
-        <label className="block text-xs">
-          Point colour
-          <NativeSelect
-            value={color}
-            onChange={(e) => setColor(e.target.value as ColorSchemeType)}
-            className="mt-1 w-full rounded border bg-background p-2"
-          >
-            <option value="elevation">Absolute elevation</option>
-            <option value="intensity">Intensity</option>
-            <option value="classification">Source classification</option>
-          </NativeSelect>
-        </label>
+      <SidebarSection title="GeoLibre point cloud">
+        <SelectField label="Point colour" value={color} onChange={(e) => setColor(e.target.value as ColorSchemeType)}>
+          <option value="elevation">Absolute elevation</option>
+          <option value="intensity">Intensity</option>
+          <option value="classification">Source classification</option>
+        </SelectField>
         <Button className="mt-2 h-8 w-full text-xs" variant="outline" onClick={openTools}>
           Open native LiDAR tools
         </Button>
@@ -155,7 +130,7 @@ export function LidarMapSettings({ controller }: { controller: LidarController }
           colour and inspection tools open on demand.
         </p>
       </SidebarSection>
-      <SidebarSection title="Explore key places" className="p-3">
+      <SidebarSection title="Explore key places">
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => go(-1)}>
             Whole tile

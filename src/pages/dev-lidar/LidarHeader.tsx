@@ -1,11 +1,16 @@
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
-import { NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, NativeSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { ArrowLeft, PanelLeft, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { Basemap } from './basemaps'
 import type { LidarController } from './useLidarWorkspace'
 import { LIDAR_BASE, LIDAR_TOOLS, type LidarToolId } from './workspaceTools'
+
+// The shared field style at the header's 32 px control height.
+const HEADER_SELECT_CLASS = cn(FORM_INPUT_CLASS, 'h-8 py-0 text-xs md:text-xs')
+
 export function LidarHeader({ controller: c }: { controller: LidarController }) {
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b px-2 sm:gap-2 sm:px-3">
@@ -28,7 +33,7 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
       </div>
       <NativeSelect
         aria-label="LiDAR tool"
-        className="h-8 min-w-0 max-w-[112px] sm:max-w-[150px] rounded border bg-background px-2 text-xs"
+        className={cn(HEADER_SELECT_CLASS, 'w-auto max-w-[112px] sm:max-w-[150px]')}
         value={c.tool?.id ?? ''}
         onChange={(e) => c.openTool((e.target.value || undefined) as LidarToolId | undefined)}
       >
@@ -56,7 +61,7 @@ export function LidarHeader({ controller: c }: { controller: LidarController }) 
             aria-label="Basemap"
             value={c.basemap}
             onChange={(e) => c.setBasemap(e.target.value as Basemap)}
-            className="h-8 w-[76px] sm:w-[92px] rounded border bg-background px-1 text-xs"
+            className={cn(HEADER_SELECT_CLASS, 'w-[76px] px-1 sm:w-[92px]')}
           >
             <option value="vector">Vector</option>
             <option value="satellite">Satellite</option>

@@ -1,6 +1,9 @@
-import { NativeSelect } from '@/components/ui/form-field'
-import { SidebarSection } from '@/components/ui/map-panels'
+import { CheckboxField, SelectField } from '@/components/ui/form-field'
+import { MapGradientLegendItem, SidebarSection } from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { Button } from '@/components/ui/button'
+import { Download } from 'lucide-react'
 import { isHeatmapMode, heatmapKey, heatmapLegend, type CanopyHeatmaps } from './canopyHeatmaps'
 import type { AnalysisMode, WorkflowOptions } from './analysisWorkflows'
 export function CanopyHeatmapPanel({
@@ -37,59 +40,45 @@ export function CanopyHeatmapPanel({
             : 'Density here means canopy cover: the share of eligible area above the chosen height in a 21 × 21 m square. It is not trees per hectare or LiDAR point density.'}
         </p>
         {height && (
-          <label className="mt-3 flex gap-2 text-xs">
-            <input
-              type="checkbox"
-              checked={options.heightDetail}
-              onChange={(e) => onOptions({ heightDetail: e.target.checked })}
-            />
-            Automatic 1 m detail when zoomed in
-          </label>
-        )}
-        {height && (
-          <p className="mt-2 text-3xs text-muted-foreground">
-            At zoom 16+, load the original 1 m grid. The map status confirms the active resolution. Zooming farther
-            cannot reveal features smaller than the source cells.
-          </p>
+          <CheckboxField
+            className="mt-3"
+            label="Automatic 1 m detail when zoomed in"
+            checked={options.heightDetail}
+            onCheckedChange={(heightDetail) => onOptions({ heightDetail })}
+            description="At zoom 16+, load the original 1 m grid. The map status confirms the active resolution. Zooming farther cannot reveal features smaller than the source cells."
+          />
         )}
         {!height && (
-          <label className="mt-3 block text-xs">
-            Canopy height threshold
-            <NativeSelect
-              aria-label="Canopy density threshold"
-              className="mt-1 w-full rounded border bg-background p-2"
-              value={options.threshold}
-              onChange={(e) => onOptions({ threshold: Number(e.target.value) as 2 | 5 })}
-            >
-              <option value={2}>Above 2 m · lower vegetation included</option>
-              <option value={5}>Above 5 m · taller canopy</option>
-            </NativeSelect>
-          </label>
+          <SelectField
+            aria-label="Canopy density threshold"
+            label="Canopy height threshold"
+            fieldClassName="mt-3"
+            value={options.threshold}
+            onChange={(e) => onOptions({ threshold: Number(e.target.value) as 2 | 5 })}
+          >
+            <option value={2}>Above 2 m · lower vegetation included</option>
+            <option value={5}>Above 5 m · taller canopy</option>
+          </SelectField>
         )}
-        <label className="mt-3 block text-xs">
-          Heatmap opacity · {Math.round(options.heatOpacity * 100)}%
-          <input
-            aria-label="Canopy heatmap opacity"
-            type="range"
-            className="mt-2 w-full"
-            min={0}
-            max={1}
-            step={0.05}
-            value={options.heatOpacity}
-            onChange={(e) => onOptions({ heatOpacity: Number(e.target.value) })}
-          />
-        </label>
-        <div className="mt-3" aria-label="Canopy heatmap colour legend">
-          <div className="h-3 rounded" style={{ background: `linear-gradient(to right,${legend.colors.join(',')})` }} />
-          <div className="mt-1 flex justify-between text-3xs tabular-nums">
-            {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-              <span key={f}>
-                {f * legend.max}
-                {f === 1 && height ? '+' : ''} {legend.unit}
-              </span>
-            ))}
-          </div>
-        </div>
+        <NumericRangeField
+          className="mt-3 text-xs"
+          label="Heatmap opacity"
+          aria-label="Canopy heatmap opacity"
+          min={0}
+          max={1}
+          step={0.05}
+          value={options.heatOpacity}
+          display={`${Math.round(options.heatOpacity * 100)}%`}
+          onChange={(heatOpacity) => onOptions({ heatOpacity })}
+        />
+        <MapGradientLegendItem
+          className="mt-3"
+          aria-label="Canopy heatmap colour legend"
+          barClassName="h-3 rounded border-0"
+          labelClassName="gap-1 text-3xs tabular-nums text-foreground"
+          colors={legend.colors}
+          ticks={[0, 0.25, 0.5, 0.75, 1].map((f) => `${f * legend.max}${f === 1 && height ? '+' : ''} ${legend.unit}`)}
+        />
         <p className="mt-3 text-3xs leading-4 text-muted-foreground">
           Click the map for an approximate heatmap value. Change Vector / Satellite above to compare context. The legend
           remains below the map when this panel is closed.
@@ -103,13 +92,12 @@ export function CanopyHeatmapPanel({
             : 'A neighbourhood needs at least 80% eligible area. The percentage divides by that eligible area; missing cells never count as open canopy.'}{' '}
           Transparent cells have no supported value.
         </p>
-        <a
-          href={raster.png_data_url}
-          download={`canopy-${heatmapKey(options)}.png`}
-          className="mt-3 inline-block text-xs underline"
-        >
-          Download coloured PNG
-        </a>
+        <Button asChild size="sm" variant="outline" className="mt-3">
+          <a href={raster.png_data_url} download={`canopy-${heatmapKey(options)}.png`}>
+            <Download className="size-3.5" aria-hidden="true" />
+            Download coloured PNG
+          </a>
+        </Button>
         <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           This download is the overview PNG (about 3.5 m display cells). The height map switches to 1 m source detail
           when zoomed in; its click values come from the source grid. Density remains the 21 m neighbourhood product.

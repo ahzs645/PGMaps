@@ -1,6 +1,10 @@
 import { Download } from 'lucide-react'
+import { buttonVariants } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
+import { ShareBars } from '@/components/ui/share-bars'
 import { StatGroup } from '@/components/ui/stat-group'
+import { ExternalLink } from '@/components/ui/text-button'
+import { cn } from '@/lib/utils'
 import { formatNumber } from '@/lib/format'
 import type { AnalysisSummary, RasterKey } from './types'
 
@@ -68,7 +72,7 @@ export function LidarResults({
               type="button"
               key={key}
               onClick={() => selectRaster(key)}
-              className="overflow-hidden rounded-lg border text-left hover:border-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-600"
+              className="overflow-hidden rounded-lg border text-left transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <img
                 src={new URL(summary.rasters[key].file, analysisBase).href}
@@ -82,20 +86,15 @@ export function LidarResults({
         </div>
       </SidebarSection>
       <SidebarSection title="Return-height profile" subtitle="Share of valid returns; not biomass or fuel load.">
-        <div className="space-y-2">
-          {summary.return_height_profile.counts.map((count, i, counts) => {
-            const percent = (count / counts.reduce((a, b) => a + b, 0)) * 100
-            return (
-              <div key={i} className="grid grid-cols-[52px_1fr_38px] items-center gap-2 text-3xs">
-                <span>{summary.return_height_profile.bins_m[i]} m</span>
-                <span className="h-2 rounded bg-muted">
-                  <span className="block h-2 rounded bg-emerald-600" style={{ width: `${percent}%` }} />
-                </span>
-                <span className="text-right tabular-nums">{percent.toFixed(1)}%</span>
-              </div>
-            )
-          })}
-        </div>
+        <ShareBars
+          className="text-3xs"
+          items={summary.return_height_profile.counts.map((count, i, counts) => ({
+            key: String(i),
+            label: `${summary.return_height_profile.bins_m[i]} m`,
+            values: [(count / counts.reduce((a, b) => a + b, 0)) * 100],
+          }))}
+          series={[{ className: 'bg-emerald-600' }]}
+        />
       </SidebarSection>
     </>
   )
@@ -125,26 +124,12 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
             different date. Neither independently establishes tree counts, species or height accuracy.
           </p>
         </div>
-        <div className="mt-3 space-y-2 text-xs underline">
-          <a
-            className="block"
-            href="https://r-lidar.github.io/lidRbook/itd.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            lidR: detection, segmentation and parameter sensitivity ↗
-          </a>
-          <a
-            className="block"
-            href="https://r-lidar.github.io/lidRbook/dsm.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            lidR: canopy-height models ↗
-          </a>
-          <a className="block" href="https://openfreemap.org/quick_start/" target="_blank" rel="noopener noreferrer">
-            OpenFreeMap vector context ↗
-          </a>
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <ExternalLink href="https://r-lidar.github.io/lidRbook/itd.html">
+            lidR: detection, segmentation and parameter sensitivity
+          </ExternalLink>
+          <ExternalLink href="https://r-lidar.github.io/lidRbook/dsm.html">lidR: canopy-height models</ExternalLink>
+          <ExternalLink href="https://openfreemap.org/quick_start/">OpenFreeMap vector context</ExternalLink>
         </div>
       </SidebarSection>
       <SidebarSection title="Forestry structure lab">
@@ -153,14 +138,12 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
           10/20/30 m edge/interior proxies. Compare plot fingerprints, inspect original 3D points and export field-check
           locations. These describe observed structure, not species, biomass, forest health or habitat quality.
         </p>
-        <a
-          className="mt-3 block text-xs underline"
+        <ExternalLink
+          className="mt-3"
           href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-forestry-explorer.md"
-          target="_blank"
-          rel="noopener noreferrer"
         >
-          Forestry findings and methods ↗
-        </a>
+          Forestry findings and methods
+        </ExternalLink>
       </SidebarSection>
       <SidebarSection title="Additional workflows · available now">
         <div className="space-y-3 text-xs leading-5 text-muted-foreground">
@@ -187,26 +170,16 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
             outside these measurements.
           </p>
         </div>
-        <div className="mt-3 space-y-2 text-xs underline">
-          <a className="block" href="https://innovation.3dbag.nl/roofer/" target="_blank" rel="noopener noreferrer">
-            Roofer: building reconstruction from points + roofprints ↗
-          </a>
-          <a
-            className="block"
-            href="https://r-lidar.github.io/lidRbook/metrics.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            lidR: plot, pixel, crown and voxel metrics ↗
-          </a>
-          <a
-            className="block"
-            href="https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            INRAE: forest structure, gaps and edges ↗
-          </a>
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <ExternalLink href="https://innovation.3dbag.nl/roofer/">
+            Roofer: building reconstruction from points + roofprints
+          </ExternalLink>
+          <ExternalLink href="https://r-lidar.github.io/lidRbook/metrics.html">
+            lidR: plot, pixel, crown and voxel metrics
+          </ExternalLink>
+          <ExternalLink href="https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html">
+            INRAE: forest structure, gaps and edges
+          </ExternalLink>
         </div>
       </SidebarSection>
       <SidebarSection title="Processing methods">
@@ -256,7 +229,7 @@ export function LidarDownloads({ summary, analysisBase }: { summary: AnalysisSum
           {summary.downloads.map((download) => (
             <a
               key={download.file}
-              className="flex items-center gap-2 rounded border px-3 py-2 text-xs hover:bg-muted"
+              className={cn(buttonVariants({ variant: 'outline', size: 'sm' }), 'w-full justify-start text-xs')}
               href={new URL(download.file, analysisBase).href}
               download
             >
@@ -271,7 +244,7 @@ export function LidarDownloads({ summary, analysisBase }: { summary: AnalysisSum
           The versioned processing pipeline generates the products consumed by this viewer. Heavy analysis runs outside
           page load.
         </p>
-        <div className="space-y-3 text-xs underline">
+        <div className="flex flex-col items-start gap-2">
           {[
             ['Original LAZ on Drive', 'https://drive.google.com/file/d/12HM0-w7PNe_cC1t-ThLrFoBZngr4jgfI/view'],
             ['GeoLibre', 'https://github.com/opengeos/GeoLibre'],
@@ -280,9 +253,9 @@ export function LidarDownloads({ summary, analysisBase }: { summary: AnalysisSum
             ['RustGIS companion', 'https://github.com/opengeos/RustGIS'],
             ['PGMaps source · PR #37', 'https://github.com/ahzs645/PGMaps/pull/37'],
           ].map(([label, href]) => (
-            <a key={href} className="block" href={href} target="_blank" rel="noopener noreferrer">
-              {label} ↗
-            </a>
+            <ExternalLink key={href} href={href}>
+              {label}
+            </ExternalLink>
           ))}
         </div>
       </SidebarSection>

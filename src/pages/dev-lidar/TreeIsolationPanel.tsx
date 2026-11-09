@@ -1,8 +1,9 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { InlineAlert, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { ResultRow } from '@/components/ui/result-list'
+import { EmptyHint, ResultRow } from '@/components/ui/result-list'
 import { downloadText } from '@/lib/download'
 import type { WorkflowFeature, WorkflowOptions } from './analysisWorkflows'
 import { treeCropCSV, type CrownFeature, type TreeCrop, type TreeIsolation } from './treeIsolation'
@@ -42,11 +43,13 @@ export function TreeIsolationPanel({
       <SidebarSection title="Tree crowns & isolation" subtitle="Detected crown candidates · original-return inspection">
         {!product.data ? (
           <>
-            <p className="text-xs" role="status">
-              {product.error || 'Loading and checking crown footprints…'}
-            </p>
+            {product.error ? (
+              <InlineAlert tone="error">{product.error}</InlineAlert>
+            ) : (
+              <InlineAlert loading>Loading and checking crown footprints…</InlineAlert>
+            )}
             {product.error && (
-              <Button size="sm" onClick={product.retry}>
+              <Button size="sm" className="mt-2" onClick={product.retry}>
                 Retry
               </Button>
             )}
@@ -58,42 +61,36 @@ export function TreeIsolationPanel({
               the 1 m LiDAR height surface. Colours help distinguish candidates; they do not indicate species. Click a
               footprint or treetop to select it.
             </p>
-            <label className="mt-3 block text-xs">
-              Minimum candidate height · {options.treeMinimum} m
-              <input
-                aria-label="Minimum tree candidate height"
-                className="mt-1 w-full"
-                type="range"
-                min={5}
-                max={50}
-                step={1}
-                value={options.treeMinimum}
-                onChange={(e) => onOptions({ treeMinimum: Number(e.target.value), selectedId: null })}
-              />
-            </label>
-            <label className="mt-3 block text-xs">
-              Minimum crown area
-              <NativeSelect
-                aria-label="Minimum crown area"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.treeAreaMinimum}
-                onChange={(e) => onOptions({ treeAreaMinimum: Number(e.target.value), selectedId: null })}
-              >
-                {[4, 10, 25, 50, 100].map((n) => (
-                  <option key={n} value={n}>
-                    {n} m²
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
-            <label className="mt-3 flex gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={options.treeHideEdge}
-                onChange={(e) => onOptions({ treeHideEdge: e.target.checked, selectedId: null })}
-              />
-              Hide tile-edge candidates
-            </label>
+            <NumericRangeField
+              className="mt-3 text-xs"
+              label="Minimum candidate height"
+              aria-label="Minimum tree candidate height"
+              unit="m"
+              min={5}
+              max={50}
+              step={1}
+              value={options.treeMinimum}
+              onChange={(treeMinimum) => onOptions({ treeMinimum, selectedId: null })}
+            />
+            <SelectField
+              aria-label="Minimum crown area"
+              label="Minimum crown area"
+              fieldClassName="mt-3"
+              value={options.treeAreaMinimum}
+              onChange={(e) => onOptions({ treeAreaMinimum: Number(e.target.value), selectedId: null })}
+            >
+              {[4, 10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} m²
+                </option>
+              ))}
+            </SelectField>
+            <CheckboxField
+              className="mt-3"
+              label="Hide tile-edge candidates"
+              checked={options.treeHideEdge}
+              onCheckedChange={(treeHideEdge) => onOptions({ treeHideEdge, selectedId: null })}
+            />
             <p className="mt-3 text-xs font-medium" role="status">
               {features.length.toLocaleString(DEFAULT_LOCALE)} matching crown candidates
             </p>
@@ -163,11 +160,21 @@ export function TreeIsolationPanel({
           </p>
           {options.treeShowPoints && (
             <>
-              <p className="mt-3 text-xs" role="status">
-                {product.cropError || product.cropStatus || 'Preparing original-return crop…'}
-              </p>
+              {product.cropError ? (
+                <InlineAlert tone="error" className="mt-3">
+                  {product.cropError}
+                </InlineAlert>
+              ) : !crop ? (
+                <InlineAlert loading className="mt-3">
+                  {product.cropStatus || 'Preparing original-return crop…'}
+                </InlineAlert>
+              ) : (
+                <div role="status" className="mt-3">
+                  <InlineAlert>{product.cropStatus || 'Preparing original-return crop…'}</InlineAlert>
+                </div>
+              )}
               {product.cropError && (
-                <Button size="sm" variant="outline" onClick={product.retryCrop}>
+                <Button size="sm" variant="outline" className="mt-2" onClick={product.retryCrop}>
                   Retry point isolation
                 </Button>
               )}
@@ -216,7 +223,9 @@ export function TreeIsolationPanel({
         </SidebarSection>
       )}
       <SidebarSection title="Candidate crowns" subtitle="Select from the map or list · highest candidates first">
-        {!features.length && product.data && <p className="text-xs">No matches. Broaden the height or area filters.</p>}
+        {!features.length && product.data && (
+          <EmptyHint variant="plain">No matches. Broaden the height or area filters.</EmptyHint>
+        )}
         <VirtualResultList
           items={features}
           getKey={(f) => f.properties.id}

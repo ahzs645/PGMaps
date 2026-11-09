@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
 import { imageryCitationUrl, parseImageryCitations, type ImageryCitation } from './basemaps'
+
+const LOADING = 'Loading imagery source information…'
 
 /** Tile-centre provenance is deliberately not presented as metadata for every pixel. */
 export function ImageryProvenance({ bounds }: { bounds: [number, number, number, number] }) {
   const [citations, setCitations] = useState<ImageryCitation[]>([])
-  const [status, setStatus] = useState('Loading imagery source information…')
+  const [status, setStatus] = useState(LOADING)
   useEffect(() => {
     const controller = new AbortController()
     const timeout = window.setTimeout(() => controller.abort(), 12_000)
@@ -39,7 +43,17 @@ export function ImageryProvenance({ bounds }: { bounds: [number, number, number,
   return (
     <div className="mt-3 space-y-2 text-3xs leading-4 text-muted-foreground">
       <p className="font-medium text-foreground">Imagery metadata · LiDAR tile centre</p>
-      {status && <p role="status">{status}</p>}
+      {status === LOADING ? (
+        <InlineAlert loading className="text-3xs leading-4">
+          {status}
+        </InlineAlert>
+      ) : (
+        status && (
+          <div role="status">
+            <InlineAlert className="text-3xs leading-4">{status}</InlineAlert>
+          </div>
+        )
+      )}
       {unique.map((row) => (
         <p key={`${row.source}-${row.date}-${row.resolution}`}>
           <span className="font-medium">{row.source}</span> · {row.date ?? 'date unknown'} ·{' '}
@@ -50,14 +64,9 @@ export function ImageryProvenance({ bounds }: { bounds: [number, number, number,
         LiDAR: 2024-07-13. Imagery varies by location and zoom; a mismatch can reflect acquisition date, alignment or
         detection error. Source resolution is not positional accuracy.
       </p>
-      <a
-        className="inline-block underline"
-        href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Imagery source & terms ↗
-      </a>
+      <ExternalLink href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">
+        Imagery source & terms
+      </ExternalLink>
     </div>
   )
 }

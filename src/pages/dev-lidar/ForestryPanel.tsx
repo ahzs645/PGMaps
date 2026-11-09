@@ -1,8 +1,16 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, SelectField } from '@/components/ui/form-field'
 import { toCsv } from '@pgmaps/geo-toolkit/export'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import {
+  CollapsibleSection,
+  KeyValueRows,
+  MapGradientLegendItem,
+  SelectedItemCard,
+  SidebarSection,
+} from '@/components/ui/map-panels'
+import { ShareBars } from '@/components/ui/share-bars'
+import { ExternalLink } from '@/components/ui/text-button'
 import { ResultRow } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { downloadText } from '@/lib/download'
@@ -118,72 +126,59 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
               : `Find taller canopy near low openings or in a possible interior. The ${options.edgeDistance} m distance is a screening choice; tile boundaries never count as confirmed interior.`}
         </p>
         <div className="mt-3 space-y-3 text-xs">
-          {
-            <label className="block">
-              Return selection
-              <NativeSelect
-                aria-label="Forestry return selection"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.returnMode}
-                onChange={(e) => onOptions({ returnMode: e.target.value as 'all' | 'first' })}
-              >
-                <option value="all">All accepted returns</option>
-                <option value="first">First returns only</option>
-              </NativeSelect>
-            </label>
-          }
+          <SelectField
+            aria-label="Forestry return selection"
+            label="Return selection"
+            value={options.returnMode}
+            onChange={(e) => onOptions({ returnMode: e.target.value as 'all' | 'first' })}
+          >
+            <option value="all">All accepted returns</option>
+            <option value="first">First returns only</option>
+          </SelectField>
           {mode === 'edges' && (
-            <label className="block">
-              Edge / interior distance
-              <NativeSelect
-                aria-label="Canopy edge distance"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.edgeDistance}
-                onChange={(e) => onOptions({ edgeDistance: Number(e.target.value) as 10 | 20 | 30 })}
-              >
-                <option value={10}>10 m</option>
-                <option value={20}>20 m</option>
-                <option value={30}>30 m</option>
-              </NativeSelect>
-            </label>
+            <SelectField
+              aria-label="Canopy edge distance"
+              label="Edge / interior distance"
+              value={options.edgeDistance}
+              onChange={(e) => onOptions({ edgeDistance: Number(e.target.value) as 10 | 20 | 30 })}
+            >
+              <option value={10}>10 m</option>
+              <option value={20}>20 m</option>
+              <option value={30}>30 m</option>
+            </SelectField>
           )}
           <div className="grid grid-cols-2 gap-2">
-            <label>
-              Eligible coverage
-              <NativeSelect
-                aria-label="Forestry eligible coverage"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.support}
-                onChange={(e) => onOptions({ support: Number(e.target.value), selectedId: null })}
-              >
-                <option value={0}>All plots</option>
-                <option value={80}>≥80%</option>
-                <option value={95}>≥95%</option>
-                <option value={100}>100%</option>
-              </NativeSelect>
-            </label>
-            <label>
-              Canopy proxy
-              <NativeSelect
-                aria-label="Minimum canopy proxy"
-                className="mt-1 w-full rounded border bg-background p-2"
-                value={options.canopyMinimum}
-                onChange={(e) => onOptions({ canopyMinimum: Number(e.target.value), selectedId: null })}
-              >
-                <option value={0}>Any cover</option>
-                <option value={40}>≥40%</option>
-                <option value={70}>≥70%</option>
-              </NativeSelect>
-            </label>
+            <SelectField
+              aria-label="Forestry eligible coverage"
+              label="Eligible coverage"
+              value={options.support}
+              onChange={(e) => onOptions({ support: Number(e.target.value), selectedId: null })}
+            >
+              <option value={0}>All plots</option>
+              <option value={80}>≥80%</option>
+              <option value={95}>≥95%</option>
+              <option value={100}>100%</option>
+            </SelectField>
+            <SelectField
+              aria-label="Minimum canopy proxy"
+              label="Canopy proxy"
+              value={options.canopyMinimum}
+              onChange={(e) => onOptions({ canopyMinimum: Number(e.target.value), selectedId: null })}
+            >
+              <option value={0}>Any cover</option>
+              <option value={40}>≥40%</option>
+              <option value={70}>≥70%</option>
+            </SelectField>
           </div>
         </div>
-        <div className="mt-3" aria-label="Forestry map legend">
-          <div
-            className="h-2 rounded"
-            style={{ background: `linear-gradient(to right,${palette.colors.join(',')})` }}
-          />
-          <p className="mt-1 text-3xs">{palette.label}</p>
-        </div>
+        <MapGradientLegendItem
+          className="mt-3"
+          aria-label="Forestry map legend"
+          barClassName="rounded border-0"
+          labelClassName="text-3xs text-foreground"
+          colors={palette.colors}
+          ticks={[palette.label]}
+        />
         <p className="mt-2 text-3xs leading-4 text-muted-foreground">
           Eligible coverage excludes unsupported terrain and roof buffers. Canopy proxy is the share of eligible surface
           cells above 5 m. It is not an authoritative forest mask.
@@ -262,30 +257,25 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
             Share of {options.returnMode === 'all' ? 'all accepted' : 'first'} returns, including ground. A: green
             {pinned ? ' · B: blue' : ''}. Not vegetation volume or stem counts.
           </p>
-          <div
-            className="mt-2 space-y-2"
+          <ShareBars
+            className="mt-2"
             role="img"
             aria-label="Vertical return profile of selected and comparison plots"
-          >
-            {data.bands.map((label, i) => (
-              <div key={label} className="text-3xs">
-                <div className="flex justify-between">
-                  <span>{label}</span>
-                  <span className="tabular-nums">
-                    A {currentPercent[i].toFixed(1)}%{pinned ? ` · B ${pinnedPercent[i].toFixed(1)}%` : ''}
-                  </span>
-                </div>
-                <div className="mt-1 h-1.5 rounded bg-muted">
-                  <div className="h-full rounded bg-emerald-600" style={{ width: `${currentPercent[i]}%` }} />
-                </div>
-                {pinned && (
-                  <div className="mt-0.5 h-1.5 rounded bg-muted">
-                    <div className="h-full rounded bg-blue-500" style={{ width: `${pinnedPercent[i]}%` }} />
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+            layout="stacked"
+            items={data.bands.map((label, i) => ({
+              key: label,
+              label,
+              values: pinned ? [currentPercent[i], pinnedPercent[i]] : [currentPercent[i]],
+            }))}
+            series={
+              pinned
+                ? [
+                    { label: 'A', className: 'bg-emerald-600' },
+                    { label: 'B', className: 'bg-blue-500' },
+                  ]
+                : [{ label: 'A', className: 'bg-emerald-600' }]
+            }
+          />
           <p className="mt-2 text-3xs leading-4 text-muted-foreground">
             0–2 m mixes terrain and low objects. Multiple returns and canopy occlusion affect the profile. First-return
             mode shows a different sampling view, not another survey or an accuracy check.
@@ -311,13 +301,12 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
             </div>
           )}
           {pinned && (
-            <div className="mt-4 rounded border p-2">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="truncate text-xs font-medium">B · {pinned.properties.id}</h3>
-                <Button size="sm" variant="ghost" onClick={() => setPinnedId(null)}>
-                  Clear
-                </Button>
-              </div>
+            <SelectedItemCard
+              className="mt-4"
+              title={`B · ${pinned.properties.id}`}
+              onClear={() => setPinnedId(null)}
+              clearLabel="Clear comparison B"
+            >
               <p className="mt-1 text-xs">
                 A − B:{' '}
                 {mode === 'edges'
@@ -328,7 +317,7 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
                 Comparison B stays pinned if a filter hides it. These are structural differences, not evidence that one
                 plot is healthier or older.
               </p>
-            </div>
+            </SelectedItemCard>
           )}
         </SidebarSection>
       )}
@@ -337,10 +326,12 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
           The shortlist takes up to eight high-value plots, spaced by at least 100 m between plot centres. It is an
           exploratory visit list, not a representative inventory sample or a safe access route.
         </p>
-        <label className="mt-3 flex gap-2 text-xs">
-          <input type="checkbox" checked={shortlistOnly} onChange={(e) => setShortlistOnly(e.target.checked)} />
-          Show shortlist in the result list
-        </label>
+        <CheckboxField
+          className="mt-3"
+          label="Show shortlist in the result list"
+          checked={shortlistOnly}
+          onCheckedChange={setShortlistOnly}
+        />
         <Button size="sm" variant="outline" className="mt-2" disabled={!shortlist.length} onClick={exportVisits}>
           Download field-check CSV
         </Button>
@@ -360,31 +351,20 @@ export function ForestryPanel({ data, options, features, selectedId, onOptions, 
       </SidebarSection>
       <SidebarSection title="Method & evidence">
         <p className="text-3xs leading-4 text-muted-foreground">{data.methods[mode]}</p>
-        <details className="mt-3 text-xs">
-          <summary className="cursor-pointer">Data limits and research</summary>
-          <ul className="mt-2 list-disc space-y-2 pl-4 text-3xs leading-4 text-muted-foreground">
-            {data.limitations.map((note) => (
-              <li key={note}>{note}</li>
-            ))}
-          </ul>
-          <a
-            className="mt-3 block underline"
-            href="https://r-lidar.github.io/lidRbook/metrics.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            lidR: point-cloud metrics ↗
-          </a>
-          <a
-            className="mt-2 block underline"
-            href="https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            INRAE: structure, gaps and edges ↗
-          </a>
-        </details>
       </SidebarSection>
+      <CollapsibleSection label="Data limits and research" contentClassName="px-3 pb-3">
+        <ul className="list-disc space-y-2 pl-4 text-3xs leading-4 text-muted-foreground">
+          {data.limitations.map((note) => (
+            <li key={note}>{note}</li>
+          ))}
+        </ul>
+        <div className="mt-3 flex flex-col items-start gap-2">
+          <ExternalLink href="https://r-lidar.github.io/lidRbook/metrics.html">lidR: point-cloud metrics</ExternalLink>
+          <ExternalLink href="https://lidar.pages-forge.inrae.fr/lidaRtRee/articles/forest.structure.metrics.html">
+            INRAE: structure, gaps and edges
+          </ExternalLink>
+        </div>
+      </CollapsibleSection>
       <SidebarSection title={shortlistOnly ? 'Field-check shortlist' : 'Matching plots · highest metric first'}>
         <p className="text-3xs text-muted-foreground">
           Select on the map or below. Pin one plot, then choose another to compare profiles.

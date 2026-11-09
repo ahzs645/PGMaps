@@ -65,6 +65,7 @@ export function LidarSidebar({ controller }: { controller: LidarController }) {
     >
       <MapSidebarShell
         title={tool?.title ?? 'LiDAR'}
+        density="compact"
         headerClassName="shrink-0 p-2.5"
         titleClassName="text-xs"
         className="border-r-0 shadow-none md:border-r"

@@ -1,4 +1,7 @@
+import { Button } from '@/components/ui/button'
 import { SidebarSection } from '@/components/ui/map-panels'
+import { ExternalLink } from '@/components/ui/text-button'
+import { Download } from 'lucide-react'
 import type { AnalysisMode } from './analysisWorkflows'
 import { isHeatmapMode } from './canopyHeatmaps'
 import { isForestMode } from './forestry'
@@ -23,20 +26,20 @@ export function WorkflowDownloads({ mode }: { mode: AnalysisMode | null }) {
           : [[workflowUrl, 'Gap, plot and proximity products']]
   return (
     <SidebarSection title="Reproduce & download">
-      <div className="space-y-2 text-xs underline">
+      <div className="flex flex-col items-start gap-2">
         {links.map(([url, label]) => (
-          <a key={url} className="block" href={url} download>
-            {label}
-          </a>
+          <Button key={url} asChild size="sm" variant="outline" className="h-auto min-h-8 whitespace-normal text-left">
+            <a href={url} download>
+              <Download className="size-3.5" aria-hidden="true" />
+              {label}
+            </a>
+          </Button>
         ))}
-        <a
-          className="block"
+        <ExternalLink
           href={`https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/${model ? 'lidar-building-inspection' : isSpeciesMode(mode) ? 'lidar-species' : isHeatmapMode(mode) ? 'lidar-tree-isolation-and-detail' : 'lidar-forestry-explorer'}.md`}
-          target="_blank"
-          rel="noopener noreferrer"
         >
-          Methods and rerun instructions ↗
-        </a>
+          Methods and rerun instructions
+        </ExternalLink>
       </div>
       <p className="mt-3 text-3xs leading-4 text-muted-foreground">
         {model

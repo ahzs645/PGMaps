@@ -1,6 +1,6 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { SelectField } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
-import { SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { useRef } from 'react'
 import { CanopyHeatmapPanel } from './CanopyHeatmapPanel'
 import { ForestryPanel } from './ForestryPanel'
@@ -63,34 +63,36 @@ export function WorkflowPanel(props: WorkflowPanelProps) {
   return (
     <div ref={root}>
       <SidebarSection title="Workspace analysis" subtitle="Processed from your tile · selectable parameters">
-        <label className="block text-xs">
-          <span className="sr-only">LiDAR workflow</span>
-          <NativeSelect
-            aria-label="LiDAR workflow"
-            value={options.mode ?? ''}
-            onChange={(event) => props.onMode(event.target.value as AnalysisMode)}
-            className="h-9 w-full rounded border bg-background px-2 text-xs"
-          >
-            <option value="" disabled>
-              Choose an analysis…
+        <SelectField
+          aria-label="LiDAR workflow"
+          label="LiDAR workflow"
+          hideLabel
+          value={options.mode ?? ''}
+          onChange={(event) => props.onMode(event.target.value as AnalysisMode)}
+          description="Map context and overlays follow the selected workflow."
+        >
+          <option value="" disabled>
+            Choose an analysis…
+          </option>
+          {modes.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.label}
             </option>
-            {modes.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-          Map context and overlays follow the selected workflow.
-        </p>
-        {!data && options.mode !== 'trees' && (
-          <p className="mt-3 text-xs" role="status">
-            {props.error || 'Loading and checking workflow products…'}
-          </p>
-        )}
+          ))}
+        </SelectField>
+        {!data &&
+          options.mode !== 'trees' &&
+          (props.error ? (
+            <InlineAlert tone="error" className="mt-3">
+              {props.error}
+            </InlineAlert>
+          ) : (
+            <InlineAlert loading className="mt-3">
+              Loading and checking workflow products…
+            </InlineAlert>
+          ))}
         {props.error && (
-          <Button size="sm" variant="outline" onClick={props.retry}>
+          <Button size="sm" variant="outline" className="mt-2" onClick={props.retry}>
             Retry
           </Button>
         )}
