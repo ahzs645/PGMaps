@@ -26,6 +26,10 @@ that fixes it, and add one, with the file and function, when you find a new defe
   flagged, and an entered blocked range still stops material. Station CSV, the report and the plot
   book now carry a mass value at and after a gap, and haul, borrow and waste on a road with gaps
   differ from older exports.
+- The station table's rows add up to its Cum. tot. row at every reporting interval. A 100 m row
+  holding a gap used to be blanked, so the visible cut rows summed to 2,536 m³ under a total of
+  4,655 m³; it now reports the known part with a flag (`reportingRows`, `StationTable.tsx`). The
+  first row of a narrowed range no longer counts the interval before the range.
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter
   is still in the air (or underground) at the section reach, the plan used to drop the envelope

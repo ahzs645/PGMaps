@@ -437,8 +437,11 @@ under `pgmaps-road-panes:saved-<id>:<split>`, and can be deleted from the same d
 layouts stay on this device.
 
 The station table can report every 20–500 m instead of every calculated station. It reports
-the calculated station nearest each multiple, plus both ends, sums cut and fill since the
-previous row, and ends with a Cum. tot. row of the fully supported intervals. Its Columns
+the calculated station nearest each multiple, plus both ends, and sums cut and fill since the
+previous row. A row whose road holds an interval with unknown earthwork reports the known part,
+in amber, with a flag stating the metres it leaves out; a row is blank only when none of its
+road is known. The Cum. tot. row is therefore the sum of the rows at every interval, and it
+states the total length left out. The first row starts the table and sums nothing. Its Columns
 menu shows or hides each column, including optional mass, width and coordinate columns, and
 remembers the choice. The cost dialog states the cost status (current; complete or partial)
 and the process time of the last recalculation, which runs on every edit.

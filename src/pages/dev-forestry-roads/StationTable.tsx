@@ -16,7 +16,27 @@ const fixed = (v: number | null | undefined, decimals: number) =>
     ? '—'
     : v.toLocaleString('en-CA', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 
-type Row = { station: RoadStation; cutVolume: number | null; fillVolume: number | null; span: number }
+/**
+ * Quantities that belong to the interval ending at a calculation station. A reporting row sums each
+ * over the intervals since the previous row; null is an interval where it is unknown.
+ */
+const INTERVAL_QUANTITIES = {
+  cutVolume: (analysis, index) => analysis.stations[index].cutVolumeM3,
+  fillVolume: (analysis, index) => analysis.stations[index].fillVolumeM3,
+} satisfies Record<string, (analysis: RoadAnalysis, index: number) => number | null>
+type IntervalQuantity = keyof typeof INTERVAL_QUANTITIES
+const QUANTITIES = Object.keys(INTERVAL_QUANTITIES) as IntervalQuantity[]
+
+/**
+ * One table row. Each quantity is the known part since the previous row, and null only when none of
+ * that road has a value, so the rows always add up to the totals. `unknownM` is the road length
+ * since the previous row whose earthwork is unknown and left out.
+ */
+export type StationRow = { station: RoadStation; span: number; unknownM: number } & Record<
+  IntervalQuantity,
+  number | null
+>
+type Row = StationRow
 type Column = {
   id: string
   label: string
@@ -25,6 +45,8 @@ type Column = {
   road?: boolean
   terrain?: boolean
   value: (row: Row, analysis: RoadAnalysis) => number | null
+  /** A quantity summed down the table into the totals row. */
+  sum?: IntervalQuantity
   decimals: number
 }
 const COLUMNS: Column[] = [
@@ -58,6 +80,7 @@ const COLUMNS: Column[] = [
     decimals: 1,
     title: 'Volume since the previous row',
     value: (r) => r.cutVolume,
+    sum: 'cutVolume',
   },
   {
     id: 'fillVolume',
@@ -67,6 +90,7 @@ const COLUMNS: Column[] = [
     decimals: 1,
     title: 'Volume since the previous row',
     value: (r) => r.fillVolume,
+    sum: 'fillVolume',
   },
   {
     id: 'mass',
@@ -74,7 +98,7 @@ const COLUMNS: Column[] = [
     unit: 'm³',
     road: true,
     decimals: 0,
-    title: 'Cumulative mass ordinate',
+    title: 'Cumulative mass ordinate: the known earthwork so far',
     value: (r) => r.station.massM3,
   },
   {
@@ -118,8 +142,10 @@ function readHidden(): string[] {
 }
 
 /**
- * Rows at the chosen reporting interval: the calculated station nearest each multiple, with cut and
- * fill summed since the previous reported row (unknown when any interval in between is incomplete).
+ * Rows at the chosen reporting interval: the calculated station nearest each multiple, with each
+ * quantity summed since the previous reported row. An interval with unknown earthwork adds nothing
+ * and is counted in the row's `unknownM`, so a row that holds a gap still reports its known part.
+ * The first row starts the table: nothing precedes it, so it sums nothing.
  */
 export function reportingRows(analysis: RoadAnalysis, stations: RoadStation[], every: number): Row[] {
   const picked = every > 0 ? new Set<number>() : null
@@ -135,23 +161,59 @@ export function reportingRows(analysis: RoadAnalysis, stations: RoadStation[], e
   let previous: RoadStation | null = null
   for (const s of stations) {
     if (picked && !picked.has(s.index)) continue
-    let cut: number | null = 0,
-      fill: number | null = 0
-    const from = previous ? previous.index + 1 : s.index
-    for (let i = from; i <= s.index; i++) {
-      const x = analysis.stations[i]
-      cut = cut === null || x.cutVolumeM3 === null ? null : cut + x.cutVolumeM3
-      fill = fill === null || x.fillVolumeM3 === null ? null : fill + x.fillVolumeM3
+    const row: Row = {
+      station: s,
+      span: previous
+        ? s.chainage - previous.chainage
+        : s.index
+          ? s.chainage - analysis.stations[s.index - 1].chainage
+          : 0,
+      unknownM: 0,
+      cutVolume: null,
+      fillVolume: null,
     }
-    const span = previous
-      ? s.chainage - previous.chainage
-      : s.index
-        ? s.chainage - analysis.stations[s.index - 1].chainage
-        : 0
-    rows.push({ station: s, cutVolume: cut, fillVolume: fill, span })
+    for (const key of QUANTITIES) {
+      const value = INTERVAL_QUANTITIES[key]
+      if (!previous) {
+        row[key] = value(analysis, s.index) === null ? null : 0
+        continue
+      }
+      for (let i = previous.index + 1; i <= s.index; i++) {
+        const volume = value(analysis, i)
+        if (volume !== null) row[key] = (row[key] ?? 0) + volume
+      }
+    }
+    if (previous)
+      for (let i = previous.index + 1; i <= s.index; i++) {
+        const x = analysis.stations[i]
+        if (x.cutVolumeM3 === null || x.fillVolumeM3 === null)
+          row.unknownM += x.chainage - analysis.stations[i - 1].chainage
+      }
+    rows.push(row)
     previous = s
   }
   return rows
+}
+
+/** The totals row: each quantity summed down the rows, and the road length they leave out. */
+export function tableTotals(rows: Row[]): Record<IntervalQuantity, number | null> & { unknownM: number } {
+  const totals = { unknownM: rows.reduce((sum, row) => sum + row.unknownM, 0) } as ReturnType<typeof tableTotals>
+  for (const key of QUANTITIES)
+    totals[key] = rows.some((row) => row[key] !== null) ? rows.reduce((sum, row) => sum + (row[key] ?? 0), 0) : null
+  return totals
+}
+
+const metres = (value: number) => Number(value.toFixed(1)).toLocaleString('en-CA')
+
+/** What a row says about itself besides its station's own flags. */
+function rowFlags(row: Row): string[] {
+  if (row.unknownM <= 1e-6) return row.station.flags
+  return [
+    row.unknownM >= row.span - 1e-6
+      ? 'Earthwork unknown since the previous row'
+      : `Partial: leaves out ${metres(row.unknownM)} m with unknown earthwork`,
+    ...row.station.flags,
+  ]
 }
 
 export function StationTable({
@@ -193,16 +255,12 @@ export function StationTable({
   }
   const end = Math.min(analysis.length, range.end ?? analysis.length)
   const inRange = analysis.stations.filter((s) => s.chainage >= range.start - 0.001 && s.chainage <= end + 0.001)
-  const rows = reportingRows(analysis, inRange, every).filter((r) => !flagged || r.station.flags.length)
+  const reported = reportingRows(analysis, inRange, every)
+  const rows = reported.filter((r) => !flagged || r.station.flags.length || (!terrainOnly && r.unknownM > 1e-6))
+  // Totals are the sum of the reported rows, whether or not the flag filter is showing them all.
+  const totals = tableTotals(reported)
   const available = COLUMNS.filter((c) => (terrainOnly ? c.terrain : c.road))
   const columns = available.filter((c) => !hidden.includes(c.id))
-  const intervals = inRange.filter(
-    (s) =>
-      s.index > 0 &&
-      analysis.stations[s.index - 1]?.chainage >= range.start - 0.001 &&
-      s.cutVolumeM3 !== null &&
-      s.fillVolumeM3 !== null,
-  )
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
@@ -321,6 +379,8 @@ export function StationTable({
           <tbody>
             {rows.map((row) => {
               const s = row.station
+              const flags = terrainOnly ? s.flags : rowFlags(row)
+              const partial = !terrainOnly && row.unknownM > 1e-6
               return (
                 <tr key={s.index} aria-selected={active?.index === s.index}>
                   <td>
@@ -333,13 +393,20 @@ export function StationTable({
                     </button>
                   </td>
                   {columns.map((c) => (
-                    <td key={c.id}>{fixed(c.value(row, analysis), c.decimals)}</td>
+                    <td
+                      key={c.id}
+                      className={partial && c.sum ? 'text-amber-700 dark:text-amber-400' : undefined}
+                      title={partial && c.sum ? flags[0] : undefined}
+                    >
+                      {fixed(c.value(row, analysis), c.decimals)}
+                    </td>
                   ))}
                   <td
                     className="max-w-64 truncate text-left text-amber-700 dark:text-amber-400"
-                    title={s.flags.join('; ')}
+                    title={flags.join('; ')}
+                    data-partial={partial || undefined}
                   >
-                    {s.flags.join('; ') || '—'}
+                    {flags.join('; ') || '—'}
                   </td>
                 </tr>
               )
@@ -350,26 +417,22 @@ export function StationTable({
               <tr className="font-semibold">
                 <td className="text-left">Cum. tot.</td>
                 {columns.map((c) => (
-                  <td key={c.id}>
-                    {c.id === 'cutVolume'
-                      ? number(intervals.reduce((sum, s) => sum + (s.cutVolumeM3 ?? 0), 0))
-                      : c.id === 'fillVolume'
-                        ? number(intervals.reduce((sum, s) => sum + (s.fillVolumeM3 ?? 0), 0))
-                        : ''}
-                  </td>
+                  <td key={c.id}>{c.sum ? number(totals[c.sum]) : ''}</td>
                 ))}
-                <td />
+                <td className="text-left font-normal text-amber-700 dark:text-amber-400">
+                  {totals.unknownM > 1e-6 ? `Leaves out ${metres(totals.unknownM)} m with unknown earthwork` : ''}
+                </td>
               </tr>
             </tfoot>
           )}
         </EngineeringTable>
       </div>
       <p className="mt-1 text-2xs text-muted-foreground">
-        {rows.length} rows
+        {rows.length === reported.length ? `${rows.length} rows` : `${rows.length} of ${reported.length} rows shown`}
         {every ? ` every ${every} m; volumes are summed since the previous row` : ''}
         {terrainOnly
           ? ' · Ground elevations and sampled interval slopes only; no road quantities assigned.'
-          : ' · totals cover fully supported intervals only.'}
+          : ` · totals are the sum of ${rows.length === reported.length ? 'the' : 'all'} rows.`}
       </p>
     </div>
   )
