@@ -745,10 +745,13 @@ no assumed extra buffer. Coverage is supported interval length divided by route
 length. Adding stations can discover gaps or unresolved batters that a coarser
 run missed; more stations do not guarantee a larger supported quantity.
 
-Missing intervals cannot be bridged by an invented continuous mass curve:
-cumulative mass stops at the first gap. Quantities after that gap can still
-contribute to covered subtotals, and their interval quantities remain available.
-A numerical calculation error returns an unavailable analysis with an explicit
+No quantity is invented for a missing interval: its cut, fill, surfacing and
+clearing stay unknown, are left out of every total, and its stations are flagged.
+A gap in the terrain data is not a gap in the road, though. The cumulative mass
+ordinate is the known earthwork so far, so it holds its value across a missing
+interval and carries on after it. The mass-haul diagram draws the line through
+the interval, hatches it, and labels the end balance with the road length it
+excludes. A numerical calculation error returns an unavailable analysis with an explicit
 message, not a plausible complete road with zero quantities.
 
 ### Ground horizons and excavated materials
@@ -810,11 +813,18 @@ costs, shared capacities, construction-direction ranges and sidecast limits. Inf
 unfinished prescriptions do not become complete estimates. See
 [material allocation](forestry-road-design/material-allocation.md) for conservation,
 pricing and solver budgets. In legacy nearest-source mode, fill intervals are visited in
-chainage order and draw from the nearest remaining reusable cut in the same
-continuously supported road section. Material conversion factors are retained
-for every movement. A site or source on the other side of a terrain/daylight gap
-cannot supply that interval. This can produce both borrow and waste even when
-the entire route's net mass balance appears favourable.
+chainage order and draw from the nearest remaining reusable cut anywhere on the
+road. Material conversion factors are retained for every movement.
+
+Both modes treat the road as one continuous haul route. An interval with unknown
+earthwork supplies and demands nothing, and material is hauled past it at its
+full chainage distance, so cut beyond a terrain or daylight gap can reach fill or
+a site before it. A site beside or inside such an interval is used like any
+other; a site beyond the road end is not on the road and is never used. Only a
+construction-direction range the user enters (forward, backward or blocked)
+stops a movement. Nearest-source order can still strand cut and produce both
+borrow and waste on a road whose net balance looks favourable; it never does so
+because of a gap in the data.
 
 Engineering → Haul keeps the allocation enable control visible. Enabling it
 opens **Haul & cost settings**, which groups rates, distances and borrow/waste
@@ -859,7 +869,7 @@ Unallocated borrow/waste is reported when no reachable site capacity remains.
 Its default supply/disposal unit rate is included in the scenario subtotal, but
 its unknown haul distance, haul work and haul cost are excluded. The haul and
 engineering results remain incomplete. Nothing silently creates an unlimited
-pit, a zero-distance disposal site or a movement across missing terrain.
+pit, a zero-distance disposal site or a quantity for missing terrain.
 
 ### Culvert inventory, geometry and cover
 
@@ -1504,12 +1514,14 @@ the project remains the portable way to preserve work across browsers/devices.
 
 Meaningful unit checks cover analytical flat/cut/fill sections, slopes/ditches,
 short final intervals, circular and vertical curves, side-specific tapers,
-crossings, polygon holes, missing coverage and mass gaps. Engineering fixtures
+crossings, polygon holes, missing coverage and a mass balance carried across
+gaps. Engineering fixtures
 check asymmetric templates and superelevation, exact simultaneous width/depth
 transitions, short stepped assignments, clipped material-area conservation,
 cut-only stripping, material conversion factors, culvert skew/cover/unknowns,
-capacity-limited borrow/waste, separate volume bases and transfers prohibited
-across unsupported gaps. Cable checks cover moved supports, yarder orientation
+capacity-limited borrow/waste, separate volume bases, a nearly balanced road
+hauled across unknown ground without borrowing and wasting at once, and
+transfers stopped by an entered blocked range. Cable checks cover moved supports, yarder orientation
 and sag on the resolved span. Radial fixtures include flat ground, a valley,
 a ridge, support/interior gaps, bearing wrap, budget enforcement and adoption. Actual encoded
 GeoTIFF fixtures check PixelIsArea/PixelIsPoint centres, known bilinear values,

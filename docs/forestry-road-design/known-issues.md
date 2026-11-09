@@ -6,7 +6,26 @@ These are places where the workspace does something other than what its controls
 were reproduced; **read** ones were found by reading the code. Remove an entry in the same change
 that fixes it, and add one, with the file and function, when you find a new defect.
 
-## Fixed on 2026-10-26
+## Open
+
+- The gallery's example report (`docs/assets/forestry-roads/native-example-report.html` and
+  `.pdf`) was exported before the 2026-11-09 change below. It still prints "the mass curve stops
+  at the first gap" and "material is not moved across a terrain/daylight gap", and its haul figures
+  were allocated run by run. Re-export it from the workspace (`roadReportHtml`, `project.ts`).
+
+## Fixed on 2026-11-09
+
+- A gap in the terrain data no longer breaks the mass-haul curve or the haul allocation. The mass
+  ordinate is the known earthwork so far and is carried across an incomplete interval instead of
+  reading "unknown after an incomplete section" to the end of the road (`analyzeRoad`, `engine.ts`;
+  `calculateEngineering`, `engineering.ts`). Haul treats the road as continuous: cut beyond a gap
+  reaches fill or a site before it at its full distance, in nearest-source and economic mode
+  (`allocateHaul`; `materialAllocation.ts`; `sparseMaterialAllocation.ts`). A road with usable cut
+  4,190 m³ against fill 4,151 m³ used to borrow 1,692 m³ and waste 1,923 m³, the waste
+  "unallocated" beside an unbounded site. Quantities inside the gap are still unknown, excluded and
+  flagged, and an entered blocked range still stops material. Station CSV, the report and the plot
+  book now carry a mass value at and after a gap, and haul, borrow and waste on a road with gaps
+  differ from older exports.
 
 - A grade line far above or below the ground no longer looks like the road breaking. Where a batter
   is still in the air (or underground) at the section reach, the plan used to drop the envelope

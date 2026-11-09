@@ -400,8 +400,13 @@ export interface RoadStation {
   rightClearingM?: number
   cutAreaM2: number | null
   fillAreaM2: number | null
+  /** Since the previous station; null when the section at either end is incomplete. */
   cutVolumeM3: number | null
   fillVolumeM3: number | null
+  /**
+   * Cumulative usable cut minus fill of the known earthwork up to this station. An interval with
+   * unknown volumes adds nothing, so the ordinate is carried across it rather than cut off.
+   */
   massM3: number | null
   leftDaylightM: number | null
   rightDaylightM: number | null

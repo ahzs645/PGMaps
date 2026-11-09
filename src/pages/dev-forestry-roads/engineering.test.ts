@@ -260,7 +260,7 @@ describe('material intersections, mass and cost', () => {
     expect(() => analyzeRoad(a, flat, settings)).toThrow(/cannot be counted twice/)
   })
 
-  it('propagates missing sections into material areas and cumulative mass without bridging the gap', () => {
+  it('keeps missing sections out of material areas and carries the known mass balance past them', () => {
     const a = road()
     const hole: TerrainSource = {
       elevationAt: (lng, lat) => {
@@ -273,7 +273,13 @@ describe('material intersections, mass and cost', () => {
     expect(r.coveragePercent).toBeLessThan(100)
     expect(e.materials.reduce((sum, m) => sum + m.bankCutM3, 0)).toBeCloseTo(r.cutVolumeM3, 6)
     expect(e.stations.find((s) => s.chainage === 50)!.materialAreas.every((m) => m.cutAreaM2 === null)).toBe(true)
-    expect(e.stations.at(-1)!.massM3).toBeNull()
+    const mass = (chainage: number) => e.stations.find((s) => s.chainage === chainage)!.massM3
+    // No quantity is invented for 30–70 m: the ordinate holds there and the later cut still counts.
+    expect(mass(30)).toBeGreaterThan(0)
+    expect([40, 50, 60, 70].map(mass)).toEqual([mass(30), mass(30), mass(30), mass(30)])
+    expect(mass(80)).toBeGreaterThan(mass(30)!)
+    expect(e.stations.at(-1)!.massM3).toBeCloseTo(e.balanceM3, 6)
+    expect(r.stations.map((s) => s.massM3)).toEqual(e.stations.map((s) => s.massM3))
     expect(e.stations.at(-1)!.usableCutVolumeM3).toBeGreaterThan(0)
     expect(e.complete).toBe(false)
   })
@@ -703,48 +709,104 @@ describe('mass-haul allocation and unit costs', () => {
     expect(e.costs.waste).toBeCloseTo(4300, 3)
   })
 
-  it('never matches cut to fill or a site across an unsupported road gap', () => {
-    const a = road()
-    a.vertical[1].elevation = 802
-    a.engineering!.haul.enabled = true
-    a.engineering!.sites = [
-      {
-        id: 'b',
-        name: 'Borrow',
-        kind: 'borrow',
-        chainage: 90,
-        accessDistanceM: 0,
-        capacityM3: null,
-        unitRate: 0,
-        fixedCost: 0,
-      },
-      {
-        id: 'w',
-        name: 'Waste',
-        kind: 'waste',
-        chainage: 10,
-        accessDistanceM: 0,
-        capacityM3: null,
-        unitRate: 0,
-        fixedCost: 0,
-      },
-    ]
+  describe('a road that nearly balances across a terrain gap', () => {
+    // Fill for the first half, cut for the second, and no ground under station 100: the walkthrough's
+    // road, which borrowed 1,692 m³ and wasted 1,923 m³ although usable cut exceeded fill by 39 m³.
     const hole: TerrainSource = {
       elevationAt: (lng, lat) => {
         const s = northing([lng, lat])
-        return s > 39 && s < 61 ? NaN : 800
+        return s > 95 && s < 105 ? NaN : 800
       },
     }
-    const e = analyzeRoad(a, hole, { ...settings, shrinkFactor: 1 }).engineering!
-    expect(e.movements.some((p) => p.kind === 'cut-to-fill')).toBe(false)
-    expect(e.haul.borrowCompactedM3).toBeGreaterThan(0)
-    expect(e.haul.wasteBankM3).toBeGreaterThan(0)
-    expect(
-      e.movements.every(
-        (p) => Math.max(p.fromChainage, p.toChainage) < 39 || Math.min(p.fromChainage, p.toChainage) > 61,
-      ),
-    ).toBe(true)
-    expect(e.warnings.join(' ')).toMatch(/not moved across/)
+    const site = (id: string, kind: 'borrow' | 'waste', chainage: number) => ({
+      id,
+      name: id,
+      kind,
+      chainage,
+      accessDistanceM: 140,
+      capacityM3: null,
+      unitRate: 0,
+      fixedCost: 0,
+    })
+    // The walkthrough's reusable cut factor.
+    const balancing = { ...settings, shrinkFactor: 0.9 }
+    const nearlyBalanced = () => {
+      const a = road(801, 200)
+      a.vertical[1].elevation = 798.9
+      a.engineering!.haul.enabled = true
+      a.engineering!.sites = [site('pit', 'borrow', 20), site('spoil', 'waste', 30)]
+      return a
+    }
+
+    it('hauls cut past the gap to the fill before it, without borrowing and wasting at once', () => {
+      const r = analyzeRoad(nearlyBalanced(), hole, balancing),
+        e = r.engineering!
+      expect(r.coveragePercent).toBeCloseTo(90, 6)
+      const usable = r.cutVolumeM3 * balancing.shrinkFactor,
+        surplus = usable - r.fillVolumeM3
+      // The premise: both sides of the gap carry real work, and the road as a whole nearly balances.
+      expect(r.fillVolumeM3).toBeGreaterThan(300)
+      expect(surplus).toBeGreaterThan(0)
+      expect(surplus).toBeLessThan(0.1 * r.fillVolumeM3)
+      expect(e.haul.borrowCompactedM3).toBeCloseTo(0, 6)
+      expect(e.haul.wasteBankM3).toBeCloseTo(surplus / balancing.shrinkFactor, 6)
+      // The surplus reaches the waste site on the far side of the gap.
+      expect(e.haul.unallocatedBorrowM3).toBe(0)
+      expect(e.haul.unallocatedWasteM3).toBe(0)
+      expect(e.movements.some((m) => m.kind === 'cut-to-fill' && m.fromChainage > 105 && m.toChainage < 95)).toBe(true)
+      expect(
+        e.movements.filter((m) => m.kind === 'cut-to-fill').reduce((sum, m) => sum + m.transportedVolumeM3, 0),
+      ).toBeCloseTo(r.fillVolumeM3, 6)
+      const waste = e.movements.filter((m) => m.kind === 'waste')
+      expect(waste.every((m) => m.fromChainage > 105 && m.toChainage === 30)).toBe(true)
+      // A movement over the gap is charged its whole distance, the unknown length included.
+      expect(waste.every((m) => m.distanceM === m.fromChainage - 30 + 140)).toBe(true)
+      // The quantities in the gap are still unknown, so the result is still not a complete estimate.
+      expect(e.haul.complete).toBe(false)
+      expect(e.complete).toBe(false)
+      expect(e.warnings.join(' ')).toMatch(/20 m of road with unknown earthwork/)
+    })
+
+    it('reaches a site that stands inside the gap or on an unknown first interval', () => {
+      const a = nearlyBalanced()
+      a.vertical[1].elevation = 797
+      a.engineering!.sites = [site('spoil', 'waste', 100)]
+      const inGap = analyzeRoad(a, hole, balancing).engineering!
+      expect(inGap.haul.wasteBankM3).toBeGreaterThan(0)
+      expect(inGap.haul.unallocatedWasteM3).toBe(0)
+      const start: TerrainSource = { elevationAt: (lng, lat) => (northing([lng, lat]) < 5 ? NaN : 800) }
+      a.engineering!.sites = [site('spoil', 'waste', 0)]
+      const atStart = analyzeRoad(a, start, balancing).engineering!
+      expect(atStart.haul.wasteBankM3).toBeGreaterThan(0)
+      expect(atStart.haul.unallocatedWasteM3).toBe(0)
+    })
+
+    it('solves the economic material flow across the gap as well', () => {
+      const a = nearlyBalanced()
+      a.engineering!.haul.allocation = 'economic'
+      const r = analyzeRoad(a, hole, balancing),
+        e = r.engineering!
+      expect(e.haul.optimizationStatus).toBe('optimal')
+      expect(e.haul.borrowCompactedM3).toBeCloseTo(0, 5)
+      expect(e.haul.wasteBankM3).toBeCloseTo(
+        (r.cutVolumeM3 * balancing.shrinkFactor - r.fillVolumeM3) / balancing.shrinkFactor,
+        5,
+      )
+      expect(e.haul.unallocatedWasteM3).toBe(0)
+    })
+
+    it('still stops material at a blocked range the user entered', () => {
+      const a = nearlyBalanced()
+      a.engineering!.haul.directionRanges = [{ id: 'washout', start: 95, end: 105, direction: 'blocked' }]
+      a.engineering!.sites.push(site('far spoil', 'waste', 150))
+      const r = analyzeRoad(a, hole, balancing),
+        e = r.engineering!
+      expect(e.haul.optimizationStatus).toBe('optimal')
+      expect(e.movements.some((m) => m.kind === 'cut-to-fill')).toBe(false)
+      expect(e.haul.borrowCompactedM3).toBeCloseTo(r.fillVolumeM3, 5)
+      expect(e.haul.wasteBankM3).toBeCloseTo(r.cutVolumeM3, 5)
+      expect(e.movements.every((m) => m.fromChainage < 95 === m.toChainage < 95)).toBe(true)
+    })
   })
 })
 

@@ -120,8 +120,10 @@ integrated with Simpson's rule. Clearing is the horizontal daylight-to-daylight 
 buffer, so it understates a right-of-way that is wider than the earthwork footprint.
 
 **Mass.** Without materials, mass is cut × reusable cut factor (default 0.9) − fill. With
-materials, it is usable compacted cut − fill. The mass curve and the mass column stop at the first
-incomplete interval; later intervals still count in the covered totals.
+materials, it is usable compacted cut − fill. The mass curve and the mass column give the known
+earthwork so far. An incomplete interval adds nothing, so the ordinate is carried across it and
+goes on after it; the diagram hatches the interval and labels the end balance with the road length
+it excludes (`massHaul.ts`). The end ordinate equals the covered balance in the totals.
 
 **Materials.** A new material copies the current base cut rate and reusable cut factor, with a
 reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
@@ -133,13 +135,15 @@ fill. See [Physical section assemblies and preparation](section-assemblies.md) f
 prepared-ground surface, material-sensitive batters, component/course quantities and limits.
 
 **Nearest-source haul.** With no material policies and economic mode unset, allocation (`allocateHaul`) visits fill intervals in chainage order and takes the
-nearest remaining usable cut in the same unbroken run of complete sections. It is a repeatable
+nearest remaining usable cut anywhere on the road. It is a repeatable
 scenario, not an optimum. An interval's own cut is at distance zero, so it balances itself first;
 any loading rate you enter is charged on that zero-distance volume too. Distance is chainage
-difference plus the site's entered access distance. A gap in coverage splits the road into
-separate runs, and a site outside a run is never used. Reachability registers the site's chainage
-at the calculation stations' micrometre precision, so an exact road-end site remains reachable
-when the final station rounds down. Haul distances retain the entered chainage. A new site copies
+difference plus the site's entered access distance. A gap in coverage does not split the road: an
+incomplete interval supplies and demands nothing, material is hauled past it at full chainage
+distance, and a site beside or inside it is still used. A site beyond the road end is not on the
+road and is never used. That check registers the site's chainage at the calculation stations'
+micrometre precision, so an exact road-end site remains reachable when the final station rounds
+down. Haul distances retain the entered chainage. A new site copies
 the default borrow or waste rate when you add it and keeps that rate afterwards. Economic mode instead solves the bounded material flow described in [the allocation guide](material-allocation.md), including material quality, construction direction and sidecast constraints.
 
 **Haul in the cost breakdown** (`haulCostLines` in `engineering.ts`). Every haul, borrow, waste and
@@ -226,12 +230,12 @@ payload, or net crew productivity as appropriate. See
 | "Left/Right daylight unresolved: extend section or check terrain"        | Ground ran out (no-data) before the batter met it                                                                               | Check terrain coverage; import terrain that covers the corridor                          |
 | "Missing terrain inside the road footprint"                              | A no-data hole under the formation, ditch or batter                                                                             | Fill or replace the terrain; the station stays excluded until then                       |
 | Complete sections below 100 %, tile reads "Covered cut / fill"           | Any of the two flags above, at one or more stations                                                                             | Select flagged stations in the station table; fix before comparing alternatives          |
-| Mass curve ends early                                                    | First incomplete interval                                                                                                       | Fix that interval; quantities after it are still in the totals                           |
+| Mass curve is flat and hatched over a length                             | Incomplete sections there: that earthwork is unknown and left out                                                               | Fix those sections; the end balance states how many metres it excludes                   |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
 | "Correct this alignment before calculating: …"                           | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)       | Read the message; quantities are unavailable until it is fixed                           |
-| Both borrow and waste on a road that balances overall                    | Gaps split the runs, or nearest-source order left cut stranded                                                                  | Close the gaps; add sites; treat the allocation as one scenario                          |
-| "Some borrow/waste has no reachable site capacity"                       | No site in that run, or capacity used up                                                                                        | Add sites in the run or raise capacity; until then its haul is not priced                |
+| Both borrow and waste on a road that balances overall                    | Nearest-source order left cut stranded, or a blocked construction range lies between them                                       | Try economic allocation; add sites; treat the allocation as one scenario                 |
+| "Some borrow/waste has no reachable site capacity"                       | No site of that kind on the road, or capacity used up                                                                           | Add a site or raise capacity; until then its haul is not priced                          |
 | Culvert cover or grade shows "—"                                         | An invert missing, terrain missing along the barrel, or daylight unresolved                                                     | Enter both inverts; fix the section at that station                                      |
 | "Barrel is shorter than the centred daylight span"                       | Span less than 2 × the farther daylight / cos(skew)                                                                             | Lengthen the span; check headwalls and skew in the field                                 |
 | Rate preset shows _Custom · this project_                                | A base rate or the reusable cut factor was edited                                                                               | Expected; the source note no longer applies                                              |
@@ -246,6 +250,7 @@ payload, or net crew productivity as appropriate. See
 - Size culverts hydraulically or check structural cover; see [Drainage](drainage.md).
 - Grade a 3D landing pad, design intersections, or add new template component types.
 - Produce a market quote. The estimate is a scenario built from rates you enter.
-- Bridge a terrain or daylight gap with an assumed quantity.
+- Bridge a terrain or daylight gap with an assumed quantity. Haul passes over the gap; the gap's own
+  cut and fill stay unknown.
 
 See [Scope boundaries](../forestry-road-design.md#scope-boundaries) for the full list.

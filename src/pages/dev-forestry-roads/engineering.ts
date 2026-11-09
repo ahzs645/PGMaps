@@ -100,11 +100,16 @@ type EarthworkInterval = AllocationParcel
 type Source = {
   id: string
   chainage: number
-  run: number
   entries: Array<MaterialCut & { remaining: number }>
   available: number
 }
-type Run = { start: number; end: number }
+
+/**
+ * Said with every allocation on a road with incomplete sections. Unknown ground is a gap in the
+ * data, not in the road: a truck drives over it, so material moves past it at its full distance.
+ */
+const unknownEarthworkNote = (lengthM: number) =>
+  `Haul is allocated along the whole road. ${Number(lengthM.toFixed(1)).toLocaleString('en-CA')} m of road with unknown earthwork adds no cut or fill to it; material hauled past that length is charged the full distance.`
 
 function emptyHaul(enabled: boolean, complete: boolean): HaulSummary {
   return {
@@ -305,9 +310,13 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
   return lines
 }
 
-function economicHaul(alignment: Alignment, intervals: EarthworkInterval[], coverageComplete: boolean) {
-  const e = alignment.engineering!,
-    h = e.haul
+function economicHaul(
+  e: AlignmentEngineering,
+  intervals: EarthworkInterval[],
+  coverageComplete: boolean,
+  unknownLengthM: number,
+) {
+  const h = e.haul
   const summary = emptyHaul(h.enabled, coverageComplete)
   summary.allocationMethod = 'economic'
   summary.sidecastBankM3 = 0
@@ -377,10 +386,7 @@ function economicHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
     }
   }
   summary.complete = coverageComplete && summary.unallocatedBorrowM3 < EPS && summary.unallocatedWasteM3 < EPS
-  if (!coverageComplete)
-    warnings.push(
-      'Economic allocation applies only inside each continuous supported run; material is not transferred across missing terrain or daylight.',
-    )
+  if (!coverageComplete) warnings.push(unknownEarthworkNote(unknownLengthM))
   warnings.push(
     h.deferExternalSupply
       ? 'Internal-use material plan only: external supply/disposal parcels remain explicitly unresolved for connected network pricing; this is not a complete economic prescription.'
@@ -390,12 +396,18 @@ function economicHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
 }
 
 /**
- * Reproducible allocation scenario: fill intervals in chainage order draw from the
- * nearest remaining cut in the same supported run. It is not a global optimizer.
+ * Reproducible allocation scenario: fill intervals in chainage order draw from the nearest
+ * remaining cut anywhere on the road. It is not a global optimizer. `e.sites` holds only the sites
+ * on the road, and `unknownLengthM` is the road length whose earthwork is unknown: it supplies and
+ * demands nothing, and movements cross it at full distance.
  */
-function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], coverageComplete: boolean) {
-  const e = alignment.engineering!,
-    h = e.haul
+function allocateHaul(
+  e: AlignmentEngineering,
+  intervals: EarthworkInterval[],
+  coverageComplete: boolean,
+  unknownLengthM: number,
+) {
+  const h = e.haul
   if (
     h.allocation === 'economic' ||
     h.deferExternalSupply ||
@@ -404,24 +416,17 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
     h.sidecastRanges?.length ||
     intervals.some((p) => p.demands?.length)
   )
-    return economicHaul(alignment, intervals, coverageComplete)
+    return economicHaul(e, intervals, coverageComplete, unknownLengthM)
   const summary = emptyHaul(h.enabled, coverageComplete)
   const movements: HaulMovement[] = [],
     warnings: string[] = []
   const costs = { haul: 0, borrow: 0, waste: 0, sitePreparation: 0 }
   if (!h.enabled) return { summary, movements, costs, warnings }
-  const runs = new Map<number, Run>()
-  for (const p of intervals) {
-    const run = runs.get(p.run)
-    if (run) run.end = p.end
-    else runs.set(p.run, { start: p.start, end: p.end })
-  }
   const sources: Source[] = intervals
     .filter((p) => p.cut.some((m) => m.usable > EPS))
     .map((p) => ({
       id: p.id,
       chainage: p.chainage,
-      run: p.run,
       entries: p.cut.filter((m) => m.usable > EPS).map((m) => ({ ...m, remaining: m.usable })),
       available: p.cut.reduce((sum, m) => sum + m.usable, 0),
     }))
@@ -451,19 +456,13 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
   }
   const siteFlow = (
     kind: HaulSite['kind'],
-    interval: Pick<EarthworkInterval, 'id' | 'chainage' | 'run'>,
+    interval: Pick<EarthworkInterval, 'id' | 'chainage'>,
     amount: number,
     materialId: string | null,
     compactedPerBank: number | null,
   ) => {
-    const run = runs.get(interval.run)!
     let remaining = amount
-    const candidates = availableSites.filter((s) => {
-      // Mandatory calculation stations are rounded to micrometres in analyzeRoad.
-      // Match that registration for reachability, keeping entered chainage for haul distances.
-      const station = Math.round(s.chainage * 1e6) / 1e6
-      return s.kind === kind && station >= run.start - EPS && station <= run.end + EPS
-    })
+    const candidates = availableSites.filter((s) => s.kind === kind)
     const compare = (a: (typeof candidates)[number], b: (typeof candidates)[number]) => {
       const da = Math.abs(a.chainage - interval.chainage) + a.accessDistanceM
       const db = Math.abs(b.chainage - interval.chainage) + b.accessDistanceM
@@ -523,7 +522,7 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
       for (const source of sources) {
         if (++comparisons > 20000000)
           throw new Error('Haul allocation budget exceeded; split this road into shorter design sections.')
-        if (source.run !== demand.run || source.available <= EPS) continue
+        if (source.available <= EPS) continue
         const d = Math.abs(source.chainage - demand.chainage)
         if (d < nearestDistance - EPS) {
           nearest = source
@@ -572,10 +571,7 @@ function allocateHaul(alignment: Alignment, intervals: EarthworkInterval[], cove
         siteFlow('waste', source, bank, material.materialId, material.factor)
       }
   summary.complete = coverageComplete && summary.unallocatedBorrowM3 < EPS && summary.unallocatedWasteM3 < EPS
-  if (!coverageComplete)
-    warnings.push(
-      'Haul is allocated separately within each continuously supported road section; material is not moved across a terrain/daylight gap.',
-    )
+  if (!coverageComplete) warnings.push(unknownEarthworkNote(unknownLengthM))
   if (summary.unallocatedBorrowM3 > EPS || summary.unallocatedWasteM3 > EPS)
     warnings.push(
       'Some borrow/waste has no reachable site capacity. Default supply/disposal rates are included, but its unknown haul distance and haul cost are excluded.',
@@ -833,11 +829,10 @@ export function calculateEngineering(
       massM3: null,
     }
   })
-  let mass = 0,
-    massKnown = analysis.stations[0]?.complete ?? false,
-    run = 0,
-    previousComplete = false
-  if (stations.length && massKnown) stations[0].massM3 = 0
+  // The ordinate is the known earthwork so far. An interval with unknown ground adds nothing to
+  // it, and the balance carries on past it: the road is continuous where the data is not.
+  let mass = 0
+  if (stations.length) stations[0].massM3 = 0
   const intervals: EarthworkInterval[] = []
   for (let i = 1; i < stations.length; i++) {
     const a = analysis.stations[i - 1],
@@ -845,12 +840,9 @@ export function calculateEngineering(
       current = stations[i],
       previous = stations[i - 1]
     if (!a.complete || !b.complete) {
-      previousComplete = false
-      massKnown = false
+      current.massM3 = mass
       continue
     }
-    if (!previousComplete) run++
-    previousComplete = true
     const ds = b.chainage - a.chainage,
       cut: MaterialCut[] = []
     let usable = 0,
@@ -930,23 +922,29 @@ export function calculateEngineering(
         true,
       )
     }
-    if (massKnown) {
-      mass += usable - b.fillVolumeM3! - demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
-      current.massM3 = mass
-    }
+    mass += usable - b.fillVolumeM3! - demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
+    current.massM3 = mass
     intervals.push({
       id: `interval-${i}`,
       start: a.chainage,
       end: b.chainage,
       chainage,
-      run,
       cut,
       fill: b.fillVolumeM3!,
       ...(demands.length ? { demands } : {}),
     })
   }
   const coverageComplete = hasCompleteCoverage(analysis)
-  const haul = allocateHaul(alignment, intervals, coverageComplete)
+  // Calculation stations are rounded to micrometres in analyzeRoad. Match that registration to
+  // decide whether a site is on the road, keeping its entered chainage for haul distances. A site
+  // beyond the road end has no road to it; one beside unknown ground is still on the road.
+  const roadEnd = analysis.stations.at(-1)?.chainage ?? 0
+  const haul = allocateHaul(
+    { ...e, sites: e.sites.filter((site) => Math.round(site.chainage * 1e6) / 1e6 <= roadEnd + EPS) },
+    intervals,
+    coverageComplete,
+    Math.max(0, analysis.length - analysis.completeLength),
+  )
   const warnings = [...haul.warnings]
   if (
     !e.sitePreparation?.length &&

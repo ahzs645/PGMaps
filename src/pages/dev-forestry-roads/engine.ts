@@ -1454,8 +1454,8 @@ export function analyzeRoad(
     surfaceVolumeM3 = 0,
     clearingAreaM2 = 0,
     completeLength = 0,
-    mass = 0,
-    massKnown = stations[0]?.complete ?? false
+    // The known earthwork so far: an incomplete interval adds nothing, and the balance carries on.
+    mass = 0
   const surfaceArea = (s: number) => {
     return surfaceLayersAt(alignment, s).reduce((sum, layer) => sum + layer.areaM2, 0)
   }
@@ -1474,7 +1474,7 @@ export function analyzeRoad(
     if (!i) {
       p.cutVolumeM3 = p.complete ? 0 : null
       p.fillVolumeM3 = p.complete ? 0 : null
-      p.massM3 = p.complete ? 0 : null
+      p.massM3 = 0
       continue
     }
     if (a.complete && p.complete) {
@@ -1493,16 +1493,14 @@ export function analyzeRoad(
           (p.clearingWidthM ?? p.leftDaylightM! + p.rightDaylightM!)) /
           2) *
         ds
-      if (massKnown) {
-        mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
-        p.massM3 = mass
-      }
-    } else massKnown = false
+      mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
+    }
+    p.massM3 = mass
   }
   const coveragePercent = clamp((completeLength / path.length) * 100, 0, 100)
   if (coveragePercent < 100 - 1e-5)
     warnings.push(
-      'Terrain coverage or daylight is incomplete. Quantities and cost are covered subtotals; the mass curve stops at the first gap.',
+      `Terrain coverage or daylight is incomplete over ${Number((path.length - completeLength).toFixed(1)).toLocaleString('en-CA')} m of road. Quantities and cost are covered subtotals, and the mass balance counts the known earthwork only.`,
     )
   const badGrades = stations.filter(
     (s) => s.gradePercent !== null && Math.abs(s.gradePercent) > settings.maxGradePercent + EPS,

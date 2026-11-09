@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { acceptsFill, haulDirectionAllowed, parseAllocationPolicy, validateAllocationPolicy } from './allocationPolicy'
-import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
+import { solveDenseMaterialAllocation, solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { createEngineeringDesign, type AlignmentEngineering, type HaulSite } from './engineeringTypes'
 import { createMaterialVolumeFactorProvenance } from './materialFactors'
 
@@ -20,7 +20,6 @@ function parcel(id: string, chainage: number, fill = 0, bank = 0, materialId = '
     start: chainage - 5,
     end: chainage + 5,
     chainage,
-    run: 1,
     fill,
     cut: bank ? [{ materialId, bank, usable: bank * factor, unusable: 0, factor }] : [],
   }
@@ -199,14 +198,29 @@ describe('economic material flow', () => {
     expect(result.movements.reduce((s, m) => s + m.compactedVolumeM3!, 0)).toBeCloseTo(2)
   })
 
-  it('enforces up/down-chain construction constraints and never transfers across a coverage gap', () => {
+  it('enforces up/down-chain construction constraints and hauls across road that has no parcel', () => {
     const e = design()
     e.haul.directionRanges = [{ id: 'forward', start: 0, end: 20, direction: 'forward' }]
     const p = [parcel('cut', 15, 0, 1), parcel('fill', 5, 1)]
     expect(solveMaterialAllocation(e, p, () => 0).status).toBe('infeasible')
     e.haul.directionRanges = []
-    p[1].run = 2
-    expect(solveMaterialAllocation(e, p, () => 0).status).toBe('infeasible')
+    // 60 m of road with unknown ground lies between the two parcels: it is crossed at full distance.
+    const apart = [parcel('cut', 75, 0, 1), parcel('fill', 5, 1)]
+    for (const solver of [solveMaterialAllocation, solveDenseMaterialAllocation]) {
+      const crossed = solver(e, apart, (d) => d)
+      expect(crossed.status).toBe('optimal')
+      expect(crossed.movements).toHaveLength(1)
+      expect(crossed.movements[0]).toMatchObject({
+        kind: 'cut-to-fill',
+        fromChainage: 75,
+        toChainage: 5,
+        distanceM: 70,
+      })
+      expect(crossed.objectiveCost).toBeCloseTo(70)
+    }
+    // Only a range the user blocked stops it.
+    e.haul.directionRanges = [{ id: 'barrier', start: 30, end: 40, direction: 'blocked' }]
+    expect(solveMaterialAllocation(e, apart, (d) => d).status).toBe('infeasible')
     expect(
       haulDirectionAllowed(
         { ...e.haul, directionRanges: [{ id: 'barrier', start: 4, end: 6, direction: 'blocked' }] },

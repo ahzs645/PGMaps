@@ -213,6 +213,7 @@ export interface EngineeringStation {
   materialAreas: MaterialSectionArea[]
   usableCutVolumeM3: number | null
   unusableCutVolumeM3: number | null
+  /** Known earthwork so far; carried across an interval whose volumes are unknown. */
   massM3: number | null
 }
 export interface MaterialQuantity {

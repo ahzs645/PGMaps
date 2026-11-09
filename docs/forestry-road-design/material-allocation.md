@@ -80,8 +80,8 @@ its opening binaries, and the reconstructed movement cost before it reaches the 
 For a proven continuous linear haul tariff with zero loading, `sparseMaterialAllocation.ts`
 uses adjacent chain arcs instead of every source/demand pair. Reusable bank material has a fill
 chain priced at its compacted conversion; bank disposal has a separate waste chain. The chains
-retain material classes, station direction rules, disconnected coverage runs and shared physical
-site capacities/opening decisions. Solved chain flows are decomposed into the actual source-to-
+retain material classes, station direction rules and shared physical site capacities/opening
+decisions, and run the whole road: an arc over road with unknown earthwork costs its length. Solved chain flows are decomposed into the actual source-to-
 destination movements and checked against the same objective. This is an exact change of model
 representation for that tariff. Piecewise/discontinuous tariffs, loading charges and the external-
 deferral pass use the general dense formulation. No tariff is approximated to make it fit.
@@ -91,7 +91,11 @@ deferral pass use the general dense formulation. No tariff is approximated to ma
 **Forward** means increasing chainage; **backward** means decreasing chainage. A movement must
 satisfy every range it crosses. A **blocked** range prevents transfer across it, while same-station
 handling crosses no range. These constraints are independent of one-way restrictions on the
-existing-road network. No material moves across a terrain/daylight gap.
+existing-road network.
+
+A terrain or daylight gap is not a barrier. The interval's own earthwork is unknown and left out of
+the model, and material moves past it at its full chainage distance, because the road is continuous
+where the data is not. Where a stretch of road really cannot be driven, enter a **blocked** range.
 
 Sidecast is available only for material originating inside an explicitly permitted range. Its
 capacity is bank m³ per road metre, enforced separately within each analytical interval and shared
@@ -143,7 +147,8 @@ silently truncate its economic model or label the old heuristic an optimum.
 
 `materialAllocation.test.ts` checks independently worked and exhaustively enumerated transport
 optima, shared fixed pit openings, scarce quality capacity, unknown material, bank/compacted
-conservation, course/component demand, finite disposal, direction/gap rules and local sidecast.
+conservation, course/component demand, finite disposal, direction rules, haul across road with no
+parcel and local sidecast.
 `fullCostComparison.test.ts` additionally checks exact named courses, external quality reservation,
 direction-blocked deliveries and internal rock used in a surface course without double buying.
 `sparseMaterialAllocation.test.ts` compares sparse results to independent dense solutions and
