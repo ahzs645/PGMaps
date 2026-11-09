@@ -141,6 +141,29 @@ describe('historical harvest evidence', () => {
     )
   })
 
+  it.each(['reported-dates', 'estimated-range'] as const)(
+    'describes a %s interval spanning the reference year without changing its age classification',
+    (yearMethod) => {
+      const evidence = parseHarvestEvidence({
+        source: 'bc-ften',
+        startDate: '1988-07-01',
+        endDate: '1990-06-01',
+        yearMethod,
+      })
+      const qualification = yearMethod === 'estimated-range' ? ' (may be estimated)' : ''
+      expect(harvestAgeSummary(evidence, 1989)).toBe(
+        `Reported harvest interval spans reference year 1989 · completion recorded for 1990${qualification}`,
+      )
+      expect(harvestAgeSummary(evidence, 1988)).toBe(
+        `Reported harvest interval spans reference year 1988 · completion recorded for 1990${qualification}`,
+      )
+      expect(harvestAgeSummary(evidence, 1987)).toBe('Harvest record is after reference year 1987')
+      expect(harvestAgeSummary(evidence, 1990)).not.toContain('spans reference year')
+      expect(harvestAge(evidence, 1989)).toEqual({ kind: 'future' })
+      expect(harvestHistoryStyle(evidence, 1989).key).toBe('unknown')
+    },
+  )
+
   it('uses whole calendar-year colour bins and retains uncertain cross-bin intervals', () => {
     const evidence = (startYear: number, endYear = startYear) => ({
       source: 'user' as const,

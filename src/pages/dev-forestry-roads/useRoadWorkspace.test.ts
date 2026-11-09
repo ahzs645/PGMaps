@@ -3,7 +3,8 @@ import { createElement, useEffect } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readLibrary, readProject } from './projectLibrary'
-import { createDemoProject, demoTerrain, loadLidarTerrain, roadProjection } from './terrain'
+import { createDemoProject, demoTerrain, loadLidarTerrain, roadProjection, starterAlignment } from './terrain'
+import { startInvestigationDesign } from './investigationWorkspace'
 import type { Coordinate, RoadProject } from './types'
 import { useRoadWorkspace, type RoadWorkspace } from './useRoadWorkspace'
 
@@ -91,6 +92,30 @@ afterEach(async () => {
 })
 
 describe('road workspace persistence', () => {
+  it('restores a study without analysing its internal placeholder, and analyses it only after Start design', async () => {
+    const study = createDemoProject()
+    const placeholder = starterAlignment(study.alignments[0].points[0].coordinate)
+    study.alignments = [placeholder]
+    study.activeAlignmentId = placeholder.id
+    study.workspaceMode = 'access-investigation'
+    study.investigation = { openingId: '12345', draftAlignmentId: placeholder.id }
+    study.cables = []
+    study.profiles = []
+    await stored(indexedDB as IDBFactory, study)
+    await openWorkspace()
+    expect(workspace.project.workspaceMode).toBe('access-investigation')
+    expect(workspace.analysis.stations).toEqual([])
+    expect(workspace.analysis.centerline).toEqual([])
+    expect(workspace.analysis.crossings).toEqual([])
+    expect(workspace.library[0].roads).toBe(0)
+    await act(async () => workspace.update(startInvestigationDesign))
+    expect(workspace.project.workspaceMode).toBe('design')
+    expect(workspace.analysis.stations.length).toBeGreaterThan(1)
+    await act(async () => workspace.flush())
+    expect((await readLibrary()).entries[0].roads).toBe(1)
+    expect((await readProject(workspace.projectId!))?.workspaceMode).toBe('design')
+  })
+
   it('preserves an existing project after a transient startup storage read failure, even after dismissing the error and editing', async () => {
     const factory = indexedDB as IDBFactory
     const original = { ...createDemoProject(), name: 'Keep the saved road' }

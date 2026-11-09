@@ -1,4 +1,5 @@
 import { nearestBlockEdge } from './blockAccess'
+import { investigationCoordinates, isAccessInvestigation } from './investigationWorkspace'
 import type { Alignment, ContextFeature, Coordinate, RoadProject } from './types'
 
 /** A full-cost plan needs its candidate, connected network and physical supply/destination locations visible. */
@@ -7,6 +8,7 @@ export function roadPlanFitCoordinates(
   target: 'roads' | 'active',
   active: Alignment,
 ): Coordinate[] {
+  if (isAccessInvestigation(project)) return investigationCoordinates(project)
   const roads = target === 'active' ? [active] : project.alignments
   const coordinates = roads.flatMap((alignment) => alignment.points.map((point) => point.coordinate))
   // A block a road reaches is part of the picture: fit the whole block, not just the landing.

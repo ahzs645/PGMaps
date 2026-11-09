@@ -3,7 +3,8 @@ import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import type { HistoricalCoverageNextStep, HistoricalCoverageSummary } from './accessHistorySummary'
 import type { AccessHistoryQueryStatus, AccessHistorySelection } from './AccessHistorySelection'
 import { Field, RoadSelect } from './Controls'
-import type { Coordinate } from './types'
+import { AccessHistoryCandidates } from './AccessHistoryCandidates'
+import type { ContextFeature, Coordinate } from './types'
 
 const sourceNames: Record<string, string> = {
   'results-opening': 'RESULTS opening',
@@ -38,6 +39,7 @@ const nextSteps: Record<HistoricalCoverageNextStep, { message: string; action: s
 /** The selected block leads the workflow; full ledgers remain available below. */
 export function AccessHistoryOverview({
   coverage,
+  context,
   query,
   selection,
   disabled,
@@ -46,6 +48,7 @@ export function AccessHistoryOverview({
   onLocate,
 }: {
   coverage: HistoricalCoverageSummary
+  context: readonly ContextFeature[]
   query?: AccessHistoryQueryStatus | null
   selection?: Pick<AccessHistorySelection, 'kind' | 'id'> | null
   disabled: boolean
@@ -142,8 +145,7 @@ export function AccessHistoryOverview({
               {coverage.roadCoverage.total}. {coverage.structureCoverage.matched} structure
               {coverage.structureCoverage.matched === 1 ? ' has' : 's have'} a resolved road attachment;{' '}
               {coverage.structureCoverage.withoutConstructionDate}{' '}
-              {coverage.structureCoverage.withoutConstructionDate === 1 ? 'lacks' : 'lack'}
-              construction dates.
+              {coverage.structureCoverage.withoutConstructionDate === 1 ? 'lacks' : 'lack'} construction dates.
             </p>
             {coverage.identity.entityCount > 0 && (
               <p className="text-2xs">
@@ -233,6 +235,15 @@ export function AccessHistoryOverview({
           />
         </Field>
       )}
+      <AccessHistoryCandidates
+        key={coverage.block?.id}
+        coverage={coverage}
+        context={context}
+        selection={selection}
+        disabled={disabled}
+        onInspect={onInspect}
+        onLocate={onLocate}
+      />
     </div>
   )
 }

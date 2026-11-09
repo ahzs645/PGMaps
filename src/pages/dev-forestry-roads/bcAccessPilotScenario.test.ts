@@ -4,6 +4,8 @@ import * as pilotSource from './bcAccessPilot'
 import * as terrain from './terrain'
 import { parseProject, serializeProject } from './project'
 import { createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
+import { libraryEntry } from './projectLibrary'
+import { roadPlanFitCoordinates } from './planFit'
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -35,13 +37,33 @@ function setup() {
 }
 
 describe('clean BC access investigation', () => {
-  it('opens only fetched context and a labelled design draft without inventing historical evidence', async () => {
-    const { result, dem } = setup()
-    const loaded = await loadBcAccessPilotScenario()
+  it('opens the requested opening in a persisted record-only study without inventing historical evidence', async () => {
+    const { result, pilot, dem } = setup()
+    const loaded = await loadBcAccessPilotScenario({ openingId: '12345' })
+    expect(pilot).toHaveBeenCalledWith('12345', undefined)
     expect(dem).toHaveBeenCalledWith(result.bounds, undefined, undefined)
     expect(loaded.project.context.map((feature) => feature.id)).toEqual(['pilot-fixture-block', 'pilot-fixture-road'])
     expect(loaded.project.alignments).toHaveLength(1)
-    expect(loaded.project.alignments[0].name).toContain('no historical-use assertion')
+    expect(loaded.project.workspaceMode).toBe('access-investigation')
+    expect(loaded.project.investigation).toEqual({
+      openingId: '12345',
+      draftAlignmentId: loaded.project.alignments[0].id,
+    })
+    expect(loaded.project.name).toContain('12345')
+    expect(loaded.project.scenario?.id).toBe('bc-opening-12345')
+    expect(libraryEntry('fixture', loaded.project)).toMatchObject({
+      roads: 0,
+      blocks: 1,
+      roadRecords: 1,
+      workspaceMode: 'access-investigation',
+    })
+    const fit = roadPlanFitCoordinates(loaded.project, 'active', loaded.project.alignments[0])
+    for (const feature of loaded.project.context) {
+      const coordinates =
+        feature.geometry.type === 'Polygon' ? feature.geometry.coordinates[0] : feature.geometry.coordinates
+      for (const coordinate of coordinates) expect(fit).toContainEqual(coordinate)
+    }
+    expect(fit).not.toContainEqual(loaded.project.alignments[0].points[0].coordinate)
     expect(loaded.project.accessHistory).toMatchObject({ events: [], anchors: [], paths: [], structures: [] })
     expect(loaded.project.context[1].roadEvidence?.reuseAllowed).toBe(false)
     expect(loaded.project.scenario?.contextWarnings).toEqual(['Physical road history is missing.'])

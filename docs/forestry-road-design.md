@@ -126,7 +126,7 @@ deactivation evidence are covered in the [cutblock history guide](forestry-road-
 The **Terrain → Cutblocks & harvest history** panel keeps this evidence separate
 from constraint areas and from road-tenure dates.
 
-The **Projects** dialog includes a built-in library of ten scenarios: the native Prince George
+The **Projects** dialog includes a design and training scenario library: the native Prince George
 LiDAR tile; regional Tabor Mountain, Kamloops, Vernon and Smithers maps; and offline hillside,
 existing-road-reuse, local-gravel, connected full-cost access and harvest-history training scenes. `scenarios.ts` loads terrain and public
 road/harvest context together, checks the sampled section corridor before opening, and retains
@@ -134,6 +134,15 @@ load-time source warnings in `RoadProject.scenario`. Each load starts a new edit
 The regional draft screen tests bounded orientations/lengths and samples starting profile controls;
 it does not establish a recommended route. The [terrain guide](forestry-road-design/terrain-and-point-clouds.md#the-scenario-library)
 records provenance, limits and the distinction between a ground-coverage check and complete sections.
+
+**Projects → Find BC cutblocks** adds bounded live search by opening, licence,
+cutting permit, timber mark and block ID. The scenario library also contains four
+checked real-record studies. These open in persisted **Access investigation** mode:
+the source map, block/road-record counts and evidence panel replace the engineering
+dashboard. The internal compatibility alignment is neither drawn nor analysed;
+**Start design** explicitly activates a proposed alignment. Saved unedited legacy
+opening-60677 starter projects migrate to this mode. See [BC discovery and actual
+case findings](forestry-road-design/bc-access-discovery.md).
 
 ### Offline training hillside
 

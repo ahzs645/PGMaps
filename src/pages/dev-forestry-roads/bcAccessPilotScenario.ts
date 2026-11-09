@@ -1,23 +1,25 @@
 import type { TileDecoder } from '../dev-forestry/demLoader'
 import { createAccessHistoryState } from './accessHistory'
+import { INTERNAL_ACCESS_DRAFT_NAME } from './investigationWorkspace'
 import { BC_ACCESS_PILOT_RECIPE, loadBcAccessPilot } from './bcAccessPilot'
 import { parseProject } from './project'
-import { requireScenarioTerrain } from './scenarioCoverage'
 import { DEFAULT_ROAD_SETTINGS, loadRegionalTerrain, starterAlignment } from './terrain'
 import type { Coordinate, RoadProject, TerrainSource } from './types'
 
 /** Open a clean investigation only after both its live records and real terrain have loaded. */
 export async function loadBcAccessPilotScenario({
+  openingId = BC_ACCESS_PILOT_RECIPE.openingId,
   signal,
   onProgress,
   decodeRegionalTiles,
 }: {
+  openingId?: string
   signal?: AbortSignal
   onProgress?: (message: string) => void
   decodeRegionalTiles?: TileDecoder
 } = {}): Promise<{ project: RoadProject; source: TerrainSource; notice: string }> {
   onProgress?.('Checking the BC opening and nearby road records…')
-  const pilot = await loadBcAccessPilot(BC_ACCESS_PILOT_RECIPE.openingId, signal)
+  const pilot = await loadBcAccessPilot(openingId, signal)
   if (!pilot.bounds || !pilot.blocks.length)
     throw Error(
       'This opening returned no mapped cutblock. The current project was kept; inspect the source lookup in Access history.',
@@ -27,8 +29,14 @@ export async function loadBcAccessPilotScenario({
   if (signal?.aborted) throw signal.reason ?? new DOMException('Investigation loading cancelled.', 'AbortError')
   const centre: Coordinate = [(pilot.bounds[0] + pilot.bounds[2]) / 2, (pilot.bounds[1] + pilot.bounds[3]) / 2]
   const draft = starterAlignment(centre)
-  draft.name = 'Design draft · no historical-use assertion'
-  const terrainCoverage = requireScenarioTerrain([draft], loaded.source, DEFAULT_ROAD_SETTINGS.crossSectionHalfWidth)
+  draft.name = INTERNAL_ACCESS_DRAFT_NAME
+  // Coverage describes sampled source-block vertices, not the unused internal alignment.
+  const blockVertices = pilot.blocks.flatMap((block) =>
+    block.geometry.type === 'Polygon' ? block.geometry.coordinates[0] : [],
+  )
+  const coveredVertices = blockVertices.filter(([lon, lat]) =>
+    Number.isFinite(loaded.source.elevationAt(lon, lat)),
+  ).length
   const harvestStart = pilot.identity.records.find(
     (record) => record.source === 'ften-cutblock' && record.disturbanceStartDate,
   )?.disturbanceStartDate
@@ -36,14 +44,16 @@ export async function loadBcAccessPilotScenario({
   history.sources = pilot.sources
   const project = parseProject({
     schema: 'pgmaps-road-project-v1',
-    name: BC_ACCESS_PILOT_RECIPE.title,
+    name: `BC access study · opening ${pilot.openingId}`,
+    workspaceMode: 'access-investigation',
+    investigation: { openingId: pilot.openingId, draftAlignmentId: draft.id },
     scenario: {
-      id: 'bc-opening-60677',
+      id: `bc-opening-${pilot.openingId}`,
       contextWarnings: pilot.findings
         .filter((finding) => finding.kind === 'gap')
         .map((finding) => finding.text)
         .slice(0, 10),
-      terrainCoveragePercent: terrainCoverage.coveragePercent,
+      terrainCoveragePercent: blockVertices.length ? (coveredVertices / blockVertices.length) * 100 : 0,
     },
     terrain: loaded.metadata,
     alignments: [draft],
@@ -57,6 +67,6 @@ export async function loadBcAccessPilotScenario({
   return {
     project,
     source: loaded.source,
-    notice: `Opened ${pilot.blocks.length} FTEN cutblock part(s) and ${pilot.roads.length} road segment part(s) from live BC records. The orange line is a new design draft. No historical route, construction date, entrance, outlet or bridge inventory has been assumed. Open Terrain → Access history to review the connected records and missing evidence.`,
+    notice: `Opened ${pilot.blocks.length} FTEN cutblock part(s) and ${pilot.roads.length} road segment part(s) from live BC records. Review the mapped records and missing access evidence. No historical route, construction date, entrance, outlet or bridge inventory has been assumed.`,
   }
 }

@@ -1,4 +1,11 @@
 import { RoadSelect } from './dev-forestry-roads/Controls'
+import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
+import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
+import {
+  isAccessInvestigation,
+  mappedRoadRecordCount,
+  startInvestigationDesign,
+} from './dev-forestry-roads/investigationWorkspace'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
@@ -199,6 +206,7 @@ const boundsOf = (p: RoadProject): [number, number, number, number] => {
 export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
+  const investigation = isAccessInvestigation(project)
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const [collapsed, setCollapsed] = useState(false)
   const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
@@ -272,8 +280,14 @@ export default function DevForestryRoads() {
       return 'linked'
     }
   })
-  const { base: layout, storageId: layoutStorageId } = resolveLayout(layoutSelection, savedLayouts)
-  const [hiddenPanels, setHiddenPanels, restorePreset] = useRoadPanels(layoutStorageId, layout)
+  const savedLayout = resolveLayout(layoutSelection, savedLayouts)
+  const layout = investigation ? 'plan' : savedLayout.base
+  const layoutStorageId = investigation ? 'access-investigation' : savedLayout.storageId
+  const [savedHiddenPanels, setHiddenPanels, restorePreset] = useRoadPanels(layoutStorageId, layout)
+  const hiddenPanels = useMemo<RoadPaneId[]>(
+    () => (investigation ? ['profile', 'detail', 'data'] : savedHiddenPanels),
+    [investigation, savedHiddenPanels],
+  )
   const focusOptions = [
     { value: 'plan' as const, label: 'Plan' },
     { value: 'profile' as const, label: 'Profile' },
@@ -508,6 +522,31 @@ export default function DevForestryRoads() {
     setCollapsed(false)
     setControlsOpen(true)
   }, [])
+  useEffect(() => {
+    if (!investigation) return
+    setMode('inspect')
+    setDraft([])
+    setActiveProfile(null)
+    setPlaying(false)
+    setCollapsed(false)
+    setControlsOpen(true)
+    setFocusPane('plan')
+    setCostOpen(false)
+    setFilesOpen(false)
+    setCompleteCostOpen(false)
+    setNetworkOpen(false)
+    setTemplatePreview(null)
+    setPegPreview(null)
+    setCompleteCostPreview(null)
+    setRoutePreviewState(null)
+    setNetworkPreview(null)
+    setRouteLines(null)
+    setOverlay({ type: 'FeatureCollection', features: [] })
+    setSelectedPoint(null)
+    setSelectedCulvertId(undefined)
+    setProfileRange(null)
+    setFitRevision((revision) => revision + 1)
+  }, [investigation, w.projectId])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
   const openCompleteCosts = () => {
     if (!project.totalCostPlanning)
@@ -641,8 +680,14 @@ export default function DevForestryRoads() {
     (preview: Alignment | null) => setPegPreview(preview ? { base: alignment, preview, source } : null),
     [alignment, source],
   )
-  const displayedAlignment =
-    draftAlignment ?? terrainProfile ?? numericPegAlignment ?? costPreview?.alignment ?? templateAlignment ?? alignment
+  const displayedAlignment = investigation
+    ? alignment
+    : (draftAlignment ??
+      terrainProfile ??
+      numericPegAlignment ??
+      costPreview?.alignment ??
+      templateAlignment ??
+      alignment)
   const completeCostRecord = displayedAlignment === alignment ? alignment.fullCostRecord : undefined
   const completeCostCurrent = useMemo(
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
@@ -848,7 +893,7 @@ export default function DevForestryRoads() {
     if (id && detail === 'mass') setDetail('section')
   }
   const beginMode = (next: DrawMode) => {
-    if (w.busy) return
+    if (w.busy || (investigation && next !== 'inspect')) return
     setMode(next)
     setPegPreview(null)
     setDraft([])
@@ -968,8 +1013,12 @@ export default function DevForestryRoads() {
     message: string,
     action: (signal: AbortSignal) => Promise<void>,
     cancellation?: { label: string; notice: string },
+    propagateError = false,
   ) => {
-    if (w.busy) return
+    if (w.busy) {
+      if (propagateError) throw Error('Wait for the current operation to finish.')
+      return
+    }
     setMode('inspect')
     setDraft([])
     setPlaying(false)
@@ -988,8 +1037,11 @@ export default function DevForestryRoads() {
     w.setError('')
     try {
       await action(controller.signal)
+      if (propagateError && controller.signal.aborted)
+        throw controller.signal.reason ?? new DOMException('Loading cancelled.', 'AbortError')
     } catch (error) {
       if (!controller.signal.aborted) w.setError(error instanceof Error ? error.message : 'Operation failed.')
+      if (propagateError) throw error
     } finally {
       if (operation.current === controller) w.setBusy('')
     }
@@ -1220,11 +1272,10 @@ export default function DevForestryRoads() {
         setRoutePreviewState(null)
         setFitRevision((n) => n + 1)
         w.setNotice(loaded.notice)
-        if (id === 'bc-opening-60677') {
+        if (isAccessInvestigation(loaded.project)) {
           const block = loaded.project.context.find((feature) => feature.kind === 'harvest')
           if (block) {
             inspectHistoryEvidence({ kind: 'block', id: block.id })
-            showOnPlan(block)
             // Keep the evidence visible beside the map on desktop; on phones the controls
             // are the first useful view because no historical path has been established yet.
             setControlsOpen(true)
@@ -1232,6 +1283,25 @@ export default function DevForestryRoads() {
         }
       },
       { label: 'Cancel scenario loading', notice: 'Scenario loading cancelled. The current project was kept.' },
+    )
+  const openBcOpening = async (openingId: string) =>
+    run(
+      'Loading the selected BC opening…',
+      async (signal) => {
+        const loaded = await loadBcAccessPilotScenario({ openingId, signal, onProgress: w.setBusy })
+        if (signal.aborted) return
+        await w.flush()
+        if (signal.aborted) return
+        w.startProject(loaded.project, loaded.source)
+        setSelectedPoint(null)
+        setRoutePreviewState(null)
+        setFitRevision((revision) => revision + 1)
+        const block = loaded.project.context.find((feature) => feature.kind === 'harvest')
+        if (block) inspectHistoryEvidence({ kind: 'block', id: block.id })
+        w.setNotice(loaded.notice)
+      },
+      { label: 'Cancel opening study', notice: 'Opening study cancelled. The current project was kept.' },
+      true,
     )
   const requestFile = (kind: FileKind) => {
     if (w.busy) return
@@ -1336,6 +1406,10 @@ export default function DevForestryRoads() {
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
     const safe = parseProject(project)
+    if (investigation && kind !== 'project' && kind !== 'notes')
+      throw Error(
+        'This is an access investigation. Export its evidence bundle or report in Access history; start a design before exporting engineering results.',
+      )
     const calculated = kind !== 'project' && kind !== 'notes'
     if (calculated && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
       throw Error('Finish or close the design preview before exporting calculated results.')
@@ -1833,6 +1907,7 @@ export default function DevForestryRoads() {
       data-fullscreen={fullscreen || undefined}
       className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 px-3 pb-3 pt-20 md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
       data-testid="road-workspace"
+      data-workspace-mode={investigation ? 'access-investigation' : 'design'}
       data-compact={compact || undefined}
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
@@ -1845,7 +1920,9 @@ export default function DevForestryRoads() {
         <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
-            <h1 className="truncate text-lg font-semibold tracking-tight">Forest road design</h1>
+            <h1 className="truncate text-lg font-semibold tracking-tight">
+              {investigation ? 'Forest access investigation' : 'Forest road design'}
+            </h1>
             <p
               role="status"
               aria-live="polite"
@@ -1872,17 +1949,36 @@ export default function DevForestryRoads() {
             </span>
           )}
         </div>
-        <RoadSwitcher
-          className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
-          alignments={project.alignments}
-          analyses={w.analyses}
-          activeId={project.activeAlignmentId}
-          disabled={!!w.busy}
-          onSelect={selectAlignment}
-          onCompare={() => setDetail('compare')}
-        />
+        {!investigation && (
+          <RoadSwitcher
+            className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
+            alignments={project.alignments}
+            analyses={w.analyses}
+            activeId={project.activeAlignmentId}
+            disabled={!!w.busy}
+            onSelect={selectAlignment}
+            onCompare={() => setDetail('compare')}
+          />
+        )}
         <div className="flex flex-wrap items-center gap-1">
-          {tinyHeight && (
+          {investigation && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!busy}
+              onClick={() => {
+                w.update(startInvestigationDesign)
+                setWorkflowTab('design')
+                setFitRevision((revision) => revision + 1)
+                w.setNotice(
+                  'Started a new proposed design. The orange draft is editable and is not a mapped road or historical-use record.',
+                )
+              }}
+            >
+              Start design
+            </Button>
+          )}
+          {tinyHeight && !investigation && (
             <Button
               variant="outline"
               size="icon"
@@ -1895,21 +1991,23 @@ export default function DevForestryRoads() {
               <BarChart3 className="size-4" />
             </Button>
           )}
-          <LayoutPicker
-            compact={compact || focusMode}
-            hiddenPanels={hiddenPanels}
-            onHiddenPanels={setHiddenPanels}
-            selection={layoutSelection}
-            onSelect={(value, saved = savedLayouts) => {
-              const next = resolveLayout(value, saved)
-              setLayoutSelection(value)
-              if (!value.startsWith('saved:')) restorePreset(next.base)
-              if (next.base !== 'linked') setDetail('section')
-            }}
-            saved={savedLayouts}
-            onSaved={setSavedLayouts}
-            portalContainer={ref.current}
-          />
+          {!investigation && (
+            <LayoutPicker
+              compact={compact || focusMode}
+              hiddenPanels={hiddenPanels}
+              onHiddenPanels={setHiddenPanels}
+              selection={layoutSelection}
+              onSelect={(value, saved = savedLayouts) => {
+                const next = resolveLayout(value, saved)
+                setLayoutSelection(value)
+                if (!value.startsWith('saved:')) restorePreset(next.base)
+                if (next.base !== 'linked') setDetail('section')
+              }}
+              saved={savedLayouts}
+              onSaved={setSavedLayouts}
+              portalContainer={ref.current}
+            />
+          )}
           {/* On narrow headers a failed save is a dot too; its title and label carry the text. */}
           {saveNotice && (
             <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
@@ -1929,7 +2027,15 @@ export default function DevForestryRoads() {
             variant="outline"
             size="icon"
             className="size-8"
-            aria-label={controlsShown ? 'Hide road controls' : 'Show road controls'}
+            aria-label={
+              controlsShown
+                ? investigation
+                  ? 'Hide access evidence'
+                  : 'Hide road controls'
+                : investigation
+                  ? 'Show access evidence'
+                  : 'Show road controls'
+            }
             aria-expanded={controlsShown}
             onClick={() => (focusMode ? setControlsOpen(!controlsOpen) : setCollapsed(!collapsed))}
           >
@@ -1987,7 +2093,7 @@ export default function DevForestryRoads() {
             className="size-8 px-0 md:w-auto md:px-3"
             title="Save & export"
             disabled={!!w.busy}
-            onClick={() => setFilesOpen(true)}
+            onClick={() => (investigation ? save('project') : setFilesOpen(true))}
           >
             <Download className="size-4 md:mr-1 md:size-3" />
             <span className="sr-only md:not-sr-only">Save</span>
@@ -2020,11 +2126,12 @@ export default function DevForestryRoads() {
         onOpenFile={() => requestFile('project')}
         onCreate={createProject}
         onScenario={openScenario}
+        onOpenBcOpening={openBcOpening}
         portalContainer={ref.current}
       />
       <NetworkPlanningDialog
         workspace={w}
-        open={networkOpen}
+        open={!investigation && networkOpen}
         onOpenChange={setNetworkOpen}
         onReviewRoad={(id) => {
           setNetworkOpen(false)
@@ -2065,7 +2172,7 @@ export default function DevForestryRoads() {
       />
       <FullCostPlanningDialog
         workspace={w}
-        open={completeCostOpen}
+        open={!investigation && completeCostOpen}
         onOpenChange={setCompleteCostOpen}
         portalContainer={ref.current}
         onPreview={(preview) => {
@@ -2095,7 +2202,7 @@ export default function DevForestryRoads() {
         onReviewRoads={openRoadReview}
       />
       <FilesDialog
-        open={filesOpen}
+        open={!investigation && filesOpen}
         onOpenChange={setFilesOpen}
         name={project.name}
         onName={(name) => update((p) => ({ ...p, name }))}
@@ -2117,7 +2224,7 @@ export default function DevForestryRoads() {
         previewVersion={exportPreviewVersion}
       />
       <CostBreakdown
-        open={costOpen && !!displayedAnalysis.stations.length}
+        open={!investigation && costOpen && !!displayedAnalysis.stations.length}
         onOpenChange={setCostOpen}
         analysis={displayedAnalysis}
         alignment={displayedAlignment}
@@ -2191,123 +2298,159 @@ export default function DevForestryRoads() {
             : []),
         ]}
       />
-      <StatGroup
-        variant="tiles"
-        size="sm"
-        className="road-summary shrink-0"
-        items={[
-          { key: 'length', label: 'Length', value: `${number(displayedAnalysis.length, 0)} m` },
-          {
-            key: 'elevation',
-            label: summaryLabel('Ground elevation', 'Elevation (m)'),
-            value: groundValues.length
-              ? summaryValue(
-                  `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)} m`,
-                  `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)}`,
-                )
-              : 'Missing',
-          },
-          {
-            key: 'grade',
-            label: summaryLabel(
-              terrainProfile ? 'Max ground grade' : 'Max design grade',
-              terrainProfile ? 'Ground grade' : 'Max grade',
-            ),
-            value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
-            tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
-          },
-          ...(terrainProfile
-            ? [
-                {
-                  key: 'grade-range',
-                  label: 'Grade range',
-                  value: grades.length
-                    ? `${number(Math.min(...grades))} to ${number(Math.max(...grades))}%`
-                    : 'Missing',
-                },
-              ]
-            : [
-                {
-                  key: 'earthworks',
-                  label: summaryLabel(
-                    !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
-                    !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
-                  ),
-                  value: displayedAnalysis.stations.length
-                    ? summaryValue(
-                        `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`,
-                        `${compactNumber.format(Math.round(displayedAnalysis.cutVolumeM3))}/${compactNumber.format(Math.round(displayedAnalysis.fillVolumeM3))}`,
-                      )
-                    : 'Unavailable',
-                },
-                {
-                  key: 'cost',
-                  label: costPreview
-                    ? 'Candidate complete cost'
-                    : completeCostRecord
-                      ? 'Complete access cost'
-                      : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
-                        ? 'Incomplete estimate'
-                        : summaryLabel(
-                            'Base engineering estimate',
-                            hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                          ),
-                  value: costPreview
-                    ? costPreview.totalCost === null
-                      ? costPreview.status === 'infeasible'
-                        ? 'Not feasible'
-                        : 'Unpriced'
-                      : `$${number(costPreview.totalCost, 0)}`
-                    : completeCostRecord
-                      ? completeCostCurrent
-                        ? `$${number(completeCostRecord.totalCost, 0)}`
-                        : 'Recalculate'
-                      : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
-                        ? 'Material plan infeasible'
+      {investigation ? (
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          className="shrink-0"
+          items={[
+            { key: 'opening', label: 'Opening', value: project.investigation?.openingId ?? 'Unknown' },
+            {
+              key: 'blocks',
+              label: 'Mapped block parts',
+              value: project.context.filter((feature) => feature.kind === 'harvest').length,
+            },
+            {
+              key: 'records',
+              label: 'Tenure road records',
+              value: mappedRoadRecordCount(project),
+            },
+            { key: 'routes', label: 'Saved access assertions', value: project.accessHistory?.paths.length ?? 0 },
+          ]}
+        />
+      ) : (
+        <StatGroup
+          variant="tiles"
+          size="sm"
+          className="road-summary shrink-0"
+          items={[
+            { key: 'length', label: 'Length', value: `${number(displayedAnalysis.length, 0)} m` },
+            {
+              key: 'elevation',
+              label: summaryLabel('Ground elevation', 'Elevation (m)'),
+              value: groundValues.length
+                ? summaryValue(
+                    `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)} m`,
+                    `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)}`,
+                  )
+                : 'Missing',
+            },
+            {
+              key: 'grade',
+              label: summaryLabel(
+                terrainProfile ? 'Max ground grade' : 'Max design grade',
+                terrainProfile ? 'Ground grade' : 'Max grade',
+              ),
+              value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
+              tone: displayedAnalysis.maxGradePercent > project.settings.maxGradePercent ? 'warning' : 'default',
+            },
+            ...(terrainProfile
+              ? [
+                  {
+                    key: 'grade-range',
+                    label: 'Grade range',
+                    value: grades.length
+                      ? `${number(Math.min(...grades))} to ${number(Math.max(...grades))}%`
+                      : 'Missing',
+                  },
+                ]
+              : [
+                  {
+                    key: 'earthworks',
+                    label: summaryLabel(
+                      !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
+                      !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
+                    ),
+                    value: displayedAnalysis.stations.length
+                      ? summaryValue(
+                          `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`,
+                          `${compactNumber.format(Math.round(displayedAnalysis.cutVolumeM3))}/${compactNumber.format(Math.round(displayedAnalysis.fillVolumeM3))}`,
+                        )
+                      : 'Unavailable',
+                  },
+                  {
+                    key: 'cost',
+                    label: costPreview
+                      ? 'Candidate complete cost'
+                      : completeCostRecord
+                        ? 'Complete access cost'
+                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
+                          ? 'Incomplete estimate'
+                          : summaryLabel(
+                              'Base engineering estimate',
+                              hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                            ),
+                    value: costPreview
+                      ? costPreview.totalCost === null
+                        ? costPreview.status === 'infeasible'
+                          ? 'Not feasible'
+                          : 'Unpriced'
+                        : `$${number(costPreview.totalCost, 0)}`
+                      : completeCostRecord
+                        ? completeCostCurrent
+                          ? `$${number(completeCostRecord.totalCost, 0)}`
+                          : 'Recalculate'
+                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
+                          ? 'Material plan infeasible'
+                          : displayedAnalysis.stations.length
+                            ? summaryValue(
+                                `$${number(displayedAnalysis.estimatedCost, 0)}`,
+                                `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
+                              )
+                            : 'Unavailable',
+                    // Opens the calculation: quantities × editable rates.
+                    onToggle:
+                      costPreview || completeCostRecord
+                        ? openCompleteCosts
                         : displayedAnalysis.stations.length
-                          ? summaryValue(
-                              `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                              `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                            )
-                          : 'Unavailable',
-                  // Opens the calculation: quantities × editable rates.
-                  onToggle:
-                    costPreview || completeCostRecord
-                      ? openCompleteCosts
-                      : displayedAnalysis.stations.length
-                        ? () => setCostOpen((open) => !open)
-                        : undefined,
-                  pressed: costPreview || completeCostRecord ? completeCostOpen : costOpen,
-                  toggleLabel:
-                    costPreview || completeCostRecord
-                      ? 'Review complete route costs'
-                      : 'Show how the covered estimate is calculated',
-                },
-                {
-                  key: 'coverage',
-                  label: summaryLabel('Complete sections', 'Coverage'),
-                  value: `${number(displayedAnalysis.coveragePercent)}%`,
-                  tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
-                },
-              ]),
-        ]}
-      />
+                          ? () => setCostOpen((open) => !open)
+                          : undefined,
+                    pressed: costPreview || completeCostRecord ? completeCostOpen : costOpen,
+                    toggleLabel:
+                      costPreview || completeCostRecord
+                        ? 'Review complete route costs'
+                        : 'Show how the covered estimate is calculated',
+                  },
+                  {
+                    key: 'coverage',
+                    label: summaryLabel('Complete sections', 'Coverage'),
+                    value: `${number(displayedAnalysis.coveragePercent)}%`,
+                    tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
+                  },
+                ]),
+          ]}
+        />
+      )}
       <ResizableSplit
         direction="row"
         splitQuery="(min-width: 0px)"
-        storageKey="pgmaps-road-panes:sidebar"
+        storageKey={investigation ? 'pgmaps-access-investigation:sidebar' : 'pgmaps-road-panes:sidebar'}
         className={`relative min-h-0 flex-1 ${focusMode ? 'road-focus-split' : ''}`}
         panes={[
           {
             id: 'sidebar',
             hidden: !controlsShown,
-            label: 'road controls',
-            size: 0.22,
-            min: 240,
+            label: investigation ? 'access evidence' : 'road controls',
+            size: investigation ? 0.34 : 0.22,
+            min: investigation ? 340 : 240,
             max: 560,
             stackedHeight: 'auto' as const,
             className: focusMode ? 'absolute inset-y-0 left-0 z-40 w-[min(22rem,100%)] bg-card shadow-xl' : undefined,
-            content: (
+            content: investigation ? (
+              <div
+                className="h-full min-h-0 overflow-y-auto rounded-lg border bg-card p-3"
+                data-testid="access-investigation-sidebar"
+              >
+                <AccessHistoryPanel
+                  workspace={w}
+                  defaultOpen
+                  onLocate={locateHistory}
+                  selection={historySelection}
+                  onInspectRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
+                  onSelectBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
+                />
+              </div>
+            ) : (
               <DesignSidebar
                 workspace={{ ...w, station }}
                 workflowTab={workflowTab}
@@ -2364,6 +2507,8 @@ export default function DevForestryRoads() {
                 onLocateConstraint={locateConstraint}
                 onLocateHistory={locateHistory}
                 historySelection={historySelection}
+                onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
+                onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
                 focusedConstraintId={focusedConstraintId}
                 cutblockReviewRequest={cutblockReviewRequest}
                 onReviewRoad={reviewRoad}
@@ -2405,9 +2550,9 @@ export default function DevForestryRoads() {
             content: (
               <main
                 className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
-                aria-label="Connected road views"
+                aria-label={investigation ? 'Access investigation map' : 'Connected road views'}
               >
-                {focusMode && (
+                {focusMode && !investigation && (
                   <TabBar
                     label="Visible road pane"
                     value={focusedPane ?? 'plan'}
@@ -2419,10 +2564,10 @@ export default function DevForestryRoads() {
                     stretch
                   />
                 )}
-                {!displayedAnalysis.stations.length && (
+                {!investigation && !displayedAnalysis.stations.length && (
                   <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
                 )}
-                {routePreview && (
+                {!investigation && routePreview && (
                   <div
                     role="status"
                     data-testid="road-live-route-preview"
@@ -2435,7 +2580,7 @@ export default function DevForestryRoads() {
                     </span>
                   </div>
                 )}
-                {costPreview && (
+                {!investigation && costPreview && (
                   <div
                     className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                     data-testid="full-cost-map-preview"
@@ -2455,7 +2600,7 @@ export default function DevForestryRoads() {
                     </div>
                   </div>
                 )}
-                {isDrawing && (
+                {!investigation && isDrawing && (
                   <div
                     className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                     data-testid="pegging-feedback"
@@ -2508,13 +2653,13 @@ export default function DevForestryRoads() {
                     </Button>
                   </div>
                 )}
-                {numericPegAlignment && !draftAlignment && !terrainProfile && (
+                {!investigation && numericPegAlignment && !draftAlignment && !terrainProfile && (
                   <div role="status" className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
                     Numeric peg preview · plan, profile, section and leg table use the proposed endpoint. Add peg to
                     save it, or cancel the preview in the peg controls.
                   </div>
                 )}
-                {templatePreview && (
+                {!investigation && templatePreview && (
                   <div className="flex flex-wrap items-center justify-between gap-1 rounded border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
                     <span>
                       Template preview: {templatePreview.name} · current terrain and station · assignments temporarily
@@ -2544,7 +2689,7 @@ export default function DevForestryRoads() {
                     </div>
                   </div>
                 )}
-                {selectedRange && !terrainProfile && (
+                {!investigation && selectedRange && !terrainProfile && (
                   <div
                     role="status"
                     data-testid="road-feature-selection"
@@ -2566,34 +2711,41 @@ export default function DevForestryRoads() {
                   storageId={layoutStorageId}
                   plan={
                     <FullscreenPanel
-                      title="Plan · alignment & terrain"
+                      title={investigation ? 'Mapped blocks and road records' : 'Plan · alignment & terrain'}
                       compact
                       className="flex min-h-0 flex-1 flex-col"
                       actions={
                         <>
                           {' '}
                           <span className="road-plan-hint text-3xs text-muted-foreground">
-                            {drainageOnPlan
-                              ? 'Blue design streams · dashed existing · red redirected · amber low point'
-                              : drainageStale && !terrainProfile
-                                ? 'Drainage out of date · re-run it to show flow'
-                                : 'Orange road · red grade flag'}
+                            {investigation
+                              ? 'Mapped records · select a road to inspect its evidence'
+                              : drainageOnPlan
+                                ? 'Blue design streams · dashed existing · red redirected · amber low point'
+                                : drainageStale && !terrainProfile
+                                  ? 'Drainage out of date · re-run it to show flow'
+                                  : 'Orange road · red grade flag'}
                           </span>
-                          {closePanel('plan')}
+                          {!investigation && closePanel('plan')}
                         </>
                       }
                     >
                       {() => (
                         <div className="min-h-0 flex-1">
                           <PlanView
-                            selectedRange={terrainProfile ? undefined : selectedRange}
+                            selectedRange={investigation || terrainProfile ? undefined : selectedRange}
                             onMapReady={onPlanReady}
                             selectedCulvertId={currentCulvertId}
                             onHistorySelect={inspectHistoryEvidence}
                             historySelection={historySelection}
                             onSelectCulvert={selectCulvert}
                             onContextSelect={(feature) => {
-                              if (feature.kind === 'existing-road') openRoadReview(feature.id)
+                              if (investigation)
+                                inspectHistoryEvidence({
+                                  kind: feature.kind === 'harvest' ? 'block' : 'road',
+                                  id: feature.id,
+                                })
+                              else if (feature.kind === 'existing-road') openRoadReview(feature.id)
                               else if (feature.kind === 'harvest') {
                                 setFocusedConstraintId(feature.id)
                                 setCutblockReviewRequest((previous) => ({
@@ -2608,15 +2760,19 @@ export default function DevForestryRoads() {
                             project={displayProject}
                             // Notes are their own collection; a note edit is an ordinary, undoable project edit.
                             onNotesChange={busy ? undefined : (notes) => update((p) => ({ ...p, notes }))}
-                            onHighlightRoad={(road) => reviewRoad(road, true)}
+                            onHighlightRoad={(road) =>
+                              investigation
+                                ? inspectHistoryEvidence({ kind: 'road', id: road.id })
+                                : reviewRoad(road, true)
+                            }
                             alignment={displayedAlignment}
                             analyses={displayAnalyses}
                             source={source}
                             station={station}
                             onStation={w.setStation}
                             onSelectAlignment={selectAlignment}
-                            onMode={busy || costPreview ? undefined : beginMode}
-                            mode={costPreview ? 'inspect' : mode}
+                            onMode={investigation || busy || costPreview ? undefined : beginMode}
+                            mode={investigation || costPreview ? 'inspect' : mode}
                             draft={draft}
                             onDraw={onDraw}
                             onMovePoint={movePoint}
@@ -2638,14 +2794,14 @@ export default function DevForestryRoads() {
                             onSelectPoint={setSelectedPoint}
                             selectedPoint={selectedPoint}
                             fitRevision={fitRevision}
-                            terrainOnly={!!terrainProfile}
+                            terrainOnly={investigation || !!terrainProfile}
                             activeCableId={detail === 'cable' ? cableLine?.id : undefined}
                             onSelectCable={selectCable}
                             cableDistance={cableDistance}
                             onCableDistance={setCableDistance}
-                            overlay={planOverlay}
-                            drainage={drainageOnPlan}
-                            swept={showSwept ? sweptState.result?.overlay : undefined}
+                            overlay={investigation ? undefined : planOverlay}
+                            drainage={investigation ? undefined : drainageOnPlan}
+                            swept={!investigation && showSwept ? sweptState.result?.overlay : undefined}
                             // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                             pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={
@@ -3126,115 +3282,117 @@ export default function DevForestryRoads() {
                     )
                   }
                 />
-                <div
-                  className="road-station-controller flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-2 sm:gap-2"
-                  data-testid="road-station-controller"
-                >
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="size-7"
-                    aria-label={playing ? 'Pause station playback' : 'Play station playback'}
-                    onClick={() => {
-                      if (station >= displayedAnalysis.length) w.setStation(0)
-                      setPlaying(!playing)
-                    }}
+                {!investigation && (
+                  <div
+                    className="road-station-controller flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-2 sm:gap-2"
+                    data-testid="road-station-controller"
                   >
-                    {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
-                  </Button>
-                  <button
-                    className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
-                    aria-label="Previous road station"
-                    onClick={() =>
-                      w.setStation(
-                        [...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)?.chainage ??
-                          0,
-                      )
-                    }
-                  >
-                    ‹
-                  </button>
-                  <label className="flex items-center gap-1 text-xs">
-                    {/* Narrow phones keep the slider on the same row; the input stays named. */}
-                    <span className="max-[399px]:sr-only">Station</span>{' '}
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="size-7"
+                      aria-label={playing ? 'Pause station playback' : 'Play station playback'}
+                      onClick={() => {
+                        if (station >= displayedAnalysis.length) w.setStation(0)
+                        setPlaying(!playing)
+                      }}
+                    >
+                      {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
+                    </Button>
+                    <button
+                      className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                      aria-label="Previous road station"
+                      onClick={() =>
+                        w.setStation(
+                          [...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                            ?.chainage ?? 0,
+                        )
+                      }
+                    >
+                      ‹
+                    </button>
+                    <label className="flex items-center gap-1 text-xs">
+                      {/* Narrow phones keep the slider on the same row; the input stays named. */}
+                      <span className="max-[399px]:sr-only">Station</span>{' '}
+                      <input
+                        aria-label="Selected station metres"
+                        type="number"
+                        min={0}
+                        max={Math.ceil(displayedAnalysis.length * 10) / 10}
+                        step="any"
+                        className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
+                        title="Updates the linked views as you type. Arrow keys select the next or previous calculated station."
+                        value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
+                        onChange={(e) => {
+                          const text = e.target.value
+                          const value = Number(text)
+                          if (text.trim() && Number.isFinite(value)) {
+                            const bounded = Math.max(0, Math.min(displayedAnalysis.length, value))
+                            setStation(bounded)
+                            setStationEntry({
+                              value: nearestStation(displayedAnalysis.stations, bounded)?.chainage ?? 0,
+                              text,
+                            })
+                          } else setStationEntry({ value: station, text })
+                        }}
+                        onBlur={finishStationEntry}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') finishStationEntry()
+                          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                            e.preventDefault()
+                            const next =
+                              e.key === 'ArrowUp'
+                                ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                                  displayedAnalysis.length)
+                                : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                                    ?.chainage ?? 0)
+                            setStationEntry(null)
+                            setStation(next)
+                          }
+                        }}
+                      />
+                    </label>
+                    <button
+                      className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                      aria-label="Next road station"
+                      onClick={() =>
+                        w.setStation(
+                          displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                            displayedAnalysis.length,
+                        )
+                      }
+                    >
+                      ›
+                    </button>
                     <input
-                      aria-label="Selected station metres"
-                      type="number"
+                      aria-label="Linked road station"
+                      type="range"
                       min={0}
-                      max={Math.ceil(displayedAnalysis.length * 10) / 10}
-                      step="any"
-                      className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
-                      title="Updates the linked views as you type. Arrow keys select the next or previous calculated station."
-                      value={stationEntry?.value === station ? stationEntry.text : Number(station.toFixed(1))}
-                      onChange={(e) => {
-                        const text = e.target.value
-                        const value = Number(text)
-                        if (text.trim() && Number.isFinite(value)) {
-                          const bounded = Math.max(0, Math.min(displayedAnalysis.length, value))
-                          setStation(bounded)
-                          setStationEntry({
-                            value: nearestStation(displayedAnalysis.stations, bounded)?.chainage ?? 0,
-                            text,
-                          })
-                        } else setStationEntry({ value: station, text })
-                      }}
-                      onBlur={finishStationEntry}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') finishStationEntry()
-                        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                          e.preventDefault()
-                          const next =
-                            e.key === 'ArrowUp'
-                              ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
-                                displayedAnalysis.length)
-                              : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
-                                  ?.chainage ?? 0)
-                          setStationEntry(null)
-                          setStation(next)
-                        }
-                      }}
+                      max={Math.max(1, displayedAnalysis.length)}
+                      step={1}
+                      value={station}
+                      className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
+                      onChange={(e) => w.setStation(Number(e.target.value))}
                     />
-                  </label>
-                  <button
-                    className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
-                    aria-label="Next road station"
-                    onClick={() =>
-                      w.setStation(
-                        displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
-                          displayedAnalysis.length,
-                      )
-                    }
-                  >
-                    ›
-                  </button>
-                  <input
-                    aria-label="Linked road station"
-                    type="range"
-                    min={0}
-                    max={Math.max(1, displayedAnalysis.length)}
-                    step={1}
-                    value={station}
-                    className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
-                    onChange={(e) => w.setStation(Number(e.target.value))}
-                  />
-                  <output className="font-mono text-xs" data-testid="road-selected-station">
-                    {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
-                      <span
-                        className="font-sans text-amber-800 dark:text-amber-300"
-                        data-testid="road-station-terrain-gap"
-                        title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
-                      >
-                        {at.groundElevation === null ? 'No ground elevation' : 'Terrain gaps in the cross-section'} at{' '}
-                        {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
-                      </span>
-                    ) : (
-                      <>
-                        {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
-                        {number(at?.gradePercent)}%
-                      </>
-                    )}
-                  </output>
-                </div>
+                    <output className="font-mono text-xs" data-testid="road-selected-station">
+                      {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
+                        <span
+                          className="font-sans text-amber-800 dark:text-amber-300"
+                          data-testid="road-station-terrain-gap"
+                          title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
+                        >
+                          {at.groundElevation === null ? 'No ground elevation' : 'Terrain gaps in the cross-section'} at{' '}
+                          {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
+                        </span>
+                      ) : (
+                        <>
+                          {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
+                          {number(at?.gradePercent)}%
+                        </>
+                      )}
+                    </output>
+                  </div>
+                )}
               </main>
             ),
           },

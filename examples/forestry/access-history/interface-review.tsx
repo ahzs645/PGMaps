@@ -1,9 +1,12 @@
-import { useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Button } from '@/components/ui/button'
 import { AccessHistoryPanel } from '@/pages/dev-forestry-roads/AccessHistoryPanel'
 import type { AccessHistorySelection, AccessHistoryWorkspace } from '@/pages/dev-forestry-roads/AccessHistorySelection'
 import { createAccessHistoryState } from '@/pages/dev-forestry-roads/accessHistory'
+import { BcAccessDiscoveryPanel } from '@/pages/dev-forestry-roads/BcAccessDiscoveryPanel'
+import { loadBcAccessPilot } from '@/pages/dev-forestry-roads/bcAccessPilot'
+import { parseProject } from '@/pages/dev-forestry-roads/project'
 import { historicalMapFeatures } from '@/pages/dev-forestry-roads/accessHistoryMap'
 import { createAccessHistoryTrainingProject } from '@/pages/dev-forestry-roads/trainingAccessHistoryScenario'
 import { createDemoProject } from '@/pages/dev-forestry-roads/terrain'
@@ -37,10 +40,12 @@ const coordinatesOf = (project: RoadProject): Coordinate[] => [
 function EvidenceDiagram({
   project,
   focus,
+  selection,
   onSelect,
 }: {
   project: RoadProject
   focus: Coordinate[] | null
+  selection: AccessHistorySelection | null
   onSelect: (kind: AccessHistorySelection['kind'], id: string) => void
 }) {
   const data = useMemo(() => historicalMapFeatures(project.context, project.accessHistory), [project])
@@ -114,10 +119,8 @@ function EvidenceDiagram({
                 fill={feature.kind === 'harvest' ? '#bbf7d0' : 'none'}
                 fillOpacity={0.7}
                 fillRule="evenodd"
-                stroke={
-                  feature.kind === 'harvest' ? '#15803d' : feature.kind === 'existing-road' ? '#64748b' : '#0ea5e9'
-                }
-                strokeWidth={feature.kind === 'existing-road' ? 3 : 1.5}
+                stroke={feature.id === selection?.id ? '#0284c7' : feature.kind === 'harvest' ? '#15803d' : '#64748b'}
+                strokeWidth={feature.id === selection?.id ? 6 : feature.kind === 'existing-road' ? 3 : 1.5}
                 vectorEffect="non-scaling-stroke"
                 role="button"
                 tabIndex={0}
@@ -199,8 +202,9 @@ function EvidenceDiagram({
         </g>
       </svg>
       <p className="text-xs text-muted-foreground">
-        Green areas: cutblock records · grey lines: mapped roads · dashed line: selected historical assertion · circles:
-        structure records · squares: explicit anchors. Select a feature to read its evidence.
+        Green areas: cutblock records · grey lines: mapped roads · blue: selected source record · dashed line: selected
+        historical assertion · circles: structure records · squares: explicit anchors. Select a feature to read its
+        evidence.
       </p>
       {data.legend.map((section) => (
         <div key={section.id} className="text-xs">
@@ -220,17 +224,20 @@ function EvidenceDiagram({
 }
 
 function InterfaceReview() {
-  const [project, setProject] = useState(createAccessHistoryTrainingProject)
+  const [project, setProject] = useState(emptySourceProject)
+  const [discover, setDiscover] = useState(true)
   const current = useRef(project)
   const past = useRef<RoadProject[]>([])
   const [canUndo, setCanUndo] = useState(false)
   const [notice, setNotice] = useState(
-    'The initial project is a synthetic worked example. Start a source-only review to load actual ministry records into an empty study.',
+    'Search ministry cutblock records. Checked openings: 60677, 56944, 11981 and 11984. Teaching examples are available separately.',
   )
   const [selection, setSelection] = useState<AccessHistorySelection | null>(null)
   const selectionRevision = useRef(0)
   const [focus, setFocus] = useState<Coordinate[] | null>(null)
   const panel = useRef<HTMLDivElement>(null)
+  const loading = useRef<AbortController | null>(null)
+  useEffect(() => () => loading.current?.abort(), [])
   const update: AccessHistoryWorkspace['update'] = (change) => {
     const next = change(current.current)
     past.current = [...past.current.slice(-29), current.current]
@@ -257,9 +264,44 @@ function InterfaceReview() {
     },
   }
   const reset = (next: RoadProject) => {
+    loading.current?.abort()
     update(() => next)
     setSelection(null)
     setFocus(null)
+  }
+  const select = (kind: AccessHistorySelection['kind'], id: string) => {
+    setSelection({ kind, id, revision: ++selectionRevision.current })
+  }
+  const openStudy = async (openingId: string) => {
+    loading.current?.abort()
+    const controller = new AbortController()
+    loading.current = controller
+    const pilot = await loadBcAccessPilot(openingId, controller.signal)
+    if (controller.signal.aborted) throw new DOMException('Study loading cancelled.', 'AbortError')
+    if (!pilot.blocks.length) throw Error('No mapped cutblock returned. The current study was kept.')
+    const harvestStart = pilot.identity.records.find(
+      (record) => record.source === 'ften-cutblock',
+    )?.disturbanceStartDate
+    const history = createAccessHistoryState(harvestStart)
+    history.sources = pilot.sources
+    const next = parseProject({
+      ...emptySourceProject(),
+      name: `Opening ${openingId} · real BC records`,
+      context: [...pilot.blocks, ...pilot.roads],
+      accessHistory: history,
+    })
+    loading.current = null
+    reset(next)
+    select('block', pilot.blocks[0].id)
+    if (pilot.bounds)
+      setFocus([
+        [pilot.bounds[0], pilot.bounds[1]],
+        [pilot.bounds[2], pilot.bounds[3]],
+      ])
+    setDiscover(false)
+    setNotice(
+      `Opened actual opening ${openingId}: ${pilot.blocks.length} block part(s), ${pilot.roads.length} mapped road part(s), ${pilot.roadCandidates.length} within 1 km of its footprint. No design road or historical route has been created.`,
+    )
   }
   return (
     <main className="min-h-screen bg-background p-3 text-foreground sm:p-5">
@@ -273,11 +315,15 @@ function InterfaceReview() {
           review where WebGL is unavailable. It is separate from the full road-design map and its terrain tools.
         </p>
         <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant={discover ? 'default' : 'outline'} onClick={() => setDiscover(!discover)}>
+            {discover ? 'Show current study' : 'Find BC cutblocks'}
+          </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
               reset(emptySourceProject())
+              setDiscover(true)
               setNotice(
                 'Empty source study ready. Open Access history and choose Load actual BC records, then review and add the returned records.',
               )
@@ -290,6 +336,7 @@ function InterfaceReview() {
             variant="outline"
             onClick={() => {
               reset(createAccessHistoryTrainingProject())
+              setDiscover(false)
               setNotice('Loaded the synthetic teaching example.')
             }}
           >
@@ -311,16 +358,29 @@ function InterfaceReview() {
           {notice}
         </p>
       </header>
+      {discover && (
+        <div className="mx-auto mb-4 max-w-7xl rounded-lg border p-4">
+          <BcAccessDiscoveryPanel onOpenStudy={openStudy} active={discover} />
+        </div>
+      )}
       <div className="history-review-grid mx-auto grid max-w-7xl gap-4">
         <div ref={panel} className="history-review-panel min-w-0 rounded-lg border p-2" data-map-sidebar-scroll="true">
-          <AccessHistoryPanel workspace={workspace} selection={selection} onLocate={setFocus} />
+          <AccessHistoryPanel
+            workspace={workspace}
+            selection={selection}
+            onLocate={setFocus}
+            defaultOpen
+            onInspectRecord={select}
+            onSelectBlock={(id) => select('block', id)}
+          />
         </div>
         <div className="min-w-0">
           <EvidenceDiagram
             project={project}
             focus={focus}
+            selection={selection}
             onSelect={(kind, id) => {
-              setSelection({ kind, id, revision: ++selectionRevision.current })
+              select(kind, id)
               const toggle = panel.current?.querySelector<HTMLButtonElement>(
                 '[data-testid="road-access-history-toggle"]',
               )

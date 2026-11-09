@@ -397,6 +397,29 @@ async function sourceRequest<T>(
   }
 }
 
+/** Share the same cancellation and byte budgets with bounded, generated open-source discovery queries. */
+export function requestBcAccessSourceJson(
+  url: string,
+  maxBytes: number,
+  signal?: AbortSignal,
+  timeoutMs = ACCESS_SOURCE_TIMEOUT_MS,
+): Promise<unknown> {
+  const parsed = new URL(url)
+  if (
+    parsed.username ||
+    parsed.password ||
+    parsed.hash ||
+    !ACCESS_HISTORY_SOURCES.some(
+      (source) =>
+        source.use === 'bounded-live-query' && `${source.serviceUrl}/query` === `${parsed.origin}${parsed.pathname}`,
+    )
+  )
+    throw Error('Use a generated query for an open BC access source.')
+  if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > MAX_ROAD_RESPONSE_BYTES)
+    throw Error('Use a bounded BC source response budget.')
+  return sourceRequest(signal, (requestSignal) => boundedJson(url, requestSignal, maxBytes), timeoutMs)
+}
+
 export async function loadBcBlockIdentity(openingId: string, signal?: AbortSignal): Promise<BlockIdentityLookup> {
   const id = numericId(openingId, 'Opening ID')
   return sourceRequest(signal, async (requestSignal) => {

@@ -1,4 +1,6 @@
 import type { RoadProject } from './types'
+import { isAccessInvestigation, mappedRoadRecordCount } from './investigationWorkspace'
+import { parseProject } from './project'
 
 /**
  * Projects kept in this browser. Each project lives under `project:<id>` in the workspace's
@@ -15,6 +17,10 @@ export interface LibraryEntry {
   name: string
   terrain: string
   roads: number
+  workspaceMode?: 'design' | 'access-investigation'
+  openingId?: string
+  blocks?: number
+  roadRecords?: number
   updatedAt: number
 }
 
@@ -28,7 +34,11 @@ export function libraryEntry(id: string, project: RoadProject, updatedAt = Date.
     id,
     name: project.name || 'Untitled road project',
     terrain: project.terrain.name,
-    roads: project.alignments.length,
+    roads: isAccessInvestigation(project) ? 0 : project.alignments.length,
+    workspaceMode: isAccessInvestigation(project) ? 'access-investigation' : 'design',
+    ...(project.investigation ? { openingId: project.investigation.openingId } : {}),
+    blocks: project.context.filter((feature) => feature.kind === 'harvest').length,
+    roadRecords: mappedRoadRecordCount(project),
     updatedAt,
   }
 }
@@ -66,10 +76,33 @@ export async function readLibrary(): Promise<{ entries: LibraryEntry[]; activeId
       legacy = get<RoadProject>(store, LEGACY_KEY)
     return () => ({ entries: entries() ?? [], activeId: activeId() ?? null, legacy: legacy() })
   })
-  if (entries.length || !legacy) return { entries, activeId }
+  if (entries.length) {
+    // Older index rows counted the pilot's required internal alignment as a road. Refresh
+    // summaries from validated saved records once, keeping the original modification times.
+    const refreshed = await Promise.all(
+      entries.map(async (entry) => {
+        if (entry.workspaceMode !== undefined && entry.blocks !== undefined && entry.roadRecords !== undefined)
+          return entry
+        try {
+          const saved = await readProject(entry.id)
+          return saved ? libraryEntry(entry.id, parseProject(saved), entry.updatedAt) : entry
+        } catch {
+          return entry
+        }
+      }),
+    )
+    if (refreshed.some((entry, index) => entry !== entries[index]))
+      await withStore('readwrite', (store) => {
+        store.put(refreshed, 'library')
+        return () => undefined
+      })
+    return { entries: refreshed, activeId }
+  }
+  if (!legacy) return { entries, activeId }
   const id = crypto.randomUUID()
-  await writeProject(id, legacy, [])
-  return { entries: [libraryEntry(id, legacy)], activeId: id }
+  const migrated = parseProject(legacy)
+  await writeProject(id, migrated, [])
+  return { entries: [libraryEntry(id, migrated)], activeId: id }
 }
 
 export const readProject = (id: string) => withStore('readonly', (store) => get<RoadProject>(store, `project:${id}`))
