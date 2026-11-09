@@ -43,6 +43,8 @@ import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
+import { AccessHistoryLayers } from './AccessHistoryLayers'
+import { historicalMapFeatures } from './accessHistoryMap'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { preparationMarginFeatures } from './preparationFootprint'
 import type {
@@ -164,6 +166,10 @@ function Layers(
   },
 ) {
   const { map, isLoaded } = useMap()
+  const historicalMap = useMemo(
+    () => historicalMapFeatures(props.project.context, props.project.accessHistory),
+    [props.project.context, props.project.accessHistory],
+  )
   const onMapReady = props.onMapReady
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1428,47 +1434,51 @@ function Layers(
             </MapMarker>
           )
         })}
+      <AccessHistoryLayers data={historicalMap} />
       <PlanLegend
-        sections={buildPlanLegend({
-          sources: {
-            roads: allLines,
-            context,
-            corridor,
-            formation,
-            edges: roadEdges,
-            ditches,
-            cable,
-            structures,
-            draft,
-            section,
-            ticks,
-            overlay: props.overlay,
-            drainage: props.drainage,
-            swept: props.swept,
-          },
-          alignments: props.project.alignments,
-          maxGradePercent: props.project.settings.maxGradePercent,
-          terrainOnly: !!props.terrainOnly,
-          showEarthwork: props.showEarthwork,
-          selection:
-            !!props.selectedRange &&
-            !!placeOn(props.alignment, props.selectedRange.start) &&
-            !!placeOn(props.alignment, props.selectedRange.end),
-          draftPoints: props.draft.length > 0,
-          editing: props.mode === 'edit' && props.alignment.points.length > 0,
-          insertControls:
-            props.mode === 'edit' &&
-            !!props.onInsertPoint &&
-            props.alignment.points
-              .slice(1)
-              .some((point, index) => distance(props.alignment.points[index].coordinate, point.coordinate) > 0.4),
-          crossingMarkers:
-            !props.hiddenContextKinds.includes('stream') &&
-            analysis.crossings.some((crossing) => crossing.kind === 'stream'),
-          curveLabels: props.showLabels && radiusLabels.length > 0,
-          cableCursor: !!cableCursor,
-          cableSupports: !!activeCable,
-        })}
+        sections={[
+          ...buildPlanLegend({
+            sources: {
+              roads: allLines,
+              context,
+              corridor,
+              formation,
+              edges: roadEdges,
+              ditches,
+              cable,
+              structures,
+              draft,
+              section,
+              ticks,
+              overlay: props.overlay,
+              drainage: props.drainage,
+              swept: props.swept,
+            },
+            alignments: props.project.alignments,
+            maxGradePercent: props.project.settings.maxGradePercent,
+            terrainOnly: !!props.terrainOnly,
+            showEarthwork: props.showEarthwork,
+            selection:
+              !!props.selectedRange &&
+              !!placeOn(props.alignment, props.selectedRange.start) &&
+              !!placeOn(props.alignment, props.selectedRange.end),
+            draftPoints: props.draft.length > 0,
+            editing: props.mode === 'edit' && props.alignment.points.length > 0,
+            insertControls:
+              props.mode === 'edit' &&
+              !!props.onInsertPoint &&
+              props.alignment.points
+                .slice(1)
+                .some((point, index) => distance(props.alignment.points[index].coordinate, point.coordinate) > 0.4),
+            crossingMarkers:
+              !props.hiddenContextKinds.includes('stream') &&
+              analysis.crossings.some((crossing) => crossing.kind === 'stream'),
+            curveLabels: props.showLabels && radiusLabels.length > 0,
+            cableCursor: !!cableCursor,
+            cableSupports: !!activeCable,
+          }),
+          ...historicalMap.legend,
+        ]}
         display={display}
         terrainLayer={props.terrainLayer}
         showContours={props.showContours}

@@ -73,6 +73,8 @@ export interface SidebarProps {
   onOpenRoadHistory?: (id: string) => void
   /** Shows a constraint on the plan; the sidebar marks `focusedConstraintId` as the one shown. */
   onLocateConstraint?: (area: ContextFeature) => void
+  /** Fits a saved historical path or structure without changing current road reuse. */
+  onLocateHistory?: (coordinates: Coordinate[]) => void
   focusedConstraintId?: string | null
   cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void

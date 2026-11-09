@@ -1,0 +1,1295 @@
+{
+  "schema": "pgmaps-access-history-bundle-v1",
+  "context": [
+    {
+      "id": "history-example-block-a",
+      "name": "Synthetic block A · harvested 2009–2010",
+      "kind": "harvest",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -122.7055031259406,
+              53.89314762354422
+            ],
+            [
+              -122.70214595510578,
+              53.89314762354422
+            ],
+            [
+              -122.70214595510578,
+              53.894946265569494
+            ],
+            [
+              -122.7055031259406,
+              53.894946265569494
+            ],
+            [
+              -122.7055031259406,
+              53.89314762354422
+            ]
+          ]
+        ]
+      },
+      "harvestEvidence": {
+        "source": "scenario",
+        "yearMethod": "reported-dates",
+        "status": "harvested",
+        "sourceId": "INVENTED-history-example-block-a",
+        "startDate": "2009-09-01",
+        "endDate": "2010-09-30",
+        "startYear": 2009,
+        "endYear": 2010
+      }
+    },
+    {
+      "id": "history-example-block-b",
+      "name": "Synthetic block B · harvested 2010–2011",
+      "kind": "harvest",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -122.6993991789682,
+              53.89179864202527
+            ],
+            [
+              -122.69604200813339,
+              53.89179864202527
+            ],
+            [
+              -122.69604200813339,
+              53.89359728405054
+            ],
+            [
+              -122.6993991789682,
+              53.89359728405054
+            ],
+            [
+              -122.6993991789682,
+              53.89179864202527
+            ]
+          ]
+        ]
+      },
+      "harvestEvidence": {
+        "source": "scenario",
+        "yearMethod": "reported-dates",
+        "status": "harvested",
+        "sourceId": "INVENTED-history-example-block-b",
+        "startDate": "2010-01-01",
+        "endDate": "2011-03-31",
+        "startYear": 2010,
+        "endYear": 2011
+      }
+    },
+    {
+      "id": "history-example-mainline-west",
+      "name": "Synthetic mainline west · built 1988",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.72,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.89
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "001",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-west",
+              "coordinate": [
+                -122.71389605302761,
+                53.89
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-bridge-road",
+      "name": "Synthetic bridge road · built 1988",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.71084407954143,
+            53.89
+          ],
+          [
+            -122.70626611931213,
+            53.89
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "002",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-west",
+              "coordinate": [
+                -122.71389605302761,
+                53.89
+              ]
+            },
+            {
+              "id": "history-junction-a",
+              "coordinate": [
+                -122.70626611931213,
+                53.89
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-mainline-east",
+      "name": "Synthetic mainline east · built 1988",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.70321414582595,
+            53.89
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "003",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-a",
+              "coordinate": [
+                -122.70626611931213,
+                53.89
+              ]
+            },
+            {
+              "id": "history-junction-b",
+              "coordinate": [
+                -122.70321414582595,
+                53.89
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-spur-a",
+      "name": "Synthetic spur A · built 2008",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.70474013256904,
+            53.89314762354422
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "004",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-a",
+              "coordinate": [
+                -122.70626611931213,
+                53.89
+              ]
+            },
+            {
+              "id": "history-junction-entrance-a",
+              "coordinate": [
+                -122.70474013256904,
+                53.89314762354422
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-spur-b",
+      "name": "Synthetic spur B · built 2009",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.70321414582595,
+            53.89
+          ],
+          [
+            -122.69863618559665,
+            53.89179864202527
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "005",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-b",
+              "coordinate": [
+                -122.70321414582595,
+                53.89
+              ]
+            },
+            {
+              "id": "history-junction-entrance-b",
+              "coordinate": [
+                -122.69863618559665,
+                53.89179864202527
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-bypass",
+      "name": "Synthetic bypass · built 2016",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.88685237645578
+          ],
+          [
+            -122.70321414582595,
+            53.88685237645578
+          ],
+          [
+            -122.70321414582595,
+            53.89
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "006",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-west",
+              "coordinate": [
+                -122.71389605302761,
+                53.89
+              ]
+            },
+            {
+              "id": "history-junction-b",
+              "coordinate": [
+                -122.70321414582595,
+                53.89
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-undated-track",
+      "name": "Synthetic track · date unknown",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.72,
+            53.89
+          ],
+          [
+            -122.70474013256904,
+            53.89314762354422
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "007",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 0,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": [
+            {
+              "id": "history-junction-entrance-a",
+              "coordinate": [
+                -122.70474013256904,
+                53.89314762354422
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "history-example-overpass",
+      "name": "Synthetic grade-separated road · no junction",
+      "kind": "existing-road",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            -122.70931809279833,
+            53.88820135797473
+          ],
+          [
+            -122.70931809279833,
+            53.89224830253159
+          ]
+        ]
+      },
+      "roadEvidence": {
+        "source": "scenario",
+        "condition": "unknown",
+        "conditionBasis": "unreviewed",
+        "reuseAllowed": false,
+        "forestFileId": "009900",
+        "roadSectionId": "008",
+        "roadClass": "fsr",
+        "network": {
+          "access": "unknown",
+          "direction": "both",
+          "seasons": null,
+          "vehicleClasses": null,
+          "maxVehicleWeightTonnes": null,
+          "bridgeStatus": "unknown",
+          "bridgeLoadTonnes": null,
+          "bridgeRating": null,
+          "level": 1,
+          "forwardUphillGradePercent": null,
+          "forwardDownhillGradePercent": null,
+          "rehabilitationCostPerM": null,
+          "accessCost": null,
+          "structureCost": null,
+          "fixedCost": null,
+          "haulCostFactor": 1,
+          "junctions": []
+        }
+      }
+    }
+  ],
+  "accessHistory": {
+    "schema": "historical-access-v1",
+    "settings": {
+      "asOf": "2010-06-30",
+      "allowUnknownTime": false,
+      "allowUnverifiedEndpointSnaps": false,
+      "snapToleranceM": 1,
+      "attachmentToleranceM": 10,
+      "maxVariants": 3
+    },
+    "sources": [
+      {
+        "id": "example-road-log",
+        "dataset": "Synthetic construction ledger",
+        "recordId": "INVENTED-example-road-log",
+        "url": "https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-road-design/access-history.md",
+        "retrievedAt": "2026-11-08T00:00:00Z",
+        "publishedOn": "2016-12-31",
+        "description": "Dates for mainline, spurs and bypass; not permit award dates. Invented for training; not a BC record.",
+        "synthetic": true
+      },
+      {
+        "id": "example-harvest-log",
+        "dataset": "Synthetic harvest and entrance plan",
+        "recordId": "INVENTED-example-harvest-log",
+        "url": "https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-road-design/access-history.md",
+        "retrievedAt": "2026-11-08T00:00:00Z",
+        "publishedOn": "2011-04-01",
+        "description": "Two harvest periods and explicitly located entrances. Invented for training; not a BC record.",
+        "synthetic": true
+      },
+      {
+        "id": "example-crossing-register",
+        "dataset": "Synthetic crossing register",
+        "recordId": "INVENTED-example-crossing-register",
+        "url": "https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-road-design/access-history.md",
+        "retrievedAt": "2026-11-08T00:00:00Z",
+        "publishedOn": "2022-07-01",
+        "description": "Bridge and culvert identities, locations and reported rating. Invented for training; not a BC record.",
+        "synthetic": true
+      },
+      {
+        "id": "example-closure-notice",
+        "dataset": "Synthetic bridge closure notice",
+        "recordId": "INVENTED-example-closure-notice",
+        "url": "https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-road-design/access-history.md",
+        "retrievedAt": "2026-11-08T00:00:00Z",
+        "publishedOn": "2019-01-01",
+        "description": "Bridge closed from 2019; conflicts with the later inventory rating. Invented for training; not a BC record.",
+        "synthetic": true
+      },
+      {
+        "id": "example-haul-ledger",
+        "dataset": "Synthetic haul ledger",
+        "recordId": "INVENTED-example-haul-ledger",
+        "url": "https://github.com/ahzs645/PGMaps/blob/main/docs/forestry-road-design/access-history.md",
+        "retrievedAt": "2026-11-08T00:00:00Z",
+        "publishedOn": "2010-07-01",
+        "description": "Invented route-specific evidence a reviewer can use to demonstrate a documented-use assertion. Invented for training; not a BC record.",
+        "synthetic": true
+      }
+    ],
+    "events": [
+      {
+        "id": "constructed-history-example-mainline-west",
+        "roadId": "history-example-mainline-west",
+        "kind": "constructed",
+        "when": {
+          "earliest": "1988-06-01",
+          "latest": "1988-06-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-941d512ef8d86278"
+      },
+      {
+        "id": "constructed-history-example-bridge-road",
+        "roadId": "history-example-bridge-road",
+        "kind": "constructed",
+        "when": {
+          "earliest": "1988-06-01",
+          "latest": "1988-06-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-0eed2b6600601b40"
+      },
+      {
+        "id": "constructed-history-example-mainline-east",
+        "roadId": "history-example-mainline-east",
+        "kind": "constructed",
+        "when": {
+          "earliest": "1988-06-01",
+          "latest": "1988-06-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-d63fb8c7aa1b62ed"
+      },
+      {
+        "id": "constructed-history-example-spur-a",
+        "roadId": "history-example-spur-a",
+        "kind": "constructed",
+        "when": {
+          "earliest": "2008-08-01",
+          "latest": "2008-08-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-aaa3a42f77ca9b7f"
+      },
+      {
+        "id": "constructed-history-example-spur-b",
+        "roadId": "history-example-spur-b",
+        "kind": "constructed",
+        "when": {
+          "earliest": "2009-08-01",
+          "latest": "2009-08-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-518642eb106cb421"
+      },
+      {
+        "id": "constructed-history-example-bypass",
+        "roadId": "history-example-bypass",
+        "kind": "constructed",
+        "when": {
+          "earliest": "2016-07-01",
+          "latest": "2016-07-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-b44c646cbeddd1d8"
+      },
+      {
+        "id": "constructed-history-example-overpass",
+        "roadId": "history-example-overpass",
+        "kind": "constructed",
+        "when": {
+          "earliest": "1988-06-01",
+          "latest": "1988-06-01"
+        },
+        "observedOn": "2016-12-31",
+        "sourceIds": [
+          "example-road-log"
+        ],
+        "geometryFingerprint": "history-v1-3e1643b400c81fca"
+      }
+    ],
+    "structures": [
+      {
+        "id": "history-example-bridge",
+        "name": "Synthetic shared bridge · closed in 2019",
+        "kind": "bridge",
+        "coordinate": [
+          -122.71084407954143,
+          53.89
+        ],
+        "sourceIds": [
+          "example-crossing-register",
+          "example-closure-notice"
+        ],
+        "crossingSiteId": "SYNTHETIC-SITE-01",
+        "structureId": "SYNTHETIC-BRIDGE-01",
+        "sourceRowId": "SYNTHETIC-ROW-01",
+        "roadId": "history-example-bridge-road",
+        "roadKey": {
+          "forestFileId": "009900",
+          "roadSectionId": "002"
+        },
+        "attachment": "reviewed",
+        "attachmentToleranceM": 5,
+        "construction": {
+          "earliest": "1988-06-01",
+          "latest": "1988-06-01"
+        },
+        "removal": null,
+        "evidence": [
+          {
+            "id": "example-rating-original",
+            "sourceIds": [
+              "example-crossing-register"
+            ],
+            "kind": "load-rating",
+            "validFrom": "1988-06-01",
+            "validUntil": "2018-12-31",
+            "ratedLoadTonnes": 60,
+            "description": "Invented historical rating; not a vehicle authorization."
+          },
+          {
+            "id": "example-closure",
+            "sourceIds": [
+              "example-closure-notice"
+            ],
+            "kind": "closure",
+            "validFrom": "2019-01-01",
+            "validUntil": null,
+            "ratedLoadTonnes": null,
+            "description": "Invented closure effective 2019-01-01."
+          },
+          {
+            "id": "example-rating-inventory",
+            "sourceIds": [
+              "example-crossing-register"
+            ],
+            "kind": "load-rating",
+            "validFrom": "2022-07-01",
+            "validUntil": null,
+            "ratedLoadTonnes": 60,
+            "description": "Invented inventory still lists 60 t; conflict remains visible."
+          },
+          {
+            "id": "example-rating-notice",
+            "sourceIds": [
+              "example-closure-notice"
+            ],
+            "kind": "load-rating",
+            "validFrom": "2019-01-01",
+            "validUntil": null,
+            "ratedLoadTonnes": 0,
+            "description": "Invented closure notice lists zero tonnes."
+          }
+        ]
+      },
+      {
+        "id": "history-example-culvert",
+        "name": "Synthetic spur B culvert",
+        "kind": "culvert",
+        "coordinate": [
+          -122.7009251657113,
+          53.89089932101263
+        ],
+        "sourceIds": [
+          "example-crossing-register"
+        ],
+        "crossingSiteId": "SYNTHETIC-SITE-02",
+        "structureId": "SYNTHETIC-CULVERT-01",
+        "sourceRowId": "SYNTHETIC-ROW-02",
+        "roadId": "history-example-spur-b",
+        "roadKey": {
+          "forestFileId": "009900",
+          "roadSectionId": "005"
+        },
+        "attachment": "reviewed",
+        "attachmentToleranceM": 5,
+        "construction": {
+          "earliest": "2009-08-01",
+          "latest": "2009-08-01"
+        },
+        "removal": null,
+        "evidence": []
+      }
+    ],
+    "anchors": [
+      {
+        "id": "history-example-entrance-a",
+        "name": "Synthetic block A entrance",
+        "role": "entrance",
+        "coordinate": [
+          -122.70474013256904,
+          53.89314762354422
+        ],
+        "roadId": "history-example-spur-a",
+        "blockId": "history-example-block-a",
+        "sourceIds": [
+          "example-harvest-log"
+        ]
+      },
+      {
+        "id": "history-example-entrance-b",
+        "name": "Synthetic block B entrance",
+        "role": "entrance",
+        "coordinate": [
+          -122.69863618559665,
+          53.89179864202527
+        ],
+        "roadId": "history-example-spur-b",
+        "blockId": "history-example-block-b",
+        "sourceIds": [
+          "example-harvest-log"
+        ]
+      },
+      {
+        "id": "history-example-outlet",
+        "name": "Synthetic established-network outlet",
+        "role": "outlet",
+        "coordinate": [
+          -122.72,
+          53.89
+        ],
+        "roadId": "history-example-mainline-west",
+        "blockId": null,
+        "sourceIds": [
+          "example-road-log"
+        ]
+      }
+    ],
+    "paths": [
+      {
+        "id": "access-history-v1-e3024e679385ca7d",
+        "blockId": "history-example-block-a",
+        "entranceId": "history-example-entrance-a",
+        "outletId": "history-example-outlet",
+        "period": {
+          "earliest": "2010-06-30",
+          "latest": "2010-06-30"
+        },
+        "settings": {
+          "asOf": "2010-06-30",
+          "allowUnknownTime": false,
+          "allowUnverifiedEndpointSnaps": false,
+          "snapToleranceM": 1,
+          "attachmentToleranceM": 10,
+          "maxVariants": 3
+        },
+        "relationship": "inferred-access",
+        "review": null,
+        "sourceIds": [
+          "example-closure-notice",
+          "example-crossing-register",
+          "example-harvest-log",
+          "example-road-log"
+        ],
+        "roadIds": [
+          "history-example-bridge-road",
+          "history-example-mainline-west",
+          "history-example-spur-a"
+        ],
+        "structureIds": [
+          "history-example-bridge"
+        ],
+        "coordinates": [
+          [
+            -122.70474013256904,
+            53.89314762354422
+          ],
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.71084407954143,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.72,
+            53.89
+          ]
+        ],
+        "segments": [
+          {
+            "id": "road:history-example-spur-a:0:0-1",
+            "roadId": "history-example-spur-a",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70474013256904,
+                53.89314762354422
+              ],
+              [
+                -122.70626611931213,
+                53.89
+              ]
+            ],
+            "lengthM": 364.0047226494185
+          },
+          {
+            "id": "junction:history-junction-a:2",
+            "roadId": null,
+            "kind": "junction",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70626611931213,
+                53.89
+              ],
+              [
+                -122.70626611931213,
+                53.89
+              ]
+            ],
+            "lengthM": 0
+          },
+          {
+            "id": "road:history-example-bridge-road:1:0-1",
+            "roadId": "history-example-bridge-road",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70626611931213,
+                53.89
+              ],
+              [
+                -122.71084407954143,
+                53.89
+              ]
+            ],
+            "lengthM": 300.00021641574375
+          },
+          {
+            "id": "road:history-example-bridge-road:0:0-1",
+            "roadId": "history-example-bridge-road",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.71084407954143,
+                53.89
+              ],
+              [
+                -122.71389605302761,
+                53.89
+              ]
+            ],
+            "lengthM": 200.00014429521147
+          },
+          {
+            "id": "junction:history-junction-west:1",
+            "roadId": null,
+            "kind": "junction",
+            "forward": true,
+            "coordinates": [
+              [
+                -122.71389605302761,
+                53.89
+              ],
+              [
+                -122.71389605302761,
+                53.89
+              ]
+            ],
+            "lengthM": 0
+          },
+          {
+            "id": "road:history-example-mainline-west:0:0-1",
+            "roadId": "history-example-mainline-west",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.71389605302761,
+                53.89
+              ],
+              [
+                -122.72,
+                53.89
+              ]
+            ],
+            "lengthM": 400.0002884996904
+          }
+        ],
+        "lengthM": 1264.005371860064,
+        "inputFingerprint": "history-v1-674563dbc771b0b3",
+        "assumptions": [
+          "Historical topology only: mapped connectivity does not establish past use, current access or vehicle capacity.",
+          "Junction history-junction-entrance-a is declared on only one eligible road; it connects no other road.",
+          "Junction history-junction-entrance-b is declared on only one eligible road; it connects no other road.",
+          "Rehabilitation costs were explicitly excluded from this path request.",
+          "This is a geometric historical-access candidate, not proof that this route was used or built for this block.",
+          "Vehicle capacity, present condition and current legal access are not established."
+        ]
+      },
+      {
+        "id": "access-history-v1-ed6c14af33a33771",
+        "blockId": "history-example-block-b",
+        "entranceId": "history-example-entrance-b",
+        "outletId": "history-example-outlet",
+        "period": {
+          "earliest": "2010-06-30",
+          "latest": "2010-06-30"
+        },
+        "settings": {
+          "asOf": "2010-06-30",
+          "allowUnknownTime": false,
+          "allowUnverifiedEndpointSnaps": false,
+          "snapToleranceM": 1,
+          "attachmentToleranceM": 10,
+          "maxVariants": 3
+        },
+        "relationship": "inferred-access",
+        "review": null,
+        "sourceIds": [
+          "example-closure-notice",
+          "example-crossing-register",
+          "example-harvest-log",
+          "example-road-log"
+        ],
+        "roadIds": [
+          "history-example-bridge-road",
+          "history-example-mainline-east",
+          "history-example-mainline-west",
+          "history-example-spur-b"
+        ],
+        "structureIds": [
+          "history-example-bridge",
+          "history-example-culvert"
+        ],
+        "coordinates": [
+          [
+            -122.69863618559665,
+            53.89179864202527
+          ],
+          [
+            -122.70092516571131,
+            53.89089932101264
+          ],
+          [
+            -122.70321414582595,
+            53.89
+          ],
+          [
+            -122.70321414582595,
+            53.89
+          ],
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.70626611931213,
+            53.89
+          ],
+          [
+            -122.71084407954143,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.71389605302761,
+            53.89
+          ],
+          [
+            -122.72,
+            53.89
+          ]
+        ],
+        "segments": [
+          {
+            "id": "road:history-example-spur-b:0:0.5-1",
+            "roadId": "history-example-spur-b",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.69863618559665,
+                53.89179864202527
+              ],
+              [
+                -122.70092516571131,
+                53.89089932101264
+              ]
+            ],
+            "lengthM": 180.27366562428526
+          },
+          {
+            "id": "road:history-example-spur-b:0:0-0.5",
+            "roadId": "history-example-spur-b",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70092516571131,
+                53.89089932101264
+              ],
+              [
+                -122.70321414582595,
+                53.89
+              ]
+            ],
+            "lengthM": 180.27635110453082
+          },
+          {
+            "id": "junction:history-junction-b:1",
+            "roadId": null,
+            "kind": "junction",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70321414582595,
+                53.89
+              ],
+              [
+                -122.70321414582595,
+                53.89
+              ]
+            ],
+            "lengthM": 0
+          },
+          {
+            "id": "road:history-example-mainline-east:0:0-1",
+            "roadId": "history-example-mainline-east",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70321414582595,
+                53.89
+              ],
+              [
+                -122.70626611931213,
+                53.89
+              ]
+            ],
+            "lengthM": 200.00014429521147
+          },
+          {
+            "id": "junction:history-junction-a:1",
+            "roadId": null,
+            "kind": "junction",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70626611931213,
+                53.89
+              ],
+              [
+                -122.70626611931213,
+                53.89
+              ]
+            ],
+            "lengthM": 0
+          },
+          {
+            "id": "road:history-example-bridge-road:1:0-1",
+            "roadId": "history-example-bridge-road",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.70626611931213,
+                53.89
+              ],
+              [
+                -122.71084407954143,
+                53.89
+              ]
+            ],
+            "lengthM": 300.00021641574375
+          },
+          {
+            "id": "road:history-example-bridge-road:0:0-1",
+            "roadId": "history-example-bridge-road",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.71084407954143,
+                53.89
+              ],
+              [
+                -122.71389605302761,
+                53.89
+              ]
+            ],
+            "lengthM": 200.00014429521147
+          },
+          {
+            "id": "junction:history-junction-west:1",
+            "roadId": null,
+            "kind": "junction",
+            "forward": true,
+            "coordinates": [
+              [
+                -122.71389605302761,
+                53.89
+              ],
+              [
+                -122.71389605302761,
+                53.89
+              ]
+            ],
+            "lengthM": 0
+          },
+          {
+            "id": "road:history-example-mainline-west:0:0-1",
+            "roadId": "history-example-mainline-west",
+            "kind": "road",
+            "forward": false,
+            "coordinates": [
+              [
+                -122.71389605302761,
+                53.89
+              ],
+              [
+                -122.72,
+                53.89
+              ]
+            ],
+            "lengthM": 400.0002884996904
+          }
+        ],
+        "lengthM": 1460.5508102346732,
+        "inputFingerprint": "history-v1-674563dbc771b0b3",
+        "assumptions": [
+          "Historical topology only: mapped connectivity does not establish past use, current access or vehicle capacity.",
+          "Junction history-junction-entrance-a is declared on only one eligible road; it connects no other road.",
+          "Junction history-junction-entrance-b is declared on only one eligible road; it connects no other road.",
+          "Rehabilitation costs were explicitly excluded from this path request.",
+          "This is a geometric historical-access candidate, not proof that this route was used or built for this block.",
+          "Vehicle capacity, present condition and current legal access are not established."
+        ]
+      }
+    ],
+    "selectedPathId": "access-history-v1-e3024e679385ca7d"
+  }
+}

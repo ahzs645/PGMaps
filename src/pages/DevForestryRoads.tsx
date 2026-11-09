@@ -565,6 +565,21 @@ export default function DevForestryRoads() {
     },
     [showOnPlan],
   )
+  const locateHistory = useCallback(
+    (coordinates: Coordinate[]) => {
+      if (!coordinates.length) return
+      showOnPlan({
+        id: 'history-locate',
+        name: 'Historical access evidence',
+        kind: 'existing-road',
+        geometry: {
+          type: 'LineString',
+          coordinates: coordinates.length === 1 ? [coordinates[0], coordinates[0]] : coordinates,
+        },
+      })
+    },
+    [showOnPlan],
+  )
   const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
@@ -2313,6 +2328,7 @@ export default function DevForestryRoads() {
                 onLocateRoad={locateRoad}
                 onOpenRoadHistory={openRoadReview}
                 onLocateConstraint={locateConstraint}
+                onLocateHistory={locateHistory}
                 focusedConstraintId={focusedConstraintId}
                 cutblockReviewRequest={cutblockReviewRequest}
                 onReviewRoad={reviewRoad}

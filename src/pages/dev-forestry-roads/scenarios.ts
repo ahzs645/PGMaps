@@ -11,6 +11,7 @@ import { fitHorizontalRadii } from './horizontalTools'
 import { DEFAULT_ROUTE_OPTIONS, suggestRoutes } from './routing'
 import { requireScenarioTerrain } from './scenarioCoverage'
 import { createFullCostTrainingProject } from './trainingFullCostScenario'
+import { createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
 import {
   createDemoProject,
   DEFAULT_ROAD_SETTINGS,
@@ -131,6 +132,16 @@ export const ROAD_SCENARIOS = [
     detail:
       'The same road with and without a zero-acquisition local stockpile. Processing, loading and haul still cost.',
     focus: 'Compare enabled supply, finite capacity and purchased surfacing',
+    kind: 'training',
+    contents: { roads: 'synthetic', cutblocks: 'synthetic' },
+  },
+  {
+    id: 'training-access-history',
+    name: 'Training · reconstruct block access and bridges',
+    terrain: 'Synthetic ground · offline',
+    detail:
+      'Two blocks share a bridge in 2010. A later bypass, bridge closure and conflicting ratings change the evidence.',
+    focus: 'Trace dated access, inspect shared structures and save reviewed assertions',
     kind: 'training',
     contents: { roads: 'synthetic', cutblocks: 'synthetic' },
   },
@@ -319,7 +330,12 @@ export function roadScenario(id: string) {
 export function createTrainingScenario(id: RoadScenarioId): RoadProject {
   const scenario = roadScenario(id)
   if (scenario.kind !== 'training') throw Error('This scenario requires its real terrain to be loaded first.')
-  const project = id === 'training-full-cost-access' ? createFullCostTrainingProject() : createDemoProject()
+  const project =
+    id === 'training-full-cost-access'
+      ? createFullCostTrainingProject()
+      : id === 'training-access-history'
+        ? createAccessHistoryTrainingProject()
+        : createDemoProject()
   project.name = scenario.name
   project.scenario = { id, contextWarnings: [], terrainCoveragePercent: 100 }
   if (id === 'training-harvest-history') {

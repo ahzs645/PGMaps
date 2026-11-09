@@ -1,0 +1,145 @@
+{
+  "synthetic": true,
+  "purpose": "Deterministic example outputs, not validation against actual BC road use.",
+  "scenarios": [
+    {
+      "date": "2010-06-30",
+      "paths": [
+        {
+          "id": "access-history-v1-e3024e679385ca7d",
+          "relationship": "inferred-access",
+          "lengthM": 1264.005371860064,
+          "roadIds": [
+            "history-example-bridge-road",
+            "history-example-mainline-west",
+            "history-example-spur-a"
+          ],
+          "structureIds": [
+            "history-example-bridge"
+          ],
+          "assumptions": [
+            "Historical topology only: mapped connectivity does not establish past use, current access or vehicle capacity.",
+            "Junction history-junction-entrance-a is declared on only one eligible road; it connects no other road.",
+            "Junction history-junction-entrance-b is declared on only one eligible road; it connects no other road.",
+            "Rehabilitation costs were explicitly excluded from this path request.",
+            "This is a geometric historical-access candidate, not proof that this route was used or built for this block.",
+            "Vehicle capacity, present condition and current legal access are not established."
+          ]
+        }
+      ],
+      "excludedRoads": [
+        {
+          "roadId": "history-example-bypass",
+          "name": "Synthetic bypass · built 2016",
+          "reasons": [
+            "The documented construction interval starts after the analysis date."
+          ]
+        },
+        {
+          "roadId": "history-example-undated-track",
+          "name": "Synthetic track · date unknown",
+          "reasons": [
+            "No dated physical road history establishes existence at the analysis date."
+          ]
+        }
+      ],
+      "structures": [
+        {
+          "structureId": "history-example-bridge",
+          "status": "compatible",
+          "reasons": [
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+          ]
+        },
+        {
+          "structureId": "history-example-culvert",
+          "status": "compatible",
+          "reasons": [
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+          ]
+        }
+      ],
+      "unresolved": []
+    },
+    {
+      "date": "2022-08-01",
+      "paths": [
+        {
+          "id": "access-history-v1-f56b0ecec6b426de",
+          "relationship": "inferred-access",
+          "lengthM": 2364.058880234802,
+          "roadIds": [
+            "history-example-bypass",
+            "history-example-mainline-east",
+            "history-example-mainline-west",
+            "history-example-spur-a"
+          ],
+          "structureIds": [],
+          "assumptions": [
+            "Historical topology only: mapped connectivity does not establish past use, current access or vehicle capacity.",
+            "Junction history-junction-entrance-a is declared on only one eligible road; it connects no other road.",
+            "Junction history-junction-entrance-b is declared on only one eligible road; it connects no other road.",
+            "Rehabilitation costs were explicitly excluded from this path request.",
+            "Synthetic shared bridge · closed in 2019: Applicable source reports give conflicting load ratings; retain each report and review applicability. A dated structure closure also applies at the analysis date; no open rating overrides it.",
+            "The analysis date is outside the reported harvest interval. This trace compares network history; it does not document the route used during harvesting.",
+            "This is a geometric historical-access candidate, not proof that this route was used or built for this block.",
+            "Vehicle capacity, present condition and current legal access are not established."
+          ]
+        }
+      ],
+      "excludedRoads": [
+        {
+          "roadId": "history-example-undated-track",
+          "name": "Synthetic track · date unknown",
+          "reasons": [
+            "No dated physical road history establishes existence at the analysis date."
+          ]
+        }
+      ],
+      "structures": [
+        {
+          "structureId": "history-example-bridge",
+          "status": "conflict",
+          "reasons": [
+            "Applicable source reports give conflicting load ratings; retain each report and review applicability.",
+            "A dated structure closure also applies at the analysis date; no open rating overrides it."
+          ]
+        },
+        {
+          "structureId": "history-example-culvert",
+          "status": "compatible",
+          "reasons": [
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+          ]
+        }
+      ],
+      "unresolved": [
+        "Synthetic shared bridge · closed in 2019: Applicable source reports give conflicting load ratings; retain each report and review applicability. A dated structure closure also applies at the analysis date; no open rating overrides it."
+      ]
+    }
+  ],
+  "shared2010": {
+    "pathCount": 2,
+    "roadIds": [
+      "history-example-bridge-road",
+      "history-example-mainline-east",
+      "history-example-mainline-west",
+      "history-example-spur-a",
+      "history-example-spur-b"
+    ],
+    "structureIds": [
+      "history-example-bridge",
+      "history-example-culvert"
+    ],
+    "uniqueStructureCount": 2,
+    "uniqueCrossingSiteCount": 2,
+    "summedPathRoadLengthM": 2724.5561820947373,
+    "uniqueRoadLengthM": 1824.558218364337,
+    "sharedRoadLengthM": 899.9979637304002,
+    "constructionCost": null,
+    "note": "Shared geometry and crossing sites are counted once. Historical construction or rehabilitation costs remain unknown; alternative paths are not a combined build estimate."
+  }
+}

@@ -11,6 +11,11 @@ Before relying on a result, read the [limits and checks guides](forestry-road-de
 They cover terrain and point clouds, alignment and optimization, quantities and costs,
 drainage, and exports, and say what each assumes and how problems show up.
 
+**Terrain → Access history** reconstructs dated block-to-road-to-crossing candidates
+from explicit entrances, source records and physical events. It preserves reviewed
+assertions in project files separately from present road reuse. See the
+[worked example and BC data expansion plan](forestry-road-design/access-history.md).
+
 The **Design → Plan road network** workflow adds browser-native multi-landing
 network projection and raster utilities adapted from LandSciTech/roads. See the
 [network planning guide](forestry-road-design/network-planning.md) and

@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": { "incremental": false },
+  "include": [
+    "../../src/**/*.d.ts",
+    "../../src/pages/DevForestryRoads.tsx",
+    "../../src/pages/dev-forestry-roads/*accessHistory*.ts",
+    "../../src/pages/dev-forestry-roads/*AccessHistory*.ts",
+    "../../src/pages/dev-forestry-roads/*AccessHistory*.tsx",
+    "../../tests/e2e/forestry-access-history.spec.ts",
+    "./generate-access-history-example.ts"
+  ],
+  "references": []
+}
