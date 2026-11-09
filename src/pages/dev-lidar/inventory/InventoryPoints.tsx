@@ -1,6 +1,10 @@
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useState } from 'react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ComparisonMap } from '../comparisons/ComparisonMap'
 import { ComparisonProfile } from '../comparisons/ComparisonProfile'
 import type { Basemap } from '../basemaps'
@@ -21,12 +25,14 @@ export function InventoryPoints({
   retry: () => void
 }) {
   const [angle, setAngle] = useState(0),
-    [black, setBlack] = useState(true),
+    [pointColour, setPointColour] = useState<'black' | 'height'>('black'),
     [picked, setPicked] = useState<IsolatedPoint | null>(null)
   if (!crop)
     return (
-      <div className="p-3 text-xs" role="status">
-        {error || 'Loading original core points…'}
+      <div className="space-y-2 p-3" role="status">
+        <InlineAlert tone={error ? 'error' : 'info'} loading={!error}>
+          {error || 'Loading original core points…'}
+        </InlineAlert>
         {error && (
           <Button size="sm" onClick={retry}>
             Retry points
@@ -47,17 +53,38 @@ export function InventoryPoints({
       ) + 1
   return (
     <div className="flex h-full min-h-[340px] flex-col overflow-hidden border-l" aria-label="Inventory point inspector">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-2xs">
-        <strong>{neural ? 'Assigned tree points' : 'Crown-column points'}</strong>
-        <span>{crop.points.length.toLocaleString(DEFAULT_LOCALE)} returns</span>
-        <label>
-          <input type="checkbox" checked={black} onChange={(e) => setBlack(e.target.checked)} /> Silhouette
-        </label>
+      <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b p-2 text-xs">
+        <h2 className="flex items-center gap-1 font-semibold">
+          {neural ? 'Assigned tree points' : 'Crown-column points'}
+          <InfoTip label="Which returns are shown">
+            {neural
+              ? 'All assigned original core returns.'
+              : 'Original core returns ≥2 m inside a 2D crown; vertically overlapping trees may be included.'}{' '}
+            Profiles start at ground level. Halo returns are not included.
+          </InfoTip>
+        </h2>
+        <span className="tabular-nums text-muted-foreground">
+          {crop.points.length.toLocaleString(DEFAULT_LOCALE)} returns
+        </span>
+        <SegmentedControl
+          label="Inventory point colour"
+          size="sm"
+          fullWidth={false}
+          value={pointColour}
+          onChange={setPointColour}
+          options={[
+            { value: 'black', label: 'Silhouette' },
+            { value: 'height', label: 'Height' },
+          ]}
+        />
         <NumericRangeField
           label="Rotate"
           aria-label="Inventory profile rotation"
-          hideValue
-          className="flex items-center gap-1 space-y-0"
+          display={`${angle}°`}
+          className="flex items-center gap-1.5 space-y-0"
+          headerClassName="flex items-center gap-1.5"
+          labelClassName="text-muted-foreground"
+          valueClassName="w-8 text-right"
           inputClassName="h-auto w-24"
           min={0}
           max={180}
@@ -68,6 +95,7 @@ export function InventoryPoints({
         <Button
           size="sm"
           variant="outline"
+          className="ml-auto"
           onClick={() =>
             downloadText(
               'longitude,latitude,elevation_m,height_m,original_row\n' +
@@ -77,6 +105,7 @@ export function InventoryPoints({
             )
           }
         >
+          <Download aria-hidden="true" />
           Point CSV
         </Button>
       </div>
@@ -89,7 +118,7 @@ export function InventoryPoints({
           view="3d"
           basemap={basemap}
           crop={crop}
-          pointColour={black ? 'black' : 'height'}
+          pointColour={pointColour}
         />
       </div>
       <div className="min-h-[140px] flex-1 border-t">
@@ -100,17 +129,11 @@ export function InventoryPoints({
           height={Math.ceil(height / 5) * 5}
           radius={radius}
           minHeight={0}
-          colour={black ? 'black' : 'height'}
+          colour={pointColour}
           picked={picked}
           onPick={setPicked}
         />
       </div>
-      <p className="shrink-0 p-2 text-3xs">
-        {neural
-          ? 'All assigned original core returns.'
-          : 'Original core returns ≥2 m inside a 2D crown; vertically overlapping trees may be included.'}{' '}
-        Profiles start at ground level. Halo returns are not included.
-      </p>
     </div>
   )
 }

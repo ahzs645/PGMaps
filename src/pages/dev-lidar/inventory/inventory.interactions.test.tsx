@@ -1,14 +1,34 @@
 import { readFileSync } from 'node:fs'
-import type { ReactNode } from 'react'
-import { act, create } from 'react-test-renderer'
+import { createElement, type ReactNode } from 'react'
+import { act, create, type ReactTestInstance } from 'react-test-renderer'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi } from 'vitest'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { TabBar } from '@/components/ui/tab-bar'
 import { InventoryViews } from './InventoryWorkspace'
 import { downloadText } from '@/lib/download'
 import type { InventoryData } from './types'
 vi.mock('@/lib/download', () => ({ downloadText: vi.fn() }))
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
+// The InfoTip popover and the legend panel's media query need a browser window.
+vi.mock('@/components/ui/info-tip', () => ({
+  InfoTip: ({ children, label }: { children: ReactNode; label: string }) =>
+    createElement('span', { 'aria-label': label }, children),
+}))
+// The Export menu opens in a portal; list its actions inline as buttons.
+vi.mock('@/components/ui/action-menu', () => ({
+  ActionMenu: ({ items }: { items: { id: string; type?: string; label?: string; onSelect?: () => void }[] }) =>
+    createElement(
+      'div',
+      null,
+      items
+        .filter((item) => !item.type || item.type === 'action')
+        .map((item) => createElement('button', { key: item.id, onClick: item.onSelect }, item.label)),
+    ),
+}))
+vi.mock('./InventoryLegend', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./InventoryLegend')>()),
+  InventoryLegend: () => null,
+}))
 vi.mock('@/components/ui/virtual-result-list', () => ({
   VirtualResultList: (p: { items: unknown[]; children: (i: unknown) => ReactNode }) => (
     <div>{p.items.slice(0, 3).map(p.children)}</div>
@@ -37,6 +57,9 @@ vi.mock('./useInventoryPoints', () => ({
   returnMetrics: () => null,
 }))
 const data: InventoryData = JSON.parse(readFileSync(new URL('./inventory.generated.json', import.meta.url), 'utf8'))
+/** Text inside a node, through icons and nested components. */
+const textOf = (node: ReactTestInstance | string): string =>
+  typeof node === 'string' ? node : node.children.map(textOf).join('')
 describe('inventory workflow interactions', () => {
   it('switches executed methods, reviews candidates, imports a boundary and exports scoped stand/tree tables', async () => {
     const storage = new Map<string, string>()
@@ -58,7 +81,7 @@ describe('inventory workflow interactions', () => {
       const button = (text: string) =>
         root()
           .findAllByType('button')
-          .find((b) => b.children.join('') === text)!
+          .find((b) => textOf(b) === text)!
       expect(map().props['data-features'].features.length).toBeGreaterThan(50)
       await act(async () =>
         root()
@@ -81,7 +104,7 @@ describe('inventory workflow interactions', () => {
       expect(vi.mocked(downloadText).mock.calls.at(-1)![0]).toContain('supported_hectares')
       await act(async () =>
         root()
-          .findAllByType(SegmentedControl)
+          .findAllByType(TabBar)
           .find((n) => n.props.label === 'Inventory panel tab')!
           .props.onChange('models'),
       )
@@ -113,7 +136,7 @@ describe('inventory workflow interactions', () => {
       expect(
         root()
           .findAllByProps({ role: 'status' })
-          .some((n) => n.children.join('').includes('Polygon')),
+          .some((n) => textOf(n).includes('Polygon')),
       ).toBe(true)
       await act(async () => button('Save reviews').props.onClick())
       expect(JSON.parse(vi.mocked(downloadText).mock.calls.at(-1)![0]).reviews[first].status).toBe('excluded')

@@ -1,6 +1,9 @@
-import type { ChangeEvent, Dispatch, SetStateAction } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '@/components/ui/button'
+import { ChevronDown, Download, Layers, Maximize, PenLine, Undo2, Upload, X } from 'lucide-react'
+import { ActionMenu } from '@/components/ui/action-menu'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { FileButton } from '@/components/ui/file-button'
 import { downloadText } from '@/lib/download'
 import { inventoryCsv, inventoryExport, standCsv, type EstimatedTree, type summarizeInventory } from './summary'
 import { reviewManifest } from './reviews'
@@ -13,7 +16,7 @@ interface Props {
   setMessage: (s: string) => void
   vertices: [number, number][]
   finish: () => void
-  file: (e: ChangeEvent<HTMLInputElement>, kind: 'polygon' | 'reviews') => Promise<void>
+  file: (file: File, kind: 'polygon' | 'reviews') => Promise<void>
   custom: InventoryPolygon | null
   setCustom: (p: InventoryPolygon | null) => void
   setAreaId: (id: string) => void
@@ -26,6 +29,7 @@ interface Props {
   reviews: Record<string, TreeReview>
   totals: ReturnType<typeof summarizeInventory>
 }
+/** Area, import and export actions above the crown map, in groups split by a rule. */
 export function InventoryActions({
   drawing,
   setDrawing,
@@ -57,11 +61,14 @@ export function InventoryActions({
           setMessage('')
         }}
       >
+        {drawing ? <X aria-hidden="true" /> : <PenLine aria-hidden="true" />}
         {drawing ? 'Cancel drawing' : 'Draw polygon'}
       </Button>
       {drawing && (
         <>
-          <span>{vertices.length} vertices · click the map</span>
+          <span className="text-muted-foreground" role="status">
+            {vertices.length} vertices · click the map
+          </span>
           <Button size="sm" disabled={vertices.length < 3} onClick={finish}>
             Finish polygon
           </Button>
@@ -71,23 +78,19 @@ export function InventoryActions({
             disabled={!vertices.length}
             onClick={() => setVertices((v) => v.slice(0, -1))}
           >
+            <Undo2 aria-hidden="true" />
             Undo vertex
           </Button>
         </>
       )}
-      <label className="cursor-pointer underline">
+      <FileButton
+        label="Import inventory polygon"
+        accept=".json,.geojson"
+        onFiles={([picked]) => void file(picked, 'polygon')}
+      >
+        <Upload aria-hidden="true" />
         Import boundary
-        <input
-          aria-label="Import inventory polygon"
-          className="sr-only"
-          type="file"
-          accept=".json,.geojson"
-          onChange={(e) => void file(e, 'polygon')}
-        />
-      </label>
-      <Link to="/dev/lidar/data/" className="underline">
-        Import data layers
-      </Link>
+      </FileButton>
       {custom && (
         <Button
           size="sm"
@@ -102,54 +105,66 @@ export function InventoryActions({
         </Button>
       )}
       <Button size="sm" variant="outline" onClick={fit}>
+        <Maximize aria-hidden="true" />
         Fit area
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => downloadText(inventoryCsv(rows), 'tree-inventory.csv', 'text/csv')}
-      >
-        Tree CSV
+      <Button size="sm" variant="ghost" asChild>
+        <Link to="/dev/lidar/data/">
+          <Layers aria-hidden="true" />
+          Import data layers
+        </Link>
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => downloadText(standCsv(rows, totals.covered_ha), 'inventory-stand-table.csv', 'text/csv')}
-      >
-        Stand CSV
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() =>
-          downloadText(
-            JSON.stringify(inventoryExport(data, rows, rules, polygon)),
-            'tree-inventory.geojson',
-            'application/geo+json',
-          )
+      <span className="mx-1 hidden h-5 w-px bg-border sm:block" aria-hidden="true" />
+      <ActionMenu
+        label="Export"
+        align="start"
+        triggerClassName={buttonVariants({ variant: 'outline', size: 'sm' })}
+        trigger={
+          <>
+            <Download aria-hidden="true" />
+            Export
+            <ChevronDown aria-hidden="true" />
+          </>
         }
-      >
-        GeoJSON
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() =>
-          downloadText(JSON.stringify(reviewManifest(data, reviews)), 'tree-inventory-reviews.json', 'application/json')
-        }
-      >
-        Save reviews
-      </Button>
-      <label className="cursor-pointer underline">
+        items={[
+          { type: 'label', id: 'scope', label: 'Candidates in this selection' },
+          {
+            id: 'tree-csv',
+            label: 'Tree CSV',
+            onSelect: () => downloadText(inventoryCsv(rows), 'tree-inventory.csv', 'text/csv'),
+          },
+          {
+            id: 'stand-csv',
+            label: 'Stand CSV',
+            onSelect: () => downloadText(standCsv(rows, totals.covered_ha), 'inventory-stand-table.csv', 'text/csv'),
+          },
+          {
+            id: 'geojson',
+            label: 'GeoJSON',
+            onSelect: () =>
+              downloadText(
+                JSON.stringify(inventoryExport(data, rows, rules, polygon)),
+                'tree-inventory.geojson',
+                'application/geo+json',
+              ),
+          },
+          { type: 'separator', id: 'reviews-separator' },
+          {
+            id: 'reviews',
+            label: 'Save reviews',
+            onSelect: () =>
+              downloadText(
+                JSON.stringify(reviewManifest(data, reviews)),
+                'tree-inventory-reviews.json',
+                'application/json',
+              ),
+          },
+        ]}
+      />
+      <FileButton label="Import inventory reviews" accept=".json" onFiles={([picked]) => void file(picked, 'reviews')}>
+        <Upload aria-hidden="true" />
         Import reviews
-        <input
-          aria-label="Import inventory reviews"
-          className="sr-only"
-          type="file"
-          accept=".json"
-          onChange={(e) => void file(e, 'reviews')}
-        />
-      </label>
+      </FileButton>
     </div>
   )
 }

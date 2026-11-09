@@ -1,29 +1,64 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, SelectField } from '@/components/ui/form-field'
 import { InventorySidebar } from './InventorySidebar'
 import { InventoryActions } from './InventoryActions'
 import { useEffect, useMemo, useState } from 'react'
 import type { FeatureCollection } from 'geojson'
+import { Boxes, PanelLeft } from 'lucide-react'
+import { useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { SegmentedControl } from '@/components/ui/segmented-control'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { ReadoutGrid } from '@/components/ui/readout-grid'
+import { ResultRow } from '@/components/ui/result-list'
+import { TabBar } from '@/components/ui/tab-bar'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import { cn } from '@/lib/utils'
 import type { Basemap } from '../basemaps'
 import { ComparisonMap } from '../comparisons/ComparisonMap'
 import { useInventoryData } from './useInventoryData'
 import { useInventoryPoints } from './useInventoryPoints'
 import { number } from './InventoryDetail'
+import { InventoryLegend, INVENTORY_COLOUR_OPTIONS } from './InventoryLegend'
 import { InventoryPoints } from './InventoryPoints'
 import { StandTable, MethodTable, ReturnTable } from './InventoryTables'
+import { inventoryTableSources } from './inventoryTable'
 import { drawnPolygon, parseInventoryPolygon, type InventoryPolygon } from './geometry'
-import { inventoryRows, summarizeInventory, inventoryMapFeatures } from './summary'
+import {
+  inventoryRows,
+  summarizeInventory,
+  inventoryMapFeatures,
+  INVENTORY_REVIEW_COLOURS,
+  INVENTORY_SELECTION_COLOUR,
+  INVENTORY_SUPPORT_COLOUR,
+} from './summary'
 import { DEFAULT_RULES, EMPTY_REVIEW, type InventoryData, type InventoryRules, type TreeReview } from './types'
 import { parseReviews, reviewManifest } from './reviews'
+
+/** Toolbar selects sit beside `size="sm"` buttons, so they share their height. */
+const TOOLBAR_SELECT_CLASS = cn(FORM_INPUT_CLASS, 'h-9 w-auto py-1')
+const TOOLBAR_FIELD_CLASS = 'flex-row items-center gap-1.5'
+const REVIEW_QUEUE: TreeReview['status'][] = ['unreviewed', 'split', 'merged', 'excluded', 'accepted']
+const TABLE_TABS = [
+  { value: 'stand', label: 'Stand & size classes' },
+  { value: 'compare', label: 'Compare methods' },
+  { value: 'returns', label: 'Return structure' },
+  { value: 'review', label: 'Review queue' },
+] as const
+type TableTab = (typeof TABLE_TABS)[number]['value']
+
 export function InventoryWorkspace({ basemap, sourceSha }: { basemap: Basemap; sourceSha?: string }) {
   const { data, error, retry } = useInventoryData(sourceSha)
   if (!data)
     return (
-      <main className="p-6 text-sm" role="status">
-        {error || 'Loading the completed inventory comparison…'}
+      <main className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 overflow-y-auto p-6">
+        <InlineAlert
+          className="w-full max-w-md"
+          tone={error ? 'error' : 'info'}
+          loading={!error}
+          title={error ? 'Could not load the inventory' : undefined}
+        >
+          {error || 'Loading the completed inventory comparison…'}
+        </InlineAlert>
         {error && <Button onClick={retry}>Retry inventory</Button>}
       </main>
     )
@@ -44,7 +79,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
     [selected, setSelected] = useState(''),
     [colour, setColour] = useState('height'),
     [sideTab, setSideTab] = useState('tree'),
-    [tableTab, setTableTab] = useState('stand'),
+    [tableTab, setTableTab] = useState<TableTab>('stand'),
     [showPoints, setShowPoints] = useState(!mobile),
     [panel, setPanel] = useState(!mobile),
     [rules, setRules] = useState<InventoryRules>(DEFAULT_RULES),
@@ -82,21 +117,29 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
     () => ({
       type: 'FeatureCollection',
       features: [
-        ...data.support.features.map((f) => ({ ...f, properties: { ...f.properties, colour: '#94a3b8' } })),
+        ...data.support.features.map((f) => ({
+          ...f,
+          properties: { ...f.properties, colour: INVENTORY_SUPPORT_COLOUR },
+        })),
         ...(polygon
-          ? [{ ...polygon, properties: { id: 'Inventory selection', colour: '#e11d48', selected: true } }]
+          ? [
+              {
+                ...polygon,
+                properties: { id: 'Inventory selection', colour: INVENTORY_SELECTION_COLOUR, selected: true },
+              },
+            ]
           : []),
         ...vertices.map((p, i) => ({
           type: 'Feature' as const,
           geometry: { type: 'Point' as const, coordinates: p },
-          properties: { id: `draw-${i}`, colour: '#e11d48' },
+          properties: { id: `draw-${i}`, colour: INVENTORY_SELECTION_COLOUR },
         })),
         ...(vertices.length > 1
           ? [
               {
                 type: 'Feature' as const,
                 geometry: { type: 'LineString' as const, coordinates: vertices },
-                properties: { id: 'Drawing boundary', colour: '#e11d48' },
+                properties: { id: 'Drawing boundary', colour: INVENTORY_SELECTION_COLOUR },
               },
             ]
           : []),
@@ -130,10 +173,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
       [active.tree.properties.id]: { ...EMPTY_REVIEW, ...old[active.tree.properties.id], ...p },
     }))
   }
-  const file = async (event: React.ChangeEvent<HTMLInputElement>, kind: 'polygon' | 'reviews') => {
-    const selectedFile = event.target.files?.[0]
-    event.target.value = ''
-    if (!selectedFile) return
+  const file = async (selectedFile: File, kind: 'polygon' | 'reviews') => {
     try {
       if (selectedFile.size > 2_000_000) throw Error('Use a file smaller than 2 MB')
       const text = await selectedFile.text()
@@ -163,101 +203,118 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
   }
   const name = data.methods.find((m) => m.id === method)!.name
   const currentIndex = active ? rows.indexOf(active) : -1
+  const tableSources = useMemo(() => inventoryTableSources(rows, name), [rows, name])
+  const table = useMapTable({
+    sources: tableSources,
+    selectedRowId: active?.tree.properties.id ?? null,
+    onSelectRow: (row, source) => choose(source.getRowId(row)),
+    // The LiDAR page writes its URL outside the router, and this map is not a shared `Map`
+    // that could host `MapTableBridge`, so rows select without moving the camera.
+    url: false,
+    flyOnSelect: false,
+    inlineButton: true,
+    buttonClassName: 'text-xs',
+  })
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Tree inventory workspace">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 text-xs">
-        <h1 className="mr-auto font-semibold">Tree inventory</h1>
-        <label>
-          Method{' '}
-          <NativeSelect
-            aria-label="Inventory method"
-            className="max-w-[230px] rounded border bg-background p-1"
-            value={method}
-            onChange={(e) => {
-              setMethod(e.target.value)
-              setSelected('')
-            }}
-          >
-            {data.methods.map((m) => (
-              <option value={m.id} key={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <label>
-          Area{' '}
-          <NativeSelect
-            aria-label="Inventory area preset"
-            className="rounded border bg-background p-1"
-            value={custom ? 'custom' : areaId}
-            onChange={(e) => {
-              setAreaId(e.target.value)
-              setCustom(null)
-              setVertices([])
-              setDrawing(false)
-              setSelected('')
-            }}
-          >
-            <option value="all">All seven processed cores</option>
-            {data.support.features.map((f) => (
-              <option value={String(f.properties?.id)} key={String(f.properties?.id)}>
-                Core {String(f.properties?.id)} · 0.25 ha
-              </option>
-            ))}
-            {custom && <option value="custom">User polygon</option>}
-          </NativeSelect>
-        </label>
-        <label>
-          Colour{' '}
-          <NativeSelect
-            aria-label="Inventory map colour"
-            className="rounded border bg-background p-1"
-            value={colour}
-            onChange={(e) => setColour(e.target.value)}
-          >
-            {[
-              ['height', 'Height'],
-              ['species', 'Species assumption'],
-              ['dbh', 'Estimated / entered DBH'],
-              ['volume', 'Modelled total volume'],
-              ['texture', 'Crown texture'],
-              ['review', 'Review status'],
-            ].map(([id, label]) => (
-              <option key={id} value={id}>
-                {label}
-              </option>
-            ))}
-          </NativeSelect>
-        </label>
-        <Button size="sm" variant="outline" onClick={() => setPanel(!panel)}>
-          {panel ? 'Hide' : 'Show'} inventory panel
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2">
+        <h1 className="mr-auto text-sm font-semibold">Tree inventory</h1>
+        <SelectField
+          label="Method"
+          aria-label="Inventory method"
+          contentClassName={TOOLBAR_FIELD_CLASS}
+          className={cn(TOOLBAR_SELECT_CLASS, 'max-w-[14rem]')}
+          value={method}
+          onChange={(e) => {
+            setMethod(e.target.value)
+            setSelected('')
+          }}
+        >
+          {data.methods.map((m) => (
+            <option value={m.id} key={m.id}>
+              {m.name}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="Area"
+          aria-label="Inventory area preset"
+          contentClassName={TOOLBAR_FIELD_CLASS}
+          className={TOOLBAR_SELECT_CLASS}
+          value={custom ? 'custom' : areaId}
+          onChange={(e) => {
+            setAreaId(e.target.value)
+            setCustom(null)
+            setVertices([])
+            setDrawing(false)
+            setSelected('')
+          }}
+        >
+          <option value="all">All seven processed cores</option>
+          {data.support.features.map((f) => (
+            <option value={String(f.properties?.id)} key={String(f.properties?.id)}>
+              Core {String(f.properties?.id)} · 0.25 ha
+            </option>
+          ))}
+          {custom && <option value="custom">User polygon</option>}
+        </SelectField>
+        <SelectField
+          label="Colour"
+          aria-label="Inventory map colour"
+          contentClassName={TOOLBAR_FIELD_CLASS}
+          className={TOOLBAR_SELECT_CLASS}
+          value={colour}
+          onChange={(e) => setColour(e.target.value)}
+        >
+          {INVENTORY_COLOUR_OPTIONS.map(({ value, label }) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </SelectField>
+        <Button size="sm" variant="outline" aria-pressed={panel} onClick={() => setPanel(!panel)}>
+          <PanelLeft aria-hidden="true" />
+          Inventory panel
         </Button>
-        <Button size="sm" variant="outline" onClick={() => setShowPoints(!showPoints)}>
-          {showPoints ? 'Hide' : 'Show'} points & profile
+        <Button size="sm" variant="outline" aria-pressed={showPoints} onClick={() => setShowPoints(!showPoints)}>
+          <Boxes aria-hidden="true" />
+          Points & profile
         </Button>
+        {table.button}
       </div>
-      <div
-        className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-emerald-50 px-3 py-1.5 text-2xs dark:bg-emerald-950"
+      <section
+        className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b bg-muted/30 px-3 py-1.5"
         aria-label="Inventory summary"
       >
-        <strong>
-          {totals.candidates} candidates · {number(totals.covered_ha, 3)} supported ha
-        </strong>
-        <span>{number(totals.trees_ha)} candidates/ha</span>
-        {totals.coverage < 0.999 && (
-          <span className="font-medium text-amber-800 dark:text-amber-300">
-            {number(totals.coverage * 100)}% covered · {number(totals.requested_ha - totals.covered_ha, 3)} ha
-            unprocessed
-          </span>
-        )}
-        <span>Known modelled merchantable: {number(totals.merchant_m3, 2)} m³</span>
-        <span>
-          Volume available {totals.known_volume}/{totals.candidates}
-        </span>
-        <span>Recovered scenario: {number(totals.recovered_m3, 2)} m³</span>
+        <ReadoutGrid
+          className="min-w-[16rem] flex-1"
+          minColumnWidth="10rem"
+          items={[
+            { label: 'Candidates', value: totals.candidates },
+            { label: 'Supported', title: 'Supported (processed) area', value: `${number(totals.covered_ha, 3)} ha` },
+            { label: 'Density', title: 'Candidates per supported hectare', value: `${number(totals.trees_ha)} /ha` },
+            totals.coverage < 0.999 && {
+              label: 'Covered',
+              title: 'Share of the requested area that was processed',
+              value: `${number(totals.coverage * 100)}%`,
+              tone: 'warning',
+            },
+            totals.coverage < 0.999 && {
+              label: 'Unprocessed',
+              value: `${number(totals.requested_ha - totals.covered_ha, 3)} ha`,
+              tone: 'warning',
+            },
+            {
+              label: 'Merch. known',
+              title: 'Known modelled merchantable volume',
+              value: `${number(totals.merchant_m3, 2)} m³`,
+            },
+            { label: 'Volume known', value: `${totals.known_volume}/${totals.candidates}` },
+            { label: 'Recovered', title: 'Recovered-volume scenario', value: `${number(totals.recovered_m3, 2)} m³` },
+          ]}
+        />
         <Badge tone="warning">Preliminary detected candidates · not a census</Badge>
-      </div>
+      </section>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
         {panel && (
           <InventorySidebar
@@ -275,6 +332,7 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
             totals={totals}
             search={search}
             setSearch={setSearch}
+            onClose={() => setPanel(false)}
           />
         )}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -299,12 +357,12 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
             totals={totals}
           />
           {message && (
-            <p role="status" className="shrink-0 bg-amber-50 p-2 text-xs dark:bg-amber-950">
-              {message}
-            </p>
+            <div role="status" className="shrink-0 border-b p-2">
+              <InlineAlert tone="warning">{message}</InlineAlert>
+            </div>
           )}
           <div className="flex min-h-[180px] flex-1 flex-col overflow-y-auto md:flex-row lg:overflow-hidden">
-            <div className="relative min-h-[180px] min-w-[150px] flex-1">
+            <div className="relative min-h-[180px] min-w-[150px] flex-1 overflow-hidden">
               <ComparisonMap
                 label="Tree inventory crown map"
                 centre={centre}
@@ -322,14 +380,8 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
                 onFeaturePick={choose}
                 overlayOpacity={0.55}
               />
-              <p className="pointer-events-none absolute bottom-8 left-2 right-12 rounded bg-background/90 p-1.5 text-3xs">
-                {colour === 'species'
-                  ? 'Species assumptions: spruce green · aspen orange · birch magenta · Douglas-fir blue · unknown grey.'
-                  : colour === 'review'
-                    ? 'Review: accepted green · excluded red · split orange · merged purple · unreviewed grey.'
-                    : `Pale → dark: ${colour === 'height' ? '0–40 m height' : colour === 'dbh' ? '0–80 cm DBH' : colour === 'volume' ? '0–3 m³ modelled total stem' : '0–8 GLCM entropy (ForestTools only)'}. Grey = unavailable.`}{' '}
-                Red outline = selection boundary. Counts use canopy-apex membership, not fractional crowns.
-              </p>
+              <InventoryLegend colour={colour} />
+              {table.layout.bottomPane}
             </div>
             {showPoints && (
               <div className="h-[360px] w-full shrink-0 md:h-auto md:w-[38%] md:min-w-[240px] md:max-w-[420px]">
@@ -347,22 +399,21 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
             className="flex h-[25dvh] min-h-[130px] max-h-[300px] shrink-0 flex-col overflow-hidden border-t"
             aria-label="Inventory summary tables"
           >
-            <div className="shrink-0 border-b px-2 py-1">
-              <SegmentedControl
-                label="Inventory result table"
-                size="sm"
-                fullWidth={false}
-                value={tableTab}
-                onChange={setTableTab}
-                options={[
-                  { value: 'stand', label: 'Stand & size classes' },
-                  { value: 'compare', label: 'Compare methods' },
-                  { value: 'returns', label: 'Return structure' },
-                  { value: 'review', label: 'Review queue' },
-                ]}
-              />
-            </div>
-            <div className="min-h-0 flex-1 overflow-auto p-2">
+            <TabBar
+              label="Inventory result table"
+              idPrefix="inventory-table"
+              variant="underline"
+              className="shrink-0 px-1"
+              value={tableTab}
+              onChange={setTableTab}
+              options={TABLE_TABS}
+            />
+            <div
+              role="tabpanel"
+              id={`inventory-table-panel-${tableTab}`}
+              aria-labelledby={`inventory-table-tab-${tableTab}`}
+              className="min-h-0 flex-1 overflow-auto p-2"
+            >
               {tableTab === 'stand' ? (
                 <StandTable rows={rows} area={totals.covered_ha} />
               ) : tableTab === 'compare' ? (
@@ -370,22 +421,25 @@ export function InventoryViews({ data, basemap }: { data: InventoryData; basemap
               ) : tableTab === 'returns' ? (
                 <ReturnTable core={points.core} polygon={polygon} />
               ) : (
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {['unreviewed', 'split', 'merged', 'excluded', 'accepted'].map((status) => (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      key={status}
-                      onClick={() => {
-                        setSearch(status)
-                        setSideTab('list')
-                        setPanel(true)
-                      }}
-                    >
-                      {status}: {rows.filter((r) => r.review.status === status).length}
-                    </Button>
-                  ))}
-                  <p className="w-full text-3xs">
+                <div className="space-y-2">
+                  <div className="grid overflow-hidden rounded-md border sm:grid-cols-2 lg:grid-cols-5">
+                    {REVIEW_QUEUE.map((status) => (
+                      <ResultRow
+                        key={status}
+                        className="py-2"
+                        dotColor={INVENTORY_REVIEW_COLOURS[status]}
+                        title={status}
+                        // A string, so a zero count still shows.
+                        trailing={String(rows.filter((r) => r.review.status === status).length)}
+                        onClick={() => {
+                          setSearch(status)
+                          setSideTab('list')
+                          setPanel(true)
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
                     Select a category to open the searchable review list. Decisions, entered diameters and notes persist
                     locally and export in a source/run-scoped manifest.
                   </p>

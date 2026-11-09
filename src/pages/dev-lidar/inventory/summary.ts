@@ -157,16 +157,37 @@ export function matchInventories(left: EstimatedTree[], right: EstimatedTree[], 
       : null,
   }
 }
-const SPECIES_COLOURS: Record<string, string> = {
+// The map and its legend both read these, so the two cannot drift apart.
+export const INVENTORY_UNAVAILABLE_COLOUR = '#94a3b8'
+/** The selected area's outline and the vertices of a polygon being drawn. */
+export const INVENTORY_SELECTION_COLOUR = '#e11d48'
+export const INVENTORY_SUPPORT_COLOUR = '#94a3b8'
+export const INVENTORY_OTHER_SPECIES_COLOUR = '#8b5cf6'
+export const INVENTORY_SPECIES_COLOURS: Record<string, string> = {
   SX: '#16a34a',
   AT: '#f59e0b',
   EP: '#d946ef',
   FDI: '#0284c7',
   AC: '#a16207',
-  UNKNOWN: '#94a3b8',
+  UNKNOWN: INVENTORY_UNAVAILABLE_COLOUR,
+}
+export const INVENTORY_REVIEW_COLOURS: Record<TreeReview['status'], string> = {
+  accepted: '#16a34a',
+  excluded: '#ef4444',
+  split: '#f59e0b',
+  merged: '#c026d3',
+  unreviewed: INVENTORY_UNAVAILABLE_COLOUR,
+}
+/** Five equal classes from zero to each colour's maximum (`INVENTORY_RAMP_SCALES`); the top class is open-ended. */
+export const INVENTORY_RAMP = ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a', '#166534']
+export const INVENTORY_RAMP_SCALES: Record<string, { max: number; unit: string; label: string }> = {
+  height: { max: 40, unit: 'm', label: 'Observed height' },
+  dbh: { max: 80, unit: 'cm', label: 'Estimated / entered DBH' },
+  volume: { max: 3, unit: 'm³', label: 'Modelled total stem' },
+  texture: { max: 8, unit: '', label: 'GLCM entropy (ForestTools only)' },
 }
 export function inventoryMapFeatures(rows: EstimatedTree[], colour: string, selected: string): FeatureCollection {
-  const ramp = ['#f0fdf4', '#bbf7d0', '#4ade80', '#16a34a', '#166534']
+  const ramp = INVENTORY_RAMP
   return {
     type: 'FeatureCollection',
     features: rows.map((r) => {
@@ -184,19 +205,14 @@ export function inventoryMapFeatures(rows: EstimatedTree[], colour: string, sele
       const t =
         value === null
           ? null
-          : Math.min(
-              1,
-              Math.max(0, value / (colour === 'height' ? 40 : colour === 'dbh' ? 80 : colour === 'volume' ? 3 : 8)),
-            )
+          : Math.min(1, Math.max(0, value / (INVENTORY_RAMP_SCALES[colour] ?? INVENTORY_RAMP_SCALES.texture).max))
       const fill =
         colour === 'species'
-          ? (SPECIES_COLOURS[volumeGroup(r.species)] ?? '#8b5cf6')
+          ? (INVENTORY_SPECIES_COLOURS[volumeGroup(r.species)] ?? INVENTORY_OTHER_SPECIES_COLOUR)
           : colour === 'review'
-            ? { accepted: '#16a34a', excluded: '#ef4444', split: '#f59e0b', merged: '#c026d3', unreviewed: '#94a3b8' }[
-                r.review.status
-              ]
+            ? INVENTORY_REVIEW_COLOURS[r.review.status]
             : t === null
-              ? '#94a3b8'
+              ? INVENTORY_UNAVAILABLE_COLOUR
               : ramp[Math.min(4, Math.floor(t * 5))]
       return { ...r.tree, properties: { ...p, selected: p.id === selected, colour: fill } }
     }),
