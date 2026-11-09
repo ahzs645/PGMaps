@@ -45,6 +45,7 @@ import {
 import { LidarMap, pointCloudFrame, RegionalHillshade } from './LidarMap'
 import { CAMERA_PARAM, formatCamera, parseCamera } from './mapCamera'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import { Notification } from '@/components/ui/notification'
 
 /** Keeps the address bar on the current view, so a copied link opens the same place. */
 function shareCamera(map: MapLibreMap) {
@@ -696,20 +697,17 @@ export function NativeLidarMap(props: Props) {
         {height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       </div>
       {error && (
-        <div
-          className="absolute bottom-20 left-3 right-3 max-h-[40%] overflow-y-auto overscroll-contain rounded border border-amber-500 bg-background/95 p-3 text-xs"
-          role="alert"
-        >
-          {error}
-          <button className="ml-3 underline" onClick={() => setError('')}>
-            Dismiss
-          </button>
-        </div>
+        <Notification
+          id="lidar-map-error"
+          tone="error"
+          title="LiDAR map"
+          message={error}
+          dismissLabel="Dismiss map error"
+          onDismiss={() => setError('')}
+        />
       )}
       {contextError && props.basemap === 'vector' && (
-        <div role="status" className="absolute left-3 right-14 top-3 rounded border bg-background/95 p-2 text-3xs">
-          {contextError}
-        </div>
+        <Notification id="lidar-map-context" tone="warning" title="Map context" message={contextError} />
       )}
     </div>
   )

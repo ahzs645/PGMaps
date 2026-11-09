@@ -14,6 +14,7 @@ import { treePointLayer } from '../treePointLayer'
 import type { TreeCrop } from '../treeIsolation'
 import { EMPTY_FEATURES } from './data'
 import { LidarMap } from '../LidarMap'
+import { Notification } from '@/components/ui/notification'
 
 /** The vector context anchors on `analysis-height`, which a comparison has no raster for. */
 function comparisonStyle(basemap: Basemap) {
@@ -305,9 +306,13 @@ export function ComparisonMap(props: Props) {
         onCreateError={(e) => setError(`Map unavailable: ${String(e)}`)}
       />
       {error && (
-        <p className="absolute bottom-8 left-2 right-12 rounded bg-background/95 p-2 text-3xs" role="status">
-          {error}
-        </p>
+        <Notification
+          tone="error"
+          title={props.label}
+          message={error}
+          dismissLabel="Dismiss map error"
+          onDismiss={() => setError('')}
+        />
       )}
     </div>
   )
