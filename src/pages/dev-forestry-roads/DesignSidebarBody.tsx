@@ -14,6 +14,7 @@ import type { RoutePreviewLine } from './RouteFinder'
 import type { DrawMode } from './PlanView'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { ContextFeature, Coordinate, RoadTemplate } from './types'
+import type { AccessHistorySelection } from './AccessHistorySelection'
 
 export type FileKind = 'project' | 'terrain' | 'alignment' | 'context' | 'breaklines'
 export interface PointCloudChoice {
@@ -75,6 +76,7 @@ export interface SidebarProps {
   onLocateConstraint?: (area: ContextFeature) => void
   /** Fits a saved historical path or structure without changing current road reuse. */
   onLocateHistory?: (coordinates: Coordinate[]) => void
+  historySelection?: AccessHistorySelection
   focusedConstraintId?: string | null
   cutblockReviewRequest?: { id: string; sequence: number }
   onReviewRoad?: (road: ContextFeature | null, picked?: boolean) => void

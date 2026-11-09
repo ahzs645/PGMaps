@@ -10,6 +10,7 @@ import {
   type RoadQueryBounds,
 } from './existingRoads'
 import { unreviewedRoadEvidence } from './existingRoadEvidence'
+import { importContextGeoJson } from './project'
 
 const FOREST_TENURE = 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/bcgw_pub_whse_forest_tenure/MapServer'
 const FOREST_VEGETATION =
@@ -20,6 +21,10 @@ export const MAX_IDENTITY_RESPONSE_BYTES = 1024 * 1024
 export const MAX_STRUCTURE_IMPORT_BYTES = 5 * 1024 * 1024
 export const MAX_IMPORTED_STRUCTURES = 500
 export const ACCESS_SOURCE_TIMEOUT_MS = 20_000
+export const MAX_ACCESS_SOURCE_TIMEOUT_MS = 30_000
+export const MAX_BC_OPENING_POLYGONS = 25
+export const MAX_BC_OPENING_POLYGON_BYTES = 5 * 1024 * 1024
+export const MAX_BC_OPENING_VERTICES = 20_000
 
 export interface AccessHistorySourceDefinition {
   id: string
@@ -326,6 +331,10 @@ function throwIfAborted(signal?: AbortSignal): void {
 async function boundedJson(url: string, signal: AbortSignal, limit: number): Promise<unknown> {
   throwIfAborted(signal)
   const response = await fetch(url, { signal })
+  if (signal.aborted) {
+    await response.body?.cancel().catch(() => undefined)
+    throwIfAborted(signal)
+  }
   if (!response.ok)
     throw Error(`BC source request failed (${response.status}); current project evidence was not changed.`)
   if (Number(response.headers.get('content-length')) > limit) {
@@ -362,14 +371,20 @@ async function boundedJson(url: string, signal: AbortSignal, limit: number): Pro
   throwIfAborted(signal)
   return JSON.parse(body)
 }
-async function sourceRequest<T>(signal: AbortSignal | undefined, run: (signal: AbortSignal) => Promise<T>): Promise<T> {
+async function sourceRequest<T>(
+  signal: AbortSignal | undefined,
+  run: (signal: AbortSignal) => Promise<T>,
+  timeoutMs = ACCESS_SOURCE_TIMEOUT_MS,
+): Promise<T> {
   throwIfAborted(signal)
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > MAX_ACCESS_SOURCE_TIMEOUT_MS)
+    throw Error(`BC source requests support a timeout of at most ${MAX_ACCESS_SOURCE_TIMEOUT_MS} ms.`)
   const controller = new AbortController()
   const cancel = () => controller.abort(signal?.reason)
   signal?.addEventListener('abort', cancel, { once: true })
   const timeout = setTimeout(
     () => controller.abort(new DOMException('BC source request timed out; try a smaller query.', 'TimeoutError')),
-    ACCESS_SOURCE_TIMEOUT_MS,
+    timeoutMs,
   )
   try {
     const result = await run(controller.signal)
@@ -401,8 +416,118 @@ export async function loadBcBlockIdentity(openingId: string, signal?: AbortSigna
   })
 }
 
+/** The same FTEN source record supplies its administrative identity and unmodified polygon geometry. */
+export function buildBcOpeningFootprintQuery(openingId: string): string {
+  const url = new URL(buildBcBlockIdentityQuery(openingId, 'ften-cutblock'))
+  url.searchParams.set('f', 'geojson')
+  url.searchParams.set('returnGeometry', 'true')
+  url.searchParams.set('outSR', '4326')
+  url.searchParams.set('resultRecordCount', String(MAX_BC_OPENING_POLYGONS + 1))
+  return url.toString()
+}
+
+export function parseBcOpeningFootprints(
+  raw: unknown,
+  openingId: string,
+  retrievedAt = new Date().toISOString(),
+): { records: BlockIdentityRecord[]; blocks: ContextFeature[] } {
+  const input = object(raw, 'FTEN opening footprints')
+  if (input.crs !== undefined) throw Error('FTEN opening footprints must be WGS84 GeoJSON without a legacy CRS.')
+  const features = collection(input, MAX_BC_OPENING_POLYGONS, 'FTEN opening footprints')
+  const records = parseBcBlockIdentityRecords(raw, 'ften-cutblock', openingId, retrievedAt)
+  if (!features.length) return { records, blocks: [] }
+  const blocks = importContextGeoJson({
+    type: 'FeatureCollection',
+    features: features.map((feature, index) => {
+      const record = records[index]
+      const geometry = object(feature.geometry, 'FTEN cutblock geometry')
+      if (!['Polygon', 'MultiPolygon'].includes(String(geometry.type)))
+        throw Error('FTEN opening footprints must contain polygon geometry.')
+      if (geometry.crs !== undefined || feature.crs !== undefined)
+        throw Error('FTEN opening footprints must use WGS84 coordinates.')
+      const startDate = record.disturbanceStartDate,
+        endDate = record.disturbanceEndDate
+      return {
+        type: 'Feature',
+        id: record.id,
+        geometry,
+        properties: {
+          name: `FTEN block ${record.cutBlockId ?? record.cutblockSKey} · opening ${record.openingId}`,
+          kind: 'harvest',
+          harvestEvidence: {
+            source: 'bc-ften',
+            sourceId: record.id,
+            sourceUrl: record.sourceUrl,
+            retrievedAt,
+            openingId: record.openingId,
+            dataSource:
+              'FTEN cutblock polygon. Reported harvest start; completion may be actual or estimated. No road history inferred.',
+            yearMethod: endDate ? 'estimated-range' : startDate ? 'start-only' : 'unknown',
+            ...(startDate ? { startDate } : {}),
+            ...(endDate ? { endDate } : {}),
+          },
+        },
+      }
+    }),
+  })
+  if (blocks.length > MAX_BC_OPENING_POLYGONS)
+    throw Error(
+      `FTEN opening footprints exceed ${MAX_BC_OPENING_POLYGONS} polygon parts; no partial opening was accepted.`,
+    )
+  const vertices = blocks.reduce(
+    (total, block) =>
+      total +
+      (block.geometry.type === 'Polygon'
+        ? block.geometry.coordinates.reduce((count, ring) => count + ring.length, 0)
+        : 0),
+    0,
+  )
+  if (vertices > MAX_BC_OPENING_VERTICES)
+    throw Error(`FTEN opening footprints exceed ${MAX_BC_OPENING_VERTICES} vertices; choose a smaller opening.`)
+  return { records, blocks }
+}
+
+export interface BcOpeningFootprintResult {
+  identity: BlockIdentityLookup
+  blocks: ContextFeature[]
+  retrievedAt: string
+  resultsQueryUrl: string
+  cutblockQueryUrl: string
+}
+
+/** The pair is atomic: errors, truncation or invalid geometry never produce a successful partial lookup. */
+export function loadBcOpeningFootprints(
+  openingId: string,
+  signal?: AbortSignal,
+  timeoutMs = ACCESS_SOURCE_TIMEOUT_MS,
+): Promise<BcOpeningFootprintResult> {
+  const id = numericId(openingId, 'Opening ID')
+  const resultsQueryUrl = buildBcBlockIdentityQuery(id, 'results-opening')
+  const cutblockQueryUrl = buildBcOpeningFootprintQuery(id)
+  return sourceRequest(
+    signal,
+    async (requestSignal) => {
+      const retrievedAt = new Date().toISOString()
+      const [resultsRaw, footprintsRaw] = await Promise.all([
+        boundedJson(resultsQueryUrl, requestSignal, MAX_IDENTITY_RESPONSE_BYTES),
+        boundedJson(cutblockQueryUrl, requestSignal, MAX_BC_OPENING_POLYGON_BYTES),
+      ])
+      const results = parseBcBlockIdentityRecords(resultsRaw, 'results-opening', id, retrievedAt)
+      const footprints = parseBcOpeningFootprints(footprintsRaw, id, retrievedAt)
+      return {
+        identity: combineBlockIdentityRecords(id, [...results, ...footprints.records], retrievedAt),
+        blocks: footprints.blocks,
+        retrievedAt,
+        resultsQueryUrl,
+        cutblockQueryUrl,
+      }
+    },
+    timeoutMs,
+  )
+}
+
 /** A content label, not a cryptographic signature; import still compares complete records on an ID collision. */
-function sourceVersion(value: unknown): string {
+export function accessSourceSnapshotVersion(value: unknown): string {
   const serialized = JSON.stringify(value)
   let first = 2166136261,
     second = 5381
@@ -422,7 +547,7 @@ export function blockIdentitySources(lookup: BlockIdentityLookup): HistoricalSou
     const description = `Opening ${lookup.openingId}: the bounded RESULTS and FTEN identity lookup returned no records. ${missing} No road service or construction purpose established.`
     return [
       {
-        id: `opening-identity-query:${lookup.openingId}:v${sourceVersion(description)}`,
+        id: `opening-identity-query:${lookup.openingId}:v${accessSourceSnapshotVersion(description)}`,
         dataset: 'BC opening identity lookup',
         recordId: lookup.openingId,
         url: definition('results-opening').catalogueUrl,
@@ -481,26 +606,36 @@ export function blockIdentitySources(lookup: BlockIdentityLookup): HistoricalSou
     }
     return {
       ...snapshot,
-      id: `${record.id}:v${sourceVersion({ snapshot, matches, missing })}`,
+      id: `${record.id}:v${accessSourceSnapshotVersion({ snapshot, matches, missing })}`,
       retrievedAt: record.retrievedAt,
     }
   })
 }
 
-export function buildBcRoadSegmentsQuery(bounds: RoadQueryBounds): string {
+function roadRecordLimit(value: number): number {
+  if (!Number.isInteger(value) || value < 1 || value > MAX_EXISTING_ROADS)
+    throw Error(`A road source request supports 1–${MAX_EXISTING_ROADS} records.`)
+  return value
+}
+export function buildBcRoadSegmentsQuery(bounds: RoadQueryBounds, maxRecords = MAX_EXISTING_ROADS): string {
   // Reuse the same geographic extent checks as the existing local-road query.
   const url = new URL(buildBcRoadsQuery(bounds))
   const params = url.searchParams
+  params.set('resultRecordCount', String(roadRecordLimit(maxRecords) + 1))
   params.set(
     'outFields',
     'OBJECTID,FOREST_FILE_ID,ROAD_SECTION_ID,START_STATION,END_STATION,TIMBER_MARK,CLIENT_NUMBER,FILE_TYPE_CODE,FILE_STATUS_CODE,LIFE_CYCLE_STATUS_CODE,RETIREMENT_DATE',
   )
   return `${definition('ften-road-segment').serviceUrl}/query?${params}`
 }
-export function parseBcRoadSegments(raw: unknown, retrievedAt = new Date().toISOString()): ContextFeature[] {
+export function parseBcRoadSegments(
+  raw: unknown,
+  retrievedAt = new Date().toISOString(),
+  maxRecords = MAX_EXISTING_ROADS,
+): ContextFeature[] {
   retrievedDate(retrievedAt)
   const source = definition('ften-road-segment')
-  const features = collection(raw, MAX_EXISTING_ROADS, source.name).map((feature) => {
+  const features = collection(raw, roadRecordLimit(maxRecords), source.name).map((feature) => {
     const p = attributes(feature)
     const identifiers = sourceRoadIdentifiers(p)
     if (!identifiers.forestFileId || !identifiers.roadSectionId)
@@ -542,10 +677,22 @@ export function parseBcRoadSegments(raw: unknown, retrievedAt = new Date().toISO
     return { ...road, id: `${sourceId.replace(':', '-')}-${part}` }
   })
 }
-export function loadBcRoadSegments(bounds: RoadQueryBounds, signal?: AbortSignal): Promise<ContextFeature[]> {
-  const url = buildBcRoadSegmentsQuery(bounds)
-  return sourceRequest(signal, async (requestSignal) =>
-    parseBcRoadSegments(await boundedJson(url, requestSignal, MAX_ROAD_RESPONSE_BYTES)),
+export function loadBcRoadSegments(
+  bounds: RoadQueryBounds,
+  signal?: AbortSignal,
+  maxRecords = MAX_EXISTING_ROADS,
+  timeoutMs = ACCESS_SOURCE_TIMEOUT_MS,
+): Promise<ContextFeature[]> {
+  const url = buildBcRoadSegmentsQuery(bounds, maxRecords)
+  return sourceRequest(
+    signal,
+    async (requestSignal) =>
+      parseBcRoadSegments(
+        await boundedJson(url, requestSignal, MAX_ROAD_RESPONSE_BYTES),
+        new Date().toISOString(),
+        maxRecords,
+      ),
+    timeoutMs,
   )
 }
 export function roadSegmentSources(roads: readonly ContextFeature[]): HistoricalSource[] {

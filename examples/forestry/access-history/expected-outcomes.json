@@ -48,16 +48,16 @@
           "structureId": "history-example-bridge",
           "status": "compatible",
           "reasons": [
-            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
-            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review.",
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions."
           ]
         },
         {
           "structureId": "history-example-culvert",
           "status": "compatible",
           "reasons": [
-            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
-            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review.",
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions."
           ]
         }
       ],
@@ -82,7 +82,7 @@
             "Junction history-junction-entrance-a is declared on only one eligible road; it connects no other road.",
             "Junction history-junction-entrance-b is declared on only one eligible road; it connects no other road.",
             "Rehabilitation costs were explicitly excluded from this path request.",
-            "Synthetic shared bridge · closed in 2019: Applicable source reports give conflicting load ratings; retain each report and review applicability. A dated structure closure also applies at the analysis date; no open rating overrides it.",
+            "Synthetic shared bridge · closed in 2019: A dated structure closure applies at the analysis date. Applicable source reports give conflicting load ratings; retain each report and review applicability. Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review. Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
             "The analysis date is outside the reported harvest interval. This trace compares network history; it does not document the route used during harvesting.",
             "This is a geometric historical-access candidate, not proof that this route was used or built for this block.",
             "Vehicle capacity, present condition and current legal access are not established."
@@ -103,21 +103,23 @@
           "structureId": "history-example-bridge",
           "status": "conflict",
           "reasons": [
+            "A dated structure closure applies at the analysis date.",
             "Applicable source reports give conflicting load ratings; retain each report and review applicability.",
-            "A dated structure closure also applies at the analysis date; no open rating overrides it."
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review.",
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions."
           ]
         },
         {
           "structureId": "history-example-culvert",
           "status": "compatible",
           "reasons": [
-            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.",
-            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review."
+            "Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review.",
+            "Physical road evidence is date-compatible; historical use, condition and permission remain separate questions."
           ]
         }
       ],
       "unresolved": [
-        "Synthetic shared bridge · closed in 2019: Applicable source reports give conflicting load ratings; retain each report and review applicability. A dated structure closure also applies at the analysis date; no open rating overrides it."
+        "Synthetic shared bridge · closed in 2019: A dated structure closure applies at the analysis date. Applicable source reports give conflicting load ratings; retain each report and review applicability. Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review. Physical road evidence is date-compatible; historical use, condition and permission remain separate questions."
       ]
     }
   ],

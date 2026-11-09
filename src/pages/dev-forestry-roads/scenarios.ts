@@ -12,6 +12,7 @@ import { DEFAULT_ROUTE_OPTIONS, suggestRoutes } from './routing'
 import { requireScenarioTerrain } from './scenarioCoverage'
 import { createFullCostTrainingProject } from './trainingFullCostScenario'
 import { createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
+import { loadBcAccessPilotScenario } from './bcAccessPilotScenario'
 import {
   createDemoProject,
   DEFAULT_ROAD_SETTINGS,
@@ -36,6 +37,16 @@ export interface ScenarioContents {
 }
 
 export const ROAD_SCENARIOS = [
+  {
+    id: 'bc-opening-60677',
+    name: 'BC records · opening 60677',
+    terrain: 'Regional DEM · live source investigation',
+    detail:
+      'A real FTEN block and nearby road segments, cross-checked with RESULTS. Missing road dates and crossing evidence stay visible.',
+    focus: 'Inspect source identity, nearby-road candidates and the evidence still needed for historical access',
+    kind: 'history-pilot',
+    contents: { roads: 'mapped', cutblocks: 'mapped' },
+  },
   {
     id: 'bc-lidar',
     name: 'Prince George · native LiDAR',
@@ -693,6 +704,7 @@ export async function loadRoadScenario(
   }: { signal?: AbortSignal; onProgress?: (message: string) => void; decodeRegionalTiles?: TileDecoder } = {},
 ): Promise<{ project: RoadProject; source: TerrainSource; notice: string }> {
   const scenario = roadScenario(id)
+  if (scenario.kind === 'history-pilot') return loadBcAccessPilotScenario({ signal, onProgress, decodeRegionalTiles })
   if (scenario.kind === 'training') {
     const project = createTrainingScenario(id)
     requireScenarioTerrain(project.alignments, demoTerrain, project.settings.crossSectionHalfWidth)

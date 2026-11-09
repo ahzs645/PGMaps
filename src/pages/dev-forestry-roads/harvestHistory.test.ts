@@ -58,6 +58,23 @@ afterEach(() => {
 })
 
 describe('historical harvest evidence', () => {
+  it('retains FTEN provenance without inventing a harvest completion date from a tenure polygon', () => {
+    const evidence = parseHarvestEvidence({
+      source: 'bc-ften',
+      sourceId: 'FTEN-CUTBLOCK-123',
+      openingId: '60677',
+      sourceUrl: 'https://delivery.maps.gov.bc.ca/arcgis/rest/services/whse/forest_tenure/MapServer/0',
+      retrievedAt: '2026-11-09T00:00:00Z',
+      yearMethod: 'unknown',
+    })
+    expect(evidence.source).toBe('bc-ften')
+    expect(evidence.startDate).toBeUndefined()
+    expect(evidence.endYear).toBeUndefined()
+    expect(harvestAgeSummary(evidence, 2026)).toBe('Harvest date unknown')
+    const project = createDemoProject()
+    project.context = [{ ...block, harvestEvidence: evidence }]
+    expect(parseProject(serializeProject(project)).context[0].harvestEvidence).toEqual(evidence)
+  })
   it('retains the unique consolidated record, source, estimated midpoint and null opening without inventing completion', () => {
     const [feature] = importHarvestHistory(collection(bcFeature()), { retrievedAt: '2026-11-07T12:00:00Z' })
     expect(feature.id).toBe('bc-harvest-4633')

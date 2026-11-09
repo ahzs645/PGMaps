@@ -89,8 +89,26 @@ export function historicalMapFeatures(context: readonly ContextFeature[], state?
       }
     }),
   )
+  const anchors = collection(
+    (state?.anchors ?? []).map((anchor) => ({
+      type: 'Feature',
+      id: anchor.id,
+      geometry: { type: 'Point', coordinates: anchor.coordinate },
+      properties: {
+        id: anchor.id,
+        name: anchor.name,
+        role: anchor.role,
+        color: anchor.role === 'entrance' ? '#2563eb' : '#475569',
+        road: context.find((feature) => feature.id === anchor.roadId)?.name ?? 'Road not assigned',
+        block: context.find((feature) => feature.id === anchor.blockId)?.name ?? 'No block assignment',
+        sourceCount: anchor.sourceIds.length,
+        onSelectedRoute: selected?.entranceId === anchor.id || selected?.outletId === anchor.id,
+        explanation: 'Recorded access location. Its binding and historical connectivity require the route evidence.',
+      },
+    })),
+  )
   const legend: PlanLegendSection[] =
-    !state || (!selected && !state.structures.length)
+    !state || (!selected && !state.structures.length && !state.anchors.length)
       ? []
       : [
           {
@@ -119,8 +137,24 @@ export function historicalMapFeatures(context: readonly ContextFeature[], state?
                     },
                   ]
                 : []),
+              ...(anchors.features.length
+                ? [
+                    {
+                      id: 'history-entrances',
+                      label: 'Recorded entrances',
+                      color: '#2563eb',
+                      shape: 'circle' as const,
+                    },
+                    {
+                      id: 'history-outlets',
+                      label: 'Recorded network outlets',
+                      color: '#475569',
+                      shape: 'circle' as const,
+                    },
+                  ]
+                : []),
             ],
           },
         ]
-  return { route, structures, legend, asOf, status }
+  return { route, structures, anchors, legend, asOf, status }
 }

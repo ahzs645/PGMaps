@@ -7,8 +7,11 @@
     "../../src/pages/dev-forestry-roads/*accessHistory*.ts",
     "../../src/pages/dev-forestry-roads/*AccessHistory*.ts",
     "../../src/pages/dev-forestry-roads/*AccessHistory*.tsx",
+    "../../src/pages/dev-forestry-roads/bcAccessPilot*.ts",
+    "../../examples/forestry/access-history/interface-review.tsx",
     "../../tests/e2e/forestry-access-history.spec.ts",
-    "./generate-access-history-example.ts"
+    "./generate-access-history-example.ts",
+    "./inspect-bc-access-pilot.ts"
   ],
   "references": []
 }

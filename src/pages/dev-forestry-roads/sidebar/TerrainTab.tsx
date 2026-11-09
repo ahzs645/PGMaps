@@ -153,7 +153,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           p.onOpenRoadHistory?.(road.id)
         }}
       />
-      <AccessHistoryPanel workspace={p.workspace} onLocate={p.onLocateHistory} />
+      <AccessHistoryPanel workspace={p.workspace} onLocate={p.onLocateHistory} selection={p.historySelection} />
       <TerrainProfilesPanel workspace={p.workspace} onDraw={() => p.onMode('profile')} onProfile={p.onProfile} />
       <RoadSection
         title="Import options"

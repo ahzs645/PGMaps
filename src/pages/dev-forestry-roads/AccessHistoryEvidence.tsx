@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import type { RefObject } from 'react'
 import { KeyValueRows } from '@/components/ui/map-panels'
 import type { HistoricalAccessState } from './accessHistoryTypes'
 import type { ContextFeature, Coordinate } from './types'
@@ -11,10 +12,12 @@ export function AccessHistoryEvidence({
   history,
   context,
   onLocate,
+  detailsRef,
 }: {
   history: HistoricalAccessState
   context: ContextFeature[]
   onLocate?: (coordinates: Coordinate[]) => void
+  detailsRef?: RefObject<HTMLDetailsElement>
 }) {
   const roadName = (id: string | null) => context.find((feature) => feature.id === id)?.name ?? id ?? 'unresolved'
   const references = (ids: string[]) =>
@@ -22,7 +25,7 @@ export function AccessHistoryEvidence({
       ? ids.map((id) => history.sources.find((source) => source.id === id)?.dataset ?? id).join('; ')
       : 'none asserted'
   return (
-    <details className="space-y-2 text-xs" data-testid="history-saved-evidence">
+    <details ref={detailsRef} className="space-y-2 text-xs" data-testid="history-saved-evidence">
       <summary className="cursor-pointer font-medium">
         Saved evidence · {history.sources.length} sources · {history.events.length} road events ·{' '}
         {history.structures.length} structures

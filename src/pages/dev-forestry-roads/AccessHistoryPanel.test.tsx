@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from 'react'
-import { act, create, type ReactTestRenderer } from 'react-test-renderer'
+import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { FileDropField } from '@/components/ui/file-drop-field'
 import { downloadText } from '@/lib/download'
@@ -7,10 +7,12 @@ import { KeyValueRows } from '@/components/ui/map-panels'
 import { AccessHistoryPanel } from './AccessHistoryPanel'
 import { accessHistoryBundle } from './AccessHistoryIO'
 import * as historySources from './accessHistorySources'
+import * as pilotSources from './bcAccessPilot'
+import type { AccessHistorySelection } from './AccessHistorySelection'
 import { Field } from './Controls'
 import { parseProject } from './project'
 import { ACCESS_HISTORY_TRAINING_IDS, createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
-import type { RoadProject } from './types'
+import type { ContextFeature, RoadProject } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
 vi.mock('./Controls', async (importOriginal) => ({
@@ -42,6 +44,7 @@ afterEach(async () => {
 
 async function harness(initial = parseProject(createAccessHistoryTrainingProject())) {
   let project = initial
+  let selection: AccessHistorySelection | null = null
   let renderer: ReactTestRenderer
   const locate = vi.fn()
   const notice = vi.fn()
@@ -60,7 +63,7 @@ async function harness(initial = parseProject(createAccessHistoryTrainingProject
       canUndo: false,
       undo: vi.fn(),
     }) as unknown as RoadWorkspace
-  const view = () => createElement(AccessHistoryPanel, { workspace: workspace(), onLocate: locate })
+  const view = () => createElement(AccessHistoryPanel, { workspace: workspace(), onLocate: locate, selection })
   await act(async () => {
     renderer = create(view())
   })
@@ -75,6 +78,10 @@ async function harness(initial = parseProject(createAccessHistoryTrainingProject
     },
     replace(next: RoadProject) {
       project = next
+      renderer.update(view())
+    },
+    select(next: AccessHistorySelection) {
+      selection = next
       renderer.update(view())
     },
   }
@@ -95,7 +102,259 @@ function fileField(renderer: ReactTestRenderer) {
   return renderer.root.findAllByType(FileDropField).find((node) => node.props.label === 'Access history bundle')!
 }
 
+const content = (node: ReactTestInstance | string): string =>
+  typeof node === 'string' ? node : node.children.map(content).join('')
+
+/** Invented test geometry and codes exercise live-source semantics without storing a ministry extract. */
+function pilotFixture(): pilotSources.BcAccessPilotResult {
+  const template = createAccessHistoryTrainingProject()
+  const openingId = pilotSources.BC_ACCESS_PILOT_RECIPE.openingId
+  const retrievedAt = '2026-11-09T18:00:00Z'
+  const original = template.context.find((feature) => feature.id === ACCESS_HISTORY_TRAINING_IDS.blockA)!
+  if (original.geometry.type !== 'Polygon') throw Error('Expected test polygon.')
+  const block: ContextFeature = {
+    id: 'fixture-ministry-block',
+    name: 'Fixture ministry block',
+    kind: 'harvest',
+    geometry: {
+      type: 'Polygon',
+      coordinates: original.geometry.coordinates.map((ring) => ring.map(([x, y]) => [x - 1, y + 1])),
+    },
+    harvestEvidence: {
+      source: 'bc-ften',
+      sourceId: '99001',
+      openingId,
+      yearMethod: 'estimated-range',
+      startDate: '2004-06-01',
+      endDate: '2005-06-01',
+      startYear: 2004,
+      endYear: 2005,
+      retrievedAt,
+      sourceUrl: 'https://example.invalid/fixture-block',
+    },
+  }
+  const start = block.geometry.type === 'Polygon' ? block.geometry.coordinates[0][0] : [0, 0]
+  const road: ContextFeature = {
+    id: 'fixture-ministry-road',
+    name: 'Fixture nearby road',
+    kind: 'existing-road',
+    geometry: { type: 'LineString', coordinates: [start, [start[0] + 0.001, start[1]]] },
+    roadEvidence: {
+      source: 'bc-ften',
+      sourceId: 'ften-road-segment:99002',
+      sourceUrl: 'https://example.invalid/fixture-road',
+      retrievedAt,
+      forestFileId: '000012',
+      roadSectionId: '01',
+      segmentStartStation: 0,
+      segmentEndStation: 1.8934000000000002,
+      clientNumber: '00000991',
+      condition: 'unknown',
+      conditionBasis: 'unreviewed',
+      reuseAllowed: false,
+    },
+  }
+  const identity: historySources.BlockIdentityLookup = {
+    openingId,
+    retrievedAt,
+    missingSources: [],
+    records: (['results-opening', 'ften-cutblock'] as const).map((source) => ({
+      id: `fixture-${source}`,
+      source,
+      sourceUrl: 'https://example.invalid/fixture-identity',
+      retrievedAt,
+      openingId,
+      forestFileId: '000012',
+      cuttingPermitId: '002',
+      cutBlockId: 'A01',
+      timberMark: 'TEST01',
+      clientNumber: '00000991',
+    })),
+    matches: [
+      {
+        resultsRecordId: 'fixture-results-opening',
+        ftenRecordId: 'fixture-ften-cutblock',
+        basis: 'opening-id',
+        conflicts: [],
+      },
+    ],
+  }
+  const bounds: [number, number, number, number] = [start[0] - 0.01, start[1] - 0.01, start[0] + 0.02, start[1] + 0.02]
+  const queries = (['results-opening', 'ften-cutblock', 'ften-road-segment'] as const).map((source) => ({
+    source,
+    status: 'success' as const,
+    recordCount: 1,
+    openingId,
+    requestUrl: `https://example.invalid/${source}`,
+    ...(source === 'ften-road-segment' ? { bounds } : {}),
+  }))
+  return {
+    status: 'loaded',
+    openingId,
+    retrievedAt,
+    bounds,
+    blocks: [block],
+    roads: [road],
+    identity,
+    queries,
+    sources: [
+      ...historySources.blockIdentitySources(identity),
+      ...historySources.roadSegmentSources([road]),
+      ...queries.map((query) => pilotSources.makeHistoricalSourceQuery(query, retrievedAt)),
+    ],
+    findings: [
+      {
+        id: 'unknown-road-dates',
+        kind: 'gap',
+        text: 'Physical road dates are missing in this test fixture.',
+        sourceIds: [],
+      },
+    ],
+    roadCandidates: [
+      {
+        roadId: road.id,
+        distanceM: 0,
+        sharedClient: true,
+        sharedTimberMark: false,
+        sourceIds: ['ften-road-segment:99002'],
+      },
+    ],
+  }
+}
+
 describe('historical access workflow', () => {
+  it('previews actual-source records before adding them and keeps unrelated training records out of the selected-block summary', async () => {
+    const result = pilotFixture()
+    vi.spyOn(pilotSources, 'loadBcAccessPilot').mockResolvedValue(result)
+    const h = await harness()
+    const before = h.project
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(h.project).toBe(before)
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-pilot-preview' })).toHaveLength(1)
+    await act(async () => button(h.renderer, 'Add records to this project').props.onClick())
+    expect(h.project.context).toHaveLength(before.context.length + 2)
+    expect(h.project.accessHistory!.anchors).toEqual(before.accessHistory!.anchors)
+    expect(h.project.accessHistory!.paths).toEqual(before.accessHistory!.paths)
+    const overview = content(h.renderer.root.findByProps({ 'data-testid': 'history-block-overview' }))
+    expect(overview).toContain('Fixture ministry block')
+    expect(overview).toContain('1 road record · 0 structure records')
+    expect(overview).toContain('connection not established')
+    expect(overview).toContain('Roads with dated physical evidence: 0 / 1')
+    expect(overview).toContain('2004-06-01')
+    expect(overview).toContain('completion or range may be estimated')
+    expect(h.locate).toHaveBeenCalledWith(
+      result.blocks[0].geometry.type === 'Polygon' ? result.blocks[0].geometry.coordinates[0] : [],
+    )
+    expect(h.project.context.find((feature) => feature.id === result.roads[0].id)?.roadEvidence?.reuseAllowed).toBe(
+      false,
+    )
+    await act(async () => h.select({ kind: 'road', id: result.roads[0].id, revision: 1 }))
+    const roadText = content(h.renderer.root.findByProps({ 'data-testid': 'history-selected-road-record' }))
+    expect(roadText).toContain('Source stations: 0 – 1.8934')
+    expect(roadText).not.toContain('1.8934000000000002')
+    expect(
+      h.project.context.find((feature) => feature.id === result.roads[0].id)?.roadEvidence?.segmentEndStation,
+    ).toBe(1.8934000000000002)
+  })
+
+  it('opens readable road and structure records from map selection and keeps the selected block in sync', async () => {
+    const h = await harness()
+    await act(async () => h.select({ kind: 'block', id: ACCESS_HISTORY_TRAINING_IDS.blockB, revision: 1 }))
+    expect(
+      h.project.accessHistory!.paths.find((path) => path.id === h.project.accessHistory!.selectedPathId)?.blockId,
+    ).toBe(ACCESS_HISTORY_TRAINING_IDS.blockB)
+    await act(async () => h.select({ kind: 'road', id: ACCESS_HISTORY_TRAINING_IDS.west, revision: 2 }))
+    const road = content(h.renderer.root.findByProps({ 'data-testid': 'history-selected-road-record' }))
+    expect(road).toContain('009900')
+    expect(road).toContain('001')
+    expect(road).toContain('1988-06-01')
+    await act(async () => h.select({ kind: 'structure', id: ACCESS_HISTORY_TRAINING_IDS.bridge, revision: 3 }))
+    const structure = content(h.renderer.root.findByProps({ 'data-testid': 'history-selected-structure-record' }))
+    expect(structure).toContain('SYNTHETIC-BRIDGE-01')
+    expect(structure).toContain('Invented closure effective 2019-01-01')
+    expect(structure).toContain('reported 0 t')
+  })
+
+  it('rejects a stale pilot preview and distinguishes a source failure from an empty response', async () => {
+    const loader = vi.spyOn(pilotSources, 'loadBcAccessPilot').mockResolvedValue(pilotFixture())
+    const h = await harness()
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    const replacement = parseProject(createAccessHistoryTrainingProject())
+    await act(async () => h.replace(replacement))
+    await act(async () => button(h.renderer, 'Add records to this project').props.onClick())
+    expect(h.project).toBe(replacement)
+    expect(h.update).not.toHaveBeenCalled()
+    loader.mockRejectedValue(Error('Source unavailable; retry the request.'))
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(h.project).toBe(replacement)
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-pilot-preview' })).toHaveLength(0)
+    expect(content(h.renderer.root.findByProps({ 'data-testid': 'history-block-overview' }))).toContain(
+      'Source unavailable; retry the request.',
+    )
+  })
+
+  it('retains successful empty query coverage without clearing the selected route', async () => {
+    const result = pilotFixture()
+    result.status = 'no-block-found'
+    result.blocks = []
+    result.roads = []
+    result.roadCandidates = []
+    result.identity = {
+      ...result.identity,
+      records: [],
+      matches: [],
+      missingSources: ['results-opening', 'ften-cutblock'],
+    }
+    result.queries = result.queries.map((query) => ({
+      ...query,
+      recordCount: 0,
+      ...(query.source === 'ften-road-segment'
+        ? ({ status: 'skipped', reason: 'No cutblock footprint was returned.' } as const)
+        : {}),
+    }))
+    result.sources = result.queries.map((query) => pilotSources.makeHistoricalSourceQuery(query, result.retrievedAt))
+    vi.spyOn(pilotSources, 'loadBcAccessPilot').mockResolvedValue(result)
+    const h = await harness()
+    const selected = h.project.accessHistory!.selectedPathId
+    const count = h.project.context.length
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    expect(content(h.renderer.root.findByProps({ 'data-testid': 'history-pilot-preview' }))).toContain(
+      '0 block polygons',
+    )
+    await act(async () => button(h.renderer, 'Add records to this project').props.onClick())
+    expect(h.project.context).toHaveLength(count)
+    expect(h.project.accessHistory!.selectedPathId).toBe(selected)
+    expect(
+      h.project
+        .accessHistory!.sources.filter((source) => source.query)
+        .map((source) => [source.query!.status, source.query!.recordCount]),
+    ).toEqual([
+      ['success', 0],
+      ['success', 0],
+      ['skipped', 0],
+    ])
+  })
+
+  it('cancels a pilot request and ignores a late response without changing the project', async () => {
+    let finish!: (result: pilotSources.BcAccessPilotResult) => void
+    const pending = new Promise<pilotSources.BcAccessPilotResult>((resolve) => {
+      finish = resolve
+    })
+    const loader = vi.spyOn(pilotSources, 'loadBcAccessPilot').mockReturnValue(pending)
+    const h = await harness()
+    const before = h.project
+    await act(async () => button(h.renderer, 'Load actual BC records').props.onClick())
+    await act(async () => button(h.renderer, 'Cancel source request').props.onClick())
+    expect(loader.mock.calls[0][1]?.aborted).toBe(true)
+    await act(async () => {
+      finish(pilotFixture())
+      await pending
+    })
+    expect(h.project).toBe(before)
+    expect(h.renderer.root.findAllByProps({ 'data-testid': 'history-pilot-preview' })).toHaveLength(0)
+    expect(h.update).not.toHaveBeenCalled()
+  })
+
   it('traces, selects and locates a candidate without enabling road reuse', async () => {
     const h = await harness()
     await act(async () =>

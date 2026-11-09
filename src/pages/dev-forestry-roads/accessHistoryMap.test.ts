@@ -3,6 +3,22 @@ import { historicalMapFeatures, HISTORY_CONFLICT_COLOR, HISTORY_UNRESOLVED_COLOR
 import { ACCESS_HISTORY_TRAINING_IDS as ids, createAccessHistoryTrainingProject } from './trainingAccessHistoryScenario'
 
 describe('historical access map assessments', () => {
+  it('shows explicit entrances and outlets separately from crossing assets and never invents missing locations', () => {
+    const project = createAccessHistoryTrainingProject()
+    const state = project.accessHistory!
+    const map = historicalMapFeatures(project.context, state)
+    expect(map.anchors.features.map((feature) => feature.geometry)).toEqual(
+      state.anchors.map((anchor) => ({ type: 'Point', coordinates: anchor.coordinate })),
+    )
+    expect(map.anchors.features.filter((feature) => feature.properties?.onSelectedRoute)).toHaveLength(2)
+    expect(new Set(map.anchors.features.map((feature) => feature.properties?.role))).toEqual(
+      new Set(['entrance', 'outlet']),
+    )
+    expect(map.structures.features).toHaveLength(state.structures.length)
+    const noLocations = historicalMapFeatures(project.context, { ...state, anchors: [] })
+    expect(noLocations.anchors.features).toEqual([])
+  })
+
   it.each(['missing', 'changed-key', 'moved'] as const)(
     'marks a structure unresolved when its named road is %s',
     (change) => {

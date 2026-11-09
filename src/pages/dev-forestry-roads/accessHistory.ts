@@ -16,6 +16,7 @@ import type {
   HistoricalRelationship,
   HistoricalRoadEvent,
   HistoricalSource,
+  HistoricalSourceQuery,
   HistoricalStructure,
   HistoricalStructureAssessment,
   HistoricalTemporalAssessment,
@@ -169,6 +170,48 @@ function parseSource(raw: unknown): HistoricalSource {
     )
       throw Error('Block disturbance source dates are reversed.')
   }
+  let query: HistoricalSourceQuery | undefined
+  if (r.query !== undefined) {
+    const q = object(r.query, 'Source query result')
+    const status = values(q.status, ['success', 'skipped'] as const, 'source query status')
+    const recordCount = number(q.recordCount, 'Source query record count', 0, 500)
+    if (!Number.isInteger(recordCount) || (status === 'skipped' && recordCount !== 0))
+      throw Error('Source query count must be an integer; skipped queries have no returned records.')
+    const requestUrl = text(q.requestUrl, 'Source query request URL', 4000, status === 'skipped')
+    if (requestUrl) {
+      let parsed: URL
+      try {
+        parsed = new URL(requestUrl)
+      } catch {
+        throw Error('A source query request URL must use HTTPS.')
+      }
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password)
+        throw Error('A source query request URL must use HTTPS without embedded credentials.')
+    }
+    query = {
+      source: values(q.source, ['results-opening', 'ften-cutblock', 'ften-road-segment'], 'query source'),
+      status,
+      recordCount,
+      requestUrl,
+    }
+    if (q.openingId !== undefined) query.openingId = text(q.openingId, 'Query opening ID')
+    if (q.reason !== undefined) query.reason = text(q.reason, 'Source query reason', 4000)
+    if (q.bounds !== undefined) {
+      const bounds = list(q.bounds, 'Source query bounds', 4)
+      if (
+        bounds.length !== 4 ||
+        !bounds.every((v) => typeof v === 'number' && Number.isFinite(v)) ||
+        (bounds[0] as number) < -180 ||
+        (bounds[2] as number) > 180 ||
+        (bounds[1] as number) <= -85 ||
+        (bounds[3] as number) >= 85 ||
+        (bounds[0] as number) >= (bounds[2] as number) ||
+        (bounds[1] as number) >= (bounds[3] as number)
+      )
+        throw Error('Source query bounds must be a non-empty WGS84 west/south/east/north extent.')
+      query.bounds = bounds as [number, number, number, number]
+    }
+  }
   return {
     id: text(r.id, 'Source ID'),
     dataset: text(r.dataset, 'Source dataset'),
@@ -179,6 +222,7 @@ function parseSource(raw: unknown): HistoricalSource {
     description: text(r.description, 'Source description', 4000),
     synthetic: flag(r.synthetic, 'Synthetic source flag'),
     ...(blockIdentity ? { blockIdentity } : {}),
+    ...(query ? { query } : {}),
   }
 }
 function parseEvent(raw: unknown): HistoricalRoadEvent {
@@ -225,13 +269,16 @@ function parseStructure(raw: unknown): HistoricalStructure {
   )
   const construction = r.construction == null ? null : parseHistoricalDateWindow(r.construction)
   const removal = r.removal == null ? null : parseHistoricalDateWindow(r.removal)
+  const refs = sourceIds(r.sourceIds)
+  if (!refs.length && [construction, removal].some((window) => window?.earliest || window?.latest))
+    throw Error('Dated structure construction or removal needs a source reference.')
   // Conflicting source dates are retained for review rather than silently repaired or discarded.
   return {
     id: text(r.id, 'Structure ID'),
     name: text(r.name, 'Structure name'),
     kind: values(r.kind, ['bridge', 'culvert', 'ford', 'unknown'], 'structure kind'),
     coordinate: coordinate(r.coordinate),
-    sourceIds: sourceIds(r.sourceIds),
+    sourceIds: refs,
     crossingSiteId: nullableText(r.crossingSiteId, 'Crossing site ID'),
     structureId: nullableText(r.structureId, 'Physical structure ID'),
     sourceRowId: nullableText(r.sourceRowId, 'Structure row ID'),
@@ -493,6 +540,8 @@ export function assessHistoricalWindow(
   if (futureBuild.length)
     return result('contradicted', 'The documented construction interval starts after the analysis date.')
   const negatives = events.filter((e) => ['deactivated', 'closed', 'removed'].includes(e.kind))
+  const definiteInterruptions: string[] = [],
+    possibleInterruptions: string[] = []
   for (const event of negatives) {
     if (event.when.earliest && event.when.earliest > period.latest) continue
     const restored = events.some(
@@ -504,40 +553,66 @@ export function assessHistoricalWindow(
         p.when.earliest > event.when.latest,
     )
     if (restored) continue
-    if (before(event))
-      return result(
-        'contradicted',
+    if (before(event)) {
+      definiteInterruptions.push(
         `Recorded ${event.kind} applies before the analysis date, without a later documented reopening.`,
       )
+      continue
+    }
     if (
       event.when.earliest &&
       event.when.latest &&
       event.when.earliest === event.when.latest &&
       event.when.earliest <= period.latest
     )
-      return result('contradicted', `Recorded ${event.kind} interrupts the analysis interval.`)
-    return result(
-      'unknown',
-      `The ${event.kind} interval could affect this date; its timing or reopening remains unresolved.`,
-    )
+      definiteInterruptions.push(`Recorded ${event.kind} interrupts the analysis interval.`)
+    else
+      possibleInterruptions.push(
+        `The ${event.kind} interval could affect this date; its timing or reopening remains unresolved.`,
+      )
   }
+  // Evidence order must not let an undated report hide a definite closure/removal.
+  if (definiteInterruptions.length)
+    return result('contradicted', ...union([...definiteInterruptions, ...possibleInterruptions]))
+  if (possibleInterruptions.length) return result('unknown', ...union(possibleInterruptions))
   if (!positives.length)
     return result(
       'unknown',
       'Available physical records do not establish that the road already existed by the analysis date. A later observation is not a construction date.',
     )
-  const uncertainBuild = events.some(
-    (e) => e.kind === 'constructed' && !before(e) && (!e.when.earliest || e.when.earliest <= period.latest!),
+  const incompatibleBuild = events.some(
+    (event) =>
+      event.kind === 'constructed' &&
+      !before(event) &&
+      event.when.earliest &&
+      positives.some((positive) => positive !== event && positive.when.latest! < event.when.earliest!),
   )
-  if (uncertainBuild)
+  if (incompatibleBuild)
     return result(
       'conflict',
-      'A construction interval overlaps the analysis date while another record places this road earlier; reconcile the records.',
+      'Another physical record places this road before its earliest possible construction date; reconcile the records or separate incarnations.',
     )
   return result(
     'compatible',
     'Physical road evidence is date-compatible; historical use, condition and permission remain separate questions.',
   )
+}
+
+/** One physical road's chronology, including retained event extent checks. */
+export function assessHistoricalRoad(
+  road: ContextFeature,
+  events: readonly HistoricalRoadEvent[],
+  asOf: string,
+): HistoricalTemporalAssessment {
+  date(asOf)
+  const retained = events.filter((event) => event.roadId === road.id)
+  if (retained.some((event) => event.geometryFingerprint !== roadGeometryFingerprint(road)))
+    return {
+      status: 'conflict',
+      reasons: ['Road geometry changed after its historical event was scoped; review the event extent.'],
+      sourceIds: union(retained.flatMap((event) => event.sourceIds)),
+    }
+  return assessHistoricalWindow({ earliest: asOf, latest: asOf }, retained)
 }
 
 export function assessHistoricalStructure(structure: HistoricalStructure, asOf: string): HistoricalTemporalAssessment {
@@ -563,52 +638,64 @@ export function assessHistoricalStructure(structure: HistoricalStructure, asOf: 
       sourceIds: structure.sourceIds,
       geometryFingerprint: 'asset',
     })
-  const assessment = assessHistoricalWindow({ earliest: asOf, latest: asOf }, events)
+  const assessments = [assessHistoricalWindow({ earliest: asOf, latest: asOf }, events)]
   if (
     structure.construction?.earliest &&
     structure.removal?.latest &&
     structure.construction.earliest > structure.removal.latest
   )
-    return {
+    assessments.push({
       status: 'conflict',
       reasons: ['The structure is recorded as removed before its construction; asset identity or dates need review.'],
       sourceIds: structure.sourceIds,
-    }
+    })
   const active = structure.evidence.filter(
     (e) => e.validFrom && e.validFrom <= asOf && (!e.validUntil || e.validUntil >= asOf),
   )
   const closures = active.filter((e) => e.kind === 'closure')
   const ratings = active.filter((e) => e.kind === 'load-rating' && e.ratedLoadTonnes !== null)
   if (new Set(ratings.map((e) => e.ratedLoadTonnes)).size > 1)
-    return {
+    assessments.push({
       status: 'conflict',
       reasons: [
         'Applicable source reports give conflicting load ratings; retain each report and review applicability.',
-        ...(closures.length
-          ? ['A dated structure closure also applies at the analysis date; no open rating overrides it.']
-          : []),
       ],
       sourceIds: union([...ratings, ...closures].flatMap((e) => e.sourceIds)),
-    }
+    })
   if (closures.length)
-    return {
+    assessments.push({
       status: 'contradicted',
       reasons: ['A dated structure closure applies at the analysis date.'],
       sourceIds: union(closures.flatMap((e) => e.sourceIds)),
-    }
-  if (structure.evidence.some((e) => e.kind === 'closure' && !e.validFrom))
-    return {
+    })
+  const undatedClosures = structure.evidence.filter(
+    (e) => e.kind === 'closure' && !e.validFrom && (!e.validUntil || e.validUntil >= asOf),
+  )
+  if (undatedClosures.length)
+    assessments.push({
       status: 'unknown',
       reasons: ['A structure closure has no established start date.'],
-      sourceIds: union(structure.evidence.flatMap((e) => e.sourceIds)),
-    }
+      sourceIds: union(undatedClosures.flatMap((e) => e.sourceIds)),
+    })
+  // Uncertain restriction timing never downgrades a known absence, removal or closure.
+  const status = assessments.some((a) => a.status === 'conflict')
+    ? 'conflict'
+    : assessments.some((a) => a.status === 'contradicted')
+      ? 'contradicted'
+      : assessments.some((a) => a.status === 'unknown')
+        ? 'unknown'
+        : 'compatible'
   return {
-    ...assessment,
-    reasons: [
-      ...assessment.reasons,
+    status,
+    reasons: union([
+      ...assessments.flatMap((a) => a.reasons),
       'Inventory presence and historical connectivity do not establish vehicle capacity; dated restrictions and rating applicability need separate review.',
-    ],
-    sourceIds: union([...assessment.sourceIds, ...active.flatMap((e) => e.sourceIds)]),
+    ]),
+    sourceIds: union([
+      ...structure.sourceIds,
+      ...assessments.flatMap((a) => a.sourceIds),
+      ...active.flatMap((e) => e.sourceIds),
+    ]),
   }
 }
 
@@ -625,6 +712,7 @@ function structureAssessmentWithPeers(
   const assessments = peers.map((s) => assessHistoricalStructure(s, asOf))
   const combined = assessHistoricalStructure({ ...structure, evidence: peers.flatMap((s) => s.evidence) }, asOf)
   if (
+    combined.status === 'conflict' ||
     assessments.some((a) => a.status === 'conflict') ||
     (assessments.some((a) => a.status === 'contradicted') && assessments.some((a) => a.status === 'compatible'))
   ) {
@@ -664,6 +752,7 @@ function pointLineDistance(point: Coordinate, line: readonly number[][]) {
 function projectToLine(point: Coordinate, line: readonly number[][]) {
   let minimum = Infinity
   let projected: Coordinate | null = null
+  let position: number | null = null
   const sx = Math.cos((point[1] * Math.PI) / 180)
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1],
@@ -679,9 +768,10 @@ function projectToLine(point: Coordinate, line: readonly number[][]) {
     if (separation < minimum - 1e-7) {
       minimum = separation
       projected = candidate
+      position = i - 1 + t
     }
   }
-  return { distanceM: minimum, coordinate: projected }
+  return { distanceM: minimum, coordinate: projected, position }
 }
 function pointOnRoad(point: Coordinate, road: ContextFeature) {
   return road.geometry.type === 'LineString' ? pointLineDistance(point, road.geometry.coordinates) : Infinity
@@ -702,6 +792,31 @@ function blockSeparation(point: Coordinate, block: ContextFeature): number {
   if (inRing(rings[0]) && !rings.slice(1).some(inRing)) return 0
   return Math.min(...rings.map((ring) => pointLineDistance(point, ring)))
 }
+
+/** Location validity only; road and structure chronology are evaluated separately. */
+export function historicalAnchorProblems(
+  anchor: HistoricalAnchor,
+  context: readonly ContextFeature[],
+  settings: HistoricalTraceSettings,
+): string[] {
+  const reasons: string[] = []
+  if (anchor.role === 'entrance') {
+    const block = context.find((feature) => feature.id === anchor.blockId && feature.kind === 'harvest')
+    if (!block) reasons.push('The named cutblock is missing.')
+    else if (blockSeparation(anchor.coordinate, block) > settings.attachmentToleranceM + 1e-7)
+      reasons.push('The entrance is outside its cutblock footprint and explicit attachment tolerance.')
+  }
+  const roads = context.filter((feature) => feature.kind === 'existing-road' && feature.geometry.type === 'LineString')
+  if (anchor.roadId) {
+    const road = roads.find((feature) => feature.id === anchor.roadId)
+    if (!road) reasons.push('The named access road is missing.')
+    else if (pointOnRoad(anchor.coordinate, road) > settings.attachmentToleranceM + 1e-7)
+      reasons.push('The access location exceeds its named-road attachment tolerance.')
+  } else if (!roads.some((road) => pointOnRoad(anchor.coordinate, road) <= settings.attachmentToleranceM + 1e-7))
+    reasons.push('No loaded road is within the explicit access-location attachment tolerance.')
+  return reasons
+}
+
 function structureBinding(structure: HistoricalStructure, roads: readonly ContextFeature[]): string | null {
   if (!structure.roadId || !['identifier-match', 'reviewed'].includes(structure.attachment))
     return 'The structure has only a spatial/unresolved road association; identify and review its physical road section.'
@@ -824,8 +939,8 @@ function savedTopologyProblem(
   }))
   const byId = new Map(roads.map((r) => [r.feature.id, r]))
   const endpoints = roads.flatMap((r) => [
-    { road: r, coordinate: r.coordinates[0] },
-    { road: r, coordinate: r.coordinates.at(-1)! },
+    { road: r, coordinate: r.coordinates[0], position: 0 },
+    { road: r, coordinate: r.coordinates.at(-1)!, position: r.coordinates.length - 1 },
   ])
   const junctions = new Map<string, { road: (typeof roads)[number]; coordinate: Coordinate }[]>()
   for (const road of roads)
@@ -842,8 +957,15 @@ function savedTopologyProblem(
     if (left !== null && right !== null) return left === right
     return explicit || path.settings.allowUnverifiedEndpointSnaps
   }
+  const sourceNode = (roadId: string, position: number) => `${encodeURIComponent(roadId)}:${position.toFixed(9)}`
+  const projectedNode = (road: (typeof roads)[number], point: Coordinate) => {
+    const projection = projectToLine(point, road.coordinates)
+    return projection.position === null ? null : sourceNode(road.feature.id, projection.position)
+  }
+  let previousNode: string | null = null
   for (const segment of path.segments) {
     let expected: Coordinate[] | null = null
+    let nodes: (string | null)[] | null = null
     if (segment.kind === 'road') {
       const m = /^road:(.+):(\d+):([\d.]+)-([\d.]+)$/.exec(segment.id),
         road = segment.roadId ? byId.get(segment.roadId) : undefined
@@ -857,6 +979,7 @@ function savedTopologyProblem(
       if (!a || !b || !(start >= 0 && start < end && end <= 1))
         return 'Saved historical road segment fractions are invalid.'
       expected = [start, end].map((t) => [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1])])
+      nodes = [sourceNode(road.feature.id, index + start), sourceNode(road.feature.id, index + end)]
     } else if (segment.kind === 'junction') {
       const snap = /^snap:(\d+):(\d+)$/.exec(segment.id),
         declared = /^junction:(.+):(\d+)$/.exec(segment.id)
@@ -868,8 +991,10 @@ function savedTopologyProblem(
           b &&
           compatibleLevels(a.road, b.road, false) &&
           distance(a.coordinate, b.coordinate) <= path.settings.snapToleranceM + 1e-7
-        )
+        ) {
           expected = [a.coordinate, b.coordinate]
+          nodes = [sourceNode(a.road.feature.id, a.position), sourceNode(b.road.feature.id, b.position)]
+        }
       } else if (declared) {
         const members = junctions.get(decodeURIComponent(declared[1])),
           a = members?.[0],
@@ -879,12 +1004,16 @@ function savedTopologyProblem(
           b &&
           compatibleLevels(a.road, b.road, true) &&
           distance(a.coordinate, b.coordinate) <= path.settings.snapToleranceM + 1e-7
-        )
+        ) {
           expected = [a.coordinate, b.coordinate]
+          nodes = [projectedNode(a.road, a.coordinate), projectedNode(b.road, b.coordinate)]
+        }
       } else if (segment.id.startsWith('loop:')) {
         const road = byId.get(decodeURIComponent(segment.id.slice(5)))
-        if (road && distance(road.coordinates[0], road.coordinates.at(-1)!) < 1e-6)
+        if (road && distance(road.coordinates[0], road.coordinates.at(-1)!) < 1e-6) {
           expected = [road.coordinates[0], road.coordinates.at(-1)!]
+          nodes = [sourceNode(road.feature.id, 0), sourceNode(road.feature.id, road.coordinates.length - 1)]
+        }
       }
       if (!expected) return 'Saved historical path contains an undeclared, over-tolerance or grade-separated junction.'
     } else {
@@ -896,28 +1025,114 @@ function savedTopologyProblem(
       if (!location) return 'Saved historical attachment refers to a missing named location.'
       const candidates = roads
         .filter((r) => !location.roadId || r.feature.id === location.roadId)
-        .map((r) => projectToLine(location.coordinate, r.coordinates))
+        .map((road) => ({ ...projectToLine(location.coordinate, road.coordinates), road }))
         .sort((a, b) => a.distanceM - b.distanceM)
       const nearest = candidates[0],
         tolerance = structure?.attachmentToleranceM ?? path.settings.attachmentToleranceM
       if (!nearest?.coordinate || nearest.distanceM > tolerance + 1e-7)
         return 'Saved historical attachment exceeds its named-road tolerance.'
       expected = [location.coordinate, nearest.coordinate]
+      nodes = [`attachment:${id}`, projectedNode(nearest.road, nearest.coordinate)]
     }
-    if (!segment.forward) expected.reverse()
+    if (!segment.forward) {
+      expected.reverse()
+      nodes?.reverse()
+    }
     if (expected.some((point, i) => distance(point, segment.coordinates[i]) > 0.01))
       return 'Saved historical path geometry no longer matches the identified source segments and junctions.'
+    if (!nodes || nodes.some((node) => node === null) || (previousNode !== null && previousNode !== nodes[0]))
+      return 'Saved historical path changes source-road nodes without its declared junction or attachment; coincident linework is not connectivity.'
+    previousNode = nodes[1]
   }
   const start = state.anchors.find((a) => a.id === path.entranceId),
     end = state.anchors.find((a) => a.id === path.outletId)
   if (
     !start ||
     !end ||
+    start.role !== 'entrance' ||
+    start.blockId !== path.blockId ||
+    end.role !== 'outlet' ||
+    (end.blockId !== null && end.blockId !== path.blockId) ||
+    historicalAnchorProblems(start, context, path.settings).length > 0 ||
+    historicalAnchorProblems(end, context, path.settings).length > 0 ||
     distance(path.coordinates[0], start.coordinate) > 0.01 ||
     distance(path.coordinates.at(-1)!, end.coordinate) > 0.01
   )
     return 'Saved historical path does not connect its named entrance and outlet.'
+  const assetAssessments = new Map(
+    assessHistoricalStructures(state, context, path.settings.asOf).map((assessment) => [
+      assessment.structureId,
+      assessment,
+    ]),
+  )
+  const sites = new Map<string, HistoricalStructure[]>()
+  for (const structure of state.structures) {
+    if (assetAssessments.get(structure.id)!.binding !== 'matched') continue
+    const key = `${structure.roadId}|${structure.crossingSiteId ?? structure.structureId ?? structure.id}`
+    const members = sites.get(key) ?? []
+    members.push(structure)
+    sites.set(key, members)
+  }
+  const touches = (structure: HistoricalStructure) => {
+    const road = structure.roadId ? byId.get(structure.roadId) : undefined
+    if (!road) return false
+    const point = projectToLine(structure.coordinate, road.coordinates).coordinate
+    return (
+      point !== null &&
+      path.segments.some(
+        (segment) => segment.roadId === structure.roadId && pointLineDistance(point, segment.coordinates) < 0.02,
+      )
+    )
+  }
+  const usedStructures: HistoricalStructure[] = []
+  for (const members of sites.values()) {
+    if (!members.some(touches)) continue
+    const available = members.some((structure) => assetAssessments.get(structure.id)!.status === 'conflict')
+      ? []
+      : members.filter((structure) => {
+          const assessment = assetAssessments.get(structure.id)!
+          return (
+            assessment.status === 'compatible' || (assessment.status === 'unknown' && path.settings.allowUnknownTime)
+          )
+        })
+    if (!available.length)
+      return 'Saved historical path crosses a structure site without a date-compatible or explicitly qualified crossing.'
+    usedStructures.push(...available.filter(touches))
+  }
+  if (stable(union(usedStructures.map((structure) => structure.id))) !== stable(union(path.structureIds)))
+    return 'Saved historical structure IDs do not match the crossing evidence encountered by the physical path.'
+  const requiredSources = union([
+    ...start.sourceIds,
+    ...end.sourceIds,
+    ...state.events.filter((event) => path.roadIds.includes(event.roadId)).flatMap((event) => event.sourceIds),
+    ...usedStructures.flatMap((structure) => [
+      ...structure.sourceIds,
+      ...assetAssessments.get(structure.id)!.sourceIds,
+    ]),
+  ])
+  if (requiredSources.some((id) => !path.sourceIds.includes(id)))
+    return 'Saved historical path omits source references used by its physical roads, crossings or named access locations.'
   return null
+}
+
+function harvestTimingAssumptions(block: ContextFeature, asOf: string): string[] {
+  const evidence = block.harvestEvidence
+  const earliest = evidence?.startDate ?? (evidence?.startYear !== undefined ? `${evidence.startYear}-01-01` : null)
+  const latest = evidence?.endDate ?? (evidence?.endYear !== undefined ? `${evidence.endYear}-12-31` : null)
+  const reasons: string[] = []
+  if ((earliest && asOf < earliest) || (latest && asOf > latest))
+    reasons.push(
+      'The analysis date is outside the reported harvest interval. This trace compares network history; it does not document the route used during harvesting.',
+    )
+  if (!latest)
+    reasons.push(
+      'Harvest completion timing is unknown. The chosen network date does not establish that this access candidate was available during harvesting.',
+    )
+  else if (!evidence?.endDate)
+    reasons.push(
+      'Harvest timing is recorded only to calendar-year precision; it does not establish the exact harvest date or use of this route on the analysis date.',
+    )
+  return reasons
 }
 
 /** Bounded alternative geometric paths. No automatic output is classified as planned or documented use. */
@@ -951,7 +1166,10 @@ export function traceHistoricalAccess(input: HistoricalTraceInput): HistoricalTr
       return false
     })
   const outlets = state.anchors.filter(
-    (a) => a.role === 'outlet' && (!input.outletIds || input.outletIds.includes(a.id)),
+    (a) =>
+      a.role === 'outlet' &&
+      (!a.blockId || a.blockId === block.id) &&
+      (!input.outletIds || input.outletIds.includes(a.id)),
   )
   if (!entrances.length || !outlets.length) {
     result.unresolved.push(
@@ -965,15 +1183,7 @@ export function traceHistoricalAccess(input: HistoricalTraceInput): HistoricalTr
   const period = { earliest: settings.asOf, latest: settings.asOf }
   const assessments = new Map<string, HistoricalTemporalAssessment>()
   const eligible = roads.filter((road) => {
-    const events = state.events.filter((e) => e.roadId === road.id)
-    const stale = events.some((e) => e.geometryFingerprint !== roadGeometryFingerprint(road))
-    const assessment = stale
-      ? {
-          status: 'conflict' as const,
-          reasons: ['Road geometry changed after its historical event was scoped; review the event extent.'],
-          sourceIds: [],
-        }
-      : assessHistoricalWindow(period, events)
+    const assessment = assessHistoricalRoad(road, state.events, settings.asOf)
     assessments.set(road.id, assessment)
     const allowed = assessment.status === 'compatible' || (assessment.status === 'unknown' && settings.allowUnknownTime)
     if (!allowed) result.excludedRoads.push({ roadId: road.id, name: road.name, reasons: assessment.reasons })
@@ -1184,12 +1394,7 @@ export function traceHistoricalAccess(input: HistoricalTraceInput): HistoricalTr
           : [],
       ),
       ...result.unresolved.filter((reason) => !reason.includes('no continuous')),
-      ...((block.harvestEvidence?.startDate && settings.asOf < block.harvestEvidence.startDate) ||
-      (block.harvestEvidence?.endDate && settings.asOf > block.harvestEvidence.endDate)
-        ? [
-            'The analysis date is outside the reported harvest interval. This trace compares network history; it does not document the route used during harvesting.',
-          ]
-        : []),
+      ...harvestTimingAssumptions(block, settings.asOf),
     ])
     const coordinates = [segments[0].coordinates[0], ...segments.map((s) => s.coordinates[1])]
     result.paths.push({

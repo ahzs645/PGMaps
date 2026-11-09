@@ -17,6 +17,18 @@ export interface HistoricalSource {
   synthetic: boolean
   /** Retained source business keys. Matching an opening is not a block-to-road-use assertion. */
   blockIdentity?: HistoricalBlockIdentity
+  /** A successful empty response differs from an unqueried or deliberately skipped source. */
+  query?: HistoricalSourceQuery
+}
+
+export interface HistoricalSourceQuery {
+  source: 'results-opening' | 'ften-cutblock' | 'ften-road-segment'
+  status: 'success' | 'skipped'
+  recordCount: number
+  requestUrl: string
+  openingId?: string
+  bounds?: [number, number, number, number]
+  reason?: string
 }
 
 export interface HistoricalBlockIdentity {
@@ -87,6 +99,7 @@ export interface HistoricalAnchor {
   role: 'entrance' | 'outlet'
   coordinate: Coordinate
   roadId: string | null
+  /** Required for entrances; on outlets, scopes this destination to one block. Null outlets are shared. */
   blockId: string | null
   sourceIds: string[]
 }
@@ -156,7 +169,7 @@ export interface HistoricalTraceInput {
   context: readonly ContextFeature[]
   state: HistoricalAccessState
   blockId: string
-  /** Omitted lists use matching saved entrances and all saved outlets. */
+  /** Omitted lists use matching saved entrances and outlets shared with or assigned to this block. */
   entranceIds?: string[]
   outletIds?: string[]
   settings?: Partial<HistoricalTraceSettings>

@@ -45,6 +45,7 @@ import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
+import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { preparationMarginFeatures } from './preparationFootprint'
 import type {
@@ -106,6 +107,8 @@ interface PlanProps {
   onSelectCulvert?: (id: string) => void
   /** Inspect the source/history of a mapped cutblock or existing road. */
   onContextSelect?: (feature: ContextFeature, at?: Coordinate) => void
+  onHistorySelect?: (selection: Omit<AccessHistorySelection, 'revision'>) => void
+  historySelection?: AccessHistorySelection
   /** Saves the project's map notes; without it notes show but cannot be drawn or edited. */
   onNotesChange?: (notes: MapNote[]) => void
   /** Set while a note tool is in hand, so the plan's own clicks stand aside. */
@@ -187,6 +190,7 @@ function Layers(
     onOverlaySelect,
     onSelectCulvert,
     onContextSelect,
+    onHistorySelect,
     noteTool,
     pourPointPicking,
     onPourPoint,
@@ -1065,6 +1069,29 @@ function Layers(
         return
       }
       if ((e.originalEvent.target as Element)?.closest('.maplibregl-marker')) return
+      if (mode === 'inspect' && onHistorySelect) {
+        const historyLayers = map
+          .getStyle()
+          .layers.filter(
+            (layer) =>
+              'source' in layer &&
+              ['circle-shared-road-access-history-structures', 'line-shared-road-access-history-route'].includes(
+                String(layer.source),
+              ),
+          )
+          .map((layer) => layer.id)
+        const historyHits = historyLayers.length ? map.queryRenderedFeatures(e.point, { layers: historyLayers }) : []
+        const historyHit =
+          historyHits.find((feature) => feature.source === 'circle-shared-road-access-history-structures') ??
+          historyHits[0]
+        if (historyHit?.properties?.id) {
+          onHistorySelect({
+            kind: historyHit.source === 'circle-shared-road-access-history-structures' ? 'structure' : 'path',
+            id: String(historyHit.properties.id),
+          })
+          return
+        }
+      }
       const preview = map.queryRenderedFeatures(e.point, {
         layers: ['road-exploration-line', 'road-exploration-point'],
       })[0]
@@ -1152,6 +1179,7 @@ function Layers(
     onOverlaySelect,
     onSelectCulvert,
     onContextSelect,
+    onHistorySelect,
     props.project.context,
     pourPointPicking,
     onPourPoint,
@@ -1434,7 +1462,7 @@ function Layers(
             </MapMarker>
           )
         })}
-      <AccessHistoryLayers data={historicalMap} />
+      <AccessHistoryLayers data={historicalMap} selection={props.historySelection} />
       <PlanLegend
         sections={[
           ...buildPlanLegend({
@@ -1754,6 +1782,14 @@ export function PlanView(props: PlanProps) {
             road={cardRoad}
             at={roadCard.at}
             onClose={() => setRoadCard(null)}
+            onAccessHistory={
+              props.onHistorySelect
+                ? () => {
+                    setRoadCard(null)
+                    props.onHistorySelect?.({ kind: 'road', id: cardRoad.id })
+                  }
+                : undefined
+            }
             onReview={
               props.onContextSelect
                 ? () => {
@@ -1770,6 +1806,14 @@ export function PlanView(props: PlanProps) {
             at={cutblockCard.at}
             year={props.project.harvestHistoryYear ?? new Date().getFullYear()}
             onClose={() => setCutblockCard(null)}
+            onAccessHistory={
+              props.onHistorySelect
+                ? () => {
+                    setCutblockCard(null)
+                    props.onHistorySelect?.({ kind: 'block', id: cutblock.id })
+                  }
+                : undefined
+            }
             onOpenHistory={
               props.onContextSelect
                 ? () => {

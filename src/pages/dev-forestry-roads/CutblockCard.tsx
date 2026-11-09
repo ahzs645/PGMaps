@@ -8,6 +8,7 @@ import type { ContextFeature, Coordinate } from './types'
 
 const SOURCE_LABELS = {
   'bc-consolidated': 'BC consolidated cutblocks',
+  'bc-ften': 'BC FTEN cutblock record',
   user: 'Imported harvest evidence',
   scenario: 'Synthetic teaching record',
 } as const
@@ -19,6 +20,7 @@ export function CutblockCard({
   year,
   onClose,
   onOpenHistory,
+  onAccessHistory,
 }: {
   feature: ContextFeature
   at: Coordinate
@@ -26,6 +28,7 @@ export function CutblockCard({
   onClose: () => void
   /** The full evidence and nearby roads, in the sidebar's cutblock history. */
   onOpenHistory?: () => void
+  onAccessHistory?: () => void
 }) {
   const evidence = feature.harvestEvidence
   const polygon = feature.geometry.type === 'Polygon' ? feature.geometry : null
@@ -59,10 +62,19 @@ export function CutblockCard({
         onClose={onClose}
         closeLabel="Close cutblock details"
         actions={
-          onOpenHistory && (
-            <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onOpenHistory}>
-              Full history & nearby roads
-            </Button>
+          (onOpenHistory || onAccessHistory) && (
+            <div className="grid gap-1.5">
+              {onOpenHistory && (
+                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onOpenHistory}>
+                  Full history & nearby roads
+                </Button>
+              )}
+              {onAccessHistory && (
+                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onAccessHistory}>
+                  Access evidence
+                </Button>
+              )}
+            </div>
           )
         }
       >

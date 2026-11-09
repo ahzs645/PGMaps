@@ -161,12 +161,37 @@ describe('historical event chronology', () => {
     closed.when = { earliest: null, latest: null }
     expect(assessHistoricalWindow(when('2010-01-01'), [...f.state.events, closed]).status).toBe('unknown')
   })
+  it('keeps a definite closure blocking in every event order despite another undated interruption', () => {
+    const f = setup()
+    const uncertain = { ...event(f.direct, 'deactivated'), when: { earliest: null, latest: null } }
+    const closed = event(f.direct, 'closed', '2008-01-01')
+    const built = f.state.events[0]
+    f.state.settings.allowUnknownTime = true
+    for (const events of [
+      [built, uncertain, closed],
+      [closed, built, uncertain],
+      [uncertain, closed, built],
+    ]) {
+      f.state.events = events
+      expect(assessHistoricalWindow(when('2010-06-30'), events).status).toBe('contradicted')
+      expect(trace(f).paths).toEqual([])
+      expect(trace(f).excludedRoads[0].reasons.join(' ')).toContain('Recorded closed')
+    }
+  })
   it('reports incompatible incarnation records as conflict', () => {
     const f = setup()
     expect(
       assessHistoricalWindow(when('2010-01-01'), [...f.state.events, event(f.direct, 'constructed', '2015-01-01')])
         .status,
     ).toBe('conflict')
+  })
+  it('lets an earlier observation narrow a construction interval without mislabelling compatible evidence as conflict', () => {
+    const f = setup()
+    const construction = { ...f.state.events[0], when: { earliest: '2008-01-01', latest: '2012-01-01' } }
+    const observed = event(f.direct, 'present-observed', '2009-01-01')
+    expect(assessHistoricalWindow(when('2010-06-30'), [construction, observed]).status).toBe('compatible')
+    observed.when = when('2007-01-01')
+    expect(assessHistoricalWindow(when('2010-06-30'), [construction, observed]).status).toBe('conflict')
   })
 })
 
@@ -241,6 +266,14 @@ describe('historical graph and association', () => {
     f.state.settings.allowUnknownTime = true
     expect(trace(f).paths[0].assumptions.join(' ')).toContain('Unknown historical timing was explicitly allowed')
   })
+  it('keeps year-only and unknown harvest timing explicit instead of implying contemporaneous use', () => {
+    const f = setup()
+    f.state.settings.asOf = '2022-01-01'
+    expect(trace(f).paths[0].assumptions.join(' ')).toContain('outside the reported harvest interval')
+    expect(trace(f).paths[0].assumptions.join(' ')).toContain('calendar-year precision')
+    f.context.find((feature) => feature.id === 'block')!.harvestEvidence = { source: 'bc-ften', yearMethod: 'unknown' }
+    expect(trace(f).paths[0].assumptions.join(' ')).toContain('Harvest completion timing is unknown')
+  })
   it('finds bounded alternatives while retaining exact segment paths and unknown prices', () => {
     const f = setup(true),
       result = trace(f)
@@ -308,6 +341,13 @@ describe('historical graph and association', () => {
 })
 
 describe('historical structure identity and dates', () => {
+  it('requires retained source evidence for a dated structure construction or removal claim', () => {
+    const f = setup()
+    f.state.structures = [bridge({ sourceIds: [] })]
+    expect(() => parseAccessHistoryState(f.state, f.context)).toThrow(/needs a source reference/)
+    f.state.structures[0].construction = null
+    expect(parseAccessHistoryState(f.state, f.context).structures[0].construction).toBeNull()
+  })
   it('joins an identified structure only within its explicit physical-road tolerance', () => {
     const f = setup()
     f.state.structures = [bridge()]
@@ -432,6 +472,51 @@ describe('historical structure identity and dates', () => {
     f.state.settings.allowUnknownTime = true
     expect(trace(f).paths).toEqual([])
   })
+  it.each(['future construction', 'earlier removal'])(
+    'does not downgrade %s when the same asset also has an undated closure report',
+    (caseName) => {
+      const f = setup()
+      f.state.settings.allowUnknownTime = true
+      const structure = bridge({
+        ...(caseName === 'future construction'
+          ? { construction: when('2015-01-01') }
+          : { removal: when('2005-01-01') }),
+        evidence: [
+          {
+            id: 'undated-closure',
+            kind: 'closure',
+            sourceIds: ['record'],
+            validFrom: null,
+            validUntil: null,
+            ratedLoadTonnes: null,
+            description: 'Known closure report with uncertain effective date.',
+          },
+        ],
+      })
+      f.state.structures = [structure]
+      const assessment = assessHistoricalStructure(structure, f.state.settings.asOf)
+      expect(assessment.status).toBe('contradicted')
+      expect(assessment.reasons.join(' ')).toContain('no established start date')
+      expect(trace(f).paths).toEqual([])
+    },
+  )
+  it('does not apply an unknown-start closure beyond its documented expiry', () => {
+    const structure = bridge({
+      evidence: [
+        {
+          id: 'expired-closure',
+          kind: 'closure',
+          sourceIds: ['record'],
+          validFrom: null,
+          validUntil: '2008-12-31',
+          ratedLoadTonnes: null,
+          description: 'Temporary notice whose start was not retained.',
+        },
+      ],
+    })
+    expect(assessHistoricalStructure(structure, '2008-01-01').status).toBe('unknown')
+    expect(assessHistoricalStructure(structure, '2010-06-30').status).toBe('compatible')
+  })
   it('preserves conflicting open-ended dated ratings and ignores undated inventory as historic capacity', () => {
     const reports = [40, 0].map((ratedLoadTonnes, i) => ({
       id: `rating-${i}`,
@@ -533,6 +618,30 @@ describe('portable evidence integrity and shared segments', () => {
     }
     expect(parseAccessHistoryState(f.state).sources[0].blockIdentity).toEqual(f.state.sources[0].blockIdentity)
   })
+  it('retains successful empty and skipped source queries without accepting malformed coverage claims', () => {
+    const f = setup()
+    f.state.sources[0].query = {
+      source: 'ften-road-segment',
+      status: 'success',
+      recordCount: 0,
+      requestUrl: 'https://example.gov.bc.ca/query?opening=60677',
+      openingId: '60677',
+      bounds: [-124, 53, -122, 55],
+    }
+    expect(parseAccessHistoryState(f.state).sources[0].query).toEqual(f.state.sources[0].query)
+    f.state.sources[0].query.status = 'skipped'
+    f.state.sources[0].query.requestUrl = ''
+    f.state.sources[0].query.reason = 'No block geometry was returned.'
+    expect(parseAccessHistoryState(f.state).sources[0].query?.status).toBe('skipped')
+    f.state.sources[0].query.recordCount = 1
+    expect(() => parseAccessHistoryState(f.state)).toThrow(/skipped queries/)
+    f.state.sources[0].query.recordCount = 0
+    f.state.sources[0].query.bounds = [-122, 53, -124, 55]
+    expect(() => parseAccessHistoryState(f.state)).toThrow(/WGS84/)
+    delete f.state.sources[0].query.bounds
+    f.state.sources[0].query.requestUrl = 'https://user:secret@example.gov.bc.ca/query'
+    expect(() => parseAccessHistoryState(f.state)).toThrow(/credentials/)
+  })
   it('rejects a self-consistent edited path that leaves its identified source roads', () => {
     const f = setup(),
       saved = mergeHistoricalTrace(f.state, trace(f)),
@@ -545,6 +654,63 @@ describe('portable evidence integrity and shared segments', () => {
     path.lengthM = path.segments.reduce((n, s) => n + s.lengthM, 0)
     expect(() => parseAccessHistoryState(saved, f.context)).toThrow(/identified source segments/)
     expect(assessHistoricalPath(path, saved, f.context).connectivity).toBe('unresolved')
+  })
+  it.each([0, 1])('rejects coincident source segments without a junction at road level %s', (level) => {
+    const f = setup()
+    const path = trace(f).paths[0]
+    const cross = road('cross', [at(50, -100), at(50, 100)])
+    cross.roadEvidence!.network!.level = level
+    f.context.push(cross)
+    f.state.events.push(event(cross))
+    f.state.anchors.find((anchor) => anchor.id === 'outlet')!.coordinate = at(50, 100)
+    f.state.anchors.find((anchor) => anchor.id === 'outlet')!.roadId = cross.id
+    expect(trace(f).paths).toEqual([])
+    path.segments = [
+      {
+        id: 'road:direct:0:0.5-1',
+        roadId: 'direct',
+        kind: 'road',
+        forward: false,
+        coordinates: [at(100), at(50)],
+        lengthM: distanceForTest(at(100), at(50)),
+      },
+      {
+        id: 'road:cross:0:0.5-1',
+        roadId: 'cross',
+        kind: 'road',
+        forward: true,
+        coordinates: [at(50), at(50, 100)],
+        lengthM: distanceForTest(at(50), at(50, 100)),
+      },
+    ]
+    path.coordinates = [at(100), at(50), at(50, 100)]
+    path.roadIds = ['direct', 'cross']
+    path.lengthM = path.segments.reduce((sum, segment) => sum + segment.lengthM, 0)
+    path.inputFingerprint = historicalInputFingerprint(f.context, f.state, path.settings)
+    f.state.paths = [path]
+    expect(() => parseAccessHistoryState(f.state, f.context)).toThrow(/without its declared junction/)
+    expect(assessHistoricalPath(path, f.state, f.context).connectivity).toBe('unresolved')
+  })
+  it('does not trace to an outlet explicitly assigned to another block', () => {
+    const f = setup()
+    f.state.anchors.find((anchor) => anchor.id === 'outlet')!.blockId = 'other-block'
+    expect(trace(f).paths).toEqual([])
+  })
+  it('does not allow an imported path to omit its crossed asset or the evidence supporting it', () => {
+    const f = setup()
+    f.state.structures = [bridge()]
+    const saved = mergeHistoricalTrace(f.state, trace(f))
+    const missingAsset = structuredClone(saved)
+    missingAsset.paths[0].structureIds = []
+    expect(() => parseAccessHistoryState(missingAsset, f.context)).toThrow(/structure IDs/)
+    const missingSource = structuredClone(saved)
+    missingSource.paths[0].sourceIds = []
+    expect(() => parseAccessHistoryState(missingSource, f.context)).toThrow(/omits source references/)
+    const closed = structuredClone(saved)
+    closed.structures[0].removal = when('2009-01-01')
+    closed.paths[0].structureIds = []
+    closed.paths[0].inputFingerprint = historicalInputFingerprint(f.context, closed, closed.paths[0].settings)
+    expect(() => parseAccessHistoryState(closed, f.context)).toThrow(/without a date-compatible/)
   })
   it('retains distinct applicable structure-report provenance on a derived path', () => {
     const f = setup()

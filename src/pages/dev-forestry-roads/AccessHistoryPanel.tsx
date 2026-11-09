@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { LocateFixed } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FileDropField } from '@/components/ui/file-drop-field'
@@ -34,9 +34,12 @@ import {
 import { Field, NumberField, RoadSelect, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import type { ContextFeature, Coordinate, RoadProject } from './types'
-import type { RoadWorkspace } from './useRoadWorkspace'
 import { AccessHistorySourcesPanel } from './AccessHistorySourcesPanel'
 import { AccessHistoryEvidence } from './AccessHistoryEvidence'
+import { AccessHistoryOverview } from './AccessHistoryOverview'
+import { AccessHistoryRecord } from './AccessHistoryRecord'
+import { assessHistoricalCoverage, type HistoricalCoverageNextStep } from './accessHistorySummary'
+import type { AccessHistoryQueryStatus, AccessHistorySelection, AccessHistoryWorkspace } from './AccessHistorySelection'
 
 const relationshipLabels: Record<HistoricalRelationship, string> = {
   proximity: 'Nearby only',
@@ -74,13 +77,22 @@ function SourceLink({ source }: { source: HistoricalSource }) {
 export function AccessHistoryPanel({
   workspace: w,
   onLocate,
+  selection,
 }: {
-  workspace: RoadWorkspace
+  workspace: AccessHistoryWorkspace
   onLocate?: (coordinates: Coordinate[]) => void
+  selection?: AccessHistorySelection | null
 }) {
   const fallback = useMemo(() => createAccessHistoryState(), [])
   const history = w.project.accessHistory ?? fallback
   const [selectedBlock, setSelectedBlock] = useState('')
+  const [dismissedSelection, setDismissedSelection] = useState<number | null>(null)
+  const [recordSelection, setRecordSelection] = useState<{
+    kind: 'road' | 'structure'
+    id: string
+    scope: string
+  } | null>(null)
+  const [queryStatus, setQueryStatus] = useState<AccessHistoryQueryStatus | null>(null)
   const [error, setError] = useState('')
   const [lastTrace, setLastTrace] = useState<{ result: HistoricalTraceResult; blockId: string; scope: string } | null>(
     null,
@@ -91,6 +103,11 @@ export function AccessHistoryPanel({
   const [importing, setImporting] = useState(false)
   const latest = useRef(w)
   latest.current = w
+  const sourcesRef = useRef<HTMLDetailsElement>(null)
+  const anchorsRef = useRef<HTMLDetailsElement>(null)
+  const evidenceRef = useRef<HTMLDetailsElement>(null)
+  const reviewRef = useRef<HTMLDetailsElement>(null)
+  const recordRef = useRef<HTMLDivElement>(null)
   const blocks = w.project.context.filter(
     (feature) => feature.kind === 'harvest' && feature.geometry.type === 'Polygon',
   )
@@ -98,13 +115,26 @@ export function AccessHistoryPanel({
     (feature) => feature.kind === 'existing-road' && feature.geometry.type === 'LineString',
   )
   const savedSelection = history.paths.find((path) => path.id === history.selectedPathId)
+  const incoming = selection && selection.revision !== dismissedSelection ? selection : null
+  const incomingPath = incoming?.kind === 'path' ? history.paths.find((path) => path.id === incoming.id) : undefined
+  const incomingBlockId = incoming?.kind === 'block' ? incoming.id : incomingPath?.blockId
   const block =
+    blocks.find((feature) => feature.id === incomingBlockId) ??
     blocks.find((feature) => feature.id === selectedBlock) ??
     blocks.find((feature) => feature.id === savedSelection?.blockId) ??
     blocks[0]
   const scope = `${w.projectId ?? 'unsaved'}:${w.project.activeAlignmentId}`
   const paths = history.paths.filter((path) => path.blockId === block?.id)
-  const selectedPath = paths.find((path) => path.id === history.selectedPathId) ?? paths[0]
+  const selectedPath =
+    (incomingPath?.blockId === block?.id ? incomingPath : undefined) ??
+    paths.find((path) => path.id === history.selectedPathId) ??
+    paths[0]
+  const focusedRecord =
+    incoming?.kind === 'road' || incoming?.kind === 'structure'
+      ? incoming
+      : recordSelection?.scope === scope
+        ? recordSelection
+        : null
   const traversedRoadIds =
     selectedPath?.segments.reduce<string[]>((ids, segment) => {
       if (segment.kind === 'road' && segment.roadId && ids.at(-1) !== segment.roadId) ids.push(segment.roadId)
@@ -117,6 +147,10 @@ export function AccessHistoryPanel({
   const previousTrace = lastTrace?.scope === scope && lastTrace.blockId === block?.id ? lastTrace.result : null
   const trace = previousTrace?.inputFingerprint === inputFingerprint ? previousTrace : null
   const assessment = selectedPath ? assessHistoricalPath(selectedPath, history, w.project.context) : null
+  const coverage = useMemo(
+    () => assessHistoricalCoverage({ context: w.project.context, state: history, blockId: block?.id }),
+    [w.project.context, history, block?.id],
+  )
   const disabled = !!w.busy || importing
   const change = (edit: (state: HistoricalAccessState) => HistoricalAccessState) => {
     setError('')
@@ -139,10 +173,32 @@ export function AccessHistoryPanel({
       setError(errorMessage(cause))
     }
   }
+  useEffect(() => {
+    if (!incoming || !['block', 'path'].includes(incoming.kind)) return
+    const id = selectedPath?.id ?? null
+    const current = latest.current.project.accessHistory
+    if (current && current.selectedPathId !== id)
+      latest.current.update((project) => ({
+        ...project,
+        accessHistory: { ...(project.accessHistory ?? fallback), selectedPathId: id },
+      }))
+  }, [incoming, selectedPath?.id, fallback])
+  useEffect(() => {
+    if (incoming?.kind === 'road' || incoming?.kind === 'structure')
+      recordRef.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [incoming])
   const traceRoutes = () =>
     guarded(() => {
       if (!block) throw Error('Select a cutblock before tracing access.')
-      const result = traceHistoricalAccess({ context: w.project.context, state: history, blockId: block.id })
+      setDismissedSelection(selection?.revision ?? null)
+      setSelectedBlock(block.id)
+      const result = traceHistoricalAccess({
+        context: w.project.context,
+        state: history,
+        blockId: block.id,
+        entranceIds: coverage.anchors.entrances.map((anchor) => anchor.id),
+        outletIds: coverage.anchors.outlets.map((anchor) => anchor.id),
+      })
       if (change((state) => mergeHistoricalTrace(state, result))) {
         setLastTrace({ result, blockId: block.id, scope })
         w.setNotice(
@@ -150,6 +206,18 @@ export function AccessHistoryPanel({
         )
       }
     })
+  const reveal = (ref: RefObject<HTMLDetailsElement>) => {
+    if (!ref.current) return
+    ref.current.open = true
+    ref.current.scrollIntoView?.({ block: 'nearest' })
+  }
+  const nextStep = (step: HistoricalCoverageNextStep) => {
+    if (step === 'trace') traceRoutes()
+    else if (step === 'load-block' || step === 'load-roads') reveal(sourcesRef)
+    else if (step === 'place-entrance' || step === 'place-outlet') reveal(anchorsRef)
+    else if (step === 'review') reveal(reviewRef)
+    else reveal(evidenceRef)
+  }
 
   return (
     <RoadSection
@@ -183,7 +251,9 @@ export function AccessHistoryPanel({
               value={block?.id ?? ''}
               disabled={disabled}
               onValueChange={(id) => {
+                setDismissedSelection(selection?.revision ?? null)
                 setSelectedBlock(id)
+                setRecordSelection(null)
                 setError('')
                 change((state) => ({
                   ...state,
@@ -194,7 +264,44 @@ export function AccessHistoryPanel({
             />
           </Field>
         )}
-        <AccessHistorySourcesPanel workspace={w} block={block} disabled={disabled} />
+        <AccessHistoryOverview
+          coverage={coverage}
+          query={queryStatus}
+          selection={focusedRecord}
+          disabled={disabled}
+          onNext={nextStep}
+          onLocate={onLocate}
+          onInspect={(kind, id) => {
+            setDismissedSelection(selection?.revision ?? null)
+            if (block) setSelectedBlock(block.id)
+            setRecordSelection({ kind, id, scope })
+          }}
+        />
+        {focusedRecord && (
+          <div ref={recordRef}>
+            <AccessHistoryRecord
+              selection={focusedRecord}
+              context={w.project.context}
+              history={history}
+              asOf={coverage.asOf}
+              onLocate={onLocate}
+            />
+          </div>
+        )}
+        <AccessHistorySourcesPanel
+          workspace={w}
+          block={block}
+          disabled={disabled}
+          detailsRef={sourcesRef}
+          onStatus={setQueryStatus}
+          onPilotAdded={(blockId, coordinates) => {
+            setDismissedSelection(selection?.revision ?? null)
+            setSelectedBlock(blockId)
+            setRecordSelection(null)
+            setLastTrace(null)
+            onLocate?.(coordinates)
+          }}
+        />
         <div className="grid grid-cols-2 gap-2">
           <Field
             label="Historical date"
@@ -280,6 +387,7 @@ export function AccessHistoryPanel({
           onChange={change}
           onError={setError}
           onLocate={onLocate}
+          detailsRef={anchorsRef}
         />
         <Button size="sm" variant="outline" className="w-full" disabled={disabled || !block} onClick={traceRoutes}>
           Trace historical access
@@ -339,7 +447,11 @@ export function AccessHistoryPanel({
                 ariaLabel="Historical route"
                 value={selectedPath.id}
                 disabled={disabled}
-                onValueChange={(id) => change((state) => ({ ...state, selectedPathId: id }))}
+                onValueChange={(id) => {
+                  setDismissedSelection(selection?.revision ?? null)
+                  if (block) setSelectedBlock(block.id)
+                  change((state) => ({ ...state, selectedPathId: id }))
+                }}
                 options={paths.map((path, index) => ({
                   value: path.id,
                   label: `${index + 1}. ${relationshipLabels[path.relationship]} · ${(path.lengthM / 1000).toFixed(2)} km · ${path.period.latest ?? path.period.earliest ?? 'date unknown'}`,
@@ -435,6 +547,7 @@ export function AccessHistoryPanel({
               path={selectedPath}
               history={history}
               disabled={disabled}
+              detailsRef={reviewRef}
               onReview={(relationship, review, sourceIds) =>
                 change((state) =>
                   reviewHistoricalPath(state, selectedPath.id, relationship, review, sourceIds, w.project.context),
@@ -443,7 +556,12 @@ export function AccessHistoryPanel({
             />
           </div>
         )}
-        <AccessHistoryEvidence history={history} context={w.project.context} onLocate={onLocate} />
+        <AccessHistoryEvidence
+          history={history}
+          context={w.project.context}
+          onLocate={onLocate}
+          detailsRef={evidenceRef}
+        />
         <SourceEditor key={`source:${scope}`} disabled={disabled} onChange={change} />
         <HistoryJsonEditor
           key={`json:${scope}`}
@@ -583,6 +701,7 @@ function AnchorEditor({
   onChange,
   onError,
   onLocate,
+  detailsRef,
 }: {
   block?: ContextFeature
   history: HistoricalAccessState
@@ -592,6 +711,7 @@ function AnchorEditor({
   onChange: (edit: (state: HistoricalAccessState) => HistoricalAccessState) => boolean
   onError: (message: string) => void
   onLocate?: (coordinates: Coordinate[]) => void
+  detailsRef?: RefObject<HTMLDetailsElement>
 }) {
   const [editing, setEditing] = useState('new')
   const [role, setRole] = useState<HistoricalAnchor['role']>('entrance')
@@ -600,7 +720,10 @@ function AnchorEditor({
   const [latitude, setLatitude] = useState('')
   const [roadId, setRoadId] = useState('none')
   const [sourceId, setSourceId] = useState('none')
-  const anchors = history.anchors.filter((anchor) => anchor.role === 'outlet' || anchor.blockId === block?.id)
+  const [outletScope, setOutletScope] = useState<'block' | 'shared'>('block')
+  const anchors = history.anchors.filter(
+    (anchor) => anchor.blockId === block?.id || (anchor.role === 'outlet' && !anchor.blockId),
+  )
   const pickCoordinate = (coordinate?: Coordinate) => {
     if (!coordinate) return
     setLongitude(String(coordinate[0]))
@@ -615,6 +738,7 @@ function AnchorEditor({
       setLatitude('')
       setRoadId('none')
       setSourceId('none')
+      setOutletScope('block')
       return
     }
     setRole(anchor.role)
@@ -622,9 +746,10 @@ function AnchorEditor({
     pickCoordinate(anchor.coordinate)
     setRoadId(anchor.roadId ?? 'none')
     setSourceId(anchor.sourceIds[0] ?? 'none')
+    setOutletScope(anchor.blockId ? 'block' : 'shared')
   }
   return (
-    <details className="space-y-2 text-xs">
+    <details ref={detailsRef} className="space-y-2 text-xs">
       <summary className="cursor-pointer font-medium">
         Entrances &amp; outlets · {anchors.filter((anchor) => anchor.role === 'entrance').length} /{' '}
         {anchors.filter((anchor) => anchor.role === 'outlet').length}
@@ -645,6 +770,23 @@ function AnchorEditor({
           ]}
         />
       </Field>
+      {role === 'outlet' && (
+        <Field
+          label="Outlet applies to"
+          hint="An outlet assigned to this block remains part of its study corridor even outside the nearby road-query area. Shared outlets can be reused by nearby blocks."
+        >
+          <RoadSelect
+            ariaLabel="Outlet applies to"
+            value={block ? outletScope : 'shared'}
+            disabled={disabled}
+            onValueChange={(value) => setOutletScope(value as 'block' | 'shared')}
+            options={[
+              { value: 'block', label: 'This block', disabled: !block },
+              { value: 'shared', label: 'Shared nearby outlet' },
+            ]}
+          />
+        </Field>
+      )}
       <div className="grid grid-cols-2 gap-2">
         <Field label="Anchor role">
           <RoadSelect
@@ -751,7 +893,7 @@ function AnchorEditor({
               role,
               coordinate: [Number(longitude), Number(latitude)],
               roadId: roadId === 'none' ? null : roadId,
-              blockId: role === 'entrance' ? block!.id : null,
+              blockId: role === 'entrance' ? block!.id : outletScope === 'block' && block ? block.id : null,
               sourceIds: [
                 ...new Set([...(sourceId === 'none' ? [] : [sourceId]), ...(existing?.sourceIds.slice(1) ?? [])]),
               ],
@@ -796,6 +938,7 @@ function PathReviewEditor({
   history,
   disabled,
   onReview,
+  detailsRef,
 }: {
   path: HistoricalAccessPath
   history: HistoricalAccessState
@@ -805,6 +948,7 @@ function PathReviewEditor({
     review: NonNullable<HistoricalAccessPath['review']>,
     sourceIds: string[],
   ) => boolean
+  detailsRef?: RefObject<HTMLDetailsElement>
 }) {
   const [relationship, setRelationship] = useState<HistoricalRelationship>(path.relationship)
   const [reviewer, setReviewer] = useState(path.review?.reviewer ?? '')
@@ -812,7 +956,7 @@ function PathReviewEditor({
   const [reviewedOn, setReviewedOn] = useState(today())
   const [sourceId, setSourceId] = useState(path.sourceIds[0] ?? '')
   return (
-    <details className="space-y-2 text-xs">
+    <details ref={detailsRef} className="space-y-2 text-xs">
       <summary className="cursor-pointer font-medium">Review this association</summary>
       <Field label="Reviewed relationship">
         <RoadSelect

@@ -15,7 +15,7 @@ export const HARVEST_MEDIUM_YEARS = 30
 export const MAX_NEARBY_ROAD_CHECKS = 2_000_000
 
 export interface HarvestEvidence {
-  source: 'bc-consolidated' | 'user' | 'scenario'
+  source: 'bc-consolidated' | 'bc-ften' | 'user' | 'scenario'
   status?: 'harvested' | 'proposed'
   sourceId?: string
   sourceUrl?: string
@@ -86,7 +86,7 @@ function sourceUrl(value: unknown): string | undefined {
 /** Used on both project restore and GeoJSON import so invalid evidence never becomes a numeric age. */
 export function parseHarvestEvidence(raw: unknown): HarvestEvidence {
   const r = record(raw, 'Harvest evidence')
-  if (!['bc-consolidated', 'user', 'scenario'].includes(String(r.source)))
+  if (!['bc-consolidated', 'bc-ften', 'user', 'scenario'].includes(String(r.source)))
     throw Error('Unknown harvest evidence source.')
   if (r.status !== undefined && !['harvested', 'proposed'].includes(String(r.status)))
     throw Error('Unknown harvest status.')
