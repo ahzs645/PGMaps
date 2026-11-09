@@ -1,3 +1,5 @@
+import { escapeHtml } from '@/lib/escapeHtml'
+
 /** Presentation-neutral export shared by the current-data dialog and future callers. */
 export interface CurrentAnalysisTable {
   title: string
@@ -17,12 +19,6 @@ export interface CurrentAnalysisReport {
   /** Original numeric outputs stay unrounded in JSON, independently of presentation. */
   calculation: unknown
 }
-
-const escapeHtml = (value: unknown) =>
-  String(value ?? '').replace(
-    /[&<>"']/g,
-    (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
-  )
 
 export function currentAnalysisJson(report: CurrentAnalysisReport): string {
   return JSON.stringify(report, null, 2)

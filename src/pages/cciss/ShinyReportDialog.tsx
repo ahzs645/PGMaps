@@ -1,42 +1,87 @@
+import { useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { DialogShell } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { NativeSelect } from '@/components/ui/form-field'
-import { Silvics } from './Silvics'
+import { SelectField } from '@/components/ui/form-field'
+import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { TabBar } from '@/components/ui/tab-bar'
+import { downloadText } from '@/lib/download'
 import type { ComparisonSnapshot } from './comparison'
 import { shinySnapshot } from './comparisonAdapters'
 import { ComparisonCapture } from './ComparisonCapture'
-import { PublishedReferenceChecks } from './PublishedReferenceChecks'
-import { useEffect, useRef, useState } from 'react'
-import { DialogShell } from '@/components/ui/dialog-shell'
-import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
-import { Button } from '@/components/ui/button'
-import { TabBar } from '@/components/ui/tab-bar'
-import { fetchGzipText } from '@/lib/fetchJson'
-import { downloadText } from '@/lib/download'
+import { DownloadActions } from './DownloadActions'
+import { FileImportField } from './FileImportField'
 import { ratingLabel } from './legacyAnalysis'
-import { openReportArchive, readReportCsv, REPORT_IMPORT_LIMITS, type ReportArchive } from './reportImport'
+import { PeriodWeightFields } from './PeriodWeightFields'
+import { PublishedReferenceChecks } from './PublishedReferenceChecks'
 import {
   DEFAULT_ESTABLISHMENT,
   DEFAULT_MATURATION,
   SHINY_SUMMARY_POLICIES,
   createReportAnalysis,
-  parseShinyReport,
   reportAnalysisCsv,
   reportSummaryStatus,
   supportedSummaryPolicies,
   summarizeVotes,
   type ShinyReport,
-  type Votes,
 } from './shinyReport'
+import { shinySpeciesReportHtml } from './shinyReportExport'
+import { Silvics } from './Silvics'
+import { useShinyReportImport } from './useShinyReportImport'
+import { VoteBars } from './VoteBars'
 
-const selectClass = 'mt-1 w-full rounded-md border border-border bg-background p-2 text-sm'
-const colours = ['#006400', '#1e90ff', '#eec900', '#d4d4d4', '#a855f7']
-const voteNames = ['High', 'Moderate', 'Low', 'Unsuitable', 'Novel climate']
-const escapeHtml = (s: unknown) =>
-  String(s ?? '').replace(
-    /[&<>"']/g,
-    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+type Tab = 'report' | 'silvics' | 'inputs' | 'checks'
+type Summary = ReturnType<typeof summarizeVotes>
+type Policy = ReturnType<typeof supportedSummaryPolicies>[number]
+const placeKey = (row: ShinyReport['rows'][number]) => JSON.stringify([row.site, row.series])
+
+/** Browser summaries for each row; invalid weights withhold every summary and report why. */
+function summarizeRows(rows: ShinyReport['rows'], est: number[], mat: number[], policy: Policy | null) {
+  let weightError = ''
+  const summaries = rows.map((row) => {
+    try {
+      return policy ? summarizeVotes(row, est, mat, policy) : null
+    } catch (cause) {
+      weightError = String(cause)
+      return null
+    }
+  })
+  return { summaries, weightError }
+}
+
+function SpeciesSummaryTable({ rows, summaries }: { rows: ShinyReport['rows']; summaries: (Summary | null)[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <EngineeringTable className="whitespace-normal text-xs [&_td]:py-2">
+        <caption className="mb-2 text-left text-sm font-semibold">Species summary</caption>
+        <thead>
+          <tr>
+            <ColumnHeader label="Species" className="text-left" />
+            <ColumnHeader label="Baseline" className="text-left" />
+            <ColumnHeader label="Establishment¹" className="text-left" />
+            <ColumnHeader label="Maturation¹" className="text-left" />
+            <ColumnHeader label="Stable / improving¹" />
+            <ColumnHeader label="Declining / unsuitable¹" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={row.species}>
+              <td className="text-left">{row.species}</td>
+              <td className="text-left">{ratingLabel(row.current)}</td>
+              <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.establishment) : '—'}</td>
+              <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.maturation) : '—'}</td>
+              <td>{summaries[i] ? `${summaries[i]!.improve}%` : '—'}</td>
+              <td>{summaries[i] ? `${summaries[i]!.decline}%` : '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </EngineeringTable>
+    </div>
   )
+}
 
+/** A published or exported Shiny result: its votes per period, reweighted summaries and reference checks. */
 export function ShinyReportDialog({
   onClose,
   onCaptureComparison,
@@ -48,99 +93,30 @@ export function ShinyReportDialog({
   onOpenComparison?: () => void
   comparisonCount?: number
 }) {
-  const [report, setReport] = useState<ShinyReport | null>(null)
-  const [source, setSource] = useState('')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
   const [place, setPlace] = useState('')
   const [species, setSpecies] = useState('')
-  const [tab, setTab] = useState<'report' | 'silvics' | 'inputs' | 'checks'>('report')
+  const [tab, setTab] = useState<Tab>('report')
   const [est, setEst] = useState(DEFAULT_ESTABLISHMENT)
   const [mat, setMat] = useState(DEFAULT_MATURATION)
   const [policyId, setPolicyId] = useState(SHINY_SUMMARY_POLICIES[0].id)
-  const [archive, setArchive] = useState<ReportArchive | null>(null)
-  const [archiveEntry, setArchiveEntry] = useState('')
-  const request = useRef(0)
-  useEffect(
-    () => () => {
-      request.current++
-    },
-    [],
-  )
-  function acceptReport(parsed: ShinyReport, name: string) {
+  // A new report starts on its first site and species, with its own source-backed period weights.
+  const imported = useShinyReportImport((parsed) => {
     const policy = supportedSummaryPolicies(parsed)[0] ?? SHINY_SUMMARY_POLICIES[0]
-    setReport(parsed)
     setEst([...policy.establishment.weights])
     setMat([...policy.maturation.weights])
     setPolicyId(policy.id)
-    setSource(name)
-    setPlace(JSON.stringify([parsed.rows[0].site, parsed.rows[0].series]))
+    setPlace(placeKey(parsed.rows[0]))
     setSpecies(parsed.rows[0].species)
-  }
-  async function load(read: () => Promise<string>, name: string, keepArchive = false) {
-    const id = ++request.current
-    setLoading(true)
-    setError('')
-    try {
-      const parsed = parseShinyReport(await read())
-      if (id !== request.current) return
-      acceptReport(parsed, name)
-      if (!keepArchive) {
-        setArchive(null)
-        setArchiveEntry('')
-      }
-    } catch (e) {
-      if (id === request.current) setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      if (id === request.current) setLoading(false)
-    }
-  }
-  async function importFile(file: File) {
-    const id = ++request.current
-    setLoading(true)
-    setError('')
-    try {
-      const isZip = /\.zip$/i.test(file.name)
-      const limit = isZip ? REPORT_IMPORT_LIMITS.zipBytes : REPORT_IMPORT_LIMITS.csvBytes
-      if (file.size > limit)
-        throw new Error(isZip ? 'Please select a ZIP smaller than 20 MB.' : 'Please select a CSV smaller than 5 MB.')
-      const bytes = new Uint8Array(await file.arrayBuffer())
-      if (id !== request.current) return
-      if (isZip) {
-        const nextArchive = await openReportArchive(file.name, bytes)
-        if (id !== request.current) return
-        setArchive(nextArchive)
-        setArchiveEntry(nextArchive.preferred ?? '')
-        if (nextArchive.preferred) {
-          const parsed = parseShinyReport(await nextArchive.read(nextArchive.preferred))
-          if (id === request.current) acceptReport(parsed, `${file.name} / ${nextArchive.preferred}`)
-        }
-      } else {
-        const parsed = parseShinyReport(readReportCsv(bytes))
-        acceptReport(parsed, file.name)
-        setArchive(null)
-        setArchiveEntry('')
-      }
-    } catch (e) {
-      if (id === request.current) setError(e instanceof Error ? e.message : String(e))
-    } finally {
-      if (id === request.current) setLoading(false)
-    }
-  }
+  })
+  const { report, source, archive } = imported
+
   const policies = report ? supportedSummaryPolicies(report) : []
   const policy = policies.find((p) => p.id === policyId) ?? policies[0] ?? null
-  const places = [...new Set(report?.rows.map((r) => JSON.stringify([r.site, r.series])) ?? [])]
-  const rows = report?.rows.filter((r) => JSON.stringify([r.site, r.series]) === place) ?? []
-  const selected = rows.find((r) => r.species === species) ?? rows[0]
-  let weightError = ''
-  const summaries = rows.map((r) => {
-    try {
-      return policy ? summarizeVotes(r, est, mat, policy) : null
-    } catch (e) {
-      weightError = String(e)
-      return null
-    }
-  })
+  const places = [...new Set(report?.rows.map(placeKey) ?? [])]
+  const rows = report?.rows.filter((row) => placeKey(row) === place) ?? []
+  const selected = rows.find((row) => row.species === species) ?? rows[0]
+  const { summaries, weightError } = summarizeRows(rows, est, mat, policy)
+
   function downloadAnalysis(format: 'json' | 'csv') {
     if (!report || weightError) return
     const analysis = createReportAnalysis(report, source, est, mat, policy)
@@ -152,54 +128,32 @@ export function ShinyReportDialog({
   }
   function downloadReport() {
     if (!report) return
-    const headings = [
-      'Species',
-      'Baseline',
-      ...report.periods.map((p) => `Period ${p}: high / moderate / low / unsuitable / novel climate (%)`),
-      'Browser establishment',
-      'Browser maturation',
-      'Browser stable / improving (%)',
-      'Browser declining / unsuitable (%)',
-      'Original Shiny establishment',
-      'Original Shiny maturation',
-      'Original Shiny stable / improving (%)',
-      'Original Shiny declining / unsuitable (%)',
-    ]
-    const body = rows
-      .map(
-        (r, i) =>
-          '<tr>' +
-          [
-            r.species,
-            ratingLabel(r.current),
-            ...report.periods.map((p) =>
-              r.votes[p]
-                ? [
-                    ...r.votes[p]!.map((v) => (100 * v).toFixed(1)),
-                    r.novelty[p] == null ? 'Not exported' : (100 * r.novelty[p]!).toFixed(1),
-                  ].join(' / ')
-                : 'No data',
-            ),
-            summaries[i] ? ratingLabel(summaries[i]!.establishment) : 'Not calculated',
-            summaries[i] ? ratingLabel(summaries[i]!.maturation) : 'Not calculated',
-            summaries[i]?.improve ?? 'Not calculated',
-            summaries[i]?.decline ?? 'Not calculated',
-            r.original.EstabFeas ?? 'Not provided',
-            r.original.ccissFeas ?? 'Not provided',
-            r.original.Improve ?? 'Not provided',
-            r.original.Decline ?? 'Not provided',
-          ]
-            .map((v) => `<td>${escapeHtml(v)}</td>`)
-            .join('') +
-          '</tr>',
-      )
-      .join('')
     downloadText(
-      `<!doctype html><meta charset="utf-8"><title>CCISS species report</title><style>body{font:14px system-ui;margin:30px}table{border-collapse:collapse;width:100%}td,th{padding:8px;border:1px solid #ccc;text-align:left}@media print{body{margin:0}}</style><h1>CCISS species report</h1><p>Source: ${escapeHtml(source)}</p><p>Site / series: ${escapeHtml(place)}. Original period identifiers retained. Imported results are not recalculated for the map point.</p><p>Browser summaries use exported vote proportions and period weights, not new climate-model predictions. Historical periods, incomplete votes or novelty-scaled exports give no browser summary.</p><p>Establishment weights: ${escapeHtml(est.join(', '))}; maturation: ${escapeHtml(mat.join(', '))} (normalized for calculation).</p><table><thead><tr>${headings.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`,
+      shinySpeciesReportHtml({
+        report,
+        rows,
+        summaries,
+        source,
+        place,
+        establishmentWeights: est,
+        maturationWeights: mat,
+      }),
       'cciss-species-report.html',
       'text/html',
     )
   }
+  const snapshot = (label: string | undefined, summarySource: 'original' | 'browser') => {
+    const [site, series] = JSON.parse(place) as [string, string]
+    return shinySnapshot(report!, {
+      site,
+      series,
+      source,
+      label,
+      summarySource,
+      ...(summarySource === 'browser' ? { establishmentWeights: est, maturationWeights: mat } : {}),
+    })
+  }
+
   return (
     <DialogShell
       title="CCISS species report"
@@ -212,32 +166,24 @@ export function ShinyReportDialog({
           Load an existing Shiny result to view its species probabilities and reports. This report uses the sites in the
           file, independently of the map point.
         </InlineAlert>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <Button
             variant="outline"
-            disabled={loading}
-            onClick={() =>
-              void load(
-                () => fetchGzipText('/data/cciss/report-examples/williams-lake-raw.csv.gz'),
-                'Published Williams Lake example · historical periods',
-              )
-            }
+            className="mt-5"
+            disabled={imported.loading}
+            onClick={() => void imported.loadExample()}
           >
             Load published example
           </Button>
-          <label className="text-sm">
-            Import Shiny CSV or ZIP
-            <input
-              className="mt-1 block max-w-xs text-sm"
-              type="file"
+          <div className="min-w-64 flex-1">
+            <FileImportField
+              label="Import Shiny CSV or ZIP"
               accept=".csv,.zip,text/csv,application/zip"
-              onChange={(e) => {
-                const f = e.target.files?.[0]
-                if (f) void importFile(f)
-                e.target.value = ''
-              }}
+              buttonLabel="Import CSV or ZIP"
+              onFile={(file) => void imported.importFile(file)}
+              onError={imported.fail}
             />
-          </label>
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           In Shiny: generate the site results → Export → CSV, then choose the downloaded ZIP or cciss_export.csv. Files
@@ -245,34 +191,24 @@ export function ShinyReportDialog({
         </p>
         {archive && (
           <SidebarSection title={`CSV files in ${archive.name}`}>
-            <label className="block text-sm">
-              Archived result CSV
-              <NativeSelect
-                className={selectClass}
-                value={archiveEntry}
-                disabled={loading}
-                onChange={(event) => {
-                  const entry = event.target.value
-                  setArchiveEntry(entry)
-                  if (entry) void load(() => archive.read(entry), `${archive.name} / ${entry}`, true)
-                }}
-              >
-                <option value="">Choose a suitability result CSV…</option>
-                {archive.entries.map((entry) => (
-                  <option key={entry} value={entry}>
-                    {entry}
-                  </option>
-                ))}
-              </NativeSelect>
-            </label>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Select the result file when an archive contains several CSVs. The last valid report stays available if
-              another file cannot be read.
-            </p>
+            <SelectField
+              label="Archived result CSV"
+              value={imported.archiveEntry}
+              disabled={imported.loading}
+              onChange={(event) => imported.chooseArchiveEntry(event.target.value)}
+              description="Select the result file when an archive contains several CSVs. The last valid report stays available if another file cannot be read."
+            >
+              <option value="">Choose a suitability result CSV…</option>
+              {archive.entries.map((entry) => (
+                <option key={entry} value={entry}>
+                  {entry}
+                </option>
+              ))}
+            </SelectField>
           </SidebarSection>
         )}
-        {loading && <InlineAlert loading>Loading report…</InlineAlert>}
-        {error && <InlineAlert tone="error">{error}</InlineAlert>}
+        {imported.loading && <InlineAlert loading>Loading report…</InlineAlert>}
+        {imported.error && <InlineAlert tone="error">{imported.error}</InlineAlert>}
         <TabBar
           label="CCISS report pages"
           value={tab}
@@ -316,71 +252,43 @@ export function ShinyReportDialog({
               actions={[
                 {
                   label: 'Save original Shiny for comparison',
-                  create: (label) => {
-                    const [site, series] = JSON.parse(place) as [string, string]
-                    return shinySnapshot(report, { site, series, source, label, summarySource: 'original' })
-                  },
+                  create: (label) => snapshot(label, 'original'),
                 },
                 {
                   label: 'Save browser summary for comparison',
                   disabled: Boolean(weightError) || !policy,
-                  create: (label) => {
-                    const [site, series] = JSON.parse(place) as [string, string]
-                    return shinySnapshot(report, {
-                      site,
-                      series,
-                      source,
-                      label,
-                      summarySource: 'browser',
-                      establishmentWeights: est,
-                      maturationWeights: mat,
-                    })
-                  },
+                  create: (label) => snapshot(label, 'browser'),
                 },
               ]}
             />
             <div className="grid gap-3 sm:grid-cols-2">
-              <label>
-                Site and site series
-                <NativeSelect className={selectClass} value={place} onChange={(e) => setPlace(e.target.value)}>
-                  {places.map((p) => (
-                    <option key={p} value={p}>
-                      {(JSON.parse(p) as string[]).join(' · ')}
-                    </option>
-                  ))}
-                </NativeSelect>
-              </label>
-              <label>
-                Species detail
-                <NativeSelect
-                  className={selectClass}
-                  value={selected?.species ?? ''}
-                  onChange={(e) => setSpecies(e.target.value)}
-                >
-                  {rows.map((r) => (
-                    <option key={r.species}>{r.species}</option>
-                  ))}
-                </NativeSelect>
-              </label>
+              <SelectField
+                label="Site and site series"
+                value={place}
+                onChange={(event) => setPlace(event.target.value)}
+              >
+                {places.map((p) => (
+                  <option key={p} value={p}>
+                    {(JSON.parse(p) as string[]).join(' · ')}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Species detail"
+                value={selected?.species ?? ''}
+                onChange={(event) => setSpecies(event.target.value)}
+              >
+                {rows.map((row) => (
+                  <option key={row.species}>{row.species}</option>
+                ))}
+              </SelectField>
             </div>
             {tab === 'silvics' && selected && <Silvics species={selected.species} />}
             {tab === 'report' && (
               <>
                 {selected && (
                   <SidebarSection title={`Period votes · ${selected.species}`}>
-                    <div className="mb-3 flex flex-wrap gap-4 text-xs">
-                      {voteNames
-                        .slice(0, Object.values(selected.novelty).some((n) => n != null) ? 5 : 4)
-                        .map((n, i) => (
-                          <span key={n}>
-                            <span className="mr-1 inline-block h-3 w-3" style={{ background: colours[i] }} />
-                            {n}
-                          </span>
-                        ))}
-                    </div>
-                    {report.periods.map((p) => (
-                      <VoteBar key={p} period={p} votes={selected.votes[p]} novelty={selected.novelty[p]} />
-                    ))}
+                    <VoteBars periods={report.periods} votes={selected.votes} novelty={selected.novelty} />
                   </SidebarSection>
                 )}
                 {selected && ['EstabFeas', 'ccissFeas', 'Improve', 'Decline'].some((key) => selected.original[key]) && (
@@ -397,87 +305,67 @@ export function ShinyReportDialog({
                   </SidebarSection>
                 )}
                 {policy && (
-                  <details>
-                    <summary className="cursor-pointer text-sm font-medium">Recalculate with period weights</summary>
-                    <p className="my-2 text-xs text-muted-foreground">
+                  <CollapsibleSection
+                    label="Recalculate with period weights"
+                    collapseOn="always"
+                    className="rounded-md border"
+                    contentClassName="space-y-3 px-3 pb-3"
+                  >
+                    <p className="text-xs text-muted-foreground">
                       {policy.label}. Defaults come from the Shiny source. Each group is normalized to sum to one.
                       Summaries require complete votes for every policy period. Novelty-scaled exports can be viewed but
                       are not reweighted here.
                     </p>
                     {policies.length > 1 && (
-                      <label className="block text-sm">
-                        Summary policy
-                        <NativeSelect
-                          className={selectClass}
-                          value={policy.id}
-                          onChange={(event) => {
-                            const next = policies.find((p) => p.id === event.target.value)!
-                            setPolicyId(next.id)
-                            setEst([...next.establishment.weights])
-                            setMat([...next.maturation.weights])
-                          }}
-                        >
-                          {policies.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.label}
-                            </option>
-                          ))}
-                        </NativeSelect>
-                      </label>
+                      <SelectField
+                        label="Summary policy"
+                        value={policy.id}
+                        onChange={(event) => {
+                          const next = policies.find((p) => p.id === event.target.value)!
+                          setPolicyId(next.id)
+                          setEst([...next.establishment.weights])
+                          setMat([...next.maturation.weights])
+                        }}
+                      >
+                        {policies.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.label}
+                          </option>
+                        ))}
+                      </SelectField>
                     )}
-                    <Weights
+                    <PeriodWeightFields
                       label="Establishment"
                       periods={policy.establishment.periods}
-                      values={est}
+                      weights={est}
                       onChange={setEst}
                     />
-                    <Weights label="Maturation" periods={policy.maturation.periods} values={mat} onChange={setMat} />
-                  </details>
+                    <PeriodWeightFields
+                      label="Maturation"
+                      periods={policy.maturation.periods}
+                      weights={mat}
+                      onChange={setMat}
+                    />
+                  </CollapsibleSection>
                 )}
                 {selected && <p className="text-xs text-muted-foreground">{reportSummaryStatus(selected, policy)}</p>}
                 {weightError && <InlineAlert tone="error">{weightError}</InlineAlert>}
-                <div className="overflow-x-auto">
-                  <EngineeringTable className="whitespace-normal text-xs [&_td]:py-2">
-                    <caption className="mb-2 text-left text-sm font-semibold">Species summary</caption>
-                    <thead>
-                      <tr>
-                        <ColumnHeader label="Species" className="text-left" />
-                        <ColumnHeader label="Baseline" className="text-left" />
-                        <ColumnHeader label="Establishment¹" className="text-left" />
-                        <ColumnHeader label="Maturation¹" className="text-left" />
-                        <ColumnHeader label="Stable / improving¹" />
-                        <ColumnHeader label="Declining / unsuitable¹" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((r, i) => (
-                        <tr key={r.species}>
-                          <td className="text-left">{r.species}</td>
-                          <td className="text-left">{ratingLabel(r.current)}</td>
-                          <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.establishment) : '—'}</td>
-                          <td className="text-left">{summaries[i] ? ratingLabel(summaries[i]!.maturation) : '—'}</td>
-                          <td>{summaries[i] ? `${summaries[i]!.improve}%` : '—'}</td>
-                          <td>{summaries[i] ? `${summaries[i]!.decline}%` : '—'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </EngineeringTable>
-                </div>
+                <SpeciesSummaryTable rows={rows} summaries={summaries} />
                 <p className="text-xs text-muted-foreground">
                   ¹ Calculated in this browser from the imported votes. — means required periods or complete votes are
                   missing, or the export includes novelty-scaled votes. It does not mean unsuitable.
                 </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button onClick={downloadReport} disabled={!!weightError}>
-                    Download printable HTML report
-                  </Button>
-                  <Button variant="outline" onClick={() => downloadAnalysis('json')} disabled={!!weightError}>
-                    Download analysis JSON
-                  </Button>
-                  <Button variant="outline" onClick={() => downloadAnalysis('csv')} disabled={!!weightError}>
-                    Download analysis CSV
-                  </Button>
-                </div>
+                <DownloadActions
+                  actions={[
+                    { label: 'Download printable HTML report', onClick: downloadReport, disabled: !!weightError },
+                    {
+                      label: 'Download analysis JSON',
+                      onClick: () => downloadAnalysis('json'),
+                      disabled: !!weightError,
+                    },
+                    { label: 'Download analysis CSV', onClick: () => downloadAnalysis('csv'), disabled: !!weightError },
+                  ]}
+                />
                 <p className="text-xs text-muted-foreground">
                   HTML contains the selected site and site series. JSON and CSV include every imported site, series and
                   species, original results, period weights and browser summaries. JSON also retains all original CSV
@@ -492,70 +380,5 @@ export function ShinyReportDialog({
         )}
       </div>
     </DialogShell>
-  )
-}
-function Weights({
-  label,
-  periods,
-  values,
-  onChange,
-}: {
-  label: string
-  periods: string[]
-  values: number[]
-  onChange: (v: number[]) => void
-}) {
-  return (
-    <fieldset className="my-3">
-      <legend className="text-sm">{label}</legend>
-      <div className="flex flex-wrap gap-3">
-        {periods.map((p, i) => (
-          <label className="text-xs" key={p}>
-            {p}
-            <input
-              aria-label={`${label} ${p}`}
-              className="mt-1 block w-20 rounded border bg-background p-2"
-              type="number"
-              min="0"
-              step="0.05"
-              value={Number.isFinite(values[i]) ? values[i] : ''}
-              onChange={(e) => onChange(values.map((v, j) => (j === i ? e.target.valueAsNumber : v)))}
-            />
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  )
-}
-function VoteBar({
-  period,
-  votes,
-  novelty,
-}: {
-  period: string
-  votes: Votes | null | undefined
-  novelty: number | null | undefined
-}) {
-  const values = votes ? (novelty == null ? votes : [...votes, novelty]) : null
-  return (
-    <div className="mb-3">
-      <div className="mb-1 flex flex-wrap justify-between gap-2 text-xs">
-        <span>Period {period}</span>
-        <span>
-          {values ? values.map((v, i) => `${voteNames[i]} ${(v * 100).toFixed(1)}%`).join(' · ') : 'No complete votes'}
-        </span>
-      </div>
-      {values && (
-        <div
-          role="img"
-          aria-label={`Period ${period} vote proportions`}
-          className="flex h-5 overflow-hidden rounded bg-secondary"
-        >
-          {values.map((v, i) => (
-            <div key={i} style={{ width: `${v * 100}%`, background: colours[i] }} />
-          ))}
-        </div>
-      )}
-    </div>
   )
 }

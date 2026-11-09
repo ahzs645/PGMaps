@@ -1,5 +1,6 @@
 import type { CurrentProvenance, CurrentSettings } from './currentAnalysis'
 import type { ReferenceComparison, ReferenceComparisonRow } from './referenceComparison'
+import { escapeHtml } from '@/lib/escapeHtml'
 
 export interface ReferenceComparisonReport {
   schema: 'cciss-shiny-reference-report-v1'
@@ -12,11 +13,6 @@ export interface ReferenceComparisonReport {
   comparison: ReferenceComparison
 }
 
-const escapeHtml = (value: unknown) =>
-  String(value ?? '').replace(
-    /[&<>"']/g,
-    (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]!,
-  )
 const number = (value: number) => Number(value.toPrecision(10)).toString()
 
 export function referenceValue(value: number | null, row: ReferenceComparisonRow): string {

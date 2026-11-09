@@ -1,13 +1,6 @@
 import type { GeoTIFF } from 'geotiff'
 
-type GeoTIFFImage = Awaited<ReturnType<GeoTIFF['getImage']>>
-
-export function suitabilityColor(code: number): [number, number, number, number] {
-  if (code === 10) return [0, 100, 0, 255]
-  if (code === 20) return [30, 144, 255, 255]
-  if (code === 30) return [238, 201, 0, 255]
-  return [0, 0, 0, 0]
-}
+export type GeoTIFFImage = Awaited<ReturnType<GeoTIFF['getImage']>>
 
 export type RasterSample =
   | { status: 'value'; value: number; column: number; row: number }
