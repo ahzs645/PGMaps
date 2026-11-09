@@ -335,6 +335,72 @@ describe('compareRoutes', () => {
     expect(rows[0].alignment).not.toBeNull()
   }, 30_000)
 
+  it('gives the reason the goal itself failed, not that of the search that got nearest the end', async () => {
+    // A hill between the ends, and a 12 m spike 1 m across under the road's end: too narrow for the
+    // 12 m ground trend the searches read, but the profile's tied end stands on it.
+    const spiked: TerrainSource = {
+      elevationAt(lng, lat) {
+        const x = (lng - origin[0]) * M * cos,
+          y = (lat - origin[1]) * M
+        return (
+          700 +
+          0.01 * x +
+          0.02 * y +
+          40 * Math.exp(-((x - 300) ** 2 + (y - 10) ** 2) / 80 ** 2) +
+          12 * Math.exp(-((x - 600) ** 2 + y ** 2) / 0.5 ** 2)
+        )
+      },
+    }
+    const base = road([at(0, 0), at(600, 0)])
+    const original = input(base, ['shortest'], 8)
+    // The even search runs out of this budget; the leaning search then finds a line, and no profile fits it.
+    const comparison = await compareRoutes({
+      ...original,
+      terrain: spiked,
+      resolutionM: 1,
+      baseAnalysis: safeAnalyzeRoad(base, spiked, original.settings),
+      options: {
+        ...original.options,
+        corridorHalfWidthM: 180,
+        groundWindowM: 12,
+        searchBudget: { maxStates: 1500 },
+      },
+    })
+    const failed = comparison.rows.find((row) => row.goal === 'shortest')!
+    expect(failed.alignment).toBeNull()
+    expect(failed.blockers[0]).toMatch(/^A line was found, but no profile fits it\. No profile meets the limits/)
+    expect(failed.blockers[0]).not.toMatch(/ran out of its search budget/)
+  }, 120_000)
+
+  it('says no route was found, and why, when no search could run', async () => {
+    const plane: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.04 * (lat - origin[1]) * M }
+    const base = road([at(0, 0), at(400, 0)])
+    const run = async (grade: number, minRadius: number) => {
+      const original = input(base, ['cost', 'shortest', 'gentle'], grade)
+      const settings = { ...original.settings, minRadius }
+      return compareRoutes({
+        ...original,
+        settings,
+        terrain: plane,
+        baseAnalysis: safeAnalyzeRoad(base, plane, settings),
+      })
+    }
+    // A 35 % grade limit is outside what the corridor search takes: every search stops before it starts.
+    const refused = await run(35, 35)
+    const reason = 'The corridor search takes a grade limit of 1–30%. Set the grade limit in that range to search.'
+    expect(refused.rows.filter((row) => !row.alignment).map((row) => row.blockers)).toEqual([
+      [reason],
+      [reason],
+      [reason],
+    ])
+    // The current road holds the goals only because nothing was set against it, and the notice says so.
+    expect(comparisonSummary(refused)).toEqual({ found: false, message: `No route found. ${reason}` })
+    // No minimum radius is not a reason to refuse: the searches run at the tightest curve they draw.
+    const unchecked = await run(12, 0)
+    expect(unchecked.rows.some((row) => row.goal !== 'current' && row.alignment)).toBe(true)
+    expect(comparisonSummary(unchecked).found).toBe(true)
+  }, 120_000)
+
   it('says which limit stopped a goal, where the search got to and that nothing was found', async () => {
     // 60 % straight up the fall line: every line has to traverse, and none can turn back toward the end.
     const steep: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.6 * (lat - origin[1]) * M }

@@ -374,8 +374,10 @@ drainage allowance included, comes down.
 **Rows are named by what was measured, not by the search that made them** (`assignGoals`). Each goal
 goes to the road leading it among those that meet every limit, your road included, with ties to the
 cheaper. One road can hold several goals, and a road leading nothing is left out. A road that breaks
-a limit or found no line shows only when no other road holds its goal. Goals that failed for the
-same reason share one line. Your road shows the goals it already leads.
+a limit or found no line shows only when no other road holds its goal. When no search produced a
+road at all, every failed goal stays: your road then holds each goal only because nothing was set
+against it. Goals that failed for the same reason share one line. Your road shows the goals it
+already leads.
 
 **How a line is found** (`horizontal` in `routeComparison.ts`). Each step is tried only when the
 one before found nothing, and the row's note says which one produced the road:
@@ -402,12 +404,16 @@ line and says so. A goal with no route at all does not stop the others.
 **A goal with no road says why** (`describeCorridorFailure`). The row names the limits, how near
 the end the search got, whether it ran out of budget or of lines to try, the check that stopped the
 most lines (grade, gaps in the terrain, blocked areas or the corridor's edge) with its share, and
-what to change. It is the report of the search that got nearest the end. Goals that failed for the
-same reason share one row.
+what to change. It is the report of the search that got nearest the end, and it is used only for a
+goal that found no line (`failureText`). A goal that found a line and could not fit a profile to it
+says so and gives the profile's reason; one whose search could not start, such as a grade limit over
+30 %, gives that. Lowest cost tries three lines and reports a lost line before a line never found.
+Goals that failed for the same reason share one row.
 
 **The notice counts what came back** (`comparisonSummary`): how many routes, how many of them
 carry a flag, and the goals left without one. With no route at all it is an error that repeats the
-reason, never "ready".
+reason, never "ready". "No new road beat yours on these goals" means roads were designed and yours
+leads every goal; it is not shown when every search failed.
 
 **Progress and Cancel.** Every search and profile fit runs in slices of about 12 ms
 (`cooperative.ts`), so the page keeps answering. The progress line names the step, what it is doing
@@ -557,7 +563,7 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | **Reduce points, fit curves** with more deviation, then recheck grade  |
 | A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart, or reduce points with more deviation            |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
-| "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
+| "The corridor search takes a grade limit of 1–30%."                       | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
 | "The corridor search takes a minimum radius of up to 1,000 m."            | Road minimum radius above 1,000 m                                                                            | Lower the minimum radius, or leave it at 0 for none                    |
 | "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps                                                          | Change the grade, bearing or distance                                  |
 

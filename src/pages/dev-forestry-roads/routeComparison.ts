@@ -334,9 +334,13 @@ export const ROUTE_GOAL_MEASURES: Record<RouteGoal, (row: RouteRow) => number | 
  * line can return the cheapest road, and a goal's own search can lose to another's. Each asked-for goal
  * goes to the road leading it among those that meet every limit, ties to the cheaper. A road leading
  * nothing is dropped, and so is one that breaks a limit or failed once another road holds its goal.
+ *
+ * When no search produced a road at all, every failed goal stays: the current road then holds each
+ * goal only because nothing was found to set against it, and the rows say why.
  */
 export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
+  const noneDesigned = !rows.some((row) => row.goal !== 'current' && row.alignment)
   for (const goal of goals) {
     const measure = ROUTE_GOAL_MEASURES[goal]
     const leader = usable
@@ -347,7 +351,9 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   const held = new Set(rows.flatMap((row) => row.best))
   const kept = rows.filter(
     (row) =>
-      row.goal === 'current' || row.best.length > 0 || (!usable.includes(row) && !held.has(row.goal as RouteGoal)),
+      row.goal === 'current' ||
+      row.best.length > 0 ||
+      (!usable.includes(row) && (noneDesigned || !held.has(row.goal as RouteGoal))),
   )
   for (const row of kept) {
     if (row.goal === 'current' || !row.best.length) continue
@@ -420,6 +426,9 @@ export function comparisonSummary(comparison: RouteComparison): { found: boolean
       ` Click one to open it.${without}`,
   }
 }
+
+/** A goal's search ended with no line between the ends, as opposed to a line that later failed a check. */
+class NoLineError extends Error {}
 
 const LINE_NAME: Record<'shortest' | 'balanced' | 'contour', string> = {
   shortest: 'shortest',
@@ -650,7 +659,7 @@ export async function compareRoutes(
       detail('searching a wider area on a grid')
       await breathe()
       const route = routed()
-      if (!route) throw Error('No line found.')
+      if (!route) throw new NoLineError('No line found between these ends.')
       const tube = Math.min(halfWidth, ROUTED_HALF_WIDTH_M)
       const along = await searchCorridor(
         'routed',
@@ -680,20 +689,27 @@ export async function compareRoutes(
       throw error
     }
   }
-  /** Why a goal ended with no road, in the designer's terms: which limit, and where the search got to. */
+  /**
+   * Why a goal ended with no road, in the designer's terms. Only a goal that found no line is
+   * explained by how far the searches got: one that found a line and could not fit a profile to it,
+   * or whose search could not start, has its own reason, and the nearest search's would be wrong.
+   */
   const failureText = (cause: unknown) => {
-    const grid =
-      gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : ''
-    if (nearest)
+    const noLine = cause instanceof NoLineError
+    if (noLine && nearest)
       return (
         describeCorridorFailure(nearest.failure, {
           maxGradePercent: settings.maxGradePercent,
           minRadiusM: Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M),
           halfWidthM: nearest.halfWidthM,
-        }) + grid
+        }) +
+        (gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : '')
       )
-    const reason = other ?? cause
-    return reason instanceof Error ? reason.message : 'No route found.'
+    const reason = noLine ? (other ?? cause) : cause
+    // The searches state their limits in plain sentences; anything else is an internal fault.
+    return reason instanceof Error && [Error, NoLineError, CorridorSearchError].includes(reason.constructor as never)
+      ? reason.message
+      : 'The search stopped on an internal error. No road was changed.'
   }
 
   const profileOptions = { context, ...(input.analysisOptions ?? {}) }
@@ -792,7 +808,9 @@ export async function compareRoutes(
         priced.push({ fit, total: totalOf(fit.candidate), note: found.note })
       } catch (cause) {
         aborted()
-        failure = cause
+        // A line that was found and then lost says more than a search that found none.
+        if (failure === undefined || (failure instanceof NoLineError && !(cause instanceof NoLineError)))
+          failure = cause
       }
     }
     if (!priced.length) throw failure

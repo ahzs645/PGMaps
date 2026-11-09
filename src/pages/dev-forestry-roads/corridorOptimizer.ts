@@ -335,7 +335,7 @@ function* search(
   if (!Number.isFinite(clearance) || clearance < 0 || clearance >= width)
     throw Error('Exclusion clearance must be non-negative and smaller than the corridor half-width.')
   if (![uphill, downhill].every((x) => Number.isFinite(x) && x >= 1 && x <= 30))
-    throw Error('Ground-grade screening limits must be between 1% and 30%.')
+    throw Error('The corridor search takes a grade limit of 1–30%. Set the grade limit in that range to search.')
   if (!Number.isFinite(settings.minRadius) || settings.minRadius < 0 || settings.minRadius > MAX_SEARCH_RADIUS_M)
     throw Error(
       `The corridor search takes a minimum radius of up to ${MAX_SEARCH_RADIUS_M.toLocaleString('en-CA')} m. Lower the minimum radius, or leave it at 0 for none.`,
