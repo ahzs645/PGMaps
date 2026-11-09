@@ -865,6 +865,17 @@ compacted m³; waste movement volume is bank m³. The result stores their volume
 and m³·km summaries separately. Bank-waste work must not be added to a compacted
 haul-work statistic without an explicit conversion basis.
 
+The mass-haul diagram shows the allocation on the curve (`massHaul.ts`). A dashed line is
+the balance after borrow and waste. At each site's road station it steps up by the
+compacted volume borrowed there, or down by the reusable cut wasted there, converted to
+the compacted m³ the curve is drawn in. Unusable cut was never in the curve, so wasting
+it moves nothing. The line ends on zero when every surplus and deficit found a site;
+otherwise it ends on what is unallocated, and the end-balance line says how much. Each
+site is marked and labelled at its station and listed under the chart. Bars at the foot
+of the plot mark the road each haul class moves material over, and the legend gives each
+class its distance range and its compacted and bank volumes. Above zero the net haul
+runs up-station; below zero, down-station.
+
 Unallocated borrow/waste is reported when no reachable site capacity remains.
 Its default supply/disposal unit rate is included in the scenario subtotal, but
 its unknown haul distance, haul work and haul cost are excluded. The haul and

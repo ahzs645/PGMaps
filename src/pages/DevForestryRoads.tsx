@@ -3305,6 +3305,7 @@ export default function DevForestryRoads() {
                                     selectedRange={selectedRange}
                                     viewRange={sharedProfileRange}
                                     analysis={displayedAnalysis}
+                                    engineeringInputs={displayedAlignment.engineering}
                                     station={station}
                                     onStation={w.setStation}
                                   />

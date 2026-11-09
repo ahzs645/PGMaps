@@ -47,6 +47,37 @@ describe('plot book', () => {
     expect(book).not.toContain('NaN')
   })
 
+  it('draws the mass balance through road with unknown earthwork and shades that road', () => {
+    const local = (lng: number, lat: number) => {
+      const east = (lng - origin[0]) * (Math.PI / 180) * 6371008.8 * Math.cos((origin[1] * Math.PI) / 180)
+      return Math.hypot(east, (lat - origin[1]) * (Math.PI / 180) * 6371008.8)
+    }
+    const holed = analyzeRoad(
+      alignment,
+      { elevationAt: (lng, lat) => (Math.abs(local(lng, lat) - 300) < 5 ? NaN : 800 + (lng - origin[0]) * 1000) },
+      DEFAULT_ROAD_SETTINGS,
+    )
+    expect(holed.coveragePercent).toBeLessThan(100)
+    const book = plotBookHtml({
+      projectName: 'P',
+      alignment,
+      analysis: holed,
+      terrain,
+      ...exportGrid(terrain, origin),
+      sheetLengthM: 600,
+    })
+    expect(book.match(/data-role="unknown-earthwork"/g)).toHaveLength(1)
+    expect(book).toContain('shaded: earthwork unknown, balance carried across')
+    // One unbroken mass line: a single move-to, with a vertex at every station of the sheet.
+    const mass = book.match(/<path d="([^"]+)" fill="none" stroke="#7c3aed"/)![1]
+    expect(mass.match(/M/g)).toHaveLength(1)
+    expect(mass.match(/L/g)).toHaveLength(holed.stations.length - 1)
+    // A complete road has nothing to shade.
+    expect(
+      plotBookHtml({ projectName: 'P', alignment, analysis, terrain, ...exportGrid(terrain, origin) }),
+    ).not.toContain('unknown-earthwork')
+  })
+
   it('says on every plan when contours are unavailable', () => {
     for (const contours of [undefined, { type: 'FeatureCollection' as const, features: [] }]) {
       const book = plotBookHtml({

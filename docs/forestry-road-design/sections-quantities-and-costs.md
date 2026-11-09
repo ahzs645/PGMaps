@@ -125,6 +125,13 @@ earthwork so far. An incomplete interval adds nothing, so the ordinate is carrie
 goes on after it; the diagram hatches the interval and labels the end balance with the road length
 it excludes (`massHaul.ts`). The end ordinate equals the covered balance in the totals.
 
+With haul on, a dashed line is the balance after borrow and waste. It steps at each site's road
+station: up by the compacted volume borrowed, down by the reusable cut wasted (bank m³ × the
+material's compaction factor; unusable cut was never in the curve). It closes on zero when every
+surplus and deficit found a site. The class bars at the foot of the plot mark where free haul,
+overhaul and end haul move material; a movement to or from a site is classed by chainage distance
+plus access, but its bar covers only the road part.
+
 **Materials.** A new material copies the current base cut rate and reusable cut factor, with a
 reusable fraction of 1. It is not linked to them afterwards, so later base-rate edits and preset
 changes do not reach it. Horizons are vertical depths below original ground at each section
@@ -231,6 +238,7 @@ payload, or net crew productivity as appropriate. See
 | "Missing terrain inside the road footprint"                              | A no-data hole under the formation, ditch or batter                                                                             | Fill or replace the terrain; the station stays excluded until then                       |
 | Complete sections below 100 %, tile reads "Covered cut / fill"           | Any of the two flags above, at one or more stations                                                                             | Select flagged stations in the station table; fix before comparing alternatives          |
 | Mass curve is flat and hatched over a length                             | Incomplete sections there: that earthwork is unknown and left out                                                               | Fix those sections; the end balance states how many metres it excludes                   |
+| Dashed line does not return to zero                                      | Borrow or waste with no site capacity; the end-balance line gives the volumes                                                   | Add a site or raise a capacity                                                           |
 | Totals change when you change station spacing                            | Coarse spacing stepped over gullies, scarps or cut/fill changes                                                                 | Use the finer spacing; or add breakpoints with assignments or horizons                   |
 | "Station spacing increased to … m"                                       | Road too long for 3,000 stations at the requested spacing                                                                       | Split the road for site-level quantities                                                 |
 | "Correct this alignment before calculating: …"                           | An input failed validation (overlapping assignments or horizons, overhaul limit below free haul, a template out of range)       | Read the message; quantities are unavailable until it is fixed                           |
