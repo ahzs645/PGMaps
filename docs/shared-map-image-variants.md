@@ -209,6 +209,25 @@ remain CMYK. Only previews and display tiles become RGB. A CMYK image above the
 in-memory budget requires a separately documented bounded conversion before
 preparation; the command does not attempt an uncontrolled whole-image decode.
 
+An extracted PDF JPEG can require a different CMYK component polarity from the
+decoder's standalone-image interpretation. Compare the extracted image with a
+render of its actual PDF page before preparing it. An Adobe/YCCK marker or a dark
+page alone does not prove that inversion is appropriate. If the original page
+confirms inverted decoded components, add `--invert-cmyk-display` together with
+`--allow-cmyk-display` and `--cmyk-polarity-evidence "PDF SHA-256, page and the
+observed comparison"`. This explicitly applies `255 - value` to each decoded C,
+M, Y and K channel before the uncalibrated RGB conversion. It does not invert the
+resulting RGB image, alter the original bytes, rotate the sheet or change its
+pixel coordinates.
+
+The polarity option rejects non-CMYK inputs, embedded ICC profiles, the streaming
+decoder and missing verification evidence. The note names the inversion; the
+recipe and pyramid metadata also preserve the owner's evidence. Prepare into a
+new output directory and retain the old manifests as review history. Check the
+new preview and representative native tiles against the original PDF before
+publishing a display-only refresh. The uncalibrated conversion is not a guarantee
+of exact colourimetry, even when the page appearance is restored.
+
 Optional `--tile-size` values are 256, 512 and 1024. `--thumbnail-side`,
 `--preview-side` and `--quality` can change display derivatives, but do not modify
 the original. The preview longest side cannot exceed 4,096 pixels.
@@ -288,7 +307,8 @@ asymmetric non-square images, transparent pixels, one-pixel edge tiles, partial
 overview cells, directory readback, no upscaling, duplicate small previews,
 repeatability across process hash seeds, mismatched sources, upload-size failure,
 streaming palette/bilevel fidelity and bounded decoding, explicit pixel budgets,
-CMYK opt-in and original retention, and rejected ambiguous inputs.
+CMYK opt-in, verified component polarity and original retention, and rejected
+ambiguous inputs.
 
 ## Publish the reviewed source-image update
 
@@ -314,6 +334,53 @@ by the newly attached variants. The publisher checks each new full image,
 thumbnail, preview and pyramid against the staged immutable object's exact
 checksum, byte count and collection URL before making any network request.
 
+### Refresh reviewed display files or descriptive text
+
+By default, publication preserves every existing source variant exactly. To
+correct an existing variant's display derivatives, list each affected record
+explicitly in the private stage. A variant attached to both a native `items`
+record and a `featured` selection needs a target for each changed attachment:
+
+```json
+{
+  "displayRefreshes": [
+    {"group": "items", "id": "exact-raster-record-id", "variantId": "existing-source-id"},
+    {"group": "featured", "id": "exact-selection-id", "variantId": "existing-source-id"}
+  ],
+  "metadataUpdates": [
+    {
+      "group": "featured",
+      "id": "exact-selection-id",
+      "field": "description",
+      "before": "Exact current description.",
+      "after": "Reviewed description supported by the source document."
+    }
+  ]
+}
+```
+
+These are optional fields on the publication stage above, not a separate stage
+schema. A display refresh may change only `thumbnail`, `preview`, `pyramid` and
+`note`. The exact original `image` descriptor, source metadata, id, label, role,
+other variant properties and order of existing variants stay unchanged.
+Existing display derivatives cannot be removed. Include the refreshed manifest
+and its unchanged original object: every referenced file must match a staged,
+content-addressed object. Existing matching objects are reused.
+
+`metadataUpdates` permits only an existing record's `title`, `dateLabel` or
+`description`, with exact before/after strings. Titles/date labels are limited to
+500 characters and descriptions to 12,000. Each optional array has at most 128
+unique targets; missing, duplicate, stale and no-op targets fail validation.
+Confidence, caveats, alignment reviews, geography and saved projects remain
+protected. A text-only update may use an empty `uploadManifests` array. It still
+requires the reviewed catalogue hashes, strong conditional ETag and readback.
+
+The publication receipt records both reviewed-change counts. Keep the previous
+manifests and catalogue as history, and place corrected files and receipts in a
+recovery supplement rather than rewriting an existing immutable archive.
+
+### Run the owner publication
+
 Keep the owner configuration in a separate private file with mode `0600`. It
 contains the existing Worker's HTTPS `endpoint` origin, `shareId`, and temporary
 `uploadToken`. Neither a collection capability nor an owner token belongs in a
@@ -336,10 +403,12 @@ active, the command verifies it without writing the catalogue again.
 
 The final catalogue is read back and checked against the reviewed file hash.
 Geographic assets, bounds, existing native download bytes and identities, saved
-projects, and unrelated catalogue fields remain unchanged; existing source
-variants cannot be removed or replaced by this command. Native metadata comes
-from the header audit and is matched to existing native hashes. This publication
-does not regenerate or independently reread every native GeoTIFF.
+projects, and unrelated catalogue fields remain unchanged. Existing source
+variants cannot be removed or assigned a different original; only explicitly
+reviewed display refreshes and descriptive-text updates are permitted as above.
+Native metadata comes from the header audit and is matched to existing native
+hashes. This publication does not regenerate or independently reread every
+native GeoTIFF.
 
 The receipt records object checks and activation status without the owner token
 or collection URL. A stopped publication can leave verified immutable objects

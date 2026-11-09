@@ -196,6 +196,74 @@ class ImageVariantsTest(unittest.TestCase):
             pipeline.prepare_image_variant(source, self.root/"invalid-profile", pipeline.sha256(source), self.metadata, allow_cmyk_display=True)
         self.assertFalse((self.root/"invalid-profile"/"upload-manifest.json").exists())
 
+    def test_verified_cmyk_polarity_preserves_source_and_corrects_all_displays(self):
+        # This models an extracted PDF JPEG whose decoded CMYK samples have
+        # inverted polarity: paper is (255,255,255,255), not normal CMYK white.
+        # The ordinary conversion must remain unchanged without explicit opt-in.
+        source = self.root/"pdf-inverted-components.jpg"
+        with Image.new("CMYK", (513, 257), (255, 255, 255, 255)) as image:
+            draw = ImageDraw.Draw(image)
+            draw.rectangle((50, 50, 160, 160), fill=(255, 0, 0, 255))
+            draw.rectangle((350, 50, 450, 160), fill=(0, 255, 255, 255))
+            image.save(source, quality=100, subsampling=0)
+        source_bytes = source.read_bytes()
+        digest = pipeline.sha256(source)
+        before = pipeline.prepare_image_variant(source, self.root/"before", digest, self.metadata, allow_cmyk_display=True)
+        with Image.open(self.root/"before"/before["variant"]["preview"]["url"]) as image:
+            self.assertLess(max(image.convert("RGB").getpixel((20, 20))), 8)
+        evidence = "Synthetic PDF carrier inspection: expected white paper and asymmetric red/cyan test patches."
+        options = dict(allow_cmyk_display=True, invert_cmyk_display=True, cmyk_polarity_evidence=evidence)
+        after = pipeline.prepare_image_variant(source, self.root/"after", digest, self.metadata, **options)
+        repeated = pipeline.prepare_image_variant(source, self.root/"repeated", digest, self.metadata, **options)
+        self.assertEqual(after, repeated)
+        self.assertEqual(after["variant"]["image"], before["variant"]["image"])
+        self.assertEqual(source.read_bytes(), source_bytes)
+        self.assertEqual((self.root/"after"/after["variant"]["image"]["url"]).read_bytes(), source_bytes)
+        conversion = after["manifest"]["recipe"]["colourConversion"]
+        self.assertEqual(conversion["verificationEvidence"], evidence)
+        self.assertFalse(conversion["calibrated"])
+        self.assertIn("four decoded CMYK", after["variant"]["note"])
+        for field in ("thumbnail", "preview"):
+            with Image.open(self.root/"after"/after["variant"][field]["url"]) as image:
+                rgb = image.convert("RGB")
+                ratio = image.width/513
+                for (x, y), expected in [((20, 20), (255, 255, 255)), ((100, 100), (255, 0, 0)), ((400, 100), (0, 255, 255))]:
+                    actual = rgb.getpixel((int(x*ratio), int(y*ratio)))
+                    self.assertLess(max(abs(a-b) for a,b in zip(actual, expected)), 8)
+        with (self.root/"after"/after["variant"]["pyramid"]["url"]).open("rb") as handle:
+            reader = Reader(MmapSource(handle))
+            self.assertEqual(reader.metadata()["sourceSha256"], digest)
+            self.assertEqual(reader.metadata()["colourConversion"], conversion)
+            with Image.open(io.BytesIO(reader.get(1, 0, 0))) as tile:
+                self.assertEqual(tile.size, (512, 257))
+                self.assertGreater(min(tile.convert("RGB").getpixel((20, 20))), 247)
+            with Image.open(io.BytesIO(reader.get(1, 1, 0))) as tile:
+                self.assertEqual(tile.size, (1, 257))
+                self.assertGreater(min(tile.convert("RGB").getpixel((0, 100))), 247)
+
+    def test_cmyk_polarity_rejects_ambiguous_or_incompatible_requests(self):
+        source = self.root/"inverted.jpg"
+        with Image.new("CMYK", (40, 20), (255, 255, 255, 255)) as image:
+            image.save(source)
+        digest = pipeline.sha256(source)
+        cases = [
+            ({"allow_cmyk_display": True, "invert_cmyk_display": True}, "verification evidence"),
+            ({"allow_cmyk_display": True, "invert_cmyk_display": True, "cmyk_polarity_evidence": " "}, "verification evidence"),
+            ({"allow_cmyk_display": True, "cmyk_polarity_evidence": "Reviewed PDF"}, "requires --invert"),
+            ({"allow_cmyk_display": True, "invert_cmyk_display": True, "cmyk_polarity_evidence": "Reviewed PDF", "streaming": True}, "in-memory decoder"),
+        ]
+        for i, (options, message) in enumerate(cases):
+            with self.subTest(i=i), self.assertRaisesRegex(ValueError, message):
+                pipeline.prepare_image_variant(source, self.root/f"rejected-{i}", digest, self.metadata, **options)
+            self.assertFalse((self.root/f"rejected-{i}"/"upload-manifest.json").exists())
+        with self.assertRaisesRegex(ValueError, "requires a CMYK source"):
+            self.prepare("rgb-polarity", allow_cmyk_display=True, invert_cmyk_display=True, cmyk_polarity_evidence="Reviewed PDF")
+        with Image.open(source) as image:
+            image.save(self.root/"profile.jpg", icc_profile=b"profile-must-not-be-ignored")
+        with self.assertRaisesRegex(ValueError, "cannot override an embedded ICC"):
+            pipeline.prepare_image_variant(self.root/"profile.jpg", self.root/"profile-rejected", pipeline.sha256(self.root/"profile.jpg"), self.metadata,
+                                           allow_cmyk_display=True, invert_cmyk_display=True, cmyk_polarity_evidence="Reviewed PDF")
+
     def test_streaming_rejects_unsafe_decoder_layout_or_insufficient_disk(self):
         source = self.root/"progressive.jpg"
         image = Image.new("RGB", (513, 257), "white")

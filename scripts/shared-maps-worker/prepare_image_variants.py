@@ -156,11 +156,27 @@ def display_image(source: Path, source_info: dict) -> tuple[Image.Image, dict]:
                 profile_bytes[84:100] = bytes(16)
                 info["iccProfile"] = bytes(profile_bytes)
             else:
-                decoded = opened.convert("RGB")
+                # Some extracted PDF JPEG streams have the opposite decoded
+                # CMYK component polarity from their enclosing PDF appearance.
+                # Apply this only after explicit owner verification, never from
+                # an Adobe marker, image brightness, or a content heuristic.
+                if info.get("invertCmykDisplay"):
+                    inverted = opened.point([255-value for value in range(256)] * 4)
+                    try:
+                        decoded = inverted.convert("RGB")
+                    finally:
+                        inverted.close()
+                else:
+                    decoded = opened.convert("RGB")
                 info["colourConversion"] = {
                     "method": "Pillow CMYK to RGB without an embedded ICC profile; uncalibrated display conversion",
                     "calibrated": False,
                 }
+                if info.get("invertCmykDisplay"):
+                    info["colourConversion"].update({
+                        "decodedComponentPolarity": "invert each decoded C, M, Y and K component as 255 - value before RGB conversion",
+                        "verificationEvidence": info["cmykPolarityEvidence"],
+                    })
             info["displayMode"] = "RGB"
             return decoded, info
     finally:
@@ -217,6 +233,8 @@ def prepare_image_variant(
     max_source_pixels: int = MAX_SOURCE_PIXELS,
     streaming: bool = False,
     allow_cmyk_display: bool = False,
+    invert_cmyk_display: bool = False,
+    cmyk_polarity_evidence: str | None = None,
 ) -> dict:
     """Prepare and verify all local objects, then atomically write ready manifests."""
     source, output_dir = Path(source).resolve(), Path(output_dir).resolve()
@@ -236,6 +254,19 @@ def prepare_image_variant(
     source_info = inspect_source(source, max_source_pixels, allow_cmyk_display)
     width, height = source_info["width"], source_info["height"]
     use_streaming = streaming or width * height > MAX_SOURCE_PIXELS
+    if invert_cmyk_display:
+        if not allow_cmyk_display or source_info["sourceMode"] != "CMYK":
+            raise ValueError("CMYK polarity inversion requires a CMYK source and --allow-cmyk-display")
+        if source_info["iccProfile"]:
+            raise ValueError("CMYK polarity inversion cannot override an embedded ICC profile")
+        if use_streaming:
+            raise ValueError("CMYK polarity inversion requires the bounded in-memory decoder")
+        if not isinstance(cmyk_polarity_evidence, str) or not cmyk_polarity_evidence.strip() or len(cmyk_polarity_evidence) > 2000:
+            raise ValueError("CMYK polarity inversion requires explicit verification evidence up to 2,000 characters")
+        source_info["invertCmykDisplay"] = True
+        source_info["cmykPolarityEvidence"] = cmyk_polarity_evidence.strip()
+    elif cmyk_polarity_evidence is not None:
+        raise ValueError("CMYK polarity evidence requires --invert-cmyk-display")
     if use_streaming and source_info["sourceMode"] == "CMYK":
         raise ValueError("CMYK sources above the in-memory pixel budget need separately documented bounded colour conversion")
     max_zoom = max(0, math.ceil(math.log2(max(width, height) / tile_size)))
@@ -299,6 +330,8 @@ def prepare_image_variant(
                     recipe["colourConversion"] = source_info["colourConversion"]
                     recipe["littleCmsVersion"] = features.version("littlecms2")
                     conversion = "an embedded ICC profile to sRGB" if source_info["colourConversion"]["calibrated"] else "an uncalibrated CMYK-to-RGB conversion"
+                    if invert_cmyk_display:
+                        conversion = "explicitly verified inversion of all four decoded CMYK components followed by an uncalibrated CMYK-to-RGB conversion"
                     display_note = f"Display previews and tiles use {conversion}; the original download retains its CMYK bytes."
                     variant["note"] = " ".join(filter(None, (variant.get("note"), display_note)))
                     if len(variant["note"]) > 6000:
@@ -413,12 +446,16 @@ def main() -> None:
                         help="Explicit verified-source pixel budget (default 200 million, maximum 1 billion); larger sources use bounded GDAL decoding")
     parser.add_argument("--streaming", action="store_true", help="Use the bounded rasterio/GDAL display cache even for a small source")
     parser.add_argument("--allow-cmyk-display", action="store_true", help="Allow documented ICC-to-sRGB or uncalibrated CMYK display conversion; preserve the original bytes")
+    parser.add_argument("--invert-cmyk-display", action="store_true", help="Explicitly invert decoded CMYK components before uncalibrated RGB conversion; requires verified source evidence and no ICC profile")
+    parser.add_argument("--cmyk-polarity-evidence", help="Owner verification of the original document's CMYK appearance; required with --invert-cmyk-display, recorded in the recipe and pyramid")
     args = parser.parse_args()
     result = prepare_image_variant(args.input, args.output_dir, args.sha256, json.loads(args.metadata.read_text()),
                                    tile_size=args.tile_size, thumbnail_side=args.thumbnail_side,
                                    preview_side=args.preview_side, quality=args.quality,
                                    max_source_pixels=args.max_source_pixels, streaming=args.streaming,
-                                   allow_cmyk_display=args.allow_cmyk_display)
+                                   allow_cmyk_display=args.allow_cmyk_display,
+                                   invert_cmyk_display=args.invert_cmyk_display,
+                                   cmyk_polarity_evidence=args.cmyk_polarity_evidence)
     print(json.dumps({"prepared": True, "variantId": result["variant"]["id"],
                       "objects": len(result["manifest"]["objects"]),
                       "bytes": sum(item["bytes"] for item in result["manifest"]["objects"]),
