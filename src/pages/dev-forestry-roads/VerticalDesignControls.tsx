@@ -214,6 +214,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           <div className="grid grid-cols-2 gap-2">
             <OptionalNumberField
               label="Min sag K"
+              hint="K is the length of a vertical curve in metres for each 1% its grade changes: K = curve length ÷ grade change. A larger K is a flatter curve with a longer sight distance. A sag curve is at the bottom of a dip, a crest curve over a hump. Review does not assess curve length until a minimum is entered."
               value={standards.minSagK}
               min={0}
               max={1000}

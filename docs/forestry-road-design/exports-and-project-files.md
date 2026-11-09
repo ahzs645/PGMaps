@@ -236,6 +236,10 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   at least one road, so the first three start with a straight 300 m road (`starterAlignment`) to
   drag or replace; the BC sample brings its example road. Opening a project file, and the sidebar's
   **Training example**, start a new project too; the one that was open stays saved.
+- **A project file whose name matches a saved project asks first.** **Replace saved project** opens
+  the file in that project's place, overwriting the version in this browser. **Keep both** opens it
+  under the next free numbered name, such as "Block 12 spur (2)" (`distinctProjectName`,
+  `roadLifecycle.ts`). Names are compared exactly; the file's content is not compared.
 - **Autosave writes the whole validated project to IndexedDB** (`pgmaps-forestry-roads-v1`, key
   `project:<id>`, listed under `library`, with `active` naming the one to reopen;
   `projectLibrary.ts`) 650 ms after each edit, embedded raster included. Switching projects saves

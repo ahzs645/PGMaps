@@ -444,9 +444,16 @@ remembers the choice. The cost dialog states the cost status (current; complete 
 and the process time of the last recalculation, which runs on every edit.
 
 The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
-quantities, landing) is chosen from a **Road detail view** combobox in that pane's
-title row, beside its title and any pane action such as Section CSV, so the pane
-spends no row on a tab strip.
+quantities, landing, drainage, swept path) is chosen from a combobox labelled **View** in that
+pane's title row (accessible name **Road detail view**), beside its title and any pane action such
+as Section CSV, so the pane spends no row on a tab strip. The hydrology tools (streams, ponding,
+drain to point, watersheds) are the **Drainage** view. Engineering → Drainage, where culverts are
+entered, links to it with **Drainage check: streams, ponds, catchments**, and the view links back
+with **Culvert inputs**. The mass-haul view explains the term behind an (i).
+
+Deleting a road shows the road beside it in the list, not the first one, and a notice in the
+notification stack names the deleted road and the one now shown, with **Undo** (`roadLifecycle.ts`).
+The header's Undo also restores it.
 
 The plan keeps the road readable at every zoom (`planAnnotations.ts`). Station
 labels are small, unboxed and placed beside the line on the right of travel, at the

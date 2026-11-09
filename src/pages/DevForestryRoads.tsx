@@ -24,7 +24,11 @@ import { pathLengthM } from './dev-forestry-roads/mapNotes'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
+import { InfoTip } from '@/components/ui/info-tip'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
+import { ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
+import { distinctProjectName, removeRoad, restoreRoad, type RemovedRoad } from './dev-forestry-roads/roadLifecycle'
+import type { LibraryEntry } from './dev-forestry-roads/projectLibrary'
 import {
   ExampleStartNotice,
   HeaderStatus,
@@ -609,6 +613,14 @@ export default function DevForestryRoads() {
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
+  const [removedRoad, setRemovedRoad] = useState<RemovedRoad | null>(null)
+  const [fileConflict, setFileConflict] = useState<{
+    opened: RoadProject
+    fileName: string
+    existing: LibraryEntry
+    keepBothName: string
+    openedAt: number
+  } | null>(null)
   // A file for someone else carries the road on screen unless every road is asked for.
   const [roadScope, setRoadScope] = useState<RoadScope>('active')
   // Read when Save & export opens: the date its documents print while no date of issue is entered.
@@ -1672,6 +1684,21 @@ export default function DevForestryRoads() {
         if (signal.aborted) return
         if (fileKind.current === 'project') {
           const opened = parseProject(raw)
+          // A project of the same name is already saved here: ask which one is meant, open nothing yet.
+          const existing = w.library.find((entry) => entry.name === opened.name)
+          if (existing) {
+            setFileConflict({
+              opened,
+              fileName: file.name,
+              existing,
+              keepBothName: distinctProjectName(
+                opened.name,
+                w.library.map((entry) => entry.name),
+              ),
+              openedAt: Date.now(),
+            })
+            return
+          }
           await w.flush()
           // A project file opens as its own project; the one that was open stays saved.
           await w.restore(opened, signal)
@@ -1697,6 +1724,27 @@ export default function DevForestryRoads() {
       setActiveProfile(null)
       setFitRevision((n) => n + 1)
     })
+  /** Opens the project file held by the name conflict, in the saved project's place or beside it. */
+  const resolveFileConflict = (choice: 'replace' | 'both') => {
+    const conflict = fileConflict
+    if (!conflict) return
+    setFileConflict(null)
+    void run(`Opening ${conflict.fileName}…`, async (signal) => {
+      await w.flush()
+      if (choice === 'replace') await w.restore(conflict.opened, signal, conflict.existing.id)
+      else await w.restore(parseProject({ ...conflict.opened, name: conflict.keepBothName }), signal)
+      if (signal.aborted) return
+      w.markFileSaved()
+      w.setNotice(
+        choice === 'replace'
+          ? `Opened ${conflict.fileName} in place of the saved ${conflict.existing.name}.`
+          : `Opened ${conflict.fileName} as ${conflict.keepBothName}. The saved ${conflict.existing.name} is unchanged.`,
+      )
+      w.enablePersistence()
+      setActiveProfile(null)
+      setFitRevision((n) => n + 1)
+    })
+  }
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
     const safe = parseProject(project)
@@ -2612,6 +2660,22 @@ export default function DevForestryRoads() {
         }}
       />
       <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
+      <RoadRemovedNotice
+        removed={removedRoad}
+        shownName={project.alignments.find((road) => road.id === removedRoad?.shownId)?.name ?? alignment.name}
+        onDismiss={() => setRemovedRoad(null)}
+        onUndo={() => {
+          if (removedRoad) w.update((p) => parseProject(restoreRoad(p, removedRoad)))
+          setRemovedRoad(null)
+        }}
+      />
+      <ProjectFileConflictDialog
+        conflict={fileConflict}
+        portalContainer={ref.current}
+        onCancel={() => setFileConflict(null)}
+        onReplace={() => resolveFileConflict('replace')}
+        onKeepBoth={() => resolveFileConflict('both')}
+      />
       <ExampleStartNotice
         show={w.exampleStart && !busy}
         onDismiss={w.dismissExampleStart}
@@ -2858,13 +2922,13 @@ export default function DevForestryRoads() {
                     return
                   setActiveProfile(null)
                 }}
-                onRemoveAlignment={() =>
-                  w.update((p) => ({
-                    ...p,
-                    alignments: p.alignments.filter((a) => a.id !== alignment.id),
-                    activeAlignmentId: p.alignments.find((a) => a.id !== alignment.id)!.id,
-                  }))
-                }
+                onRemoveAlignment={() => {
+                  // The neighbouring road is shown, and a notice names the deleted one with a way back.
+                  const result = removeRoad(project, alignment.id)
+                  if (!result) return
+                  w.update(() => result.project)
+                  setRemovedRoad(result.removed)
+                }}
                 onSuggest={suggest}
                 onLoadMappedRoad={loadMappedRoad}
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
@@ -3308,6 +3372,18 @@ export default function DevForestryRoads() {
                           }
                           actions={
                             <>
+                              {detail === 'mass' && (
+                                <InfoTip label="About mass haul">
+                                  Mass haul is the running total of usable cut minus fill, from the road&apos;s start.
+                                  The line rises through cut and falls through fill. Where it comes back to zero the
+                                  earthwork balances up to that station; where it ends is the surplus (above zero) or
+                                  the shortfall (below) for the whole road.
+                                </InfoTip>
+                              )}
+                              {/* The picker holds eleven views, drainage among them: its label says so. */}
+                              <span className="hidden shrink-0 text-2xs text-muted-foreground sm:inline" aria-hidden>
+                                View
+                              </span>
                               <RoadSelect
                                 className="min-w-0 h-8 w-32"
                                 value={detail}

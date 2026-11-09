@@ -6,6 +6,13 @@ cross-drain, new ponding and a pipe-size check. This guide says when those resul
 trusted and what the check assumes. The method is specified in the
 [workspace contract](../forestry-road-design.md#drainage-on-the-design-surface).
 
+**Where it is.** The check, with its streams, ponding, drain-to-point catchments and watersheds,
+is the **Drainage** choice of the **View** picker in the detail pane's title row. Culverts are
+entered in the sidebar under Engineering → Drainage. Each place has a button to the other:
+**Drainage check: streams, ponds, catchments** there, **Culvert inputs** here. Review's
+[crossing register](review-and-standards.md#the-crossing-register) lists the modelled crossings
+beside the mapped ones.
+
 ## Before you rely on it
 
 - **Run it on real ground.** On the training hillside the streams are synthetic. On the regional
