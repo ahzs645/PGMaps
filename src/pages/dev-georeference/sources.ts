@@ -248,8 +248,7 @@ async function fromTiff(
       height,
       frame: {
         kind: 'geotiff-pixel-grid',
-        description:
-          'Exact native GeoTIFF pixel centres. The reading image is downsampled; control coordinates are not.',
+        description: `Exact native GeoTIFF pixel centres. ${pw < width || ph < height ? `Reading preview: ${pw} × ${ph} pixels from ${width} × ${height}; control coordinates remain native.` : `Reading image: ${width} × ${height} native pixels; no preview downsampling.`}`,
         ...(crs ? { crs } : {}),
       },
       ...(url ? { geotiff: { url, sha256 } } : {}),

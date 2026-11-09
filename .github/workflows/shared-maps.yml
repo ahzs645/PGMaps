@@ -1,0 +1,62 @@
+name: Verify shared map viewer and editor
+
+on:
+  # Browser acceptance runs only when explicitly dispatched. The standard
+  # Checks and Pages build continue to own automatic pull-request verification.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-maps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run toolkit:build
+      - run: npm --prefix vendor/json-url run build
+      - name: Check source selection, image tiles and project recovery
+        run: npx vitest run src/pages/dev-view src/pages/dev-georeference
+      - name: Build the application and browser workers
+        run: npx vite build && node scripts/write-spa-fallback.mjs
+      - name: Install the standard Chromium test browser
+        run: npx playwright install --with-deps chromium
+      # Both suites use synthetic images/catalogues and stub their map imagery.
+      # No private collection URLs, provider credentials or live originals are needed.
+      - name: Check original detail, comparison and reproducible editor projects
+        run: |
+          npx vite preview --host 127.0.0.1 --port 42173 --strictPort > shared-maps-vite.log 2>&1 &
+          shared_maps_vite_pid=$!
+          trap 'kill "$shared_maps_vite_pid" 2>/dev/null || true' EXIT
+          for attempt in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:42173/ > /dev/null; then break; fi
+            if ! kill -0 "$shared_maps_vite_pid" 2>/dev/null; then
+              cat shared-maps-vite.log
+              exit 1
+            fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:42173/ > /dev/null
+          PGMAPS_E2E_BASE_URL=http://127.0.0.1:42173 npx playwright test tests/e2e/source-image-variants.spec.ts tests/e2e/georeference.spec.ts --project=chromium --workers=1 --reporter=line,html
+      - name: Keep browser acceptance evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: shared-maps-browser-results
+          path: |
+            test-results
+            playwright-report
+            shared-maps-vite.log
+          retention-days: 14

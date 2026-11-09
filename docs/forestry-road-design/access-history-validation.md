@@ -5,6 +5,13 @@ This change was developed from PGMaps main commit
 checks and deployment workflows were not modified. No feature-specific Actions
 workflow was dispatched.
 
+Before publishing the final PR revision, the branch also incorporated main commit
+`0e5cf193dcb52a2d019356f812545efcd97fd8a0` (the source-image viewer changes in PR #93).
+The merge was conflict-free. The 190 focused tests and complete road-page
+dependency-graph typecheck below were repeated successfully on the combined tree.
+The incoming map-image code and workflow remain as authored on main; this feature
+does not modify them.
+
 ## Verified locally
 
 - Toolkit and json-url preparation: `npm run ci:prepare` passed with their pinned
