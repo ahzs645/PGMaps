@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Layers, PencilLine, Plus, Route } from 'lucide-react'
+import { Layers, PencilLine, Plus, Route, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { loadableMappedRoads } from './mappedRoad'
 import { roadFieldClass } from './Controls'
@@ -11,12 +11,15 @@ export function FirstRoadPanel({
   context,
   onPeg,
   onSketch,
+  onImport,
   onLoadMappedRoad,
   onLoadAllInView,
 }: {
   context: readonly ContextFeature[]
   onPeg: () => void
   onSketch: () => void
+  /** Opens the road-line picker: GeoJSON, a zipped shapefile, KML or KMZ. */
+  onImport?: () => void
   onLoadMappedRoad: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */
   onLoadAllInView?: () => void
@@ -41,8 +44,8 @@ export function FirstRoadPanel({
     <RoadSection title="Add the first road" data-testid="first-road-panel">
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          This design has no road yet. Peg one point by point, sketch one freehand, or load a mapped road to read its
-          profile on this terrain.
+          This design has no road yet. Peg one point by point, sketch one freehand, import a line, or load a mapped road
+          to read its profile on this terrain.
         </p>
         <div className="grid grid-cols-2 gap-1">
           <Button size="sm" className="gap-1 px-1" onClick={onPeg}>
@@ -51,6 +54,11 @@ export function FirstRoadPanel({
           <Button size="sm" variant="outline" className="gap-1 px-1" onClick={onSketch}>
             <PencilLine className="size-3" /> Sketch road
           </Button>
+          {onImport && (
+            <Button size="sm" variant="outline" className="col-span-2 gap-1 px-1" onClick={onImport}>
+              <Upload className="size-3" /> Import line
+            </Button>
+          )}
         </div>
         {roads.length > 0 && (
           <div className="space-y-1.5">

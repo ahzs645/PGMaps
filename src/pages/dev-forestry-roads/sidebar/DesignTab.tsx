@@ -1,6 +1,6 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Layers, PencilLine, Plus, SquareArrowOutUpRight, Trash2, type LucideIcon } from 'lucide-react'
+import { Copy, Layers, PencilLine, Plus, SquareArrowOutUpRight, Trash2, Upload, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -39,6 +39,7 @@ export function DesignTab(p: SidebarProps) {
         context={project.context}
         onPeg={() => p.onMode('road')}
         onSketch={() => p.onMode('sketch')}
+        onImport={() => p.onFile('alignment')}
         onLoadMappedRoad={(id) => p.onLoadMappedRoad?.(id)}
         onLoadAllInView={p.onLoadMappedRoadsInView}
       />
@@ -70,6 +71,9 @@ export function DesignTab(p: SidebarProps) {
             ends at the active road&apos;s end continues that road.
             <br />
             <b>Extend:</b> peg on from the active road&apos;s nearer end.
+            <br />
+            <b>Import line:</b> a road line from GeoJSON, a zipped shapefile, KML or KMZ becomes a road with a control
+            at every vertex.
             <br />
             <b>Edit points:</b> drag any numbered control; click + between controls to add a middle point.
             <br />
@@ -160,6 +164,17 @@ export function DesignTab(p: SidebarProps) {
               disabled={full}
             >
               <Copy className="size-3" /> {mapped ? 'Copy as design' : 'Duplicate'}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="col-span-2 min-w-0 gap-1 px-1"
+              onClick={() => p.onFile('alignment')}
+              disabled={full}
+              title="A road line from GeoJSON, a zipped shapefile, KML or KMZ"
+            >
+              <Upload className="size-3" />
+              Import line
             </Button>
           </div>
           {hasMappedRoads && p.onLoadMappedRoadsInView && (

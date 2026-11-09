@@ -74,11 +74,21 @@ describe('open forestry survey and geographic interchange', () => {
     expect((fc.features[0].geometry as GeoJSON.LineString).coordinates[0]).toEqual([-123, 54])
     expect((fc.features[1].geometry as GeoJSON.Polygon).coordinates).toHaveLength(2)
   })
+  it('reads placemark points and descriptions, and never says what a placemark is', () => {
+    const fc = parseKml(
+      '<kml><Placemark><name>Block A</name><description>Planned cutblock</description><Polygon><outerBoundaryIs><LinearRing><coordinates>-123,54 -122,54 -122,55 -123,54</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark><Placemark><name>Landing 1</name><Point><coordinates>-122.8,53.9,640</coordinates></Point></Placemark></kml>',
+    )
+    expect(fc.features.map((f) => f.geometry.type)).toEqual(['Polygon', 'Point'])
+    expect(fc.features[0].properties).toMatchObject({ name: 'Block A', description: 'Planned cutblock' })
+    expect((fc.features[1].geometry as GeoJSON.Point).coordinates).toEqual([-122.8, 53.9])
+    // A cutblock polygon used to leave here as an excluded "avoid" area, and a line as a stream.
+    expect(fc.features.every((f) => f.properties?.kind === undefined)).toBe(true)
+  })
   it('does not follow network links or XML entities and rejects unclosed or invalid shapes', () => {
     expect(() => parseKml('<!DOCTYPE kml><kml/>')).toThrow(/unsupported XML entities/)
     expect(() =>
       parseKml('<kml><NetworkLink><Link><href>https://example.com/private</href></Link></NetworkLink></kml>'),
-    ).toThrow(/No line or polygon/)
+    ).toThrow(/No point, line or polygon/)
     expect(() => parseKml('<kml><Placemark></kml>')).toThrow(/mismatched/)
     expect(() =>
       parseKml('<kml><Placemark><LineString><coordinates>0,90 1,90</coordinates></LineString></Placemark></kml>'),

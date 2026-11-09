@@ -369,6 +369,8 @@ export interface RoadProject {
   surveyBooks?: import('./surveyInterchange').SurveyBookRecord[]
   /** Sketches, pins, lines and areas drawn on the plan. Kept apart from design data; nothing reads them. */
   notes?: import('./mapNotes').MapNote[]
+  /** Imported points, lines and areas kept as reference: drawn and listed, read by no calculation. */
+  reference?: import('./referenceFeatures').ReferenceFeature[]
 }
 export interface SectionSample {
   offset: number

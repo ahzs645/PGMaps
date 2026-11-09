@@ -151,6 +151,7 @@ export function StreamsPanel({
               size="sm"
               className="text-xs"
               aria-label="Import streams / constraints"
+              title="GeoJSON, a zipped shapefile, KML or KMZ. A file that is not stream data asks what its features are."
               onClick={onImport}
             >
               <Upload className="mr-1 size-3" />

@@ -159,8 +159,11 @@ reversed event chronology are rejected. Example values above are illustrative.
 - Proximity geometry stops after 2,000,000 checks (`MAX_NEARBY_ROAD_CHECKS` in
   `harvestHistory.ts`) with crop/simplify guidance rather than partial candidates.
   The same source ID links split multipart cutblock polygons for this distance.
-- Cutblock imports are limited to 10 MB (`MAX_CUTBLOCK_IMPORT_BYTES`). A history
-  panel request is bounded to 20 seconds (`HISTORY_LOAD_TIMEOUT_MS`).
+- Cutblock imports read GeoJSON, a zipped shapefile, KML or KMZ within the spatial import limits
+  (120 MB, 500 features, 50,000 vertices; `spatialImport.ts`). A polygon with harvest evidence or
+  the consolidated-cutblock fields keeps it; a plain polygon is **planned** or **harvested** as the
+  importer chooses, never by default. A history panel request is bounded to 20 seconds
+  (`HISTORY_LOAD_TIMEOUT_MS`).
 - Queries reject over-wide extents and truncated or oversized responses.
   Project limits remain 500 context features and 50,000 context vertices; an
   over-budget merge is rejected before changing the project.

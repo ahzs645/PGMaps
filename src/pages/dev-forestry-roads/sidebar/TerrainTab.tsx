@@ -7,6 +7,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
+import { ReferencePanel } from '../ReferencePanel'
 import { StreamsPanel } from '../StreamsPanel'
 import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
 import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
@@ -152,6 +153,16 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           p.onLocateRoad?.(road)
           p.onOpenRoadHistory?.(road.id)
         }}
+        onImportFile={p.onImportSpatial ? (file) => p.onImportSpatial!(file, 'cutblocks') : undefined}
+      />
+      <ReferencePanel
+        workspace={p.workspace}
+        mode={p.mode}
+        onImport={() => p.onFile('reference')}
+        onLocate={p.onLocateReference}
+        focusedId={p.focusedReferenceId}
+        onPegAt={p.onPegAt}
+        onRoadEndAt={p.onRoadEndAt}
       />
       <AccessHistoryPanel
         workspace={p.workspace}

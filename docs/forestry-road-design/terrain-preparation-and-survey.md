@@ -102,11 +102,11 @@ editable horizontal road line. Observed levels remain survey evidence; they are 
 adopted as the road's engineered formation. **Export survey CSV** includes traverse stations and
 side shots, with text protected against spreadsheet formula execution.
 
-Road/context import additionally accepts KML and KMZ. KMZ needs `doc.kml` or one unambiguous
-KML file. Imported lines and polygon holes become normal geographic linework and pass through
-the existing alignment/context validation. KML altitude is discarded, because it does not
-establish ground or a compatible vertical datum. XML entities/DTDs and external network links
-are not followed. Native RoadEng, DWG and proprietary field-collector projects still need a
+Every spatial import accepts KML and KMZ ([how files are read and classified](exports-and-project-files.md#bringing-spatial-files-in)).
+KMZ needs `doc.kml` or one unambiguous KML file. Placemark points, lines and polygons with their
+holes are read with their names; a placemark never says what a feature is, so `parseKml` assigns
+no kind and the import asks. KML altitude is discarded, because it does not establish ground or
+a compatible vertical datum. XML entities/DTDs and external network links are not followed. Native RoadEng, DWG and proprietary field-collector projects still need a
 documented exchange specification; these open imports/exports do not imply binary compatibility.
 
 ## Limits and checks

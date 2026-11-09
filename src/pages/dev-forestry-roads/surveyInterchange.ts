@@ -242,6 +242,10 @@ function kmlCoordinates(node: XmlNode): number[][] {
     return p.slice(0, 2) // KML altitude is deliberately not adopted as measured ground or road design.
   })
 }
+/**
+ * Placemark points, lines and polygons with their name and description. A placemark says where a
+ * feature is, never what it is, so no feature leaves here classified as a stream or a constraint.
+ */
 export function parseKml(text: string): GeoJSON.FeatureCollection {
   const tree = xmlTree(text),
     marks = descendants(tree, 'placemark'),
@@ -252,7 +256,19 @@ export function parseKml(text: string): GeoJSON.FeatureCollection {
     const name = (
       mark.children.find((c) => c.name === 'name')?.text.trim() || `KML feature ${features.length + 1}`
     ).slice(0, 200)
+    const description = mark.children
+      .find((c) => c.name === 'description')
+      ?.text.replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 500)
     const geometries: GeoJSON.Geometry[] = []
+    for (const node of descendants(mark, 'point')) {
+      const coordinates = kmlCoordinates(node)
+      if (coordinates.length !== 1) throw Error('A KML point needs exactly one coordinate.')
+      vertices += 1
+      geometries.push({ type: 'Point', coordinates: coordinates[0] })
+    }
     for (const node of descendants(mark, 'linestring')) {
       const coordinates = kmlCoordinates(node)
       vertices += coordinates.length
@@ -276,7 +292,7 @@ export function parseKml(text: string): GeoJSON.FeatureCollection {
         geometry,
         properties: {
           name,
-          kind: geometry.type === 'Polygon' ? 'avoid' : 'stream',
+          ...(description ? { description } : {}),
           source: 'KML geographic linework; altitude discarded',
         },
       })
@@ -284,21 +300,23 @@ export function parseKml(text: string): GeoJSON.FeatureCollection {
       throw Error('KML exceeds 500 features or 50,000 vertices; crop the file.')
   }
   if (!features.length)
-    throw Error('No line or polygon features in this KML. Network links and embedded imagery are not imported.')
+    throw Error('No point, line or polygon features in this KML. Network links and embedded imagery are not imported.')
   return { type: 'FeatureCollection', features }
+}
+/** The text of a KMZ's `doc.kml`, or of its only KML file. */
+export async function kmzDocument(bytes: ArrayBuffer | Uint8Array): Promise<string> {
+  const { default: JSZip } = await import('jszip'),
+    zip = await JSZip.loadAsync(bytes)
+  const entries = Object.values(zip.files).filter((f) => !f.dir && /\.kml$/i.test(f.name))
+  const entry = entries.find((f) => f.name.toLowerCase() === 'doc.kml') ?? (entries.length === 1 ? entries[0] : null)
+  if (!entry) throw Error('KMZ must contain doc.kml or one unambiguous KML file.')
+  const size = (entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize
+  if (size !== undefined && size > 30_000_000) throw Error('Expanded KMZ KML exceeds 30 MB.')
+  return entry.async('string')
 }
 export async function readSpatialFile(file: Blob & { name?: string }): Promise<unknown> {
   if (file.size > 120_000_000) throw Error('Spatial import exceeds 120 MB.')
-  if (/\.kmz$/i.test(file.name ?? '')) {
-    const { default: JSZip } = await import('jszip'),
-      zip = await JSZip.loadAsync(await file.arrayBuffer())
-    const entries = Object.values(zip.files).filter((f) => !f.dir && /\.kml$/i.test(f.name))
-    const entry = entries.find((f) => f.name.toLowerCase() === 'doc.kml') ?? (entries.length === 1 ? entries[0] : null)
-    if (!entry) throw Error('KMZ must contain doc.kml or one unambiguous KML file.')
-    const size = (entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize
-    if (size !== undefined && size > 30_000_000) throw Error('Expanded KMZ KML exceeds 30 MB.')
-    return parseKml(await entry.async('string'))
-  }
+  if (/\.kmz$/i.test(file.name ?? '')) return parseKml(await kmzDocument(await file.arrayBuffer()))
   if (/\.kml$/i.test(file.name ?? '')) return parseKml(await file.text())
   return JSON.parse(await file.text())
 }

@@ -51,6 +51,7 @@ import type {
   WidthOverride,
 } from './types'
 import { parseMapNotes } from './mapNotes'
+import { parseReferenceFeatures, referenceGeoJson } from './referenceFeatures'
 
 const MAX_ALIGNMENTS = 20
 const MAX_POINTS = 2000
@@ -720,6 +721,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
     ...(r.notes === undefined ? {} : { notes: parseMapNotes(r.notes) }),
+    ...(r.reference === undefined ? {} : { reference: parseReferenceFeatures(r.reference) }),
     ...(r.provincialStreamData === undefined
       ? {}
       : { provincialStreamData: parseProvincialStreamData(r.provincialStreamData) }),
@@ -1153,6 +1155,8 @@ export function projectGeoJson(project: RoadProject, analyses: Map<string, RoadA
       },
       geometry: f.geometry,
     })
+  // Reference features carry `kind: 'reference'`, so the export imports back as what it was.
+  output.push(...referenceGeoJson(project.reference ?? []).features)
   for (const c of project.cables) {
     const physical = resolvedCableLine(c)
     output.push({

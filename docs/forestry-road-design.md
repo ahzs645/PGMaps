@@ -518,8 +518,8 @@ adding to it: a number or a button belongs in the panel, a paragraph belongs in 
 warning someone must see stays an `InlineAlert`.
 
 - **Terrain:** the source and its three loads, then [streams, constraints and terrain
-  profiles](forestry-road-design/streams-and-constraints.md). Import options, terrain preparation,
-  imagery, the field book and existing roads fold.
+  profiles](forestry-road-design/streams-and-constraints.md). Cutblocks, reference layers, import
+  options, terrain preparation, imagery, the field book and existing roads fold.
 - **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
   that open elsewhere are tiles at the end.
 - **Section:** the eight template numbers. Components and curve rules fold.
@@ -604,10 +604,10 @@ lengths. A rejected requested radius must not appear as a fitted curve in the
 schedule. `planAnnotations.ts` shares BC/EC or TS/SC/CS/ST event stations between
 the map, curve schedule and profile band.
 
-Imported GeoJSON keeps the input vertices and initially assigns zero radii.
-A third GeoJSON coordinate is not taken as a ground observation or invented
-vertical grade. Explicit non-WGS84 CRS declarations are rejected instead of
-being treated as longitude/latitude.
+An imported road line keeps the input vertices and initially assigns zero radii.
+A third coordinate is not taken as a ground observation or invented vertical
+grade. A file in a CRS the workspace knows is reprojected to WGS84; one it does
+not know is refused instead of being treated as longitude/latitude.
 
 ### Vertical alignment
 
@@ -1476,9 +1476,13 @@ terrain-fit and zoom buttons use the same 32 × 32 px size as Map display settin
   costs, source provenance and assumptions. User text is escaped;
   the document has no scripts or network resources.
 
-The UI can import line/context GeoJSON and zipped shapefiles. Shapefile
-conversion produces geographic GeoJSON before the same geometry validation;
-check that the source's projection metadata is present and correct. Project
+The UI imports GeoJSON, zipped shapefiles, KML and KMZ through one reader
+(`spatialImport.ts`) for every picker: road lines, streams, cutblocks, existing
+roads and reference layers. It reprojects from the file's CRS, keeps feature
+names, and asks what features are when neither the picker nor the file settles
+it; see [Bringing spatial files in](forestry-road-design/exports-and-project-files.md#bringing-spatial-files-in).
+Every imported feature then passes the same geometry validation a project file
+does. Check that the source's projection metadata is present and correct. Project
 JSON is the editable round-trip format. Importing an exported road GeoJSON as
 linework preserves its spatial vertices and names, but does not reconstruct
 independent PVIs, templates, widenings or every project field from those
