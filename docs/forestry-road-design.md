@@ -147,7 +147,8 @@ opening-60677 starter projects migrate to this mode. See [BC discovery and actua
 
 **Load as road** (map card, Access history record or an empty design's list) turns a mapped
 road into a road held as recorded: its formation follows the ground, its line is read-only, and
-its build quantities are not compared. **Sketch** and **Extend** draw a road freehand and continue
+its build quantities are not compared. **Load roads in view** loads every mapped road in the
+plan's view at once, each in its own colour, for the road switcher. **Sketch** and **Extend** draw a road freehand and continue
 it from an end. See [Mapped roads as roads, and sketched roads](forestry-road-design/mapped-roads-and-sketching.md).
 
 ### Offline training hillside

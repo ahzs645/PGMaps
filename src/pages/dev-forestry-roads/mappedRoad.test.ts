@@ -4,9 +4,14 @@ import {
   derivedRoadName,
   designFromMappedRoad,
   joinMappedRoad,
+  loadableMappedRoads,
+  loadMappedRoads,
+  MAPPED_ROAD_PALETTE,
+  mappedRoadInBounds,
   MAX_JOIN_GAP_M,
   mappedRoadAlignment,
   mappedRoadKey,
+  nextMappedRoadColor,
   reviewMappedRoad,
   thinMappedRoad,
 } from './mappedRoad'
@@ -244,5 +249,101 @@ describe('reviewing a mapped road against the project limits', () => {
     expect(review.terrainCoveragePercent).toBeLessThan(60)
     expect(review.terrainCoveragePercent).toBeGreaterThan(40)
     expect(review.steepest!.gradePercent).toBeCloseTo(0, 5)
+  })
+})
+
+describe('loading the mapped roads in view together', () => {
+  const section = (id: string, name: string, coordinates: Coordinate[], sectionId = id) =>
+    ({ ...road(id, coordinates, { roadSectionId: sectionId, sourceId: id }), name }) as ContextFeature
+  // A 1 km road of 100 vertices, two short roads, and a second part of the first road's section.
+  const long = section(
+    'long',
+    'R1 · A',
+    Array.from({ length: 100 }, (_, i) => at((i % 2) * 15, i * 10)),
+    'A',
+  )
+  const longTail = section('long-2', 'R1 · A', [at(0, 990), at(0, 1100)], 'A')
+  const short = section('short', 'R1 · B', [at(500, 0), at(500, 200)], 'B')
+  const other = section('other', 'R1 · C', [at(5000, 0), at(5000, 200)], 'C')
+  const context = [long, longTail, short, other]
+  let n = 0
+  const newId = () => `load-${++n}`
+
+  it('lists one road per section, and finds those with a part in view', () => {
+    const roads = loadableMappedRoads(context)
+    expect(roads.map((r) => r.feature.name)).toEqual(['R1 · A', 'R1 · B', 'R1 · C'])
+    expect(roads[0].parts).toBe(2)
+    const [w, s] = at(-100, -100)
+    const [e, nn] = at(800, 300)
+    const bounds: [number, number, number, number] = [w, s, e, nn]
+    expect(roads.filter((r) => mappedRoadInBounds(r.feature, context, bounds)).map((r) => r.feature.name)).toEqual([
+      'R1 · A',
+      'R1 · B',
+    ])
+    // A road in view by its other part only still counts.
+    const [w2, s2] = at(-50, 1050)
+    const [e2, n2] = at(50, 1150)
+    expect(mappedRoadInBounds(long, context, [w2, s2, e2, n2])).toBe(true)
+  })
+
+  it('loads each road in its own colour, in the order given', () => {
+    const result = loadMappedRoads({
+      seeds: [long, short, other],
+      context,
+      template: DEFAULT_TEMPLATE,
+      terrainResolutionM: 1,
+      pointBudget: 2000,
+      roadBudget: 20,
+      newId,
+      usedColors: [],
+    })
+    expect(result.skipped).toEqual([])
+    expect(result.alignments.map((a) => a.mappedRoad!.roadName)).toEqual(['R1 · A', 'R1 · B', 'R1 · C'])
+    expect(new Set(result.alignments.map((a) => a.color)).size).toBe(3)
+    expect(result.alignments[0].mappedRoad!.contextIds).toEqual(['long', 'long-2'])
+  })
+
+  it('shares a tight point budget so short roads keep their detail and the long one is thinned to fit', () => {
+    const result = loadMappedRoads({
+      seeds: [long, short, other],
+      context,
+      template: DEFAULT_TEMPLATE,
+      terrainResolutionM: 1,
+      pointBudget: 30,
+      roadBudget: 20,
+      newId,
+      usedColors: [],
+    })
+    expect(result.alignments).toHaveLength(3)
+    const [a, b, c] = result.alignments
+    expect(b.points).toHaveLength(2)
+    expect(c.points).toHaveLength(2)
+    expect(a.points.length).toBeLessThanOrEqual(26)
+    expect(a.mappedRoad!.thinningToleranceM).toBeGreaterThan(0.5)
+    expect(result.alignments.reduce((sum, x) => sum + x.points.length, 0)).toBeLessThanOrEqual(30)
+  })
+
+  it('reports the roads it leaves out when the road limit is reached', () => {
+    const result = loadMappedRoads({
+      seeds: [long, short, other],
+      context,
+      template: DEFAULT_TEMPLATE,
+      terrainResolutionM: 1,
+      pointBudget: 2000,
+      roadBudget: 2,
+      newId,
+      usedColors: [],
+    })
+    expect(result.alignments).toHaveLength(2)
+    expect(result.skipped).toEqual([{ name: 'R1 · A', reason: 'the project holds its maximum of roads' }])
+  })
+
+  it('picks colours the project does not already use', () => {
+    expect(nextMappedRoadColor([])).toBe(MAPPED_ROAD_PALETTE[0])
+    expect(nextMappedRoadColor([MAPPED_ROAD_PALETTE[0].toUpperCase(), MAPPED_ROAD_PALETTE[1]])).toBe(
+      MAPPED_ROAD_PALETTE[2],
+    )
+    expect(MAPPED_ROAD_PALETTE).not.toContain('#d97706')
+    expect(MAPPED_ROAD_PALETTE).not.toContain('#dc2626')
   })
 })

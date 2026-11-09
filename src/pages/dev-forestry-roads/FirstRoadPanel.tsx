@@ -1,30 +1,10 @@
 import { useMemo, useState } from 'react'
-import { PencilLine, Plus, Route } from 'lucide-react'
+import { Layers, PencilLine, Plus, Route } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { isLoadableMappedRoad, mappedRoadKey } from './mappedRoad'
-import { pathLengthM } from './mapNotes'
+import { loadableMappedRoads } from './mappedRoad'
 import { roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
-import type { ContextFeature, Coordinate } from './types'
-
-/** Mapped roads a project can load, one row per permit section (or source row). */
-export function loadableMappedRoads(context: readonly ContextFeature[]) {
-  const groups = new Map<string, { feature: ContextFeature; lengthM: number; parts: number }>()
-  for (const feature of context) {
-    if (!isLoadableMappedRoad(feature)) continue
-    const key = mappedRoadKey(feature)
-    const lengthM = pathLengthM(feature.geometry.coordinates as Coordinate[])
-    const group = groups.get(key)
-    if (!group) groups.set(key, { feature, lengthM, parts: 1 })
-    else {
-      group.lengthM += lengthM
-      group.parts += 1
-      // Load from the longest part; the join picks up the others.
-      if (lengthM > pathLengthM(group.feature.geometry.coordinates as Coordinate[])) group.feature = feature
-    }
-  }
-  return [...groups.values()].sort((a, b) => a.feature.name.localeCompare(b.feature.name, 'en-CA', { numeric: true }))
-}
+import type { ContextFeature } from './types'
 
 /** A design with no road yet: peg one, sketch one, or start from a mapped road in the project. */
 export function FirstRoadPanel({
@@ -32,11 +12,14 @@ export function FirstRoadPanel({
   onPeg,
   onSketch,
   onLoadMappedRoad,
+  onLoadAllInView,
 }: {
   context: readonly ContextFeature[]
   onPeg: () => void
   onSketch: () => void
   onLoadMappedRoad: (featureId: string) => void
+  /** Loads every mapped road with a part in the plan's view, each as its own road. */
+  onLoadAllInView?: () => void
 }) {
   const roads = useMemo(() => loadableMappedRoads(context), [context])
   const [filter, setFilter] = useState('')
@@ -72,6 +55,11 @@ export function FirstRoadPanel({
         {roads.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-semibold">Mapped roads in this project · {roads.length}</p>
+            {onLoadAllInView && (
+              <Button size="sm" variant="outline" className="w-full gap-1" onClick={onLoadAllInView}>
+                <Layers className="size-3" /> Load all roads in view
+              </Button>
+            )}
             {roads.length > 6 && (
               <input
                 type="search"

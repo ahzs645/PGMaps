@@ -431,7 +431,7 @@ function Layers(
                   : p.gradePercent !== null && Math.abs(p.gradePercent) > props.project.settings.maxGradePercent
                     ? '#dc2626'
                     : a.mappedRoad
-                      ? MAPPED_ROAD_COLOR
+                      ? (colors.get(a.id) ?? MAPPED_ROAD_COLOR)
                       : '#d97706',
           }),
         )

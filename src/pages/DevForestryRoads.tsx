@@ -13,7 +13,11 @@ import {
   designFromMappedRoad,
   isLoadableMappedRoad,
   isMappedRoad,
+  loadableMappedRoads,
+  loadMappedRoads,
   mappedRoadAlignment,
+  mappedRoadInBounds,
+  nextMappedRoadColor,
 } from './dev-forestry-roads/mappedRoad'
 import { extendAlignment, nearerEnd, sketchPoints, strokeContinuation } from './dev-forestry-roads/sketchRoad'
 import { pathLengthM } from './dev-forestry-roads/mapNotes'
@@ -1000,6 +1004,84 @@ export default function DevForestryRoads() {
       return false
     }
   }
+  const showLoadedRoads = () => {
+    setMode('inspect')
+    setDraft([])
+    setActiveProfile(null)
+    setSelectedPoint(null)
+    setWorkflowTab('design')
+    setCollapsed(false)
+    setControlsOpen(true)
+    w.setStation(0)
+  }
+  /**
+   * Loads every mapped road with a part in the plan's view as its own road, each in its own colour,
+   * so the road switcher moves between them. From an investigation this starts the design.
+   */
+  const loadMappedRoadsInView = () => {
+    if (w.busy) return
+    const view = planMap.current?.getBounds()
+    const bounds: [number, number, number, number] | null = view
+      ? [view.getWest(), view.getSouth(), view.getEast(), view.getNorth()]
+      : null
+    const already = new Set(investigation ? [] : project.alignments.flatMap((a) => a.mappedRoad?.contextIds ?? []))
+    const seeds = loadableMappedRoads(project.context)
+      .map((group) => group.feature)
+      .filter((feature) => !bounds || mappedRoadInBounds(feature, project.context, bounds))
+      .filter((feature) => !already.has(feature.id))
+    if (!seeds.length) {
+      w.setNotice(
+        bounds
+          ? 'No mapped road in view that is not already loaded. Pan or zoom out to take in more.'
+          : 'No mapped roads to load.',
+      )
+      return
+    }
+    const existing = investigation ? [] : project.alignments.filter((a) => a.id !== project.designPlaceholderId)
+    const result = loadMappedRoads({
+      seeds,
+      context: project.context,
+      template: alignment.template,
+      terrainResolutionM: project.terrain.resolutionM,
+      pointBudget: MAX_PROJECT_POINTS - existing.reduce((n, a) => n + a.points.length, 0),
+      roadBudget: MAX_PROJECT_ROADS - existing.length,
+      newId: uid,
+      usedColors: existing.map((a) => a.color),
+    })
+    if (!result.alignments.length) {
+      w.setError(`No road could be loaded: ${result.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}.`)
+      return
+    }
+    // Start on the road the terrain covers best, then the one nearest the middle of the view — not
+    // the first by name: a long FSR that runs off the terrain would open with an empty profile.
+    const centre = planMap.current?.getCenter()
+    const terrainBox = terrainBounds(project.terrain)
+    const covered = (a: Alignment) =>
+      terrainBox
+        ? a.points.filter(
+            ({ coordinate: [lng, lat] }) =>
+              lng >= terrainBox[0] && lng <= terrainBox[2] && lat >= terrainBox[1] && lat <= terrainBox[3],
+          ).length / a.points.length
+        : 1
+    const nearest = (a: Alignment) =>
+      centre ? Math.min(...a.points.map((p) => distance([centre.lng, centre.lat], p.coordinate))) : 0
+    const activeId = [...result.alignments].sort((a, b) => covered(b) - covered(a) || nearest(a) - nearest(b))[0].id
+    if (
+      !commitValidated(
+        investigation
+          ? { ...startInvestigationDesign(project, result.alignments), activeAlignmentId: activeId }
+          : withAddedAlignments(project, result.alignments, activeId),
+      )
+    )
+      return
+    showLoadedRoads()
+    const skipped = result.skipped.length
+      ? ` Not loaded: ${result.skipped.map((s) => `${s.name} (${s.reason})`).join('; ')}.`
+      : ''
+    w.setNotice(
+      `Loaded ${result.alignments.length} mapped road${result.alignments.length === 1 ? '' : 's'} in view, each in its own colour. Switch between them with Viewing road.${skipped}`,
+    )
+  }
   /** Loads a mapped road as a road held as recorded; from an investigation, this starts the design. */
   const loadMappedRoad = (featureId: string) => {
     if (w.busy) return
@@ -1028,19 +1110,15 @@ export default function DevForestryRoads() {
         template: alignment.template,
         terrainResolutionM: project.terrain.resolutionM,
         pointBudget: MAX_PROJECT_POINTS - (investigation ? 0 : pointsInUse(project)),
+        color: nextMappedRoadColor(investigation ? [] : project.alignments.map((a) => a.color)),
       })
       if (
-        !commitValidated(investigation ? startInvestigationDesign(project, road) : withAddedAlignments(project, [road]))
+        !commitValidated(
+          investigation ? startInvestigationDesign(project, [road]) : withAddedAlignments(project, [road]),
+        )
       )
         return
-      setMode('inspect')
-      setDraft([])
-      setActiveProfile(null)
-      setSelectedPoint(null)
-      setWorkflowTab('design')
-      setCollapsed(false)
-      setControlsOpen(true)
-      w.setStation(0)
+      showLoadedRoads()
       setFitRevision((n) => n + 1)
       const origin = road.mappedRoad!
       w.setNotice(
@@ -2146,6 +2224,17 @@ export default function DevForestryRoads() {
               Start design
             </Button>
           )}
+          {investigation && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!!busy}
+              title="Load every mapped road in the plan's view as its own road, to read and compare their profiles"
+              onClick={loadMappedRoadsInView}
+            >
+              Load roads in view
+            </Button>
+          )}
           {tinyHeight && !investigation && (
             <Button
               variant="outline"
@@ -2672,6 +2761,7 @@ export default function DevForestryRoads() {
                 }
                 onSuggest={suggest}
                 onLoadMappedRoad={loadMappedRoad}
+                onLoadMappedRoadsInView={loadMappedRoadsInView}
                 onCopyMappedRoad={copyMappedRoad}
                 onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
                 onLoadTerrainAroundRoad={() => loadTerrain('regional')}
@@ -2929,7 +3019,7 @@ export default function DevForestryRoads() {
                                 : drainageStale && !terrainProfile
                                   ? 'Drainage out of date · re-run it to show flow'
                                   : isMappedRoad(alignment)
-                                    ? 'Violet mapped road · red over the grade limit'
+                                    ? 'Mapped road in its own colour · red over the grade limit'
                                     : 'Orange road · red grade flag'}
                           </span>
                           {!investigation && closePanel('plan')}

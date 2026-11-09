@@ -58,14 +58,14 @@ export function legacyAccessInvestigation(project: RoadProject): RoadProject['in
 }
 
 /**
- * Explicit transition into design. With a `seed` (a road the user chose, such as a mapped road),
- * that road becomes the design's first road. Without one the design starts empty: the internal
- * draft stays hidden as `designPlaceholderId` until the user pegs, sketches or loads a road.
+ * Explicit transition into design. With `seeds` (roads the user chose, such as mapped roads), they
+ * become the design's roads and the first is active. Without any the design starts empty: the
+ * internal draft stays hidden as `designPlaceholderId` until the user pegs, sketches or loads a road.
  */
-export function startInvestigationDesign(project: RoadProject, seed?: Alignment): RoadProject {
+export function startInvestigationDesign(project: RoadProject, seeds: Alignment[] = []): RoadProject {
   if (!isAccessInvestigation(project)) return project
   const { investigation, ...design } = project
-  if (seed) return { ...design, workspaceMode: 'design', alignments: [seed], activeAlignmentId: seed.id }
+  if (seeds.length) return { ...design, workspaceMode: 'design', alignments: seeds, activeAlignmentId: seeds[0].id }
   return {
     ...design,
     workspaceMode: 'design',

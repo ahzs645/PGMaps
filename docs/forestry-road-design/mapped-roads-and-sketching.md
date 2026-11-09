@@ -19,6 +19,15 @@ Three places load a mapped road:
   from an investigation with that road as its first road.
 - The **Mapped roads in this project** list in a design that has no road yet.
 
+**Load roads in view** (beside Start design in an investigation, under the Road buttons in a
+design, and in the empty design's list) loads every mapped road with a part in the plan's current
+view, each as its own road in its own colour, and the **Viewing road** switcher moves between
+them. Roads already loaded are skipped. The project's 20-road and 2,000-point limits are shared
+out by `loadMappedRoads`: smallest road first, each takes at most a fair share of the points left,
+so short permit roads keep their detail and a long FSR is thinned harder to fit. Roads that do not
+fit are named in the notice. The design opens on the road the terrain covers best, then the one
+nearest the middle of the view, rather than a long FSR that runs off the terrain.
+
 `mappedRoad.ts` joins the parts that share the road's permit section (`forestFileId` and
 `roadSectionId`), or failing that its source row (`sourceId`). Each step attaches the part whose
 nearer end is closest to either end of the line so far, reversing it if it was drawn the other
@@ -39,7 +48,8 @@ is kept as `Alignment.mappedRoad` and saved with the project.
 
 ### What changes for a mapped road
 
-- It is drawn violet, red where the grade passes the project's limit.
+- It is drawn in its own colour from `MAPPED_ROAD_PALETTE` (the same colour in the road switcher and
+  Compare alternatives), red where the grade passes the project's limit.
 - Its line is held as recorded: Edit points and Extend are unavailable, and the point, vertical,
   curve and switchback editors are replaced by the **Mapped road** panel. **Copy as design** makes
   an editable road on the same line, with no record attached.
@@ -98,14 +108,16 @@ A sketched road is a planning sketch. Its grades and quantities mean as much as 
 
 ## Limits and budgets
 
-| Limit                                                                                   | Enforcing code                                                    |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Parts of one road more than 25 m apart are not joined                                   | `MAX_JOIN_GAP_M`, `mappedRoad.ts`                                 |
-| Mapped lines are thinned at half a terrain cell, 0.5–5 m, raised only to fit the budget | `MIN_THINNING_M`, `MAX_THINNING_M`, `thinMappedRoad`              |
-| Sustained grades are read over 50 m of road                                             | `SUSTAINED_GRADE_WINDOW_M`, `mappedRoad.ts`                       |
-| Bends are read across 20 m chords                                                       | `BEND_CHORD_M`, `mappedRoad.ts`                                   |
-| Terrain coarser than 5 m is flagged as smoothing grades                                 | `COARSE_TERRAIN_M`, `mappedRoad.ts`                               |
-| Sketch strokes are thinned at the larger of 4 screen pixels and 2 m                     | `SKETCH_TOLERANCE_PX`, `SKETCH_MIN_TOLERANCE_M`, `sketchRoad.ts`  |
-| A stroke within 14 screen pixels of a road end continues that road                      | `EXTEND_SNAP_PX`, `sketchRoad.ts`                                 |
-| Stroke points closer than 1.5 screen pixels are not captured                            | `SKETCH_CAPTURE_PX`, `PlanView.tsx`                               |
-| At most 20 roads and 2,000 horizontal points per project, mapped roads included         | `MAX_PROJECT_ROADS`, `MAX_PROJECT_POINTS`, `DevForestryRoads.tsx` |
+| Limit                                                                                       | Enforcing code                                                    |
+| ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| Parts of one road more than 25 m apart are not joined                                       | `MAX_JOIN_GAP_M`, `mappedRoad.ts`                                 |
+| Mapped lines are thinned at half a terrain cell, 0.5–5 m, raised only to fit the budget     | `MIN_THINNING_M`, `MAX_THINNING_M`, `thinMappedRoad`              |
+| Sustained grades are read over 50 m of road                                                 | `SUSTAINED_GRADE_WINDOW_M`, `mappedRoad.ts`                       |
+| Bends are read across 20 m chords                                                           | `BEND_CHORD_M`, `mappedRoad.ts`                                   |
+| Terrain coarser than 5 m is flagged as smoothing grades                                     | `COARSE_TERRAIN_M`, `mappedRoad.ts`                               |
+| Sketch strokes are thinned at the larger of 4 screen pixels and 2 m                         | `SKETCH_TOLERANCE_PX`, `SKETCH_MIN_TOLERANCE_M`, `sketchRoad.ts`  |
+| A stroke within 14 screen pixels of a road end continues that road                          | `EXTEND_SNAP_PX`, `sketchRoad.ts`                                 |
+| Stroke points closer than 1.5 screen pixels are not captured                                | `SKETCH_CAPTURE_PX`, `PlanView.tsx`                               |
+| At most 20 roads and 2,000 horizontal points per project, mapped roads included             | `MAX_PROJECT_ROADS`, `MAX_PROJECT_POINTS`, `DevForestryRoads.tsx` |
+| Loading roads together gives each at most a fair share of the points left, smallest first   | `loadMappedRoads`, `mappedRoad.ts`                                |
+| Up to 20 distinct colours for mapped roads, none the plan's design, grade or terrain colour | `MAPPED_ROAD_PALETTE`, `mappedRoad.ts`                            |

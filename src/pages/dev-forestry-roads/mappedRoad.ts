@@ -4,7 +4,7 @@
  * and grade checks describe the road as mapped rather than a new design. Pure: no DOM or network.
  */
 import { distance } from './engine'
-import { simplifyPath } from './mapNotes'
+import { pathLengthM, simplifyPath } from './mapNotes'
 import type { Alignment, ContextFeature, Coordinate, MappedRoadOrigin, RoadAnalysis, RoadSettings } from './types'
 
 /** Parts of one road further apart than this are not joined: the gap is not on the record. */
@@ -120,6 +120,7 @@ export function mappedRoadAlignment({
   template,
   terrainResolutionM,
   pointBudget,
+  color = MAPPED_ROAD_COLOR,
 }: {
   seed: ContextFeature
   context: readonly ContextFeature[]
@@ -128,6 +129,7 @@ export function mappedRoadAlignment({
   terrainResolutionM: number
   /** Horizontal points the project can still hold. */
   pointBudget: number
+  color?: string
 }): Alignment {
   const joined = joinMappedRoad(seed, context)
   if (pointBudget < 2) throw Error('This project holds its maximum of horizontal points. Remove a road first.')
@@ -150,7 +152,7 @@ export function mappedRoadAlignment({
   return {
     id,
     name: `${seed.name} · as mapped`,
-    color: MAPPED_ROAD_COLOR,
+    color,
     points: coordinates.map((coordinate, index) => ({ id: `${id}-p${index}`, coordinate, radiusM: 0 })),
     vertical: [],
     template: { ...template },
@@ -160,6 +162,156 @@ export function mappedRoadAlignment({
 }
 
 export const MAPPED_ROAD_COLOR = '#7c3aed'
+/**
+ * Colours for mapped roads loaded together, so each reads apart on the plan, the road switcher and
+ * the compare table. None is a colour the plan already uses for something else: the active design
+ * (orange), over-grade (red), no terrain (grey) or a terrain profile (sky).
+ */
+export const MAPPED_ROAD_PALETTE = [
+  '#7c3aed',
+  '#0d9488',
+  '#db2777',
+  '#65a30d',
+  '#4f46e5',
+  '#b45309',
+  '#0891b2',
+  '#be185d',
+  '#15803d',
+  '#9333ea',
+  '#c2410c',
+  '#1e40af',
+  '#a16207',
+  '#047857',
+  '#6d28d9',
+  '#e11d48',
+  '#0e7490',
+  '#4d7c0f',
+  '#7e22ce',
+  '#9f1239',
+]
+/** The first palette colour no road in `used` already has. */
+export function nextMappedRoadColor(used: Iterable<string>) {
+  const taken = new Set([...used].map((color) => color.toLowerCase()))
+  return (
+    MAPPED_ROAD_PALETTE.find((color) => !taken.has(color)) ??
+    MAPPED_ROAD_PALETTE[taken.size % MAPPED_ROAD_PALETTE.length]
+  )
+}
+
+/** Mapped roads a project can load, one per permit section (or source row), named in order. */
+export function loadableMappedRoads(context: readonly ContextFeature[]) {
+  const groups = new Map<string, { feature: ContextFeature; lengthM: number; parts: number; vertices: number }>()
+  for (const feature of context) {
+    if (!isLoadableMappedRoad(feature)) continue
+    const key = mappedRoadKey(feature)
+    const coordinates = feature.geometry.coordinates as Coordinate[]
+    const lengthM = pathLengthM(coordinates)
+    const group = groups.get(key)
+    if (!group) groups.set(key, { feature, lengthM, parts: 1, vertices: coordinates.length })
+    else {
+      group.lengthM += lengthM
+      group.parts += 1
+      group.vertices += coordinates.length
+      // Load from the longest part; the join picks up the others.
+      if (lengthM > pathLengthM(group.feature.geometry.coordinates as Coordinate[])) group.feature = feature
+    }
+  }
+  return [...groups.values()].sort((a, b) => a.feature.name.localeCompare(b.feature.name, 'en-CA', { numeric: true }))
+}
+
+/** Whether any part of the road sharing `feature`'s section has a vertex inside `bounds`. */
+export function mappedRoadInBounds(
+  feature: ContextFeature,
+  context: readonly ContextFeature[],
+  [west, south, east, north]: [number, number, number, number],
+) {
+  const key = mappedRoadKey(feature)
+  return context.some(
+    (part) =>
+      isLoadableMappedRoad(part) &&
+      mappedRoadKey(part) === key &&
+      (part.geometry.coordinates as Coordinate[]).some(
+        ([lng, lat]) => lng >= west && lng <= east && lat >= south && lat <= north,
+      ),
+  )
+}
+
+export interface MappedRoadLoad {
+  alignments: Alignment[]
+  /** Roads not loaded, and why: no room left, or a record that would not load. */
+  skipped: { name: string; reason: string }[]
+}
+
+/**
+ * Loads several mapped roads at once within the project's road and point budgets. Points are shared
+ * out as a fair share of what is left, smallest road first, so short permit roads keep their detail
+ * and what they leave goes to the long ones; a road over its share is thinned harder to fit.
+ */
+export function loadMappedRoads({
+  seeds,
+  context,
+  template,
+  terrainResolutionM,
+  pointBudget,
+  roadBudget,
+  newId,
+  usedColors,
+}: {
+  seeds: readonly ContextFeature[]
+  context: readonly ContextFeature[]
+  template: Alignment['template']
+  terrainResolutionM: number
+  pointBudget: number
+  roadBudget: number
+  newId: () => string
+  usedColors: Iterable<string>
+}): MappedRoadLoad {
+  const sized = seeds
+    .map((seed, order) => {
+      let vertices = 0
+      try {
+        vertices = joinMappedRoad(seed, context).coordinates.length
+      } catch {
+        vertices = 0
+      }
+      return { seed, order, vertices }
+    })
+    .sort((a, b) => a.vertices - b.vertices || a.order - b.order)
+  const loaded: { order: number; alignment: Alignment }[] = []
+  const skipped: MappedRoadLoad['skipped'] = []
+  const colors = [...usedColors]
+  let points = pointBudget
+  sized.forEach(({ seed, order }, index) => {
+    const slots = Math.min(sized.length - index, roadBudget - loaded.length)
+    if (slots <= 0) {
+      skipped.push({ name: seed.name, reason: 'the project holds its maximum of roads' })
+      return
+    }
+    const share = Math.floor(points / slots)
+    if (share < 2) {
+      skipped.push({ name: seed.name, reason: 'no horizontal points left in the project' })
+      return
+    }
+    try {
+      const color = nextMappedRoadColor(colors)
+      const alignment = mappedRoadAlignment({
+        seed,
+        context,
+        id: newId(),
+        template,
+        terrainResolutionM,
+        pointBudget: share,
+        color,
+      })
+      colors.push(color)
+      points -= alignment.points.length
+      loaded.push({ order, alignment })
+    } catch (cause) {
+      skipped.push({ name: seed.name, reason: cause instanceof Error ? cause.message : 'it would not load' })
+    }
+  })
+  return { alignments: loaded.sort((a, b) => a.order - b.order).map((entry) => entry.alignment), skipped }
+}
 /** The base name for a road derived from `alignment`; a derived road is never itself "as mapped". */
 export const derivedRoadName = (alignment: Pick<Alignment, 'name' | 'mappedRoad'>) =>
   alignment.mappedRoad ? `${alignment.mappedRoad.roadName} alternative` : alignment.name

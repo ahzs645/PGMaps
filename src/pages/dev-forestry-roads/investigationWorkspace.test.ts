@@ -92,7 +92,7 @@ describe('access investigation workspace contract', () => {
   it('starts a design from a chosen road, and rejects a placeholder that is not the only road', () => {
     const study = parseProject(legacyStudy())
     const road = { ...starterAlignment([-122.7, 53.9]), id: 'mapped', name: 'Mapped' }
-    const design = parseProject(startInvestigationDesign(study, road))
+    const design = parseProject(startInvestigationDesign(study, [road]))
     expect(design.alignments.map((a) => a.id)).toEqual(['mapped'])
     expect(design.designPlaceholderId).toBeUndefined()
     const empty = parseProject(startInvestigationDesign(study))

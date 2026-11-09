@@ -1,6 +1,6 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, PencilLine, Plus, SquareArrowOutUpRight, Trash2, type LucideIcon } from 'lucide-react'
+import { Copy, Layers, PencilLine, Plus, SquareArrowOutUpRight, Trash2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -23,6 +23,7 @@ import { RouteFinder } from '../RouteFinder'
 import { straightPointIds } from '../horizontalTools'
 import type { SidebarProps } from '../DesignSidebarBody'
 import { FirstRoadPanel } from '../FirstRoadPanel'
+import { isLoadableMappedRoad } from '../mappedRoad'
 import { MappedRoadPanel } from '../MappedRoadPanel'
 import { awaitingFirstRoad } from '../investigationWorkspace'
 
@@ -39,9 +40,11 @@ export function DesignTab(p: SidebarProps) {
         onPeg={() => p.onMode('road')}
         onSketch={() => p.onMode('sketch')}
         onLoadMappedRoad={(id) => p.onLoadMappedRoad?.(id)}
+        onLoadAllInView={p.onLoadMappedRoadsInView}
       />
     )
   const mapped = !!alignment.mappedRoad
+  const hasMappedRoads = project.context.some(isLoadableMappedRoad)
   return (
     <>
       <RoadSection
@@ -159,6 +162,18 @@ export function DesignTab(p: SidebarProps) {
               <Copy className="size-3" /> {mapped ? 'Copy as design' : 'Duplicate'}
             </Button>
           </div>
+          {hasMappedRoads && p.onLoadMappedRoadsInView && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="w-full gap-1"
+              title="Load every mapped road in the plan's view as its own road, each in its own colour"
+              onClick={p.onLoadMappedRoadsInView}
+              disabled={full}
+            >
+              <Layers className="size-3" /> Load mapped roads in view
+            </Button>
+          )}
         </div>
       </RoadSection>
       {mapped && (
