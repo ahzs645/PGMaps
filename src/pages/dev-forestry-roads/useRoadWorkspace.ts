@@ -28,7 +28,8 @@ export function useRoadWorkspace() {
   const [featureSelection, setFeatureSelection] = useState<RoadFeatureSelection | null>(null)
   const [busyState, setBusyState] = useState({ message: 'Opening road workspace…', id: 1 })
   const [busyCancel, setBusyCancel] = useState<{ label: string; title?: string; onCancel: () => void } | null>(null)
-  const [busyProgress, setBusyProgress] = useState<{ step: number; total: number } | null>(null)
+  /** `text` replaces the "step of total" beside the message, for a job measured in something else. */
+  const [busyProgress, setBusyProgress] = useState<{ step: number; total: number; text?: string } | null>(null)
   const busy = busyState.message
   const setBusy = useCallback((message: string) => {
     setBusyState((previous) => ({ message, id: previous.id + (!previous.message && message ? 1 : 0) }))

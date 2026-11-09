@@ -10,7 +10,8 @@ export type RoadToast = {
       tone: 'loading'
       /** The job as a whole, when `message` is its current step. */
       title?: string
-      progress?: { step: number; total: number }
+      /** `text` replaces the "step of total" shown beside the message. */
+      progress?: { step: number; total: number; text?: string }
     }
   | { tone: 'error'; onDismiss: () => void }
 )
@@ -37,6 +38,7 @@ export function RoadNotifications({ items }: { items: RoadToast[] }) {
                 value: item.progress.step,
                 max: item.progress.total,
                 label: item.title ?? item.message,
+                ...(item.progress.text === undefined ? {} : { valueText: item.progress.text }),
               }
             }
           />

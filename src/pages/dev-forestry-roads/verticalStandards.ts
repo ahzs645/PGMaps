@@ -76,6 +76,8 @@ const stn = (value: number) => {
   return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
 }
 const pct = (value: number) => `${value > 0 ? '' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
+/** A station as `0+123.4`, the way every vertical check names it. */
+export const formatStation = stn
 
 /** Sag when the grade increases through the PVI (concave up), crest when it decreases. */
 export const curveKind = (g1: number, g2: number) => (g2 > g1 ? 'sag' : 'crest')

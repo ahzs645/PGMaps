@@ -11,9 +11,13 @@
  *
  * It minimizes cut × cut rate + fill × fill rate. Haul, borrow, waste and clearing are evaluated by
  * the full analysis afterwards; they are not optimized. Pure: no DOM or network access.
+ *
+ * The search is a generator so a caller can run it in slices: `optimizeVerticalProfile` runs it in
+ * one go, `optimizeVerticalProfileAsync` hands the page a turn between slices and can be cancelled.
  */
+import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { analyzeRoad, positionAt, sectionAreasAt } from './engine'
-import { gradeWindowAt, curvatureRuleAt } from './verticalStandards'
+import { gradeWindowAt, curvatureRuleAt, formatStation, type VerticalControl } from './verticalStandards'
 import { simplifyProfile } from './verticalTools'
 import type { Alignment, ContextFeature, RoadSettings, TerrainSource, VerticalPoint } from './types'
 import type { CrossingCostItem } from './crossingPlanTypes'
@@ -76,9 +80,62 @@ export interface VerticalOptimizationResult {
   levelsPerPvi: number
   sectionSolves: number
   message: string
+  /** What the search used, what it held and what it left unsolved. */
+  report: VerticalOptimizationReport
+}
+export interface VerticalOptimizationProgress {
+  /** Share of the search done, 0–1. */
+  fraction: number
+}
+/** The record of one run, for the result log: inputs as used, then the full analysis of the returned line. */
+export interface VerticalOptimizationReport {
+  roadLengthM: number
+  objective: 'earthwork' | 'total'
+  /** Stations where section areas were solved, and the widest gap between two of them. */
+  sections: { count: number; spacingM: number; solves: number }
+  pvis: { searched: number; spacingM: number; kept: number; simplified: boolean; movedOffGaps: number }
+  band: { centre: 'ground' | 'design'; depthM: number; levelStepM: number; levelsPerPvi: number }
+  limits: {
+    maxGradePercent: number
+    gradeRanges: number
+    curveK: number
+    minSagK: number | null
+    minCrestK: number | null
+    minCurveLengthM: number | null
+    minTangentLengthM: number | null
+    curvatureRanges: number
+  }
+  /** How each end's level was set. */
+  ends: { start: 'ground' | 'control' | 'free'; end: 'ground' | 'control' | 'free' }
+  /** Every control point on the road, with what the returned line does there. */
+  controls: {
+    chainage: number
+    elevation: number | null
+    achievedElevation: number
+    gradePercent: number | null
+    achievedGradePercent: number
+  }[]
+  /** Total cost only: the price put on each interval's cut/fill imbalance for the chosen line, CAD per m³. */
+  imbalancePrice: number | null
+  result: {
+    maxGradePercent: number
+    cutM3: number
+    fillM3: number
+    /** Usable cut left over after filling, as bank m³ to waste. */
+    wasteBankM3: number
+    /** Fill still needed after all usable cut is placed, m³. */
+    borrowM3: number
+    earthworkCost: number
+    estimatedCost: number
+    coveragePercent: number
+    incompleteLengthM: number
+  }
+  /** What the run could not do, in plain words. Empty when there is nothing to add. */
+  notes: string[]
 }
 
 const EPS = 1e-9
+const pct = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
 
 /** Fitted parabolic profile, including endpoint tangent extension; independent of terrain. */
 export function designElevationAt(points: readonly VerticalPoint[], station: number): number {
@@ -122,6 +179,32 @@ export function optimizeVerticalProfile(
   settings: RoadSettings,
   options: Partial<VerticalOptimizationOptions> = {},
 ): VerticalOptimizationResult {
+  return runToCompletion(profileSearch(alignment, length, terrain, settings, options))
+}
+
+/** The same search in slices: the page stays responsive, progress is reported and `signal` cancels it. */
+export function optimizeVerticalProfileAsync(
+  alignment: Alignment,
+  length: number,
+  terrain: TerrainSource,
+  settings: RoadSettings,
+  options: Partial<VerticalOptimizationOptions> = {},
+  control: CooperativeControl<VerticalOptimizationProgress> = {},
+): Promise<VerticalOptimizationResult> {
+  return runCooperatively(
+    profileSearch(alignment, length, terrain, settings, options),
+    control,
+    'Profile optimization cancelled.',
+  )
+}
+
+function* profileSearch(
+  alignment: Alignment,
+  length: number,
+  terrain: TerrainSource,
+  settings: RoadSettings,
+  options: Partial<VerticalOptimizationOptions>,
+): Generator<VerticalOptimizationProgress, VerticalOptimizationResult> {
   const o = { ...DEFAULT_VERTICAL_OPTIMIZATION, ...options }
   if (
     ![
@@ -158,12 +241,33 @@ export function optimizeVerticalProfile(
   const sample = Math.max(2, settings.stationInterval)
   const controls = (alignment.verticalControls ?? []).filter((c) => c.chainage >= 0 && c.chainage <= length)
 
+  const groundAt = (s: number) => {
+    const p = positionAt(alignment, s)
+    const z = source.elevationAt(...p.coordinate)
+    return Number.isFinite(z) ? z : null
+  }
   // PVI stations: regular spacing, the ends and every control point.
   const marks = new Set<number>([0, length])
   const count = Math.max(1, Math.round(length / o.pviSpacingM))
   if (count + 1 + controls.length > 500)
     throw Error('The profile search needs too many PVIs; use wider spacing or fewer controls.')
-  for (let i = 1; i < count; i++) marks.add(Math.round(((length * i) / count) * 1000) / 1000)
+  // Where a station at the regular spacing lands on a gap in the terrain, the PVI slides to the
+  // nearest station with ground, up to half a spacing away. The spacing is a search setting, not a
+  // design requirement, and a level ladder needs ground to stand on.
+  let movedOffGaps = 0
+  const reach = length / count / 2
+  for (let i = 1; i < count; i++) {
+    let s = Math.round(((length * i) / count) * 1000) / 1000
+    if (groundAt(s) === null)
+      for (let d = 1; d < reach; d++) {
+        const near = [s - d, s + d].find((x) => x > 0 && x < length && groundAt(x) !== null)
+        if (near === undefined) continue
+        s = near
+        movedOffGaps++
+        break
+      }
+    marks.add(s)
+  }
   for (const c of controls) marks.add(c.chainage)
   for (const range of [
     ...(alignment.verticalStandards?.gradeRanges ?? []),
@@ -174,36 +278,85 @@ export function optimizeVerticalProfile(
   const pvis = [...marks].sort((a, b) => a - b).filter((s, i, all) => !i || s - all[i - 1] > 1e-6)
   if (pvis[pvis.length - 1] !== length) pvis[pvis.length - 1] = length
 
-  const groundAt = (s: number) => {
-    const p = positionAt(alignment, s)
-    const z = source.elevationAt(...p.coordinate)
-    return Number.isFinite(z) ? z : null
-  }
   const pviGround = pvis.map(groundAt)
-  if (pviGround.some((z) => z === null)) throw Error('Every PVI station needs ground under the centreline.')
-
+  const elevationControlAt = (s: number) =>
+    controls.find((c) => Math.abs(c.chainage - s) < 1e-6 && c.elevation !== null)
+  // A tied end has to stand on ground. Every other station only needs a level to search around.
+  if (o.tieEndsToGround)
+    for (const i of [0, pvis.length - 1])
+      if (pviGround[i] === null && !elevationControlAt(pvis[i]))
+        throw Error(
+          `The road ${i === 0 ? 'start' : 'end'} (${formatStation(pvis[i])}) is on a gap in the terrain, so it cannot be tied to ground. Move that end onto mapped ground, set a control point there, or untick “Tie both ends to ground”.`,
+        )
+  /** Ground along the centreline, read across a gap from the nearest stations that have it. */
+  const groundAcrossGaps = (s: number) => {
+    const here = groundAt(s)
+    if (here !== null) return here
+    let before: { s: number; z: number } | null = null,
+      after: { s: number; z: number } | null = null
+    for (let x = s - 1; x > -1 && !before; x--) {
+      const z = groundAt(Math.max(0, x))
+      if (z !== null) before = { s: Math.max(0, x), z }
+    }
+    for (let x = s + 1; x < length + 1 && !after; x++) {
+      const z = groundAt(Math.min(length, x))
+      if (z !== null) after = { s: Math.min(length, x), z }
+    }
+    if (before && after) return before.z + ((after.z - before.z) * (s - before.s)) / (after.s - before.s)
+    const only = before ?? after
+    if (!only) throw Error('There is no ground under this centreline. Move the road onto the terrain.')
+    return only.z
+  }
   const referenceAt = (s: number) =>
-    o.bandCenter === 'design' ? designElevationAt(alignment.vertical, s) : groundAt(s)!
+    o.bandCenter === 'design' ? designElevationAt(alignment.vertical, s) : groundAcrossGaps(s)
   // Candidate levels per PVI: a ladder around ground, narrowed by any control or tied end.
   const ladder = Math.round(o.maxDepthM / o.levelStepM)
   if (2 * ladder + 1 > o.maxTransitions)
     throw Error('Profile transition budget exceeded; use a coarser level step or a smaller search depth.')
   const levels = pvis.map((s, i) => {
-    const ground = pviGround[i]!
-    const centre = referenceAt(s)
-    const control = controls.find((c) => Math.abs(c.chainage - s) < 1e-6 && c.elevation !== null)
+    const control = elevationControlAt(s)
     if (control) {
       const low = control.elevation! - control.toleranceBelowM,
         high = control.elevation! + control.toleranceAboveM
       if ((high - low) / o.levelStepM + 1 > o.maxTransitions)
         throw Error('Profile transition budget exceeded; use a coarser level step or narrower control tolerances.')
+      // The control's own elevation is a level exactly as entered. Rounding it to the millimetre put
+      // it outside a zero tolerance, and a control at the ground the tool had read left no profile.
       const values = [control.elevation!]
-      for (let z = Math.ceil(low / o.levelStepM) * o.levelStepM; z <= high + EPS; z += o.levelStepM) values.push(z)
-      return [...new Set(values.map((z) => Math.round(z * 1000) / 1000))].sort((a, b) => a - b)
+      for (let z = Math.ceil(low / o.levelStepM) * o.levelStepM; z <= high + EPS; z += o.levelStepM)
+        values.push(Math.min(high, Math.max(low, Math.round(z * 1000) / 1000)))
+      return [...new Set(values)].sort((a, b) => a - b)
     }
-    if (o.tieEndsToGround && (i === 0 || i === pvis.length - 1)) return [ground]
+    if (o.tieEndsToGround && (i === 0 || i === pvis.length - 1)) return [pviGround[i]!]
+    const centre = referenceAt(s)
     return Array.from({ length: 2 * ladder + 1 }, (_, j) => centre + (j - ladder) * o.levelStepM)
   })
+  // A control's grade has to be met within its tolerance, and steps of a fixed ladder almost never
+  // land on it: a grade read off the current profile, held to ±0, left no line at all. So each free
+  // PVI beside a grade control also gets the levels that run at exactly that grade from it. Those
+  // PVIs, and every control's own, keep their levels unrounded.
+  const exactAt = new Set<number>()
+  const isFree = (i: number) =>
+    i >= 0 &&
+    i < pvis.length &&
+    !elevationControlAt(pvis[i]) &&
+    !(o.tieEndsToGround && (i === 0 || i === pvis.length - 1))
+  for (const control of controls) {
+    const at = pvis.findIndex((s) => Math.abs(s - control.chainage) < 1e-6)
+    if (at < 0) continue
+    exactAt.add(at)
+    if (control.gradePercent === null) continue
+    const through = [...levels[at]]
+    for (const beside of [at - 1, at + 1]) {
+      if (!isFree(beside)) continue
+      const centre = referenceAt(pvis[beside]),
+        rise = (control.gradePercent * (pvis[beside] - pvis[at])) / 100
+      const exact = through.map((z) => z + rise).filter((z) => Math.abs(z - centre) <= o.maxDepthM + EPS)
+      if (!exact.length) continue
+      exactAt.add(beside)
+      levels[beside] = [...new Set([...levels[beside], ...exact])].sort((a, b) => a - b)
+    }
+  }
 
   // Sample stations within each PVI interval, with trapezoid weights.
   const segments = pvis.slice(1).map((end, i) => {
@@ -227,7 +380,8 @@ export function optimizeVerticalProfile(
     if (existing) return existing
     const place = positionAt(alignment, s)
     const ground = source.elevationAt(...place.coordinate)
-    const centre = referenceAt(s)
+    // A station on a gap has no sections to solve; it is priced as incomplete at every level.
+    const centre = Number.isFinite(ground) || o.bandCenter === 'design' ? referenceAt(s) : NaN
     const cut: (number | null)[] = [],
       fill: (number | null)[] = []
     if (Number.isFinite(ground))
@@ -291,14 +445,21 @@ export function optimizeVerticalProfile(
   }
 
   const grade = (i: number, a: number, b: number) => (100 * (levels[i + 1][b] - levels[i][a])) / (pvis[i + 1] - pvis[i])
-  const gradeAllowed = (i: number, g: number) => {
+  /** The signed grade window over the interval after PVI `i`: its station ranges inside the road-wide limit. */
+  const gradeLimits = (i: number) => {
     const middle = (pvis[i] + pvis[i + 1]) / 2
     const window = gradeWindowAt(alignment.verticalStandards, middle, length)
-    const low = Math.max(window.low, -settings.maxGradePercent),
-      high = Math.min(window.high, settings.maxGradePercent)
+    return {
+      low: Math.max(window.low, -settings.maxGradePercent),
+      high: Math.min(window.high, settings.maxGradePercent),
+    }
+  }
+  const gradeAllowed = (i: number, g: number) => {
+    const { low, high } = gradeLimits(i)
     return g >= low - EPS && g <= high + EPS
   }
-  const controlsAllowed = (i: number, a: number, b: number) => {
+  /** The first control this interval's line would miss, or null when it holds them all. */
+  const missedControl = (i: number, a: number, b: number): VerticalControl | null => {
     const za = levels[i][a],
       zb = levels[i + 1][b],
       start = pvis[i],
@@ -308,11 +469,11 @@ export function optimizeVerticalProfile(
       if (c.chainage < start - EPS || c.chainage > end + EPS) continue
       if (c.elevation !== null) {
         const z = za + ((zb - za) * (c.chainage - start)) / (end - start)
-        if (z > c.elevation + c.toleranceAboveM + 1e-6 || z < c.elevation - c.toleranceBelowM - 1e-6) return false
+        if (z > c.elevation + c.toleranceAboveM + 1e-6 || z < c.elevation - c.toleranceBelowM - 1e-6) return c
       }
-      if (c.gradePercent !== null && Math.abs(g - c.gradePercent) > c.gradeTolerancePercent + 1e-6) return false
+      if (c.gradePercent !== null && Math.abs(g - c.gradePercent) > c.gradeTolerancePercent + 1e-6) return c
     }
-    return true
+    return null
   }
   // The DP retains three levels so the preceding curve's half-length remains in state.
   // Two histories with the same last grade can otherwise have different available tangent.
@@ -344,21 +505,111 @@ export function optimizeVerticalProfile(
         'Profile transition budget exceeded; use a coarser level step, a smaller search depth or wider PVI spacing.',
       )
   }
-  const solve = () => {
+  /**
+   * Why the lines tried over one interval were dropped, in the order the checks run. The check at
+   * which nothing is left is the limit that conflicts there.
+   */
+  type Tally = {
+    tried: number
+    grade: number
+    lowestGrade: number
+    highestGrade: number
+    controls: Map<VerticalControl, number>
+    linear: number
+    curve: number
+    shortestCurveM: number
+    tangent: number
+  }
+  const tally = (): Tally => ({
+    tried: 0,
+    grade: 0,
+    lowestGrade: Infinity,
+    highestGrade: -Infinity,
+    controls: new Map(),
+    linear: 0,
+    curve: 0,
+    shortestCurveM: Infinity,
+    tangent: 0,
+  })
+  const controlName = (c: VerticalControl) =>
+    `Control ${(alignment.verticalControls ?? []).indexOf(c) + 1} at ${formatStation(c.chainage)}`
+  /** What holds the level at a PVI, when something does: the search cannot move it. */
+  const heldBy = (i: number) => {
+    const control = elevationControlAt(pvis[i])
+    if (control) return `${controlName(control)} holds the line at ${control.elevation!.toFixed(2)} m`
+    if (o.tieEndsToGround && (i === 0 || i === n - 1))
+      return `the road ${i === 0 ? 'start' : 'end'} is tied to ground at ${pviGround[i]!.toFixed(2)} m`
+    return ''
+  }
+  const infeasible = (i: number, t: Tally) => {
+    const from = formatStation(pvis[i]),
+      to = formatStation(pvis[i + 1]),
+      band = `±${o.maxDepthM} m of ${o.bandCenter === 'ground' ? 'the ground' : 'the current design'}`
+    const afterGrade = t.tried - t.grade
+    const missed = [...t.controls].sort((a, b) => b[1] - a[1])[0]?.[0]
+    const afterControls = afterGrade - [...t.controls.values()].reduce((sum, count) => sum + count, 0)
+    const afterCurves = afterControls - t.linear - t.curve
+    let reason: string
+    if (!afterGrade) {
+      const { low, high } = gradeLimits(i)
+      const held = [heldBy(i), heldBy(i + 1)].filter(Boolean)
+      reason =
+        `Every line within ${band} would run at ${pct(t.lowestGrade)} to ${pct(t.highestGrade)} there, outside the ${pct(low)} to ${pct(high)} grade limit` +
+        `${held.length ? `; ${held.join(' and ')}` : ''}. Widen “Search ±” so the line can cut or fill more, ${held.length ? 'loosen what holds it, ' : ''}or relax the grade limit over that stretch.`
+    } else if (!afterControls && missed) {
+      const { low, high } = gradeLimits(i)
+      const asked = missed.gradePercent,
+        tolerance = missed.gradeTolerancePercent
+      if (asked === null)
+        reason = `${controlName(missed)} holds the line at ${missed.elevation!.toFixed(2)} m (+${missed.toleranceAboveM.toFixed(2)}/−${missed.toleranceBelowM.toFixed(2)} m), which no line within ${band} reaches. Widen that control's tolerance or “Search ±”, or move the control.`
+      else if (asked + tolerance < low - EPS || asked - tolerance > high + EPS)
+        reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), outside the ${pct(low)} to ${pct(high)} grade limit there. Change the control's grade or the limit.`
+      else
+        reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), and no line within ${band} runs through it at that grade. Widen the control's grade tolerance or “Search ±”, or move the control.`
+    } else if (!afterCurves && t.linear >= t.curve)
+      reason = `The grade has to change at ${from}, which is inside a straight-grade-only range. Move that range or relax the limits around it.`
+    else if (!afterCurves)
+      reason = `The grade change at ${from} needs a vertical curve of at least ${t.shortestCurveM.toFixed(0)} m, and the PVIs either side are ${(pvis[i] - pvis[i - 1]).toFixed(0)} m and ${(pvis[i + 1] - pvis[i]).toFixed(0)} m away. Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`
+    else
+      reason = `No line leaves the ${alignment.verticalStandards?.minTangentLengthM ?? 0} m minimum tangent before the curve at ${from}. Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.`
+    return Error(`No profile meets the limits between ${from} and ${to}. ${reason} Nothing was changed.`)
+  }
+  let run = 0,
+    runs = 1
+  const progress = (i: number): VerticalOptimizationProgress => ({
+    fraction: Math.min(1, (run + i / Math.max(1, n - 1)) / runs),
+  })
+  const solve = function* (): Generator<VerticalOptimizationProgress, { chosen: number[]; cost: number }> {
     let frontier = new Map<string, Cell>()
     const states: Map<string, Cell>[] = []
-    for (let a = 0; a < levels[0].length; a++)
+    let dropped = tally()
+    for (let a = 0; a < levels[0].length; a++) {
       for (let b = 0; b < levels[1].length; b++) {
         transition()
         const g = grade(0, a, b)
-        if (!gradeAllowed(0, g) || !controlsAllowed(0, a, b)) continue
+        dropped.tried++
+        dropped.lowestGrade = Math.min(dropped.lowestGrade, g)
+        dropped.highestGrade = Math.max(dropped.highestGrade, g)
+        if (!gradeAllowed(0, g)) {
+          dropped.grade++
+          continue
+        }
+        const missed = missedControl(0, a, b)
+        if (missed) {
+          dropped.controls.set(missed, (dropped.controls.get(missed) ?? 0) + 1)
+          continue
+        }
         frontier.set(`-1:${a}:${b}`, { cost: costOf(0, a, b), back: null, half: 0 })
       }
+      yield progress(0)
+    }
+    if (!frontier.size) throw infeasible(0, dropped)
     states.push(frontier)
     for (let i = 1; i < n - 1; i++) {
       const next = new Map<string, Cell>()
       const groups = new Map<string, string[]>()
       const predecessors = new Map<string, { a: number; b: number; histories: { key: string; cell: Cell }[] }>()
+      dropped = tally()
       for (const [key, cell] of frontier) {
         const [, a, b] = key.split(':').map(Number)
         const pair = `${a}:${b}`
@@ -369,7 +620,9 @@ export function optimizeVerticalProfile(
         }
         group.histories.push({ key, cell })
       }
+      let visited = 0
       for (const { a, b, histories } of predecessors.values()) {
+        if (++visited % 16 === 0) yield progress(i)
         // For a fixed last pair and next level, every feasible history produces the same
         // curve length and output state. Query the cheapest allowable predecessor once,
         // rather than expanding that identical transition from each tangent history.
@@ -383,11 +636,30 @@ export function optimizeVerticalProfile(
         for (let c = 0; c < levels[i + 1].length; c++) {
           transition()
           const g2 = grade(i, b, c)
-          if (!gradeAllowed(i, g2) || !controlsAllowed(i, b, c)) continue
+          dropped.tried++
+          dropped.lowestGrade = Math.min(dropped.lowestGrade, g2)
+          dropped.highestGrade = Math.max(dropped.highestGrade, g2)
+          if (!gradeAllowed(i, g2)) {
+            dropped.grade++
+            continue
+          }
+          const missed = missedControl(i, b, c)
+          if (missed) {
+            dropped.controls.set(missed, (dropped.controls.get(missed) ?? 0) + 1)
+            continue
+          }
           const half = curveLength(pvis[i], g1, g2) / 2
           const before = pvis[i] - pvis[i - 1],
             after = pvis[i + 1] - pvis[i]
-          if (!Number.isFinite(half) || half > before + 1e-6 || half > after + 1e-6) continue
+          if (!Number.isFinite(half)) {
+            dropped.linear++
+            continue
+          }
+          if (half > before + 1e-6 || half > after + 1e-6) {
+            dropped.curve++
+            dropped.shortestCurveM = Math.min(dropped.shortestCurveM, half * 2)
+            continue
+          }
           const minimumTangent = i > 1 && half > 0 ? (alignment.verticalStandards?.minTangentLengthM ?? 0) : 0
           // A preceding straight grade (half=0) does not require an interior tangent.
           const limit = Math.max(0, before - half - minimumTangent) + 1e-6
@@ -398,7 +670,10 @@ export function optimizeVerticalProfile(
             if (histories[middle].cell.half <= limit) low = middle + 1
             else high = middle
           }
-          if (!low) continue
+          if (!low) {
+            dropped.tangent++
+            continue
+          }
           const { key, cell } = cheapestPrefix[low - 1]
           const cost = cell.cost + costOf(i, b, c)
           const target = `${a}:${b}:${c}`
@@ -425,12 +700,10 @@ export function optimizeVerticalProfile(
           groups.set(groupKey, [...survivors, target])
         }
       }
-      if (!next.size)
-        throw Error(
-          `No profile meets the grade, curvature and control limits past ${pvis[i].toFixed(0)} m within ±${o.maxDepthM} m of ${o.bandCenter}. Widen the search, untie the ends, lower K or relax the limits.`,
-        )
+      if (!next.size) throw infeasible(i, dropped)
       states.push(next)
       frontier = next
+      yield progress(i)
     }
     let best: { key: string; cell: Cell } | null = null
     for (const [key, cell] of frontier) if (!best || cell.cost < best.cell.cost) best = { key, cell }
@@ -505,7 +778,11 @@ export function optimizeVerticalProfile(
   const score = (a: ReturnType<typeof check>) => (o.objective === 'total' ? a.estimatedCost : earthwork(a))
   // Drop PVIs with no grade change, size curves from K within their tangents, then simplify if it costs ≤ 1%.
   const finish = (chosen: number[]) => {
-    const raw = pvis.map((s, i) => ({ chainage: s, elevation: Math.round(levels[i][chosen[i]] * 1000) / 1000 }))
+    // A level a control depends on stays exact; every other level is a whole millimetre.
+    const raw = pvis.map((s, i) => ({
+      chainage: s,
+      elevation: exactAt.has(i) ? levels[i][chosen[i]] : Math.round(levels[i][chosen[i]] * 1000) / 1000,
+    }))
     const kept = raw.filter((p, i) => {
       if (i === 0 || i === raw.length - 1) return true
       if (controls.some((c) => Math.abs(c.chainage - p.chainage) < 1e-6)) return true
@@ -548,11 +825,15 @@ export function optimizeVerticalProfile(
   const unit = Math.max(1, settings.fillRate, haul?.borrowRate ?? 0, haul?.wasteRate ?? 0)
   const prices = o.objective === 'total' ? [0, 0.25, 0.5, 1, 2].map((x) => x * unit) : [0]
   let chosenResult: (ReturnType<typeof finish> & { cost: number; price: number }) | null = null
-  let failedCheck = ''
+  let failedCheck = '',
+    failedLines = 0
+  runs = prices.length
   for (const price of prices) {
     imbalancePrice = price
-    const solved = solve()
+    const solved = yield* solve()
     const result = finish(solved.chosen)
+    run++
+    yield progress(0)
     // Fitting curves moves the line off its PVIs, and can shrink K/lengths or move it
     // outside a station-range limit. Only a rechecked candidate can be adopted.
     const checkFailure =
@@ -567,6 +848,7 @@ export function optimizeVerticalProfile(
       (result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6 ? 'Road-wide maximum grade exceeded.' : '')
     if (checkFailure) {
       failedCheck = checkFailure
+      failedLines++
       continue
     }
     if (!chosenResult || score(result.analysis) < score(chosenResult.analysis))
@@ -576,13 +858,164 @@ export function optimizeVerticalProfile(
     throw Error(
       `The fitted profile failed a vertical standard or control: ${failedCheck} Adjust Curve K, PVI spacing, search depth or control tolerances and run again; no road was changed.`,
     )
-  const { vertical, simplified } = chosenResult!
+  const { vertical, simplified, analysis } = chosenResult
+  const endSetBy = (i: number) =>
+    elevationControlAt(pvis[i]) ? ('control' as const) : o.tieEndsToGround ? ('ground' as const) : ('free' as const)
+  const wasteBankM3 = settings.shrinkFactor > 0 ? Math.max(0, analysis.balanceM3) / settings.shrinkFactor : 0,
+    borrowM3 = Math.max(0, -analysis.balanceM3)
+  const incompleteLengthM = Math.max(0, analysis.length - analysis.completeLength)
+  const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
+  const notes: string[] = []
+  if (incompleteLengthM > 0.05)
+    notes.push(
+      `${whole(incompleteLengthM)} m of the road has no complete section (a gap in the terrain, or a batter that does not reach ground). Cut, fill and cost leave that length out.`,
+    )
+  if (movedOffGaps)
+    notes.push(
+      `${movedOffGaps} PVI${movedOffGaps === 1 ? ' was' : 's were'} moved off a gap in the terrain to the nearest station with ground.`,
+    )
+  // Past a tenth of the earthwork, the leftover is a result of the line, not of rounding its levels.
+  if (Math.max(wasteBankM3, borrowM3) > Math.max(50, 0.1 * (analysis.cutVolumeM3 + analysis.fillVolumeM3))) {
+    const weigh =
+      o.objective === 'earthwork'
+        ? ' “Cut and fill” prices each on its own; “Total cost” weighs the balance once haul, borrow and waste rates are entered.'
+        : ''
+    notes.push(
+      wasteBankM3 > borrowM3
+        ? `Cut and fill do not balance: ${whole(wasteBankM3)} m³ of cut (bank) is left over as waste.${weigh}`
+        : `Cut and fill do not balance: ${whole(borrowM3)} m³ of fill has to be borrowed.${weigh}`,
+    )
+  }
+  for (const [i, label] of [
+    [0, 'start'],
+    [n - 1, 'end'],
+  ] as const) {
+    const ground = pviGround[i],
+      at = vertical[i === 0 ? 0 : vertical.length - 1].elevation
+    if (endSetBy(i) === 'free' && ground !== null && Math.abs(at - ground) > 0.05)
+      notes.push(
+        `The road ${label} is not tied: the line is ${Math.abs(at - ground).toFixed(1)} m ${at > ground ? 'above' : 'below'} ground there.`,
+      )
+  }
+  if (failedLines)
+    notes.push(
+      `${failedLines} of ${prices.length} trial lines failed a check once curves were fitted and were dropped: ${failedCheck}`,
+    )
+  const gradeOf = (station: number) => {
+    const a = Math.max(0, station - 0.01),
+      b = Math.min(length, station + 0.01)
+    return (100 * (designElevationAt(vertical, b) - designElevationAt(vertical, a))) / (b - a)
+  }
   return {
     vertical,
-    estimatedEarthworkCost: earthwork(chosenResult!.analysis),
+    estimatedEarthworkCost: earthwork(analysis),
     pviCount: vertical.length,
     levelsPerPvi: 2 * ladder + 1,
     sectionSolves: solves,
-    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m around ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult!.price.toFixed(2)}/m³` : ''}.`,
+    message: `Optimized ${vertical.length} PVIs${simplified ? ` (simplified within ${o.simplifyToleranceM} m)` : ''} from a ${o.pviSpacingM} m search, ±${o.maxDepthM} m around ${o.bandCenter} in ${o.levelStepM} m steps, K ≥ ${o.k} plus entered sag/crest/range rules${o.objective === 'total' ? `, lowest total cost with imbalance at $${chosenResult.price.toFixed(2)}/m³` : ''}.`,
+    report: {
+      roadLengthM: length,
+      objective: o.objective,
+      sections: {
+        count: tables.size,
+        spacingM: Math.max(...segments.map((segment) => segment[1].s - segment[0].s)),
+        solves,
+      },
+      pvis: { searched: n, spacingM: length / count, kept: vertical.length, simplified, movedOffGaps },
+      band: { centre: o.bandCenter, depthM: o.maxDepthM, levelStepM: o.levelStepM, levelsPerPvi: 2 * ladder + 1 },
+      limits: {
+        maxGradePercent: settings.maxGradePercent,
+        gradeRanges: alignment.verticalStandards?.gradeRanges.length ?? 0,
+        curveK: o.k,
+        minSagK: alignment.verticalStandards?.minSagK ?? null,
+        minCrestK: alignment.verticalStandards?.minCrestK ?? null,
+        minCurveLengthM: alignment.verticalStandards?.minCurveLengthM ?? null,
+        minTangentLengthM: alignment.verticalStandards?.minTangentLengthM ?? null,
+        curvatureRanges: alignment.verticalStandards?.curvatureRanges?.length ?? 0,
+      },
+      ends: { start: endSetBy(0), end: endSetBy(n - 1) },
+      controls: controls.map((c) => ({
+        chainage: c.chainage,
+        elevation: c.elevation,
+        achievedElevation: designElevationAt(vertical, c.chainage),
+        gradePercent: c.gradePercent,
+        achievedGradePercent: gradeOf(c.chainage),
+      })),
+      imbalancePrice: o.objective === 'total' ? chosenResult.price : null,
+      result: {
+        maxGradePercent: analysis.maxGradePercent,
+        cutM3: analysis.cutVolumeM3,
+        fillM3: analysis.fillVolumeM3,
+        wasteBankM3,
+        borrowM3,
+        earthworkCost: earthwork(analysis),
+        estimatedCost: analysis.estimatedCost,
+        coveragePercent: analysis.coveragePercent,
+        incompleteLengthM,
+      },
+      notes,
+    },
   }
+}
+
+/** The run as label and value rows, in the order a designer checks them: what went in, then what came out. */
+export function verticalOptimizationLog(report: VerticalOptimizationReport): { label: string; value: string }[] {
+  const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
+  const metres = (value: number) => `${Number(value.toFixed(1))} m`
+  const { sections, pvis, band, limits, ends, result } = report
+  const end = { ground: 'tied to ground', control: 'held by a control point', free: 'free' }
+  const curves = [
+    `K ≥ ${limits.curveK}`,
+    limits.minSagK !== null && `sag K ≥ ${limits.minSagK}`,
+    limits.minCrestK !== null && `crest K ≥ ${limits.minCrestK}`,
+    limits.minCurveLengthM !== null && `curves ≥ ${limits.minCurveLengthM} m`,
+    limits.minTangentLengthM !== null && `tangents ≥ ${limits.minTangentLengthM} m`,
+    limits.curvatureRanges > 0 && `${limits.curvatureRanges} curvature range${limits.curvatureRanges === 1 ? '' : 's'}`,
+  ].filter(Boolean)
+  return [
+    { label: 'Sections sampled', value: `${whole(sections.count)}, at most ${metres(sections.spacingM)} apart` },
+    {
+      label: 'PVIs',
+      value: `${pvis.searched} searched, ${metres(pvis.spacingM)} apart; ${pvis.kept} kept${pvis.simplified ? ' after simplifying' : ''}`,
+    },
+    {
+      label: 'Search band',
+      value: `±${band.depthM} m around ${band.centre === 'ground' ? 'ground' : 'the current design'}, ${band.levelStepM} m steps`,
+    },
+    {
+      label: 'Grade limit',
+      value: `${limits.maxGradePercent}%${limits.gradeRanges ? ` and ${limits.gradeRanges} station range${limits.gradeRanges === 1 ? '' : 's'}` : ''}`,
+    },
+    { label: 'Vertical curves', value: curves.join(', ') },
+    { label: 'Road ends', value: `Start ${end[ends.start]}; end ${end[ends.end]}` },
+    ...report.controls.map((control) => ({
+      label: `Control at ${formatStation(control.chainage)}`,
+      value: [
+        control.elevation !== null && `${control.achievedElevation.toFixed(2)} m`,
+        control.gradePercent !== null && pct(control.achievedGradePercent),
+        'held',
+      ]
+        .filter(Boolean)
+        .join(', '),
+    })),
+    {
+      label: 'Objective',
+      value:
+        report.objective === 'total'
+          ? `Total cost; imbalance priced at $${(report.imbalancePrice ?? 0).toFixed(2)}/m³`
+          : 'Cut and fill',
+    },
+    { label: 'Steepest grade', value: pct(result.maxGradePercent) },
+    { label: 'Cut / fill', value: `${whole(result.cutM3)} / ${whole(result.fillM3)} m³` },
+    result.wasteBankM3 >= 0.5
+      ? { label: 'Waste', value: `${whole(result.wasteBankM3)} m³ (bank)` }
+      : result.borrowM3 >= 0.5
+        ? { label: 'Borrow', value: `${whole(result.borrowM3)} m³` }
+        : { label: 'Waste / borrow', value: 'None' },
+    { label: 'Cut and fill cost', value: `$${whole(result.earthworkCost)}` },
+    {
+      label: result.coveragePercent >= 100 - 1e-5 ? 'Base estimate' : 'Base estimate, covered length',
+      value: `$${whole(result.estimatedCost)}`,
+    },
+  ]
 }

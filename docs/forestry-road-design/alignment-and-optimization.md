@@ -74,9 +74,11 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Simplification                | 0.3 m; kept if cost rises at most 1 % + $1                        | `verticalOptimizer.ts` `finish`                      | Unsimplified line kept                                       |
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)             | `verticalOptimizer.ts` `prices`                      | —                                                            |
 
-The dynamic programme runs on the page's main thread and stops at its level-transition
-budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up to five times
-over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
+The dynamic programme runs on the page's main thread in slices of about 12 ms
+(`COOPERATIVE_SLICE_MS` in `cooperative.ts`), so the page keeps answering, the progress line
+shows a percentage and **Cancel** stops the run at the next slice. It also stops at its
+level-transition budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up
+to five times over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
 selects the cheapest predecessor that leaves enough tangent; it does not repeat the same
 transition for every nondominated history. Those histories are retained where their curve
 occupancy affects future feasibility. At the defaults (±5 m, 0.5 m) that is 21 levels; a fine
@@ -225,6 +227,16 @@ and last tangents are exempt from the minimum tangent length.
   sag/crest K values combine with **Curve K** by taking the strictest value. Linear-only ranges
   exclude curves and grade breaks. The DP retains the preceding occupied half-curve and a Pareto
   frontier of cost/tangent occupancy, enforcing curve fit and interior tangent lengths during search.
+- A control's own elevation is a search level exactly as entered, to any number of decimals, and a
+  free PVI beside a grade control also gets the levels that run at exactly that grade from it.
+  Levels a control depends on are not rounded; all others are whole millimetres. A control at the
+  ground or profile value the workspace filled in, held to ±0, is therefore always inside the search.
+- **Gaps in the terrain.** A PVI that the spacing puts on a gap slides to the nearest station with
+  ground, up to half a spacing away, and the log counts it. If nothing that near has ground, the PVI
+  stays and its levels are centred on ground read across the gap from the stations either side.
+  Stations on the gap have no section, so they are priced as incomplete and left out of the
+  quantities. An end tied to ground must have ground under it: otherwise the run stops and names
+  the end.
 - Curves keep their required lengths rather than being silently shortened below K. The complete
   fitted result is rechecked against every standard and control before returning.
 - Elevation controls are corrected against the actual parabolic profile in at most 24 bounded
@@ -346,10 +358,31 @@ Both simplified and unsimplified candidates must pass the final vertical standar
 controls and road-wide grade checks before a result is returned. If no tested candidate
 passes, optimization reports an error and creates no road.
 
-**Infeasible.** "No profile meets the grade, curvature and control limits past _x_ m" names the
-first PVI where no level pair survives. Untie the ends, widen the search, lower K or relax a
-limit. "Every PVI station needs ground under the centreline" means a PVI sits on missing
-terrain.
+**Infeasible.** "No profile meets the limits between _a_ and _b_" names the first PVI interval
+where no line survives, then the check that removed the last of them, in the order the search
+applies them (`infeasible` in `verticalOptimizer.ts`):
+
+- the **grade limit**: the grades every line in the band would run at there, the limit they break,
+  and whatever holds the line at either end of the interval (a control, or an end tied to ground);
+- a **control point**, by its number and station: its grade against the grade limit, or the fact
+  that no line in the band runs through it;
+- **curvature**: the shortest curve the grade change needs against the distance to the PVIs either
+  side, or a straight-grade-only range the change falls in;
+- the **minimum tangent** before a curve.
+
+Each message ends with what to change. It names one interval and one check; an earlier limit
+can be what left too few lines to reach that interval, so loosen the named one first and run again.
+"The road start (0+000.0) is on a gap in the terrain" means a tied end has no ground under it.
+
+**Result log.** After a run, **Last run** under the button lists what the search used and what
+came back (`verticalOptimizationLog`): sections sampled and their spacing, PVIs searched and kept,
+the band, the grade and curve limits, how each end was set, every control with the value the line
+holds there, the objective, then steepest grade, cut and fill, waste or borrow and cost from the
+full analysis of the returned line. Waste is usable cut left after filling, as bank volume; borrow
+is fill still needed. Notes underneath say what the run could not do: length with no complete
+section, PVIs moved off gaps, earthwork out of balance by more than a tenth of cut plus fill (and
+50 m³), an untied end left above or below ground, and trial lines dropped after curve fitting. The
+log belongs to the road or named profile the run produced and goes when you open another.
 
 **Budget-limited.** The corridor optimizer can return a verified candidate after reaching its
 50,000-state budget; the review dialog and report say "budget-limited". Better alternatives may
@@ -394,7 +427,9 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
 | "Use a K of 0 or more; 0 fits no vertical curves."                        | A K below 0 or not a number reached the search                                                               | Enter a K of 0 or more                                                 |
-| Browser stops responding during "Optimizing the vertical profile…"        | Too many levels per PVI                                                                                      | Coarsen the step or narrow the search                                  |
+| "Optimizing the vertical profile…" runs for minutes                       | Too many levels per PVI                                                                                      | Cancel, then coarsen the step or narrow the search                     |
+| "The road start (0+000.0) is on a gap in the terrain"                     | A tied end has no ground under it                                                                            | Move the end, set a control there, or untie the ends                   |
+| "No profile meets the limits between _a_ and _b_"                         | The named limit or control cannot be met over that interval inside the band                                  | Change what the message names, then run again                          |
 | The road end drops far below the ground in the profile and 3D view        | Two PVIs almost on top of each other make a near-vertical tangent, and the road extends it past the last PVI | Remove or move the PVI beside the end; the warning names both stations |
 | Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | Simplify the PIs, fit curves, then recheck grade                       |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
