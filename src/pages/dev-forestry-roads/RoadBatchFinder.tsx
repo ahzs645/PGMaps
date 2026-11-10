@@ -191,6 +191,7 @@ export function RoadBatchFinder({
     abort.current?.abort()
     abort.current = null
     setProgress(null)
+    w.setNotice('Road search cancelled. No road was changed.')
   }
   const adoptable =
     current?.rows.filter((r) => chosen.has(r.id) && offersCandidate(r.result) && network?.lines[r.id]) ?? []
