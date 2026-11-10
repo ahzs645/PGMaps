@@ -26,6 +26,8 @@ export type FileKind =
   | 'cutblocks'
   | 'mapped-roads'
   | 'reference'
+  /** A LandXML alignment brought in as a road (`landXmlImport.ts`). */
+  | 'landxml'
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'

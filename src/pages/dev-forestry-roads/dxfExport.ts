@@ -13,10 +13,9 @@
  * Lima VVA or RFLTools (GPL-3.0) was used.
  */
 import { centrelineSamples, horizontalGeometry } from './engine'
-import { sectionStations, type ToGrid } from './designExports'
+import { sectionFeatureLines, sectionStations, stationOffsetCoordinate, type ToGrid } from './designExports'
 import { refuseInvalidResults } from './inputErrors'
-import { sectionCodePoints } from './sectionGeometry'
-import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
+import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
 
 export interface DxfOptions {
   plan: boolean
@@ -60,17 +59,6 @@ export const DXF_LAYERS: Record<string, number> = {
   SECT_DESIGN: 1,
   SECT_GRID: 8,
   SECT_TEXT: 7,
-}
-
-/** Section point codes and the plan layer each becomes a feature line on. */
-const FEATURE_LAYERS: Record<string, string> = {
-  centreline: 'CL_3D',
-  'left-formation-edge': 'EDGE_L',
-  'right-formation-edge': 'EDGE_R',
-  'left-ditch-bottom': 'DITCH_L',
-  'right-ditch-bottom': 'DITCH_R',
-  'left-daylight': 'CATCH_L',
-  'right-daylight': 'CATCH_R',
 }
 
 type XY = [number, number]
@@ -158,18 +146,6 @@ function runs<T>(items: readonly (T | null)[]): T[][] {
 }
 const finite = (value: number | null | undefined): value is number => value != null && Number.isFinite(value)
 
-/** A point `offset` metres right of a station (negative left), perpendicular to its bearing. */
-function offsetAt(station: RoadStation, offset: number): Coordinate {
-  const R = 6371008.8,
-    RAD = Math.PI / 180
-  const bearing = (station.bearing + 90) * RAD,
-    [lng, lat] = station.coordinate
-  return [
-    lng + (Math.sin(bearing) * offset) / (R * Math.cos(lat * RAD) * RAD),
-    lat + (Math.cos(bearing) * offset) / (R * RAD),
-  ]
-}
-
 /**
  * The DXF drawing. Refused while the road's results leave out an invalid input. Plan coordinates
  * are grid metres in `epsg`; the profile and sections are drawn in their own frames below the plan.
@@ -195,8 +171,6 @@ export function roadDxf({
   if (!analysis.stations.length) throw Error('The road has no calculated stations to draw.')
   const w = new DxfWriter()
   const stations = analysis.stations
-  const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
-  const codesAt = (s: RoadStation) => sectionCodePoints(s, templates.get(s.chainage) ?? alignment.template)
 
   // Plan extent, to place the profile and sections below it.
   const planPoints = stations.map((s) => toGrid(s.coordinate))
@@ -235,29 +209,16 @@ export function roadDxf({
       }
     }
     // 3D feature lines along each section code.
-    const byCode = new Map<string, (XYZ | null)[]>()
-    for (const s of stations) {
-      const points = codesAt(s)
-      for (const [code, layer] of Object.entries(FEATURE_LAYERS)) {
-        const p = points.find((point) => point.code === code)
-        const level = p ? (code.endsWith('daylight') ? (p.ground ?? p.design) : p.design) : null
-        const list = byCode.get(layer) ?? []
-        if (p && finite(level)) {
-          const [x, y] = toGrid(offsetAt(s, p.offset))
-          list.push([x, y, level])
-        } else list.push(null)
-        byCode.set(layer, list)
-      }
-    }
-    for (const [layer, list] of byCode) for (const run of runs(list)) w.polyline(layer, run, true)
+    for (const line of sectionFeatureLines(alignment, analysis, toGrid))
+      for (const part of line.parts) w.polyline(line.layer, part, true)
     // Station ticks and labels.
     for (let chainage = 0; chainage <= analysis.length + 1e-6; chainage += options.labelIntervalM) {
       const s = stations.reduce((best, x) =>
         Math.abs(x.chainage - chainage) < Math.abs(best.chainage - chainage) ? x : best,
       )
       if (Math.abs(s.chainage - chainage) > options.labelIntervalM / 2) continue
-      const left = toGrid(offsetAt(s, -(s.leftWidth + 2))),
-        right = toGrid(offsetAt(s, s.rightWidth + 2))
+      const left = toGrid(stationOffsetCoordinate(s, -(s.leftWidth + 2))),
+        right = toGrid(stationOffsetCoordinate(s, s.rightWidth + 2))
       w.line('STATIONS', [left[0], left[1], 0], [right[0], right[1], 0])
       // Text along the tick, reading from the left edge outward.
       const rotation = (Math.atan2(left[1] - right[1], left[0] - right[0]) * 180) / Math.PI

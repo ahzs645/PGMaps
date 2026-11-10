@@ -214,7 +214,7 @@ import {
 
 const uid = () => crypto.randomUUID()
 /** What each spatial picker is for; the reader asks about anything in the file outside it. */
-const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines'>, ImportIntent> = {
+const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'landxml'>, ImportIntent> = {
   alignment: 'road',
   context: 'streams',
   cutblocks: 'cutblocks',
@@ -1814,7 +1814,13 @@ export default function DevForestryRoads() {
     pendingProject.current = newProject
     if (fileRef.current) {
       fileRef.current.accept =
-        kind === 'terrain' ? '.tif,.tiff,.las,.laz' : kind === 'project' ? '.json' : SPATIAL_ACCEPT
+        kind === 'terrain'
+          ? '.tif,.tiff,.las,.laz'
+          : kind === 'project'
+            ? '.json'
+            : kind === 'landxml'
+              ? '.xml,application/xml,text/xml'
+              : SPATIAL_ACCEPT
       // Several LAS/LAZ tiles of one job import together as one surface.
       fileRef.current.multiple = kind === 'terrain'
       fileRef.current.value = ''
@@ -1891,6 +1897,34 @@ export default function DevForestryRoads() {
         w.setNotice(
           `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
         )
+        return
+      } else if (fileKind.current === 'landxml') {
+        const { landXmlImportSummary, landXmlRoads, MAX_LANDXML_BYTES } =
+          await import('./dev-forestry-roads/landXmlImport')
+        if (file.size > MAX_LANDXML_BYTES) throw Error(`${file.name} is over 50 MB.`)
+        const { roads } = landXmlRoads(await file.text(), {
+          newId: uid,
+          color: (index) => colors[(project.alignments.length + index) % colors.length],
+          template: { ...alignment.template },
+        })
+        if (signal.aborted) return
+        if (roadCount(project) + roads.length > MAX_PROJECT_ROADS)
+          throw Error(
+            `A project holds at most ${MAX_PROJECT_ROADS} roads. Remove some before importing ${roads.length}.`,
+          )
+        // New roads only: an import never replaces the active road.
+        if (
+          !commitValidated(
+            withAddedAlignments(
+              project,
+              roads.map((road) => road.alignment),
+            ),
+          )
+        )
+          return
+        w.setNotice(`Imported from ${file.name}. ${roads.map(landXmlImportSummary).join(' ')}`)
+        w.enablePersistence()
+        setFitRevision((n) => n + 1)
         return
       } else if (fileKind.current === 'project') {
         if (file.size > 120_000_000) throw Error(`${file.name} is over 120 MB. Open a cropped project.`)

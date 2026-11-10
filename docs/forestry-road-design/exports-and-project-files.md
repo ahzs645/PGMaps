@@ -44,7 +44,7 @@ formats are specified in the
 | Engineering CSV                  | Material quantities, culvert inventory, haul movements, itemized costs                                                                                                                                                                                                                                                                                                                       | Chainage only                                                                    | Geometry                                                                                                                                    |
 | D-line CSV / HTML                | Supports, sampled profile, assumed sag and clearance; with rope and load also load path, tensions, rigging                                                                                                                                                                                                                                                                                   | WGS84 lon/lat                                                                    | Anchors, guylines, equipment ratings, intermediate supports                                                                                 |
 | Landing reach CSV                | One row per bearing: reach or lower bound, what limited it, tailhold position, settings                                                                                                                                                                                                                                                                                                      | WGS84 lon/lat                                                                    | Lateral yarding, side-slope, profile samples                                                                                                |
-| LandXML 1.2 (`.xml`)             | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m                                                                                                                                                                                                                                     | Terrain's projected EPSG, else WGS84 UTM zone of the first point                 | Other alternatives, surfaces (TIN), feature lines, superelevation, template/corridor model, ditches as objects, culverts                    |
+| LandXML 1.2 (`.xml`)             | Active road only: lines, arcs and clothoid spirals; PVI profile with parabolic curves; ground profile; design and ground cross-sections about every 20 m; 3D feature lines                                                                                                                                                                                                                   | Terrain's projected EPSG, else WGS84 UTM zone of the first point                 | Other alternatives, surfaces (TIN), superelevation, template/corridor model, ditches as objects, culverts                                   |
 | Stakeout CSV                     | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill                                                                                                                                                                                                                              | Same as LandXML                                                                  | Reference or offset stakes, instrument data, point descriptions for a data collector                                                        |
 | CAD drawing (`.dxf`, R12)        | Active road: plan centreline (lines and true arcs, spirals as polylines), 3D feature lines for the centreline, formation edges, ditch bottoms and catch points at every calculated station, station ticks and labels; profile and cross-sections at true scale below the plan                                                                                                                | Plan: same as LandXML. Profile and sections: their own frames below the plan     | Surfaces, hatching, title block, other roads, terrain contours                                                                              |
 | Shapefile (`-shapefiles.zip`)    | `road_centrelines` (the road on screen, or every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                                                                                                                                                                                                                  | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                                        | Sections, catch lines, sites, context, drainage, elevations as Z                                                                            |
@@ -81,6 +81,7 @@ book.
 | New project from a regional DEM      | A 1–10 km square around the chosen point (default 3 km); at most 64 z12 DEM tiles                                                                                     | `ProjectsDialog.tsx`; `terrain.ts` `loadRegionalTerrain`                                                                                                                                                                                                                                                   | Field clamps; error before loading                                                                                         |
 | Undo history                         | 30 steps; edits within 450 ms merge into one                                                                                                                          | `useRoadWorkspace.ts`, `commit`                                                                                                                                                                                                                                                                            | Oldest step dropped                                                                                                        |
 | Section and stake interval           | 20 m (nearest calculated station)                                                                                                                                     | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)                                                                                                                                                                                                                                          | Fixed                                                                                                                      |
+| LandXML import                       | 50,000,000 characters; 4,000 elements an alignment; checks 7 mm, 1 mm, 0.06°                                                                                          | `landXmlImport.ts` `MAX_LANDXML_BYTES`, `MAX_LANDXML_ELEMENTS`, `LANDXML_LENGTH_TOLERANCE_M`, `LANDXML_JOINT_TOLERANCE_M`, `LANDXML_KINK_TOLERANCE_DEG`                                                                                                                                                    |
 | DXF sections                         | Every 20 m (nearest calculated station), at most 500, five to a row; ticks and labels every 20 m                                                                      | `dxfExport.ts` `DEFAULT_DXF_OPTIONS`, `MAX_DXF_SECTIONS`, `DXF_SECTIONS_PER_ROW`                                                                                                                                                                                                                           |
 | Plot book sheets                     | 250 m per plan-and-profile sheet; 12 sections per sheet                                                                                                               | `plotBook.ts`, `plotBookHtml`                                                                                                                                                                                                                                                                              | More sheets; no upper limit                                                                                                |
 | Plot book contours                   | 256 samples on the longer side; interval from 1 m, doubled until ≤ 60,000 segments                                                                                    | `DevForestryRoads.tsx` `save`; `terrainDisplay.ts`, `MAX_CONTOUR_SEGMENTS`                                                                                                                                                                                                                                 | Coarser contours; on failure plans print "Contours unavailable" and the notice gives the reason                            |
@@ -214,6 +215,38 @@ Those results are not the current design, so each output follows one rule
   neither is left out.
 - **A missing value is never written as a number.** A point, PVI, section surface or element with
   a missing value is left out rather than written as 0.
+- **3D feature lines** follow the alignment as `PlanFeatures`: one `PlanFeature` per section code
+  (`CL_3D`, `EDGE_L`/`EDGE_R`, `DITCH_L`/`DITCH_R`, `CATCH_L`/`CATCH_R`), each an `IrregularLine`
+  with a `PntList3D` of "northing easting elevation" at every calculated station. A station where
+  the point or its level is missing ends one part and starts the next (`EDGE_L_1`, `EDGE_L_2`).
+  They are the same lines as the DXF's (`sectionFeatureLines`, `designExports.ts`). They are string
+  lines for CAD and machine-control software to read; no design surface (TIN) is written.
+
+### Importing a LandXML alignment
+
+Files → **Import LandXML alignment** brings each `Alignment` in a LandXML 1.0–1.2 file in as a new
+road (`landXmlImport.ts`); the active road is never replaced.
+
+- **Horizontal geometry.** `Line`, `Curve` and `Spiral` elements of `CoordGeom` are read. Each run of
+  curves and spirals between tangents becomes one intersection point, where the tangents at its
+  start and end meet, with the curve's radius and the spirals' length. The road engine draws
+  symmetric spirals and one radius per corner, so unequal spirals take their mean and a compound or
+  reverse run takes its smallest radius; the notice says so for each.
+- **Grid to model.** Coordinates are converted from the file's `epsgCode` (UTM on NAD83(CSRS),
+  NAD83 or WGS84, or BC Albers). Radii and spiral lengths are grid lengths, so they are scaled by
+  the ratio of the road model's spherical length to the grid length along the PIs. A file without
+  an EPSG code, or in degrees or Web Mercator, is refused: its coordinates are never guessed.
+- **Profile.** `PVI`, `ParaCurve`, `CircCurve` (read as a parabola of the same length) and
+  `UnsymParaCurve` (read as a symmetric curve of their total length). Stations are moved to the
+  road's chainage: minus the alignment's `staStart`, times the road's length over the file's
+  stationed length. PVIs off the road are left out and counted.
+- **Checks, for information.** Each element's stated length against its geometric length within 7 mm
+  (2π × 1 mm of radius error); each joint within 1 mm; each change of direction at a joint within
+  0.06°, spirals included. The notice lists them for each road with the start station and the ratio
+  of road chainage to file stations. An alignment is never refused on a check.
+- **Units.** Metres, international feet and US survey feet.
+- **What it does not read.** Cross-sections, superelevation, surfaces and feature lines. The roads
+  take the active road's section template.
 
 ### DXF drawing
 
@@ -465,10 +498,15 @@ no-data intervals or writing zero; the same rule applies to the exported ground 
 without preparation has no artificial prepared-ground surface.
 The selected-section CSV also carries original and prepared elevations in separate columns.
 
-### Provenance of the DXF drawing
+### Provenance of the DXF drawing, feature lines and LandXML import
 
-Written from functional specifications (Lima VVA §8.2 and gap G5; RFLTools §11, which notes that
-RFLTools draws AutoCAD entities directly and writes no DXF); no code from Lima VVA or RFLTools
-(GPL-3.0) was used. The file layout follows Autodesk's published _AutoCAD Release 12 DXF reference_.
-Unlike Lima, spirals are drawn (densified) rather than refused, and a missing elevation breaks a
-line rather than being extrapolated.
+Written from functional specifications (Lima VVA §4.1, §8.2 and gaps G4–G6; RFLTools §11, which
+notes that RFLTools draws AutoCAD entities directly and writes no DXF, and that its LandXML reader
+needs each tag on its own line); no code from Lima VVA or RFLTools (GPL-3.0) was used. The DXF
+layout follows Autodesk's published _AutoCAD Release 12 DXF reference_, and the LandXML elements
+the landxml.org 1.2 schema. Unlike Lima, spirals are drawn (densified) rather than refused, the
+direction check covers spirals, and a missing elevation breaks a line rather than being
+extrapolated. Unlike RFLTools, minified XML reads. The import checks reproduce the Lima
+specification's T8 cases (`landXmlImport.test.ts`): 5 mm passes and 8 mm fails on a 50 m arc, a
+1.5 mm joint fails, a 0.05° kink passes and 0.07° fails; and a road exported by this workspace
+reads back with its radii, spiral and profile.
