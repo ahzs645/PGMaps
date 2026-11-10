@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { createEngineeringDesign } from './engineeringTypes'
-import { batterMisses, planSectionRange, sectionSourceAt } from './sectionRangeApply'
+import { batterMisses, planSectionRange, rangeStillHolds, sectionSourceAt } from './sectionRangeApply'
 import { templateAt } from './templates'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, TemplateAssignment, TerrainSource } from './types'
@@ -65,6 +65,17 @@ describe('the section at a station', () => {
     const alignment = road([{ id: 'a1', start: 40, end: 120, side: 'left', transitionM: 0 }])
     alignment.engineering!.templates.push({ id: 'x', name: 'Section at 60 m', template: { ...DEFAULT_TEMPLATE } })
     expect(sectionSourceAt(alignment, 60, label)).toMatchObject({ kind: 'snapshot', name: 'Section at 60 m (2)' })
+  })
+})
+
+describe('whether a range still has the section given to it', () => {
+  it('holds while the range has it, and not once an undo gave the range back', () => {
+    const given = road([{ id: 'a1', start: 40, end: 120, side: 'both', transitionM: 0 }])
+    expect(rangeStillHolds(given, { from: 40, to: 120, name: 'Wide' }, label)).toBe(true)
+    // Undone: the range is on the base section again, and the batter check was about Wide.
+    expect(rangeStillHolds(road(), { from: 40, to: 120, name: 'Wide' }, label)).toBe(false)
+    expect(rangeStillHolds(given, { from: 40, to: 120, name: 'Base section' }, label)).toBe(false)
+    expect(rangeStillHolds(road(), { from: 40, to: 120, name: 'Base section' }, label)).toBe(true)
   })
 })
 

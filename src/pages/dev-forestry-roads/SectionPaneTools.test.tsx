@@ -45,7 +45,15 @@ function road(): Alignment {
 }
 
 let renderer: ReactTestRenderer | undefined
-type Latest = { alignment: Alignment; tools: SectionTools; notices: string[]; edits: number }
+type Latest = {
+  alignment: Alignment
+  tools: SectionTools
+  notices: string[]
+  edits: number
+  /** Puts the road back as an undo does. */
+  restore: (alignment: Alignment) => void
+  setStation: (chainage: number) => void
+}
 const probe: { current?: Latest } = {}
 beforeEach(() => vi.stubGlobal('window', new EventTarget()))
 afterEach(async () => {
@@ -61,8 +69,9 @@ function Pane({ notices }: { notices: string[] }) {
   const analysis = useMemo(() => analyzeRoad(alignment, ground, settings), [alignment])
   const tools = useSectionTools({ alignment, displayedAlignment: alignment, analysis })
   // The test reads the pane's state after each act, when effects have run.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- a probe, refreshed after every render
   useEffect(() => {
-    probe.current = { alignment, tools, notices, edits }
+    probe.current = { alignment, tools, notices, edits, restore: setAlignment, setStation: setChainage }
   })
   const station = analysis.stations.find((s) => s.chainage === chainage)
   return createElement(SectionPaneTools, {
@@ -109,6 +118,16 @@ describe('the section view tools', () => {
     view.click(/^Unpin section 0\+020\.0$/)
     expect(probe.current!.tools.pinnedStation).toBeUndefined()
   })
+
+  it('states the pinned outline’s shift beside Unpin, where the compact pane shows it', () => {
+    const view = mount()
+    view.click(/^Pin this section$/)
+    act(() => probe.current!.setStation(60))
+    const shift = view.root.find((node) => node.props['data-testid'] === 'road-section-pinned-shift')
+    // Formation 806 m at 60 against 802 m at 20 on the 15 m climb to 150.
+    expect(text(shift)).toBe('moved 4 m')
+    expect(shift.props.title).toMatch(/^Moved 4 m to share this station's formation level/)
+  })
 })
 
 describe('Use this section for…', () => {
@@ -132,6 +151,40 @@ describe('Use this section for…', () => {
     expect(view.content()).toMatch(/Batter never met the ground at \d+ stations of 0\+100\.0–0\+180\.0/)
     // Each listed station is a way to it.
     view.click(/^Go to 0\+150\.0/)
+  })
+
+  it('keeps the form and the list in a scrolling part, so the chart above keeps its room', () => {
+    const view = mount()
+    view.click(/^Use this section for…$/)
+    view.type('Range from station metres', '100')
+    view.type('Range to station metres', '180')
+    view.click(/^Apply$/)
+    const tools = view.root.find((node) => node.props['data-testid'] === 'road-section-tools')
+    const body = view.root.find((node) => node.props['data-testid'] === 'road-section-tools-body')
+    expect(tools.props.className).not.toMatch(/\bshrink-0\b/)
+    expect(tools.props.className).toMatch(/\bmax-h-/)
+    expect(body.props.className).toMatch(/\boverflow-y-auto\b/)
+    expect(body.findAll((node) => node.props['data-testid'] === 'road-section-range')).toHaveLength(1)
+    expect(body.findAll((node) => node.props['data-testid'] === 'road-section-batter-misses')).toHaveLength(1)
+  })
+
+  it('drops the batter check once an undo takes the range back, and while a new range waits for Replace', () => {
+    const view = mount()
+    view.click(/^Use this section for…$/)
+    view.type('Range from station metres', '100')
+    view.type('Range to station metres', '180')
+    view.click(/^Apply$/)
+    expect(view.has('road-section-batter-misses')).toBe(true)
+    const given = probe.current!.alignment
+    act(() => probe.current!.restore(road()))
+    expect(view.has('road-section-batter-misses')).toBe(false)
+    // A redo brings it back.
+    act(() => probe.current!.restore(given))
+    expect(view.has('road-section-batter-misses')).toBe(true)
+    view.type('Range to station metres', '230')
+    view.click(/^Apply$/)
+    expect(view.content()).toMatch(/is trimmed/)
+    expect(view.has('road-section-batter-misses')).toBe(false)
   })
 
   it('asks before changing ranges already there, and changes nothing on Cancel', () => {

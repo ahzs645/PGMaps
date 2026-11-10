@@ -3,6 +3,8 @@ import {
   heldSectionDomain,
   holdSectionFrame,
   pinnedSectionOutline,
+  pinnedShiftLabel,
+  pinnedShiftText,
   sectionExceedsFrame,
   sectionReferenceLevel,
 } from './sectionFrame'
@@ -66,6 +68,16 @@ describe('a pinned section', () => {
     expect(outline.alignedOn).toBe('ground')
     expect(outline.shiftM).toBe(10)
     expect(outline.points.map((p) => p.design)).toEqual([null, null, null])
+  })
+
+  it('states its shift with a minus sign, short beside Unpin and in full in the tip', () => {
+    const down = pinnedSectionOutline(pinned, { designElevation: 497.79, groundElevation: 499 })
+    expect(pinnedShiftLabel(down)).toBe('moved −2.21 m')
+    expect(pinnedShiftText(down)).toBe(
+      "Moved −2.21 m to share this station's formation level at the centreline; offsets unchanged.",
+    )
+    const none = pinnedSectionOutline(pinned, { designElevation: null, groundElevation: null })
+    expect(pinnedShiftLabel(none)).toBe('own levels')
   })
 
   it('stays where it was when either section has no level', () => {

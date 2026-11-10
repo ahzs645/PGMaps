@@ -108,3 +108,17 @@ export function pinnedSectionOutline(
     })),
   }
 }
+
+const metres = (value: number) => value.toLocaleString('en-CA', { maximumFractionDigits: 2 }).replace('-', '−')
+
+/** How far the pinned outline was moved to sit on this station's level, for its label's tip. */
+export function pinnedShiftText(pinned: Pick<PinnedOutline, 'shiftM' | 'alignedOn'>): string {
+  if (pinned.alignedOn === 'none')
+    return 'Drawn at its own elevations: one of the two sections has no level at the centreline.'
+  return `Moved ${metres(pinned.shiftM)} m to share this station's ${pinned.alignedOn === 'formation' ? 'formation' : 'ground'} level at the centreline; offsets unchanged.`
+}
+
+/** The same, short enough to stand beside the Unpin button: "moved −2.21 m" or "own levels". */
+export function pinnedShiftLabel(pinned: Pick<PinnedOutline, 'shiftM' | 'alignedOn'>): string {
+  return pinned.alignedOn === 'none' ? 'own levels' : `moved ${metres(pinned.shiftM)} m`
+}
