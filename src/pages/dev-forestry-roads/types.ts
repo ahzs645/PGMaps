@@ -307,6 +307,27 @@ export interface ExistingRoadEvidence {
   network?: RoadNetworkEvidence
   observations?: RoadConditionObservation[]
   conditionPolicy?: RoadConditionPolicy
+  /** A line the user traced or adopted from a terrain search: how it was made. Never a survey. */
+  lineOrigin?: RoadLineOrigin
+}
+/** How a user road line was made: traced by clicks, or adopted from a terrain search. */
+export interface RoadLineOrigin {
+  method: 'terrain-relocation' | 'terrain-trace' | 'clicks'
+  /** The record or road the line was derived from. */
+  fromName?: string
+  createdAt: string
+  /** The terrain's own cell size when the line was made, m. */
+  terrainCellM?: number
+  /** Share of the line where the terrain showed a road bench (relocation) or of segments that followed one (trace), %. */
+  foundPercent?: number
+  /** Relocation: distance from the source line, over the found stretches, m. */
+  medianShiftM?: number
+  p90ShiftM?: number
+  /** Relocation: median bench width between batter breaks, m. Not the drivable width. */
+  benchWidthM?: number
+  /** Trace: segments between clicks, and how many followed the terrain. */
+  segments?: number
+  snappedSegments?: number
 }
 export interface CableLine {
   id: string

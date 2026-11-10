@@ -20,6 +20,9 @@ import {
   nextMappedRoadColor,
 } from './dev-forestry-roads/mappedRoad'
 import { extendAlignment, nearerEnd, sketchPoints, strokeContinuation } from './dev-forestry-roads/sketchRoad'
+import { describeLineOrigin, roadLineFeature } from './dev-forestry-roads/terrainRoadLines'
+import { TraceFeedback } from './dev-forestry-roads/TraceFeedback'
+import { useRoadTrace } from './dev-forestry-roads/useRoadTrace'
 import { pathLengthM } from './dev-forestry-roads/mapNotes'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
@@ -456,6 +459,8 @@ export default function DevForestryRoads() {
     [source],
   )
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
+  const trace = useRoadTrace({ active: mode === 'trace', clicks: draft, source, terrain: project.terrain })
+  const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
   const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
   useEffect(() => {
@@ -534,6 +539,8 @@ export default function DevForestryRoads() {
       type: 'FeatureCollection',
       features: [
         ...overlay.features,
+        ...(mode === 'trace' ? trace.overlay : []),
+        ...(terrainRoadOverlay?.features ?? []),
         ...(networkOverlay?.features ?? []),
         ...(costPreview?.overlay.features ?? []),
         ...project.context
@@ -600,6 +607,9 @@ export default function DevForestryRoads() {
       source,
       focusedConstraintId,
       accessMarks,
+      mode,
+      trace.overlay,
+      terrainRoadOverlay,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -1428,6 +1438,19 @@ export default function DevForestryRoads() {
             : { type: 'Polygon' as const, coordinates: [[...draft, draft[0]]] },
       }
       if (!commitValidated({ ...project, context: [...project.context, feature] })) return
+    } else if (mode === 'trace') {
+      try {
+        const { coordinates, origin } = trace.resolve()
+        const name = `Traced road ${project.context.filter((f) => f.roadEvidence?.lineOrigin && f.roadEvidence.lineOrigin.method !== 'terrain-relocation').length + 1}`
+        const feature = roadLineFeature({ id: uid(), name, coordinates, origin })
+        if (!commitValidated({ ...project, context: [...project.context, feature] })) return
+        w.setNotice(
+          `Added ${name} as an existing road (${describeLineOrigin(origin)}). Its condition is unknown; pick it as the road to connect to under Access from FSR.`,
+        )
+      } catch (cause) {
+        w.setError(cause instanceof Error ? cause.message : 'Could not trace this road.')
+        return
+      }
     }
     setDraft([])
     setHover(null)
@@ -3271,6 +3294,7 @@ export default function DevForestryRoads() {
                 onLoadMappedRoad={loadMappedRoad}
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
                 onCopyMappedRoad={copyMappedRoad}
+                onPreviewTerrainRoad={setTerrainRoadOverlay}
                 onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
                 onLoadTerrainAroundRoad={() => loadTerrain('regional')}
                 onLocateRoad={locateRoad}
@@ -3415,16 +3439,19 @@ export default function DevForestryRoads() {
                     <strong>
                       {mode === 'road'
                         ? 'Peg road'
-                        : mode === 'extend'
-                          ? `Extend ${alignment.name}`
-                          : mode === 'avoid'
-                            ? `Draw ${drawnArea}`
-                            : `Draw ${mode}`}
+                        : mode === 'trace'
+                          ? 'Trace road'
+                          : mode === 'extend'
+                            ? `Extend ${alignment.name}`
+                            : mode === 'avoid'
+                              ? `Draw ${drawnArea}`
+                              : `Draw ${mode}`}
                     </strong>
                     <span>
                       {mode === 'extend' ? 'Click plan to peg on from the nearer road end' : 'Click plan to add points'}{' '}
                       · {draft.length} points
                     </span>
+                    {mode === 'trace' && <TraceFeedback trace={trace} />}
                     <span className="font-mono">
                       Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
                       <strong
