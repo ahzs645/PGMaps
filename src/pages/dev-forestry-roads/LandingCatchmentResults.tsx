@@ -21,7 +21,7 @@ export function LandingCatchmentResults({ catchments }: { catchments: LandingCat
           or the truck road a skid trail joins. Share is of the ground within reach. Distances are extraction distances
           as in the distance classes.{' '}
           {byLanding
-            ? 'Every landing is listed, including those that serve no ground.'
+            ? 'Every landing is listed, including those that serve no ground and those off the grid around the block, which the run leaves out.'
             : 'Without landings set, the counted roads are the catchments.'}
         </InfoTip>
       </div>
@@ -52,6 +52,18 @@ export function LandingCatchmentResults({ catchments }: { catchments: LandingCat
                 <td>{(100 * row.share).toFixed(1)}</td>
                 <td>{metres(row.meanM)}</td>
                 <td>{metres(row.farthestM)}</td>
+              </tr>
+            ))}
+            {catchments.offGrid.map((name, k) => (
+              <tr key={`off-grid-${k}`} data-testid="landing-catchment-off-grid">
+                <th scope="row" className="text-muted-foreground">
+                  {name}
+                  <span className="block text-3xs">off the grid: left out</span>
+                </th>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
+                <td>—</td>
               </tr>
             ))}
             {catchments.unassignedHa > 0 && (

@@ -57,6 +57,8 @@ export interface LandingCatchments {
   group: Int16Array
   /** Within-reach hectares whose exit resolves to no group. */
   unassignedHa: number
+  /** Names of the user's landings with no cell on the grid: the run left them out (`by` is `landing`). */
+  offGrid: string[]
   coveredHa: number
 }
 
@@ -141,6 +143,7 @@ export function landingCatchments(
     group: by === 'landing' ? group : remap(group, rows),
     unassignedHa: unassigned * cellHa,
     coveredHa: covered * cellHa,
+    offGrid: by === 'landing' ? [...(eg.landingsOffGrid ?? [])] : [],
   }
 }
 
