@@ -14,6 +14,7 @@ import {
   type RouteRow,
 } from './routeComparison'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
+import { DEFAULT_SWITCHBACK_ROUTE_OPTIONS } from './switchbackOptions'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, localMetricGrid } from './terrain'
 import type { Alignment, ContextFeature, Coordinate, TerrainSource } from './types'
 
@@ -414,13 +415,41 @@ describe('compareRoutes', () => {
     expect(failed.map((row) => row.alignment)).toEqual([null, null])
     for (const row of failed)
       expect(row.blockers[0]).toMatch(
-        /^No line within 12% and a 25 m radius reaches the end: the search made no headway toward the end.* \d+% of the lines it tried were stopped by ground steeper than the 12% grade limit\. Raise the grade limit, move the road's start onto gentler ground, or widen the corridor under Search settings\. A coarser search of a wider area on a grid found no line either\.$/,
+        /^No line within 12% and a 25 m radius reaches the end: the search made no headway toward the end.* \d+% of the lines it tried were stopped by ground steeper than the 12% grade limit\. Raise the grade limit, move the road's start onto gentler ground, or widen the corridor under Search settings\. A coarser search of a wider area on a grid found no line either\. Switchbacks would not help as set: every switchback it tried was refused, [\d,]+ of them because the platform is too steep .*: 100% of the ground within 31\.3 m is steeper than 55%, and at most 25% may be\. .*$/,
       )
     // Never "ready" when nothing usable came back.
     const summary = comparisonSummary(comparison)
     expect(summary.found).toBe(false)
     expect(summary.message).toMatch(/^No route found\. No line within 12%/)
   }, 60_000)
+
+  it('climbs a 30 % face through switchbacks once they are allowed, and says so when they are not', async () => {
+    // Straight up the fall line: no line that follows the ground can turn back, so the corridor and grid
+    // searches find nothing. The switchback search does, with the road's 25 m minimum radius.
+    const face: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.3 * (lat - origin[1]) * M }
+    const base = road([at(0, 0), at(0, 250)], 'Face')
+    const run = (allow: boolean) =>
+      compareRoutes({
+        ...input(base, ['shortest']),
+        terrain: face,
+        baseAnalysis: safeAnalyzeRoad(base, face, DEFAULT_ROAD_SETTINGS),
+        routeOptions: { ...DEFAULT_ROUTE_OPTIONS, switchbacks: { ...DEFAULT_SWITCHBACK_ROUTE_OPTIONS, allow } },
+        options: { ...input(base, ['shortest']).options, corridorHalfWidthM: 180, searchBudget: { maxStates: 4000 } },
+      })
+    const off = (await run(false)).rows.find((row) => row.goal === 'shortest')!
+    expect(off.alignment).toBeNull()
+    expect(off.blockers[0]).toMatch(
+      / With switchbacks allowed, the switchback search finds a [\d,]+ m line with \d switchbacks?, the first .* of the road's (start|end)\. Turn on Allow switchbacks under Search settings → Switchbacks\.$/,
+    )
+    const on = (await run(true)).rows.find((row) => row.goal !== 'current')!
+    expect(on.alignment).not.toBeNull()
+    expect(on.notes.join(' ')).toMatch(
+      /^\d switchbacks? at R 25 m, found by the switchback search: platform ground \d+%/,
+    )
+    // At least the 625 m a 75 m climb needs at 12 %, and every curve kept at or above the minimum radius.
+    expect(on.lengthM!).toBeGreaterThan(625)
+    expect(on.blockers.filter((blocker) => /radius|sharp/.test(blocker))).toEqual([])
+  }, 180_000)
 
   it('searches again leaning toward the end when the even search runs out of budget', async () => {
     // A knoll on the direct line, too steep to cross: the road has to go round it.
