@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
 import { choose, optionEntries, optionLabels } from './road-select'
+import { BC_ACCESS_EXAMPLES } from '../../src/pages/dev-forestry-roads/bcAccessExamples'
 import { ROAD_SCENARIOS } from '../../src/pages/dev-forestry-roads/scenarios'
 import { compareAndAddFirst, fromThisRoad, openAccessReview, startFromChosenRoad } from './road-access'
 
@@ -170,7 +171,10 @@ test('the library loads a complete offline scenario with its matching terrain an
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   const dialog = page.getByTestId('road-projects-dialog')
   await dialog.getByRole('button', { name: /Browse \d+ example scenarios/ }).click()
-  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(ROAD_SCENARIOS.length)
+  // The live BC record studies are listed first, and stand in for the offline history pilot.
+  await expect(dialog.getByRole('heading', { level: 3 })).toHaveCount(
+    BC_ACCESS_EXAMPLES.length + ROAD_SCENARIOS.filter((scenario) => scenario.kind !== 'history-pilot').length,
+  )
   await dialog.getByRole('button', { name: 'Load Training · nearby free gravel', exact: true }).click()
   await expect(dialog).not.toBeVisible()
   await expect(level).toHaveValue(original)
@@ -228,7 +232,8 @@ test('uploaded roads retain explicit condition evidence in a portable project an
       }),
     ),
   })
-  await openRoadPanel(page, 'Existing roads & reuse')
+  // The import opens Existing roads & reuse on the road it brought in; opening it by hand as well
+  // races that and folds it again.
   const panel = page.getByTestId('road-existing-roads')
   await expect(panel.getByTestId('road-existing-road-evidence')).toContainText(/Construction year\s*unknown/)
   const reuse = panel.getByRole('checkbox', { name: 'Allow this road in the reuse cost scenario', exact: true })

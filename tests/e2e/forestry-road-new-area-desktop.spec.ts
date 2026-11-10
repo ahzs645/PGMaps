@@ -5,7 +5,7 @@ import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-ro
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose } from './road-select'
-import { chooseExport } from './road-files'
+import { chooseExport, replaceSavedProjectWhenAsked, savedActiveRoadId } from './road-files'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
 const root = process.env.PGMAPS_ROAD_NEW_AREA_DIR
@@ -106,11 +106,13 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   await routes(page)
   await page.goto('/dev/forestry/road-design')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
-  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+  // Where the published LiDAR example is reachable, it loads its 1 m DTM before Save is offered.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 90000 })
   await page
     .getByRole('tablist', { name: 'Road workflow', exact: true })
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
+  await openRoadPanel(page, 'Import options')
   await page.getByLabel('Imported DEM vertical datum (metres)', { exact: true }).fill(metadata.verticalReference)
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Import GeoTIFF, LAS or LAZ', exact: true }).click()
@@ -262,24 +264,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     .getByRole('button', { name: 'Close', exact: true })
     .click()
 
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () =>
-          new Promise<string | undefined>((resolve, reject) => {
-            const request = indexedDB.open('pgmaps-forestry-roads-v1', 1)
-            request.onerror = () => reject(request.error)
-            request.onsuccess = () => {
-              const db = request.result
-              const tx = db.transaction('projects', 'readonly')
-              const read = tx.objectStore('projects').get('current')
-              read.onsuccess = () => resolve(read.result?.activeAlignmentId)
-              tx.oncomplete = () => db.close()
-            }
-          }),
-      ),
-    )
-    .toBe(optimized.activeAlignmentId)
+  await expect.poll(() => savedActiveRoadId(page)).toBe(optimized.activeAlignmentId)
   await page.reload()
   await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
   expect(await save(page)).toEqual(optimized)
@@ -289,8 +274,9 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     const reopened = await fresh.newPage()
     reopened.on('pageerror', (error) => errors.push(error.message))
     await routes(reopened)
+    await replaceSavedProjectWhenAsked(reopened)
     await reopened.goto(new URL('/dev/forestry/road-design', page.url()).href)
-    await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled()
+    await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
     const choose = reopened.waitForEvent('filechooser')
     await reopened.getByRole('button', { name: 'Open', exact: true }).click()
     await (await choose).setFiles(info.outputPath('optimized.road.json'))
