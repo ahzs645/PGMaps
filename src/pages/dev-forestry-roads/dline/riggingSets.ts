@@ -118,6 +118,44 @@ const sameRigging = (a: CableRigging, b: CableRigging) =>
   (Object.keys(a) as (keyof CableRigging)[]).every((key) => a[key] === b[key]) &&
   Object.keys(a).length === Object.keys(b).length
 
+/** The parts of the yarder's rule a set changes. */
+type SetFields = Pick<CableCoverageRule, 'rigging' | 'maxBreakDeg'>
+
+/**
+ * What applying a set to the extraction reach's yarder changed. The yarder's rule is the panel's
+ * own state, not a project edit, so the header Undo never reverses it: this does.
+ */
+export interface YarderSetUndo {
+  setName: string
+  before: SetFields
+  after: SetFields
+}
+
+/** Applies a set to the yarder's rule, with what puts the rule back. */
+export function applyRiggingSetWithUndo(
+  rule: CableCoverageRule,
+  set: RiggingSet,
+): { rule: CableCoverageRule; undo: YarderSetUndo } {
+  const next = applyRiggingSetToRule(rule, set)
+  return {
+    rule: next,
+    undo: {
+      setName: set.name,
+      before: { rigging: rule.rigging, maxBreakDeg: rule.maxBreakDeg },
+      after: { rigging: next.rigging, maxBreakDeg: next.maxBreakDeg },
+    },
+  }
+}
+
+/**
+ * The rule as it was before the set was applied, or null once the rope, load or break limit has
+ * been changed since (restoring would then undo those changes as well).
+ */
+export function undoRiggingSet(rule: CableCoverageRule, undo: YarderSetUndo): CableCoverageRule | null {
+  if (!sameRigging(rule.rigging, undo.after.rigging) || rule.maxBreakDeg !== undo.after.maxBreakDeg) return null
+  return { ...rule, ...undo.before }
+}
+
 /** The set whose rigging the given rigging is, or null when it is not any set's (or was edited). */
 export function matchingRiggingSet(
   sets: readonly RiggingSet[] | undefined,

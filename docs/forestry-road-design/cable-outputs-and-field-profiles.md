@@ -104,6 +104,12 @@ as they disable **Supports CSV**.
 - **Rigging set on the yarder:** coverage always tensions each line to its allowable working
   tension, so applying a set sets `tensionMode` to `allowable`; a set otherwise identical except for
   its tension mode still shows as in use there.
+- **Applying a set to the yarder is not a project edit.** The yarder's settings belong to the
+  Extraction reach panel, not the project file, so the header **Undo** does not reverse it (it would
+  undo the previous project edit instead). **Restore previous rigging**, shown under the picker after
+  a set is applied, puts back the rope, load and break limit it replaced, until one of them is
+  changed (`undoRiggingSet`). Saving, renaming and deleting a set are project edits and Undo covers
+  them.
 - **Slope legs:** horizontal run = slope distance ÷ √(1 + g²), rise = run × g, with g the slope
   as a fraction, chained from the start station and elevation (or the terrain there, on request).
 
