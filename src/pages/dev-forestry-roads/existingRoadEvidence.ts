@@ -112,6 +112,7 @@ const LINE_ORIGIN_NUMBERS = {
   vegetationPercent: [0, 100],
   stateScore: [0, 100],
   stateClass: [1, 4],
+  reconnectedEnds: [0, 2],
 } as const
 
 /** How a traced or adopted line was made; every figure optional and bounded. */
@@ -136,7 +137,8 @@ export function parseRoadLineOrigin(raw: unknown): RoadLineOrigin {
     if (value === undefined) continue
     if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
       throw Error(`Invalid road line origin ${key}.`)
-    if (key === 'stateClass' && !Number.isInteger(value)) throw Error('Invalid road line origin stateClass.')
+    if ((key === 'stateClass' || key === 'reconnectedEnds') && !Number.isInteger(value))
+      throw Error(`Invalid road line origin ${key}.`)
     result[key] = value
   }
   if (r.scoredWith !== undefined) {

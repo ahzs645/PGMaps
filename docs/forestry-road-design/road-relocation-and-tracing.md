@@ -7,6 +7,8 @@ Two tools read existing roads off bare-earth terrain:
   permit lines and can sit several metres, sometimes tens of metres, off the built road.
 - **Trace road**, under **Design → Road**, takes clicks along a road seen on imagery. On fine
   terrain the line between clicks follows the road bench; elsewhere the clicks are joined straight.
+- **Find roads on terrain**, under **Terrain → Existing roads & reuse**, runs Find on terrain over
+  every mapped road in an area at once, then joins the found roads again where their records met.
 
 When the terrain came from a point cloud imported in this browser session, **Find on terrain** also
 reads the cloud's vegetation: it searches with canopy, brush, ground-return density and intensity as
@@ -46,6 +48,11 @@ a search started from is never changed.
   set ([Dated evidence for existing-road condition](road-condition-evidence.md)).
 - **Nothing here sets a condition.** The adopted or traced road starts with unknown condition and
   reuse off, like any import.
+- **Found together means found one by one, then joined.** Each road in a multi-road run gets exactly
+  the result Find on terrain gives it alone, with the default settings. Only the joins are new, and
+  only junctions the record has are rebuilt: two found roads that end a metre apart stay apart if
+  their records did not meet. A junction that would move an end further than the tolerance is left
+  as found and listed.
 
 ## Using it
 
@@ -84,6 +91,34 @@ number field; settings that still fail validation disable the search and name th
 session, and every value a search ran with is saved with an adopted road and in a recorded
 observation's notes.
 
+### Find roads on terrain (several at once)
+
+1. Load the mapped roads (**Load BC roads**, **Import existing roads**) and the terrain, then open
+   **Terrain → Existing roads & reuse → Find roads on terrain**.
+2. Pick the **Area**: **Loaded terrain**, or any polygon in the project (a drawn avoid area or
+   block, or an imported one). A road is taken when at least half of its length, sampled every
+   10 m, is in the area and on the terrain. Roads already found on terrain are not searched again.
+   The line under the picker says how many roads that is, and how many were left out over the cap
+   (25 roads and 25 km per run).
+3. **Find _n_ roads on terrain** searches them one after another. The progress line names the road
+   ("Road 3 of 12 · R01234 · following the road") and **Cancel** stops the run.
+4. The table lists every road: the result (found, in part, not found, terrain gap, failed), the
+   share found, the median shift from the record, the LiDAR state class when the point cloud was
+   used (evidence, not condition; record it from the road's own **Find on terrain**), and how many
+   of its ends were moved to rebuild a junction. A road whose search failed says why in its row.
+5. **Junctions** counts those rebuilt and lists the ones to check. The found roads are drawn in
+   purple on the plan, and a junction that was not rebuilt, or rebuilt only in part, is marked.
+   Ends that came near a road their record does not join are listed separately; they are never
+   joined.
+6. Untick a road to leave it out: it keeps its record line, the junctions are worked out again at
+   once, and the other roads join its record where it is the through road. **Adopt _n_** adds the
+   ticked roads as new existing roads named "_record_ · on terrain", in one step; **Discard** drops
+   the run. The records are never changed.
+
+**Reconnect within** (1–50 m, default 30 m) is the furthest a found road's end may move to meet the
+roads its record meets. The run uses the default search settings and no water mask; for other
+settings, or to tick water, run **Find on terrain** on that road.
+
 ### Trace road
 
 1. **Design → Road → Trace road**, then click along the road on the plan. Click at junctions and
@@ -102,7 +137,9 @@ The new road's `roadEvidence.lineOrigin` records how its line was made: `terrain
 `terrain-trace` or `clicks`, the date, the terrain cell size, the share found, the shift and
 bench width (relocation) or the segment counts (trace). A relocation also records what scored the
 ground (`scoredWith`), the corridor, pull and level-edge tolerance it ran with, and with a point
-cloud the drivable width, vegetation over the bed, state score and class. The road card shows it as **Line**. The
+cloud the drivable width, vegetation over the bed, state score and class. A road adopted from a
+multi-road run also records how many of its ends were moved to rebuild a junction
+(`reconnectedEnds`, 0–2). The road card shows it as **Line**. The
 record is optional and bounded by `parseRoadLineOrigin` (`existingRoadEvidence.ts`); older project
 files without it load unchanged.
 
@@ -179,7 +216,8 @@ grows by three cells in the score.
    divided by the mean score of its two cells. Missing cells cannot be crossed.
 5. The cap cells are trimmed off, and the path is smoothed over 7 vertices.
 6. A line longer than 1,000 m is searched in equal pieces, each with its own caps, and the
-   pieces are joined end to end.
+   pieces are joined end to end. A loop (its ends within 2 m) is always searched as at least two
+   pieces: with one, both caps would sit on the same spot and the search would end where it began.
 7. With the point cloud, the gates close a brushed-in bed as firmly as the forest floor beside it,
    so the search can lose an overgrown road. Where the full score's path finds a bench along less
    than 80 % of a piece, that piece is searched again on the terrain score, and the path with more
@@ -243,6 +281,45 @@ both modes (threshold 0.5), so terrain-only results are unchanged; the result al
 harmonic mean beside it for comparison. The score along the path is read without the pull towards
 the record, which is a search device, not evidence about the road.
 
+### Searching many roads and reconnecting them (`roadBatchFind.ts`, `roadReconnect.ts`)
+
+Each road is searched with `findRoadOnTerrainSteps` and the same input a single search gets, one
+road after another inside one cooperative run, so a road's result never depends on the others in
+the run. The roads share one projection: the terrain's own, or the UTM zone of the first mapped
+road.
+
+Every road is searched between its own end caps, and the caps let a path join the road anywhere
+across each end. So roads that met in the record end a few metres apart once found: a through road
+found in two halves stops where each cap starts, and a spur stops at its cap's edge, short of the
+road it leaves (on the synthetic T junction, 5 to 9 m). Reconnecting puts them back together:
+
+1. **The record's junctions.** Record ends within 1 m of each other are one junction (a node); a
+   record end within 1 m of another record's line, away from its ends, is a **mid-road junction**.
+   Nothing else is joined.
+2. **The through pair.** At a node, the two roads whose record headings (read over 20 m) are closest
+   to straight. Pairs within 7.5° of the straightest are equal, and then rank by the lower sum of
+   their state classes (a road with no class counts as 5), then the higher sum of state scores, then
+   the higher found share.
+3. **Two roads** meet at the midpoint of their found ends.
+4. **Three or more.** The through pair is joined at that midpoint into one line. Each other road is
+   extended along its end heading (or cut where it already runs past) until it crosses that line,
+   and the junction goes at the mean of their crossings along it. The through line is split there
+   into its two roads again, and each other road ends on the junction.
+5. **A loop and the road into it.** The loop is closed at the midpoint of its two ends, then opened
+   again where the other road crosses it, so the junction is where the two meet on the ground. A loop
+   alone is closed at its ends' midpoint. A loop that meets two or more other ends is left as found.
+6. **Mid-road.** The spur is extended along its heading, or cut, to cross the other road's found
+   line (or the nearest point of it); the other road is not split.
+7. **Limits.** No end moves further than the tolerance (30 m by default): half the gap between the
+   through pair, every other road's crossing along the through line and its own move are each held
+   to it. Past it the junction is left as found, with a message naming the road and the distance.
+8. **Roads left out.** A road not found, or unticked, keeps its record line and never moves. Where
+   it is half of the through pair, the found roads end at its record end, where the record joins
+   them. Otherwise the found roads meet among themselves and the result says how far the kept road
+   now ends from them.
+9. **Near misses.** A found end that is not at any record junction but comes within 8 m of another
+   road is listed as a possible junction missing from the record. It is not joined.
+
 ### Tracing between clicks (`roadTrace.ts`)
 
 Each segment samples and scores a capsule around its chord, of half-width
@@ -287,10 +364,16 @@ straight chord between the raw clicks.
 | State thresholds: vegetation 10–40 %, drivable 1–5 m, conductivity 0.25–0.5, shoulders 50–75 %; classes from 75 / 50 / 25 | `DEFAULT_ROAD_STATE_THRESHOLDS`, `ROAD_STATE_CLASS_FLOORS`, `roadState.ts`                                            |
 | Settings ranges: corridor 10–80 m, pull 0–0.9, level edge 0.05–0.30 m, ground spread 0.02–0.30 m, brush share 5–50 %      | `ROAD_FIND_SETTING_LIMITS`, `parseRoadFindSettings`, `roadState.ts`                                                   |
 | Evidence is kept for this session only, for at most 3 terrains                                                            | `MAX_KEPT_VEGETATION_EVIDENCE`, `vegetationEvidenceStore.ts`                                                          |
+| A line whose ends are within 2 m is a loop and is searched as at least two pieces                                         | `ROAD_FIND_LOOP_M`, `roadRelocation.ts`                                                                               |
+| A multi-road run takes at most 25 roads and 25 km; a road counts when half of it (sampled every 10 m) is in the area      | `ROAD_BATCH_MAX_ROADS`, `ROAD_BATCH_MAX_TOTAL_M`, `ROAD_BATCH_MIN_INSIDE`, `ROAD_BATCH_SAMPLE_M`, `roadBatchFind.ts`  |
+| Reconnecting moves no end more than 30 m by default, 1–50 m allowed                                                       | `ROAD_RECONNECT_TOLERANCE_M`, `ROAD_RECONNECT_TOLERANCE_LIMITS`, `roadReconnect.ts`                                   |
+| Record ends within 1 m are one junction; headings read over 20 m; pairs within 7.5° of straightest tie                    | `ROAD_RECORD_NODE_M`, `ROAD_END_HEADING_M`, `ROAD_THROUGH_TIE_DEG`, `roadReconnect.ts`                                |
+| Found ends within 8 m of a road the record does not join them to are listed, never joined                                 | `ROAD_NEAR_MISS_M`, `roadReconnect.ts`                                                                                |
 
 Searches run in slices (`cooperative.ts`), so **Cancel** and the progress line work. A 560 m road
 with a 40 m corridor takes well under a second; a 1 km trace segment explores fewer than 200,000
-cells.
+cells. A multi-road run is the sum of its roads; reconnecting is plain geometry and is worked out
+again on every tick.
 
 ## Built-in assumptions
 
@@ -310,6 +393,13 @@ cells.
 - One flight line's intensity is comparable along the road. A LAZ's flight lines cannot be read, so
   its intensity is not normalised between them.
 - Water is only what you tick as water; a record's crossing of it is a structure, not a road.
+- In a multi-road run, the record's topology is right: roads that meet in it meet on the ground,
+  within 1 m, and roads that do not meet in it do not. A junction the record lacks is listed only.
+- The two roads closest to straight at a junction are one road through it. At a Y where the
+  branches are equally straight against the stem, the better state class and score decide, then
+  the share found.
+- One projection serves the whole run. Roads in another UTM zone than the first road (on terrain
+  with no projection of its own) are distorted slightly.
 
 ## Failure modes
 
@@ -359,6 +449,22 @@ cells.
 - **Missing terrain inside the corridor.** A gap that crosses the whole corridor stops the search
   with "terrain incomplete" and names where along the line; a gap beside the road is skipped
   around, and sections that touch it are **no terrain**, kept as the record.
+- **Records not split at junctions.** A spur whose record ends on another record's line is joined
+  to that road's found line, but that road is not split there, so the network has a T without a
+  vertex shared by both roads. A record end that sits a few metres short of the road it should meet
+  is not a junction of the record; it is listed as a near miss and left free.
+- **A spur found on the through road.** Where a spur's end cap admits the through road's bed, the
+  spur's path can start along it; the spur's cut at the crossing removes most of that, but check
+  the junction on imagery.
+- **Junctions near the ends of a short road.** The through road's two halves are split at the
+  junction; a junction within 0.5 m of an end of the joined line is left as found.
+- **Busy nodes.** A loop that meets two or more other ends, or two loops at one node, is left as
+  found and listed. A crossing where two spurs end on a third road's line is handled as a node of
+  the two spurs only.
+- **Settings.** A multi-road run uses the default settings and no water mask. A road on flat
+  ground that needs a lower level edge, or that crosses ticked water, should be run alone.
+- **Adopting part of a run.** An unticked road keeps its record, which may now end metres from the
+  found roads; the junction list says how far. Adopt it too, or edit it to join.
 
 ## Validation
 
@@ -407,6 +513,32 @@ S-curve and 0.01 m noise, generated in the test:
 - from a real decoded LAS and LAZ, every return reaches the evidence before thinning, with intensity,
   and the canopy the thinned cloud lost is still there.
 
+Synthetic tests (`roadBatchFind.test.ts`, `roadReconnect.test.ts`, `RoadBatchFinder.test.tsx`)
+build 1 m flat ground with 0.06 m pseudo-noise (so it scores near the floor) crossed by 8 m beds on
+0.6 m fills, generated in the test (`roadNetworkFixture.ts`), with every record moved 6–9 m and
+wobbled:
+
+- a T junction of three records: each road's result is identical to searching it alone; found one
+  by one their ends sit 5–9 m from the junction, and reconnecting puts all three ends on one point
+  within 1.5 m of the true junction, with the through road as the through pair and every road
+  within 1 m (P90) of its centreline; leaving the spur out rejoins the through road and reports the
+  spur as not joined;
+- a through road recorded as one line with a spur ending on it: the spur joins the found road
+  within 1.5 m of the true junction and the through road is unchanged;
+- a loop and the road into it: the loop is found in two halves (P90 within 1 m) and closed where
+  the access road meets it, within 2 m of the true closure;
+- a road whose terrain sampler fails is reported in its own row by name, and the others carry on;
+  Cancel stops a run during the second road;
+- geometry cases: the tie-break by class and score, half the through gap past the tolerance, a
+  kept through road holding the junction, a spur that would move 35 m to meet the through road
+  (left as found, where the reference description would have moved it), a loop alone, a loop with
+  two other roads, two records ending 5 m apart whose found ends come within 1 m (never joined,
+  listed as near misses).
+
+No reference-run vectors exist for the network tools (the reference package's path search could
+not be run, and its reconnection depends on it), so these cases are checked against the behaviour
+described in the specification and against the synthetic truth.
+
 **Real road (local only).** On the sample road shipped with the ALSroads R package (Québec, 1 m
 ground model, 961 m), compared with that package's own corrected line, which is an estimate rather
 than a survey:
@@ -431,9 +563,16 @@ in this repository. `roadRelocation.sample.test.ts` reruns this on any local fol
   header saying so. Option names in the spec are the package's user-facing names; PGMaps' own are
   different.
 - **Papers.** Roussel et al. (2022), the conductivity, path search, cross-sections and state score;
-  Roussel et al. (2023), the network extraction from the same conductivity (not implemented here);
-  Morley (2022), the ALSroads user guide, for the default thresholds and the parameter advice quoted
-  in the settings' info tips.
+  Roussel et al. (2023), the network extraction from the same conductivity and its aim of a
+  topologically valid network, which the reconnection follows (the junction-to-junction extraction
+  itself is not implemented here); Morley (2022), the ALSroads user guide, for the default
+  thresholds, the parameter advice quoted in the settings' info tips, and the advice to reconnect
+  corrected roads with the original network's topology.
+- **Multi-road search and reconnection.** `roadBatchFind.ts` and `roadReconnect.ts` were written
+  from the same functional specification's description of the package's batch measurement and its
+  "snap road endings" tool with the original network: the through pair, the 7.5° tie and its
+  class/score ranking, the half-gap tolerance (default 30 m), the loop rule and the extension of
+  other roads to the through line. The spec's own test vectors do not cover these tools.
 - **Reference run.** The test figures under **Validation** come from running the package's own,
   unmodified scoring, activation, line and difference code on synthetic inputs on 10 November 2026.
   Its conductivity raster, path search and slices could not be run there (their dependencies were
@@ -448,7 +587,14 @@ in this repository. `roadRelocation.sample.test.ts` reruns this on any local fol
   the record; line shifts paired by nearest point, not by fraction along the line; vegetation
   profiles summed over 1 m evidence cells along each section rather than per return; the
   coarse ±7 m point-cloud re-centring of each section and the version-2 conductivity are not
-  implemented.
+  implemented. In the multi-road run: a road that fails is reported in its row by name (the
+  reference drops it and names the wrong road); a loop record is searched in two halves in every
+  run, single or many; ends are never clustered by distance alone (the reference's snapping without
+  the original network joins any ends within the tolerance, which makes junctions the record does
+  not have), so only that mode's near-miss list is kept; every road brought to the through line is
+  held to the tolerance, not only its crossing's distance along it; a road without a candidate
+  never moves; a loop with one other road is closed where that road crosses it rather than at the
+  midpoint of the loop's ends; and a record end on another record's line is reconnected.
 
 ## References
 
