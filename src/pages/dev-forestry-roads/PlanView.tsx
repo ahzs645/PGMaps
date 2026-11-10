@@ -1099,6 +1099,14 @@ function Layers(
       filter: ['==', ['get', 'role'], 'swept-deficit'],
       paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 },
     })
+    // Overlay areas that ask for a fill (`fill: true`), such as extraction-reach distance classes.
+    add({
+      id: 'road-exploration-fill',
+      type: 'fill',
+      source: 'road-overlay',
+      filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'fill'], true]],
+      paint: { 'fill-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'fill-opacity': 0.3 },
+    })
     add({
       id: 'road-exploration-line',
       type: 'line',
@@ -1159,6 +1167,7 @@ function Layers(
       'road-swept-body',
       'road-swept-wheels',
       'road-swept-deficit',
+      'road-exploration-fill',
       'road-exploration-line',
       'road-exploration-point',
     ])

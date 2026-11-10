@@ -78,6 +78,12 @@ export interface SkidRoad {
   kind: 'existing' | 'design' | 'spur'
   coordinates: Coordinate[]
   haulToward?: 'start' | 'end' | null
+  /**
+   * What the road carries, for the extraction-reach model (`extractionReach.ts`): a truck road the
+   * logs are hauled from, or a machine-only skid trail they are dragged along to one. Absent is a
+   * truck road. The skid-reach model here treats both as landings.
+   */
+  use?: 'truck' | 'track'
 }
 type XY = [number, number]
 export interface ProjectedRoad {
@@ -228,7 +234,7 @@ export function allowedSkidReachM(adverseGradePercent: number, rule: SkidReachRu
 }
 
 /** Min-heap of (cell, score) pairs on typed arrays; stale entries are skipped by the caller. */
-class CellHeap {
+export class CellHeap {
   private nodes = new Int32Array(1024)
   private scores = new Float64Array(1024)
   size = 0
