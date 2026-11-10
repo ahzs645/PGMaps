@@ -191,6 +191,7 @@ import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
+import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type {
   Alignment,
@@ -301,6 +302,7 @@ export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
+  const blockSheet = useBlockSheet(project, source)
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const [collapsed, setCollapsed] = useState(false)
   const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
@@ -2041,7 +2043,7 @@ export default function DevForestryRoads() {
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf'>,
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf'>,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2196,9 +2198,41 @@ export default function DevForestryRoads() {
         )
     }
   }
+  /** The block sheet's run: the calculated roads, the issue stamp and any invalid-input notice. */
+  const blockSheetRun = (kind: RoadExport, safe: RoadProject) => {
+    const stamp = issueStamp(safe.issue)
+    const invalid = exportInvalidInput(kind)
+    return {
+      settings: blockSheet.settings,
+      project: safe,
+      analyses: w.analyses,
+      terrain: source,
+      terrainName: `${project.terrain.name}, ${project.terrain.resolutionM} m`,
+      terrainResolutionM: project.terrain.resolutionM,
+      canopy: blockSheet.canopy,
+      issue: {
+        date: stamp.date,
+        preparedBy: stamp.preparedBy,
+        organisation: stamp.organisation,
+        revision: stamp.revision,
+      },
+      logo: blockSheet.logo,
+      stamp: invalid ? `NOT CURRENT: ${invalidInputNotice(invalid)}` : undefined,
+      caveat: PLANNING_CAVEAT,
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
       const { safe, basename } = exportBasis(kind)
+      if (kind === 'block-sheet-pdf') {
+        void run('Building block map sheet…', async (signal) => {
+          const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
+          const { blob, built } = await blockSheetPdf({ ...blockSheetRun(kind, safe), signal })
+          downloadBlob(blob, `${basename}-${blockSheet.settings.kind}.pdf`)
+          w.setNotice(['Block map sheet downloaded.', ...built.missing].join(' '))
+        })
+        return
+      }
       if (kind === 'map-pdf' || kind === 'report-pdf') {
         void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
@@ -2246,13 +2280,38 @@ export default function DevForestryRoads() {
   }
   // A preview is rebuilt when anything its file is made from changes.
   const exportPreviewVersion = useMemo(
-    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope }),
-    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope],
+    () => ({
+      project,
+      analyses: w.analyses,
+      displayedAnalysis,
+      terrainProfile,
+      source,
+      hiddenPanels,
+      roadScope,
+      sheet: blockSheet.settings,
+      logo: blockSheet.logo,
+    }),
+    [
+      project,
+      w.analyses,
+      displayedAnalysis,
+      terrainProfile,
+      source,
+      hiddenPanels,
+      roadScope,
+      blockSheet.settings,
+      blockSheet.logo,
+    ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'block-sheet-pdf') {
+      const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
+      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
+      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+    }
     if (kind === 'map-pdf') {
       const map = planMap.current
       if (!map || hiddenPanels.includes('plan') || map.getCanvas().clientWidth < 1)
@@ -2907,6 +2966,7 @@ export default function DevForestryRoads() {
         }}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
+        setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
       />
       <CostBreakdown
         open={!investigation && costOpen && !!displayedAnalysis.stations.length}

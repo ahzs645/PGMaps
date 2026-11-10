@@ -14,6 +14,7 @@ export type RoadExport =
   | 'report'
   | 'report-pdf'
   | 'map-pdf'
+  | 'block-sheet-pdf'
   | 'landxml'
   | 'stakeout'
   | 'shapefile'
@@ -36,7 +37,7 @@ export interface ExportItem {
 }
 
 /** Outputs that print the issue stamp: who prepared them, the revision and the date of issue. */
-export const STAMPED_EXPORTS: readonly RoadExport[] = ['report', 'report-pdf', 'plotbook', 'map-pdf']
+export const STAMPED_EXPORTS: readonly RoadExport[] = ['report', 'report-pdf', 'plotbook', 'map-pdf', 'block-sheet-pdf']
 /** Outputs that can hold one road or every road of the project. */
 export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile']
 export type RoadScope = 'active' | 'all'
@@ -74,6 +75,7 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   report: 'stamp',
   'report-pdf': 'stamp',
   'map-pdf': 'stamp',
+  'block-sheet-pdf': 'stamp',
   plotbook: 'refuse',
   landxml: 'refuse',
   stakeout: 'refuse',
@@ -126,6 +128,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     label: 'Map PDF',
     extension: '.pdf',
     description: 'The plan map as it is shown now, on an A4 page with the terrain source and datum.',
+  },
+  {
+    kind: 'block-sheet-pdf',
+    group: 'documents',
+    label: 'Block map sheet',
+    extension: '.pdf',
+    description:
+      'A printed block map: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or imagery, with block information, legend and roads.',
   },
   {
     kind: 'plotbook',

@@ -68,7 +68,7 @@ describe('exports while an input is invalid', () => {
   })
 
   it('writes the documents a person reads, stamped', () => {
-    for (const kind of ['report', 'report-pdf', 'map-pdf'] as const) {
+    for (const kind of ['report', 'report-pdf', 'map-pdf', 'block-sheet-pdf'] as const) {
       expect(exportUnavailable(kind, context)).toBeNull()
       expect(exportStampNote(kind, context)).toBe(
         'Stamped: leaves out an invalid input. Road section: left half-width (m) must be 0.1 to 50.',
