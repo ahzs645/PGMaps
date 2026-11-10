@@ -247,6 +247,12 @@ jobs:
           path: src/pages/dev-lidar/**/*.generated.json
           retention-days: 14
 
+      # Folders in src/config/data-hosts.json are not in this build; the app
+      # loads them from their host. Fail if a host would 404 them, and warn
+      # when bcdatamapper's live site differs from the pinned submodule.
+      - name: Check the data hosts
+        run: node scripts/check-data-hosts.mjs
+
       - name: Copy index.html to 404.html for SPA routing
         run: cp dist/index.html dist/404.html
 

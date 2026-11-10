@@ -61,7 +61,9 @@ export default defineConfig({
         timeout: 120_000,
         // The forestry field-photo tests stub the Graph API, so any token will do;
         // a real one in .env.local is overridden rather than spent on test runs.
-        env: { VITE_MAPILLARY_TOKEN: 'MLY|e2e-stub' },
+        // VITE_DATA_HOSTS_LOCAL keeps every data folder on the dev server, so
+        // runs use the synced snapshots rather than the live data hosts.
+        env: { VITE_MAPILLARY_TOKEN: 'MLY|e2e-stub', VITE_DATA_HOSTS_LOCAL: '1' },
       },
   projects: [
     {

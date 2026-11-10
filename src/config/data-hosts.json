@@ -1,3 +1,9 @@
 {
-  "hosts": []
+  "hosts": [
+    {
+      "name": "bcdatamapper",
+      "baseUrl": "https://projects.ahmadjalil.com/bcdatamapper/data",
+      "folders": ["canada-admin", "cciss", "citypg", "drought", "forest", "network-availability"]
+    }
+  ]
 }
