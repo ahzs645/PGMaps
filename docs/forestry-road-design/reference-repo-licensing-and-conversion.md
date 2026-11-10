@@ -46,6 +46,13 @@ commercial product, or before the deployed site is put under the GPL, have it ch
 
 The decision is the owner's and applies to the whole site, not to one tool.
 
+**Status, 10 November 2026: noted, not decided.** Route A applies until the owner chooses. Work
+started from this page is written to route A: the SEILAPLAN support optimizer is re-implemented in
+Rust compiled to WASM from the published method, not ported from SEILAPLAN's code. The Sylvaccess,
+SylvaRoad, ALSroads, QuickTurn and RFLTools features are rewritten from functional specifications
+of their options, written by reviewers who had read the code, for implementers who did not open it.
+The permission requests in route C are drafted but not sent.
+
 ### A. Stay MIT and re-implement (current)
 
 Every method is written from its paper or a written description, then checked against numbers
@@ -217,8 +224,9 @@ Fix, whichever route is chosen:
 >
 > We maintain PGMaps, an open-source (MIT) web application with a forest-road design tool used for
 > planning in British Columbia. We would like to offer [the specific method, e.g. the intermediate
+>
 > > support optimizer] in the browser. [Project] is released under [licence], which we cannot combine
-> with an MIT application without changing its licence.
+> > with an MIT application without changing its licence.
 >
 > Would you be willing to either (a) release [the named files or functions] under the MIT or Apache-2.0
 > licence, or (b) grant PGMaps written permission to port them under MIT, with credit to you and
