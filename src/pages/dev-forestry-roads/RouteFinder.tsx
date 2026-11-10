@@ -290,8 +290,11 @@ export function RouteFinder({
               disabled={!drawing.canFinish}
               title={drawing.canFinish ? undefined : 'Click the plan to add points first'}
               onClick={drawing.onFinish}
+              data-testid="road-route-finish-drawing"
             >
-              {drawing.kind === 'extend' ? 'Finish extension' : 'Finish road'}
+              {/* The plan's own button carries the full name; two buttons called "Finish road" on
+                  one screen cannot be told apart by name. */}
+              Finish
             </Button>
           </InlineAlert>
         )}

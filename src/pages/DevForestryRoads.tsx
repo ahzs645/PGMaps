@@ -302,6 +302,7 @@ export default function DevForestryRoads() {
   const [collapsed, setCollapsed] = useState(false)
   const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
   const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
+  const wideHeader = useMediaQuery('(min-width: 1024px)')
   const tinyHeight = useMediaQuery('(max-height: 480px)')
   const [summaryOpen, setSummaryOpen] = useState(false)
   const [controlsOpen, setControlsOpen] = useState(false)
@@ -2572,17 +2573,15 @@ export default function DevForestryRoads() {
               data-testid="road-planning-basis"
               className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
             >
-              {/* The short wording also serves a header narrower than a wide desktop. */}
-              <span className={compact ? undefined : 'lg:hidden'}>
-                {project.terrain.kind === 'demo' ? 'SYNTHETIC' : `${Math.round(project.terrain.resolutionM)} m terrain`}
-              </span>
-              {!compact && (
-                <span className="hidden lg:inline">
-                  {project.terrain.kind === 'demo'
-                    ? 'SYNTHETIC TRAINING'
-                    : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
-                </span>
-              )}
+              {/* One wording at a time, so the badge's text is what it shows: the short one on a
+                  header narrower than a wide desktop. */}
+              {compact || !wideHeader
+                ? project.terrain.kind === 'demo'
+                  ? 'SYNTHETIC'
+                  : `${Math.round(project.terrain.resolutionM)} m terrain`
+                : project.terrain.kind === 'demo'
+                  ? 'SYNTHETIC TRAINING'
+                  : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
             </span>
           )}
         </div>
