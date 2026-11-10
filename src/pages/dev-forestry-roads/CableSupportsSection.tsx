@@ -5,11 +5,12 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
-import { CableLayoutEditButtons, CableLayoutEditor, LocateRow } from './CableLayoutEditor'
+import { CableLayoutEditButtons, CableLayoutEditor, LocateRow, SpanColumns } from './CableLayoutEditor'
 import { RoadSection } from './SidebarParts'
 import { riggingErrors } from './cableMechanics'
 import { intermediateSupports, layoutReasonText, type CableLayoutResult } from './cableLayout/cableLayout'
 import { cableLayoutCsv } from './cableLayout/exports'
+import { useClearStaleSpanFocus } from './cableLayout/editStore'
 import { layoutLimitRows, type LayoutLimitState } from './cableLayout/limits'
 import {
   DEFAULT_SUPPORT_LAYOUT,
@@ -87,6 +88,7 @@ export function CableSupportsSection({
   const entry = useCableLayoutEntry(line.id)
   const current = entry?.key === key ? entry : undefined
   const result = current?.status === 'done' ? current.result : undefined
+  useClearStaleSpanFocus(line.id, result?.spans)
   const running = entry?.status === 'running'
   const frame = lineFrame(line)
   const lengthM = frame?.lengthM ?? 0
@@ -158,7 +160,8 @@ export function CableSupportsSection({
         </>
       }
     >
-      <div className="grid grid-cols-3 gap-1">
+      {/* Start and End side by side; System, the third, on its own row so no label breaks at 257 px. */}
+      <div className="grid grid-cols-2 gap-1 [&>*:nth-child(3)]:col-span-2">
         <Field label="Start">
           <RoadSelect
             ariaLabel="Start element"
@@ -421,21 +424,16 @@ export function CableSupportsSection({
             </EngineeringTable>
           </div>
           <div className="max-h-40 overflow-auto rounded border">
-            <EngineeringTable data-testid="cable-spans-table">
-              <thead className="sticky top-0">
-                <tr>
-                  <ColumnHeader label="Span" unit="m" className="text-left" />
-                  <ColumnHeader label="Loaded sag" unit="m" />
-                  <ColumnHeader label="Min clearance" unit="m" />
-                  <ColumnHeader label="Max tension" unit="kN" />
-                </tr>
-              </thead>
+            <EngineeringTable compact data-testid="cable-spans-table">
+              <SpanColumns />
               <tbody>
                 {result.spans.map((s, i) => (
                   <tr key={i} aria-selected={!(s.clearanceOk && s.tensionOk && s.gravityOk)}>
                     <td className="text-left">
                       <LocateRow line={line} rowId={`span:${i}`} result={result} settings={settings}>
-                        {n0(s.fromM)}–{n0(s.toM)}
+                        <span className="whitespace-nowrap">
+                          {n0(s.fromM)}–{n0(s.toM)}
+                        </span>
                       </LocateRow>
                     </td>
                     <td>{n1(s.loadedSagM)}</td>

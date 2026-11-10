@@ -1,4 +1,6 @@
 // @vitest-environment node
+import { createElement } from 'react'
+import { act, create } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CableLayoutInput, CableLayoutResult, LayoutToAnalyse } from './cableLayout'
 import { analyzeCableLayout } from './cableLayoutClient'
@@ -11,6 +13,7 @@ import {
   getLayoutFocus,
   scheduleEditCheck,
   setEditCheckError,
+  useClearStaleSpanFocus,
 } from './editStore'
 import { EDIT_CHECK_DELAY_MS } from './layoutEdit'
 
@@ -103,5 +106,39 @@ describe('edited layout check', () => {
     expect(getLayoutFocus()).toMatchObject({ rowId: 'span:0', x: 40 })
     focusLayoutRow('d1', 'span:0', 40)
     expect(getLayoutFocus()).toBeNull()
+  })
+
+  it('clears a pressed span row once the spans change, and keeps other rows', () => {
+    const Spans = ({ spans }: { spans: { fromM: number; toM: number }[] }) => {
+      useClearStaleSpanFocus('d1', spans)
+      return null
+    }
+    const before = [
+      { fromM: 0, toM: 190 },
+      { fromM: 190, toM: 380 },
+    ]
+    let renderer!: ReturnType<typeof create>
+    act(() => {
+      renderer = create(createElement(Spans, { spans: before }))
+    })
+    focusLayoutRow('d1', 'span:1', 300)
+    // The same spans again (a re-render, or a re-check that moved nothing) keep the row pressed.
+    act(() => renderer.update(createElement(Spans, { spans: before.map((s) => ({ ...s })) })))
+    expect(getLayoutFocus()).toMatchObject({ rowId: 'span:1' })
+    act(() =>
+      renderer.update(
+        createElement(Spans, {
+          spans: [
+            { fromM: 0, toM: 300 },
+            { fromM: 300, toM: 380 },
+          ],
+        }),
+      ),
+    )
+    expect(getLayoutFocus()).toBeNull()
+    focusLayoutRow('d1', 'clearance', 120)
+    act(() => renderer.update(createElement(Spans, { spans: before })))
+    expect(getLayoutFocus()).toMatchObject({ rowId: 'clearance' })
+    act(() => renderer.unmount())
   })
 })

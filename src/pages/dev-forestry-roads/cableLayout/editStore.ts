@@ -7,7 +7,7 @@
  *   result is ever kept as current. The last finished result stays drawn while the next one runs.
  * - the row picked in the sidebar to locate on the chart and the plan.
  */
-import { useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import type { CableLayoutInput, CableLayoutResult, LayoutToAnalyse } from './cableLayout'
 import { analyzeCableLayout } from './cableLayoutClient'
 import { EDIT_CHECK_DELAY_MS } from './layoutEdit'
@@ -168,6 +168,30 @@ export function clearLayoutFocus() {
   if (!focus) return
   focus = null
   emit()
+}
+
+/** The spans a span row's index points into, as one string: a span row is stale once it changes. */
+export const spansKey = (spans: readonly { fromM: number; toM: number }[] | undefined) =>
+  spans?.map((s) => `${s.fromM.toFixed(1)}-${s.toM.toFixed(1)}`).join(';') ?? ''
+
+/**
+ * Clears a located span row (`span:<index>`) of the D-line once its spans change, so the row no
+ * longer reads as pressed nor marks a span that has moved. Other rows re-read the new result.
+ */
+export function useClearStaleSpanFocus(
+  cableId: string | undefined,
+  spans: readonly { fromM: number; toM: number }[] | undefined,
+) {
+  const key = spansKey(spans)
+  const seen = useRef(key)
+  useEffect(() => {
+    if (seen.current === key) return
+    seen.current = key
+    if (cableId && focus?.cableId === cableId && focus.rowId.startsWith('span:')) {
+      focus = null
+      emit()
+    }
+  }, [cableId, key])
 }
 
 /** The row located now (outside React). */
