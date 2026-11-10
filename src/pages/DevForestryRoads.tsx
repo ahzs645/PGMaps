@@ -117,6 +117,7 @@ import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialo
 import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
+import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
@@ -880,6 +881,8 @@ export default function DevForestryRoads() {
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
     [completeCostRecord, alignment, project],
   )
+  // Drawn while the Sight distance section is open (`planSightlines.ts`).
+  const planSightlines = usePlanSightlines()
   // The profile's sight distance band reads the project's design speed and station spacing.
   const sightBand = useMemo(
     () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
@@ -3922,6 +3925,7 @@ export default function DevForestryRoads() {
                             overlay={investigation ? undefined : planOverlay}
                             drainage={investigation ? undefined : drainageOnPlan}
                             swept={!investigation && showSwept ? sweptOnPlan : undefined}
+                            sightlines={investigation ? undefined : planSightlines}
                             // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                             pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={

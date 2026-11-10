@@ -28,6 +28,7 @@ import {
   type ProfileGradeLimits,
 } from './profileAnnotations'
 import { ProfileValueBands, useStoredFlag } from './ProfileValueBands'
+import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
@@ -42,6 +43,7 @@ import {
   sectionExceedsFrame,
   type HeldSectionFrame,
 } from './sectionFrame'
+import { BalanceLineOverlay, BalanceWhatIfPanel, useBalanceWhatIf } from './MassHaulBalanceLine'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
 import type { CableChartEdit } from './cableLayout/useLayoutEdit'
 import { CableLayoutChartLayer } from './CableLayoutChartLayer'
@@ -1013,15 +1015,27 @@ export function ProfileChart({
       bands={{
         label: terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands',
         content: (
-          <EngineeringBands
-            analysis={analysis}
-            alignment={alignment}
-            station={station}
-            onStation={onStation}
-            terrainOnly={terrainOnly}
-            range={[domain[0], domain[1]]}
-            sight={terrainOnly ? undefined : sight}
-          />
+          <>
+            <EngineeringBands
+              analysis={analysis}
+              alignment={alignment}
+              station={station}
+              onStation={onStation}
+              terrainOnly={terrainOnly}
+              range={[domain[0], domain[1]]}
+              sight={terrainOnly ? undefined : sight}
+            />
+            {!terrainOnly && sight && (
+              <SightDistanceBand
+                analysis={analysis}
+                alignment={alignment}
+                sight={sight}
+                station={station}
+                onStation={onStation}
+                range={[domain[0], domain[1]]}
+              />
+            )}
+          </>
         ),
       }}
       valueBands={{
@@ -2536,6 +2550,9 @@ export function MassHaulChart({
   const [showMovements, setShowMovements] = useState(false)
   const engineering = analysis.engineering
   const diagram = useMemo(() => massHaulDiagram(analysis, engineeringInputs), [analysis, engineeringInputs])
+  // A hand-set balance line, read only (`balanceLine.ts`); null while the what-if is off.
+  const [whatIfLevel, setWhatIfLevel] = useState<number | null>(null)
+  const whatIf = useBalanceWhatIf(diagram.balance, whatIfLevel, engineeringInputs?.haul.freeHaulDistanceM ?? null)
   const haul = diagram.haul
   const rangeStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
   const rangeEnd = viewRange
@@ -2621,6 +2638,15 @@ export function MassHaulChart({
               ` · after borrow and waste ${closed ? 'the diagram closes at 0 m³' : `it ends at ${format(haul.closingM3)} m³`}`}
             {haul && unplaced && ` · ${unplaced}`}
           </p>
+          <BalanceWhatIfPanel
+            result={whatIf.result}
+            range={whatIf.range}
+            freeHaulM={engineeringInputs?.haul.freeHaulDistanceM ?? null}
+            onLevel={setWhatIfLevel}
+            onOpen={() => setWhatIfLevel(0)}
+            onClose={() => setWhatIfLevel(null)}
+            onStation={onStation}
+          />
           {haul && haul.pits.length > 0 && (
             <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-3xs" data-testid="road-mass-pits">
               {haul.pits.map((pit) => (
@@ -2921,6 +2947,16 @@ export function MassHaulChart({
                     </title>
                   </rect>
                 )),
+              )}
+              {whatIf.result && (
+                <BalanceLineOverlay
+                  result={whatIf.result}
+                  range={whatIf.range}
+                  frame={f}
+                  domainY={[low, high]}
+                  onLevel={setWhatIfLevel}
+                  onClose={() => setWhatIfLevel(null)}
+                />
               )}
               <line
                 x1={f.x(station)}
