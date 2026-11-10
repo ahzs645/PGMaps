@@ -145,6 +145,32 @@ disposal once. Network source/path selection retains the documented bounded deli
 heuristic; the exact fixed-road material solver does not turn that network heuristic into a global
 joint optimum over every route, pit and construction sequence.
 
+## What-if balance line
+
+**What-if balance line**, under the mass-haul diagram, puts a horizontal balance line on the
+curve. It is a reading of the diagram only: the design, the solved allocation and the reported haul
+never change, and the panel says so. Drag the line, focus it and use the up and down arrows (Shift
+or Page Up/Down for ten steps, Home and End for the curve's lowest and highest value), or type its
+level. **Reset to 0** returns it to zero and **Close what-if** (or Escape on the line) removes it.
+
+Where the line cuts the curve, the road between two cuts balances: above the line cut comes first
+and moves up-station, below it moves down-station. For each loop the panel lists its stations and
+length, the volume that balances inside it (its height above or below the line), the mean haul
+distance, and the overhaul past the road's free-haul distance. Totals give the balanced length, the
+volume moved in m³ and m³·m, and the overhaul. A line off zero at a road end leaves material that
+cannot balance inside the road: the panel says how much comes in or leaves at each end.
+
+The method is the classical mass-haul (Brückner) one, written in `balanceLine.ts`: a thin layer of
+the curve at height h is a chord of width w(h); its volume dh moves w(h). A loop's haul is ∫ w dh,
+the area between curve and line, and its overhaul is ∫ (w − F) dh over the chords wider than the
+free-haul distance F. A chord that reaches a road end before it closes does not balance. The curve
+is the one drawn: known earthwork carried across lengths whose sections are incomplete, at full
+distance, in the diagram's compacted m³. Without a free-haul distance there is no overhaul.
+
+The what-if is not the allocation. The solver prices every movement and respects material classes,
+direction and blocked ranges, sites and sidecast; a balance line does none of that. Use it to see
+where the curve balances at a chosen level, not to replace the reported haul.
+
 ## Limits and verification
 
 | Limit | Enforcing constant / behavior |
@@ -156,6 +182,7 @@ joint optimum over every route, pit and construction sequence.
 | 12 positive-price site openings | `MAX_ALLOCATION_OPENINGS` |
 | 2,048 branch iterations; 3-second integer-search timeout | `MAX_ALLOCATION_BRANCHES`, solver options |
 | Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000 | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS` |
+| What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts` |
 
 The sparse formulation has the same 20,000-variable / 1,200-constraint / 3,000,000-cell ceilings,
 enforced by `MAX_SPARSE_ALLOCATION_*` in `sparseMaterialAllocation.ts`.
