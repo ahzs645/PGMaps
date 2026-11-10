@@ -370,6 +370,8 @@ export interface RoadLineOrigin {
   vegetationPercent?: number
   stateScore?: number
   stateClass?: number
+  /** Relocation found with other roads: ends moved to rebuild the record's junctions (0–2). */
+  reconnectedEnds?: number
 }
 export interface CableLine {
   id: string

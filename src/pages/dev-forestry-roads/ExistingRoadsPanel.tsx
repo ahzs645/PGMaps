@@ -21,6 +21,7 @@ import { RoadConditionEditor } from './RoadConditionEditor'
 import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
+import { RoadBatchFinder } from './RoadBatchFinder'
 import { RoadDeactivationEditor } from './RoadDeactivationEditor'
 import {
   deactivatedRoadNeedsReview,
@@ -43,8 +44,11 @@ export function ExistingRoadsPanel({
   open,
   onOpenChange,
   onImportFile,
+  onPreviewFoundRoads,
 }: {
   workspace: RoadWorkspace
+  /** Shows the roads found together on the terrain over the plan; null clears it. */
+  onPreviewFoundRoads?: (overlay: GeoJSON.FeatureCollection | null) => void
   bounds?: RoadQueryBounds
   initialSelectedRoadId?: string
   /** Reads a chosen spatial file as existing roads; the workspace's one importer does the reading. */
@@ -240,6 +244,7 @@ export function ExistingRoadsPanel({
             BC source
           </a>
         </p>
+        {roads.length > 0 && <RoadBatchFinder workspace={w} onPreview={onPreviewFoundRoads} />}
         {road && (
           <>
             {/* Picking a road highlights it on the plan; the locate button also brings the plan to it. */}

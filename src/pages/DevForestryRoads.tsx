@@ -466,6 +466,7 @@ export default function DevForestryRoads() {
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
   const trace = useRoadTrace({ active: mode === 'trace', clicks: draft, source, terrain: project.terrain })
   const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [terrainRoadsOverlay, setTerrainRoadsOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
   const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
   useEffect(() => {
@@ -547,6 +548,7 @@ export default function DevForestryRoads() {
         ...overlay.features,
         ...(mode === 'trace' ? trace.overlay : []),
         ...(terrainRoadOverlay?.features ?? []),
+        ...(terrainRoadsOverlay?.features ?? []),
         ...(networkOverlay?.features ?? []),
         ...(costPreview?.overlay.features ?? []),
         ...project.context
@@ -618,6 +620,7 @@ export default function DevForestryRoads() {
       mode,
       trace.overlay,
       terrainRoadOverlay,
+      terrainRoadsOverlay,
       skidReachFeatures,
     ],
   )
@@ -3435,6 +3438,7 @@ export default function DevForestryRoads() {
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
                 onCopyMappedRoad={copyMappedRoad}
                 onPreviewTerrainRoad={setTerrainRoadOverlay}
+                onPreviewTerrainRoads={setTerrainRoadsOverlay}
                 onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
                 onLoadTerrainAroundRoad={() => loadTerrain('regional')}
                 onLocateRoad={locateRoad}

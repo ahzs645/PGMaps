@@ -80,6 +80,8 @@ export interface SidebarProps {
   onCopyMappedRoad?: (points?: import('./mappedRoad').DesignPoints) => void
   /** Shows a road found on the terrain over the plan; null clears it. */
   onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
+  /** Shows the roads found together on the terrain, and their junctions; null clears it. */
+  onPreviewTerrainRoads?: (overlay: GeoJSON.FeatureCollection | null) => void
   /** Fits the plan to the active road. */
   onLocateActiveRoad?: () => void
   /** Loads regional terrain over the active road's extent. */
@@ -221,6 +223,7 @@ export function DesignSidebar(p: SidebarProps) {
                   <ExistingRoadsPanel
                     key={p.roadReviewRequest?.sequence ?? 0}
                     initialSelectedRoadId={p.roadReviewRequest?.id}
+                    onPreviewFoundRoads={p.onPreviewTerrainRoads}
                     workspace={p.workspace}
                     onLocateRoad={p.onLocateRoad}
                     onReviewRoad={tab === 'terrain' ? p.onReviewRoad : undefined}
