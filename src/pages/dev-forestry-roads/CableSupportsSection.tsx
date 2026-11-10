@@ -5,6 +5,7 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { CableLayoutEditButtons, CableLayoutEditor, LocateRow } from './CableLayoutEditor'
 import { RoadSection } from './SidebarParts'
 import { riggingErrors } from './cableMechanics'
 import { intermediateSupports, layoutReasonText, type CableLayoutResult } from './cableLayout/cableLayout'
@@ -58,6 +59,8 @@ const KIND_TEXT = { yarder: 'Yarder', support: 'Support', 'ground-anchor': 'Grou
 const STATUS_TEXT = { complete: 'Layout found', incomplete: 'Line stops short', 'no-layout': 'No layout' }
 
 function summaryOf(result: CableLayoutResult | undefined, settings: CableSupportLayout) {
+  if (settings.edited)
+    return `edited · ${settings.edited.supports.length} support${settings.edited.supports.length === 1 ? '' : 's'}`
   if (!result) return settings.saved ? `saved · ${settings.saved.supports.length - 2} supports` : 'not run'
   if (result.status === 'no-layout') return 'no layout'
   const supports = intermediateSupports(result).length
@@ -336,11 +339,12 @@ export function CableSupportsSection({
             Check saved layout
           </Button>
         )}
-        {result && (
+        {result && !settings.edited && (
           <Button size="sm" variant="outline" disabled={inputErrors.length > 0} onClick={download}>
             Supports CSV
           </Button>
         )}
+        {!running && <CableLayoutEditButtons line={line} terrain={terrain} onEdit={onEdit} />}
       </div>
       {!prepError && runError && <InlineAlert tone="error">{runError}</InlineAlert>}
       {!result && entry && entry.key !== key && entry.status === 'done' && (
@@ -348,7 +352,8 @@ export function CableSupportsSection({
           The D-line, rigging, terrain or settings changed. Find supports again, or check the saved layout.
         </p>
       )}
-      {result && (
+      {settings.edited && <CableLayoutEditor line={line} terrain={terrain} onEdit={onEdit} found={result} />}
+      {result && !settings.edited && (
         <div className="space-y-2" data-testid="cable-supports-result">
           <p role="status" className="text-xs">
             <span className="font-medium">{STATUS_TEXT[result.status]}</span>
@@ -374,7 +379,9 @@ export function CableSupportsSection({
                     <span className="mr-1 inline-block align-middle">
                       <LimitIcon state={row.state} />
                     </span>
-                    {row.label}
+                    <LocateRow line={line} rowId={row.id} result={result} settings={settings}>
+                      {row.label}
+                    </LocateRow>
                   </th>
                   <td className="whitespace-normal">{row.limit}</td>
                   <td className="whitespace-normal">{row.value}</td>
@@ -427,7 +434,9 @@ export function CableSupportsSection({
                 {result.spans.map((s, i) => (
                   <tr key={i} aria-selected={!(s.clearanceOk && s.tensionOk && s.gravityOk)}>
                     <td className="text-left">
-                      {n0(s.fromM)}–{n0(s.toM)}
+                      <LocateRow line={line} rowId={`span:${i}`} result={result} settings={settings}>
+                        {n0(s.fromM)}–{n0(s.toM)}
+                      </LocateRow>
                     </td>
                     <td>{n1(s.loadedSagM)}</td>
                     <td>{s.unknownGroundAtM !== null ? 'unknown' : n1(s.minClearanceM)}</td>

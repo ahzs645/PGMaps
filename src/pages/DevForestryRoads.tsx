@@ -90,6 +90,7 @@ import {
   ProfileChart,
 } from './dev-forestry-roads/Charts'
 import { useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
+import { useCableLayoutChartEdit, useLayoutFocusFollower } from './dev-forestry-roads/cableLayout/useLayoutEdit'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
@@ -1079,6 +1080,12 @@ export default function DevForestryRoads() {
   }, [cableLine, source])
   const cableAnalysis = cableResult.analysis
   const cableLayoutOverlay = useCableLayoutOverlay(cableLine, source)
+  type CableLineOf = (typeof project.cables)[number]
+  const editCable = useCallback(
+    (change: (line: CableLineOf) => CableLineOf) => update((p) => ({ ...p, cables: p.cables.map(change) })),
+    [update],
+  )
+  const cableLayoutEdit = useCableLayoutChartEdit(cableLine, source, editCable)
   const saveCableProfile = (kind: 'csv' | 'report') => {
     if (!cableLine || !cableAnalysis) return
     try {
@@ -1124,6 +1131,11 @@ export default function DevForestryRoads() {
     setDetail('cable')
     setOverlay({ type: 'FeatureCollection', features: [] })
   }
+  // A limit or span picked under Intermediate supports shows its D-line and moves both cursors there.
+  useLayoutFocusFollower((cableId, x) => {
+    if (cableId !== cableLine?.id || detail !== 'cable') selectCable(cableId)
+    if (x !== null) setCableDistance(x)
+  })
   const groundValues = displayedAnalysis.stations.map((s) => s.groundElevation).filter((x): x is number => x !== null)
   const grades = displayedAnalysis.stations.map((s) => s.gradePercent).filter((x): x is number => x !== null)
   const selectProfile = (id: string) => {
@@ -4298,6 +4310,7 @@ export default function DevForestryRoads() {
                                           distance={cableDistance}
                                           onDistance={setCableDistance}
                                           layout={cableLayoutOverlay}
+                                          edit={cableLayoutEdit}
                                         />
                                       </div>
                                     </div>

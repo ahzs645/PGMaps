@@ -165,7 +165,58 @@ and the re-check (step 6) makes the reported layout the one that passes the fina
   matches the D-line as it is now.
 - **Saved layout.** A found layout is saved with the D-line (stations, heights, pre-tension). After
   the D-line, rigging, terrain or settings change, **Check saved layout** analyses it as the line is
-  now, without searching.
+  now, without searching. An edited layout is saved beside it (see below).
+
+## Adjusting the layout by hand
+
+The search's answer is a starting point. **Adjust layout** (under the Find supports button, once a
+layout is saved) opens it for editing; **Place supports by hand** starts with only the two ends. The
+edit is saved with the D-line beside the found layout, which stays as it was, and reopens on reload.
+While an edit is open the section shows it in place of the found result.
+
+- **What can change.** Each intermediate support's station and saddle height; supports added
+  (**After** on a row, or **Add support in the longest span**) and deleted; a support start's or
+  end's height; the start and end elements (the **Start** and **End** choices above, which also set
+  the search); and the pre-tension. A station field is bounded by its neighbours, so a support never
+  passes another. Supports do not lean in this model, so there is no lean to edit.
+- **Re-check.** About 300 ms after the last change (`EDIT_CHECK_DELAY_MS`) the edit is analysed in
+  the worker with the same final analysis as the search (`cl_analyze`), at the entered pre-tension
+  and with the ends as the D-line is now. A newer change cancels a pending or running check; the
+  chart keeps the last rope drawn, marked _re-checking_, until the new one arrives.
+- **Found and Current.** One table puts the found layout (re-checked on the D-line as it is now)
+  beside the edit: every limit of the limits table with its state, then the supports, their stations
+  and heights, the pre-tension, the largest saddle force and anchor tension, and the rope length. A
+  dot marks a value that changed. **Placement** (current only) lists supports inside a no-support
+  sector or closer than _Min support spacing_: the analysis does not check either, so the edit can
+  break them, and the section says where.
+- **Locate a row.** Picking a row's name (or a span in the spans table) marks where it applies on the
+  D-line chart: the smallest clearance or each failing span's worst point, the support end with the
+  highest tension, the supports past an angle limit, the gravity stop, the supports needing a lug.
+  The D-line's cursor and the plan's move to the first mark. Picking it again clears the marks.
+- **On the chart.** Drag a support's handle sideways to move it, or up and down to change its height:
+  the first `MIN_SUPPORT_DRAG_PX` of movement picks which, and the plan cursor follows. Double-click
+  the profile to add a support there (starting an edit if none is open); Shift-drag along it to draw
+  a no-support sector. Escape cancels. A focused handle takes the arrow keys (left and right move it
+  1 m, up and down change the height 0.5 m; Shift: 10 m and 2 m) and Delete. Each gesture has a
+  sidebar field or button that does the same.
+- **Names and categories.** Each support, and a support start or end, can be named (a spar, a stump)
+  and given a category: support tree, mast, ground anchor or other. The chart draws a symbol at its
+  foot and the name over it, and the edited layout's **Supports CSV** adds `support_name` and
+  `support_category` as its last two columns. They are labels only: nothing is sized or checked from
+  them.
+- **Reset to found** replaces the edit with the found layout; **Discard edits** removes it.
+
+| Limit                         | Value                                          | Enforced in                                                                           | When exceeded                                        |
+| ----------------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| Intermediate supports in edit | 50                                             | `cableLayout/layoutEdit.ts` `MAX_EDITED_SUPPORTS`, `parseEditedLayout`                | Add buttons disabled; project file refused           |
+| Support spacing in an edit    | 1 m from a neighbour or an end                 | `layoutEdit.ts` `MIN_EDIT_SPACING_M`, `stationBounds`, `addSupportAt`                 | Station clamped between neighbours; no support added |
+| Edited heights                | supports 1–50 m; a support start or end 0–50 m | `layoutEdit.ts` `EDIT_SUPPORT_HEIGHT_M`, `EDIT_END_HEIGHT_M`                          | Field and drag clamp; project file refused           |
+| Edited pre-tension            | 1–10,000 kN                                    | `layoutEdit.ts` `EDIT_PRE_TENSION_KN`                                                 | Field clamps; project file refused                   |
+| Support name                  | 60 characters                                  | `layoutEdit.ts` `MAX_SUPPORT_NAME_LENGTH`                                             | Field stops; project file refused                    |
+| Re-check delay                | 300 ms after the last change                   | `layoutEdit.ts` `EDIT_CHECK_DELAY_MS`; `cableLayout/editStore.ts` `scheduleEditCheck` | –                                                    |
+| Drag threshold                | 4 px before a support drag edits               | `layoutEdit.ts` `MIN_SUPPORT_DRAG_PX`                                                 | A shorter press only moves the cursor to it          |
+| Drawn sector                  | at least 2 m, rounded to the metre             | `layoutEdit.ts` `MIN_DRAWN_SECTOR_M`, `sectorFromDrag`; `settings.ts` `MAX_SECTORS`   | Not added                                            |
+| Rounding                      | stations and heights to 0.1 m                  | `layoutEdit.ts` `EDIT_ROUNDING_M`                                                     | –                                                    |
 
 ## Failure modes
 
@@ -179,6 +230,10 @@ and the re-check (step 6) makes the reported layout the one that passes the fina
 | Line stops short                                                          | No span from the last support reaches on; the layout up to there is kept and checked           | Read the reason; the partial line's tension and clearance are its own         |
 | "Too many spans to check"                                                 | The candidate grid × height ladder is over the span budget                                     | Widen the candidate spacing or the height step, narrow the height range       |
 | A layout with more supports than SEILAPLAN gives                          | The catenary path hangs lower near supports than SEILAPLAN's parabola, and angles are enforced | Expected; see the comparison below                                            |
+| "Ground is unknown under the support at N m"                              | An edited support stands where the terrain has no ground                                       | Move it onto known ground                                                     |
+| "Support N at S m is outside the line"                                    | The D-line was shortened after the edit                                                        | Move or delete that support                                                   |
+| Placement: a support "stands in the no-support sector"                    | The edit breaks a search rule the analysis does not check                                      | Move the support, or change the sector                                        |
+| Placement: supports "under the … minimum spacing"                         | The edit breaks a search rule the analysis does not check                                      | Move one apart, or lower the minimum spacing                                  |
 
 ## How the numbers were checked
 
