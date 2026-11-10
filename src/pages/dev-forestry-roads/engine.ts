@@ -884,8 +884,11 @@ export function designProfileAt(alignment: Alignment, chainage: number) {
 }
 
 function validate(alignment: Alignment, settings: RoadSettings) {
-  if (Object.values(settings).some((v) => !Number.isFinite(v)))
+  // Every setting is a number but the quantity basis, which is a word.
+  if (Object.entries(settings).some(([key, v]) => key !== 'curvatureCorrection' && !Number.isFinite(v)))
     throw new Error('Design settings must be finite numbers.')
+  if (settings.curvatureCorrection !== undefined && !['report', 'apply'].includes(settings.curvatureCorrection))
+    throw new Error('Curvature correction must be report or apply.')
   if (
     settings.stationInterval < 2 ||
     settings.stationInterval > 100 ||
@@ -1607,8 +1610,10 @@ export function analyzeRoad(
   const surfaceArea = (s: number) => {
     return surfaceLayersAt(alignment, s).reduce((sum, layer) => sum + layer.areaM2, 0)
   }
-  // Curvature-corrected (Pappus) volumes, reported beside the average-end-area ones that every
-  // cost, mass and haul figure uses (`curvedVolume.ts`).
+  // Curvature-corrected (Pappus) volumes (`curvedVolume.ts`). Reported beside the average-end-area
+  // ones by default; with `curvatureCorrection: 'apply'` they replace them, so every total, cost,
+  // mass and haul figure reads the corrected volume.
+  const applyCorrection = settings.curvatureCorrection === 'apply'
   const moments = new Map<number, ReturnType<typeof sectionAreaMoments>>()
   const momentsOf = (station: RoadStation) => {
     let value = moments.get(station.index)
@@ -1618,7 +1623,9 @@ export function analyzeRoad(
   let curvedCutM3 = 0,
     curvedFillM3 = 0,
     curvedLengthM = 0,
-    foldedIntervals = 0
+    foldedIntervals = 0,
+    straightCutM3 = 0,
+    straightFillM3 = 0
   for (let i = 0; i < stations.length; i++) {
     const p = stations[i],
       a = stations[i > 0 ? i - 1 : i],
@@ -1670,6 +1677,14 @@ export function analyzeRoad(
       }
       curvedCutM3 += p.curvedCutVolumeM3
       curvedFillM3 += p.curvedFillVolumeM3
+      straightCutM3 += p.cutVolumeM3
+      straightFillM3 += p.fillVolumeM3
+      if (applyCorrection) {
+        cutVolumeM3 += p.curvedCutVolumeM3 - p.cutVolumeM3
+        fillVolumeM3 += p.curvedFillVolumeM3 - p.fillVolumeM3
+        p.cutVolumeM3 = p.curvedCutVolumeM3
+        p.fillVolumeM3 = p.curvedFillVolumeM3
+      }
       completeLength += ds
       // Width and surface depth may both transition linearly: their product is quadratic.
       p.surfaceVolumeM3 =
@@ -1750,6 +1765,9 @@ export function analyzeRoad(
       fillVolumeM3: curvedFillM3,
       curvedLengthM,
       uncorrectedIntervals: foldedIntervals,
+      ...(applyCorrection
+        ? { applied: true, averageEndCutVolumeM3: straightCutM3, averageEndFillVolumeM3: straightFillM3 }
+        : {}),
     },
   }
   if (alignment.engineering) {

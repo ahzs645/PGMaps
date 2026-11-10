@@ -3192,8 +3192,8 @@ export default function DevForestryRoads() {
                     label: staleResults
                       ? summaryLabel('Cut / fill · invalid input left out', 'C/F · input left out')
                       : summaryLabel(
-                          !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
-                          !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
+                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve-corrected' : ''}`,
+                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve' : ''} (m³)`,
                         ),
                     value: displayedAnalysis.stations.length
                       ? summaryValue(

@@ -194,6 +194,13 @@ function parseSettings(raw: unknown): RoadSettings {
     surfacingRate: number(r.surfacingRate, 'Surfacing unit cost', 0, 10000),
     clearingRate: number(r.clearingRate, 'Clearing unit cost', 0, 10000),
     shrinkFactor: number(r.shrinkFactor, 'Reusable cut factor', 0.1, 2),
+    ...(r.curvatureCorrection === undefined || r.curvatureCorrection === 'report'
+      ? {}
+      : r.curvatureCorrection === 'apply'
+        ? { curvatureCorrection: 'apply' as const }
+        : (() => {
+            throw Error('Curvature correction must be report or apply.')
+          })()),
   }
 }
 function parseOverride(raw: unknown): WidthOverride {
@@ -1287,8 +1294,9 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
     'right_width_m',
     'cut_area_m2',
     'fill_area_m2',
-    'interval_cut_volume_m3',
-    'interval_fill_volume_m3',
+    // The column names say when the volumes are corrected for plan curvature.
+    analysis.curvatureCorrection?.applied ? 'interval_cut_volume_curvature_corrected_m3' : 'interval_cut_volume_m3',
+    analysis.curvatureCorrection?.applied ? 'interval_fill_volume_curvature_corrected_m3' : 'interval_fill_volume_m3',
     'mass_balance_m3',
     'interval_surfacing_volume_m3',
     'interval_stripping_bank_m3',
