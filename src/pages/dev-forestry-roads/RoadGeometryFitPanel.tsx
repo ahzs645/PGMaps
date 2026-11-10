@@ -105,8 +105,9 @@ export function RoadGeometryFitPanel({
       {fit && (
         <>
           <p className="text-2xs text-muted-foreground" data-testid="road-geometry-fit-result">
-            {fit.tangents.length} tangents, {fitted} of {fit.bends.length} bends fitted. The fitted centreline stays
-            within {n(fit.maxDeviationM)} m of the line.
+            {fit.tangents.length} tangent{fit.tangents.length === 1 ? '' : 's'}, {fitted} of {fit.bends.length} bend
+            {fit.bends.length === 1 ? '' : 's'} fitted. The fitted centreline stays within {n(fit.maxDeviationM)} m of
+            the line.
           </p>
           {fit.bends.length > 0 && (
             <div className="max-h-48 overflow-auto">
