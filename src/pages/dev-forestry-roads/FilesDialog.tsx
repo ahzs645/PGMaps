@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Download, FolderOpen, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
@@ -62,6 +62,7 @@ export function FilesDialog({
   context,
   buildPreview,
   previewVersion,
+  setupViews,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -87,6 +88,8 @@ export function FilesDialog({
   buildPreview: (kind: RoadExport, signal: AbortSignal) => Promise<ExportPreview>
   /** Changes whenever the content would: the project, its results or the shown road. */
   previewVersion: unknown
+  /** A Sheet setup view for outputs other than the plot book, e.g. the block map sheet. */
+  setupViews?: Partial<Record<RoadExport, ReactNode>>
 }) {
   const [selected, setSelected] = useState<RoadExport>('project')
   const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
@@ -103,7 +106,8 @@ export function FilesDialog({
   const unavailable = exportUnavailable(item.kind, context)
   const stampNote = exportStampNote(item.kind, context)
   const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
-  const setupAvailable = item.kind === 'plotbook' && !!onReportSettings
+  const setupView = setupViews?.[item.kind]
+  const setupAvailable = (item.kind === 'plotbook' && !!onReportSettings) || !!setupView
   // A view the selected output does not have falls back to its preview.
   const shownView =
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
@@ -289,6 +293,8 @@ export function FilesDialog({
             <div className="min-h-0 flex-1 sm:overflow-y-auto">
               {shownView === 'issue' && onIssue ? (
                 <IssueStampEditor value={issue} onChange={onIssue} today={stamp.date} />
+              ) : shownView === 'setup' && setupView ? (
+                setupView
               ) : shownView === 'setup' && onReportSettings ? (
                 <ReportSettingsEditor value={reportSettings} onChange={onReportSettings} />
               ) : unavailable ? (
