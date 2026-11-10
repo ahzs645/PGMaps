@@ -16,7 +16,13 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { NumberField, roadFieldClass, RoadSelect } from './Controls'
 import type { CableLayoutResult, LayoutSupport } from './cableLayout/cableLayout'
-import { drawnEditResult, focusLayoutRow, useEditCheck, useLayoutFocus } from './cableLayout/editStore'
+import {
+  drawnEditResult,
+  focusLayoutRow,
+  useClearStaleSpanFocus,
+  useEditCheck,
+  useLayoutFocus,
+} from './cableLayout/editStore'
 import { cableLayoutCsv } from './cableLayout/exports'
 import { compareLayouts, focusMarks } from './cableLayout/layoutCompare'
 import {
@@ -110,6 +116,20 @@ export function LocateRow({
       <Crosshair className={`mt-0.5 size-3 shrink-0 ${pressed ? 'text-rose-700' : 'text-muted-foreground'}`} />
       <span>{children}</span>
     </button>
+  )
+}
+
+/** The spans table's header: short labels, named in full on hover, so four columns fit the sidebar. */
+export function SpanColumns() {
+  return (
+    <thead className="sticky top-0">
+      <tr>
+        <ColumnHeader label="Span" unit="m" className="text-left" title="Span, from–to the yarder" />
+        <ColumnHeader label="Sag" unit="m" title="Loaded sag" />
+        <ColumnHeader label="Clear." unit="m" title="Smallest load clearance" />
+        <ColumnHeader label="Tension" unit="kN" title="Largest tension" />
+      </tr>
+    </thead>
   )
 }
 
@@ -234,6 +254,7 @@ export function CableLayoutEditor({
   const checkKey = editCheckKey(edited)
   const drawn = drawnEditResult(check, lineKey, checkKey)
   const shown = drawn?.result ?? null
+  useClearStaleSpanFocus(line.id, shown?.spans)
   const current = drawn && !drawn.pending ? drawn.result : null
   const checking = !current && check?.lineKey === lineKey && check.checkKey === checkKey && check.status !== 'error'
   const checkError =
@@ -500,21 +521,16 @@ export function CableLayoutEditor({
       </div>
       {shown && (
         <div className="max-h-40 overflow-auto rounded border">
-          <EngineeringTable data-testid="cable-edit-spans">
-            <thead className="sticky top-0">
-              <tr>
-                <ColumnHeader label="Span" unit="m" className="text-left" />
-                <ColumnHeader label="Loaded sag" unit="m" />
-                <ColumnHeader label="Min clearance" unit="m" />
-                <ColumnHeader label="Max tension" unit="kN" />
-              </tr>
-            </thead>
+          <EngineeringTable compact data-testid="cable-edit-spans">
+            <SpanColumns />
             <tbody>
               {shown.spans.map((s, i) => (
                 <tr key={i} aria-selected={!(s.clearanceOk && s.tensionOk && s.gravityOk)}>
                   <td className="text-left">
                     <LocateRow line={line} rowId={`span:${i}`} result={shown} settings={settings} edited={edited}>
-                      {n0(s.fromM)}–{n0(s.toM)}
+                      <span className="whitespace-nowrap">
+                        {n0(s.fromM)}–{n0(s.toM)}
+                      </span>
                     </LocateRow>
                   </td>
                   <td>{n1(s.loadedSagM)}</td>

@@ -6,12 +6,14 @@
  *   height (the first `MIN_SUPPORT_DRAG_PX` of movement picks which). The plan cursor follows it.
  * - Double-click the profile to add a support there.
  * - Shift-drag along the profile to draw a no-support sector.
- * - Escape cancels a drag. A focused handle takes the arrow keys (Shift: larger steps) and Delete.
+ * - Escape cancels a drag. A focused handle takes the arrow keys (Shift: larger steps) and Delete;
+ *   after Delete the focus moves to the next handle (else the previous one, an end, or the chart).
  *
  * Every gesture has a sidebar equivalent in the Intermediate supports section. Pure edits come
  * from `cableLayout/layoutEdit.ts`; this component only maps the pointer to them.
  */
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
+import { textWidth } from '@/lib/mapSheet/textMetrics'
 import {
   MIN_SUPPORT_DRAG_PX,
   SUPPORT_CATEGORY_LABELS,
@@ -41,6 +43,29 @@ const SYMBOL = { tree: '#15803d', mast: '#475569', 'ground-anchor': '#92400e', o
 const clamp = (v: number, low: number, high: number) => Math.min(high, Math.max(low, v))
 const short = (name: string) => (name.length > 16 ? `${name.slice(0, 15)}…` : name)
 const m1 = (v: number) => `${v.toFixed(1)} m`
+
+/** The handle that takes the focus after support `index` is deleted, leaving `remaining` supports. */
+export function handleAfterDelete(index: number, remaining: number): SupportHandle {
+  if (index < remaining) return index
+  return index > 0 ? index - 1 : 'end'
+}
+
+/**
+ * Where a mark's label stands beside its line at `x`: to the right, or to the left (anchored at its
+ * end) where it would run past the plot's right edge, so it stays inside the chart.
+ */
+export function markLabelPlacement(
+  x: number,
+  label: string,
+  fontSize: number,
+  plot: { left: number; right: number },
+): { x: number; anchor: 'start' | 'end' } {
+  // Sheet metrics are Helvetica; the page font can run a little wider.
+  const width = textWidth(label, fontSize) * 1.15
+  if (x + 3 + width <= plot.right || x - 3 - width < plot.left)
+    return { x: Math.max(plot.left, Math.min(x + 3, plot.right - width)), anchor: 'start' }
+  return { x: x - 3, anchor: 'end' }
+}
 
 interface Drag {
   handle: SupportHandle
@@ -97,6 +122,9 @@ export function CableLayoutChartLayer({
     latest.current = { edit, f, domain, layout }
   })
   const dragRef = useRef<Drag | null>(null)
+  // Handles by what they edit, to move the focus after a keyboard Delete.
+  const handleNodes = useRef(new Map<SupportHandle, { focus: () => void }>())
+  const [refocus, setRefocus] = useState<SupportHandle | null>(null)
   const setDragState = (next: Drag | null) => {
     dragRef.current = next
     setDrag(next)
@@ -188,6 +216,15 @@ export function CableLayoutChartLayer({
 
   const editing = layout.editing
   const edited = edit?.edited
+  // After Delete, focus the next handle once it is drawn; else an end's, else the chart itself.
+  useEffect(() => {
+    if (refocus === null) return
+    const nodes = handleNodes.current
+    const node = nodes.get(refocus) ?? nodes.get('end') ?? nodes.get('start')
+    setRefocus(null)
+    if (node) node.focus()
+    else (group.current?.ownerSVGElement as { focus?: () => void } | null | undefined)?.focus?.()
+  }, [refocus, edited])
   const frameOf = edit ? { lengthM: edit.lengthM, yarderAtEnd: edit.yarderAtEnd } : null
 
   /** The edited layout with `handle` changed. */
@@ -265,6 +302,8 @@ export function CableLayoutChartLayer({
     event.stopPropagation()
     if (next !== edited) {
       edit!.commit(next)
+      if (event.key === 'Delete' || event.key === 'Backspace')
+        setRefocus(handleAfterDelete(handle as number, next.supports.length))
       if (typeof handle === 'number' && next.supports[handle] && event.key.startsWith('Arrow'))
         onDistance?.(stationFromChart(frameOf, next.supports[handle].stationM))
     }
@@ -300,10 +339,11 @@ export function CableLayoutChartLayer({
       )}
       {layout.focus?.points.map((p, i) => {
         const x = f.x(clamp(p.x, domain[0], domain[1]))
+        const at = markLabelPlacement(x, p.label, 9, { left: f.left, right: f.left + f.plotWidth })
         return (
           <g key={`focus-${i}`} data-testid="road-cable-focus" pointerEvents="none">
             <line x1={x} x2={x} y1={f.top} y2={plotBottom} stroke={MARK} strokeWidth={1.4} strokeDasharray="3 2" />
-            <text x={x + 3} y={f.top + 9 + (i % 3) * 10} fontSize="9" fill={MARK}>
+            <text x={at.x} y={f.top + 9 + (i % 3) * 10} textAnchor={at.anchor} fontSize="9" fill={MARK}>
               {p.label}
             </text>
           </g>
@@ -349,9 +389,15 @@ export function CableLayoutChartLayer({
             strokeWidth={2}
             strokeDasharray="4 2"
           />
-          <text x={f.x(ghost.x) + 6} y={f.y(ghost.top)} fontSize="9" fill={MARK}>
-            {`${Math.round(ghost.s.stationM)} m · ${m1(ghost.s.heightM)}`}
-          </text>
+          {(() => {
+            const label = `${Math.round(ghost.s.stationM)} m · ${m1(ghost.s.heightM)}`
+            const at = markLabelPlacement(f.x(ghost.x) + 3, label, 9, { left: f.left, right: f.left + f.plotWidth })
+            return (
+              <text x={at.x} y={f.y(ghost.top)} textAnchor={at.anchor} fontSize="9" fill={MARK}>
+                {label}
+              </text>
+            )
+          })()}
         </g>
       )}
       {edit &&
@@ -374,6 +420,10 @@ export function CableLayoutChartLayer({
                 fill="hsl(var(--background))"
                 stroke={MARK}
                 strokeWidth={1.8}
+                ref={(node) => {
+                  if (node) handleNodes.current.set(handle, node)
+                  else handleNodes.current.delete(handle)
+                }}
                 tabIndex={0}
                 role="button"
                 aria-roledescription="draggable support"
@@ -388,7 +438,11 @@ export function CableLayoutChartLayer({
                 }}
                 onKeyDown={(e) => onHandleKey(e, handle)}
               >
-                <title>{`${what}: drag sideways to move, up or down to change the height`}</title>
+                <title>
+                  {typeof handle === 'number'
+                    ? `${what}: drag sideways to move, up or down to change the height`
+                    : `${what}: drag up or down to change the height`}
+                </title>
               </circle>
             )
           })}

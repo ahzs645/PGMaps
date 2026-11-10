@@ -90,7 +90,7 @@ import {
   MassHaulChart,
   ProfileChart,
 } from './dev-forestry-roads/Charts'
-import { currentLayoutResult, useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
+import { shownLayoutResult, useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
 import { useCableLayoutChartEdit, useLayoutFocusFollower } from './dev-forestry-roads/cableLayout/useLayoutEdit'
 import { cableGroundSource } from './dev-forestry-roads/dline/fieldProfile'
 import { dLineFrame } from './dev-forestry-roads/dline/frame'
@@ -1112,7 +1112,7 @@ export default function DevForestryRoads() {
         analysis: cableAnalysis,
         terrain: source,
         ground: cableGround,
-        layout: currentLayoutResult(cableLine, cableGround),
+        layout: shownLayoutResult(cableLine, cableGround),
         grid: frame ? exportGrid(project.terrain, frame.yarder) : undefined,
         riggingSets: project.riggingSets,
       })
@@ -4391,7 +4391,7 @@ export default function DevForestryRoads() {
                                         <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
                                           D-line report
                                         </Button>
-                                        {cableLine.supportLayout?.saved && (
+                                        {(cableLine.supportLayout?.saved || cableLine.supportLayout?.edited) && (
                                           <Button
                                             size="sm"
                                             variant="outline"

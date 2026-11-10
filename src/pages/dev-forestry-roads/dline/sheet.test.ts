@@ -1,7 +1,7 @@
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it } from 'vitest'
 import type { DrawOp } from '@/lib/mapSheet/drawOps'
-import { createSheetPdf, drawSheetPdf } from '@/lib/mapSheet/renderPdf'
+import { createSheetPdf, drawSheetPdf, pdfText, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { EXAMPLE_RIGGING } from '../cableMechanics'
 import type { CableLayoutResult } from '../cableLayout/cableLayout'
@@ -146,6 +146,40 @@ describe('D-line sheet', () => {
     drawSheetPdf(pdf, { jsPDF, GState }, sheet.ops)
     expect(new TextDecoder().decode(pdf.output('arraybuffer').slice(0, 5))).toBe('%PDF-')
     expect(sheetSvg(sheet.ops, sheet.width, sheet.height)).toContain('NOT CURRENT: rigging edited')
+  })
+
+  it('prints every word in the PDF font, with no "?" for a sign it cannot set', () => {
+    for (const sheet of [
+      buildDLineSheet(input({ stamp: 'NOT CURRENT: rigging edited' })),
+      buildDLineSheet(input({ limits: null, extras: { ...input().extras, layout: null } })),
+    ]) {
+      const all = texts(sheet.ops)
+      expect(all.flatMap(pdfTextUnfolded)).toEqual([])
+      const rigging = all.find((t) => t.startsWith('Rigging'))!
+      expect(pdfText(rigging)).toContain('safety factor')
+      expect(all.join(' ')).toContain('breaking force')
+    }
+  })
+
+  it('says which layout it prints, and prints the open edit with its names', () => {
+    expect(
+      texts(buildDLineSheet(input()).ops).some((t) => t.startsWith('Found layout · 6 intermediate supports')),
+    ).toBe(true)
+    const edited = {
+      origin: 'found' as const,
+      preTensionKN: 85,
+      start: { heightM: 12 },
+      end: { heightM: 10 },
+      supports: [{ stationM: 175, heightM: 14, name: 'Big fir' }],
+    }
+    const editing: CableLine = { ...line, supportLayout: { ...line.supportLayout!, edited } }
+    const grid = localMetricGrid(start)
+    // Handed the found result, the sheet still prints the edit (unchecked, so without forces).
+    const extras = dLineExtras({ line: editing, analysis, terrain: hill, ground, layout: result, grid })
+    const all = texts(buildDLineSheet(input({ line: editing, extras, limits: null })).ops)
+    expect(all.some((t) => t.startsWith('Edited layout · 1 intermediate support · pre-tension 85 kN'))).toBe(true)
+    expect(all).toContain('1 Big fir')
+    expect(all).not.toContain('FORCES AND ANGLES')
   })
 
   it('refuses a D-line whose own inputs are invalid', () => {

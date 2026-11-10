@@ -268,8 +268,8 @@ method of testing a line is PGMaps' own, on the cable-layout module's span check
   no landing is never reached, and ground beside it leaves over the ground to a landing or not at
   all. A stretch's cells are all landing cells. A point landing within `LANDING_JOIN_M` (25 m) of
   a counted truck road is joined to it by the cells between them; one farther away stands alone.
-  A landing with no cell on the grid is named in the run's notice and left out; with none on the
-  grid the run is refused.
+  A landing with no cell on the grid is left out of the run, named in its notice and listed in the
+  catchment table as "off the grid: left out"; with none on the grid the run is refused.
 - **Cable lines start only from landings.** A point landing is one start; a stretch starts a line
   every **Landing spacing** along it. Each start keeps its landing's yarder side, which replaces
   **Yarder stands** for its lines. Starts must lie on known ground; the travel band does not apply

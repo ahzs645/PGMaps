@@ -8,7 +8,7 @@ import path from 'node:path'
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it } from 'vitest'
 import { encodeSheetImages } from '@/lib/mapSheet/png'
-import { createSheetPdf, drawSheetPdf } from '@/lib/mapSheet/renderPdf'
+import { createSheetPdf, drawSheetPdf, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { blockFacts } from './blockFacts'
 import { composeSheet, sheetFocus, sheetFrame } from './composeSheet'
@@ -71,6 +71,9 @@ describe('block sheet samples', () => {
         caveat: 'Preliminary planning, not for construction',
       })
       expect(sheet.legend.some((item) => item.key === 'block')).toBe(true)
+      // Every word on the sheet reaches the PDF's WinAnsi font without a "?".
+      const unfolded = sheet.ops.flatMap((op) => (op.op === 'text' ? pdfTextUnfolded(op.text) : []))
+      expect(unfolded, kind).toEqual([])
       const pdf = createSheetPdf({ jsPDF, GState }, sheet.width, sheet.height)
       const ops = await encodeSheetImages(sheet.ops)
       drawSheetPdf(pdf, { jsPDF, GState }, ops)

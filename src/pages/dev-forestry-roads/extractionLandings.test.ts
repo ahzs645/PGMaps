@@ -254,6 +254,14 @@ describe('ground machines with landings', () => {
     expect(c.group[top]).toBe(1)
   })
 
+  it('lists a landing off the grid as left out, beside the landings that serve ground', () => {
+    const eg = grid([point('west', -200, 0), point('far away', 5000, 0)])
+    const c = landingCatchments(runToCompletion(extractionOnGrid(eg)))
+    expect(c.rows.map((r) => r.name)).toEqual(['west'])
+    expect(c.offGrid).toEqual(['far away'])
+    expect(landingCatchments(runToCompletion(extractionOnGrid(grid()))).offGrid).toEqual([])
+  })
+
   it('keeps missing ground unknown and out of every catchment', () => {
     const eg = grid(both, [MAIN], (x) => (x > 240 ? NaN : 1000))
     const result = runToCompletion(extractionOnGrid(eg))

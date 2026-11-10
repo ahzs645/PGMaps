@@ -172,7 +172,9 @@ and the re-check (step 6) makes the reported layout the one that passes the fina
 The search's answer is a starting point. **Adjust layout** (under the Find supports button, once a
 layout is saved) opens it for editing; **Place supports by hand** starts with only the two ends. The
 edit is saved with the D-line beside the found layout, which stays as it was, and reopens on reload.
-While an edit is open the section shows it in place of the found result.
+While an edit is open the section shows it in place of the found result, and so does every output:
+the plan dots, the D-line CSV and report, the Stake-out CSV and the D-line sheet use the edit and say
+so (see [D-line outputs](cable-outputs-and-field-profiles.md)).
 
 - **What can change.** Each intermediate support's station and saddle height; supports added
   (**After** on a row, or **Add support in the longest span**) and deleted; a support start's or

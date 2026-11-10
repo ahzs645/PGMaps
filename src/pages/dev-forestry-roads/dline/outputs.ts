@@ -18,11 +18,12 @@ import {
 } from './fieldProfile'
 import { bearingDeg, dLineFrame } from './frame'
 import { matchingRiggingSet, type RiggingSet } from './riggingSets'
-import { dLineSupports, supportStakeout, type DLineSupportSet, type StakeoutRow } from './supports'
+import { dLineSupports, SHOWN_LAYOUT_TEXT, supportStakeout, type DLineSupportSet, type StakeoutRow } from './supports'
 
 export interface DLineExtras {
+  /** The supports of the layout the chart shows: the edited one while an edit is open, else the found one. */
   supports: DLineSupportSet | null
-  /** The current layout result, when the supports come from one. */
+  /** That layout's current result, when the supports come from one. */
   layout: CableLayoutResult | null
   stakeout: { rows: StakeoutRow[]; epsg: number } | null
   field: {
@@ -36,7 +37,8 @@ export interface DLineExtras {
 
 /**
  * Everything the exports add for one D-line. `terrain` is the terrain itself (not the line's field
- * ground); `analysis` is the profile calculated on the line's own ground.
+ * ground); `analysis` is the profile calculated on the line's own ground; `layout` is the current
+ * result of the layout shown (`shownLayoutResult`), ignored when it is not of the open edit.
  */
 export function dLineExtras({
   line,
@@ -107,6 +109,7 @@ export function dLineCsvHeaders(extras: DLineExtras | undefined): string[] {
     ...(extras.riggingSet !== null ? ['rigging_set'] : []),
     ...(extras.supports
       ? [
+          'support_layout',
           'support_layout_source',
           'support_layout_status',
           'support_layout_pre_tension_kn',
@@ -136,6 +139,7 @@ export function dLineCsvValues(
   if (extras.supports) {
     const s = extras.supports
     out.push(
+      s.layout,
       s.source,
       s.status,
       s.preTensionKN,
@@ -173,6 +177,9 @@ const fmt = (value: number | null | undefined, digits = 2) =>
 const dash = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined || !Number.isFinite(value) ? '–' : value.toFixed(digits)
 
+/** A support's crew name, given in an edited layout, after its label. */
+const named = (r: { supportName: string | null }) => (r.supportName ? ` “${r.supportName}”` : '')
+
 export const STAKEOUT_NOTE =
   'Stations are horizontal from the yarder along the D-line; every support stands on the line (offset 0). ' +
   'Ground is the D-line’s own ground (the field profile where one is used), not a survey of the stake. ' +
@@ -186,16 +193,20 @@ export function dLineExtrasHtml(extras: DLineExtras | undefined): string {
     parts.push(`<h2>Rigging set</h2><p>${html(extras.riggingSet)} (the project&rsquo;s own set; not a rating).</p>`)
   const s = extras.supports
   if (s) {
+    const which =
+      s.layout === 'edited'
+        ? 'the layout edited by hand (open in the D-line’s support section), not the found one'
+        : 'the found layout'
     const sourceText =
       s.source === 'result'
-        ? 'From the support layout found or checked for the D-line as it is now.'
-        : 'From the layout saved on the D-line; it has not been checked against the D-line as it is now, so no forces or angles are given.'
+        ? `${SHOWN_LAYOUT_TEXT[s.layout]}: ${which}, checked for the D-line as it is now.`
+        : `${SHOWN_LAYOUT_TEXT[s.layout]}: ${which}, as saved on the D-line; it has not been checked against the D-line as it is now, so no forces or angles are given.`
     parts.push(
       `<h2>Intermediate supports</h2><p>${s.status === 'complete' ? 'Complete layout' : 'Layout stops short of the far end'} · ${s.intermediate} intermediate support${s.intermediate === 1 ? '' : 's'} · pre-tension ${fmt(s.preTensionKN, 0)} kN. ${sourceText}</p>` +
         `<table><thead><tr><th>Support</th><th>Station from yarder (m)</th><th>Ground (m)</th><th>Height (m)</th><th>Saddle elevation (m)</th><th>Break empty / loaded (°)</th><th>Max force (kN)</th></tr></thead><tbody>${s.rows
           .map(
             (r) =>
-              `<tr><td>${html(`${r.label} · ${r.name}${r.fixed ? ' (fixed)' : ''}`)}</td><td>${fmt(r.stationM, 1)}</td><td>${fmt(r.groundM)}</td><td>${fmt(r.heightM, 1)}</td><td>${fmt(r.saddleM)}</td><td>${r.emptyBreakDeg === null ? '–' : `${dash(r.emptyBreakDeg)} / ${dash(r.loadedBreakDeg)}`}</td><td>${dash(r.maxForceKN)}</td></tr>`,
+              `<tr><td>${html(`${r.label} · ${r.name}${named(r)}${r.fixed ? ' (fixed)' : ''}`)}</td><td>${fmt(r.stationM, 1)}</td><td>${fmt(r.groundM)}</td><td>${fmt(r.heightM, 1)}</td><td>${fmt(r.saddleM)}</td><td>${r.emptyBreakDeg === null ? '–' : `${dash(r.emptyBreakDeg)} / ${dash(r.loadedBreakDeg)}`}</td><td>${dash(r.maxForceKN)}</td></tr>`,
           )
           .join('')}</tbody></table>`,
     )
@@ -203,11 +214,11 @@ export function dLineExtrasHtml(extras: DLineExtras | undefined): string {
   if (extras.stakeout) {
     const { rows, epsg } = extras.stakeout
     parts.push(
-      `<h2>Support stake-out</h2><p class="muted">${STAKEOUT_NOTE} Grid coordinates are EPSG:${epsg}; geographic coordinates are WGS84.</p>` +
+      `<h2>Support stake-out</h2><p class="muted">${SHOWN_LAYOUT_TEXT[s?.layout ?? 'found']}. ${STAKEOUT_NOTE} Grid coordinates are EPSG:${epsg}; geographic coordinates are WGS84.</p>` +
         `<table><thead><tr><th>Point</th><th>Support</th><th>Station (m)</th><th>Offset (m)</th><th>Easting</th><th>Northing</th><th>Longitude</th><th>Latitude</th><th>Ground (m)</th><th>Height (m)</th><th>Saddle (m)</th></tr></thead><tbody>${rows
           .map(
             (r) =>
-              `<tr><td>${r.point}</td><td>${html(`${r.label} · ${r.name}`)}</td><td>${fmt(r.stationM, 1)}</td><td>${fmt(r.offsetM, 1)}</td><td>${fmt(r.easting, 2)}</td><td>${fmt(r.northing, 2)}</td><td>${fmt(r.longitude, 7)}</td><td>${fmt(r.latitude, 7)}</td><td>${fmt(r.groundM)}</td><td>${fmt(r.heightM, 1)}</td><td>${fmt(r.saddleM)}</td></tr>`,
+              `<tr><td>${r.point}</td><td>${html(`${r.label} · ${r.name}${named(r)}`)}</td><td>${fmt(r.stationM, 1)}</td><td>${fmt(r.offsetM, 1)}</td><td>${fmt(r.easting, 2)}</td><td>${fmt(r.northing, 2)}</td><td>${fmt(r.longitude, 7)}</td><td>${fmt(r.latitude, 7)}</td><td>${fmt(r.groundM)}</td><td>${fmt(r.heightM, 1)}</td><td>${fmt(r.saddleM)}</td></tr>`,
           )
           .join('')}</tbody></table>`,
     )

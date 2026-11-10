@@ -7,7 +7,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 import type { CableLine, TerrainSource } from '../types'
 import type { CableLayoutResult, LayoutToAnalyse } from './cableLayout'
 import { analyzeCableLayout, searchCableLayout } from './cableLayoutClient'
-import { drawnEditResult, useEditCheck, useLayoutFocus } from './editStore'
+import { drawnEditResult, getEditCheck, useEditCheck, useLayoutFocus } from './editStore'
 import { focusMarks } from './layoutCompare'
 import { editCheckKey, placementIssues } from './layoutEdit'
 import { layoutOverlay, type CableLayoutOverlay } from './overlay'
@@ -55,6 +55,24 @@ export function layoutKey(line: CableLine, terrain: TerrainSource): string {
 export function currentLayoutResult(line: CableLine, terrain: TerrainSource): CableLayoutResult | null {
   const entry = entries.get(line.id)
   return entry?.status === 'done' && entry.key === layoutKey(line, terrain) ? (entry.result ?? null) : null
+}
+
+/**
+ * The current result of the layout every D-line output shows (plan dots, D-line CSV and report,
+ * stake-out, sheet), the same one the chart and the limits table show: **the edited layout's check
+ * while an edit is open, else the found layout's result**. Null while that check is pending or
+ * failed; `dLineSupports` then lists the shown layout's stations without forces.
+ */
+export function shownLayoutResult(line: CableLine, terrain: TerrainSource): CableLayoutResult | null {
+  const edited = line.supportLayout?.edited
+  if (!edited) return currentLayoutResult(line, terrain)
+  const entry = getEditCheck(line.id)
+  return entry?.status === 'done' &&
+    entry.lineKey === layoutKey(line, terrain) &&
+    entry.checkKey === editCheckKey(edited) &&
+    entry.result?.status !== 'no-layout'
+    ? (entry.result ?? null)
+    : null
 }
 
 /** Whether a check or search for this key is running or done (so a caller need not start another). */

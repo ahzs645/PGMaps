@@ -8,6 +8,7 @@ import type { CableLine } from '../types'
 import {
   applyRiggingSetToLine,
   applyRiggingSetToRule,
+  applyRiggingSetWithUndo,
   deleteRiggingSet,
   lineLimits,
   matchingRiggingSet,
@@ -16,6 +17,7 @@ import {
   renameRiggingSet,
   riggingSetNameError,
   saveRiggingSet,
+  undoRiggingSet,
 } from './riggingSets'
 
 let next = 0
@@ -66,6 +68,20 @@ describe('named rigging sets', () => {
     // A limit outside the coverage range leaves the rule's own.
     const wide = applyRiggingSetToRule(DEFAULT_CABLE_RULE, { ...set, limits: { ...limits, maxLoadedDeg: 80 } })
     expect(wide.maxBreakDeg).toBe(DEFAULT_CABLE_RULE.maxBreakDeg)
+  })
+
+  it('puts the yarder back as it was before a set was applied, until it is changed again', () => {
+    const [set] = saveRiggingSet([], 'Heavy', heavy, limits, id)
+    const before = { ...DEFAULT_CABLE_RULE, lateralM: 30 }
+    const { rule, undo } = applyRiggingSetWithUndo(before, set)
+    expect(rule).toEqual(applyRiggingSetToRule(before, set))
+    expect(undo.setName).toBe('Heavy')
+    expect(undoRiggingSet(rule, undo)).toEqual(before)
+    // Another setting changed since stays as it is now.
+    expect(undoRiggingSet({ ...rule, lateralM: 40 }, undo)).toEqual({ ...before, lateralM: 40 })
+    // A rope or load changed since: restoring would undo that too, so it is no longer offered.
+    expect(undoRiggingSet({ ...rule, rigging: { ...rule.rigging, payloadKg: 1 } }, undo)).toBeNull()
+    expect(undoRiggingSet({ ...rule, maxBreakDeg: rule.maxBreakDeg + 1 }, undo)).toBeNull()
   })
 
   it('keeps sets in the project file, and old files without them still load', () => {
