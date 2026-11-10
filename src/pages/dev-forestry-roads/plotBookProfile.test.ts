@@ -50,6 +50,29 @@ const book = (subviews: { bands?: boolean; profileLabels?: boolean }) => {
 }
 
 describe('plot book profile additions', () => {
+  it('keeps the first and last band values inside the plot, clear of the row titles', () => {
+    const svg = sheetBandsSvg({
+      analysis,
+      alignment,
+      start: 0,
+      end: 500,
+      sx: (c) => 90 + c * 2,
+      left: 90,
+      width: 1000,
+      top: 0,
+    })
+    const ground = svg.match(/<g data-role="band-ground">.*?<\/g>/)![0]
+    const values = [...ground.matchAll(/<text x="([\d.]+)" y="\d+" font-size="10" text-anchor="(\w+)"/g)].map(
+      (m) => [Number(m[1]), m[2]] as const,
+    )
+    // The row title ends 8 px left of the plot; the first value starts inside it, the last ends inside it.
+    expect(values[0]).toEqual([82, 'end'])
+    values.shift()
+    expect(values[0]).toEqual([92, 'start'])
+    expect(values.at(-1)).toEqual([1088, 'end'])
+    expect(values.slice(1, -1).every(([, anchor]) => anchor === 'middle')).toBe(true)
+  })
+
   it('leaves a sheet unchanged until a subview turns them on', () => {
     const plain = book({})
     expect(book({ bands: false, profileLabels: false })).toBe(plain)

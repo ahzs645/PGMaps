@@ -1,6 +1,12 @@
 import { useMemo, useState, type KeyboardEvent } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
-import { BAND_VALUE_MIN_GAP_PX, profileValueBands, type BandValue } from './profileBands'
+import {
+  BAND_VALUE_MIN_GAP_PX,
+  bandTextWidth,
+  bandValueAnchor,
+  profileValueBands,
+  type BandValue,
+} from './profileBands'
 import { formatStation } from './verticalStandards'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -153,29 +159,32 @@ function ValueBandsSvg({
               {row.title}
               <title>{row.detail}</title>
             </text>
-            {row.values.map((value) => (
-              <text
-                key={value.chainage}
-                x={x(value.chainage)}
-                y={y + 11}
-                fontSize="9"
-                textAnchor="middle"
-                className="cursor-pointer tabular-nums"
-                fill={value.tone ? TONE_FILL[value.tone] : 'hsl(var(--foreground))'}
-                fontWeight={value.tone === 'super' ? 700 : undefined}
-                data-band-value={value.value === null ? 'unknown' : value.value}
-                data-station={value.chainage}
-                onPointerDown={(event) => {
-                  event.preventDefault()
-                  onStation(value.chainage)
-                }}
-              >
-                {value.text}
-                <title>
-                  {row.title} at {formatStation(value.chainage)}: {value.value === null ? 'unknown' : value.text}
-                </title>
-              </text>
-            ))}
+            {row.values.map((value) => {
+              const at = bandValueAnchor(x(value.chainage), bandTextWidth(value.text, 9), left, left + plotWidth)
+              return (
+                <text
+                  key={value.chainage}
+                  x={at.x}
+                  y={y + 11}
+                  fontSize="9"
+                  textAnchor={at.anchor}
+                  className="cursor-pointer tabular-nums"
+                  fill={value.tone ? TONE_FILL[value.tone] : 'hsl(var(--foreground))'}
+                  fontWeight={value.tone === 'super' ? 700 : undefined}
+                  data-band-value={value.value === null ? 'unknown' : value.value}
+                  data-station={value.chainage}
+                  onPointerDown={(event) => {
+                    event.preventDefault()
+                    onStation(value.chainage)
+                  }}
+                >
+                  {value.text}
+                  <title>
+                    {row.title} at {formatStation(value.chainage)}: {value.value === null ? 'unknown' : value.text}
+                  </title>
+                </text>
+              )
+            })}
           </g>
         )
       })}

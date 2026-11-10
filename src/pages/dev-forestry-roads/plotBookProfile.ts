@@ -13,7 +13,7 @@ import {
   tangentGrades,
   type ProfileGradeLimits,
 } from './profileAnnotations'
-import { profileValueBands } from './profileBands'
+import { bandTextWidth, bandValueAnchor, profileValueBands } from './profileBands'
 import type { Alignment, RoadAnalysis } from './types'
 
 const html = (value: string) =>
@@ -63,10 +63,11 @@ export function sheetBandsSvg({
     .map((row, index) => {
       const y = top + index * SHEET_BAND_ROW_PX
       const values = row.values
-        .map(
-          (v) =>
-            `<text x="${sx(v.chainage).toFixed(1)}" y="${y + 12}" font-size="10" text-anchor="middle"${v.tone ? ` fill="${color[v.tone]}"` : ''}${v.tone === 'super' ? ' font-weight="700"' : ''}>${html(v.text)}</text>`,
-        )
+        .map((v) => {
+          // Values at the plot's ends keep inside it, clear of the row titles in the margin.
+          const at = bandValueAnchor(sx(v.chainage), bandTextWidth(v.text, 10), left, left + width)
+          return `<text x="${at.x.toFixed(1)}" y="${y + 12}" font-size="10" text-anchor="${at.anchor}"${v.tone ? ` fill="${color[v.tone]}"` : ''}${v.tone === 'super' ? ' font-weight="700"' : ''}>${html(v.text)}</text>`
+        })
         .join('')
       return `<g data-role="band-${row.key}"><line x1="${left}" x2="${left + width}" y1="${y + SHEET_BAND_ROW_PX}" y2="${y + SHEET_BAND_ROW_PX}" stroke="#d1d5db"/><text x="${left - 8}" y="${y + 12}" font-size="10" text-anchor="end" fill="#374151">${html(row.title)}</text>${values}</g>`
     })

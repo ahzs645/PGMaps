@@ -336,7 +336,9 @@ export function EngineeringBands({
   return (
     // The chart's header toggle mounts this; it has no fold of its own.
     <div data-testid="road-engineering-bands" data-range-start={start} data-range-end={end}>
-      <div className="max-h-[112px] overflow-y-auto overscroll-contain">
+      {/* No scroller of its own: the chart's band area scrolls, and a second scrollbar here narrowed
+          these bands and put their stations left of the profile's. */}
+      <div>
         <SizedChart height={rows.length * 22}>
           {(width) => {
             const left = width < 380 ? 48 : 58,

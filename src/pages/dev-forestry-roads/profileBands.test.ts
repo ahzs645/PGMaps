@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad, curveDesignAt, horizontalCurveSummary, offsetCoordinate } from './engine'
-import { bandStations, MAX_BAND_VALUES, profileValueBands } from './profileBands'
+import { bandStations, bandTextWidth, bandValueAnchor, MAX_BAND_VALUES, profileValueBands } from './profileBands'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import { sectionCrossfall } from './templates'
 import type { Alignment, Coordinate, RoadStation } from './types'
@@ -126,5 +126,17 @@ describe('profile value bands', () => {
     })
     expect(bands.rows.map((r) => r.key)).toEqual(['ground', 'grade'])
     expect(bands.curvature).toEqual([])
+  })
+})
+
+describe('placing a band value inside the plot', () => {
+  it('starts a value at the left edge after the row title, ends one at the right edge, centres the rest', () => {
+    const width = bandTextWidth('749.92', 10)
+    // At the plot's left edge a centred value ran back over its row title ("Ground749.92").
+    expect(bandValueAnchor(90, width, 90, 600)).toEqual({ x: 92, anchor: 'start' })
+    expect(bandValueAnchor(600, width, 90, 600)).toEqual({ x: 598, anchor: 'end' })
+    expect(bandValueAnchor(300, width, 90, 600)).toEqual({ x: 300, anchor: 'middle' })
+    // Near but not at an edge, the text starts where centring would have started it, if that is inside.
+    expect(bandValueAnchor(100, width, 90, 600)).toEqual({ x: 92, anchor: 'start' })
   })
 })
