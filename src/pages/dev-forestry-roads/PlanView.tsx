@@ -126,7 +126,10 @@ interface PlanProps {
   overlay?: GeoJSON.FeatureCollection
   /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
-  /** Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit'). */
+  /**
+   * Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit',
+   * and from the vehicle tools 'swept-area' | 'vehicle-outline' | 'vehicle-trace' | 'vehicle-template' | 'vehicle-lock').
+   */
   swept?: GeoJSON.FeatureCollection
   /** Consume a plan click as a drain-to-point selection rather than changing road chainage. */
   pourPointPicking?: boolean
@@ -1107,6 +1110,49 @@ function Layers(
       filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'fill'], true]],
       paint: { 'fill-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'fill-opacity': 0.3 },
     })
+    // Vehicle tools: swept area filled under everything, then templates, traces, lock runs and the vehicle itself.
+    add({
+      id: 'road-swept-area',
+      type: 'fill',
+      source: 'road-swept',
+      filter: ['all', ['==', ['get', 'role'], 'swept-area'], ['==', ['geometry-type'], 'Polygon']],
+      paint: { 'fill-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'fill-opacity': 0.18 },
+    })
+    add({
+      id: 'road-swept-area-line',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['all', ['==', ['get', 'role'], 'swept-area'], ['==', ['geometry-type'], 'Polygon']],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'line-width': 1 },
+    })
+    add({
+      id: 'road-vehicle-template',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-template'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#475569'], 'line-width': 1.5, 'line-dasharray': [3, 2] },
+    })
+    add({
+      id: 'road-vehicle-trace',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-trace'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#0891b2'], 'line-width': 1.5 },
+    })
+    add({
+      id: 'road-vehicle-lock',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-lock'],
+      paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 },
+    })
+    add({
+      id: 'road-vehicle-outline',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-outline'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#0f172a'], 'line-width': 1.5 },
+    })
     add({
       id: 'road-exploration-line',
       type: 'line',
@@ -1164,10 +1210,16 @@ function Layers(
       'road-drainage-catchment-outline',
       'road-drainage-line',
       'road-drainage-point',
+      'road-swept-area',
+      'road-swept-area-line',
       'road-swept-body',
       'road-swept-wheels',
       'road-swept-deficit',
       'road-exploration-fill',
+      'road-vehicle-template',
+      'road-vehicle-trace',
+      'road-vehicle-lock',
+      'road-vehicle-outline',
       'road-exploration-line',
       'road-exploration-point',
     ])

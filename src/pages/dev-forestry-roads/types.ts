@@ -168,6 +168,13 @@ export interface LoadSpan {
   behindRearBunkM: number
   /** Load width; the vehicle width when absent. */
   widthM?: number
+  /**
+   * How the load's length behaves as the bunks move apart or together in a turn. `from-bunks`
+   * (the default when absent) keeps both overhangs, so the load stretches with the bunk spacing.
+   * `rigid` keeps the length it has travelling straight: the load rides the front bunk, slides over
+   * the rear one, and the tail behind the rear bunk changes by the change in spacing.
+   */
+  lengthMode?: 'from-bunks' | 'rigid'
 }
 /** User-entered swept-path check for one road; never inferred from a road class. */
 export interface VehicleCheck {
@@ -439,6 +446,8 @@ export interface RoadProject {
   standards?: import('./designStandards').DesignStandards
   /** Printed on the report and every plot-book sheet: author, organisation, revision and date. */
   issue?: import('./projectIssue').ProjectIssue
+  /** The project's own design vehicles (a contractor's fleet), reused by every road's vehicle check. */
+  vehicleLibrary?: DesignVehicle[]
   /** Portable drawing settings; report intervals never alter analytical station spacing. */
   reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */

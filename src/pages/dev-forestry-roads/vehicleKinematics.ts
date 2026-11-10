@@ -37,6 +37,16 @@ export interface VehiclePose {
   axes: XY[]
   /** Angle between the first unit's axis and the steer path's tangent: the steering angle, degrees. */
   steerDegrees: number
+  /** The same angle signed: positive steers left, negative right. */
+  steerSignedDegrees: number
+}
+
+export interface TrackOptions {
+  /**
+   * Heading the vehicle starts on, as a unit vector rear → front. Every unit starts straight along
+   * it, trailing the steer point. Absent: along the path's first step.
+   */
+  startAxis?: XY
 }
 
 /** Steering geometry of a single unit at a fixed steering angle (single-track model). */
@@ -105,14 +115,9 @@ export const minimumSteerRadius = (vehicle: DesignVehicle): number | null =>
 export function vehicleLength(vehicle: DesignVehicle): number {
   const units = vehicle.units
   // Distances behind the steer axle, travelling straight.
-  let pivot = 0
-  const pivots = units.map((u, i) => {
-    const at = pivot
-    pivot += u.wheelbaseM + (i < units.length - 1 ? u.hitchOffsetM : 0)
-    return at
-  })
+  const pivots = straightPivots(vehicle)
   let front = -units[0].frontOverhangM,
-    rear = pivot + units.at(-1)!.rearOverhangM
+    rear = pivots.at(-1)! + units.at(-1)!.wheelbaseM + units.at(-1)!.rearOverhangM
   // A load's ends can reach past the units (logs ahead of the bunk, or behind the last axle).
   for (const load of vehicle.loads ?? []) {
     front = Math.min(front, pivots[load.front.unit] + load.front.behindPivotM - load.aheadOfFrontBunkM)
@@ -123,7 +128,8 @@ export function vehicleLength(vehicle: DesignVehicle): number {
 
 /**
  * Moves the vehicle along `count` steer-path points in travel order, calling `onPose` at each.
- * The vehicle starts straight, every unit trailing along the first step's direction.
+ * The vehicle starts straight, every unit trailing along the first step's direction, or along
+ * `options.startAxis` when it is parked at another heading.
  */
 export function trackVehicle(
   count: number,
@@ -131,13 +137,30 @@ export function trackVehicle(
   vehicle: DesignVehicle,
   rule: TrailingRule,
   onPose: (pose: VehiclePose) => void,
+  options: TrackOptions = {},
 ): void {
+  for (const pose of trackVehicleSteps(count, at, vehicle, rule, options)) onPose(pose)
+}
+
+/**
+ * `trackVehicle` as a generator, one pose per steer-path point, so a long run can be sliced with
+ * `cooperative.ts`. The pose's arrays are reused between steps: copy (`clonePose`) to keep one.
+ */
+export function* trackVehicleSteps(
+  count: number,
+  at: (k: number) => PathPoint,
+  vehicle: DesignVehicle,
+  rule: TrailingRule,
+  options: TrackOptions = {},
+): Generator<VehiclePose, void> {
   if (count < 2) return
   const first = at(0),
     second = at(1)
-  const len0 = Math.hypot(second.x - first.x, second.y - first.y) || 1
-  const ux = (second.x - first.x) / len0,
-    uy = (second.y - first.y) / len0
+  const start = options.startAxis
+  const len0 = start ? Math.hypot(start[0], start[1]) : Math.hypot(second.x - first.x, second.y - first.y)
+  if (start && !(len0 > 1e-9)) throw Error('The starting heading needs a direction.')
+  const ux = (start ? start[0] : second.x - first.x) / (len0 || 1),
+    uy = (start ? start[1] : second.y - first.y) / (len0 || 1)
   const units = vehicle.units
   const fronts: XY[] = [],
     rears: XY[] = [],
@@ -191,9 +214,8 @@ export function trackVehicle(
     const tx = b.x - a.x,
       ty = b.y - a.y
     const [ax, ay] = axes[0]
-    const steerDegrees =
-      Math.hypot(tx, ty) > 1e-12 ? Math.abs(Math.atan2(ax * ty - ay * tx, ax * tx + ay * ty)) / RAD : 0
-    onPose({ k, fronts, rears, axes, steerDegrees })
+    const steerSignedDegrees = Math.hypot(tx, ty) > 1e-12 ? Math.atan2(ax * ty - ay * tx, ax * tx + ay * ty) / RAD : 0
+    yield { k, fronts, rears, axes, steerDegrees: Math.abs(steerSignedDegrees), steerSignedDegrees }
   }
 }
 
@@ -211,8 +233,33 @@ export function wheelPoints(pose: VehiclePose, vehicle: DesignVehicle): XY[] {
   return points
 }
 
-/** The line a load lies along: from its front bunk to its rear bunk, extended by its overhangs. */
-export function loadLine(pose: VehiclePose, load: LoadSpan): { front: XY; rear: XY; axis: XY } {
+/** Distance of each unit's front pivot behind the steer axle, travelling straight. */
+export function straightPivots(vehicle: DesignVehicle): number[] {
+  let pivot = 0
+  return vehicle.units.map((u) => {
+    const at = pivot
+    pivot += u.wheelbaseM + u.hitchOffsetM
+    return at
+  })
+}
+
+/** Distance between a load's two bunks when the vehicle travels straight. */
+export function straightBunkSpacing(vehicle: DesignVehicle, load: LoadSpan): number {
+  const pivots = straightPivots(vehicle)
+  return pivots[load.rear.unit] + load.rear.behindPivotM - pivots[load.front.unit] - load.front.behindPivotM
+}
+
+/**
+ * The line a load lies along: from its front bunk toward its rear bunk. With overhangs from each
+ * bunk (the default) it reaches the entered distances past both bunks. A rigid load keeps its
+ * straight-travel length: it ends that far behind its front end whatever the bunk spacing, so
+ * `vehicle` is needed to know that length.
+ */
+export function loadLine(
+  pose: VehiclePose,
+  load: LoadSpan,
+  vehicle?: DesignVehicle,
+): { front: XY; rear: XY; axis: XY; frontBunk: XY; rearBunk: XY } {
   const bunk = (end: LoadSpan['front']): XY => {
     const [fx, fy] = pose.fronts[end.unit],
       [ax, ay] = pose.axes[end.unit]
@@ -225,11 +272,15 @@ export function loadLine(pose: VehiclePose, load: LoadSpan): { front: XY; rear: 
     d = Math.hypot(dx, dy)
   // Bunks that coincide leave the load on the front unit's axis.
   const axis: XY = d > 1e-9 ? [dx / d, dy / d] : pose.axes[load.front.unit]
-  return {
-    front: [b1[0] + axis[0] * load.aheadOfFrontBunkM, b1[1] + axis[1] * load.aheadOfFrontBunkM],
-    rear: [b2[0] - axis[0] * load.behindRearBunkM, b2[1] - axis[1] * load.behindRearBunkM],
-    axis,
-  }
+  const front: XY = [b1[0] + axis[0] * load.aheadOfFrontBunkM, b1[1] + axis[1] * load.aheadOfFrontBunkM]
+  const rear: XY =
+    load.lengthMode === 'rigid' && vehicle
+      ? (() => {
+          const length = load.aheadOfFrontBunkM + straightBunkSpacing(vehicle, load) + load.behindRearBunkM
+          return [front[0] - axis[0] * length, front[1] - axis[1] * length]
+        })()
+      : [b2[0] - axis[0] * load.behindRearBunkM, b2[1] - axis[1] * load.behindRearBunkM]
+  return { front, rear, axis, frontBunk: b1, rearBunk: b2 }
 }
 
 /**
@@ -261,7 +312,7 @@ export function bodyPoints(pose: VehiclePose, vehicle: DesignVehicle): XY[] {
     )
   })
   for (const load of vehicle.loads ?? []) {
-    const line = loadLine(pose, load)
+    const line = loadLine(pose, load, vehicle)
     const length = Math.hypot(line.front[0] - line.rear[0], line.front[1] - line.rear[1])
     side(line.front, line.rear, line.axis, (load.widthM ?? vehicle.widthM) / 2, length)
   }
@@ -308,4 +359,158 @@ export function locate(samples: readonly Sample[], px: number, py: number, lo: n
       result = { s: A.s + (B.s - A.s) * t, offset: (dx * (py - A.y) - dy * (px - A.x)) / len, distance }
   }
   return result
+}
+
+/** One unit in a steady turn: the radii of its front pivot, its rear axle-group centre and its hitch. */
+export interface SteadyUnit {
+  frontRadiusM: number
+  rearRadiusM: number
+  /** Radius of the point the next unit is hitched to; absent for the last unit. */
+  hitchRadiusM?: number
+}
+
+/**
+ * Steady-state turn (the vehicle has driven long enough on a circle that nothing changes): every
+ * rear axle-group centre moves square to its radius, so a unit whose front pivot is on radius Rf
+ * has its axle on √(Rf² − L²), and a hitch h behind the axle is on √(Rr² + h²). For a whole chain
+ * this is SAE J695's R_n² = R² − ΣLᵢ² + Σhᵢ². Offtracking is the steer radius less the last axle's.
+ * Throws when a unit's front pivot is not farther from the centre than its wheelbase.
+ */
+export function steadyStateTurn(
+  vehicle: Pick<DesignVehicle, 'units'>,
+  steerRadiusM: number,
+): { units: SteadyUnit[]; offtrackingM: number } {
+  if (!(steerRadiusM > 0) || !Number.isFinite(steerRadiusM)) throw Error('The steer radius must be positive.')
+  const units: SteadyUnit[] = []
+  let front = steerRadiusM
+  vehicle.units.forEach((u, i) => {
+    if (!(front > u.wheelbaseM))
+      throw Error(
+        `${u.name || `Unit ${i + 1}`} cannot settle on an R${round3(steerRadiusM)} turn: its pivot would be no farther from the centre than its wheelbase.`,
+      )
+    const rear = Math.sqrt(front ** 2 - u.wheelbaseM ** 2)
+    const last = i === vehicle.units.length - 1
+    units.push({
+      frontRadiusM: front,
+      rearRadiusM: rear,
+      ...(last ? {} : { hitchRadiusM: Math.hypot(rear, u.hitchOffsetM) }),
+    })
+    front = Math.hypot(rear, u.hitchOffsetM)
+  })
+  return { units, offtrackingM: steerRadiusM - units.at(-1)!.rearRadiusM }
+}
+
+const round3 = (value: number) => Math.round(value * 1000) / 1000
+
+/** A point fixed to a unit: metres ahead of its front pivot (negative behind) and to its left (negative right). */
+export function unitPoint(pose: VehiclePose, unit: number, aheadM: number, leftM: number): XY {
+  const [fx, fy] = pose.fronts[unit],
+    [ax, ay] = pose.axes[unit]
+  return [fx + ax * aheadM - ay * leftM, fy + ay * aheadM + ax * leftM]
+}
+
+/** Plan outlines of a vehicle at one pose: each unit's body, each load and each axle, local metres. */
+export interface VehicleOutline {
+  /** Closed rings (first point repeated last). */
+  bodies: { label: string; ring: XY[] }[]
+  loads: { label: string; ring: XY[] }[]
+  /** Each axle as a line between its wheel extents; the first unit's steer axle first. */
+  axles: [XY, XY][]
+}
+
+function rectangle(front: XY, rear: XY, axis: XY, half: number): XY[] {
+  const nx = -axis[1] * half,
+    ny = axis[0] * half
+  return [
+    [front[0] + nx, front[1] + ny],
+    [rear[0] + nx, rear[1] + ny],
+    [rear[0] - nx, rear[1] - ny],
+    [front[0] - nx, front[1] - ny],
+    [front[0] + nx, front[1] + ny],
+  ]
+}
+
+export function vehicleOutline(pose: VehiclePose, vehicle: DesignVehicle): VehicleOutline {
+  const half = vehicle.widthM / 2
+  const bodies = vehicle.units.map((u, i) => ({
+    label: u.name || `Unit ${i + 1}`,
+    ring: rectangle(
+      unitPoint(pose, i, u.frontOverhangM, 0),
+      unitPoint(pose, i, -(u.wheelbaseM + u.rearOverhangM), 0),
+      pose.axes[i],
+      half,
+    ),
+  }))
+  const loads = (vehicle.loads ?? []).map((load, i) => {
+    const line = loadLine(pose, load, vehicle)
+    return {
+      label: load.name || `Load ${i + 1}`,
+      ring: rectangle(line.front, line.rear, line.axis, (load.widthM ?? vehicle.widthM) / 2),
+    }
+  })
+  const axles: [XY, XY][] = []
+  vehicle.units.forEach((u, i) => {
+    for (const ahead of i === 0 ? [0, -u.wheelbaseM] : [-u.wheelbaseM])
+      axles.push([unitPoint(pose, i, ahead, half), unitPoint(pose, i, ahead, -half)])
+  })
+  return { bodies, loads, axles }
+}
+
+/** Articulation between each pair of coupled units, degrees, signed positive when the trailer swings left. */
+export function articulationDegrees(pose: VehiclePose): number[] {
+  const angles: number[] = []
+  for (let i = 1; i < pose.axes.length; i++) {
+    const a = pose.axes[i - 1],
+      b = pose.axes[i]
+    angles.push(Math.atan2(a[0] * b[1] - a[1] * b[0], a[0] * b[0] + a[1] * b[1]) / RAD)
+  }
+  return angles
+}
+
+/** "23.6° L": a steering angle with its side; "0.0°" when straight. */
+export const steerText = (signedDegrees: number) =>
+  `${Math.abs(signedDegrees).toFixed(1)}°${Math.abs(signedDegrees) < 0.05 ? '' : signedDegrees > 0 ? ' L' : ' R'}`
+
+/** A copy of a pose that later tracking steps cannot change. */
+export const clonePose = (pose: VehiclePose): VehiclePose => ({
+  ...pose,
+  fronts: pose.fronts.map((p) => [p[0], p[1]]),
+  rears: pose.rears.map((p) => [p[0], p[1]]),
+  axes: pose.axes.map((p) => [p[0], p[1]]),
+})
+
+/**
+ * Truck specifications usually quote the inner front wheel's cut angle, not the single-track
+ * (bicycle-model) angle. With kingpin track T, the rear axle-group centre turns on
+ * D = L / tan(inner) + T/2, and the single-track lock is atan(L / D) (Ackermann geometry,
+ * Gillespie 1992 ch. 6). Returns the single-track lock and the outer wheel's angle.
+ */
+export function lockFromInnerWheelCut(
+  wheelbaseM: number,
+  kingpinTrackM: number,
+  innerWheelDeg: number,
+): { lockDeg: number; outerWheelDeg: number } {
+  if (!(wheelbaseM > 0) || !(kingpinTrackM > 0) || !(innerWheelDeg > 0 && innerWheelDeg < 90))
+    throw Error('Enter a positive wheelbase and kingpin track, and an inner wheel cut between 0° and 90°.')
+  const D = wheelbaseM / Math.tan(innerWheelDeg * RAD) + kingpinTrackM / 2
+  return {
+    lockDeg: Math.atan2(wheelbaseM, D) / RAD,
+    outerWheelDeg: Math.atan2(wheelbaseM, D + kingpinTrackM / 2) / RAD,
+  }
+}
+
+/** Inner and outer front wheel angles for a single-track steering angle (Ackermann). */
+export function ackermannWheelAngles(
+  wheelbaseM: number,
+  kingpinTrackM: number,
+  singleTrackDeg: number,
+): { innerDeg: number; outerDeg: number } {
+  if (!(wheelbaseM > 0) || !(kingpinTrackM > 0) || !(singleTrackDeg > 0 && singleTrackDeg < 90))
+    throw Error('Enter a positive wheelbase and kingpin track, and a steering angle between 0° and 90°.')
+  const D = wheelbaseM / Math.tan(singleTrackDeg * RAD)
+  if (!(D > kingpinTrackM / 2)) throw Error('The inner wheel would turn past the rear axle’s line.')
+  return {
+    innerDeg: Math.atan2(wheelbaseM, D - kingpinTrackM / 2) / RAD,
+    outerDeg: Math.atan2(wheelbaseM, D + kingpinTrackM / 2) / RAD,
+  }
 }

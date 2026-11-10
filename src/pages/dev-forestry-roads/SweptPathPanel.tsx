@@ -1,10 +1,12 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { downloadText } from '@/lib/download'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import {
   DEFAULT_VEHICLE_CHECK,
   SWEPT_PATH_BASIS,
+  unitLabel,
   VEHICLE_LIMITS,
   VEHICLE_PRESETS,
   type SweptManeuver,
@@ -14,6 +16,33 @@ import type { Alignment, DesignVehicle, LoadSpan, VehicleCheck, VehicleUnit } fr
 import { InfoTip } from '@/components/ui/info-tip'
 import { JunctionTurnPanel, type JunctionTurnProps } from './JunctionTurnPanel'
 import { steeringGeometry, type SteeringGiven } from './vehicleKinematics'
+import { DrivePathPanel, type DrivenPath } from './DrivePathPanel'
+import type { MapNote } from './mapNotes'
+import type { ReferenceFeature } from './referenceFeatures'
+import { VehicleOnRoadPanel } from './VehicleOnRoadPanel'
+import {
+  importVehicleFile,
+  MAX_VEHICLE_FILE_BYTES,
+  removeFromLibrary,
+  saveToLibrary,
+  serializeVehicleFile,
+} from './vehicleLibrary'
+import { vehicleToolSources } from './vehicleTools'
+
+/** What the vehicle tools need from the project, and where they draw. */
+export interface VehicleToolsProps {
+  /** Plan features of the vehicle tools (vehicle footprints, traces, driven paths, templates), or null. */
+  onOverlay: (overlay: GeoJSON.FeatureCollection | null) => void
+  /** Lines, areas and pins a path, footprint or template can be taken from. */
+  notes?: MapNote[]
+  reference?: ReferenceFeature[]
+  /** Design roads whose formations count as room to drive. */
+  alignments: Alignment[]
+  /** The project's own vehicles. */
+  library: DesignVehicle[]
+  /** Absent while the project cannot be edited. */
+  onLibraryChange?: (library: DesignVehicle[]) => void
+}
 
 const m = (value: number) =>
   `${value.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`
@@ -329,6 +358,23 @@ function LoadFields({
             disabled={disabled}
             onChange={(behindRearBunkM) => setLoad(i, { behindRearBunkM })}
           />
+          <Field
+            label="Load length"
+            hint="Overhangs from each bunk: the load stretches or shortens with the bunk spacing in a turn. Rigid: the logs keep their straight-travel length, ride the front bunk and slide over the rear one, so the tail moves by the change in spacing."
+          >
+            <RoadSelect
+              className={roadFieldClass}
+              ariaLabel={`${load.name || 'Load'} length`}
+              disabled={disabled}
+              value={load.lengthMode ?? 'from-bunks'}
+              onValueChange={(value) =>
+                setLoad(i, value === 'rigid' ? { lengthMode: 'rigid' } : { lengthMode: undefined })
+              }
+            >
+              <option value="from-bunks">Overhangs from each bunk</option>
+              <option value="rigid">Rigid (fixed length)</option>
+            </RoadSelect>
+          </Field>
           <Button
             size="sm"
             variant="outline"
@@ -371,6 +417,106 @@ function LoadFields({
   )
 }
 
+/** Saves the vehicle to the project's own library, and moves the library to and from a vehicle file. */
+function VehicleLibraryActions({
+  vehicle,
+  library,
+  onLibraryChange,
+}: {
+  vehicle: DesignVehicle
+  library: DesignVehicle[]
+  onLibraryChange?: (library: DesignVehicle[]) => void
+}) {
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
+  const file = useRef<HTMLInputElement>(null)
+  const act = (run: () => string) => {
+    try {
+      setMessage({ text: run(), error: false })
+    } catch (cause) {
+      setMessage({ text: cause instanceof Error ? cause.message : String(cause), error: true })
+    }
+  }
+  const inLibrary = library.some((v) => v.name.trim().toLowerCase() === vehicle.name.trim().toLowerCase())
+  return (
+    <div className="space-y-1" data-testid="vehicle-library">
+      <div className="grid grid-cols-2 gap-1">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!onLibraryChange}
+          onClick={() =>
+            act(() => {
+              onLibraryChange!(saveToLibrary(library, vehicle))
+              return `${inLibrary ? 'Updated' : 'Saved'} “${vehicle.name.trim()}” in this project’s vehicles.`
+            })
+          }
+        >
+          {inLibrary ? 'Update project vehicle' : 'Save to project vehicles'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!onLibraryChange || !inLibrary}
+          onClick={() =>
+            act(() => {
+              onLibraryChange!(removeFromLibrary(library, vehicle.name))
+              return `Removed “${vehicle.name.trim()}” from this project’s vehicles; the road keeps its dimensions.`
+            })
+          }
+        >
+          Remove from project
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!library.length}
+          onClick={() =>
+            act(() => {
+              downloadText(serializeVehicleFile(library), 'vehicles.json', 'application/json')
+              return `Exported ${library.length} vehicle${library.length === 1 ? '' : 's'}.`
+            })
+          }
+        >
+          Export vehicle file
+        </Button>
+        <Button size="sm" variant="outline" disabled={!onLibraryChange} onClick={() => file.current?.click()}>
+          Import vehicle file
+        </Button>
+      </div>
+      <input
+        ref={file}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        aria-label="Vehicle file"
+        onChange={async (event) => {
+          const selected = event.target.files?.[0]
+          event.target.value = ''
+          if (!selected || !onLibraryChange) return
+          if (selected.size > MAX_VEHICLE_FILE_BYTES) {
+            setMessage({ text: 'A vehicle file must be at most 1 MB.', error: true })
+            return
+          }
+          const text = await selected.text()
+          act(() => {
+            const merged = importVehicleFile(library, text)
+            onLibraryChange(merged.library)
+            return `Imported ${merged.added} new and ${merged.replaced} updated vehicle${merged.added + merged.replaced === 1 ? '' : 's'}.`
+          })
+        }}
+      />
+      {message && (
+        <p
+          role={message.error ? 'alert' : 'status'}
+          className={`text-2xs ${message.error ? 'text-destructive' : 'text-muted-foreground'}`}
+        >
+          {message.text}
+        </p>
+      )}
+    </div>
+  )
+}
+
 /**
  * Design-vehicle swept path for the active road. Results come first and stack in one column so
  * they read on a phone; the vehicle inputs fold below them.
@@ -386,6 +532,7 @@ export function SweptPathPanel({
   onFocus,
   alignment,
   junctions,
+  tools,
 }: {
   check: VehicleCheck | undefined
   result: SweptPathResult | null
@@ -399,8 +546,22 @@ export function SweptPathPanel({
   /** With the project's roads, the panel also checks turns at this road's junctions. */
   alignment?: Alignment
   junctions?: JunctionTurnProps
+  /** With these, the panel also shows the vehicle at a station, traces points and drives drawn paths. */
+  tools?: VehicleToolsProps
 }) {
   const [showAll, setShowAll] = useState(false)
+  const [focus, setFocus] = useState<{ station: number; direction: 'up' | 'down' } | null>(null)
+  const [driven, setDriven] = useState<DrivenPath | null>(null)
+  const [roadOverlay, setRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [driveOverlay, setDriveOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const toolOverlay = tools?.onOverlay
+  useEffect(() => {
+    const features = [...(roadOverlay?.features ?? []), ...(driveOverlay?.features ?? [])]
+    toolOverlay?.(features.length ? { type: 'FeatureCollection', features } : null)
+  }, [roadOverlay, driveOverlay, toolOverlay])
+  useEffect(() => () => toolOverlay?.(null), [toolOverlay])
+  const sources = useMemo(() => vehicleToolSources(tools?.notes, tools?.reference), [tools?.notes, tools?.reference])
+  const onDrive = useCallback((path: DrivenPath) => setDriven(path), [])
   const turns = useMemo(() => {
     const list = governing(result?.maneuvers ?? [])
     // Widening first, largest first; then the tightest turns that still fit.
@@ -418,6 +579,7 @@ export function SweptPathPanel({
         junctions={junctions}
         onStation={onStation}
         showOnPlan={showOnPlan}
+        onDrive={tools ? onDrive : undefined}
       />
     ) : null
   if (!check)
@@ -443,6 +605,8 @@ export function SweptPathPanel({
     )
   }
   const preset = VEHICLE_PRESETS.find((p) => sameVehicle(p.vehicle, check.vehicle))
+  const library = tools?.library ?? []
+  const saved = library.findIndex((v) => v.name === check.vehicle.name && sameVehicle(v, check.vehicle))
   const failing = turns.filter(failingTurn)
   const visible = showAll ? turns : turns.filter((t, i) => !t.fits || i < failing.length + 2)
   return (
@@ -482,7 +646,11 @@ export function SweptPathPanel({
               key={t.id}
               t={t}
               lockDeg={check.vehicle.steeringLockDeg}
-              onShow={(turn) => (onFocus ? onFocus(turn) : onStation(turn.worstChainage))}
+              onShow={(turn) => {
+                setFocus({ station: turn.worstChainage, direction: turn.direction })
+                if (onFocus) onFocus(turn)
+                else onStation(turn.worstChainage)
+              }}
               both={check.direction === 'both'}
             />
           ))}
@@ -508,10 +676,12 @@ export function SweptPathPanel({
               className={roadFieldClass}
               ariaLabel="Design vehicle preset"
               disabled={!onChange}
-              value={preset?.id ?? 'custom'}
+              value={preset?.id ?? (saved >= 0 ? `library:${saved}` : 'custom')}
               onValueChange={(value) => {
                 const next = VEHICLE_PRESETS.find((p) => p.id === value)
                 if (next) set({ vehicle: structuredClone(next.vehicle) })
+                const own = value.startsWith('library:') ? library[Number(value.slice(8))] : undefined
+                if (own) set({ vehicle: structuredClone(own) })
               }}
             >
               {VEHICLE_PRESETS.map((p) => (
@@ -519,11 +689,19 @@ export function SweptPathPanel({
                   {p.label}
                 </option>
               ))}
+              {library.map((v, i) => (
+                <option key={`library:${i}`} value={`library:${i}`}>
+                  {`Project vehicle: ${v.name}`}
+                </option>
+              ))}
               <option value="custom" disabled>
                 Custom dimensions
               </option>
             </RoadSelect>
           </Field>
+          {tools && (
+            <VehicleLibraryActions vehicle={check.vehicle} library={library} onLibraryChange={tools.onLibraryChange} />
+          )}
           <p className="text-2xs text-amber-800 dark:text-amber-300">
             Presets are example or transcribed dimensions, not approvals: the source below says which values to confirm.
             Enter your fleet’s truck, trailer and load before relying on a result.
@@ -583,6 +761,43 @@ export function SweptPathPanel({
               }
             />
           ))}
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              disabled={!onChange || check.vehicle.units.length >= VEHICLE_LIMITS.units}
+              onClick={() =>
+                setDimensions({
+                  units: [
+                    ...check.vehicle.units,
+                    {
+                      name: `Unit ${check.vehicle.units.length + 1}`,
+                      wheelbaseM: 6,
+                      frontOverhangM: 0.5,
+                      rearOverhangM: 0.5,
+                      hitchOffsetM: 0,
+                    },
+                  ],
+                })
+              }
+            >
+              Add a unit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1"
+              disabled={!onChange || check.vehicle.units.length < 2}
+              onClick={() => {
+                const units = check.vehicle.units.slice(0, -1)
+                const loads = (check.vehicle.loads ?? []).filter((l) => l.rear.unit < units.length)
+                setDimensions({ units, loads: loads.length ? loads : undefined })
+              }}
+            >
+              Remove {unitLabel(check.vehicle.units.at(-1)!, check.vehicle.units.length - 1)}
+            </Button>
+          </div>
           <SteeringFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
           <LoadFields vehicle={check.vehicle} disabled={!onChange} onChange={setDimensions} />
           <Field label="Dimension source">
@@ -607,6 +822,27 @@ export function SweptPathPanel({
         </div>
       </details>
       {junctionPanel(check)}
+      {tools && alignment && (
+        <VehicleOnRoadPanel
+          alignment={alignment}
+          check={check}
+          focusStation={focus}
+          onStation={onStation}
+          onOverlay={setRoadOverlay}
+          showOnPlan={showOnPlan}
+        />
+      )}
+      {tools && (
+        <DrivePathPanel
+          vehicle={check.vehicle}
+          clearanceM={check.clearanceM}
+          alignments={tools.alignments}
+          sources={sources}
+          external={driven}
+          onOverlay={setDriveOverlay}
+          showOnPlan={showOnPlan}
+        />
+      )}
       <InfoTip label="How the swept path is calculated" showLabel bubbleClassName="w-96 space-y-1.5">
         <span className="block">{SWEPT_PATH_BASIS}</span>
         <span className="block">

@@ -4,8 +4,9 @@
  * same ground-trend grid as the skid reach model.
  *
  * A candidate is a footprint to look at in the field, not a landing design: nothing is levelled,
- * no section or earthwork is computed, and a road end gets no turnaround. The road tool has no
- * template for road ends, so the footprint is reported as a polygon only.
+ * no section or earthwork is computed, and a road end gets no turnaround designed. The footprint is
+ * reported as a polygon; the skid reach panel says whether the road's design vehicle can loop round
+ * inside it at its steering lock (`turningTemplate.ts`).
  *
  * Pure: takes the prepared grid and constraints as arguments; no DOM or network access.
  */

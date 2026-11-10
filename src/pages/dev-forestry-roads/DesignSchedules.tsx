@@ -12,7 +12,7 @@ import { NumberField } from './Controls'
 import { nearestStation, verticalCurveSummary } from './engine'
 import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
-import { SweptPathPanel } from './SweptPathPanel'
+import { SweptPathPanel, type VehicleToolsProps } from './SweptPathPanel'
 import type { SweptManeuver, SweptPathResult } from './sweptPath'
 import type { JunctionTurnProps } from './JunctionTurnPanel'
 import type { Alignment, RoadAnalysis, TerrainMetadata, VehicleCheck, VerticalPoint } from './types'
@@ -27,6 +27,8 @@ export interface SweptPathProps {
   onFocus?: (turn: SweptManeuver) => void
   /** The project's roads, for turns at this road's junctions. */
   junctions?: JunctionTurnProps
+  /** Vehicle at a station, point traces, driven paths and turning templates. */
+  tools?: VehicleToolsProps
 }
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
@@ -123,6 +125,7 @@ export function DesignSchedules({
               onFocus={swept.onFocus}
               alignment={alignment}
               junctions={swept.junctions}
+              tools={swept.tools}
             />
           </div>
         )}
