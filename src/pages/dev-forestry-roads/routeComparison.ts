@@ -173,6 +173,11 @@ export interface RouteRow {
   notes: string[]
   /** The goals this road actually won, measured across every road that meets the limits. */
   best: RouteGoal[]
+  /**
+   * Every goal whose search returned this same line, when more than one did (`mergeSameLines`). A
+   * road that leads nothing is shown for these goals, so none of them is left without a row.
+   */
+  foundBy?: RouteGoal[]
   /** For a goal that found no line: where the search its reason describes stopped, for the plan. */
   stop?: RouteSearchStop
   /** For a goal that found no line, with Try steeper grades on: whether it connects a little steeper. */
@@ -363,6 +368,7 @@ export const ROUTE_GOAL_MEASURES: Record<RouteGoal, (row: RouteRow) => number | 
  * goal only because nothing was found to set against it, and the rows say why.
  */
 export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
+  const searchedFor = (row: RouteRow) => row.foundBy ?? [row.goal as RouteGoal]
   const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
   const noneDesigned = !rows.some((row) => row.goal !== 'current' && row.alignment)
   for (const goal of goals) {
@@ -377,7 +383,7 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
     (row) =>
       row.goal === 'current' ||
       row.best.length > 0 ||
-      (!usable.includes(row) && (noneDesigned || !held.has(row.goal as RouteGoal))),
+      (!usable.includes(row) && (noneDesigned || searchedFor(row).some((goal) => !held.has(goal)))),
   )
   for (const row of kept) {
     if (row.goal === 'current' || !row.best.length) continue
@@ -388,6 +394,32 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
     if (row.alignment) row.alignment.color = won[0].color
   }
   return kept
+}
+
+/**
+ * Rows whose searches returned the same fitted line, as one row: the first, carrying every goal that
+ * found it in `foundBy` and in its label. Dropping the twin silently left a goal with no row and no
+ * reason when the shared line broke a limit (Shortest at 7 % on the training road).
+ */
+export function mergeSameLines(rows: RouteRow[]): RouteRow[] {
+  const byLine = new Map<string, RouteRow>()
+  return rows.filter((row) => {
+    if (!row.alignment || row.goal === 'current') return true
+    const key = JSON.stringify(row.coordinates)
+    const twin = byLine.get(key)
+    if (!twin) {
+      byLine.set(key, row)
+      return true
+    }
+    const goals = new Set([...(twin.foundBy ?? [twin.goal as RouteGoal]), row.goal as RouteGoal])
+    if (goals.size > 1) {
+      twin.foundBy = ROUTE_GOALS.filter((goal) => goals.has(goal.id)).map((goal) => goal.id)
+      twin.label = ROUTE_GOALS.filter((goal) => goals.has(goal.id))
+        .map((goal) => goal.label)
+        .join(' · ')
+    }
+    return false
+  })
 }
 
 const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
@@ -1217,14 +1249,7 @@ export async function compareRoutes(
     }
   }
   // The cheapest line is often another goal's line: one row, not two identical ones.
-  const lines = new Set<string>()
-  const distinct = rows.filter((row) => {
-    if (!row.alignment || row.goal === 'current') return true
-    const key = JSON.stringify(row.coordinates)
-    if (lines.has(key)) return false
-    lines.add(key)
-    return true
-  })
+  const distinct = mergeSameLines(rows)
   const shown = assignGoals(distinct, options.goals)
   const currentLeads = shown.find((row) => row.goal === 'current')?.best ?? []
   const date = input.now?.() ?? new Date()
@@ -1237,7 +1262,7 @@ export async function compareRoutes(
       // The settings it was found with travel with the road, into the project and the report.
       row.alignment.searchSettings = foundRoadSearchSettings({
         alignment: row.alignment,
-        goals: row.best.length ? row.best : [row.goal as RouteGoal],
+        goals: row.best.length ? row.best : (row.foundBy ?? [row.goal as RouteGoal]),
         label: row.label,
         settings,
         corridorHalfWidthM: options.corridorHalfWidthM,

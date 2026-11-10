@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { distance, offsetCoordinate } from './engine'
 import {
   addPegLeg,
+  cursorLabelSide,
   DEFAULT_PEG_TOOL,
   isSecondClickOfDouble,
   MAX_PEG_TOOL_LEGS,
@@ -13,6 +14,7 @@ import {
   pegLegLabel,
   pegToolSettingsError,
   removeLastPegLeg,
+  signedApart,
   solvePegCursor,
   type PegChain,
 } from './pegCursor'
@@ -76,6 +78,30 @@ describe('the leg under the cursor', () => {
     expect(result.message).toContain('+25.0 % at 30 m')
     expect(result.message).toContain('+20.0 %')
     expect('leg' in result).toBe(false)
+  })
+  it('never prints a ground grade it could not reach as the target itself', () => {
+    // A plane rising 2.96 % north: down 3 % is out of reach by 0.04 points, which one decimal hid.
+    const gentle: TerrainSource = { elevationAt: (_lng, lat) => 800 + 0.0296 * northing(lat) }
+    const result = solvePegCursor(
+      origin,
+      offsetCoordinate(origin, 180, 50),
+      { ...DEFAULT_PEG_TOOL, direction: 'down', gradePercent: 3 },
+      gentle,
+      LIMIT,
+    )
+    expect(!result.ok && result.reason).toBe('unreachable')
+    expect(!result.ok && result.message).toContain('No leg at −3.0 % at 30 m')
+    expect(!result.ok && result.message).toContain('the ground runs −2.96 to 0.0 %')
+    expect(signedApart(-2.96, -3)).toBe('−2.96')
+    expect(signedApart(-2.9996, -3)).toBe('−3.000')
+    expect(signedApart(5.2, 8)).toBe('+5.2')
+  })
+  it('turns the cursor label to the left only where it would run past the right edge', () => {
+    expect(cursorLabelSide(100, 775)).toBe('right')
+    expect(cursorLabelSide(661, 775)).toBe('left')
+    // Too narrow a plan for either side: the side with more room.
+    expect(cursorLabelSide(150, 360)).toBe('right')
+    expect(cursorLabelSide(250, 360)).toBe('left')
   })
   it('says when there is no ground ahead or under the last peg', () => {
     const island: TerrainSource = {

@@ -3841,7 +3841,7 @@ export default function DevForestryRoads() {
                                   ? 'Drainage out of date · re-run it to show flow'
                                   : isMappedRoad(alignment)
                                     ? 'Mapped road in its own colour · red over the grade limit'
-                                    : 'Orange road · red grade flag'}
+                                    : 'Active road · red over the grade limit'}
                           </span>
                           {!investigation && closePanel('plan')}
                         </>
@@ -4100,7 +4100,8 @@ export default function DevForestryRoads() {
                         >
                           {() => (
                             <div className="flex min-h-0 flex-1 flex-col gap-2">
-                              <div className="min-h-0 flex-1">
+                              {/* The section keeps 7 rem under the section tools, which scroll past it. */}
+                              <div className={`${detail === 'section' ? 'min-h-28' : 'min-h-0'} flex-1`}>
                                 {detail === 'section' && (
                                   <CrossSectionChart
                                     holdScale={sectionTools.holdScale}

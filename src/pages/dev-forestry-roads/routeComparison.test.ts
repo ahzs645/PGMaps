@@ -4,6 +4,7 @@ import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { createEngineeringDesign } from './engineeringTypes'
 import {
   assignGoals,
+  mergeSameLines,
   compareRoutes,
   comparisonSummary,
   crossDrainSites,
@@ -177,6 +178,31 @@ describe('assignGoals', () => {
       ['shortest'],
     )
     expect(alone.find((item) => item.id === 'short')!.best).toEqual([])
+  })
+
+  it('keeps a row for every goal whose search returned the same blocked line', () => {
+    // Training road at a 7 % limit: Lowest cost and Shortest found one line with sharp corners, and
+    // dropping the duplicate left Shortest with no row and no reason.
+    const line = [at(0, 0), at(50, 20), at(100, 0)]
+    const blocked = ['3 sharp corners']
+    const rows = [
+      row('current', 'current', { blockers: ['Grade 9% over limit'] }),
+      row('cost', 'cost', { label: 'Lowest cost', coordinates: line, blockers: blocked }),
+      row('shortest', 'shortest', { label: 'Shortest', coordinates: line, blockers: blocked }),
+    ]
+    const shown = assignGoals(mergeSameLines(rows), ['cost', 'shortest'])
+    const goalRows = shown.filter((item) => item.goal !== 'current')
+    expect(goalRows).toHaveLength(1)
+    expect(goalRows[0].label).toBe('Lowest cost · Shortest')
+    expect(goalRows[0].foundBy).toEqual(['cost', 'shortest'])
+    expect(goalRows[0].blockers).toEqual(blocked)
+    // A usable road elsewhere still holds both goals, and the blocked twin goes.
+    const usable = row('gentle', 'gentle', { coordinates: [at(0, 0), at(100, 0)] })
+    const withRoad = assignGoals(mergeSameLines([...rows.map((r) => ({ ...r, best: [] })), usable]), [
+      'cost',
+      'shortest',
+    ])
+    expect(withRoad.map((item) => item.id)).toEqual(['current', 'gentle'])
   })
 })
 

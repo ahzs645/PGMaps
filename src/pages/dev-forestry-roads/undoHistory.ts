@@ -32,6 +32,15 @@ export interface History<T> {
 
 export const emptyHistory = <T>(): History<T> => ({ past: [], future: [] })
 
+/**
+ * Whether an edit at `now` starts an undo step of its own rather than joining the last one. Typing
+ * and drags merge within `UNDO_MERGE_MS`; a discrete action, such as a preset button, is always its
+ * own step, so two quick clicks still undo one at a time.
+ */
+export function startsUndoStep(lastEditAt: number, now: number, ownStep = false): boolean {
+  return ownStep || now - lastEditAt > UNDO_MERGE_MS
+}
+
 /** The history after an edit away from `before`, which becomes the newest undo step. Clears redo. */
 export function recordStep<T>(
   history: History<T>,

@@ -1441,6 +1441,7 @@ function Layers(
             key={`overlay-${feature.id ?? index}`}
             longitude={feature.geometry.coordinates[0]}
             latitude={feature.geometry.coordinates[1]}
+            offset={feature.properties?.marker === 'dot' ? undefined : LABEL_BELOW_PX}
           >
             <MarkerContent>
               {feature.properties?.marker === 'dot' ? (
@@ -1455,7 +1456,7 @@ function Layers(
                 />
               ) : (
                 <button
-                  className={`translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
+                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
                   data-route-stop={
                     feature.properties?.kind === 'route-search-stop' ? feature.properties.role : undefined
                   }
@@ -1499,10 +1500,15 @@ function Layers(
             height: activeCable.endHeight,
           },
         ].map((support, index) => (
-          <MapMarker key={`cable-support-${index}`} longitude={support.coordinate[0]} latitude={support.coordinate[1]}>
+          <MapMarker
+            key={`cable-support-${index}`}
+            longitude={support.coordinate[0]}
+            latitude={support.coordinate[1]}
+            offset={LABEL_ABOVE_PX}
+          >
             <MarkerContent>
               <button
-                className="-translate-y-5 rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
+                className="rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
                 title={`${support.role}: ${support.height.toFixed(1)} m above the selected terrain`}
                 aria-label={`Inspect ${support.role.toLowerCase()} support`}
                 onClick={() => props.onCableDistance?.(support.distance)}
@@ -1520,10 +1526,14 @@ function Layers(
             const text = formatRoadStation(s.chainage).replace(/\.0$/, '')
             const [dx, dy] = labelOffset(s.bearing, view?.bearing ?? 0, text.length)
             return (
-              <MapMarker key={`station-${s.chainage}`} longitude={s.coordinate[0]} latitude={s.coordinate[1]}>
+              <MapMarker
+                key={`station-${s.chainage}`}
+                longitude={s.coordinate[0]}
+                latitude={s.coordinate[1]}
+                offset={[dx, dy]}
+              >
                 <MarkerContent>
                   <button
-                    style={{ transform: `translate(${dx}px, ${dy}px)` }}
                     className="whitespace-nowrap rounded-sm bg-background/80 px-1 text-3xs font-medium leading-4 tabular-nums text-foreground"
                     aria-label={`Inspect plan station ${s.chainage.toFixed(1)} metres`}
                     data-plan-station-label={s.chainage}
@@ -1539,10 +1549,9 @@ function Layers(
         radiusLabels.map(({ id, label, title, at, curve }) => {
           const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
           return (
-            <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
+            <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]} offset={[dx, dy]}>
               <MarkerContent>
                 <button
-                  style={{ transform: `translate(${dx}px, ${dy}px)` }}
                   className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-3xs font-medium leading-4 text-violet-800"
                   title={title}
                   aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
@@ -1799,10 +1808,19 @@ function Layers(
         terrainLayer={props.terrainLayer}
         showContours={props.showContours}
         terrainName={props.project.terrain.name}
+        toolOpen={!!planToolActive}
       />
     </>
   )
 }
+
+/**
+ * Labels set off their point move the marker itself (MapLibre's `offset`), never the content with a
+ * CSS transform: the marker's box stays where it was put, and the plan ignores clicks on a marker,
+ * so a transformed label left a dead box over the line it labels.
+ */
+const LABEL_BELOW_PX: [number, number] = [0, 20]
+const LABEL_ABOVE_PX: [number, number] = [0, -20]
 
 /** On-screen length a segment needs before it offers a bend handle. */
 const MIN_BEND_SEGMENT_PX = 48

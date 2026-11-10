@@ -13,11 +13,13 @@ import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { NumberField } from './Controls'
+import { NumberField, OptionalNumberField } from './Controls'
 import { distance, offsetCoordinate } from './engine'
 import { groundTrendTerrain, resolvedGroundWindow } from './groundTrend'
 import {
   addPegLeg,
+  CURSOR_LABEL_GAP_PX,
+  cursorLabelSide,
   DEFAULT_PEG_TOOL,
   isSecondClickOfDouble,
   MAX_PEG_STEP_M,
@@ -30,7 +32,9 @@ import {
   pegChainEnd,
   pegChainFeatures,
   pegChainSummary,
+  pegGradeError,
   pegLegLabel,
+  pegStepError,
   removeLastPegLeg,
   solvePegCursor,
   type PegChain,
@@ -210,6 +214,9 @@ export function PegTool({
     }
   }, [map, isLoaded])
 
+  const labelAt = preview?.ok ? preview.leg.end : aimPoint
+  // Near the plan's right edge the label turns to the left of its point, so it is not cut off.
+  const labelSide = map && labelAt ? cursorLabelSide(map.project(labelAt).x, map.getContainer().clientWidth) : 'right'
   const features = useMemo(() => {
     const collection = chain
       ? pegChainFeatures(chain, preview, limit)
@@ -236,17 +243,22 @@ export function PegTool({
       ? pegLegLabel(preview, limit)
       : preview.message
     : 'Aim with the cursor, or enter an aim.'
-  const labelAt = preview?.ok ? preview.leg.end : aimPoint
   return (
     <>
       {aim?.kind === 'cursor' && labelAt && preview && (
-        <MapMarker longitude={labelAt[0]} latitude={labelAt[1]} anchor="left" offset={[12, 0]}>
+        <MapMarker
+          longitude={labelAt[0]}
+          latitude={labelAt[1]}
+          anchor={labelSide === 'right' ? 'left' : 'right'}
+          offset={[labelSide === 'right' ? CURSOR_LABEL_GAP_PX : -CURSOR_LABEL_GAP_PX, 0]}
+        >
           <MarkerContent>
             <div
               className={`pointer-events-none max-w-56 rounded border px-1.5 py-0.5 text-3xs font-medium shadow ${
                 preview.ok ? 'bg-background/95 text-foreground' : 'border-amber-400 bg-amber-50 text-amber-900'
               }`}
               data-testid="road-peg-cursor-label"
+              data-side={labelSide}
             >
               {preview.ok && (
                 <span
@@ -343,6 +355,8 @@ export function PegToolPanel(props: {
           max={MAX_PEG_TARGET_GRADE}
           step={0.5}
           precision={2}
+          clampOn="never"
+          error={pegGradeError(settings.gradePercent)}
           onChange={(gradePercent) => onSettings({ ...settings, gradePercent })}
         />
         <SegmentedControl
@@ -363,6 +377,8 @@ export function PegToolPanel(props: {
           max={MAX_PEG_STEP_M}
           step={1}
           precision={1}
+          clampOn="never"
+          error={pegStepError(settings.stepM)}
           onChange={(stepM) => onSettings({ ...settings, stepM })}
         />
       </div>
@@ -375,13 +391,15 @@ export function PegToolPanel(props: {
           />
           Straight legs
         </label>
-        <NumberField
+        {/* Blank until there is an aim: a 0 here read as an aim due north the tool did not hold. */}
+        <OptionalNumberField
           label="Aim (°)"
-          value={Number((props.aimBearing ?? 0).toFixed(1))}
+          value={props.aimBearing === null ? null : Number(props.aimBearing.toFixed(1))}
+          min={0}
           max={360}
           step={1}
-          precision={1}
-          onChange={(bearing) => props.onAimBearing(bearing % 360)}
+          placeholder="none"
+          onChange={(bearing) => bearing !== null && props.onAimBearing(bearing % 360)}
         />
       </div>
       <p
@@ -398,7 +416,18 @@ export function PegToolPanel(props: {
           : 'No legs yet'}
       </p>
       <div className="flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" className="h-7" onClick={props.onAdd} title="Add this leg · click or Space">
+        <Button
+          size="sm"
+          variant="outline"
+          className="h-7"
+          disabled={props.aimBearing === null}
+          onClick={props.onAdd}
+          title={
+            props.aimBearing === null
+              ? 'Aim first: move the cursor over the plan, or enter an aim'
+              : 'Add this leg · click or Space'
+          }
+        >
           Add leg
         </Button>
         <Button

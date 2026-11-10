@@ -40,6 +40,7 @@ import {
   heldSectionDomain,
   holdSectionFrame,
   pinnedSectionOutline,
+  pinnedShiftText,
   sectionExceedsFrame,
   type HeldSectionFrame,
 } from './sectionFrame'
@@ -1970,11 +1971,7 @@ export function CrossSectionChart({
               <span
                 className="text-3xs text-muted-foreground"
                 data-testid="road-section-pinned-label"
-                title={
-                  pinned.alignedOn === 'none'
-                    ? 'Drawn at its own elevations: one of the two sections has no level at the centreline.'
-                    : `Moved ${format(pinned.shiftM, 2)} m to share this station's ${pinned.alignedOn === 'formation' ? 'formation' : 'ground'} level at the centreline; offsets unchanged.`
-                }
+                title={pinnedShiftText(pinned)}
               >
                 <span
                   aria-hidden

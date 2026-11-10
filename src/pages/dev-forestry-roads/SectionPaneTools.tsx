@@ -3,7 +3,14 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { formatRoadStation } from './Charts'
-import { batterMisses, planSectionRange, sectionSourceAt, type SectionRangePlan } from './sectionRangeApply'
+import { pinnedSectionOutline, pinnedShiftLabel, pinnedShiftText } from './sectionFrame'
+import {
+  batterMisses,
+  planSectionRange,
+  rangeStillHolds,
+  sectionSourceAt,
+  type SectionRangePlan,
+} from './sectionRangeApply'
 import type { Alignment, RoadAnalysis, RoadStation } from './types'
 
 /** Batter misses listed by station before the rest are counted. */
@@ -110,8 +117,13 @@ export function SectionPaneTools({
   const { range, setRange, alignment, analysis } = tools
   const pinned = tools.pinnedStation
   const source = station && !terrainOnly ? sectionSourceAt(alignment, station.chainage, formatRoadStation) : null
-  const misses =
-    range?.applied && !terrainOnly ? batterMisses(analysis.stations, range.applied.from, range.applied.to) : []
+  // The check is about the section given: hidden while a new range waits for Replace, and once an undo
+  // takes the range back (a redo shows it again).
+  const applied =
+    range?.applied && !terrainOnly && !range.confirm && rangeStillHolds(alignment, range.applied, formatRoadStation)
+      ? range.applied
+      : null
+  const misses = applied ? batterMisses(analysis.stations, applied.from, applied.to) : []
   const missStations = [...new Set(misses.map((m) => m.chainage))]
   const patch = (changes: Partial<RangeState>) => setRange((r) => (r ? { ...r, ...changes } : r))
   const commit = (plan: SectionRangePlan) => {
@@ -150,9 +162,16 @@ export function SectionPaneTools({
   }
   const small = 'h-6 px-2 text-3xs'
   const field = 'w-20 rounded border bg-background px-1 py-0.5 font-mono text-3xs'
+  const pinnedOutline = pinned && station ? pinnedSectionOutline(pinned, station, terrainOnly) : null
+  const formOpen = !!range?.open && !!source
   return (
-    <div className="shrink-0 space-y-1 text-3xs text-muted-foreground" data-testid="road-section-tools">
-      <div role="group" aria-label="Section view" className="flex flex-wrap items-center gap-1">
+    // The pane gives the chart what the form and the list leave; past `max-h` they scroll instead,
+    // so the section a listed station jumps to stays in view.
+    <div
+      className="flex max-h-[45%] min-h-6 shrink flex-col gap-1 text-3xs text-muted-foreground"
+      data-testid="road-section-tools"
+    >
+      <div role="group" aria-label="Section view" className="flex shrink-0 flex-wrap items-center gap-1">
         <Button
           size="sm"
           variant={tools.holdScale ? 'secondary' : 'outline'}
@@ -212,6 +231,13 @@ export function SectionPaneTools({
             Use this section for…
           </Button>
         )}
+        {pinnedOutline && (
+          // The chart's legend is not shown in the compact pane, so the shift is stated here too.
+          <span className="tabular-nums" title={pinnedShiftText(pinnedOutline)} data-testid="road-section-pinned-shift">
+            <span aria-hidden className="mr-1 inline-block w-3 border-t border-dashed border-current align-middle" />
+            {pinnedShiftLabel(pinnedOutline)}
+          </span>
+        )}
         <InfoTip label="About the section tools">
           Hold scale keeps the frame's spans and follows the formation, so the ground moves under a still road. A pinned
           section is drawn dashed, moved to share this station's formation level; it is dropped when another road is
@@ -220,167 +246,171 @@ export function SectionPaneTools({
           section as a new template named after its station.
         </InfoTip>
       </div>
-      {range?.open && source && (
-        <div
-          role="group"
-          aria-label="Use this section for a station range"
-          className="space-y-1 rounded border p-1.5"
-          data-testid="road-section-range"
-        >
-          <div className="flex flex-wrap items-center gap-1">
-            <span>
-              Give <span className="font-medium text-foreground">{source.name}</span>
-              {source.kind === 'snapshot' ? ' (saved as a new template)' : ''} to
-            </span>
-            <input
-              aria-label="Range from station metres"
-              type="number"
-              min={0}
-              step="any"
-              className={field}
-              value={range.from}
-              onChange={(e) => patch({ from: e.target.value, confirm: null, error: '' })}
-              onKeyDown={(e) => e.key === 'Enter' && apply()}
-            />
-            <span>–</span>
-            <input
-              aria-label="Range to station metres"
-              type="number"
-              min={0}
-              step="any"
-              className={field}
-              value={range.to}
-              onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
-              onKeyDown={(e) => e.key === 'Enter' && apply()}
-            />
-            <span>m</span>
-          </div>
-          <div className="flex flex-wrap items-center gap-1">
-            <Button
-              size="sm"
-              variant="outline"
-              className={small}
-              disabled={!station}
-              onClick={() => station && patch({ from: String(round(station.chainage)), confirm: null, error: '' })}
+      {(formOpen || applied) && (
+        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain" data-testid="road-section-tools-body">
+          {range?.open && source && (
+            <div
+              role="group"
+              aria-label="Use this section for a station range"
+              className="space-y-1 rounded border p-1.5"
+              data-testid="road-section-range"
             >
-              From here
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className={small}
-              disabled={!station}
-              onClick={() => station && patch({ to: String(round(station.chainage)), confirm: null, error: '' })}
-            >
-              To here
-            </Button>
-            <Button
-              size="sm"
-              variant={range.picking ? 'secondary' : 'outline'}
-              className={small}
-              aria-pressed={range.picking}
-              title="Drag along the profile to mark the range. Escape stops."
-              onClick={() => patch({ picking: !range.picking })}
-            >
-              Drag on profile
-            </Button>
-            <Button size="sm" className={small} disabled={!editable} onClick={apply}>
-              Apply
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className={small}
-              onClick={() => patch({ open: false, picking: false, confirm: null, error: '' })}
-            >
-              Close
-            </Button>
-          </div>
-          {range.error && <InlineAlert tone="error">{range.error}</InlineAlert>}
-          {range.confirm && (
-            <InlineAlert tone="warning" title="This changes existing template ranges">
-              <ul className="list-disc pl-4">
-                {range.confirm.affected.map((a) => (
-                  <li key={a.assignment.id}>
-                    Range {a.number} ({a.templateName}, {formatRoadStation(a.assignment.start)}–
-                    {formatRoadStation(a.assignment.end)}){' '}
-                    {a.outcome === 'replaced'
-                      ? 'is replaced'
-                      : a.outcome === 'split'
-                        ? 'is split around it'
-                        : 'is trimmed'}
-                    {a.transitionNote ? `; ${a.transitionNote}` : ''}.
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-1 flex gap-1">
+              <div className="flex flex-wrap items-center gap-1">
+                <span>
+                  Give <span className="font-medium text-foreground">{source.name}</span>
+                  {source.kind === 'snapshot' ? ' (saved as a new template)' : ''} to
+                </span>
+                <input
+                  aria-label="Range from station metres"
+                  type="number"
+                  min={0}
+                  step="any"
+                  className={field}
+                  value={range.from}
+                  onChange={(e) => patch({ from: e.target.value, confirm: null, error: '' })}
+                  onKeyDown={(e) => e.key === 'Enter' && apply()}
+                />
+                <span>–</span>
+                <input
+                  aria-label="Range to station metres"
+                  type="number"
+                  min={0}
+                  step="any"
+                  className={field}
+                  value={range.to}
+                  onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
+                  onKeyDown={(e) => e.key === 'Enter' && apply()}
+                />
+                <span>m</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1">
                 <Button
                   size="sm"
+                  variant="outline"
                   className={small}
-                  disabled={!editable}
-                  onClick={() => range.confirm && commit(range.confirm)}
+                  disabled={!station}
+                  onClick={() => station && patch({ from: String(round(station.chainage)), confirm: null, error: '' })}
                 >
-                  Replace
+                  From here
                 </Button>
-                <Button size="sm" variant="ghost" className={small} onClick={() => patch({ confirm: null })}>
-                  Cancel
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className={small}
+                  disabled={!station}
+                  onClick={() => station && patch({ to: String(round(station.chainage)), confirm: null, error: '' })}
+                >
+                  To here
+                </Button>
+                <Button
+                  size="sm"
+                  variant={range.picking ? 'secondary' : 'outline'}
+                  className={small}
+                  aria-pressed={range.picking}
+                  title="Drag along the profile to mark the range. Escape stops."
+                  onClick={() => patch({ picking: !range.picking })}
+                >
+                  Drag on profile
+                </Button>
+                <Button size="sm" className={small} disabled={!editable} onClick={apply}>
+                  Apply
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className={small}
+                  onClick={() => patch({ open: false, picking: false, confirm: null, error: '' })}
+                >
+                  Close
                 </Button>
               </div>
-            </InlineAlert>
+              {range.error && <InlineAlert tone="error">{range.error}</InlineAlert>}
+              {range.confirm && (
+                <InlineAlert tone="warning" title="This changes existing template ranges">
+                  <ul className="list-disc pl-4">
+                    {range.confirm.affected.map((a) => (
+                      <li key={a.assignment.id}>
+                        Range {a.number} ({a.templateName}, {formatRoadStation(a.assignment.start)}–
+                        {formatRoadStation(a.assignment.end)}){' '}
+                        {a.outcome === 'replaced'
+                          ? 'is replaced'
+                          : a.outcome === 'split'
+                            ? 'is split around it'
+                            : 'is trimmed'}
+                        {a.transitionNote ? `; ${a.transitionNote}` : ''}.
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-1 flex gap-1">
+                    <Button
+                      size="sm"
+                      className={small}
+                      disabled={!editable}
+                      onClick={() => range.confirm && commit(range.confirm)}
+                    >
+                      Replace
+                    </Button>
+                    <Button size="sm" variant="ghost" className={small} onClick={() => patch({ confirm: null })}>
+                      Cancel
+                    </Button>
+                  </div>
+                </InlineAlert>
+              )}
+            </div>
           )}
-        </div>
-      )}
-      {range?.applied && !terrainOnly && (
-        <div role="status" data-testid="road-section-batter-misses" className="flex items-start gap-1">
-          <div className="min-w-0 flex-1">
-            {missStations.length === 0 ? (
-              <p>
-                {range.applied.name}, {formatRoadStation(range.applied.from)}–{formatRoadStation(range.applied.to)}: the
-                batter meets the ground at every station.
-              </p>
-            ) : (
-              <InlineAlert
-                tone="warning"
-                title={`Batter never met the ground at ${missStations.length} station${missStations.length === 1 ? '' : 's'} of ${formatRoadStation(range.applied.from)}–${formatRoadStation(range.applied.to)}`}
+          {applied && (
+            <div role="status" data-testid="road-section-batter-misses" className="flex items-start gap-1">
+              <div className="min-w-0 flex-1">
+                {missStations.length === 0 ? (
+                  <p>
+                    {applied.name}, {formatRoadStation(applied.from)}–{formatRoadStation(applied.to)}: the batter meets
+                    the ground at every station.
+                  </p>
+                ) : (
+                  <InlineAlert
+                    tone="warning"
+                    title={`Batter never met the ground at ${missStations.length} station${missStations.length === 1 ? '' : 's'} of ${formatRoadStation(applied.from)}–${formatRoadStation(applied.to)}`}
+                  >
+                    <div className="flex flex-wrap gap-1">
+                      {missStations.slice(0, MAX_LISTED_BATTER_MISSES).map((chainage) => {
+                        const here = misses.filter((m) => m.chainage === chainage)
+                        const text = here
+                          .map(
+                            (m) =>
+                              `${m.side} ${m.batter === 'unknown' ? 'batter' : m.batter}, ${m.cause === 'reach' ? 'past the section reach' : 'terrain ran out'}`,
+                          )
+                          .join('; ')
+                        return (
+                          <button
+                            key={chainage}
+                            type="button"
+                            className="rounded border px-1 font-mono underline-offset-2 hover:underline"
+                            title={text}
+                            aria-label={`Go to ${formatRoadStation(chainage)}: ${text}`}
+                            onClick={() => onStation(chainage)}
+                          >
+                            {formatRoadStation(chainage)}
+                          </button>
+                        )
+                      })}
+                      {missStations.length > MAX_LISTED_BATTER_MISSES && (
+                        <span>and {missStations.length - MAX_LISTED_BATTER_MISSES} more</span>
+                      )}
+                    </div>
+                  </InlineAlert>
+                )}
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className={small}
+                aria-label="Clear the batter check"
+                onClick={() => patch({ applied: null })}
               >
-                <div className="flex flex-wrap gap-1">
-                  {missStations.slice(0, MAX_LISTED_BATTER_MISSES).map((chainage) => {
-                    const here = misses.filter((m) => m.chainage === chainage)
-                    const text = here
-                      .map(
-                        (m) =>
-                          `${m.side} ${m.batter === 'unknown' ? 'batter' : m.batter}, ${m.cause === 'reach' ? 'past the section reach' : 'terrain ran out'}`,
-                      )
-                      .join('; ')
-                    return (
-                      <button
-                        key={chainage}
-                        type="button"
-                        className="rounded border px-1 font-mono underline-offset-2 hover:underline"
-                        title={text}
-                        aria-label={`Go to ${formatRoadStation(chainage)}: ${text}`}
-                        onClick={() => onStation(chainage)}
-                      >
-                        {formatRoadStation(chainage)}
-                      </button>
-                    )
-                  })}
-                  {missStations.length > MAX_LISTED_BATTER_MISSES && (
-                    <span>and {missStations.length - MAX_LISTED_BATTER_MISSES} more</span>
-                  )}
-                </div>
-              </InlineAlert>
-            )}
-          </div>
-          <Button
-            size="sm"
-            variant="ghost"
-            className={small}
-            aria-label="Clear the batter check"
-            onClick={() => patch({ applied: null })}
-          >
-            ×
-          </Button>
+                ×
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

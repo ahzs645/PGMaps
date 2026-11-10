@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import {
   TERRAIN_SLOPE_STOPS,
@@ -29,19 +30,38 @@ function LineSwatch({ entry }: { entry: PlanLegendEntry }) {
   )
 }
 
+/**
+ * Whether the legend is folded. It starts folded, and folds again whenever a plan tool is picked:
+ * the tool's panel shares the plan's lower edge, and an open legend covered its fields and Finish.
+ * The reader can still open it while the tool is up.
+ */
+export function useLegendFold(toolOpen: boolean) {
+  const [collapsed, setCollapsed] = useState(true)
+  const [seenToolOpen, setSeenToolOpen] = useState(toolOpen)
+  if (seenToolOpen !== toolOpen) {
+    setSeenToolOpen(toolOpen)
+    if (toolOpen) setCollapsed(true)
+  }
+  return [collapsed, setCollapsed] as const
+}
+
 export function PlanLegend({
   sections,
   display,
   terrainLayer,
   showContours,
   terrainName,
+  toolOpen = false,
 }: {
   sections: PlanLegendSection[]
   display: TerrainDisplay | null
   terrainLayer: 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
   showContours: boolean
   terrainName: string
+  /** A plan tool's panel is up (`PlanTools.tsx`); picking one folds the legend. */
+  toolOpen?: boolean
 }) {
+  const [collapsed, setCollapsed] = useLegendFold(toolOpen)
   const contours = !!display && showContours && display.contours.features.length > 0
   const terrain = !!display && (terrainLayer !== 'none' || contours)
   if (!sections.length && !terrain) return null
@@ -50,7 +70,8 @@ export function PlanLegend({
       <MapLegendPanel
         title="Legend"
         collapsible
-        defaultCollapsed
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
         width="sm"
         className={
           // Corners, shadow and the folded height match the plan's other 32 px controls.

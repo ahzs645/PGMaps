@@ -53,9 +53,10 @@ and on to refit.
 **Pin this section** keeps the selected station's section and draws it dashed and faint behind
 every other station of the same road. It is moved up or down to share the current station's
 formation level at the centreline (the ground on a terrain transect), so the shapes compare
-directly; the offsets are not moved. The legend's **Pinned** label gives the shift. The pin is a
-copy of the section when it was pinned: edits made since do not move it, which is what makes a
-before-and-after comparison possible. Showing another road, or a terrain profile, drops the pin.
+directly; the offsets are not moved. The note beside **Unpin** gives the shift ("moved −2.21 m",
+the full sentence on hover); in fullscreen the chart legend's **Pinned** label repeats it. The pin
+is a copy of the section when it was pinned: edits made since do not move it, which is what makes
+a before-and-after comparison possible. Showing another road, or a terrain profile, drops the pin.
 
 ## Use this section for…
 
@@ -83,6 +84,11 @@ After applying, the pane lists the stations of the range where a batter never me
 read from the recalculated road: each side, whether it was cutting or filling where the section
 stopped, and whether it ran past the section reach or the terrain ran out. Each station in the
 list selects it. The list follows the results, so it updates after further edits; × clears it.
+It is hidden while the range no longer has the section given (an undo; a redo shows it again,
+`rangeStillHolds`) and while another range waits for **Replace**.
+
+The section chart keeps at least 7 rem of the pane. The range form and the list take at most
+45 % of it and scroll past that.
 
 ## Limits and budgets
 
@@ -96,6 +102,8 @@ list selects it. The list follows the results, so it updates after further edits
 | Template station assignments           | 200              | `MAX_ASSIGNMENTS`; `validateEngineering`           |
 | Batter misses listed by station        | 12, then a count | `MAX_LISTED_BATTER_MISSES`, `SectionPaneTools.tsx` |
 | Range dragged on the profile           | rounded to 0.1 m | `useSectionTools`                                  |
+| Form and list under the section        | at most 45 %     | `SectionPaneTools.tsx` (`max-h-[45%]`)             |
+| Section chart above them               | at least 7 rem   | `DevForestryRoads.tsx` (`min-h-28`)                |
 
 The flagged-station kind works out the Review list and the sight distance check only when the menu
 opens or a flagged-station jump is made; both are cached per calculated road.

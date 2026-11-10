@@ -231,3 +231,17 @@ export function batterMisses(
   }
   return out
 }
+
+/**
+ * Whether the range a section was given to still has that section. False once an undo, or another
+ * edit, gave the range back to what it had, so a batter check made for the section is no longer about
+ * the road shown.
+ */
+export function rangeStillHolds(
+  alignment: Alignment,
+  applied: { from: number; to: number; name: string },
+  stationLabel: (chainage: number) => string,
+): boolean {
+  const source = sectionSourceAt(alignment, (applied.from + applied.to) / 2, stationLabel)
+  return source.kind !== 'snapshot' && source.name === applied.name
+}

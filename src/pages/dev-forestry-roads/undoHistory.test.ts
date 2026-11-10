@@ -6,7 +6,9 @@ import {
   historyRows,
   MAX_CHECKPOINTS,
   recordStep,
+  startsUndoStep,
   travel,
+  UNDO_MERGE_MS,
   type History,
 } from './undoHistory'
 
@@ -72,5 +74,13 @@ describe('undo history', () => {
       list = addCheckpoint(list, { id: `c${i}`, name: `c${i}`, state: i, at: i })
     expect(list).toHaveLength(MAX_CHECKPOINTS)
     expect(list[0].id).toBe(`c${MAX_CHECKPOINTS + 1}`)
+  })
+})
+
+describe('when an edit starts a step of its own', () => {
+  it('merges quick typing, but never a discrete action such as a preset click', () => {
+    expect(startsUndoStep(1000, 1000 + UNDO_MERGE_MS - 50)).toBe(false)
+    expect(startsUndoStep(1000, 1000 + UNDO_MERGE_MS + 1)).toBe(true)
+    expect(startsUndoStep(1000, 1400, true)).toBe(true)
   })
 })
