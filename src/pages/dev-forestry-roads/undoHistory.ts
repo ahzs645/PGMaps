@@ -127,3 +127,18 @@ export function addCheckpoint<T>(
 ): Checkpoint<T>[] {
   return [checkpoint, ...checkpoints].slice(0, max)
 }
+
+/**
+ * A history label split for a narrow list: what changed first, and the road it changed on as a
+ * second, quieter line. "Spur A: PVI 2 moved to 0+412.0" gives `{ change: 'PVI 2 moved to 0+412.0',
+ * road: 'Spur A' }`. A label not about one road (`Deleted road Spur B`, `Terrain; 2 other changes`)
+ * stays whole. The full label stays the row's name and tooltip.
+ */
+export function splitHistoryLabel(label: string): { change: string; road?: string } {
+  const at = label.indexOf(': ')
+  if (at <= 0 || label.slice(0, at).includes('; ')) return { change: label }
+  const change = label.slice(at + 2)
+  return change
+    ? { change: change.charAt(0).toUpperCase() + change.slice(1), road: label.slice(0, at) }
+    : { change: label }
+}
