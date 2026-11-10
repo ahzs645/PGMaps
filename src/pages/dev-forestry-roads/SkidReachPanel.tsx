@@ -61,7 +61,8 @@ interface SkidRun {
   key: string
   source: unknown
   context: unknown
-  alignments: unknown
+  /** The geometry of the roads the run counted, so only a change to them reads as "roads changed". */
+  roadsFingerprint: string
   result: ExtractionResult
   comparison: ExtractionComparison | null
   spurs: SpurSuggestion | null
@@ -144,6 +145,23 @@ export function SkidReachPanel(p: SidebarProps) {
       .map((entry) => entry.road)
   }, [block, project, countMapped, countDesigned])
 
+  // What the run's roads were, by id, use and centreline: an edit elsewhere on an alignment (its
+  // search settings, a label) leaves this unchanged and must not say the roads changed.
+  const roadsFingerprint = useMemo(
+    () =>
+      JSON.stringify(
+        skidRoadsFromProject(project, new Map([...w.analyses].map(([id, analysis]) => [id, analysis.centerline])), {
+          mapped: countMapped,
+          designed: countDesigned,
+        }).map((road) => [
+          road.id,
+          trails[road.id] ? 'track' : '',
+          road.coordinates.map((c) => [Math.round(c[0] * 1e7), Math.round(c[1] * 1e7)]),
+        ]),
+      ),
+    [project, w.analyses, trails, countMapped, countDesigned],
+  )
+
   const key = JSON.stringify([
     block?.geometry,
     settings,
@@ -159,7 +177,7 @@ export function SkidReachPanel(p: SidebarProps) {
   ])
   const stale = !!run && (run.key !== key || run.source !== source || run.context !== project.context)
   const current = run && !stale ? run : null
-  const roadsChanged = !!current && current.alignments !== project.alignments
+  const roadsChanged = !!current && current.roadsFingerprint !== roadsFingerprint
 
   // The landing screen is cheap, so it follows its inputs without a new run.
   const landings = useMemo((): LandingScreen | null => {
@@ -290,7 +308,7 @@ export function SkidReachPanel(p: SidebarProps) {
         key,
         source,
         context: project.context,
-        alignments: project.alignments,
+        roadsFingerprint,
         result: after,
         comparison: before ? compareExtraction(before, after) : null,
         spurs: null,
