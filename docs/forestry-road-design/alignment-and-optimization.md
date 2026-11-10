@@ -72,6 +72,9 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Tangent steeper than 100 %    | allowed when typed, with a warning naming the two PVIs            | `engine.ts` `verticalProfile`                        | Warning                                                      |
 | Vertical curve                | half its length must fit each adjoining tangent                   | `engine.ts` `verticalProfile`                        | Curve dropped, warning, note under the PVI                   |
 | PVI spacing                   | at least 10 m (UI 10–1,000 m)                                     | `verticalOptimizer.ts`, `VerticalDesignControls.tsx` | Error                                                        |
+| Ground under the road         | at least 50 % of its length (`MIN_GROUND_SHARE`), read every 1 m  | `verticalOptimizer.ts` `GROUND_SAMPLE_M`             | Error before any search, naming the widest gap               |
+| Spacing PVI beside a control  | gives way within a fifth of the spacing, at least 5 m             | `verticalOptimizer.ts` `REQUIRED_CLEARANCE`          | That PVI is left out                                         |
+| Exact levels beside a control | 80 more than the ladder at one PVI (`MAX_EXACT_LEVELS`)           | `verticalOptimizer.ts`                               | Further levels are not added                                 |
 | Search ±, level step, K       | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search        | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
 | Level transitions             | 5,000,000 across all price runs (`maxTransitions`)                | `verticalOptimizer.ts`                               | Error: coarsen the level step, reduce depth or widen spacing |
 | Section solves                | 60,000 (`maxSectionSolves`)                                       | `verticalOptimizer.ts`                               | Error: widen spacing or coarsen the step                     |
@@ -82,7 +85,9 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 
 The dynamic programme runs on the page's main thread in slices of about 12 ms
 (`COOPERATIVE_SLICE_MS` in `cooperative.ts`), so the page keeps answering, the progress line
-shows a percentage and **Cancel** stops the run at the next slice. It also stops at its
+shows a percentage and **Cancel** stops the run at the next slice. Reading the ground along the
+road is sliced too, every 250 readings (`GROUND_SLICE`): finding the ground beside each PVI by
+walking the road again held the page for 17 s on a 5 km road mostly off the terrain. It also stops at its
 level-transition budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up
 to five times over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
 selects the cheapest predecessor that leaves enough tangent; it does not repeat the same
@@ -266,16 +271,41 @@ and last tangents are exempt from the minimum tangent length.
   sag/crest K values combine with **Curve K** by taking the strictest value. Linear-only ranges
   exclude curves and grade breaks. The DP retains the preceding occupied half-curve and a Pareto
   frontier of cost/tangent occupancy, enforcing curve fit and interior tangent lengths during search.
-- A control's own elevation is a search level exactly as entered, to any number of decimals, and a
-  free PVI beside a grade control also gets the levels that run at exactly that grade from it.
-  Levels a control depends on are not rounded; all others are whole millimetres. A control at the
-  ground or profile value the workspace filled in, held to ±0, is therefore always inside the search.
-- **Gaps in the terrain.** A PVI that the spacing puts on a gap slides to the nearest station with
-  ground, up to half a spacing away, and the log counts it. If nothing that near has ground, the PVI
-  stays and its levels are centred on ground read across the gap from the stations either side.
-  Stations on the gap have no section, so they are priced as incomplete and left out of the
-  quantities. An end tied to ground must have ground under it: otherwise the run stops and names
-  the end.
+- **Where the PVIs go.** The ends, every control and every range boundary, then the regular
+  spacing. A spacing PVI nearer a control or range boundary than a fifth of the spacing (at least
+  5 m) gives way to it: a metre from a control it left an interval no level ladder could cross
+  inside the grade limit, and the run reported grades of hundreds of percent. A control that sets a
+  grade needs a PVI free to move on each side, so one goes in halfway to a tied end or an elevation
+  control beside it.
+- **Levels a control needs.** A control's own elevation is a search level exactly as entered, to
+  any number of decimals, with the two edges of its tolerance. A free PVI beside a grade control
+  gets the levels that run at exactly that grade from it, and a grade control beside a tied end or
+  an elevation control gets the level that runs at its grade from there. A free PVI beside an
+  elevation control gets the levels that carry each line from the other side straight through it.
+  Levels a control depends on are not rounded and those PVIs stay in the result; all other levels
+  are whole millimetres.
+- **A control is held on its curve, inside the search.** A vertical curve moves the line at its PVI
+  by L × grade change ÷ 800. The search applies that to every line through an elevation control
+  (`CONTROL_FIT`), so a control held to ±0 is met where the grade does not change, and one with a
+  tolerance where the curve stays inside it. If that leaves no line, the search runs once more
+  holding controls on the tangents only, and each control's PVI is then set where its curve passes
+  through the control: with the curve length held that is one linear equation, solved exactly
+  (`shaped`). Either way the result is read back through the engine before it is returned.
+- **Gaps in the terrain.** Ground under the centreline is read once, every 1 m. A PVI that the
+  spacing puts on a gap slides to the nearest station with ground, up to half a spacing away, and
+  the log counts it. If nothing that near has ground, the PVI stays and its levels are centred on
+  ground read across the gap: the straight line between the ground at the gap's two edges, or the
+  level of the one edge when the gap runs to a road end. Stations on the gap have no section, so
+  they are priced as incomplete and left out of the quantities, and every level there would cost
+  the same. The line is therefore also charged for its distance from that straight line, at the
+  formation's width times the dearer of the cut and fill rates per metre off it, so it crosses a
+  gap on the line between the edges unless a limit forces it off. A line 5 m below the far side with
+  a −16.9 % pitch into the gap was the result of taking the lowest of equal costs.
+- **Too little ground.** A road with ground under less than half its length is refused before any
+  search, with the share, the lengths and the widest gap. A gap whose edges are too far apart in
+  level for the grade limit ends the run with the gap's stations, the two levels and the grade
+  straight across. An end tied to ground must have ground under it: otherwise the run stops and
+  names the end.
 - Curves keep their required lengths rather than being silently shortened below K. The complete
   fitted result is rechecked against every standard and control before returning.
 - **Every curve of a returned profile is built.** The engine drops a vertical curve that does not
@@ -285,9 +315,7 @@ and last tangents are exempt from the minimum tangent length.
   tangents (`withFittedCurves`); the log counts the PVIs removed. If only controls and the road
   ends are left to remove, that trial line fails and the message names the grade break, the curve
   it needs and the tangent it has.
-- Elevation controls are corrected against the actual parabolic profile in at most 24 bounded
-  iterations, then rechecked. This handles the middle-ordinate shift at a control on a grade break.
-  An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
+- An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
 - Between PVIs, a station more than about the search ± plus four level steps from the selected band reference is
   priced as incomplete at $5,000 per m. Deep fills over a gully between PVIs are discouraged,
   not costed.
@@ -577,7 +605,9 @@ engineering assumptions and sampling, and review the geometric and material flag
 | "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Use the length the note gives, or **Set every curve from K**           |
 | "No profile passed its final check once curves were fitted"               | No fitted candidate passed the discrete band, range and control constraints                                  | Change what the message names: it gives the check and its remedy       |
 | Log: "The material plan for this profile cannot be met as entered"        | Haul allocation is on and the profile's borrow or waste has no site                                          | Add the site under Engineering → Haul; the profile itself is valid     |
-| Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
+| "A vertical curve there moves the line off it by more than that"          | A control held tighter than its curve's middle ordinate, with no line straight through it inside the band    | Widen the tolerance or the search, or lower Curve K                    |
+| "Only _n_% of this road has ground under it"                              | Less than half the road is on the terrain                                                                    | Load terrain for the widest gap, or shorten the road                   |
+| "The gap in the terrain from _a_ to _b_ cannot be bridged"                | The ground at the gap's edges is too far apart in level for the grade limit and search band                  | Load terrain for the gap, widen the search or relax the grade limit    |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
 | "Use a K of 0 or more; 0 fits no vertical curves."                        | A K below 0 or not a number reached the search                                                               | Enter a K of 0 or more                                                 |

@@ -6,8 +6,12 @@
  * station and level and interpolated in between, so the search never re-runs the whole road.
  * Dynamic programming over (previous level, current level) pairs keeps every grade inside its
  * station-range window, every grade change curvable at the requested K within its tangents, and
- * every control inside its tolerance. Curves are then sized from K and the result is a plain list
- * of PVIs that the ordinary analysis re-checks exactly.
+ * every control inside its tolerance on the vertical curve at it. Curves are then sized from K and
+ * the result is a plain list of PVIs that the ordinary analysis re-checks exactly.
+ *
+ * Ground under the centreline is read once. Across a gap in the terrain the line is held toward
+ * the straight line between the ground at the gap's edges, and a road mostly off the terrain is
+ * refused. A result is returned only when the road engine builds every one of its curves.
  *
  * It minimizes cut × cut rate + fill × fill rate. Haul, borrow, waste and clearing are evaluated by
  * the full analysis afterwards; they are not optimized. Pure: no DOM or network access.
@@ -16,7 +20,7 @@
  * one go, `optimizeVerticalProfileAsync` hands the page a turn between slices and can be cancelled.
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
-import { analyzeRoad, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
+import { analyzeRoad, centrelineSamples, positionAt, sectionAreasAt, verticalCurveSummary } from './engine'
 import {
   gradeWindowAt,
   curvatureRuleAt,
@@ -141,10 +145,26 @@ export interface VerticalOptimizationReport {
 }
 
 const EPS = 1e-9
+/** A control is met in the search to half the engine's own tolerance, so the engine's check agrees. */
+const CONTROL_FIT = 5e-7
+/** Ground under the centreline is read once at this spacing, m, and reused by every PVI and gap. */
+const GROUND_SAMPLE_M = 1
+/** Ground readings between two turns handed to the page, so Cancel is answered while a long road is read. */
+const GROUND_SLICE = 250
+/** The least share of a road that must have ground under its centreline for a profile search to run. */
+export const MIN_GROUND_SHARE = 0.5
+/** Levels a PVI may gain beyond its ladder so that lines can meet a control beside it exactly. */
+const MAX_EXACT_LEVELS = 80
+/** The shortest interval the search makes on purpose between two PVIs, m. */
+const MIN_PVI_INTERVAL_M = 5
+/** A spacing PVI nearer than this share of the spacing to a control or range boundary gives way to it. */
+const REQUIRED_CLEARANCE = 0.2
 /** Shares of the simplification tolerance tried, widest first, until a line's curves all fit. */
 const SIMPLIFY_SHARES = [1, 0.5, 0.25]
 const pct = (value: number) => `${value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
 
+/** No line inside the search band meets every limit over some interval; the message names it. */
+class NoProfileError extends Error {}
 /** Why a fitted line was not adopted, and what to change: the remedy always belongs to the cause. */
 type ProfileFailure = { message: string; remedy: string }
 const CHECK_REMEDY: Record<VerticalCheckKind, string> = {
@@ -290,8 +310,72 @@ function* profileSearch(
     const z = source.elevationAt(...p.coordinate)
     return Number.isFinite(z) ? z : null
   }
-  // PVI stations: regular spacing, the ends and every control point.
-  const marks = new Set<number>([0, length])
+  // Ground along the centreline, read once at about 1 m. Finding the ground either side of a gap by
+  // walking the road again for each PVI held the page for 17 s on a 5 km road mostly off the terrain.
+  const centre = centrelineSamples(alignment, GROUND_SAMPLE_M)
+  const along = centre.samples.map((point) => Math.min(length, point.s))
+  const level = new Float64Array(along.length)
+  for (let i = 0; i < along.length; i++) {
+    const z = source.elevationAt(...centre.toCoordinate(centre.samples[i].x, centre.samples[i].y))
+    level[i] = Number.isFinite(z) ? z : NaN
+    if (i % GROUND_SLICE === GROUND_SLICE - 1) yield { fraction: 0 }
+  }
+  // The nearest sample with ground at or before each sample, and at or after it; -1 when there is none.
+  const groundBefore = new Int32Array(along.length),
+    groundAfter = new Int32Array(along.length)
+  for (let i = 0; i < along.length; i++) groundBefore[i] = Number.isNaN(level[i]) ? (i ? groundBefore[i - 1] : -1) : i
+  for (let i = along.length - 1; i >= 0; i--)
+    groundAfter[i] = Number.isNaN(level[i]) ? (i < along.length - 1 ? groundAfter[i + 1] : -1) : i
+  const step = length / Math.max(1, along.length - 1)
+  const at = (s: number) => Math.max(0, Math.min(along.length - 1, s / step))
+  let covered = 0
+  for (let i = 0; i < along.length; i++) if (!Number.isNaN(level[i])) covered++
+  if (!covered) throw Error('There is no ground under this centreline. Move the road onto the terrain.')
+  // Off the terrain there is nothing to cut or fill, so a line there is a guess: refuse a road that is mostly one.
+  if (covered < MIN_GROUND_SHARE * along.length) {
+    const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
+    let widest = { start: 0, end: 0 }
+    for (let i = 0; i < along.length; i++) {
+      if (!Number.isNaN(level[i])) continue
+      const start = groundBefore[i] < 0 ? 0 : along[groundBefore[i]],
+        end = groundAfter[i] < 0 ? length : along[groundAfter[i]]
+      if (end - start > widest.end - widest.start) widest = { start, end }
+      if (groundAfter[i] < 0) break
+      i = groundAfter[i]
+    }
+    throw Error(
+      `Only ${whole((100 * covered) / along.length)}% of this road has ground under it (${whole(covered * step)} m of ${whole(length)} m), and a profile search needs at least ${100 * MIN_GROUND_SHARE}%. The widest gap, ${formatStation(widest.start)} to ${formatStation(widest.end)}, is too wide to bridge. Load or import terrain for it, or shorten the road to the mapped ground.`,
+    )
+  }
+  /** The stretch with no ground around a station, between the nearest ground either side; null on ground. */
+  const gapAt = (s: number): { start: number; end: number } | null => {
+    const lower = Math.floor(at(s)),
+      upper = Math.ceil(at(s))
+    if (groundBefore[lower] === lower && groundAfter[upper] === upper) return null
+    const from = groundBefore[lower],
+      to = groundAfter[upper]
+    return { start: from < 0 ? 0 : along[from], end: to < 0 ? length : along[to] }
+  }
+  /** Ground along the centreline, read across a gap from the nearest stations that have it. */
+  const groundAcrossGaps = (s: number) => {
+    const here = groundAt(s)
+    if (here !== null) return here
+    const from = groundBefore[Math.floor(at(s))],
+      to = groundAfter[Math.ceil(at(s))]
+    if (from >= 0 && to >= 0)
+      return to === from
+        ? level[from]
+        : level[from] + ((level[to] - level[from]) * (s - along[from])) / (along[to] - along[from])
+    return level[from >= 0 ? from : to]
+  }
+  // PVI stations: the ends, every control point and every range boundary, then the regular spacing.
+  const required = new Set<number>([0, length])
+  for (const c of controls) required.add(c.chainage)
+  for (const range of [
+    ...(alignment.verticalStandards?.gradeRanges ?? []),
+    ...(alignment.verticalStandards?.curvatureRanges ?? []),
+  ])
+    for (const s of [range.start, range.end]) if (s !== null && s > 0 && s < length) required.add(s)
   const count = Math.max(1, Math.round(length / o.pviSpacingM))
   if (count + 1 + controls.length > 500)
     throw Error('The profile search needs too many PVIs; use wider spacing or fewer controls.')
@@ -300,24 +384,41 @@ function* profileSearch(
   // design requirement, and a level ladder needs ground to stand on.
   let movedOffGaps = 0
   const reach = length / count / 2
+  const clear = Math.min(reach, Math.max(MIN_PVI_INTERVAL_M, (length / count) * REQUIRED_CLEARANCE))
+  const marks = new Set<number>(required)
   for (let i = 1; i < count; i++) {
     let s = Math.round(((length * i) / count) * 1000) / 1000
-    if (groundAt(s) === null)
-      for (let d = 1; d < reach; d++) {
-        const near = [s - d, s + d].find((x) => x > 0 && x < length && groundAt(x) !== null)
-        if (near === undefined) continue
-        s = near
+    if (groundAt(s) === null) {
+      const from = groundBefore[Math.floor(at(s))],
+        to = groundAfter[Math.ceil(at(s))]
+      const near = [from, to]
+        .filter((k) => k >= 0 && along[k] > 0 && along[k] < length && Math.abs(along[k] - s) < reach)
+        .sort((a, b) => Math.abs(along[a] - s) - Math.abs(along[b] - s))[0]
+      if (near !== undefined && groundAt(along[near]) !== null) {
+        s = along[near]
         movedOffGaps++
-        break
       }
+    }
+    // A spacing PVI gives way to a control or range boundary close beside it. Left standing a metre
+    // from one, it made an interval no ladder could cross inside the grade limit, and the run
+    // reported that no profile exists.
+    if ([...required].some((fixed) => Math.abs(fixed - s) < clear)) continue
     marks.add(s)
   }
-  for (const c of controls) marks.add(c.chainage)
-  for (const range of [
-    ...(alignment.verticalStandards?.gradeRanges ?? []),
-    ...(alignment.verticalStandards?.curvatureRanges ?? []),
-  ])
-    for (const s of [range.start, range.end]) if (s !== null && s > 0 && s < length) marks.add(s)
+  // A control that sets a grade needs a PVI free to move on each side of it: the line runs through
+  // the control at that grade and bends there. Where a tied end or an elevation control is its
+  // neighbour instead, a PVI goes in halfway.
+  const heldAt = (s: number) =>
+    (o.tieEndsToGround && (s <= 0 || s >= length)) ||
+    controls.some((c) => c.elevation !== null && Math.abs(c.chainage - s) < 1e-6)
+  for (const c of controls) {
+    if (c.gradePercent === null) continue
+    const sorted = [...marks].sort((a, b) => a - b)
+    const here = sorted.findIndex((s) => Math.abs(s - c.chainage) < 1e-6)
+    for (const beside of [sorted[here - 1], sorted[here + 1]])
+      if (beside !== undefined && heldAt(beside) && Math.abs(beside - c.chainage) >= 2 * MIN_PVI_INTERVAL_M)
+        marks.add((beside + c.chainage) / 2)
+  }
   if (marks.size > 500) throw Error('The profile search needs too many PVI/range events; split the road.')
   const pvis = [...marks].sort((a, b) => a - b).filter((s, i, all) => !i || s - all[i - 1] > 1e-6)
   if (pvis[pvis.length - 1] !== length) pvis[pvis.length - 1] = length
@@ -332,31 +433,13 @@ function* profileSearch(
         throw Error(
           `The road ${i === 0 ? 'start' : 'end'} (${formatStation(pvis[i])}) is on a gap in the terrain, so it cannot be tied to ground. Move that end onto mapped ground, set a control point there, or untick “Tie both ends to ground”.`,
         )
-  /** Ground along the centreline, read across a gap from the nearest stations that have it. */
-  const groundAcrossGaps = (s: number) => {
-    const here = groundAt(s)
-    if (here !== null) return here
-    let before: { s: number; z: number } | null = null,
-      after: { s: number; z: number } | null = null
-    for (let x = s - 1; x > -1 && !before; x--) {
-      const z = groundAt(Math.max(0, x))
-      if (z !== null) before = { s: Math.max(0, x), z }
-    }
-    for (let x = s + 1; x < length + 1 && !after; x++) {
-      const z = groundAt(Math.min(length, x))
-      if (z !== null) after = { s: Math.min(length, x), z }
-    }
-    if (before && after) return before.z + ((after.z - before.z) * (s - before.s)) / (after.s - before.s)
-    const only = before ?? after
-    if (!only) throw Error('There is no ground under this centreline. Move the road onto the terrain.')
-    return only.z
-  }
   const referenceAt = (s: number) =>
     o.bandCenter === 'design' ? designElevationAt(alignment.vertical, s) : groundAcrossGaps(s)
   // Candidate levels per PVI: a ladder around ground, narrowed by any control or tied end.
   const ladder = Math.round(o.maxDepthM / o.levelStepM)
   if (2 * ladder + 1 > o.maxTransitions)
     throw Error('Profile transition budget exceeded; use a coarser level step or a smaller search depth.')
+  const tied = (i: number) => o.tieEndsToGround && (i === 0 || i === pvis.length - 1)
   const levels = pvis.map((s, i) => {
     const control = elevationControlAt(s)
     if (control) {
@@ -366,41 +449,79 @@ function* profileSearch(
         throw Error('Profile transition budget exceeded; use a coarser level step or narrower control tolerances.')
       // The control's own elevation is a level exactly as entered. Rounding it to the millimetre put
       // it outside a zero tolerance, and a control at the ground the tool had read left no profile.
-      const values = [control.elevation!]
+      // The edges of its tolerance are levels too: a curve at the control lifts or lowers the line
+      // there, and from an edge the whole tolerance is there to take it.
+      const values = [low, control.elevation!, high]
       for (let z = Math.ceil(low / o.levelStepM) * o.levelStepM; z <= high + EPS; z += o.levelStepM)
         values.push(Math.min(high, Math.max(low, Math.round(z * 1000) / 1000)))
       return [...new Set(values)].sort((a, b) => a - b)
     }
-    if (o.tieEndsToGround && (i === 0 || i === pvis.length - 1)) return [pviGround[i]!]
+    if (tied(i)) return [pviGround[i]!]
     const centre = referenceAt(s)
     return Array.from({ length: 2 * ladder + 1 }, (_, j) => centre + (j - ladder) * o.levelStepM)
   })
-  // A control's grade has to be met within its tolerance, and steps of a fixed ladder almost never
-  // land on it: a grade read off the current profile, held to ±0, left no line at all. So each free
-  // PVI beside a grade control also gets the levels that run at exactly that grade from it. Those
-  // PVIs, and every control's own, keep their levels unrounded.
+  // Steps of a fixed ladder almost never land on what a control asks for exactly, so the PVIs beside
+  // a control also get the levels that do. Those PVIs, and every control's own, keep their levels
+  // unrounded and stay in the returned line, so the line the search checked is the line returned.
   const exactAt = new Set<number>()
-  const isFree = (i: number) =>
-    i >= 0 &&
-    i < pvis.length &&
-    !elevationControlAt(pvis[i]) &&
-    !(o.tieEndsToGround && (i === 0 || i === pvis.length - 1))
-  for (const control of controls) {
-    const at = pvis.findIndex((s) => Math.abs(s - control.chainage) < 1e-6)
-    if (at < 0) continue
-    exactAt.add(at)
-    if (control.gradePercent === null) continue
-    const through = [...levels[at]]
-    for (const beside of [at - 1, at + 1]) {
-      if (!isFree(beside)) continue
-      const centre = referenceAt(pvis[beside]),
-        rise = (control.gradePercent * (pvis[beside] - pvis[at])) / 100
-      const exact = through.map((z) => z + rise).filter((z) => Math.abs(z - centre) <= o.maxDepthM + EPS)
-      if (!exact.length) continue
-      exactAt.add(beside)
-      levels[beside] = [...new Set([...levels[beside], ...exact])].sort((a, b) => a - b)
+  const isFree = (i: number) => i >= 0 && i < pvis.length && !elevationControlAt(pvis[i]) && !tied(i)
+  const inBand = (i: number, z: number) => Math.abs(z - referenceAt(pvis[i])) <= o.maxDepthM + EPS
+  const addLevels = (i: number, values: number[]) => {
+    for (const z of values) {
+      if (levels[i].length - (2 * ladder + 1) >= MAX_EXACT_LEVELS) return
+      // A level reflected back through a control lands a rounding error from the one it came from.
+      if (!inBand(i, z) || levels[i].some((known) => Math.abs(known - z) < 1e-9)) continue
+      exactAt.add(i)
+      levels[i].push(z)
     }
+    levels[i].sort((a, b) => a - b)
   }
+  const ordered = [...controls].sort((a, b) => a.chainage - b.chainage)
+  // Twice over: a level one control adds beside the next has to be carried on through that one.
+  for (let pass = 0; pass < 2; pass++)
+    for (const control of ordered) {
+      const here = pvis.findIndex((s) => Math.abs(s - control.chainage) < 1e-6)
+      if (here < 0) continue
+      exactAt.add(here)
+      const sides = [here - 1, here + 1].filter((beside) => beside >= 0 && beside < pvis.length)
+      for (const beside of sides) exactAt.add(beside)
+      const run = (from: number, to: number, percent: number) => (percent * (pvis[to] - pvis[from])) / 100
+      if (control.gradePercent !== null) {
+        // A grade has to be met within its tolerance: a grade read off the current profile, held to
+        // ±0, left no line at all. Beside a tied end or an elevation control the level that runs at
+        // that grade from it is the only one that can meet it, so the grade control's own PVI takes it.
+        if (isFree(here))
+          for (const beside of sides)
+            if (!isFree(beside))
+              addLevels(
+                here,
+                levels[beside].map((z) => z + run(beside, here, control.gradePercent!)),
+              )
+        // Each free PVI beside it gets the levels that run at exactly that grade from it.
+        const through = [...levels[here]]
+        for (const beside of sides)
+          if (isFree(beside))
+            addLevels(
+              beside,
+              through.map((z) => z + run(here, beside, control.gradePercent!)),
+            )
+      }
+      // A vertical curve at an elevation control moves the line off the control's level by its
+      // middle ordinate, so a control held to ±0 can only be met where the grade does not change.
+      // Each free PVI beside it gets the levels that carry the lines from the other side straight
+      // through the control.
+      if (control.elevation !== null && sides.length === 2)
+        for (const [origin, target] of [sides, [...sides].reverse()])
+          if (isFree(target))
+            addLevels(
+              target,
+              [...levels[origin]].map(
+                (z) =>
+                  control.elevation! +
+                  ((control.elevation! - z) * (pvis[target] - pvis[here])) / (pvis[here] - pvis[origin]),
+              ),
+            )
+    }
 
   // Sample stations within each PVI interval, with trapezoid weights.
   const segments = pvis.slice(1).map((end, i) => {
@@ -424,8 +545,9 @@ function* profileSearch(
     if (existing) return existing
     const place = positionAt(alignment, s)
     const ground = source.elevationAt(...place.coordinate)
-    // A station on a gap has no sections to solve; it is priced as incomplete at every level.
-    const centre = Number.isFinite(ground) || o.bandCenter === 'design' ? referenceAt(s) : NaN
+    // A station on a gap has no sections to solve. It is priced as incomplete at every level, and
+    // its centre is the ground read across the gap, which the line is held toward.
+    const centre = referenceAt(s)
     const cut: (number | null)[] = [],
       fill: (number | null)[] = []
     if (Number.isFinite(ground))
@@ -471,9 +593,16 @@ function* profileSearch(
         zb = levels[i + 1][b]
       terms = { cost: 0, net: 0 }
       for (const p of segments[i]) {
-        const areas = areasAt(p.s, za + (zb - za) * p.t)
-        if (!areas) terms.cost += p.weight * o.incompletePenaltyPerM
-        else {
+        const z = za + (zb - za) * p.t
+        const areas = areasAt(p.s, z)
+        if (!areas) {
+          terms.cost += p.weight * o.incompletePenaltyPerM
+          // Every level costs the same where there is no ground, and the lowest used to win: a line
+          // across a wide gap sat at the bottom of the band. Off the ground the line is held toward
+          // the straight line between the ground at the gap's edges instead.
+          const table = tableAt(p.s)
+          if (table.ground === null) terms.cost += p.weight * gapSteer * Math.abs(z - table.centre)
+        } else {
           terms.cost += p.weight * (areas.cut * settings.cutRate + areas.fill * settings.fillRate)
           terms.net += p.weight * (areas.cut * settings.shrinkFactor - areas.fill)
         }
@@ -482,6 +611,9 @@ function* profileSearch(
     }
     return terms
   }
+  // What a metre of road a metre off that line is priced at: the formation's width at the dearer rate.
+  const gapSteer =
+    (alignment.template.leftWidth + alignment.template.rightWidth) * Math.max(1, settings.cutRate, settings.fillRate)
   let imbalancePrice = 0
   const costOf = (i: number, a: number, b: number) => {
     const terms = termsOf(i, a, b)
@@ -502,6 +634,7 @@ function* profileSearch(
     const { low, high } = gradeLimits(i)
     return g >= low - EPS && g <= high + EPS
   }
+  const elevationControls = pvis.map(elevationControlAt)
   /** The first control this interval's line would miss, or null when it holds them all. */
   const missedControl = (i: number, a: number, b: number): VerticalControl | null => {
     const za = levels[i][a],
@@ -559,6 +692,8 @@ function* profileSearch(
     lowestGrade: number
     highestGrade: number
     controls: Map<VerticalControl, number>
+    /** Controls a line reached on its tangents and left on the vertical curve at them. */
+    offCurve: Set<VerticalControl>
     linear: number
     curve: number
     shortestCurveM: number
@@ -570,6 +705,7 @@ function* profileSearch(
     lowestGrade: Infinity,
     highestGrade: -Infinity,
     controls: new Map(),
+    offCurve: new Set(),
     linear: 0,
     curve: 0,
     shortestCurveM: Infinity,
@@ -587,8 +723,11 @@ function* profileSearch(
   }
   const infeasible = (i: number, t: Tally) => {
     const from = formatStation(pvis[i]),
-      to = formatStation(pvis[i + 1]),
-      band = `±${o.maxDepthM} m of ${o.bandCenter === 'ground' ? 'the ground' : 'the current design'}`
+      to = formatStation(pvis[i + 1])
+    // Over a gap the band is not around ground: it is around the line between the ground at the gap's edges.
+    const gap =
+      o.bandCenter === 'ground' ? (gapAt((pvis[i] + pvis[i + 1]) / 2) ?? gapAt(pvis[i]) ?? gapAt(pvis[i + 1])) : null
+    const band = `±${o.maxDepthM} m of ${o.bandCenter !== 'ground' ? 'the current design' : gap ? 'the line across that gap' : 'the ground'}`
     const afterGrade = t.tried - t.grade
     const missed = [...t.controls].sort((a, b) => b[1] - a[1])[0]?.[0]
     const afterControls = afterGrade - [...t.controls.values()].reduce((sum, count) => sum + count, 0)
@@ -604,7 +743,9 @@ function* profileSearch(
       const { low, high } = gradeLimits(i)
       const asked = missed.gradePercent,
         tolerance = missed.gradeTolerancePercent
-      if (asked === null)
+      if (asked === null && t.offCurve.has(missed))
+        reason = `${controlName(missed)} holds the line at ${missed.elevation!.toFixed(2)} m (+${missed.toleranceAboveM.toFixed(2)}/−${missed.toleranceBelowM.toFixed(2)} m). A vertical curve there moves the line off it by more than that, and no line within ${band} runs straight through it. Widen that control's tolerance or “Search ±”, or lower “Curve K”.`
+      else if (asked === null)
         reason = `${controlName(missed)} holds the line at ${missed.elevation!.toFixed(2)} m (+${missed.toleranceAboveM.toFixed(2)}/−${missed.toleranceBelowM.toFixed(2)} m), which no line within ${band} reaches. Widen that control's tolerance or “Search ±”, or move the control.`
       else if (asked + tolerance < low - EPS || asked - tolerance > high + EPS)
         reason = `${controlName(missed)} asks for a grade of ${pct(asked)} (±${tolerance.toFixed(1)}%), outside the ${pct(low)} to ${pct(high)} grade limit there. Change the control's grade or the limit.`
@@ -616,14 +757,33 @@ function* profileSearch(
       reason = `The grade change at ${from} needs a vertical curve of at least ${t.shortestCurveM.toFixed(0)} m, and the PVIs either side are ${(pvis[i] - pvis[i - 1]).toFixed(0)} m and ${(pvis[i + 1] - pvis[i]).toFixed(0)} m away. Lower “Curve K” or the minimum sag and crest K, or widen the PVI spacing.`
     else
       reason = `No line leaves the ${alignment.verticalStandards?.minTangentLengthM ?? 0} m minimum tangent before the curve at ${from}. Shorten “Min tangent”, lower “Curve K” or widen the PVI spacing.`
-    return Error(`No profile meets the limits between ${from} and ${to}. ${reason} Nothing was changed.`)
+    if (!gap)
+      return new NoProfileError(`No profile meets the limits between ${from} and ${to}. ${reason} Nothing was changed.`)
+    const open = gap.start <= 0 || gap.end >= length
+    const edges = open
+      ? `the gap runs to the road ${gap.start <= 0 ? 'start' : 'end'}, so the line is held level with the ground at its other edge`
+      : `the line is held near the straight line between the ground at its edges, ${groundAcrossGaps(gap.start).toFixed(2)} m and ${groundAcrossGaps(gap.end).toFixed(2)} m, ${pct((100 * (groundAcrossGaps(gap.end) - groundAcrossGaps(gap.start))) / (gap.end - gap.start))} across`
+    return new NoProfileError(
+      `The gap in the terrain from ${formatStation(gap.start)} to ${formatStation(gap.end)} cannot be bridged inside the limits: no profile meets them between ${from} and ${to}. With no ground there, ${edges}. ${reason} Loading terrain for the gap removes the guess. Nothing was changed.`,
+    )
   }
   let run = 0,
     runs = 1
-  const progress = (i: number): VerticalOptimizationProgress => ({
-    fraction: Math.min(1, (run + i / Math.max(1, n - 1)) / runs),
-  })
-  const solve = function* (): Generator<VerticalOptimizationProgress, { chosen: number[]; cost: number }> {
+  // A second search of one price run starts again from the first PVI; the share reported never goes back.
+  let reported = 0
+  const progress = (i: number): VerticalOptimizationProgress => {
+    reported = Math.max(reported, Math.min(1, (run + i / Math.max(1, n - 1)) / runs))
+    return { fraction: reported }
+  }
+  /**
+   * `strict` holds each elevation control on the vertical curve at it, so the line found needs no
+   * adjusting. Without it a control is held on the tangents only, and `shaped` then moves its PVI
+   * onto the curve: that reaches lines that bend at a control held to ±0, at the risk of a curve
+   * outgrowing its tangent, which the final check catches.
+   */
+  const solve = function* (
+    strict: boolean,
+  ): Generator<VerticalOptimizationProgress, { chosen: number[]; cost: number }> {
     let frontier = new Map<string, Cell>()
     const states: Map<string, Cell>[] = []
     let dropped = tally()
@@ -704,6 +864,19 @@ function* profileSearch(
             dropped.shortestCurveM = Math.min(dropped.shortestCurveM, half * 2)
             continue
           }
+          // A curve moves the line at its PVI by L × grade change ÷ 800: a control there is held to that.
+          const held = strict ? elevationControls[i] : undefined
+          if (held) {
+            const there = levels[i][b] + (half * 2 * (g2 - g1)) / 800
+            if (
+              there > held.elevation! + held.toleranceAboveM + CONTROL_FIT ||
+              there < held.elevation! - held.toleranceBelowM - CONTROL_FIT
+            ) {
+              dropped.controls.set(held, (dropped.controls.get(held) ?? 0) + 1)
+              dropped.offCurve.add(held)
+              continue
+            }
+          }
           const minimumTangent = i > 1 && half > 0 ? (alignment.verticalStandards?.minTangentLengthM ?? 0) : 0
           // A preceding straight grade (half=0) does not require an interior tangent.
           const limit = Math.max(0, before - half - minimumTangent) + 1e-6
@@ -781,42 +954,68 @@ function* profileSearch(
               (100 * (line[i + 1].elevation - p.elevation)) / (line[i + 1].chainage - p.chainage),
             ),
     }))
+  /**
+   * The line with every curve sized from K and each elevation control met on its own curve. A curve
+   * at a control moves the line there off the PVI by L × grade change ÷ 800, so the PVI is set where
+   * the curve passes through the control. With the curve length held that is one linear equation,
+   * solved exactly; the length is then raised until it is at least what K asks at the new grades.
+   * A line the strict search returns already meets its controls and comes back unchanged.
+   */
+  const shaped = (points: { chainage: number; elevation: number }[]): VerticalPoint[] => {
+    let line = fitted(points)
+    const interior = (c: VerticalControl) => {
+      const index = line.findIndex((p) => Math.abs(p.chainage - c.chainage) < 1e-6)
+      return c.elevation !== null && index > 0 && index < line.length - 1 ? index : -1
+    }
+    const held = new Map<number, number>()
+    for (let pass = 0; pass < 8; pass++) {
+      let moved = 0
+      for (const control of controls) {
+        const i = interior(control)
+        if (i < 0) continue
+        const before = line[i - 1],
+          after = line[i + 1],
+          d1 = line[i].chainage - before.chainage,
+          d2 = after.chainage - line[i].chainage
+        // The grade change at a PVI level z is rise − fall × z, in percent.
+        const rise = 100 * (after.elevation / d2 + before.elevation / d1),
+          fall = 100 * (1 / d1 + 1 / d2)
+        const needed = (z: number) =>
+          curveLength(line[i].chainage, (100 * (z - before.elevation)) / d1, (100 * (after.elevation - z)) / d2)
+        let z = line[i].elevation,
+          size = Math.max(needed(z), held.get(i) ?? 0)
+        if (!Number.isFinite(size)) continue
+        const there = z + (size * (rise - fall * z)) / 800
+        const target = Math.max(
+          control.elevation! - control.toleranceBelowM,
+          Math.min(control.elevation! + control.toleranceAboveM, there),
+        )
+        if (Math.abs(there - target) > 1e-9)
+          for (let step = 0; step < 20; step++) {
+            const share = 1 - (size * fall) / 800
+            if (share < 0.05) break
+            z = (target - (size * rise) / 800) / share
+            const longer = needed(z)
+            if (!(longer > size + 1e-9)) break
+            size = longer
+          }
+        if (!Number.isFinite(size)) continue
+        moved = Math.max(moved, Math.abs(z - line[i].elevation), Math.abs(size - line[i].curveLength))
+        held.set(i, size)
+        line = line.map((p, k) => (k === i ? { ...p, elevation: z } : p))
+      }
+      // Every other curve follows the grades it now stands between; a settled control keeps its length.
+      line = fitted(line).map((p, k) => (held.has(k) ? { ...p, curveLength: held.get(k)! } : p))
+      if (moved < 1e-10) break
+    }
+    return line
+  }
   const check = (v: VerticalPoint[]) =>
     analyzeRoad({ ...alignment, vertical: v }, terrain, settings, o.context, {
       referenceSurfaces: o.referenceSurfaces,
       verticalReference: o.verticalReference,
       sharedCrossingCosts: o.sharedCrossingCosts,
     })
-  // Curves move the formation away from their PVI elevation. Solve the retained control
-  // PVIs against the actual parabola, then recheck all geometry, grades and K limits.
-  // This bounded correction never accepts a missed control merely because its tangent fits.
-  const fitElevationControls = (input: VerticalPoint[]) => {
-    let line = input
-    for (let pass = 0; pass < 24; pass++) {
-      let worst = 0
-      for (const control of controls) {
-        if (control.elevation === null) continue
-        const index = line.findIndex((p) => Math.abs(p.chainage - control.chainage) < 1e-6)
-        if (index < 0) continue
-        const actual = designElevationAt(line, control.chainage)
-        const target = Math.max(
-          control.elevation - control.toleranceBelowM,
-          Math.min(control.elevation + control.toleranceAboveM, actual),
-        )
-        const correction = target - actual
-        worst = Math.max(worst, Math.abs(correction))
-        if (Math.abs(correction) < 1e-8) continue
-        const shifted = line.map((p, i) => (i === index ? { ...p, elevation: p.elevation + 0.001 } : p))
-        const refit = fitted(shifted)
-        const derivative = (designElevationAt(refit, control.chainage) - actual) / 0.001
-        if (!Number.isFinite(derivative) || Math.abs(derivative) < 0.01) continue
-        const delta = Math.max(-o.maxDepthM, Math.min(o.maxDepthM, correction / derivative))
-        line = fitted(line.map((p, i) => (i === index ? { ...p, elevation: p.elevation + delta } : p)))
-      }
-      if (worst < 1e-7) break
-    }
-    return line
-  }
   const earthwork = (a: ReturnType<typeof check>) =>
     a.cutVolumeM3 * settings.cutRate + a.fillVolumeM3 * settings.fillRate
   const score = (a: ReturnType<typeof check>) => (o.objective === 'total' ? a.estimatedCost : earthwork(a))
@@ -877,7 +1076,7 @@ function* profileSearch(
         }
       }
       if (drop < 0) return null
-      line = fitElevationControls(fitted(line.filter((_, i) => i !== drop)))
+      line = shaped(line.filter((_, i) => i !== drop))
     }
     return curveFault(line) ? null : line
   }
@@ -889,14 +1088,14 @@ function* profileSearch(
       elevation: exactAt.has(i) ? levels[i][chosen[i]] : Math.round(levels[i][chosen[i]] * 1000) / 1000,
     }))
     const kept = raw.filter((p, i) => {
-      if (i === 0 || i === raw.length - 1) return true
-      if (controls.some((c) => Math.abs(c.chainage - p.chainage) < 1e-6)) return true
+      // The PVIs a control's level and grade were checked against stay, so the line keeps what was checked.
+      if (i === 0 || i === raw.length - 1 || exactAt.has(i)) return true
       const g1 = (p.elevation - raw[i - 1].elevation) / (p.chainage - raw[i - 1].chainage)
       const g2 = (raw[i + 1].elevation - p.elevation) / (raw[i + 1].chainage - p.chainage)
       return Math.abs(g2 - g1) * 100 > 0.05
     })
-    let vertical = fitElevationControls(fitted(kept))
-    // Rounding levels and settling a control on its curve can lengthen a curve past its tangent.
+    let vertical = shaped(kept)
+    // Rounding levels to the millimetre, or settling a control on its curve, can lengthen a curve past its tangent.
     let unfitted = curveFault(vertical)
     let repaired = 0
     if (unfitted) {
@@ -913,13 +1112,11 @@ function* profileSearch(
       // A simpler line has longer curves, and two of them can meet. Then a finer tolerance is tried.
       for (const share of SIMPLIFY_SHARES) {
         const toleranceM = o.simplifyToleranceM * share
-        const lighter = fitElevationControls(
-          fitted(
-            simplifyProfile(
-              vertical,
-              toleranceM,
-              controls.map((c) => c.chainage),
-            ),
+        const lighter = shaped(
+          simplifyProfile(
+            vertical,
+            toleranceM,
+            [...exactAt].map((index) => pvis[index]),
           ),
         )
         if (lighter.length >= vertical.length) break
@@ -952,9 +1149,23 @@ function* profileSearch(
   const better = (a: ReturnType<typeof check>, b: ReturnType<typeof check>) =>
     Number(planOpen(a)) - Number(planOpen(b)) || score(a) - score(b)
   runs = prices.length
+  // The strict search is tried first. Where it finds no line, a control held to its level may still
+  // be met by a line that bends at it, so the search runs again holding controls on the tangents.
+  let strict = true,
+    unmet: NoProfileError | null = null
   for (const price of prices) {
     imbalancePrice = price
-    const solved = yield* solve()
+    let solved: { chosen: number[]; cost: number } | null = null
+    if (strict)
+      try {
+        solved = yield* solve(true)
+      } catch (cause) {
+        if (!(cause instanceof NoProfileError) || !elevationControls.some((c, i) => c && i > 0 && i < n - 1))
+          throw cause
+        strict = false
+        unmet = cause
+      }
+    solved ??= yield* solve(false)
     const result = finish(solved.chosen)
     run++
     yield progress(0)
@@ -971,7 +1182,7 @@ function* profileSearch(
         ? { message: `${check.message}.`, remedy: CHECK_REMEDY[check.kind] }
         : o.objective === 'total' && result.analysis.crossingEstimate?.complete === false
           ? {
-              message: 'A total cost cannot be compared while stream crossing estimates need review or prices.',
+              message: 'Stream crossing estimates need review or prices before a total cost can be compared.',
               remedy: 'Review or price the crossings under Engineering, or optimize for “Cut and fill”.',
             }
           : result.analysis.maxGradePercent > settings.maxGradePercent + 1e-6
@@ -988,9 +1199,13 @@ function* profileSearch(
     if (!chosenResult || better(result.analysis, chosenResult.analysis) < 0)
       chosenResult = { ...result, cost: solved.cost, price }
   }
+  // A line that only the looser search found and that then failed is explained by the strict search's reason.
   if (!chosenResult)
-    throw Error(
-      `No profile passed its final check once curves were fitted. ${failed!.message} ${failed!.remedy} Nothing was changed.`,
+    throw (
+      unmet ??
+      Error(
+        `No profile passed its final check once curves were fitted. ${failed!.message} ${failed!.remedy} Nothing was changed.`,
+      )
     )
   const { vertical, simplified, analysis } = chosenResult
   const endSetBy = (i: number) =>

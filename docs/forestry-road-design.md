@@ -1201,14 +1201,23 @@ rounded up to 0.1 m, and a curve is shrunk only when its tangents cannot hold it
 “Optimize profile” (`verticalOptimizer.ts`) searches for the cheapest cut-and-fill grade line
 over the fixed horizontal alignment:
 
-- PVIs sit at the entered spacing, at both ends and at every control point.
+- PVIs sit at the entered spacing, at both ends and at every control point. A spacing PVI
+  close beside a control or a range boundary gives way to it.
 - Each PVI's formation may take one of a ladder of levels within ± the search depth of the
   ground, in the level step. An end can be tied to ground, and a control narrows its PVI
-  to its tolerance. A control's own elevation is a level exactly as entered, and a PVI beside
-  a grade control also gets the levels that run at exactly that grade from it, so a control
-  held to ±0 at a value read off the ground or the profile is always inside the search.
+  to its tolerance. A control's own elevation is a level exactly as entered, and the PVIs
+  beside a control also get the levels that run at exactly its grade from it or straight
+  through it, so a control held to ±0 at a value read off the ground or the profile is
+  always inside the search. A vertical curve at a control moves the line there, and the
+  search holds the control on that curve, not on the tangents.
 - A PVI the spacing puts on a gap in the terrain slides to the nearest station with ground.
-  Only an end tied to ground has to have ground under it.
+  Across a wider gap the line follows the straight line between the ground at the gap's
+  edges. An end tied to ground has to have ground under it, and so does at least half of
+  the road: less than that is refused before the search, with the widest gap named.
+- A returned profile has every vertical curve built at its full length. A line whose curve
+  the engine would drop is repaired by taking out a PVI, or fails naming the grade break.
+- The material plan never refuses a profile. When haul allocation cannot close, the profile
+  is returned and the log says what its earthwork needs.
 - Section cut and fill areas are solved with the engine's own section model once per sample
   station and level (`sectionAreasAt`), then interpolated between levels.
 - Dynamic programming over pairs of adjacent levels keeps every tangent inside its grade
@@ -1227,8 +1236,8 @@ balance, so this is a priced selection rather than a global haul optimum. It nev
 more than the cut-and-fill line.
 
 The search places a PVI at every spacing step. Afterwards the line is simplified
-(Douglas–Peucker, 0.3 m), and the simpler line is kept only if it still meets every limit
-at no more than 1 % extra cost. On the LiDAR road below, that gives 15 PVIs instead of 22. Curves are sized from K and the result becomes a new
+(Douglas–Peucker, 0.3 m, then half and a quarter of that), and the simpler line is kept only
+if every curve still fits and it still meets every limit at no more than 1 % extra cost. On the LiDAR road below, that gives 15 PVIs instead of 22. Curves are sized from K and the result becomes a new
 alternative road, with the covered estimates before and after in the notice. If no profile
 meets the limits, the optimizer names the interval, the limit or control that conflicts there
 and what to change, instead of returning one. The search stops at 5,000,000 level transitions
