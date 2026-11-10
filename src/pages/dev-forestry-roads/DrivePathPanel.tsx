@@ -51,7 +51,8 @@ export interface DrivenPath {
 }
 
 type Frame = ReturnType<typeof localFrame>
-export type DriveRun = { result: DriveResult; frame: Frame; label: string }
+/** `vehicleKey` is the vehicle it was driven with, as JSON: its poses fit no other vehicle. */
+export type DriveRun = { result: DriveResult; frame: Frame; label: string; vehicleKey: string }
 
 /**
  * Drive the design vehicle along a drawn line, an imported line or a junction turn, and place its
@@ -87,7 +88,11 @@ export function DrivePathPanel({
   const [footprintIds, setFootprintIds] = useState<string[]>([])
   const [includeRoads, setIncludeRoads] = useState(true)
   const [traces, setTraces] = useState<TracePoint[]>([])
-  const [run, setRun] = useState<DriveRun | null>(null)
+  const [lastRun, setRun] = useState<DriveRun | null>(null)
+  // A run is shown only with the vehicle it was driven with. Drawn with another (a unit added, a
+  // load removed), the outline reads poses the run does not have.
+  const vehicleKey = useMemo(() => JSON.stringify(vehicle), [vehicle])
+  const run = lastRun?.vehicleKey === vehicleKey ? lastRun : null
   const [progress, setProgress] = useState<DriveProgress | null>(null)
   const [error, setError] = useState('')
   const [index, setIndex] = useState(0)
@@ -138,7 +143,7 @@ export function DrivePathPanel({
         }),
         { signal: abort.signal, onProgress: setProgress },
       )
-      setRun({ result, frame, label: chosen.label })
+      setRun({ result, frame, label: chosen.label, vehicleKey })
       setIndex(result.positions.length - 1)
     } catch (cause) {
       if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : 'The path could not be driven.')
