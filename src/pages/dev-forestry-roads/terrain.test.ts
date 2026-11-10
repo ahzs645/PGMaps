@@ -4,6 +4,8 @@ import type { PointCloudResult, RunPointCloudOptions } from './pointCloudClient'
 import {
   LIDAR_BASE,
   TerrainImportQuestion,
+  createDemoProject,
+  demoTerrain,
   exportGrid,
   importTerrainWithAnswers,
   localMetricGrid,
@@ -19,7 +21,8 @@ import {
 import { encodeLas, type PointCloud } from './pointCloud'
 import { assumeCrs } from './pointCloud.worker'
 import type { TerrainMetadata } from './types'
-import { offsetCoordinate } from './engine'
+import { analyzeRoad, offsetCoordinate } from './engine'
+import { projectReportHtml } from './project'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -483,5 +486,25 @@ describe('point-cloud import', () => {
     const reopened = JSON.parse(JSON.stringify(metadata)) as TerrainMetadata
     expect(pointCloudImportSummary(reopened)).toEqual(pointCloudImportSummary(metadata))
     expect(pointCloudImportSummary((await loadRaster(fixture(), 'CGVD2013; metres')).metadata)).toBeNull()
+  })
+
+  it('prints the import summary in the report with the terrain it describes', async () => {
+    const { metadata } = await loadLas(tile('Tile_1.las'), 'CGVD2013', {
+      classify: 'auto',
+      surface: 'mean',
+      assumedEpsg: 3157,
+    })
+    const project = createDemoProject()
+    const analysis = analyzeRoad(project.alignments[0], demoTerrain, project.settings)
+    expect(projectReportHtml(project, analysis)).not.toContain('Point cloud')
+    const report = projectReportHtml({ ...project, terrain: metadata }, analysis)
+    expect(report).toContain('<dt>Point cloud · Ground points</dt><dd>4 of 4 · 1.0 per m² of gridded ground</dd>')
+    expect(report).toContain('<dt>Point cloud · CRS</dt><dd>EPSG:3157 as entered; the files state none</dd>')
+    expect(report).toContain('<dt>Point cloud · Sources</dt><dd>Tile_1.las</dd>')
+    // In the terrain block, between the source's checksum and the design inputs.
+    const at = report.indexOf('Point cloud · Ground points')
+    expect(at).toBeGreaterThan(report.indexOf('<h2>Terrain and assumptions</h2>'))
+    expect(at).toBeGreaterThan(report.indexOf('<dt>SHA-256</dt>'))
+    expect(at).toBeLessThan(report.indexOf('<dt>Sampling interval</dt>'))
   })
 })
