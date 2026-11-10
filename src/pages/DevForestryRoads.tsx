@@ -139,7 +139,8 @@ import {
 import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
-import { roadStationAt } from './dev-forestry-roads/stationAt'
+import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
+import { StationBox } from './dev-forestry-roads/StationBox'
 import {
   engineeringCsv,
   parseProject,
@@ -658,7 +659,10 @@ export default function DevForestryRoads() {
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
-  const [removedRoad, setRemovedRoad] = useState<RemovedRoad | null>(null)
+  // A deleted road and the project it came from: its notice and Undo end when another project opens.
+  const [removedRoad, setRemovedRoad] = useState<{ removed: RemovedRoad; opened: number } | null>(null)
+  if (removedRoad && removedRoad.opened !== w.openedCount) setRemovedRoad(null)
+  const removedHere = removedRoad?.opened === w.openedCount ? removedRoad.removed : null
   const [fileConflict, setFileConflict] = useState<{
     opened: RoadProject
     fileName: string
@@ -762,9 +766,10 @@ export default function DevForestryRoads() {
     },
     [showOnPlan],
   )
-  const [stationEntry, setStationEntry] = useState<{ value: number; text: string } | null>(null)
   // A station typed into the station box is held exactly; every other selection takes a calculated station.
-  const [typedStation, setTypedStation] = useState<{ station: number; entered: number } | null>(null)
+  const [typedStation, setTypedStation] = useState<{ station: number; entered: number; committed: boolean } | null>(
+    null,
+  )
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
   const operation = useRef<AbortController | null>(null)
@@ -932,11 +937,15 @@ export default function DevForestryRoads() {
   )
   // Any other selection (a chart, the slider, a table row) takes a calculated station again.
   if (typedStation && typedStation.station !== w.station) setTypedStation(null)
-  const typedHere = typedStation?.station === w.station && !terrainProfile ? typedStation : null
+  const typedHere = typedStation?.station === w.station ? typedStation : null
+  // A terrain profile has ground at its calculated stations only, so a typed station takes the nearest.
+  const evaluatesTyped = !!typedHere && !terrainProfile
+  // The road the displayed analysis was calculated from: its last valid inputs while one is invalid.
+  const sampledAlignment = displayedAlignment === alignment ? w.calculatedAlignment : displayedAlignment
   const stationSampler = useMemo(() => {
-    if (!typedHere) return null
+    if (!evaluatesTyped) return null
     try {
-      return createRoadStationSampler(displayedAlignment, source, project.settings, {
+      return createRoadStationSampler(sampledAlignment, source, project.settings, {
         context: project.context,
         referenceSurfaces: w.referenceSurfaces,
         verticalReference: project.terrain.verticalReference,
@@ -946,8 +955,8 @@ export default function DevForestryRoads() {
       return null
     }
   }, [
-    typedHere,
-    displayedAlignment,
+    evaluatesTyped,
+    sampledAlignment,
     source,
     project.settings,
     project.context,
@@ -988,18 +997,21 @@ export default function DevForestryRoads() {
   /** Selects exactly the station typed, held to the road, and returns it. */
   const selectTypedStation = (entered: number) => {
     const bounded = Math.max(0, Math.min(displayedAnalysis.length, entered))
-    setTypedStation({ station: bounded, entered })
+    setTypedStation({ station: bounded, entered, committed: false })
     setStation(bounded)
     return bounded
   }
-  const stationEntryText = stationEntry && Math.abs(stationEntry.value - station) < 0.001 ? stationEntry.text : null
-  const finishStationEntry = () => {
-    if (stationEntryText?.trim()) {
-      const value = Number(stationEntryText)
-      if (Number.isFinite(value)) selectTypedStation(value)
-    }
-    setStationEntry(null)
-  }
+  // A value outside the line is explained at once; the nearest station only once the entry is finished.
+  const typedNote =
+    typedHere && (typedHere.committed || typedHere.entered !== typedHere.station)
+      ? typedStationNote(
+          typedHere.entered,
+          at?.chainage ?? null,
+          displayedAnalysis.length,
+          terrainProfile ? 'terrain profile' : 'road',
+          { value: number, station: formatRoadStation },
+        )
+      : null
   const selectCulvert = (id: string) => {
     setSelectedCulvertId(id)
     const culvert = displayedAnalysis.engineering?.culverts.find((c) => c.id === id)
@@ -2953,11 +2965,11 @@ export default function DevForestryRoads() {
       )}
       <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
       <RoadRemovedNotice
-        removed={removedRoad}
-        shownName={project.alignments.find((road) => road.id === removedRoad?.shownId)?.name ?? alignment.name}
+        removed={removedHere}
+        shownName={project.alignments.find((road) => road.id === removedHere?.shownId)?.name ?? alignment.name}
         onDismiss={() => setRemovedRoad(null)}
         onUndo={() => {
-          if (removedRoad) w.update((p) => parseProject(restoreRoad(p, removedRoad)))
+          if (removedHere) w.update((p) => parseProject(restoreRoad(p, removedHere)))
           setRemovedRoad(null)
         }}
       />
@@ -3254,7 +3266,7 @@ export default function DevForestryRoads() {
                   const result = removeRoad(project, alignment.id)
                   if (!result) return
                   w.update(() => result.project)
-                  setRemovedRoad(result.removed)
+                  setRemovedRoad({ removed: result.removed, opened: w.openedCount })
                 }}
                 onSuggest={suggest}
                 onLoadMappedRoad={loadMappedRoad}
@@ -4139,42 +4151,22 @@ export default function DevForestryRoads() {
                     >
                       ‹
                     </button>
-                    <label className="flex items-center gap-1 text-xs">
-                      {/* Narrow phones keep the slider on the same row; the input stays named. */}
-                      <span className="max-[399px]:sr-only">Station</span>{' '}
-                      <input
-                        aria-label="Selected station metres"
-                        type="number"
-                        min={0}
-                        max={Math.ceil(displayedAnalysis.length * 10) / 10}
-                        step="any"
-                        className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
-                        title="Shows the section at exactly the station you type. Arrow keys select the next or previous calculated station."
-                        value={stationEntryText ?? Number(station.toFixed(1))}
-                        onChange={(e) => {
-                          const text = e.target.value
-                          const value = Number(text)
-                          if (text.trim() && Number.isFinite(value))
-                            setStationEntry({ value: selectTypedStation(value), text })
-                          else setStationEntry({ value: station, text })
-                        }}
-                        onBlur={finishStationEntry}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') finishStationEntry()
-                          if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-                            e.preventDefault()
-                            const next =
-                              e.key === 'ArrowUp'
-                                ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
-                                  displayedAnalysis.length)
-                                : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
-                                    ?.chainage ?? 0)
-                            setStationEntry(null)
-                            setStation(next)
-                          }
-                        }}
-                      />
-                    </label>
+                    <StationBox
+                      selected={w.station}
+                      shown={station}
+                      length={displayedAnalysis.length}
+                      onType={selectTypedStation}
+                      onCommit={() => setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))}
+                      onStep={(direction) =>
+                        setStation(
+                          direction > 0
+                            ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                                displayedAnalysis.length)
+                            : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                                ?.chainage ?? 0),
+                        )
+                      }
+                    />
                     <button
                       className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                       aria-label="Next road station"
@@ -4197,15 +4189,13 @@ export default function DevForestryRoads() {
                       className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
                       onChange={(e) => w.setStation(Number(e.target.value))}
                     />
-                    {typedHere && typedHere.entered !== typedHere.station && (
+                    {typedNote && (
                       <span
                         role="status"
                         className="text-xs text-amber-800 dark:text-amber-300"
                         data-testid="road-station-limited"
                       >
-                        {typedHere.entered < 0
-                          ? `Station ${number(typedHere.entered)} is before the road's start; showing ${formatRoadStation(0)}.`
-                          : `Station ${number(typedHere.entered)} is past the road's end; showing ${formatRoadStation(displayedAnalysis.length)}.`}
+                        {typedNote}
                       </span>
                     )}
                     <output className="font-mono text-xs" data-testid="road-selected-station">

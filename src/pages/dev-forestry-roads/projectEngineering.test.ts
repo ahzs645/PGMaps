@@ -342,13 +342,6 @@ describe('engineering project persistence and portable libraries', () => {
       /overlap/i,
     ],
     [
-      'overlapping horizons',
-      (e: AlignmentEngineering) => {
-        e.strata[1].topDepthM = 0.1
-      },
-      /overlap/i,
-    ],
-    [
       'orphan template',
       (e: AlignmentEngineering) => {
         e.assignments[0].templateId = 'missing'
@@ -367,6 +360,14 @@ describe('engineering project persistence and portable libraries', () => {
     mutate(project.alignments[0].engineering!)
     expect(() => parseProject(project)).toThrow(message)
     expect(() => serializeProject(project)).toThrow(message)
+  })
+
+  it('keeps overlapping horizons as entered: the later one replaces the earlier in the calculation', () => {
+    const project = projectFixture()
+    const strata = project.alignments[0].engineering!.strata
+    strata[1].topDepthM = 0.1
+    const saved = parseProject(serializeProject(project)).alignments[0].engineering!.strata
+    expect(saved).toEqual(strata)
   })
 
   it('accepts touching range boundaries and rejects collapsed offset spans before saving', () => {

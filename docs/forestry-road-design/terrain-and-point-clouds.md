@@ -36,7 +36,9 @@ companion.
   cell, the breakline segments held and skipped, the cells left missing, and where the CRS and
   datum came from. The notice goes after a few seconds; **Import summary** on the terrain card
   keeps the ground share and density, the classes found, the extent, the grid, the CRS and the
-  datum, and it is saved with the project (`pointCloudImportSummary` in `terrain.ts`). A cell
+  datum, and it is saved with the project (`pointCloudImportSummary` in `terrain.ts`). The report
+  prints the same rows in **Terrain and assumptions**, so a reader of the report can see how the
+  ground was made and whether its CRS or datum was typed in. A cell
   larger than 1.00 m, a low ground share or many missing cells all need an explanation before
   you go on.
 - **Look at the slope and hillshade layers for artefacts:** pits or spikes (undeclared no-data),

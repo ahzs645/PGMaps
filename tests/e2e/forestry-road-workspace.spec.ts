@@ -48,7 +48,8 @@ test('Save contains project actions and downloads real map and report PDFs', asy
   await expect(page.getByRole('tab', { name: 'Files', exact: true })).toHaveCount(0)
   const header = page.getByTestId('road-workspace-header')
   await expect(header.getByRole('button', { name: 'Projects', exact: true })).toBeVisible()
-  await expect(header.getByText(/synthetic training project/)).not.toBeVisible()
+  // The header names the open project; its name is a button that renames it.
+  await expect(header.getByTestId('road-project-name')).toContainText('synthetic training project')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Save & export', exact: true })
   await expect(dialog).toBeVisible()

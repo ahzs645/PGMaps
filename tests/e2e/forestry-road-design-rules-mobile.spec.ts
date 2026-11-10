@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose } from './road-select'
@@ -16,8 +16,8 @@ async function workflow(page: Page, name: string) {
   if (await show.isVisible()) await show.tap()
   await page.getByRole('tablist', { name: 'Road workflow', exact: true }).getByRole('tab', { name, exact: true }).tap()
 }
-async function fill(page: Page, name: string, value: string) {
-  const field = page.getByLabel(name, { exact: true })
+async function fill(scope: Page | Locator, name: string, value: string) {
+  const field = scope.getByLabel(name, { exact: true })
   await field.fill(value)
   await field.press('Tab')
 }
@@ -52,7 +52,8 @@ for (const size of [
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     await workflow(page, 'Section')
     await openRoadPanel(page, 'Superelevation & widening')
-    await fill(page, 'Design speed (km/h)', '20')
+    // Review → Design standards has a field of the same name; this is the road's own curve design.
+    await fill(page.getByTestId('road-curve-design'), 'Design speed (km/h)', '20')
     await fill(page, 'Road criteria name', 'Mobile design criteria')
     await fill(page, 'Road criteria source', 'Entered training worksheet, October 2026')
     await fill(page, 'Extra outside widening (m)', '0.3')

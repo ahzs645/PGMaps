@@ -4,6 +4,7 @@ import { validateEngineering } from './templates'
 import { parseAllocationPolicy } from './allocationPolicy'
 import { parseSitePreparation } from './sectionAssembly'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
+import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
 
 const record = (v: unknown, label: string): Record<string, unknown> => {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw Error(`${label} must be an object.`)
@@ -82,8 +83,9 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
   })
   const strata = items(r.strata, 'Material horizons', 200).map((raw) => {
     const v = record(raw, 'Material horizon'),
-      topDepthM = numeric(v.topDepthM, 'Horizon top depth', 0, 1000),
-      bottomDepthM = v.bottomDepthM === null ? null : numeric(v.bottomDepthM, 'Horizon bottom depth', 0, 1000)
+      topDepthM = numeric(v.topDepthM, 'Horizon top depth', 0, MAX_HORIZON_DEPTH_M),
+      bottomDepthM =
+        v.bottomDepthM === null ? null : numeric(v.bottomDepthM, 'Horizon bottom depth', 0, MAX_HORIZON_DEPTH_M)
     if (bottomDepthM !== null && bottomDepthM <= topDepthM)
       throw Error('Horizon bottom depth must exceed its top depth.')
     return {
@@ -191,16 +193,7 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       )
         throw Error('Template assignments on the same side cannot overlap. Split their station ranges.')
     }
-  for (let i = 0; i < strata.length; i++)
-    for (let j = i + 1; j < strata.length; j++) {
-      const a = strata[i],
-        b = strata[j]
-      if (
-        Math.min(a.end, b.end) > Math.max(a.start, b.start) &&
-        Math.min(a.bottomDepthM ?? Infinity, b.bottomDepthM ?? Infinity) > Math.max(a.topDepthM, b.topDepthM)
-      )
-        throw Error('Material horizons cannot overlap in station and depth. Split their ranges.')
-    }
+  // Horizons may overlap in station and depth: a later one replaces an earlier one (`groundHorizons.ts`).
   const surfacingSupply =
     r.surfacingSupply === undefined
       ? undefined

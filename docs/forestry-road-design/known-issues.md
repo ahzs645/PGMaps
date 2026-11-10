@@ -128,6 +128,31 @@ Found on 2026-11-09 while fixing Review, the grade rule and invalid inputs; **re
   (`stationSampler`, `DevForestryRoads.tsx`), so it has no sampler while an input is invalid and
   snaps to the nearest calculated station. Build it from `calculatedAlignment` instead.
 
+Found on 2026-11-09 while fixing the station box, imports and the hand-run specs.
+
+- **The first-visit example card covers a phone's Save button (confirmed).** `ExampleStartNotice`
+  (`ProjectHeader.tsx`) stays until it is dismissed or another project is opened, and importing
+  your own terrain is not "another project". On a phone the notification stack runs along the
+  bottom above dialogs, so the card sits over **Save project JSON** in Save & export
+  (`forestry-road-new-area-mobile.spec.ts` now dismisses it). It needs a rule for when it goes:
+  on the first edit or import, or when a dialog opens.
+- **The restored-session notice keeps its own timer (read).** `SessionRestoredNotice`
+  (`ProjectHeader.tsx`) dismisses itself with `window.setTimeout`, so it can go while the pointer
+  is on it. The shared `Notification` takes `duration` and holds the clock; `RoadRemovedNotice`
+  (`LifecycleNotices.tsx`) already does.
+- **Map notes add their own layers (read).** `NotesLayer` (`PlanNotes.tsx`) calls `map.addSource`
+  and `map.addLayer` outside the plan's ordered group, and is not one of the exceptions in
+  `docs/forestry-tool-standard.md`. Its layers sit under the whole group, contours included,
+  wherever the terrain image was added before them, and under the terrain image if it was not.
+- **A 3D shapefile or KML line cannot state its datum (read).** `readSpatialImport`
+  (`spatialImport.ts`) keeps heights only for a GeoJSON feature carrying `referenceVerticalDatum`,
+  and the import dialog has no field for one, so a surveyed line from any other format anchors a
+  section component to ground. The component's own reference surface is the way round it.
+- **A typed station does not carry a vertical-check message (read).** `checkVerticalDesign`
+  messages are put on the nearest calculated station (`analyzeRoad`, `engine.ts`), so a station
+  typed beside a failed control shows its own flags and grade flag only (`roadStationAt`,
+  `stationAt.ts`).
+
 ## Fixed on 2026-11-09
 
 - Review no longer passes a profile whose vertical curves the engine dropped. A curve longer than
@@ -164,6 +189,25 @@ Found on 2026-11-09 while fixing Review, the grade rule and invalid inputs; **re
   culvert that has no inverts. The standards' confirmation date and the issue date refuse days
   that do not exist. A failed save is stated once in the header, and the project name and save
   state stay readable beside the road switcher down to 768 px.
+- The station box no longer rewrites what is being typed. On a terrain profile, and on a road while
+  an input was invalid, "8" became "10" and the next key made "105", because the box showed the
+  nearest calculated station after every key. The text is now the box's own until Enter or blur
+  (`StationBox.tsx`), a typed station is evaluated on the road shown while an input is invalid
+  (`calculatedAlignment`, `useRoadWorkspace.ts`), and a note says when the nearest calculated
+  station is shown instead (`typedStationNote`, `stationAt.ts`). A typed station also carries its
+  radius, avoidance-area and grade flags and the reasons its section is incomplete.
+- An imported 3D feature that states its vertical datum keeps its heights. Every picker read files
+  through `readSpatialImport`, which dropped the third coordinate, so a component anchored to a
+  measured line took ground at the intersection without saying so.
+- Overlapping ground horizons can be saved. The calculation gave the overlap to the later horizon
+  and the editor said so, but `parseEngineering` (`engineeringProject.ts`) still refused any
+  overlap, so a fourth **Add material horizon** under an open-ended one, or a local layer over a
+  whole-road one, left the project unsaved with "Material horizons cannot overlap".
+- Undo on the deleted-road notice restores into the project the road came from only; the notice
+  ends when another project is opened (`openedCount`, `useRoadWorkspace.ts`).
+- Reference layers are added and ordered with the plan's other layers (`REFERENCE_LAYERS`,
+  `ReferenceLayer.tsx`; `PlanView.tsx`), so a terrain image or an edit cannot put them out of view.
+- The report's **Terrain and assumptions** prints the point-cloud import summary.
 
 - A gap in the terrain data no longer breaks the mass-haul curve or the haul allocation. The mass
   ordinate is the known earthwork so far and is carried across an incomplete interval instead of

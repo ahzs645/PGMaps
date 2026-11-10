@@ -87,7 +87,10 @@ An optional reference feature anchors a component endpoint at the intersection o
 context line or polygon boundary with the current section. The nearest intersection on the
 specified side is used. A 3D feature supplies interpolated elevation only when its recorded
 vertical datum matches the terrain's datum; a 2D feature uses prepared
-ground at the intersection. An optional reference surface overrides that elevation. Built-ins
+ground at the intersection. A feature is 3D only if it states that datum: a project file keeps
+its heights, and so does a GeoJSON import whose feature carries `referenceVerticalDatum` (the
+project's own GeoJSON export writes it). Any other imported height is dropped, see
+[exports and project files](exports-and-project-files.md). An optional reference surface overrides that elevation. Built-ins
 are original and prepared ground; other choices are retained analytical surface snapshots.
 Display-only orthophotos or canopy images cannot become analytical surface references.
 

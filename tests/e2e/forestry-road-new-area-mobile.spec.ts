@@ -5,6 +5,7 @@ import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { choose } from './road-select'
+import { dismissExampleNoticeWhenShown, savedActiveRoadId } from './road-files'
 
 const demPath = process.env.PGMAPS_ROAD_NEW_AREA_DEM
 test.skip(!demPath, 'Supply a real GeoTIFF for the opt-in new-area mobile journey.')
@@ -51,7 +52,8 @@ async function inspectMap(page: Page, coordinates: Coordinate[] = []) {
 }
 
 async function controls(page: Page, tab: string) {
-  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+  // A first visit or a reload may still be loading or restoring a 1 m terrain; Save waits for it.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 90000 })
   await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-focus-mode', 'true')
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
   if (await show.isVisible()) await show.tap()
@@ -186,6 +188,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     )
     if (fixture.sha256) expect(imported.metadata.sha256).toBe(fixture.sha256)
     const bounds = terrainBounds(imported.metadata)!
+    await dismissExampleNoticeWhenShown(page)
     await page.goto('/dev/forestry/road-design')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     const startupError = page.getByTestId('workspace-toast-error')
@@ -199,6 +202,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       await startupError.getByRole('button', { name: 'Dismiss error notification', exact: true }).tap()
     }
     await controls(page, 'Terrain')
+    await openRoadPanel(page, 'Import options')
     await page
       .getByLabel('Imported DEM vertical datum (metres)', { exact: true })
       .fill(imported.metadata.verticalReference)
@@ -412,22 +416,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     await page.screenshot({ path: info.outputPath('07-mobile-complete.png') })
 
     await expect
-      .poll(() =>
-        page.evaluate(
-          async () =>
-            new Promise<string | undefined>((resolve, reject) => {
-              const r = indexedDB.open('pgmaps-forestry-roads-v1', 1)
-              r.onerror = () => reject(r.error)
-              r.onsuccess = () => {
-                const db = r.result
-                const tx = db.transaction('projects', 'readonly')
-                const get = tx.objectStore('projects').get('current')
-                get.onsuccess = () => resolve(get.result?.activeAlignmentId)
-                tx.oncomplete = () => db.close()
-              }
-            }),
-        ),
-      )
+      .poll(() => savedActiveRoadId(page))
       .toBe(optimized.activeAlignmentId)
     await page.reload()
     await controls(page, 'Design')

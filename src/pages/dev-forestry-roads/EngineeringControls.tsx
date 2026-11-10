@@ -20,7 +20,7 @@ import { surfacingSupplyCost } from './gravel'
 import { ReferenceSelect } from './CostReferenceControls'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, invalidInputMessages, type EngineeringInputList } from './inputErrors'
-import { horizonReplacements } from './groundHorizons'
+import { horizonReplacements, MAX_HORIZON_DEPTH_M, nextHorizon } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
@@ -765,9 +765,12 @@ export function EngineeringControls({
                       <div key={String(field.key)} className="flex items-end gap-1">
                         <div className="min-w-0 flex-1">
                           <NumberField
-                            {...field}
-                            {...ditchWidthRange(candidate, field.key)}
                             label={field.label}
+                            min={field.min}
+                            max={field.max}
+                            step={field.step}
+                            hint={field.hint}
+                            {...ditchWidthRange(candidate, field.key)}
                             value={
                               (candidate[field.key] ??
                                 candidate[
@@ -1086,23 +1089,15 @@ export function EngineeringControls({
               size="sm"
               variant="outline"
               disabled={!design.materials.length || design.strata.length >= 200}
-              onClick={() => {
-                const bottom = Math.max(0, ...design.strata.map((s) => s.bottomDepthM ?? s.topDepthM + 1))
+              onClick={() =>
                 edit((e) => ({
                   ...e,
                   strata: [
                     ...e.strata,
-                    {
-                      id: uid(),
-                      start: 0,
-                      end: Math.max(1, analysis.length),
-                      materialId: e.materials[e.materials.length - 1].id,
-                      topDepthM: bottom,
-                      bottomDepthM: bottom + 1,
-                    },
+                    nextHorizon(e.strata, analysis.length, e.materials[e.materials.length - 1].id, uid()),
                   ],
                 }))
-              }}
+              }
             >
               Add material horizon
             </Button>
@@ -1147,10 +1142,16 @@ export function EngineeringControls({
                   fields={[
                     { key: 'start', label: `Horizon ${index + 1} start (m)` },
                     { key: 'end', label: `Horizon ${index + 1} end (m)` },
-                    { key: 'topDepthM', label: `Horizon ${index + 1} top depth (m)`, max: 1000 },
+                    { key: 'topDepthM', label: `Horizon ${index + 1} top depth (m)`, max: MAX_HORIZON_DEPTH_M },
                     ...(s.bottomDepthM === null
                       ? []
-                      : [{ key: 'bottomDepthM' as const, label: `Horizon ${index + 1} bottom depth (m)`, max: 1000 }]),
+                      : [
+                          {
+                            key: 'bottomDepthM' as const,
+                            label: `Horizon ${index + 1} bottom depth (m)`,
+                            max: MAX_HORIZON_DEPTH_M,
+                          },
+                        ]),
                   ]}
                   errorFor={errorsFor('strata', s.id)}
                   onChange={(p) => patch('strata', s.id, p)}
@@ -1239,7 +1240,7 @@ export function EngineeringControls({
                       label: `Culvert ${index + 1} skew from square (°)`,
                       min: -80,
                       max: 80,
-                      hint: 'Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
+                      hint: 'Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15° here. Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
                     },
                     { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
                     { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
@@ -1250,10 +1251,6 @@ export function EngineeringControls({
                   errorFor={errorsFor('culverts', c.id)}
                   onChange={(p) => patch('culverts', c.id, p)}
                 />
-                <p className="text-2xs leading-4 text-muted-foreground">
-                  Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15°
-                  here.
-                </p>
                 <EntryProblem
                   problem={problem}
                   list="culverts"

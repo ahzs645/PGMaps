@@ -205,6 +205,16 @@ export function spatialFeatureName(properties: Record<string, unknown> | null | 
 }
 
 /**
+ * A feature whose heights are measurements in a named datum: the project's own GeoJSON export
+ * writes `referenceVerticalDatum` on a 3D line or area. A section component anchored to it takes
+ * its level from those heights, so they are kept; a height that names no datum is not.
+ */
+const statesVerticalDatum = (feature: GeoJSON.Feature) => {
+  const datum = (feature.properties as Record<string, unknown> | null)?.referenceVerticalDatum
+  return typeof datum === 'string' && datum.trim() !== ''
+}
+
+/**
  * Every position of a geometry, mapped through `change`. Heights and measures are dropped unless
  * `keepHeights` asks for the third coordinate, which passes through untouched.
  */
@@ -339,7 +349,13 @@ export async function readSpatialImport(
   file: Readable,
   {
     keepHeights = false,
-  }: { /** Keep a third coordinate, for breaklines. KML altitude is never kept. */ keepHeights?: boolean } = {},
+  }: {
+    /**
+     * Keep every third coordinate, for breaklines. Without it only a GeoJSON feature that states
+     * its vertical datum keeps its heights. KML altitude is never kept.
+     */
+    keepHeights?: boolean
+  } = {},
 ): Promise<SpatialFile> {
   const fileName = (file.name ?? 'This file').slice(0, MAX_NAME)
   if (file.size > MAX_SPATIAL_FILE_BYTES)
@@ -379,7 +395,11 @@ export async function readSpatialImport(
       crs = source.label
       features = flatten(root).map((feature) => ({
         ...feature,
-        geometry: mapPositions(feature.geometry, (xy) => (source.toWgs84 ? source.toWgs84(xy) : xy), keepHeights),
+        geometry: mapPositions(
+          feature.geometry,
+          (xy) => (source.toWgs84 ? source.toWgs84(xy) : xy),
+          keepHeights || statesVerticalDatum(feature),
+        ),
       }))
     } else if (/\.(shp|shx|dbf|prj|cpg)$/i.test(fileName))
       return fail(

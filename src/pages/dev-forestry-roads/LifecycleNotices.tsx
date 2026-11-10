@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { Notification } from '@/components/ui/notification'
@@ -21,21 +20,15 @@ export function RoadRemovedNotice({
   onUndo: () => void
   onDismiss: () => void
 }) {
-  const dismiss = useRef(onDismiss)
-  useEffect(() => {
-    dismiss.current = onDismiss
-  })
-  useEffect(() => {
-    if (!removed) return
-    const timer = window.setTimeout(() => dismiss.current(), ROAD_REMOVED_NOTICE_MS)
-    return () => window.clearTimeout(timer)
-  }, [removed])
   if (!removed) return null
   return (
     <Notification
       id={`road-removed-${removed.road.id}`}
       data-testid="road-removed-notice"
       tone="info"
+      // The shared stack runs the clock, and holds it while the pointer or focus is on a notice,
+      // so Undo cannot vanish from under the pointer.
+      duration={ROAD_REMOVED_NOTICE_MS}
       title={`Deleted ${removed.road.name}`}
       message={`Now showing ${shownName}.`}
       action={

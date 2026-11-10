@@ -488,9 +488,24 @@ the section is evaluated at the typed chainage (`roadStationAt`, `stationAt.ts`,
 `createRoadStationSampler`), with the same terrain, template and reference rules as a
 calculated one, and the plan marker, profile, section and readout all show that station.
 A site, culvert or other item added "at the selected station" takes it. Such a station has
-no interval volumes, and its mass ordinate is read off the line between its neighbours. A
-value outside the road is held to the nearer end and the box says so. Pointing at a chart,
-the slider and the arrow keys still select calculated stations.
+no interval volumes, and its mass ordinate is read off the line between its neighbours. It
+carries the flags of the point itself (its section's, a radius below the minimum, an
+avoidance area) and the reasons an incomplete section could not be completed, because the
+engine builds it with the same `stationRecord` as a calculated station. The grade standard
+is judged over runs of calculated stations, so it takes the grade flag, or the lack of one,
+of the neighbour whose grade it has. A vertical-check message stays on the calculated
+station it was raised at. A value outside the road is held to the nearer end and the box
+says so. Pointing at a chart, the slider and the arrow keys still select calculated
+stations.
+
+The views follow each number as it is typed, and the text in the box is never rewritten
+during the entry: it stays as typed until Enter or blur (`StationBox.tsx`). While an input
+is invalid the typed station is evaluated on the road that is shown, the one with its last
+valid inputs (`calculatedAlignment`, `useRoadWorkspace.ts`). A terrain profile has ground
+at its calculated stations only, so there the views show the nearest one; once the entry
+is finished the box takes that station and a note beside the slider says the nearest
+calculated station is shown (`typedStationNote`). The same note appears on a road whose
+section cannot be evaluated at the typed station.
 
 Dense profiles stay readable. When PVIs fall under 44 px apart on screen (an optimized line,
 or a long road zoomed out), the profile drops curve bands and labels, thins station callouts
@@ -828,7 +843,11 @@ A null bottom depth extends the material below the entered finite horizons.
 Where two horizons overlap in both station and depth, the later one in the list
 replaces the earlier one over the overlap (`resolveHorizons` in
 `groundHorizons.ts`), so a whole-road layer can be entered first and a local
-range after it; no depth is ever counted twice. Horizon endpoints become
+range after it; no depth is ever counted twice. The editor names the horizons a
+later one replaces, and the calculation and the project file follow the same
+rule: neither refuses an overlap. **Add material horizon** adds the next metre
+down over the whole road (`nextHorizon`); under an open-ended horizon it starts
+a metre below that horizon's top and replaces it there. Horizon endpoints become
 calculation stations. The approach-side horizon applies at the road endpoint.
 These layers are user-entered assumptions or observations: the bare-earth DTM
 does not identify rock, soil, organic depth or suitability.
@@ -1466,8 +1485,10 @@ instrument-specific construction stakeout package.
 - At most 500 vertical controls and 200 widening ranges per alignment.
 - Per alignment: at most 50 named templates, 200 template assignments,
   32 materials, 200 station/depth horizons, 100 culverts and 100 haul sites.
-  Same-side template overlaps and overlapping station/depth material horizons
-  are rejected. Side crossfall is −20% to 20%; template width is 0.1–50 m per side.
+  Same-side template overlaps are rejected. Material horizons may overlap in
+  station and depth: the later one replaces the earlier (`resolveHorizons`), and
+  the project file keeps them as entered. Side crossfall is −20% to 20%; template
+  width is 0.1–50 m per side.
 - Material intersections: at most 15,000,000 section-sample/layer pairs.
   Haul: at most 20,000,000 source comparisons and 20,000 emitted movements.
   Exceeding a budget returns an explicit calculation error, not truncated

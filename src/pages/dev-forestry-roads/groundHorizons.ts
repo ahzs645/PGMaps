@@ -19,6 +19,25 @@ export interface HorizonPiece {
 
 const EPS = 1e-7
 const bottom = (depth: number | null) => depth ?? Infinity
+/** The deepest a horizon may be entered, below original ground. `validateEngineering` and the project parser enforce it. */
+export const MAX_HORIZON_DEPTH_M = 1000
+
+/**
+ * The horizon "Add material horizon" makes: one metre thick over the whole road, under the deepest
+ * depth entered so far. An open-ended horizon has no underside, so the new one starts a metre below
+ * its top and replaces it there, like any later horizon. At the depth limit it takes the last metre.
+ * The result is valid whatever is already entered.
+ */
+export function nextHorizon(
+  strata: readonly StratumAssignment[],
+  roadLengthM: number,
+  materialId: string,
+  id: string,
+): StratumAssignment {
+  const deepest = Math.max(0, ...strata.map((s) => s.bottomDepthM ?? s.topDepthM + 1))
+  const topDepthM = Math.min(deepest, MAX_HORIZON_DEPTH_M - 1)
+  return { id, start: 0, end: Math.max(1, roadLengthM), materialId, topDepthM, bottomDepthM: topDepthM + 1 }
+}
 
 /**
  * The depth intervals in force where every horizon of `active` applies (the caller selects them by

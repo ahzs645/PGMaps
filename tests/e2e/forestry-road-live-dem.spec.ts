@@ -96,6 +96,7 @@ for (const [site, u, v] of [
     await page.goto('/dev/forestry/road-design')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     await page.getByRole('tab', { name: 'Terrain', exact: true }).click()
+    await openRoadPanel(page, 'Import options')
     await page
       .getByLabel('Imported DEM vertical datum (metres)', { exact: true })
       .fill(imported.metadata.verticalReference)

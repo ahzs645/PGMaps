@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { Field, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
@@ -91,19 +91,21 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </p>
           {/* The point-cloud import summary stays with the terrain: its notice is gone in seconds. */}
           {importSummary && (
-            <details className="group mt-1.5 border-t pt-1.5" data-testid="road-terrain-import-summary">
-              <summary className="flex cursor-pointer list-none items-center gap-1 text-2xs font-medium [&::-webkit-details-marker]:hidden">
-                <ChevronRight className="size-3 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
-                Import summary
-                <span className="min-w-0 truncate font-normal text-muted-foreground">{importSummary[0].value}</span>
-              </summary>
-              <KeyValueRows
-                variant="grid"
-                className="mt-1.5"
-                valueClassName="tabular-nums font-normal"
-                rows={importSummary.map((row) => ({ key: row.label, label: row.label, value: row.value }))}
-              />
-            </details>
+            <div className="-mx-2.5 -mb-2 mt-1.5" data-testid="road-terrain-import-summary">
+              <CollapsibleSection
+                label="Import summary"
+                summary={importSummary[0].value}
+                summaryWhenCollapsedOnly
+                className="border-b-0 border-t bg-transparent"
+                contentClassName="px-2.5 pb-2"
+              >
+                <KeyValueRows
+                  variant="grid"
+                  valueClassName="tabular-nums font-normal"
+                  rows={importSummary.map((row) => ({ key: row.label, label: row.label, value: row.value }))}
+                />
+              </CollapsibleSection>
+            </div>
           )}
         </div>
         {project.scenario?.contextWarnings.map((warning, index) => (

@@ -12,6 +12,7 @@ import type { RoadOptimizationResult } from '../../src/pages/dev-forestry-roads/
 import type { Alignment, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection } from './road-sidebar'
 import { choose } from './road-select'
+import { replaceSavedProjectWhenAsked } from './road-files'
 
 test.skip(
   process.env.PGMAPS_ROAD_OPTIONS !== '1' || !process.env.PGMAPS_ROAD_OPTIONS_PROJECT,
@@ -30,6 +31,8 @@ async function routes(page: Page) {
 }
 
 async function open(page: Page, path: string, activeId: string) {
+  // The guide was saved from the example project and keeps its name, which this browser may hold.
+  await replaceSavedProjectWhenAsked(page)
   const pending = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Open', exact: true }).click()
   await (await pending).setFiles(path)
@@ -72,7 +75,8 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
     expect(baseline.settings.minRadius).toBe(25)
     await routes(page)
     await page.goto('/dev/forestry/road-design')
-    await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeEnabled()
+    // Where the published LiDAR example is reachable, it loads its 1 m DTM before Open is offered.
+    await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
     // The baseline is an actual UI-produced edited road file, opened afresh for every preference.
     await open(page, baselinePath, baseline.activeAlignmentId)
     expect(await save(page)).toEqual(baseline)
@@ -120,7 +124,8 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
 
     const report = await downloadJson(page, 'Download optimization report', info.outputPath('optimization-report.json'))
     expect(report.schema).toBe('pgmaps-road-corridor-review-v1')
-    expect(report.options).toEqual({ objective, corridorHalfWidthM: 100 })
+    // The search reads a moving-mean ground only on cells of 3 m or finer; this tile is about 6 m.
+    expect(report.options).toEqual({ objective, corridorHalfWidthM: 100, groundWindowM: 0 })
     expect(report.settings).toEqual(baseline.settings)
     expect(report.guide).toEqual(guide)
     expect(report.source.sha256).toBe(baseline.terrain.sha256)
@@ -160,7 +165,7 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
       reopened.on('pageerror', (error) => errors.push(error.message))
       await routes(reopened)
       await reopened.goto(new URL('/dev/forestry/road-design', page.url()).href)
-      await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled()
+      await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
       await open(reopened, info.outputPath('adopted.road.json'), adopted.activeAlignmentId)
       expect(await save(reopened)).toEqual(adopted)
       await expect(reopened.getByTestId('road-profile-chart')).toBeVisible()

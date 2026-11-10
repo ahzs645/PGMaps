@@ -12,6 +12,7 @@ import { EngineeringInputError, requireInRange, requireStationRange, type Engine
 import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
+import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -428,9 +429,12 @@ export function validateEngineering(e: AlignmentEngineering): void {
         ...target,
         field: 'materialId',
       })
-    requireInRange(a.topDepthM, 0, 1000, owner, 'top depth (m)', { ...target, field: 'topDepthM' })
+    requireInRange(a.topDepthM, 0, MAX_HORIZON_DEPTH_M, owner, 'top depth (m)', { ...target, field: 'topDepthM' })
     if (a.bottomDepthM !== null) {
-      requireInRange(a.bottomDepthM, 0, 1000, owner, 'bottom depth (m)', { ...target, field: 'bottomDepthM' })
+      requireInRange(a.bottomDepthM, 0, MAX_HORIZON_DEPTH_M, owner, 'bottom depth (m)', {
+        ...target,
+        field: 'bottomDepthM',
+      })
       if (a.bottomDepthM <= a.topDepthM)
         throw new EngineeringInputError(
           `${owner}: the bottom depth (${plain(a.bottomDepthM)} m) must be greater than the top depth (${plain(a.topDepthM)} m).`,
