@@ -265,6 +265,44 @@ export interface ClearanceResult {
   checkedM: number
 }
 
+export interface ClearanceStretch {
+  kind: ClearanceResult['conflicts'][number]['kind']
+  fromM: number
+  toM: number
+  /** Rear-axle chainage where this stretch touches deepest. */
+  worstChainage: number
+  depthM: number
+}
+
+/**
+ * Joins consecutive touching positions of one kind into stretches and orders them deepest first,
+ * so a single crest is one row and the list leads with what matters. Positions further apart than
+ * one and a half steps start a new stretch.
+ */
+export function clearanceStretches(
+  conflicts: ClearanceResult['conflicts'],
+  stepM = VEHICLE_CLEARANCE_STEP_M,
+): ClearanceStretch[] {
+  const open = new Map<string, ClearanceStretch>()
+  const out: ClearanceStretch[] = []
+  const sorted = [...conflicts].sort((a, b) => a.chainage - b.chainage)
+  for (const c of sorted) {
+    const current = open.get(c.kind)
+    if (current && c.chainage - current.toM <= 1.5 * stepM) {
+      current.toM = c.chainage
+      if (c.depthM > current.depthM) {
+        current.depthM = c.depthM
+        current.worstChainage = c.chainage
+      }
+      continue
+    }
+    const next = { kind: c.kind, fromM: c.chainage, toM: c.chainage, worstChainage: c.chainage, depthM: c.depthM }
+    open.set(c.kind, next)
+    out.push(next)
+  }
+  return out.sort((a, b) => b.depthM - a.depthM || a.fromM - b.fromM)
+}
+
 /**
  * Drives the vehicle along a profile every `stepM` (rear axle position) and reports where its
  * underside hangs up or an overhang scrapes. Chainage stands in for distance along the slope,
