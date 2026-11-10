@@ -7,6 +7,7 @@ import {
   MAX_CHECKPOINTS,
   recordStep,
   startsUndoStep,
+  splitHistoryLabel,
   travel,
   UNDO_MERGE_MS,
   type History,
@@ -82,5 +83,19 @@ describe('when an edit starts a step of its own', () => {
     expect(startsUndoStep(1000, 1000 + UNDO_MERGE_MS - 50)).toBe(false)
     expect(startsUndoStep(1000, 1000 + UNDO_MERGE_MS + 1)).toBe(true)
     expect(startsUndoStep(1000, 1400, true)).toBe(true)
+  })
+})
+
+describe('splitting a history label for a narrow list', () => {
+  it('leads with the change and moves the road to a second line', () => {
+    expect(splitHistoryLabel('Draft alignment on real LiDAR · review required: PVI 5 moved to 0+865.3')).toEqual({
+      change: 'PVI 5 moved to 0+865.3',
+      road: 'Draft alignment on real LiDAR · review required',
+    })
+  })
+  it('keeps labels not about one road whole', () => {
+    expect(splitHistoryLabel('Deleted road Spur B')).toEqual({ change: 'Deleted road Spur B' })
+    expect(splitHistoryLabel('Terrain; Design settings')).toEqual({ change: 'Terrain; Design settings' })
+    expect(splitHistoryLabel('Terrain; Spur: moved point 2')).toEqual({ change: 'Terrain; Spur: moved point 2' })
   })
 })

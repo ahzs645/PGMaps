@@ -72,7 +72,8 @@ describe('what-if balance line', () => {
     const panel = renderer!.root.find((node) => node.props['data-testid'] === 'road-mass-whatif')
     expect(text(panel)).toContain('What-if only: the design and the reported haul are unchanged.')
     const totals = renderer!.root.find((node) => node.props['data-testid'] === 'road-mass-whatif-totals')
-    expect(text(totals)).toMatch(/Balances 300 m of road in 1 closed loop · moves 500 m³, 75,000 m³·m/)
+    expect(text(totals)).toMatch(/^Moves 500 m³, 75,000 m³·m inside the road/)
+    expect(text(totals)).toMatch(/1 closed loop balances 300 m of road/)
     expect(text(totals)).toMatch(/overhaul 33[34] m³, 33,333 m³·m past 100 m free haul/)
     const loop = renderer!.root
       .find((node) => node.props['data-testid'] === 'road-mass-whatif-loops')
@@ -125,5 +126,57 @@ describe('what-if balance line', () => {
     // The closed loop's two ends are ticked on the line.
     const line = renderer!.root.find((node) => node.props['data-testid'] === 'road-mass-balance-line')
     expect(line.findAllByType('line').filter((l) => l.props.y1 !== l.props.y2)).toHaveLength(2)
+  })
+})
+
+describe('what-if totals with a loop at a road end', () => {
+  it('says the volume moved includes a loop that runs to a road end, without claiming it balances road', async () => {
+    // Above the line all the way: one loop open at both ends, nothing closed.
+    const rising: [number, number][] = [
+      [0, 100],
+      [100, 600],
+      [300, 200],
+    ]
+    await act(async () => {
+      renderer = create(
+        createElement(BalanceWhatIfPanel, {
+          result: balanceWhatIf(rising, 0, null),
+          range: [0, 600],
+          freeHaulM: null,
+          onLevel: vi.fn(),
+          onOpen: vi.fn(),
+          onClose: vi.fn(),
+          onStation: vi.fn(),
+        }),
+      )
+    })
+    const totals = text(renderer!.root.find((node) => node.props['data-testid'] === 'road-mass-whatif-totals'))
+    expect(totals).toMatch(/0 closed loops balance 0 m of road/)
+    expect(totals).toMatch(/1 loop runs to a road end, where only its inner part balances/)
+    expect(totals).not.toMatch(/Balances 0 m of road/)
+  })
+
+  it('hands focus back to the open button when the what-if closes from a focused control', async () => {
+    const body = {}
+    vi.stubGlobal('document', { activeElement: body, body })
+    const focused: string[] = []
+    const props = {
+      range: [0, 500] as [number, number],
+      freeHaulM: null,
+      onLevel: vi.fn(),
+      onOpen: vi.fn(),
+      onClose: vi.fn(),
+      onStation: vi.fn(),
+    }
+    await act(async () => {
+      renderer = create(createElement(BalanceWhatIfPanel, { ...props, result: balanceWhatIf(curve, 0, null) }), {
+        createNodeMock: (element) => ({
+          focus: () => focused.push(String(element.props['data-testid'] ?? element.type)),
+        }),
+      })
+    })
+    await act(async () => renderer!.update(createElement(BalanceWhatIfPanel, { ...props, result: null })))
+    expect(focused).toEqual(['road-mass-whatif-open'])
+    vi.unstubAllGlobals()
   })
 })

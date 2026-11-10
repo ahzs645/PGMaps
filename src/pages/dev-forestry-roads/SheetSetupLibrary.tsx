@@ -63,7 +63,7 @@ export function SheetSetupLibrary({
   const [library, setLibrary] = useState(() => readLibrary(storage))
   const [chosen, setChosen] = useState(() => library.setups[0]?.name ?? '')
   const [name, setName] = useState('')
-  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null)
+  const [message, setMessage] = useState<{ text: string; error?: boolean; undo?: () => void } | null>(null)
   const current = library.setups.find((setup) => setup.name === chosen) ?? library.setups[0]
   const keep = (next: Library) => {
     setLibrary(next)
@@ -115,25 +115,40 @@ export function SheetSetupLibrary({
     })
   const remove = () => {
     if (!current) return
-    const next = removeSheetSetup(library, current.name)
+    const before = library,
+      deleted = current
+    const next = removeSheetSetup(library, deleted.name)
     if (!keep(next)) return
     setChosen(next.setups[0]?.name ?? '')
-    setMessage({ text: `Deleted “${current.name}” from this browser.` })
+    // Delete sits beside Download; one press can be taken back until the next message.
+    setMessage({
+      text: `Deleted “${deleted.name}” from this browser.`,
+      undo: () => {
+        if (!keep(before)) return
+        setChosen(deleted.name)
+        setMessage({ text: `Restored “${deleted.name}”.` })
+      },
+    })
   }
   const importFile = (file: File) => {
     if (file.size > MAX_SHEET_SETUP_FILE_BYTES) {
-      setMessage({ text: 'That file is too large to be a sheet setup.', error: true })
+      setMessage({ text: `“${file.name}” was not imported: it is too large to be a sheet setup.`, error: true })
       return
     }
+    // A refused file is named, and said not to be imported, before the reason.
+    const refused = (reason: string) => setMessage({ text: `“${file.name}” was not imported. ${reason}`, error: true })
     void file.text().then(
-      (text) =>
-        attempt(() => {
+      (text) => {
+        try {
           const setup = sheetSetupFromFile(text)
           if (!keep(saveSheetSetup(library, setup))) return
           setChosen(setup.name)
           setMessage({ text: `Added “${setup.name}”. Apply it to use it here.` })
-        }),
-      () => setMessage({ text: 'The file could not be read.', error: true }),
+        } catch (error) {
+          refused(error instanceof Error ? error.message : 'Check the setup.')
+        }
+      },
+      () => refused('The file could not be read.'),
     )
   }
   const heading = 'text-3xs font-semibold uppercase tracking-wide text-muted-foreground'
@@ -228,6 +243,14 @@ export function SheetSetupLibrary({
           className={message.error ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}
         >
           {message.text}
+          {message.undo && (
+            <>
+              {' '}
+              <button type="button" className="underline underline-offset-2" onClick={message.undo}>
+                Undo
+              </button>
+            </>
+          )}
         </p>
       )}
     </section>

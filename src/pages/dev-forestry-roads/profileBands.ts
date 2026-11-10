@@ -19,6 +19,27 @@ export const BAND_VALUE_MIN_GAP_PX = 46
 /** The most values one band shows across a window, however wide. */
 export const MAX_BAND_VALUES = 400
 
+/**
+ * Where a band value's text anchors so it stays inside the plot, between `plotLeft` and `plotRight`.
+ * A value at a station on the plot's left edge starts there rather than centring over the row title
+ * in the margin ("Ground749.92" on a sheet); one on the right edge ends there. `textWidth` is an
+ * estimate (`bandTextWidth`), so the gap between values (`BAND_VALUE_MIN_GAP_PX`) absorbs the error.
+ */
+export function bandValueAnchor(
+  x: number,
+  textWidth: number,
+  plotLeft: number,
+  plotRight: number,
+): { x: number; anchor: 'start' | 'middle' | 'end' } {
+  const half = textWidth / 2
+  if (x - half < plotLeft + 1) return { x: Math.max(x - half, plotLeft + 2), anchor: 'start' }
+  if (x + half > plotRight - 1) return { x: Math.min(x + half, plotRight - 2), anchor: 'end' }
+  return { x, anchor: 'middle' }
+}
+
+/** A generous width for band text: digits and signs run about 0.6 em in the UI and print fonts. */
+export const bandTextWidth = (text: string, fontSize: number) => text.length * fontSize * 0.6
+
 export type ValueBandKey = 'ground' | 'design' | 'depth' | 'grade' | 'crossfallLeft' | 'crossfallRight'
 
 export interface BandValue {

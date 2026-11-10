@@ -7,7 +7,8 @@ import { cn } from '@/lib/utils'
 /**
  * An icon button that opens a small panel of form controls, so a narrow toolbar stays on one row
  * however wide its pane is. `count` shows how many of the panel's settings are active; focus moves
- * to the panel's first control and Escape returns it to the button.
+ * to the panel's `[data-autofocus]` control, else its first one, and Escape returns it to the button.
+ * Mark one when the first control is an (i) help button, whose bubble would open over the panel.
  */
 export function ToolbarPopover({
   label,
@@ -38,7 +39,10 @@ export function ToolbarPopover({
   useEffect(() => {
     if (!open) return
     const frame = requestAnimationFrame(() =>
-      panel.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus({ preventScroll: true }),
+      (
+        panel.current?.querySelector<HTMLElement>('[data-autofocus]:not([disabled])') ??
+        panel.current?.querySelector<HTMLElement>('input, select, textarea, button')
+      )?.focus({ preventScroll: true }),
     )
     return () => cancelAnimationFrame(frame)
   }, [open])

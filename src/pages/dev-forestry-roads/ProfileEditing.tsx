@@ -9,7 +9,7 @@ import { Magnet, Plus, X } from 'lucide-react'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { NumberField } from './Controls'
+import { GradeEntryField } from './GradeEntryField'
 import {
   dragPvi,
   dragTangent,
@@ -25,6 +25,7 @@ import {
   type GradeHold,
   type SnappedGrade,
 } from './gradeEdit'
+import { signedValue } from './profileAnnotations'
 import { controlForJunction, junctionControl, MAX_VERTICAL_CONTROLS, type ProfileJunction } from './profileJunctions'
 import { formatStation } from './verticalStandards'
 import type { VerticalControl, VerticalPoint } from './types'
@@ -51,15 +52,38 @@ const JUNCTION_COLOR = '#c026d3'
 const HELD_COLOR = '#b45309'
 const SNAP_COLOR = '#0d9488'
 const SNAP_STORAGE_KEY = 'pgmaps-road-profile-grade-snap'
-const pct = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)} %`
+const pct = (value: number) => signedValue(value, 2, ' %')
 const metres = (value: number | null, digits = 2) => (value === null ? 'unknown' : `${value.toFixed(digits)} m`)
-const signedMetres = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)} m`
+const signedMetres = (value: number) => signedValue(value, 2, ' m')
 const finite = (n: number | null | undefined): n is number => n != null && Number.isFinite(n)
 
 /** Focus is in a popover or nowhere, so closing it may hand focus back; a press elsewhere keeps its own. */
 function focusIsLoose() {
   const active = document.activeElement
   return !active || active === document.body || !!active.closest('[data-floating-layer]')
+}
+
+/** Room the drag cursor's text needs right of the handle; nearer the plot's right edge it goes left. */
+export const CURSOR_TEXT_PX = 184
+/** Below the handle, the drag cursor's lines (snapped grade, held reasons) take this band of pixels. */
+export const CURSOR_LINES_BELOW_PX = 48
+/** Whether the drag cursor's text sits left of a handle at `x`, given the plot's right edge. */
+export const cursorOnLeft = (x: number, plotRight: number) => x > plotRight - CURSOR_TEXT_PX
+
+/** A junction's `difference` (its level − this formation) in words, so the sign cannot be misread. */
+export function junctionDifferenceText(difference: number) {
+  const size = Math.abs(difference)
+  if (size < 0.005) return 'Level with this formation'
+  return `Its level is ${size.toFixed(2)} m ${difference > 0 ? 'above' : 'below'} this formation`
+}
+
+/** After a PVI is deleted, focus the handle now at `index` (or the last), else the chart itself. */
+export function focusAfterRemoval(chart: SVGSVGElement, index: number) {
+  const active = document.activeElement
+  if (active && active !== document.body) return
+  const handles = chart.querySelectorAll<SVGElement>('[data-pvi][tabindex]')
+  const next = handles[Math.min(index, handles.length - 1)] ?? (chart.hasAttribute('tabindex') ? chart : null)
+  next?.focus({ preventScroll: true })
 }
 
 function readSnap() {
@@ -104,6 +128,12 @@ export interface ProfileEditingOptions {
   freezeDomain: (domain: ChartDomain | null) => void
   junctions?: ProfileJunction[]
   onAddControl?: (control: VerticalControl) => void
+  /**
+   * Brackets a drag for the undo history (`useRoadWorkspace` `editGesture`): one step for the whole
+   * drag, and Escape ('cancel') returns to the pre-drag project with no step. Without it, Escape puts
+   * the PVIs back as an ordinary edit.
+   */
+  onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
 }
 
 export function useProfileEditing(options: ProfileEditingOptions) {
@@ -116,7 +146,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [snap, setSnapState] = useState(readSnap)
   const [status, setStatus] = useState('')
-  const [gradeEditor, setGradeEditor] = useState<{ backId: string; error?: string } | null>(null)
+  const [gradeEditor, setGradeEditor] = useState<{ backId: string } | null>(null)
   const [hold, setHold] = useState<GradeHold>('back')
   const [openJunction, setOpenJunction] = useState<string | null>(null)
   const gradeAnchor = useRef<HTMLSpanElement>(null)
@@ -159,7 +189,9 @@ export function useProfileEditing(options: ProfileEditingOptions) {
       if (event.key !== 'Escape' || !drag.current) return
       event.preventDefault()
       event.stopPropagation()
-      latest.current.onVerticalChange?.(drag.current.points)
+      const { onEditGesture, onVerticalChange: change } = latest.current
+      if (onEditGesture) onEditGesture('cancel')
+      else change?.(drag.current.points)
       finish()
     }
     window.addEventListener('keydown', onKey, true)
@@ -171,6 +203,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     setSelectedId(id)
     event.currentTarget.focus({ preventScroll: true })
     drag.current = { kind: 'pvi', id, points: sorted }
+    options.onEditGesture?.('start')
     setDragging(true)
     setDraggedPviId(id)
     freezeDomain(domain)
@@ -183,6 +216,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     event.preventDefault()
     event.currentTarget.focus({ preventScroll: true })
     drag.current = { kind: 'tangent', index, points: sorted, startY: event.clientY, moved: false }
+    options.onEditGesture?.('start')
     setDragging(true)
     freezeDomain(domain)
     event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId)
@@ -244,6 +278,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const end = () => {
     const active = drag.current
     if (!active) return
+    latest.current.onEditGesture?.('end')
     finish()
     if (active.kind === 'tangent' && !active.moved) {
       setOpenJunction(null)
@@ -251,7 +286,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     }
   }
 
-  const remove = (id: string) => {
+  const remove = (id: string, chart?: SVGSVGElement | null) => {
     if (!onVerticalChange) return
     const index = sorted.findIndex((p) => p.id === id)
     const result = removePvi(sorted, id)
@@ -259,6 +294,9 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     onVerticalChange(result.points)
     setSelectedId(null)
     say(`V${index + 1} removed. Undo brings it back.`)
+    // The focused handle is gone: hand focus to the PVI that now holds its place (or the one
+    // before it, at the end), else the chart, so the keyboard keeps its place.
+    if (chart) requestAnimationFrame(() => focusAfterRemoval(chart, index))
   }
 
   /** Keys on a focused PVI handle; true when handled. */
@@ -267,7 +305,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     if (isRemoveKey(event)) {
       event.preventDefault()
       event.stopPropagation()
-      remove(id)
+      remove(id, event.currentTarget?.ownerSVGElement)
       return true
     }
     if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
@@ -315,11 +353,11 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     }
   }
 
+  /** Applies a typed grade; returns why it was refused, and then nothing moves. */
   const typeGrade = (backId: string, grade: number, end: GradeHold) => {
-    if (!onVerticalChange) return
+    if (!onVerticalChange) return 'This profile cannot be edited here.'
     const result = setTangentGrade(sorted, backId, grade, end, options.controls)
-    if ('error' in result) return setGradeEditor({ backId, error: result.error })
-    setGradeEditor({ backId })
+    if ('error' in result) return result.error
     onVerticalChange(result.points)
   }
 
@@ -464,11 +502,12 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   )
 
   /** The cursor readout: what a drag snapped to and what holds it. Drawn over everything. */
-  const cursor = (f: ProfileFrame, width: number) => {
+  // `_width` is the svg's; the side is judged on the plot's right edge, as the PVI readout box judges it.
+  const cursor = (f: ProfileFrame, _width?: number) => {
     if (!readout || !readout.lines.length) return null
     const x = f.x(readout.chainage),
       y = f.y(readout.elevation)
-    const right = x > width - 200
+    const right = cursorOnLeft(x, f.left + f.plotWidth)
     return (
       <g pointerEvents="none" data-testid="road-profile-drag-readout" aria-live="polite">
         {readout.lines.map((line, i) => (
@@ -519,6 +558,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
           onClose={closeGrade}
           role="dialog"
           ariaLabel="Tangent grade"
+          initialFocus
           className="z-workspace-popover w-64 max-w-[calc(100vw-2rem)] rounded-lg p-3"
         >
           {back && ahead && (
@@ -531,15 +571,13 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                   <X className="size-3.5" />
                 </Button>
               </div>
-              <NumberField
+              <GradeEntryField
+                key={back.id}
                 label="Grade (%)"
                 value={Math.round(tangentGrade(back, ahead) * 1e4) / 1e4}
-                min={-MAX_EDIT_GRADE_PERCENT}
                 max={MAX_EDIT_GRADE_PERCENT}
-                step={0.5}
-                precision={2}
-                error={gradeEditor?.error}
-                onChange={(grade) => typeGrade(back.id, grade, hold)}
+                autoFocus
+                onGrade={(grade) => typeGrade(back.id, grade, hold)}
               />
               <SegmentedControl
                 label="End that holds"
@@ -578,6 +616,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
           onClose={closeJunction}
           role="dialog"
           ariaLabel="Junction"
+          initialFocus
           className="z-workspace-popover w-64 max-w-[calc(100vw-2rem)] rounded-lg p-3"
         >
           {junction && (
@@ -600,10 +639,15 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 </dt>
                 <dd>{metres(junction.level)}</dd>
                 <dt className="text-muted-foreground">This formation</dt>
-                <dd>
-                  {metres(junction.designHere)}
-                  {junction.difference !== null ? ` (${signedMetres(junction.difference)})` : ''}
-                </dd>
+                <dd>{metres(junction.designHere)}</dd>
+                {junction.difference !== null && (
+                  <>
+                    <dt className="text-muted-foreground">Difference</dt>
+                    <dd data-testid="road-profile-junction-difference">
+                      {junctionDifferenceText(junction.difference)}
+                    </dd>
+                  </>
+                )}
               </dl>
               {existing ? (
                 <p className="text-muted-foreground">
@@ -615,6 +659,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                   size="sm"
                   variant="outline"
                   className="h-7 w-full"
+                  data-autofocus
                   disabled={!options.onAddControl || junction.level === null || controlsFull}
                   onClick={() => {
                     const control = controlForJunction(junction, crypto.randomUUID())

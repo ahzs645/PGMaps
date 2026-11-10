@@ -5,7 +5,13 @@ import { ProfileChart } from './Charts'
 import { DEFAULT_DESIGN_STANDARDS, gradeRule } from './designStandards'
 import { analyzeRoad, offsetCoordinate } from './engine'
 import { curvePoints, pviDragReadout, tangentGrades } from './profileAnnotations'
-import { ProfileCurvePoints, ProfileGradeTrouble, PviDragReadoutBox, type ProfilePlotFrame } from './ProfileOverlays'
+import {
+  ProfileCurvePoints,
+  ProfileGradeTrouble,
+  PviDragReadoutBox,
+  pviReadoutBoxAt,
+  type ProfilePlotFrame,
+} from './ProfileOverlays'
 import { ProfileValueBands } from './ProfileValueBands'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate } from './types'
@@ -228,7 +234,7 @@ describe('profile chart', () => {
     )
     const readout = () => root.findAll((n) => n.props['data-testid'] === 'road-profile-pvi-readout')
     expect(readout()).toHaveLength(0)
-    const handle = root.find((n) => n.type === 'circle' && n.props['aria-label'] === 'Vertical control 2 elevation')
+    const handle = root.find((n) => n.type === 'circle' && n.props['aria-label'] === 'PVI 2 elevation')
     await act(async () =>
       handle.props.onPointerDown({
         stopPropagation() {},
@@ -267,5 +273,25 @@ describe('profile chart', () => {
     await act(async () => renderer!.unmount())
     const again = await render(createElement(ProfileChart, props))
     expect(again.findAll((n) => n.props['data-testid'] === 'road-profile-value-bands')).toHaveLength(1)
+  })
+})
+
+describe('placing the dragged PVI readout', () => {
+  const plot = { top: 20, bottom: 320, left: 50, right: 650 }
+  it('goes above the handle when it fits', () => {
+    expect(pviReadoutBoxAt(200, 200, 150, 66, plot)).toEqual({ x: 212, y: 124 })
+  })
+  it('near the top of the plot, goes below the snapped-grade lines instead of over them', () => {
+    const box = pviReadoutBoxAt(200, 40, 150, 66, plot)
+    // The drag cursor writes its lines from 6 to about 43 px under the handle, right of it here.
+    expect(box.y).toBeGreaterThanOrEqual(40 + 46)
+  })
+  it('in a plot too short for either, sits beside the handle away from those lines', () => {
+    const short = { ...plot, bottom: 140 }
+    const box = pviReadoutBoxAt(400, 60, 150, 66, short)
+    expect(box.x + 150).toBeLessThanOrEqual(400 - 12)
+    // Near the right edge the lines go left, so the box goes right.
+    const right = pviReadoutBoxAt(540, 60, 80, 66, short)
+    expect(right.x).toBe(552)
   })
 })

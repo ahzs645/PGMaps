@@ -14,7 +14,9 @@ plumbing.
   grade. **Typed grade moves** picks the PVI that moves: **Ahead PVI** (the default: the up-station
   end moves, the down-station end holds) or **Back PVI**. On the profile, press a tangent's grip
   (the small bar at the middle of each tangent) or focus it and press Enter: a popover takes the
-  grade and the end that holds. The moved PVI's grade on its far side changes with it.
+  grade and the end that holds, with focus in its grade field. A typed grade applies on Enter or
+  when the field loses focus, never while it is being typed; ↑ and ↓ in the field step it 0.5 % at
+  once. The moved PVI's grade on its far side changes with it.
 - **Shift-drag a PVI** to hold one adjacent grade: the PVI slides along that tangent. Dragging
   up-station holds the grade in (the PVI runs on along the incoming tangent), dragging down-station
   holds the grade out. Keyboard: Alt+→ and Alt+← on a focused PVI slide it 5 m the same way.
@@ -27,7 +29,9 @@ plumbing.
   at the cursor.
 - **Delete a PVI.** Click a PVI (it fills in) or focus it, then press Delete or Backspace. Undo
   brings it back. Keys never act while typing in a field.
-- **Escape** puts a drag back where it started and closes a popover.
+- **Escape** puts a drag back where it started and closes a popover. A drag is one Undo step
+  however long it pauses, and a drag cancelled with Escape leaves no step (`editGesture`,
+  `useRoadWorkspace.ts`).
 - **Junction markers.** A dashed magenta line marks each station where another road of the project
   meets or crosses this one. The diamond sits at that road's level, with the road's name and the
   difference from this road's formation. Click it (or focus it and press Enter) for both stations,
@@ -46,7 +50,10 @@ The handle stops short of the cursor, and the reason shows beside it, when:
 - an adjoining grade would pass `MAX_DRAG_GRADE`.
 
 A typed grade that would move a PVI held by a control, or make a grade steeper than the cap, is
-refused with a message naming the PVI and what to change. Nothing is moved.
+refused with a message naming the PVI and what to change. Nothing is moved, and the field keeps
+what was typed beside the message until it is changed: Enter on it again applies nothing in its
+place (`GradeEntryField.tsx`). A grade past ±100 % is changed to the cap on Enter, and the field says
+so.
 
 ## Limits and budgets
 

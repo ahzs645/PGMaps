@@ -184,3 +184,19 @@ export function sightBandSeries(review: Pick<RoadSightReview, 'eyes' | 'short' |
   }
   return [...byStation.values()].sort((a, b) => a.chainage - b.chainage)
 }
+
+/**
+ * A table row that selects its station by click, or by Enter or Space once focused with Tab, so the
+ * shortfall and curve-clearing rows move the eye from the keyboard as the turnout rows do.
+ */
+export function stationRowProps(select: () => void) {
+  return {
+    tabIndex: 0,
+    onClick: select,
+    onKeyDown: (event: { key: string; preventDefault: () => void }) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      select()
+    },
+  }
+}

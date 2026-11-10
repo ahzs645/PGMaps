@@ -54,6 +54,17 @@ describe('the edit history panel', () => {
       'Undo to: Earliest state kept',
     ])
     expect(steps[1].props.disabled).toBe(true)
+    // A row leads with what changed; the road's name, however long, is the quieter second line, and
+    // the whole label is the tooltip.
+    expect(steps[2].props.title).toBe('Spur A: moved point 3')
+    expect(steps[2].findAllByType('span').map((span) => text(span))).toEqual([
+      'Moved point 3Spur A',
+      'Moved point 3',
+      'Spur A',
+      expect.any(String),
+    ])
+    // The newest step to undo takes focus when the panel opens, not the (i) beside the heading.
+    expect(steps.map((node) => !!node.props['data-autofocus'])).toEqual([false, false, true, false])
     act(() => steps[2].props.onClick())
     expect(onGo).toHaveBeenCalledWith(-1)
     act(() => steps[0].props.onClick())

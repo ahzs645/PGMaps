@@ -1,4 +1,4 @@
-import { useMemo, type KeyboardEvent, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, type KeyboardEvent, type PointerEvent } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { balanceLevelRange, balanceWhatIf, type BalanceWhatIf } from './balanceLine'
@@ -190,10 +190,26 @@ export function BalanceWhatIfPanel({
   onClose: () => void
   onStation: (chainage: number) => void
 }) {
+  const openButton = useRef<HTMLButtonElement>(null)
+  const wasOpen = useRef(false)
+  const isOpen = !!result
+  // Closing the what-if (Escape on the line, or Close what-if) removes the focused control; hand
+  // focus to the button that opens it again rather than dropping it to the page.
+  useEffect(() => {
+    if (isOpen) {
+      wasOpen.current = true
+      return
+    }
+    if (!wasOpen.current) return
+    wasOpen.current = false
+    const active = typeof document === 'undefined' ? null : document.activeElement
+    if (!active || active === document.body) openButton.current?.focus({ preventScroll: true })
+  }, [isOpen])
   if (!result)
     return (
       <div className="flex items-center gap-1">
         <Button
+          ref={openButton}
           type="button"
           variant="outline"
           size="sm"
@@ -212,6 +228,8 @@ export function BalanceWhatIfPanel({
       </div>
     )
   const loops = result.loops.filter((loop) => loop.volumeM3 > 0.5)
+  const closed = loops.filter((loop) => !loop.open).length
+  const open = loops.length - closed
   const ends = [
     result.startM3 > 0.5 && `${n(result.startM3)} m³ comes in at the start`,
     result.startM3 < -0.5 && `${n(-result.startM3)} m³ leaves at the start`,
@@ -250,12 +268,15 @@ export function BalanceWhatIfPanel({
         What-if only: the design and the reported haul are unchanged.
       </p>
       <p data-testid="road-mass-whatif-totals">
-        Balances {n(result.balancedLengthM)} m of road in {loops.filter((loop) => !loop.open).length} closed loop
-        {loops.filter((loop) => !loop.open).length === 1 ? '' : 's'} · moves {n(result.volumeM3)} m³,{' '}
-        {n(result.haulM3m)} m³·m
+        {/* "Moves" counts what balances inside every loop, including the inner part of a loop that runs to a
+            road end; only closed loops balance a whole length of road, so the two are stated apart. */}
+        Moves {n(result.volumeM3)} m³, {n(result.haulM3m)} m³·m inside the road
         {freeHaulM === null
           ? ' · no free-haul distance entered, so no overhaul'
           : ` · overhaul ${n(result.overhaulM3)} m³, ${n(result.overhaulM3m)} m³·m past ${n(freeHaulM)} m free haul`}
+        {` · ${closed} closed loop${closed === 1 ? '' : 's'} balance${closed === 1 ? 's' : ''} ${n(result.balancedLengthM)} m of road`}
+        {open > 0 &&
+          ` · ${open} loop${open === 1 ? ' runs' : 's run'} to a road end, where only ${open === 1 ? 'its' : 'their'} inner part balances`}
         {ends.length > 0 && ` · ${ends.join(', ')}`}
       </p>
       {loops.length > 0 && (

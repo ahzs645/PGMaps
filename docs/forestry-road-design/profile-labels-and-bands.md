@@ -68,7 +68,15 @@ readout) and `profileBands.ts` (band values and the curvature diagram). The scre
 A terrain profile has ground and ground grade only. Values are printed only at calculated
 stations, never interpolated between them. Stations on a round multiple of the spacing (1, 2, 2.5
 or 5 × 10ⁿ m) are preferred; when the station interval does not divide it, every station far
-enough from the last one kept is used. Unknown values print as —.
+enough from the last one kept is used. Unknown values print as —. A value on the plot's left or
+right edge starts or ends there instead of centring over the row title in the margin
+(`bandValueAnchor`).
+
+On screen, both band sets (**Grade, curve, template & material bands** and **Value bands**) share
+one scrolling area capped at 45 % of the chart, and the plot keeps at least 160 px (half a short
+chart): with both open the bands scroll rather than squeezing the profile. While bands are open
+the plot reserves the same scrollbar gutter as that area, so a station sits at the same x in the
+plot and in every band.
 
 ## Curve-point labels never overlap each other
 
@@ -84,6 +92,7 @@ label can still cross a tangent's grade label or a PVI callout, which have their
 | -------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Culvert distance that drains a sag low point | 15 m along the road                                                             | `SAG_CULVERT_SEARCH_M` = `DEFAULT_CULVERT_SEARCH_M`                           |
 | Gap between band values                      | 46 screen px; 60 on sheets                                                      | `BAND_VALUE_MIN_GAP_PX`, `profileBands.ts`; `SHEET_BAND_VALUE_GAP_PX`         |
+| Band area on screen                          | at most 45 % of the chart; the plot keeps min(160 px, half the chart)           | `ChartSlot`, `Charts.tsx`                                                     |
 | Values per band across one window            | 400                                                                             | `MAX_BAND_VALUES`, `profileBands.ts`                                          |
 | Gap between rotated curve-point labels       | 13 screen px; 15 on sheets                                                      | `ROTATED_LABEL_GAP_PX`, `ProfileOverlays.tsx`; `SHEET_LABEL_GAP_PX`           |
 | Gap between curve-point markers              | 5 screen px                                                                     | `MARKER_GAP_PX`, `ProfileOverlays.tsx`                                        |

@@ -265,7 +265,9 @@ test('station, real map layers, profile, section, schedule and terrain remain li
 test('pegging uses real map points with live leg grade and an undoable new road', async ({ page }) => {
   const errors = await prepare(page)
   const beforeDrawing = (await saveProject(page)).project
-  await choose(page.getByRole('combobox', { name: 'Road view layout', exact: true }), { label: 'Plan · profile · section · pegging' })
+  await choose(page.getByRole('combobox', { name: 'Road view layout', exact: true }), {
+    label: 'Plan · profile · section · pegging',
+  })
   await page.getByRole('button', { name: 'Peg road', exact: true }).click()
   const feedback = page.getByTestId('pegging-feedback')
   await expect(feedback).toContainText('0 points')
@@ -312,7 +314,7 @@ test('profile controls and one-sided turnout widening change calculated sections
   const errors = await prepare(page)
   const original = (await saveProject(page)).project
   const active = original.alignments.find((alignment) => alignment.id === original.activeAlignmentId)!
-  const pvi = page.getByRole('slider', { name: 'Vertical control 2 elevation', exact: true })
+  const pvi = page.getByRole('slider', { name: 'PVI 2 elevation', exact: true })
   const originalLevel = Number(await pvi.getAttribute('aria-valuenow'))
   await pvi.focus()
   await pvi.press('ArrowUp')
@@ -644,7 +646,11 @@ test('named templates, live previews, material horizons and libraries reach the 
   await page
     .getByTestId('road-library-input')
     .setInputFiles({ name: library.name, mimeType: 'application/json', buffer: Buffer.from(library.text) })
-  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Library template', exact: true }))).length).toBe(2)
+  await expect
+    .poll(
+      async () => (await optionLabels(page.getByRole('combobox', { name: 'Library template', exact: true }))).length,
+    )
+    .toBe(2)
   const saved = await saveProject(page)
   const active = saved.project.alignments.find((a) => a.id === saved.project.activeAlignmentId)!
   expect(active.engineering?.templates).toHaveLength(2)
@@ -758,7 +764,8 @@ test('culvert edits, material-aware haul and engineering ledgers preserve map an
     (a) => a.id === saved.project.activeAlignmentId,
   )!.engineering!.culverts[1]
   const structures = page.getByRole('combobox', { name: '3D structure', exact: true })
-  await choose(structures, 
+  await choose(
+    structures,
     (await optionEntries(structures)).find((entry) => entry.label.includes(secondStructure.name))!.value,
   )
   await expect(page.getByRole('button', { name: 'Inspect structure Cross-drain B', exact: true })).toHaveAttribute(

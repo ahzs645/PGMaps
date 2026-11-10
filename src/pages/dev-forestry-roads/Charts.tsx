@@ -507,6 +507,7 @@ function ChartSlot({
   const chosen = header ? header.view : localView
   const view: ChartView = !footer ? 'chart' : (chosen ?? (compact ? 'chart' : 'both'))
   const showDetails = view === 'both'
+  const bandsShown = (!!bands && bandsOpen) || (!!valueBands && valueBandsOpen)
   const toggle = (pressed: boolean) =>
     `size-8 ${pressed ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`
   const bandsToggle = bands && (
@@ -569,24 +570,26 @@ function ChartSlot({
         ) : (
           <div className="flex shrink-0 justify-end gap-1 pb-1">{switcher}</div>
         ))}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* The plot keeps 160 px (half a short slot) however many bands are open; with bands open it reserves the
+          scrollbar gutter the bands' scroller does, so a station sits at the same x in both. */}
+      <div
+        className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden [scrollbar-gutter:stable]' : ''}`}
+      >
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
         </ChartViewport>
       </div>
-      {/* Capped so a short panel keeps most of its height for the plot; the bands scroll instead. */}
-      {bands && bandsOpen && (
-        <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{bands.content}</div>
-      )}
-      {valueBands && valueBandsOpen && (
-        <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{valueBands.content}</div>
+      {/* Both band sets share one capped scroller, so a short panel keeps its plot; the bands scroll instead. */}
+      {bandsShown && (
+        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+          {bands && bandsOpen && <div className="border-t">{bands.content}</div>}
+          {valueBands && valueBandsOpen && <div className="border-t">{valueBands.content}</div>}
+        </div>
       )}
       {footer && (
         <div
           className={
-            showDetails
-              ? `flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`
-              : 'hidden'
+            showDetails ? `flex min-h-0 shrink flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}` : 'hidden'
           }
         >
           <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">{footer}</div>
@@ -646,6 +649,7 @@ export function ProfileChart({
   junctions,
   onAddControl,
   rangePick,
+  onEditGesture,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -669,6 +673,8 @@ export function ProfileChart({
   onAddControl?: (control: VerticalControl) => void
   /** While set, a drag on the plot marks a station range (`SectionPaneTools`) instead of moving the station. */
   rangePick?: { range: [number, number] | null; onRange: (range: [number, number]) => void }
+  /** Brackets a PVI or tangent drag as one undo step that Escape cancels (`useProfileEditing`). */
+  onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
@@ -814,6 +820,7 @@ export function ProfileChart({
     freezeDomain: setFixedDomain,
     junctions: terrainOnly ? undefined : junctions,
     onAddControl: editable ? onAddControl : undefined,
+    onEditGesture,
   })
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
@@ -1650,7 +1657,7 @@ export function ProfileChart({
                       }
                       tabIndex={editable ? 0 : undefined}
                       role={editable ? 'slider' : undefined}
-                      aria-label={`Vertical control ${index + 1} elevation`}
+                      aria-label={`PVI ${index + 1} elevation`}
                       aria-valuemin={-12000}
                       aria-valuemax={12000}
                       aria-valuenow={p.elevation}
@@ -1679,7 +1686,7 @@ export function ProfileChart({
                       }}
                     >
                       <title>
-                        Control {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
+                        PVI {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
                         {editable
                           ? ' Drag or use arrow keys; Shift-drag (Alt+arrows) holds a grade; Delete removes it.'
                           : ' Preview only.'}

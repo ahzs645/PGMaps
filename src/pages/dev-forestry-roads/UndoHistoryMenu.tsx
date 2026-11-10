@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { roadFieldClass } from './Controls'
-import { MAX_CHECKPOINT_NAME, MAX_UNDO_STEPS, type HistoryRow } from './undoHistory'
+import { MAX_CHECKPOINT_NAME, MAX_UNDO_STEPS, splitHistoryLabel, type HistoryRow } from './undoHistory'
 
 const time = (at: number) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 
@@ -53,22 +53,29 @@ export function UndoHistoryPanel({
           <ol className="max-h-64 divide-y overflow-y-auto overscroll-contain rounded-md border bg-background">
             {list.map((row) => {
               const now = row.offset === 0
+              const { change, road } = splitHistoryLabel(row.label)
               return (
                 <li key={row.offset}>
                   <button
                     type="button"
                     disabled={disabled || now}
+                    // The newest step to undo takes focus when the panel opens, not the (i) above it.
+                    data-autofocus={row.offset === -1 || undefined}
                     aria-current={now ? 'step' : undefined}
                     aria-label={
                       now ? `${row.label}, current state` : `${row.offset < 0 ? 'Undo' : 'Redo'} to: ${row.label}`
                     }
+                    title={row.label}
                     className={`flex w-full items-baseline gap-2 px-2 py-1.5 text-left enabled:hover:bg-muted/60 ${
                       now ? 'bg-primary/10 font-medium' : row.offset > 0 ? 'text-muted-foreground' : ''
                     }`}
                     onClick={() => onGo(row.offset)}
                   >
-                    <span className="min-w-0 flex-1 truncate" title={row.label}>
-                      {row.label}
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{change}</span>
+                      {road && (
+                        <span className="block truncate text-3xs font-normal text-muted-foreground">{road}</span>
+                      )}
                     </span>
                     <span className="shrink-0 tabular-nums text-3xs text-muted-foreground">
                       {now ? 'Now' : row.offset > 0 ? 'Redo' : row.at === null ? '' : time(row.at)}
@@ -102,6 +109,7 @@ export function UndoHistoryPanel({
             aria-label="Checkpoint name"
             placeholder={`Checkpoint ${checkpoints.length + 1}`}
             maxLength={MAX_CHECKPOINT_NAME}
+            data-autofocus
             value={name}
             disabled={disabled}
             onChange={(event) => setName(event.target.value)}
