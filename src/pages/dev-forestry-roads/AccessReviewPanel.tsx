@@ -238,7 +238,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
   }
 
   const compare = async () => {
-    if (!end || !mode || abort.current || w.busy) return
+    // While a road is being pegged the plan shows that line, but "This road" is still the saved one.
+    if (!end || !mode || abort.current || w.busy || p.drawing) return
     const controller = new AbortController()
     abort.current = controller
     setRun(null)
@@ -633,7 +634,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
         <Button
           size="sm"
           className="h-8 w-full"
-          disabled={!end || !mode || !goals.length || full || pickedUnavailable}
+          disabled={!end || !mode || !goals.length || full || pickedUnavailable || !!p.drawing}
+          title={p.drawing ? 'Finish the road being drawn on the plan first' : undefined}
           onClick={() => void compare()}
           data-testid="road-access-compare"
         >

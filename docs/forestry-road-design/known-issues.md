@@ -58,8 +58,6 @@ unless marked.
   road is being pegged or extended the tiles, plan and profile read the unfinished line
   (`displayedAlignment` in `DevForestryRoads.tsx`) and the road switcher still names the saved
   road. The searches now wait for **Finish road**; the header itself is unchanged.
-- **Access from FSR is not held while a road is being pegged** (read). `AccessReviewPanel.tsx`
-  starts its searches from the saved road, as the three route searches did.
 
 ## Open
 

@@ -404,10 +404,10 @@ tiles then flips between roads from any tab or view.
 
 **New ends on map** starts pegging a new road, which exists only once **Finish road** is pressed.
 Until then the plan, profile and header show the line being pegged while the project still holds the
-saved road, so the searches wait: **Compare routes**, **Suggest terrain-cost alternative** and
-**Optimize sketched corridor** are disabled, and the route finder says why beside its own
-**Finish road** button (`RoadDrawing` in `DesignSidebarBody.tsx`). The same holds while extending a
-road.
+saved road, so the searches wait: **Compare routes**, **Compare access routes**, **Suggest
+terrain-cost alternative** and **Optimize sketched corridor** are disabled, and the route finder
+says why beside its own **Finish road** button (`RoadDrawing` in `DesignSidebarBody.tsx`). The same
+holds while extending a road.
 
 | Goal                   | Horizontal line                                                                                                    | Profile                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
