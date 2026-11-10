@@ -13,6 +13,11 @@
 - Keep deployment checkout configured with recursive submodules. A build that does not initialize `vendor/bcdatamapper` cannot assemble scraper-owned data.
 - `vendor/canadadatamapper` holds national (Canada-wide) scrapers under the same rules; `scripts/sync-bcdatamapper-data.mjs` copies its `canadaPathMappings` too, and the deploy cache key includes both submodule revisions. ISED cell sites land at `public/data/canada/cell-sites`. Build towers from ISED's `Site_Data_Extract_FX.zip`, never by scraping ertyu.org, whose `robots.txt` disallows automated clients.
 
+## Data hosts
+
+- `docs/data-hosts.md` is the contract for `src/config/data-hosts.json`, which lists the `public/data` folders served from another host. Moving a folder off Pages is one entry there; the sync script, deploy cache key and service worker follow it.
+- Resolve every data URL with `withBase` (`src/lib/dataUrl.ts`), directly or through `fetchJson`/`fetchBytes`. A bare `'/data/...'` handed to MapLibre, deck.gl, a worker or a link, or a URL built from `import.meta.env.BASE_URL`, always loads from this site and breaks once its folder moves.
+
 ## LiDAR point cloud tiles
 
 - `vendor/pgmaps-lidar-data` builds and publishes the EPT tiles. Its Release stores them and its own Pages site serves them to the browser; PGMaps loads them at runtime and does not deploy them. Do not bring them back into `dist`: at 495 MB they put this site over GitHub's 1 GB Pages limit, which `deploy.yml` now warns about at 900 MB compressed.

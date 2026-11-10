@@ -5,6 +5,7 @@ import {
   type BcEnviroScreenManifest,
   type BcEnviroScreenReleaseDocument,
 } from '../lib/bcEnviroScreenRelease'
+import { withBase } from '@/lib/dataUrl'
 
 const DEFAULT_BASE_URL = 'https://data.map.ahmad.sh/environmental-burden/bc-enviro-screen'
 const BASE_URL = (import.meta.env.VITE_BC_ENVIRO_SCREEN_BASE_URL || DEFAULT_BASE_URL).replace(/\/$/, '')
@@ -32,7 +33,7 @@ let lastValidRelease: ValidRelease | null = null
 const EMPTY_ROWS = new Map<string, BcEnviroScreenLhaRow>()
 
 async function fetchJson<T>(url: string, cache: RequestCache, signal: AbortSignal): Promise<T> {
-  const response = await fetch(url, { cache, signal })
+  const response = await fetch(withBase(url), { cache, signal })
   if (!response.ok) throw new Error(`BC EnviroScreen request failed (${response.status}): ${url}`)
   return response.json() as Promise<T>
 }
@@ -42,7 +43,7 @@ async function loadReleaseFromBase(
   signal: AbortSignal,
   usePointerUrls: boolean,
 ): Promise<ValidRelease> {
-  const latestResponse = await fetch(`${baseUrl}/latest.json`, { cache: 'no-cache', signal })
+  const latestResponse = await fetch(withBase(`${baseUrl}/latest.json`), { cache: 'no-cache', signal })
   if (!latestResponse.ok) throw new Error(`BC EnviroScreen latest pointer failed (${latestResponse.status}).`)
   const latest = (await latestResponse.json()) as LatestPointer
   if (latest.schemaVersion !== 1 || !latest.releaseId || !latest.manifestUrl) {

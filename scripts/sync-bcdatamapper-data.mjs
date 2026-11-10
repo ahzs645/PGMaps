@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
@@ -13,6 +13,24 @@ const target = join(root, 'public', 'data')
 const clean = process.argv.includes('--clean')
 const copier = createIncrementalCopier(root)
 const includeRestrictedEarlyLearning = process.env.PGMAPS_INCLUDE_RESTRICTED_EARLY_LEARNING === '1'
+
+// Folders src/config/data-hosts.json serves from another host are fetched
+// from there (src/lib/dataHosts.ts), so they stay out of public/data and the
+// Pages build. VITE_DATA_HOSTS_LOCAL=1 copies them anyway, matching the app,
+// which then reads them locally. src/lib/dataHosts.test.ts validates the file.
+const remoteDataFolders =
+  process.env.VITE_DATA_HOSTS_LOCAL === '1'
+    ? []
+    : JSON.parse(readFileSync(join(root, 'src', 'config', 'data-hosts.json'), 'utf8')).hosts.flatMap(
+        (host) => host.folders,
+      )
+const isRemoteDataPath = (targetPath) => {
+  const path = targetPath
+    .split(/[\\/]+/)
+    .filter((part) => part && part !== '.')
+    .join('/')
+  return remoteDataFolders.some((folder) => path === folder || path.startsWith(`${folder}/`))
+}
 
 const appOwnedDataPaths = [
   'projects',
@@ -34,6 +52,17 @@ const appOwnedDataPaths = [
   'smoke',
   'walkability/heatmap/factor_masks.json',
 ]
+
+// App-owned data is not published by a scraper host, so a remote folder that
+// covers any of it would send the app to a file that host never has.
+for (const path of appOwnedDataPaths) {
+  if (isRemoteDataPath(path)) {
+    console.error(
+      `[data] src/config/data-hosts.json sends app-owned public/data/${path} to another host; list a narrower folder`,
+    )
+    process.exit(1)
+  }
+}
 
 const contentMappings = [
   ['datascrapers/air/output', '.'],
@@ -308,11 +337,15 @@ function copyPath(sourceRelative, targetRelative, sourceRoot = vendorRoot) {
     process.exit(1)
   }
 
+  if (isRemoteDataPath(targetRelative)) return
   mkdirSync(dirname(destination), { recursive: true })
   copier.copy(source, destination, (sourcePath) => {
     const relativeSource = relative(sourceRoot, sourcePath)
-    return !skippedSourcePaths.has(relativeSource)
-      && !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix))
+    return (
+      !skippedSourcePaths.has(relativeSource) &&
+      !skippedSourcePrefixes.some((prefix) => relativeSource.startsWith(prefix)) &&
+      !isRemoteDataPath(join(targetRelative, relative(source, sourcePath)))
+    )
   })
 }
 
@@ -360,6 +393,15 @@ copyPath(
 )
 
 const copyCounts = copier.complete()
+
+// A folder that moved to another host since the last sync leaves its old copy
+// behind unless the run used --clean.
+for (const folder of remoteDataFolders) {
+  if (existsSync(join(target, folder))) {
+    rmSync(join(target, folder), { recursive: true, force: true })
+    console.log(`[data] removed public/data/${folder}: served from another host (src/config/data-hosts.json)`)
+  }
+}
 console.log(`[data] copied ${copyCounts.copied} files; reused ${copyCounts.skipped} unchanged files`)
 
 if (!includeRestrictedEarlyLearning) {
@@ -416,9 +458,7 @@ if (existsSync(pm25RasterArchive)) {
     tilesBuild.complete()
   }
 }
-for (const staleInput of [
-  'aqmap/modelled-pm25-raster-tiles.tar.gz',
-]) rmSync(join(target, staleInput), { force: true })
+for (const staleInput of ['aqmap/modelled-pm25-raster-tiles.tar.gz']) rmSync(join(target, staleInput), { force: true })
 restorePreservedCleanPaths()
 
 console.log(`[data] assembled bcdatamapper scraper outputs -> ${relative(root, target)}`)

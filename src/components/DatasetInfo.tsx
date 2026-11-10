@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { withBase } from '@/lib/dataUrl'
 
 export interface DatasetInfoRecord {
   title: string
@@ -103,7 +104,7 @@ export function DatasetInfo({ dataset, sourceNotes, className, defaultOpen = fal
             <div className="flex flex-wrap gap-2 pt-1">
               {dataset.downloadUrl && (
                 <a
-                  href={dataset.downloadUrl}
+                  href={withBase(dataset.downloadUrl)}
                   download
                   className="inline-flex items-center gap-1 rounded border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent touch:min-h-10"
                 >

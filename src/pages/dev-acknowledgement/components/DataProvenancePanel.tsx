@@ -3,6 +3,7 @@ import { AlertTriangle, Database, ExternalLink } from 'lucide-react'
 import { CollapsiblePanel } from './CollapsiblePanel'
 import { INDIGENOUS_MANIFEST_DATA, unresolvedDataGaps } from '../data'
 import type { IndigenousManifestSource } from '../types'
+import { withBase } from '@/lib/dataUrl'
 
 type DataProvenancePanelProps = {
   automatedSources: IndigenousManifestSource[]
@@ -15,7 +16,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
       <div className="space-y-3 text-xs leading-5 text-slate-600">
         <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Automated</div>
         {automatedSources.map((source) => {
-          const href = source.sourceUrl ?? source.url ?? source.output ?? INDIGENOUS_MANIFEST_DATA
+          const href = withBase(source.sourceUrl ?? source.url ?? source.output ?? INDIGENOUS_MANIFEST_DATA)
           return (
             <a
               key={source.id}
@@ -48,7 +49,7 @@ export function DataProvenancePanel({ automatedSources, manualSources }: DataPro
         )}
         <div className="pt-2 text-xs font-semibold uppercase tracking-wide text-slate-400">Manual</div>
         {manualSources.map((source) => {
-          const href = source.url ?? source.sourceUrl ?? INDIGENOUS_MANIFEST_DATA
+          const href = withBase(source.url ?? source.sourceUrl ?? INDIGENOUS_MANIFEST_DATA)
           return (
             <a
               key={source.id}

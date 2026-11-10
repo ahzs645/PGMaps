@@ -61,13 +61,14 @@ jobs:
       # file under public/data (nothing else is there yet) or a stale cached
       # copy would replace it. The script folders it leaves out never write
       # public/data during a deploy; including them threw the cache away on
-      # most pushes.
+      # most pushes. src/config/data-hosts.json decides which folders the sync
+      # leaves out, so moving a folder to another host must miss the cache too.
       - name: Restore generated deployment data
         id: data-cache
         uses: actions/cache@v4
         with:
           path: public/data
-          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**','!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'public/data/**') }}
+          key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**','!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'src/config/data-hosts.json', 'public/data/**') }}
 
       - name: Install data-generation dependencies
         if: steps.data-cache.outputs.cache-hit != 'true'

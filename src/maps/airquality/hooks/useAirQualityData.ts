@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { fetchGzipText, fetchJson } from '@/lib/fetchJson'
 import { parseCsvRecords } from '@/lib/parseCsv'
 import type { AirMonitor } from '../types'
+import { withBase } from '@/lib/dataUrl'
 
 interface RawMonitor {
   id?: string | number
@@ -420,21 +421,21 @@ async function fetchAqmapCompatibleRows(signal: AbortSignal): Promise<RawMonitor
   const combined = networkRows.flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
   if (combined.length > 0) return dedupeRows([...combined, ...(await fetchSupplementalMonitorRows(signal))])
 
-  const csvResponse = await fetch('/data/monitors.csv', { signal })
+  const csvResponse = await fetch(withBase('/data/monitors.csv'), { signal })
   if (!csvResponse.ok) throw new Error(`Failed to load monitors: ${csvResponse.status}`)
   return dedupeRows([...parseCsv(await csvResponse.text()), ...(await fetchSupplementalMonitorRows(signal))])
 }
 
 async function fetchStaticMonitorRows(signal: AbortSignal): Promise<RawMonitor[]> {
   try {
-    const response = await fetch('/data/monitors.csv', { signal })
+    const response = await fetch(withBase('/data/monitors.csv'), { signal })
     if (!response.ok) {
       throw new Error(`Failed to load monitors: ${response.status}`)
     }
     return dedupeRows([...parseCsv(await response.text()), ...(await fetchSupplementalMonitorRows(signal))])
   } catch (err) {
     if ((err as Error).name === 'AbortError') throw err
-    const response = await fetch('/data/monitors/all.json', { signal })
+    const response = await fetch(withBase('/data/monitors/all.json'), { signal })
     if (!response.ok) throw err
     const json = await response.json()
     if (!Array.isArray(json)) throw err

@@ -10,6 +10,7 @@ import { ExternalLink } from '@/components/ui/text-button'
 import { DevPageHeader } from '@/components/DevPageHeader'
 import { DEFAULT_LOCALE, formatBytes } from '@/lib/format'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { withBase } from '@/lib/dataUrl'
 
 type BoundaryCollection = GeoJSON.FeatureCollection<GeoJSON.Polygon | GeoJSON.MultiPolygon, Record<string, unknown>> & {
   metadata?: {
@@ -112,7 +113,7 @@ async function gzipByteLength(buffer: ArrayBuffer) {
 
 async function fetchCollection(url: string, signal: AbortSignal) {
   const startedAt = performance.now()
-  const response = await fetch(url, { signal })
+  const response = await fetch(withBase(url), { signal })
   if (!response.ok) {
     throw new Error(`Failed to load ${url}: ${response.status}`)
   }

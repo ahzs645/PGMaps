@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { IDLE_LAYER, LOADING_LAYER, prepareLayer, type LoadedLayer } from './layerData'
 import type { DataLayer } from './model'
+import { withBase } from '@/lib/dataUrl'
 
 /**
  * Loads catalogue snapshots on demand and keeps uploaded layers, caching both for
@@ -26,7 +27,7 @@ export function useLayerData(layers: readonly DataLayer[], wantedIds: ReadonlySe
     for (const layer of layers) {
       if (layer.source.kind !== 'catalog' || !wantedIds.has(layer.id) || requested.current.has(layer.id)) continue
       requested.current.add(layer.id)
-      fetch(layer.source.entry.path)
+      fetch(withBase(layer.source.entry.path))
         .then(async (response) => {
           if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
           return (await response.json()) as GeoJSON.FeatureCollection

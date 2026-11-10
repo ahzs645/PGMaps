@@ -93,6 +93,7 @@ import { MonitorPlotPanel, type NearbyFem } from './components/MonitorPlotPanel'
 import { WindCanvasLayer } from './components/WindCanvasLayer'
 import { VectorWindBarbLayer } from './components/VectorWindBarbLayer'
 import type maplibregl from 'maplibre-gl'
+import { withBase } from '@/lib/dataUrl'
 
 type ForecastZoneCollection = GeoJSON.FeatureCollection<
   GeoJSON.Polygon | GeoJSON.MultiPolygon,
@@ -155,7 +156,7 @@ let forecastZoneDataCache: ForecastZoneCollection | null = null
 let forecastZoneDataPromise: Promise<ForecastZoneCollection> | null = null
 
 async function fetchForecastZones(url: string): Promise<ForecastZoneCollection> {
-  const response = await fetch(url)
+  const response = await fetch(withBase(url))
   if (!response.ok) throw new Error(`Failed to load forecast zones: ${response.status}`)
   return (await response.json()) as ForecastZoneCollection
 }

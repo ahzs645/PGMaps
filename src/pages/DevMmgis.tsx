@@ -77,6 +77,7 @@ import { featureIndex, sourceFeatureKey, prepareMissionLayer } from './dev-mmgis
 import { snapCoordinate } from './dev-mmgis/geometryEditing'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import './dev-mmgis/workbench.css'
+import { withBase } from '@/lib/dataUrl'
 
 const PANELS = [
   ['layers', 'Layers', Layers3],
@@ -577,7 +578,7 @@ export default function DevMmgis() {
     setBusy(true)
     setError('')
     try {
-      const r = await fetch(entry.path, { signal: AbortSignal.timeout(30000) })
+      const r = await fetch(withBase(entry.path), { signal: AbortSignal.timeout(30000) })
       if (!r.ok) throw new Error(`Data returned ${r.status}.`)
       const layer = addCollection(entry.name, await r.json())
       change((m) => ({
