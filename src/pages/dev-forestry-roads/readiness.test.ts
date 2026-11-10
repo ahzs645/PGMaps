@@ -18,7 +18,7 @@ import {
 } from './readiness'
 import { assessmentFingerprint, RIPARIAN_RULES } from './streamClass'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
-import type { Alignment, ContextFeature, Coordinate, Culvert, RoadSettings, TerrainSource } from './types'
+import type { Alignment, ContextFeature, Coordinate, Culvert, RoadAnalysis, RoadSettings, TerrainSource } from './types'
 
 const origin: Coordinate = [-122.8, 53.9]
 const xy = (east: number, north: number) =>
@@ -595,6 +595,156 @@ describe('assessReadiness: vertical curves the engine did not apply', () => {
       state: 'met',
       result: 'The 1 grade break has a vertical curve',
     })
+  })
+})
+
+describe('assessReadiness: a check that was not made never reads as met', () => {
+  // Everything a rule could read is present: streams, an excluded area the road enters, a culvert,
+  // a vehicle result and every limit. What is missing is the calculation.
+  const block: ContextFeature = {
+    id: 'block-a',
+    name: 'Block A',
+    kind: 'avoid',
+    geometry: { type: 'Polygon', coordinates: [[xy(-30, 60), xy(30, 60), xy(30, 120), xy(-30, 120), xy(-30, 60)]] },
+  }
+  const context = [stream('1', 100), block]
+  const standards: DesignStandards = {
+    ...DEFAULT_DESIGN_STANDARDS,
+    maxClearingWidthM: 30,
+    maxCrossDrainSpacingM: 150,
+    runningSurfaceWidthM: 6,
+    confirmedOn: '2026-11-09',
+  }
+  const entered = (patch: Partial<Alignment> = {}) => {
+    const alignment = road({
+      verticalStandards: { gradeRanges: [], minSagK: 2, minCrestK: 2, minCurveLengthM: null, minTangentLengthM: null },
+      ...patch,
+    })
+    alignment.engineering!.culverts = [culvert({ unitCost: 400 })]
+    alignment.engineering!.haul = { ...alignment.engineering!.haul, enabled: true, mobilizationCost: 5000 }
+    return alignment
+  }
+  const rowsFor = (alignment: Alignment, analysis: RoadAnalysis) =>
+    assessReadiness({
+      settings: DEFAULT_ROAD_SETTINGS,
+      standards,
+      terrain,
+      context,
+      alignment,
+      analysis,
+      cost: assessCostReadiness(analysis, alignment, DEFAULT_ROAD_SETTINGS),
+      drainage: undefined,
+      vehicle: null,
+    })
+
+  // The analysis fails on the template and there is no earlier valid result to fall back on.
+  const failed = entered({ template: { ...DEFAULT_TEMPLATE, cutSlope: 0 } })
+  const nothing = safeAnalyzeRoad(failed, hillside, DEFAULT_ROAD_SETTINGS, context, { gradeStandards: standards })
+  const uncalculated = rowsFor(failed, nothing)
+  const calculated = rowsFor(
+    entered(),
+    analyzeRoad(entered(), hillside, DEFAULT_ROAD_SETTINGS, context, { gradeStandards: standards }),
+  )
+
+  it('has nothing calculated to judge', () => {
+    expect(nothing.stations).toEqual([])
+    expect(uncalculated[0]).toMatchObject({ id: 'invalid-input', state: 'attention', severity: 'limit' })
+  })
+
+  // Every rule that reads the calculation, with what the same road gives once it is calculated.
+  it.each([
+    ['terrain-coverage', 'No sections were calculated', 'met'],
+    ['grade', 'No grades were calculated', 'met'],
+    ['curves-fitted', 'No sections were calculated, so the corners were not checked', 'met'],
+    ['materials', 'No earthwork was calculated', 'attention'],
+    ['earthwork-balance', 'No earthwork was calculated', 'attention'],
+    ['clearing-width', 'No sections to measure', 'met'],
+    ['crossing-structures', 'No sections were calculated, so crossings were not found', 'attention'],
+    ['stream-class', 'No sections were calculated, so crossed streams were not found', 'attention'],
+    ['cross-drain-spacing', 'No road to measure', 'attention'],
+    ['constraints', 'No sections were calculated, so the areas were not tested', 'attention'],
+    ['rates', 'No quantities were calculated, so no rate is in use', 'attention'],
+    ['haul', 'No earthwork was calculated', 'attention'],
+    ['structure-costs', 'No structure cost was calculated', 'attention'],
+  ])('%s is not assessed when nothing was calculated', (id, result, onceCalculated) => {
+    expect(uncalculated.find((row) => row.id === id)).toMatchObject({ state: 'not-assessed', result })
+    expect(calculated.find((row) => row.id === id)?.state).toBe(onceCalculated)
+  })
+
+  // Rules judged on an input alone hold whether or not the road calculated; each has its own
+  // not-assessed case for when that input is missing.
+  it.each([
+    [
+      'terrain-source',
+      'met',
+      { terrain: { ...terrain, resolutionM: Number.NaN } },
+      'The terrain’s cell size is not recorded',
+    ],
+    [
+      'profile',
+      'met',
+      { alignment: road({ vertical: [], mappedRoad: {} as never }) },
+      'Mapped road: read as built, with the formation on the ground',
+    ],
+    ['curve-radius', 'met', { settings: { minRadius: 0 } }, 'No minimum radius is entered'],
+    ['vertical-curves', 'met', { alignment: road({ vertical: [] }) }, 'No designed profile to check'],
+    ['vertical-k', 'met', { alignment: road() }, 'No minimum K is entered, so curve length is not checked'],
+    ['template', 'met', { alignment: road({ mappedRoad: {} as never }) }, 'Mapped road: no section is designed'],
+  ] as const)('%s reads its input, and is not assessed without it', (id, withInput, missing, result) => {
+    expect(uncalculated.find((row) => row.id === id)?.state).toBe(withInput)
+    expect(assess(missing as Parameters<typeof assess>[0]).row(id)).toMatchObject({ state: 'not-assessed', result })
+  })
+
+  it('never reads met for a rule whose own input is empty, on a road that did calculate', () => {
+    // No streams, areas, culverts, limits, vehicle or drainage check: the starting project.
+    const { rows } = assess()
+    const states = Object.fromEntries(rows.map((row) => [row.id, row.state]))
+    expect(states).toMatchObject({
+      'vehicle-fit': 'not-assessed',
+      'vertical-k': 'not-assessed',
+      'clearing-width': 'not-assessed',
+      'crossing-structures': 'not-assessed',
+      'stream-class': 'not-assessed',
+      drainage: 'not-assessed',
+      'cross-drain-spacing': 'not-assessed',
+      constraints: 'not-assessed',
+      'structure-costs': 'not-assessed',
+    })
+    // A road whose corners carry no curve has no radius to judge, and its corners are raised.
+    const sharp = road()
+    sharp.points[1].radiusM = 0
+    const unfitted = assess({ alignment: sharp })
+    expect(unfitted.row('curves-fitted')).toMatchObject({ state: 'attention', severity: 'limit' })
+    expect(unfitted.row('curve-radius')).toMatchObject({
+      state: 'not-assessed',
+      result: 'No curve is fitted, so there is no radius to judge',
+    })
+    // A road with no complete section has no cut to call classified.
+    const noGround: TerrainSource = { elevationAt: () => Number.NaN }
+    const blind = assess({ source: noGround })
+    expect(blind.analysis.stations.length).toBeGreaterThan(0)
+    expect(blind.row('materials')).toMatchObject({ state: 'not-assessed', result: 'No earthwork was calculated' })
+    expect(blind.row('rates').state).toBe('not-assessed')
+  })
+
+  it('does not fail on a line or profile the engine cannot read', () => {
+    const broken = entered()
+    broken.points[1] = { ...broken.points[1], coordinate: [Number.NaN, 53.9] }
+    const analysis = safeAnalyzeRoad(broken, hillside, DEFAULT_ROAD_SETTINGS, context)
+    const rows = rowsFor(broken, analysis)
+    expect(rows.find((row) => row.id === 'curve-radius')).toMatchObject({
+      state: 'not-assessed',
+      result: 'The line could not be calculated',
+    })
+    expect(rows.filter((row) => row.state === 'met').map((row) => row.id)).toEqual([
+      'terrain-source',
+      'standards',
+      'profile',
+      'vertical-curves',
+      'vertical-k',
+      'template',
+      'allowances',
+    ])
   })
 })
 

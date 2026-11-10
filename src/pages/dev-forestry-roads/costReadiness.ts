@@ -292,7 +292,8 @@ export function assessCostReadiness(
       detail:
         'Review Engineering → Drainage. Missing inverts, unresolved cover or unmatched crossing associations prevent complete structure geometry.',
     })
-  if (engineering?.culverts.some((culvert) => culvert.chainage > analysis.length + 1e-6))
+  // With nothing calculated the road has no length to be beyond.
+  if (analysis.stations.length && engineering?.culverts.some((culvert) => culvert.chainage > analysis.length + 1e-6))
     flags.push({
       id: 'excluded-culverts',
       label: 'Culverts beyond the road end are excluded',

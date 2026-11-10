@@ -8,6 +8,10 @@
  * a limit was not entered, a result is missing or out of date, or the subject is outside what it
  * models. A check that was not made never reads as met.
  *
+ * Two things make a rule unable to judge, and each rule tests for both before it can read met: the
+ * calculation it reads is absent (`calculated` is false when the analysis has no stations), or its
+ * own input is empty (no streams, no limit, no culvert). `readiness.test.ts` holds one case per rule.
+ *
  * None of this certifies a road standard: the limits are the project's own inputs.
  */
 import { calculatedAlignment, hasCompleteCoverage } from './analysisResult'
@@ -242,6 +246,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const mapped = !!alignment.mappedRoad
   const designed = alignment.vertical.length > 1
   const costFlags = (owner: string) => cost.flags.filter((flag) => COST_FLAG_OWNERS[flag.id] === owner)
+  /** False when the analysis produced nothing: every rule that reads it is then not assessed. */
+  const calculated = stations.length > 0
 
   // ---- Inputs --------------------------------------------------------------------------------
   // An input that cannot be calculated is left out of the results, so every row below is judged on
@@ -278,7 +284,18 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   // ---- Terrain -------------------------------------------------------------------------------
   const sourceText = `${terrain.name} · ${trim(terrain.resolutionM, 2)} m cells · ${terrain.verticalReference || 'no vertical datum'}`
   const siteLimit = `${MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M} m cells or finer, from a survey you have checked`
-  if (terrain.kind === 'demo')
+  if (terrain.kind !== 'demo' && !(Number.isFinite(terrain.resolutionM) && terrain.resolutionM > 0))
+    add({
+      id: 'terrain-source',
+      group: 'terrain',
+      check: 'Terrain fit for site quantities',
+      state: 'not-assessed',
+      result: 'The terrain’s cell size is not recorded',
+      measured: terrain.name,
+      judgedOn: siteLimit,
+      action: { label: 'Terrain', target: 'terrain' },
+    })
+  else if (terrain.kind === 'demo')
     add({
       id: 'terrain-source',
       group: 'terrain',
@@ -473,34 +490,52 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       })
   }
 
-  const curves = horizontalCurveSummary(alignment)
+  // The engine refuses a line it cannot read; the curve rows then have nothing to judge.
+  const fittedCurves = (() => {
+    try {
+      return horizontalCurveSummary(alignment)
+    } catch {
+      return null
+    }
+  })()
+  const curves = fittedCurves ?? []
   const sharp = ranges(stations, (s) => s.flags.some((flag) => /Sharp horizontal PI/i.test(flag)))
   const corners = Math.max(0, alignment.points.length - 2)
   add(
-    sharp.length
+    !calculated
       ? {
+          // A sharp corner is a flag on a calculated station: without stations none can be found.
           id: 'curves-fitted',
           group: 'alignment',
           check: 'Every corner fitted with a curve',
-          state: 'attention',
-          severity: 'limit',
-          result: `${plural(sharp.length, 'corner has', 'corners have')} no curve`,
-          measured: `${plural(curves.length, 'curve')} on ${plural(corners, 'corner')} · sharp at ${sharp
-            .slice(0, 3)
-            .map((range) => station(range.start))
-            .join(', ')}`,
+          state: 'not-assessed',
+          result: 'No sections were calculated, so the corners were not checked',
           judgedOn: 'A curve at every IP (intersection point)',
-          action: { label: `Go to ${station(sharp[0].start)}`, target: 'curves', chainage: sharp[0].start },
         }
-      : {
-          id: 'curves-fitted',
-          group: 'alignment',
-          check: 'Every corner fitted with a curve',
-          state: 'met',
-          result: corners ? `${every(corners, 'corner has', 'corners have')} a curve` : 'Straight road: no corners',
-          measured: corners ? plural(curves.length, 'curve') : undefined,
-          judgedOn: 'A curve at every IP (intersection point)',
-        },
+      : sharp.length
+        ? {
+            id: 'curves-fitted',
+            group: 'alignment',
+            check: 'Every corner fitted with a curve',
+            state: 'attention',
+            severity: 'limit',
+            result: `${plural(sharp.length, 'corner has', 'corners have')} no curve`,
+            measured: `${plural(curves.length, 'curve')} on ${plural(corners, 'corner')} · sharp at ${sharp
+              .slice(0, 3)
+              .map((range) => station(range.start))
+              .join(', ')}`,
+            judgedOn: 'A curve at every IP (intersection point)',
+            action: { label: `Go to ${station(sharp[0].start)}`, target: 'curves', chainage: sharp[0].start },
+          }
+        : {
+            id: 'curves-fitted',
+            group: 'alignment',
+            check: 'Every corner fitted with a curve',
+            state: 'met',
+            result: corners ? `${every(corners, 'corner has', 'corners have')} a curve` : 'Straight road: no corners',
+            measured: corners ? plural(curves.length, 'curve') : undefined,
+            judgedOn: 'A curve at every IP (intersection point)',
+          },
   )
 
   const tight = curves.filter((curve) => curve.radius < settings.minRadius - EPS)
@@ -508,7 +543,16 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     (best, curve) => (!best || curve.radius < best.radius ? curve : best),
     null,
   )
-  if (settings.minRadius <= 0)
+  if (!fittedCurves)
+    add({
+      id: 'curve-radius',
+      group: 'alignment',
+      check: 'Curve radius at or above the minimum',
+      state: 'not-assessed',
+      result: 'The line could not be calculated',
+      judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
+    })
+  else if (settings.minRadius <= 0)
     add({
       id: 'curve-radius',
       group: 'alignment',
@@ -537,13 +581,23 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         chainage: (tightest.start + tightest.end) / 2,
       },
     })
+  else if (!curves.length && corners > 0)
+    // Corners with no curve fitted are the corner row's finding; there is no radius here to pass.
+    add({
+      id: 'curve-radius',
+      group: 'alignment',
+      check: 'Curve radius at or above the minimum',
+      state: 'not-assessed',
+      result: 'No curve is fitted, so there is no radius to judge',
+      judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
+    })
   else
     add({
       id: 'curve-radius',
       group: 'alignment',
       check: 'Curve radius at or above the minimum',
       state: 'met',
-      result: curves.length ? `Every curve is ${trim(settings.minRadius)} m or wider` : 'No curves to check',
+      result: curves.length ? `Every curve is ${trim(settings.minRadius)} m or wider` : 'Straight road: no curves',
       measured: tightest ? `Tightest ${trim(tightest.radius)} m at ${station(tightest.start)}` : undefined,
       judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
     })
@@ -804,13 +858,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const unclassified = result
     ? (result.materials.find((material) => material.materialId === '__unclassified')?.bankCutM3 ?? 0)
     : analysis.cutVolumeM3
+  // Earthwork exists only between complete sections: with none, zero cut is not "no cut".
+  const earthworkKnown = calculated && analysis.completeLength > EPS
   if (analysis.cutVolumeM3 <= EPS)
     add({
       id: 'materials',
       group: 'earthwork',
       check: 'Ground materials entered for the cut',
-      state: stations.length ? 'met' : 'not-assessed',
-      result: stations.length ? 'No cut to classify' : 'No earthwork was calculated',
+      state: earthworkKnown ? 'met' : 'not-assessed',
+      result: earthworkKnown ? 'No cut to classify' : 'No earthwork was calculated',
     })
   else if (unclassified > EPS)
     add({
@@ -1011,6 +1067,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: sizedRule,
       action: { label: 'Add streams', target: 'streams' },
     })
+  else if (!calculated)
+    add({
+      id: 'crossing-structures',
+      group: 'water',
+      check: 'Every stream crossing has a sized structure',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so crossings were not found',
+      judgedOn: sizedRule,
+    })
   else if (!crossed.length)
     add({
       id: 'crossing-structures',
@@ -1078,6 +1143,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       state: 'not-assessed',
       result: 'No stream lines are in the project',
       action: { label: 'Add streams', target: 'streams' },
+    })
+  else if (!calculated)
+    add({
+      id: 'stream-class',
+      group: 'water',
+      check: 'Every crossed stream has a reviewed riparian class',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so crossed streams were not found',
+      judgedOn: 'A class S1 to S6 reviewed by a person (FPPR s. 47)',
     })
   else if (unclassed.length)
     add({
@@ -1224,6 +1298,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: 'Every sampled centreline station outside each excluded or unreviewed area',
       action: { label: 'Constraints', target: 'constraints' },
     })
+  else if (!calculated)
+    add({
+      id: 'constraints',
+      group: 'water',
+      check: 'Excluded and conditional areas kept clear',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so the areas were not tested',
+      judgedOn: 'Every sampled centreline station outside each excluded or unreviewed area',
+    })
   else if (entered.size) {
     const hits = [...entered.entries()].map(([name, range]) => {
       // Several areas can share a name; judge on the most restrictive.
@@ -1277,30 +1360,43 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       .filter((flag) => flag.id !== 'placeholder-rates')
       .map((flag) => `${flag.label}: ${flag.detail.split('. ')[0]}`),
   ].filter(Boolean)
+  // A rate is judged where it prices something: with no quantity, none is in use.
+  const quantities =
+    analysis.cutVolumeM3 + analysis.fillVolumeM3 + analysis.surfaceVolumeM3 + analysis.clearingAreaM2 > EPS
   add(
-    rateFlags.length
+    !quantities
       ? {
           id: 'rates',
           group: 'cost',
           check: 'Unit rates entered for the work',
-          state: 'attention',
-          severity: 'todo',
-          result: cost.placeholderRates.length
-            ? `${plural(cost.placeholderRates.length, 'rate is', 'rates are')} still the starting value`
-            : rateFlags[0].label,
-          measured: `${ratesText} · ${rateNotes.join(' · ')}`,
-          judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
-          action: { label: 'Enter rates', target: 'rates' },
-        }
-      : {
-          id: 'rates',
-          group: 'cost',
-          check: 'Unit rates entered for the work',
-          state: 'met',
-          result: 'Every base rate with a quantity has been entered',
+          state: 'not-assessed',
+          result: 'No quantities were calculated, so no rate is in use',
           measured: ratesText,
           judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
-        },
+        }
+      : rateFlags.length
+        ? {
+            id: 'rates',
+            group: 'cost',
+            check: 'Unit rates entered for the work',
+            state: 'attention',
+            severity: 'todo',
+            result: cost.placeholderRates.length
+              ? `${plural(cost.placeholderRates.length, 'rate is', 'rates are')} still the starting value`
+              : rateFlags[0].label,
+            measured: `${ratesText} · ${rateNotes.join(' · ')}`,
+            judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
+            action: { label: 'Enter rates', target: 'rates' },
+          }
+        : {
+            id: 'rates',
+            group: 'cost',
+            check: 'Unit rates entered for the work',
+            state: 'met',
+            result: 'Every base rate with a quantity has been entered',
+            measured: ratesText,
+            judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
+          },
   )
 
   const haulFlags = costFlags('haul')
@@ -1375,48 +1471,58 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       ?.detail.split('. ')[0]
       .split(', ') ?? []
   add(
-    structureFlags.length
+    culverts.length && !(calculated && result)
       ? {
+          // Entered culverts are priced by the calculation; without one there is no cost to read.
           id: 'structure-costs',
           group: 'cost',
           check: 'Structures priced',
-          state: 'attention',
-          severity: 'todo',
-          result: unpricedNames.length
-            ? `${plural(unpricedNames.length, 'culvert has', 'culverts have')} no price`
-            : structureFlags[0].label,
-          measured:
-            [
-              unpricedNames.length ? `No price: ${unpricedNames.join(', ')}` : '',
-              // The first prompt is the result when no culvert is unpriced; do not print it twice.
-              ...structureFlags
-                .filter((flag) => flag.id !== 'zero-culvert-rates')
-                .slice(unpricedNames.length ? 0 : 1)
-                .map((flag) => flag.label),
-            ]
-              .filter(Boolean)
-              .join(' · ') || undefined,
+          state: 'not-assessed',
+          result: 'No structure cost was calculated',
           judgedOn: 'An installed price on every culvert and current crossing record',
-          action: { label: 'Set price', target: 'culverts', chainage: culverts[0]?.chainage },
         }
-      : culverts.length
+      : structureFlags.length
         ? {
             id: 'structure-costs',
             group: 'cost',
             check: 'Structures priced',
-            state: 'met',
-            result: `${every(culverts.length, 'culvert has', 'culverts have')} a price`,
-            measured: result ? `Structures ${money(result.costs.structures)}` : undefined,
+            state: 'attention',
+            severity: 'todo',
+            result: unpricedNames.length
+              ? `${plural(unpricedNames.length, 'culvert has', 'culverts have')} no price`
+              : structureFlags[0].label,
+            measured:
+              [
+                unpricedNames.length ? `No price: ${unpricedNames.join(', ')}` : '',
+                // The first prompt is the result when no culvert is unpriced; do not print it twice.
+                ...structureFlags
+                  .filter((flag) => flag.id !== 'zero-culvert-rates')
+                  .slice(unpricedNames.length ? 0 : 1)
+                  .map((flag) => flag.label),
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined,
             judgedOn: 'An installed price on every culvert and current crossing record',
+            action: { label: 'Set price', target: 'culverts', chainage: culverts[0]?.chainage },
           }
-        : {
-            id: 'structure-costs',
-            group: 'cost',
-            check: 'Structures priced',
-            state: 'not-assessed',
-            result: 'No structures are entered, so there is nothing to price',
-            judgedOn: 'An installed price on every culvert and current crossing record',
-          },
+        : culverts.length
+          ? {
+              id: 'structure-costs',
+              group: 'cost',
+              check: 'Structures priced',
+              state: 'met',
+              result: `${every(culverts.length, 'culvert has', 'culverts have')} a price`,
+              measured: result ? `Structures ${money(result.costs.structures)}` : undefined,
+              judgedOn: 'An installed price on every culvert and current crossing record',
+            }
+          : {
+              id: 'structure-costs',
+              group: 'cost',
+              check: 'Structures priced',
+              state: 'not-assessed',
+              result: 'No structures are entered, so there is nothing to price',
+              judgedOn: 'An installed price on every culvert and current crossing record',
+            },
   )
 
   const mobilization = engineering?.haul.mobilizationCost ?? 0,
