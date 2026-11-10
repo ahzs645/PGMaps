@@ -111,6 +111,7 @@ import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
+import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
@@ -2461,6 +2462,7 @@ export default function DevForestryRoads() {
   // The vehicle check follows the displayed road; deferring it keeps drags and typing responsive.
   const sweptAlignment = useDeferredValue(displayedAlignment)
   const [showSwept, setShowSwept] = useState(true)
+  const [junctionOverlay, setJunctionOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const sweptState = useMemo(() => {
     const check = sweptAlignment.vehicleCheck
     if (!check || terrainProfile) return { result: null, error: '' }
@@ -2470,6 +2472,10 @@ export default function DevForestryRoads() {
       return { result: null, error: cause instanceof Error ? cause.message : 'The swept path could not be calculated.' }
     }
   }, [sweptAlignment, terrainProfile])
+  const sweptOnPlan = useMemo(
+    () => withJunctionOverlay(sweptState.result?.overlay, junctionOverlay),
+    [sweptState.result, junctionOverlay],
+  )
   // Review reads the result only once it is for the road on screen, never a deferred earlier one.
   const vehicleFitOnRoad = useMemo(
     () => (sweptState.result && sweptAlignment === alignment ? vehicleFit(sweptState.result) : null),
@@ -2477,6 +2483,7 @@ export default function DevForestryRoads() {
   )
   const swept: SweptPathProps = {
     ...sweptState,
+    junctions: { alignments: project.alignments, context: project.context, onOverlay: setJunctionOverlay },
     showOnPlan: showSwept,
     onShowOnPlan: setShowSwept,
     onFocus: (turn) => {
@@ -3625,7 +3632,7 @@ export default function DevForestryRoads() {
                             onCableDistance={setCableDistance}
                             overlay={investigation ? undefined : planOverlay}
                             drainage={investigation ? undefined : drainageOnPlan}
-                            swept={!investigation && showSwept ? sweptState.result?.overlay : undefined}
+                            swept={!investigation && showSwept ? sweptOnPlan : undefined}
                             // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                             pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={
@@ -3994,6 +4001,8 @@ export default function DevForestryRoads() {
                                       showOnPlan={showSwept}
                                       onShowOnPlan={setShowSwept}
                                       onFocus={swept.onFocus}
+                                      alignment={displayedAlignment}
+                                      junctions={swept.junctions}
                                     />
                                   </div>
                                 )}
