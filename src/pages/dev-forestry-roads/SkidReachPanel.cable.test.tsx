@@ -122,7 +122,7 @@ it('runs the cable yarder: coverage in the shared tables, suggested lines on the
   expect(shown.some((feature) => feature.properties?.kind === 'extraction-class')).toBe(true)
   const notice = String(notices.mock.calls.find((args) => String(args[0]).includes('cable yarder reach'))?.[0])
   expect(notice).toMatch(
-    /^Block C: \d+% of [\d.]+ ha within cable yarder reach of \d+ roads?, .* \d+ of \d+ lines work\./,
+    /^Block C: \d+% of [\d.]+ ha within cable yarder reach of \d+ roads?, .* [\d,]+ of [\d,]+ lines work\./,
   )
   // Spur suggestions read ground-based reach and are not offered for cable.
   expect(renderer.root.findAllByProps({ 'data-testid': 'skid-reach-suggest' })).toHaveLength(0)

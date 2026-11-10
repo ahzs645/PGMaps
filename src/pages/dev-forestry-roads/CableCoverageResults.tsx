@@ -82,7 +82,8 @@ export function CableCoverageResults({
       </dl>
       {rejected.length > 0 && (
         <p className="text-2xs text-muted-foreground">
-          Not kept: {rejected.map(([reason, n]) => `${n} ${REJECTED[reason] ?? reason}`).join(', ')}.
+          Not kept:{' '}
+          {rejected.map(([reason, n]) => `${n.toLocaleString('en-CA')} ${REJECTED[reason] ?? reason}`).join(', ')}.
         </p>
       )}
       <div className="space-y-1.5 border-t pt-2">

@@ -365,7 +365,7 @@ export function SkidReachPanel(p: SidebarProps) {
       })
       const s = after.summary
       w.setNotice(
-        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${MACHINE_NAMES[settings.machine].toLowerCase()} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${cable ? ` ${cable.coverage.lines.length} of ${cable.coverage.stats.candidates} lines work.` : ''}${compare && !before ? ' No designed road to compare.' : ''}`,
+        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${MACHINE_NAMES[settings.machine].toLowerCase()} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${cable ? ` ${cable.coverage.lines.length.toLocaleString('en-CA')} of ${cable.coverage.stats.candidates.toLocaleString('en-CA')} lines work.` : ''}${compare && !before ? ' No designed road to compare.' : ''}`,
       )
     } catch (cause) {
       if (controller.signal.aborted) w.setNotice('Extraction reach cancelled. Nothing was changed.')
