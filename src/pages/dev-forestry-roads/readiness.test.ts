@@ -469,6 +469,14 @@ describe('assessReadiness: limits and states', () => {
       result: 'The vehicle leaves the running surface at 1 of 2 turns',
       measured: 'Log truck · needs up to 1.24 m more width at 0+210.0',
     })
+    // Wheels that fit do not make a turn the truck cannot steer.
+    const locked = { ...fits, beyondLockTurns: 1, steeringLockDeg: 28.31 }
+    expect(assess({ vehicle: locked }).row('vehicle-fit')).toMatchObject({
+      state: 'attention',
+      result: 'The vehicle cannot steer 1 of 2 turns',
+      measured: 'Log truck · beyond its 28.31° steering lock',
+    })
+    expect(assess({ vehicle: { ...locked, beyondLockTurns: 0 } }).row('vehicle-fit').state).toBe('met')
   })
 
   it('keeps a cost prompt it has no row for, and gives every attention row somewhere to go', () => {

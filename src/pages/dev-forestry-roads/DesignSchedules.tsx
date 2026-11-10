@@ -14,6 +14,7 @@ import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
 import { SweptPathPanel } from './SweptPathPanel'
 import type { SweptManeuver, SweptPathResult } from './sweptPath'
+import type { JunctionTurnProps } from './JunctionTurnPanel'
 import type { Alignment, RoadAnalysis, TerrainMetadata, VehicleCheck, VerticalPoint } from './types'
 
 export interface SweptPathProps {
@@ -24,6 +25,8 @@ export interface SweptPathProps {
   onShowOnPlan: (show: boolean) => void
   /** Frame a turn on the plan and select its governing station. */
   onFocus?: (turn: SweptManeuver) => void
+  /** The project's roads, for turns at this road's junctions. */
+  junctions?: JunctionTurnProps
 }
 
 const fmt = (value: number | null | undefined) => (value == null ? '—' : value.toFixed(2))
@@ -118,6 +121,8 @@ export function DesignSchedules({
               showOnPlan={swept.showOnPlan}
               onShowOnPlan={swept.onShowOnPlan}
               onFocus={swept.onFocus}
+              alignment={alignment}
+              junctions={swept.junctions}
             />
           </div>
         )}

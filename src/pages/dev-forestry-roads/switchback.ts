@@ -184,9 +184,14 @@ export function switchbackSweptTurn(sketch: SwitchbackSketch, check: VehicleChec
   const curveCount = horizontalCurveSummary(sketch.alignment).length
   const runs = analyzeSweptPath(sketch.alignment, check).maneuvers.filter((t) => t.curveIds.includes(`H${curveCount}`))
   const widen = (t: (typeof runs)[number]) => Math.max(t.requiredLeftWideningM, t.requiredRightWideningM)
+  const lockExceeded = runs.some((t) => t.lockExceeded)
   return {
     runs,
-    fits: runs.every((t) => t.fits),
+    // A radius the vehicle cannot steer does not fit, however wide the formation.
+    fits: runs.every((t) => t.fits) && !lockExceeded,
+    wheelsFit: runs.every((t) => t.fits),
+    lockExceeded,
+    maxSteerDegrees: Math.max(0, ...runs.map((t) => t.maxSteerDegrees)),
     requiredWideningM: Math.max(0, ...runs.map(widen)),
     maxOfftrackingM: Math.max(0, ...runs.map((t) => t.maxOfftrackingM)),
   }
@@ -194,7 +199,7 @@ export function switchbackSweptTurn(sketch: SwitchbackSketch, check: VehicleChec
 
 /**
  * Smallest switchback radius, to `toleranceM`, whose turn keeps the vehicle's wheels on the
- * formation with the entered clearance. Assumes offtracking falls as the radius grows, which holds
+ * formation with the entered clearance and stays within its steering lock, when one is entered. Assumes offtracking falls as the radius grows, which holds
  * for the constant-width two-curve construction. Null when even `maxRadiusM` needs widening.
  */
 export function smallestFittingSwitchbackRadius(

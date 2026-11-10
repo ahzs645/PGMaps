@@ -108,16 +108,26 @@ hitch to the axle-group centre), front and rear overhang, and, for all but the
 last unit, a hitch offset from its axle group to the next unit's hitch. Width is
 out-to-out. Three starting configurations are provided:
 
-| Starting configuration                | Units                                                                                           |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Loaded log truck + pole trailer       | Truck 5.8 m wheelbase; logs pivot on the truck bunk, 9.5 m to the trailer bunk, 5 m overhang     |
-| Empty log truck, trailer carried      | One unit, 5.8 m wheelbase, 3 m rear overhang                                                     |
-| Tractor–semitrailer, WB-19 class      | Tractor 6.6 m, fifth wheel 0.3 m ahead of the tandem; semitrailer 12.5 m kingpin to axles        |
+| Starting configuration           | Units                                                                                        |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| Loaded log truck + pole trailer  | Truck 5.8 m wheelbase; logs pivot on the truck bunk, 9.5 m to the trailer bunk, 5 m overhang |
+| Empty log truck, trailer carried | One unit, 5.8 m wheelbase, 3 m rear overhang                                                 |
+| Tractor–semitrailer, WB-19 class | Tractor 6.6 m, fifth wheel 0.3 m ahead of the tandem; semitrailer 12.5 m kingpin to axles    |
 
 **These are example dimensions, not certified design vehicles.** Replace them with
 the fleet's truck, bunk spacing, log length and overhang, or with the design
 vehicle in your criteria source. Editing a starting configuration renames it
 "(edited)" and the source field records where the dimensions came from.
+
+Three further starting configurations, LG5, LG3 and WB-15 (BC), are transcribed
+from the BC MoTI Supplement to the TAC Geometric Design Guide, with a steering
+lock and, for the log trucks, logs spanning two units. They are named dimension
+sets with a stated source, not approvals, and their source text lists the values
+the figures do not give. A vehicle can also carry a **steering lock**, which flags
+a turn the truck cannot steer however wide the formation, and **loads on two
+units**. [Vehicle turning](vehicle-turning.md) covers both, the turning
+calculator, and the **Junction turns** check of turns into and out of the roads
+that meet this one.
 
 **Direction and clearance.** Choose up-station, down-station or both. With both,
 each turn reports the direction that needs the most widening. The wheel clearance
@@ -170,6 +180,9 @@ For the supplied example with the loaded pole-trailer starting configuration and
 Staging a left switchback (50 m entry, 5 m middle, 80 m exit) at the end of the
 training road, whose formation is 3 m each side, the tool finds R46.5 m as the
 smallest fitting radius; at R20 the wheels need 1.87 m more.
+
+**With a steering lock entered,** the search only accepts radii the vehicle can
+steer, and a turn beyond the lock is flagged even when the wheels fit.
 
 **Not modelled:** tandem scrub, tyre and suspension compliance, driver line, speed,
 grade, traction and braking, reversing, mirrors and vertical clearance. The check

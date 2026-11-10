@@ -106,6 +106,9 @@ export interface VehicleFit {
   /** Largest wheel-path widening any turn needs, 0 when everything fits. */
   worstWideningM: number
   worstChainage: number | null
+  /** Turns that need more steering than the vehicle's lock; 0 when no lock is entered. */
+  beyondLockTurns?: number
+  steeringLockDeg?: number
 }
 
 /** The swept-path result reduced to what the readiness row states. */
@@ -127,6 +130,12 @@ export function vehicleFit(result: SweptPathResult): VehicleFit {
     failingTurns: failing.length,
     worstWideningM: worst ? Math.max(worst.requiredLeftWideningM, worst.requiredRightWideningM) : 0,
     worstChainage: worst?.worstChainage ?? null,
+    ...(result.check.vehicle.steeringLockDeg === undefined
+      ? {}
+      : {
+          beyondLockTurns: new Set(result.maneuvers.filter((turn) => turn.lockExceeded).map((turn) => turn.id)).size,
+          steeringLockDeg: result.check.vehicle.steeringLockDeg,
+        }),
   }
 }
 
@@ -630,6 +639,18 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       measured: `${vehicle.vehicleName} · needs up to ${vehicle.worstWideningM.toFixed(2)} m more width${vehicle.worstChainage === null ? '' : ` at ${station(vehicle.worstChainage)}`}`,
       judgedOn: `Wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
       action: { label: 'Open check', target: 'vehicle', chainage: vehicle.worstChainage ?? undefined },
+    })
+  else if (vehicle.beyondLockTurns)
+    add({
+      id: 'vehicle-fit',
+      group: 'alignment',
+      check: 'Design vehicle stays on the running surface',
+      state: 'attention',
+      severity: 'limit',
+      result: `The vehicle cannot steer ${vehicle.beyondLockTurns} of ${plural(vehicle.turns, 'turn')}`,
+      measured: `${vehicle.vehicleName} · beyond its ${vehicle.steeringLockDeg}° steering lock`,
+      judgedOn: `Steering angle within the vehicle's lock; wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
+      action: { label: 'Open check', target: 'vehicle' },
     })
   else
     add({

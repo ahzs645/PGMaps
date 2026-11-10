@@ -281,7 +281,9 @@ export function SwitchbackTools({
                   ? 'Checking the vehicle swept path…'
                   : sweptTurn.fits
                     ? `Wheels stay on the formation · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`
-                    : `Wheels need ${sweptTurn.requiredWideningM.toFixed(2)} m more formation · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`}
+                    : sweptTurn.wheelsFit
+                      ? `Beyond the ${vehicleCheck.vehicle.steeringLockDeg}° steering lock: needs ${sweptTurn.maxSteerDegrees.toFixed(1)}° · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`
+                      : `Wheels need ${sweptTurn.requiredWideningM.toFixed(2)} m more formation${sweptTurn.lockExceeded ? ' and more steering than the lock' : ''} · offtracking ${sweptTurn.maxOfftrackingM.toFixed(2)} m`}
               </p>
               <p className="text-2xs text-muted-foreground">
                 {vehicleCheck.vehicle.name}
