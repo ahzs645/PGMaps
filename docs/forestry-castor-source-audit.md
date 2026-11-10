@@ -1,6 +1,6 @@
 # Forestry Castor: source audit and browser contract
 
-Reviewed 2 November 2026. This audit covers every file and callable entry point in
+Reviewed 2 November 2026; native-comparison supplement added 5 November 2026. This audit covers every file and callable entry point in
 the requested `bcgov/forestryCastor` repository, the growth/data dependencies
 needed to execute its core, and the provenance of the bundled browser example.
 
@@ -152,7 +152,7 @@ version, input provenance, elapsed time and relevant assumptions.
 | `harvestPeriod` | Declared but not assigned in the module | Explicit period/year fields in browser results |
 | `harvestReport` | Scenario, time, compartment, annual target/area/volume, mean age, block-size proxy, available THLB and transitions | Charts and CSV, with period totals and annualized rates labelled separately |
 | `harvestBlocks` | Most recent harvest elapsed year for each cell; later harvest overwrites the earlier cell value | Raster/map plus separate time-series snapshots and event ledger |
-| `harvestBlocksVolume` | Selected live volume per cell in queue mode; prescribed mode references a mismatched field | Correctly labelled harvested-volume raster and event-volume ledger |
+| `harvestBlocksVolume` | Selected live volume per cell in queue mode; prescribed mode resolves `$vol` to `vol_h` through R partial matching | Correctly labelled harvested-volume raster and event-volume ledger |
 | `harvestBlockList` | Appended aggregate block volume/height/elevation; no explicit time column added | Period-aware block table/CSV and spatial outputs |
 | `harvestPixelList` | Reset each period, appended across its compartments | Full run pixel-event ledger/CSV |
 | `ras.zoneConstraint` | Adds a 0/1 reservation mask each queue period | Counts of constrained periods **and** derived years; separate raster legends |
@@ -198,9 +198,11 @@ output requiring a cost surface and a road-generation workflow.
 9. **Raster units and history differ.** Constraint accumulation counts periods,
    not years. Harvest rasters keep the latest event, not every harvest. Explicit
    event history is necessary for complete web outputs.
-10. **Prescribed-schedule volume contains a field mismatch.** The schedule query
-    aliases `vol` as `vol_h`, then the raster assignment reads `$vol`. Browser
-    output must take the correctly named, unit-aware value.
+10. **Prescribed-schedule volume uses R partial matching.** The schedule query
+    aliases `vol` as `vol_h`, then the raster assignment reads `$vol`. In the
+    executed native fixture, R resolves that partial name to `vol_h` and writes
+    the expected 204 m³. This is not evidence of a broken native raster. Browser
+    output uses an explicit, unit-aware field.
 11. **Area and missing values need an import contract.** Source cell counts and
     `thlb` assume the input preparation is compatible; missing volumes and absent
     yield knots are not permission to fill arbitrary forestry values.
@@ -278,12 +280,23 @@ cover constraint ordering/limits, SQLite versus R rounding, actual-source growth
 SQL, endpoint behavior, and cumulative-prefix harvesting. The generator uses no
 TypeScript output and verifies original source/sample checksums.
 
-These tests establish selected algorithm contracts. They do not execute SpaDES,
+These SQL tests establish selected algorithm contracts. They do not execute SpaDES,
 its full event/dependency chain, PostgreSQL preparation, the missing Java class,
 or a calibrated uncertainty model. Complete equivalence requires a fixed R
 environment, a complete prepared case, matched event ordering and independently
 recorded outputs. Browser changes listed above should have their own tests and
 remain visible in the model version and exported assumptions.
+
+The [native R/SpaDES suite](../scripts/forestry-castor/native-reference/README.md)
+now supplies a bounded execution comparison: 13 synthetic three-period cases,
+4,492 values/ID arrays, 4,010 agreements and 482 explicitly recorded differences.
+It invokes the unchanged modules through the real scheduler and verifies their
+source, input and harness checksums. It does not exercise the entire dependency
+chain or establish operational equivalence. In addition to previously noted
+queue-cap, endpoint and schedule differences, execution confirms that the browser
+resets all clearcut stand attributes immediately, writes dead rather than live
+volume for salvage rasters, and clamps age at 350 rather than allowing native
+349 → 351 overshoot. Every changed value has an exact reviewed expectation.
 
 The independent input/output and persistence tests additionally exercise the real
 bundled SQLite database through SQLite Wasm, the browser engine, and a GeoTIFF

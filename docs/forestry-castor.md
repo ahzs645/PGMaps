@@ -9,7 +9,10 @@ can be built as a standalone static application for the forestryCastor fork.
 This document is the implementation contract. The [source audit](forestry-castor-source-audit.md)
 maps every upstream function, declared output and missing dependency to the
 browser implementation. The [reference checks](../scripts/forestry-castor/reference/README.md)
-define what has been compared independently with the original SQL.
+define what has been compared independently with the original SQL. The
+[native R/SpaDES comparison](../scripts/forestry-castor/native-reference/README.md)
+additionally executes 13 synthetic, three-period cases and records both numerical
+agreement and explicit browser differences. It is not operational equivalence.
 
 ## Start a scenario
 
