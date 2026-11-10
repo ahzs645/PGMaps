@@ -70,7 +70,70 @@ Found on 2026-11-09 while reworking Review and the design standards; **read** un
 - Review's constraint row tests sampled centreline stations only (`avoidAt` in `engine.ts`): a road
   that clips an area between two stations, or whose batter reaches into one, is not raised there.
 
+Found on 2026-11-09 while fixing Review, the grade rule and invalid inputs; **read** unless marked.
+
+- A short dip under the limit starts a new pitch. `reviewGrades` (`designStandards.ts`) ends a run
+  at the first station inside the sustained limit, with no minimum separation: 100 m at 16 % with a
+  5 m dip to 11.9 % reads as two permitted pitches of under 50 m against a 50 m allowance
+  (**confirmed** by a probe). Whether two pitches that close together are one is a standards
+  decision the record does not hold.
+- A short-pitch limit above both sustained limits applies to loaded-uphill grades at its full
+  value: with an 8 % adverse limit and "20 % for 100 m", 50 m at 19.5 % loaded uphill is permitted
+  (`pitchAllowance`, `designStandards.ts`). The guide says so; an adverse limit usually wants its
+  own, lower allowance, which the record has no field for.
+- The grade flag rounds its limit to two decimals (`trim`, `designStandards.ts`): a 12.345 % limit
+  flags "Grade exceeds 12.35%" beside a warning that says 12.345 %.
+- With haul allocation off, Review's earthwork row compares the covered totals only and can read
+  "Cut and fill balance within tolerance" on a road with unknown lengths (`assessReadiness`,
+  `readiness.ts`). Its measured line says "(covered sections only)" and the terrain row raises the
+  gap, but the row itself is met.
+- A constraint's review date and a stream assessment's dates still accept a day that does not
+  exist (`parseConstraintPolicy`, `constraints.ts`; `dateText`, `streamClass.ts`). The standards'
+  confirmation date and the issue date now use `isCalendarDate` (`projectIssue.ts`).
+- While an input is invalid, the valid edits made since are applied one field or one list entry at
+  a time (`withoutInvalidInputs`, `analysisResult.ts`). An edit to another field of the invalid
+  entry itself is applied too, so a stripping range with an impossible station range and a new
+  depth is calculated at its last valid range and the new depth.
+- The selected-section readout on a typed station is built from the road's current inputs
+  (`stationSampler`, `DevForestryRoads.tsx`), so it has no sampler while an input is invalid and
+  snaps to the nearest calculated station. Build it from `calculatedAlignment` instead.
+
 ## Fixed on 2026-11-09
+
+- Review no longer passes a profile whose vertical curves the engine dropped. A curve longer than
+  its tangents, or overlapping its neighbour, used to count as a curve ("All 2 grade breaks have a
+  vertical curve") and to pass the minimum K on its entered length. The rows read the applied
+  curves and name each dropped one with its station (`assessReadiness`, `readiness.ts`), and
+  `checkVerticalDesign` (`verticalStandards.ts`) fails a dropped curve against a minimum K or curve
+  length instead of judging the length that was typed.
+- An invalid input leaves out only itself. The fallback used to replace the template, engineering,
+  widenings and curve rules together with the last valid set, so a culvert price changed after an
+  out-of-range width was ignored. `safeAnalyzeRoad` (`analysisResult.ts`) now puts back one
+  difference at a time. Every result says what it leaves out: the header tiles, the charts alert,
+  the cost dialog, a leading Review row and the first model flag. The report and map PDF are
+  stamped; LandXML, stakeout, plot book, station and engineering CSVs, GeoJSON and shapefiles are
+  refused (`INVALID_INPUT_RULES`, `exportCatalog.ts`). A ditch bottom can no longer be typed wider
+  than its top (`ditchWidthRange`, `templates.ts`), and the project parser refuses one.
+- A material plan that was not solved, or is infeasible, no longer states quantities. It reported
+  all fill as unallocated borrow and all cut as unallocated waste: the cost breakdown listed
+  default-rate rows its total left out, and Review read "22,165 m³ of borrow has no source"
+  (`allocateOrReport` and `haulCostLines`, `engineering.ts`; `materialPlanMissing`,
+  `engineeringTypes.ts`).
+- Six Review rows read met when nothing was calculated: corners, stream crossings, riparian class,
+  constraint areas, unit rates and structure prices. Each now reads not assessed, and every
+  culvert is no longer "beyond the road end" of a road with no length (`assessReadiness`,
+  `readiness.ts`; `assessCostReadiness`, `costReadiness.ts`).
+- A short-pitch limit between the adverse limit and the grade limit is applied, to loaded-uphill
+  pitches (`gradeRule`, `designStandards.ts`). A pitch is measured by the intervals its stations
+  describe, so a 50 m pitch measures 50 m at the road end instead of 55 m, and 45 m at its start
+  (`reviewGrades`).
+- The Review list leads with what needs attention and folds the rest: about 820 px on the example
+  road, from about 2,200 px (`ReadinessList`, `ReadinessPanel.tsx`).
+- Review counts unpriced culverts from the records, not by splitting a sentence on commas, and its
+  rates button leads to where the outstanding rate is edited. The cost dialog lists an unpriced
+  culvert that has no inverts. The standards' confirmation date and the issue date refuse days
+  that do not exist. A failed save is stated once in the header, and the project name and save
+  state stay readable beside the road switcher down to 768 px.
 
 - A gap in the terrain data no longer breaks the mass-haul curve or the haul allocation. The mass
   ordinate is the known earthwork so far and is carried across an incomplete interval instead of
