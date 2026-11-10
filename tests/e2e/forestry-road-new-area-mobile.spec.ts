@@ -52,7 +52,8 @@ async function inspectMap(page: Page, coordinates: Coordinate[] = []) {
 }
 
 async function controls(page: Page, tab: string) {
-  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+  // A first visit or a reload may still be loading or restoring a 1 m terrain; Save waits for it.
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 90000 })
   await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-focus-mode', 'true')
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
   if (await show.isVisible()) await show.tap()
