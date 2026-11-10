@@ -78,8 +78,9 @@ the parameter set, each with an info tip: corridor 10–80 m (40), pull to the r
 level-edge tolerance 0.05–0.30 m (0.15), and with a point cloud the ground-spread tolerance
 0.02–0.30 m (0.10) and the drivable brush share 5–50 % (15 %), plus the state thresholds (vegetation
 10–40 %, drivable width 1–5 m, shoulders 50–75 %; the conductivity thresholds 0.25–0.5 are fixed).
-**Treat as water** lists the project's polygons; only those ticked are water. An invalid value
-disables the search and says which field; nothing is clamped silently. The settings are kept for the
+**Treat as water** lists the project's polygons; only those ticked are water. A value typed
+outside its range is brought to the nearest limit and the field shows a notice, as in every
+number field; settings that still fail validation disable the search and name the field. The settings are kept for the
 session, and every value a search ran with is saved with an adopted road and in a recorded
 observation's notes.
 
