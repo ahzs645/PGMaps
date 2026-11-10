@@ -1,4 +1,6 @@
 /** Portable bounded report authoring. Label templates substitute whitelisted data; never eval code. */
+import { parseOmittedSections, type ReportSectionId } from './reportContents'
+
 export const REPORT_CHAPTER_KINDS = [
   'plan-profile',
   'sections',
@@ -35,9 +37,34 @@ export interface ReportChapter {
   verticalExaggeration: number
   columns: ReportColumn[]
 }
+/**
+ * Plot-book paper, landscape. Each sheet is drawn 1123 units high; `viewWidth` keeps the paper's
+ * proportions, so a wider sheet gains width and every vertical position stays where it was.
+ * A3 and A4 keep the original 1587-unit sheet.
+ */
+export const REPORT_PAPERS = {
+  A3: { label: 'A3 landscape', widthMm: 420, heightMm: 297, viewWidth: 1587, cssSize: 'A3 landscape' },
+  A4: { label: 'A4 landscape', widthMm: 297, heightMm: 210, viewWidth: 1587, cssSize: 'A4 landscape' },
+  tabloid: {
+    label: 'Tabloid 11 × 17 in (ANSI B) landscape',
+    widthMm: 431.8,
+    heightMm: 279.4,
+    viewWidth: 1736,
+    cssSize: '17in 11in',
+  },
+  'ansi-d': {
+    label: 'ANSI D 22 × 34 in landscape',
+    widthMm: 863.6,
+    heightMm: 558.8,
+    viewWidth: 1736,
+    cssSize: '34in 22in',
+  },
+} as const
+export type ReportPaper = keyof typeof REPORT_PAPERS
+export const REPORT_PAPER_IDS = Object.keys(REPORT_PAPERS) as ReportPaper[]
 export interface RoadReportSettings {
   schema: 'pgmaps-road-report-v1'
-  paper: 'A3' | 'A4'
+  paper: ReportPaper
   chapters: ReportChapter[]
   subviews: { plan: boolean; profile: boolean; mass: boolean; contours: boolean; legend: boolean }
   stationLabel: string
@@ -45,6 +72,8 @@ export interface RoadReportSettings {
   labelOffsetX: number
   labelOffsetY: number
   curveTablePosition: 'chapter' | 'plan-sheet' | 'none'
+  /** Report sections left out of the printed report (`reportContents.ts`); absent prints them all. */
+  omittedSections?: ReportSectionId[]
 }
 export const MAX_REPORT_CHAPTERS = 16
 export const MAX_REPORT_SHEETS = 500
@@ -128,7 +157,8 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
   if (raw === undefined) return createRoadReportSettings()
   const r = record(raw, 'Report settings')
   if (r.schema !== 'pgmaps-road-report-v1') throw Error('Unsupported road report settings version.')
-  if (r.paper !== 'A3' && r.paper !== 'A4') throw Error('Choose A3 or A4 report paper.')
+  if (typeof r.paper !== 'string' || !(REPORT_PAPER_IDS as string[]).includes(r.paper))
+    throw Error('Choose A3, A4, tabloid or ANSI D report paper.')
   if (!Array.isArray(r.chapters) || !r.chapters.length || r.chapters.length > MAX_REPORT_CHAPTERS)
     throw Error(`Use 1–${MAX_REPORT_CHAPTERS} report chapters.`)
   const chapters = r.chapters.map((rawChapter): ReportChapter => {
@@ -168,9 +198,10 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
     throw Error('Keep at least one plot subview.')
   if (!['chapter', 'plan-sheet', 'none'].includes(r.curveTablePosition as string))
     throw Error('Unknown curve table position.')
+  const omittedSections = parseOmittedSections(r.omittedSections)
   return {
     schema: 'pgmaps-road-report-v1',
-    paper: r.paper,
+    paper: r.paper as ReportPaper,
     chapters,
     subviews: {
       plan: subviews.plan as boolean,
@@ -184,5 +215,6 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
     labelOffsetX: number(r.labelOffsetX, -100, 100, 'Label X offset'),
     labelOffsetY: number(r.labelOffsetY, -100, 100, 'Label Y offset'),
     curveTablePosition: r.curveTablePosition as RoadReportSettings['curveTablePosition'],
+    ...(omittedSections?.length ? { omittedSections } : {}),
   }
 }

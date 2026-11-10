@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -10,9 +10,12 @@ import {
   parseRoadReportSettings,
   REPORT_CHAPTER_KINDS,
   REPORT_COLUMNS,
+  REPORT_PAPER_IDS,
+  REPORT_PAPERS,
   validateLabelTemplate,
   type ReportChapter,
   type ReportChapterKind,
+  type ReportPaper,
   type RoadReportSettings,
 } from './reportSettings'
 
@@ -41,13 +44,22 @@ const SUBVIEW_LABELS = { plan: 'Plan', profile: 'Profile', mass: 'Mass haul', co
 export function ReportSettingsEditor({
   value,
   onChange,
+  initialChapter,
 }: {
   value?: RoadReportSettings
   onChange: (settings: RoadReportSettings) => void
+  /** The chapter to open and bring into view, e.g. the one whose sheet was clicked in the preview. */
+  initialChapter?: string
 }) {
   const settings = value ?? createRoadReportSettings()
   // The chapter open for editing; null when every chapter is folded.
-  const [selected, setSelected] = useState<string | null>(settings.chapters[0].id)
+  const [selected, setSelected] = useState<string | null>(
+    initialChapter && settings.chapters.some((c) => c.id === initialChapter) ? initialChapter : settings.chapters[0].id,
+  )
+  const opened = useRef<HTMLLIElement>(null)
+  useEffect(() => {
+    if (initialChapter) opened.current?.scrollIntoView?.({ block: 'nearest' })
+  }, [initialChapter])
   const [kind, setKind] = useState<ReportChapterKind>('schedule')
   const [error, setError] = useState<string | null>(null)
   const update = (next: RoadReportSettings) => {
@@ -84,11 +96,8 @@ export function ReportSettingsEditor({
           <Field label="Paper size">
             <RoadSelect
               value={settings.paper}
-              onValueChange={(paper) => update({ ...settings, paper: paper as 'A3' | 'A4' })}
-              options={[
-                { value: 'A3', label: 'A3 landscape' },
-                { value: 'A4', label: 'A4 landscape' },
-              ]}
+              onValueChange={(paper) => update({ ...settings, paper: paper as ReportPaper })}
+              options={REPORT_PAPER_IDS.map((paper) => ({ value: paper, label: REPORT_PAPERS[paper].label }))}
               ariaLabel="Report paper size"
             />
           </Field>
@@ -114,7 +123,7 @@ export function ReportSettingsEditor({
           {settings.chapters.map((chapter, index) => {
             const open = selected === chapter.id
             return (
-              <li key={chapter.id}>
+              <li key={chapter.id} ref={open && chapter.id === initialChapter ? opened : undefined}>
                 <div className="flex items-center gap-0.5 pr-1">
                   <button
                     type="button"
