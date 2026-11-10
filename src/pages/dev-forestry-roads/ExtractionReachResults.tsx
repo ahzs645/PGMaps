@@ -19,7 +19,7 @@ const pct = (share: number) => `${(100 * share).toFixed(share > 0 && share < 0.0
 const metres = (m: number) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(2)} km`)
 const ha = (value: number) => value.toFixed(1)
 
-const METHOD_LABELS: Record<'skidder' | 'forwarder', Partial<Record<ExtractionMethod, string>>> = {
+const METHOD_LABELS: Record<ExtractionSummary['machine'], Partial<Record<ExtractionMethod, string>>> = {
   skidder: {
     road: 'On a road or trail',
     ground: 'Skidded',
@@ -31,6 +31,10 @@ const METHOD_LABELS: Record<'skidder' | 'forwarder', Partial<Record<ExtractionMe
     ground: 'Forwarded, free travel',
     run: 'Forwarded, straight runs',
     crane: 'Loaded by crane',
+  },
+  cable: {
+    road: 'On a road',
+    cable: 'Yarded by skyline',
   },
 }
 const STATE_LABELS: [ExtractionState, string][] = [
@@ -95,7 +99,7 @@ export function ExtractionReachResults({
                 <td>{(100 * share(s.viaTrailHa)).toFixed(1)}</td>
               </tr>
             )}
-            {STATE_LABELS.map(([state, label]) => (
+            {STATE_LABELS.filter(([state]) => s.machine !== 'cable' || state !== 'steep').map(([state, label]) => (
               <tr key={state}>
                 <th scope="row">{label}</th>
                 <td>{ha(s.stateHa[state])}</td>
