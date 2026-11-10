@@ -208,8 +208,8 @@ export function JunctionTurnPanel({
           />
         </div>
         <p className="text-2xs text-muted-foreground">
-          Loaded trucks usually come out of the branch road toward the mill. No haul direction is entered, so turns in
-          both directions are listed.{' '}
+          Loaded trucks usually come out of the branch road toward the mill. Turns in both directions are listed; Review
+          → Haul gives the loaded turn toward a destination.{' '}
           <InfoTip label="How junction turns are checked" bubbleClassName="w-96 space-y-1.5">
             <span className="block">{JUNCTION_TURN_BASIS}</span>
             <span className="block">

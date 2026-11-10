@@ -4133,8 +4133,10 @@ export default function DevForestryRoads() {
                                           data-testid="road-cable-summary"
                                         >
                                           <summary className="cursor-pointer">
-                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m · assumed
-                                            sag {number(cableResult.summary.assumedSagM)} m
+                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m ·{' '}
+                                            {cableAnalysis.mechanics?.span
+                                              ? 'rope and load'
+                                              : `assumed sag ${number(cableResult.summary.assumedSagM)} m`}
                                           </summary>
                                           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
                                             <span>
@@ -4151,8 +4153,9 @@ export default function DevForestryRoads() {
                                             <span>Known ground {number(cableResult.summary.knownGroundPercent)}%</span>
                                           </div>
                                           <p className="mt-1 text-muted-foreground">
-                                            Geometric lengths describe the entered sag model; equipment, tension and
-                                            operating loads are not calculated.
+                                            {cableAnalysis.mechanics?.span
+                                              ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
+                                              : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'}
                                           </p>
                                         </details>
                                       )}

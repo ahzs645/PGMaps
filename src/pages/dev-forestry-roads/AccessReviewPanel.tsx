@@ -719,7 +719,7 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                           else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') step(event, -1)
                         }}
                       >
-                        <span className="flex items-center gap-1 font-medium">
+                        <span className="flex flex-wrap items-center gap-1 font-medium">
                           <span className="min-w-0 flex-1 truncate">{row.label}</span>
                           {row.overallBest.map((goal) => (
                             <span
