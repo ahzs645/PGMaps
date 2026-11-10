@@ -243,8 +243,11 @@ export function SkidReachPanel(p: SidebarProps) {
         template: { ...w.alignment.template },
         overrides: [],
       }
-      w.commit(parseProject(withAddedAlignments(project, [road])))
-      setRun({ ...current, adopted: [...current.adopted, spur.id] })
+      const next = parseProject(withAddedAlignments(project, [road]))
+      w.commit(next)
+      // Parsing rebuilds the context list; carry it so the run reads as roads changed, not as stale,
+      // and the other spurs stay on the list to add.
+      setRun({ ...current, context: next.context, adopted: [...current.adopted, spur.id] })
       w.setNotice(
         `Added ${road.name}, ${metres(spur.lengthM)} from ${spur.parentName}. Its landing is not designed: check the junction, grade and crossings, and run skid reach again.`,
       )

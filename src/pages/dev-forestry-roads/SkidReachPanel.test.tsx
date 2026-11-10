@@ -48,9 +48,10 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
     project = next
   })
   const preview = vi.fn()
+  const source = { elevationAt: () => 700 }
   const workspace = () => ({
     project,
-    source: { elevationAt: () => 700 },
+    source,
     analyses: new Map(),
     alignment: project.alignments[0],
     busy: '',
@@ -100,6 +101,10 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
   const spur = project.alignments.at(-1)!
   expect(spur.name).toBe('Block A spur 1')
   expect(project.activeAlignmentId).toBe(spur.id)
+  // Adding a spur changes the roads, not the block or its data: the list stays, with that spur added.
+  await act(async () => renderer.update(view()))
+  expect(byTestId('skid-spur-list')).toBeTruthy()
+  expect(renderer.root.findByProps({ 'aria-label': 'Add spur 1 as a road' }).props.disabled).toBe(true)
   await act(async () => renderer.unmount())
   expect(preview.mock.calls.at(-1)![0]).toBeNull()
 })
