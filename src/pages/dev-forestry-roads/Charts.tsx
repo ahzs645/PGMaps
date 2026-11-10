@@ -24,6 +24,7 @@ import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
+import type { CableLayoutOverlay } from './cableLayout/overlay'
 import type {
   Alignment,
   AlignmentEngineering,
@@ -2667,38 +2668,60 @@ export function CableChart({
   analysis,
   distance = 0,
   onDistance,
+  layout,
 }: {
   analysis: CableAnalysis
   distance?: number
   onDistance?: (distance: number) => void
+  /** Intermediate supports (`cableLayout/overlay.ts`): a found layout replaces the single span. */
+  layout?: CableLayoutOverlay
 }) {
-  // A solved skyline replaces the assumed line: the load path is what clears (or hits) the ground.
-  const mechanics = analysis.mechanics?.span ? analysis.mechanics : null
-  const points = analysis.samples.map((s, i) => ({
-    x: s.distance,
-    ground: s.ground,
-    design: mechanics ? mechanics.samples[i].loadPath : s.cable,
-  }))
-  const emptyRope = mechanics
-    ? analysis.samples.map((s, i) => ({ x: s.distance, ground: null, design: mechanics.samples[i].emptyRope }))
-    : []
-  const [low, high] = extent([...points.flatMap((p) => [p.ground, p.design]), ...emptyRope.map((p) => p.design)])
+  // A found support layout, else a solved skyline, replaces the assumed line: the load path is what
+  // clears (or hits) the ground.
+  const multi = layout?.loadPath.length ? layout : null
+  const mechanics = !multi && analysis.mechanics?.span ? analysis.mechanics : null
+  const points = multi
+    ? multi.loadPath.map((p) => ({ x: p.x, ground: p.ground, design: p.z }))
+    : analysis.samples.map((s, i) => ({
+        x: s.distance,
+        ground: s.ground,
+        design: mechanics ? mechanics.samples[i].loadPath : s.cable,
+      }))
+  const emptyRope = multi
+    ? multi.emptyRope.map((p) => ({ x: p.x, ground: null, design: p.z }))
+    : mechanics
+      ? analysis.samples.map((s, i) => ({ x: s.distance, ground: null, design: mechanics.samples[i].emptyRope }))
+      : []
+  const [low, high] = extent([
+    ...points.flatMap((p) => [p.ground, p.design]),
+    ...emptyRope.map((p) => p.design),
+    ...(layout?.supports.flatMap((s) => [s.ground, s.top]) ?? []),
+  ])
   const domain: Domain = [0, Math.max(1, analysis.length), low, high]
-  const activeIndex = analysis.samples.reduce(
-    (best, sample, i) =>
-      best < 0 || Math.abs(sample.distance - distance) < Math.abs(analysis.samples[best].distance - distance)
-        ? i
-        : best,
+  const activeIndex = points.reduce(
+    (best, sample, i) => (best < 0 || Math.abs(sample.x - distance) < Math.abs(points[best].x - distance) ? i : best),
     -1,
   )
   const active =
     activeIndex < 0
       ? undefined
-      : {
-          ...analysis.samples[activeIndex],
-          cable: points[activeIndex].design,
-          clearance: mechanics ? mechanics.samples[activeIndex].loadClearance : analysis.samples[activeIndex].clearance,
-        }
+      : multi
+        ? {
+            distance: points[activeIndex].x,
+            ground: points[activeIndex].ground,
+            cable: points[activeIndex].design,
+            clearance:
+              finite(points[activeIndex].design) && finite(points[activeIndex].ground)
+                ? points[activeIndex].design! - points[activeIndex].ground!
+                : null,
+          }
+        : {
+            ...analysis.samples[activeIndex],
+            cable: points[activeIndex].design,
+            clearance: mechanics
+              ? mechanics.samples[activeIndex].loadClearance
+              : analysis.samples[activeIndex].clearance,
+          }
   const kN = (n: number) => format(n / 1000, 0)
   return (
     <ChartSlot
@@ -2707,25 +2730,39 @@ export function CableChart({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Legend
               items={
-                mechanics
+                multi
                   ? [
                       { label: 'Ground', color: ROAD_CHART_COLORS.ground },
                       { label: 'Loaded carriage path', color: ROAD_CHART_COLORS.design },
                       { label: 'Empty skyline', color: ROAD_CHART_COLORS.mass },
+                      { label: 'Supports', color: ROAD_CHART_COLORS.selected },
                     ]
-                  : [
-                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
-                      { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
-                    ]
+                  : mechanics
+                    ? [
+                        { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                        { label: 'Loaded carriage path', color: ROAD_CHART_COLORS.design },
+                        { label: 'Empty skyline', color: ROAD_CHART_COLORS.mass },
+                      ]
+                    : [
+                        { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                        { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
+                      ]
               }
             />
             <span className="text-2xs" data-testid="road-cable-clearance">
-              {mechanics
-                ? `Minimum load clearance ${format(mechanics.minLoadClearance)} m${mechanics.complete ? (mechanics.clearanceOk ? '' : ` · below ${format(mechanics.rigging.minClearanceM)} m`) : ' · incomplete terrain'}`
-                : `Minimum clearance ${format(analysis.minClearance)} m${analysis.complete ? '' : ' · incomplete terrain'}`}
+              {multi
+                ? multi.summary
+                : mechanics
+                  ? `Minimum load clearance ${format(mechanics.minLoadClearance)} m${mechanics.complete ? (mechanics.clearanceOk ? '' : ` · below ${format(mechanics.rigging.minClearanceM)} m`) : ' · incomplete terrain'}`
+                  : `Minimum clearance ${format(analysis.minClearance)} m${analysis.complete ? '' : ' · incomplete terrain'}`}
             </span>
           </div>
-          {mechanics?.span ? (
+          {multi ? (
+            <p className="text-3xs text-muted-foreground" data-testid="road-cable-layout">
+              Static multi-span skyline at one pre-tension; carriage path with the load moved along each span. No
+              dynamic loads, anchors, trees or equipment ratings.
+            </p>
+          ) : mechanics?.span ? (
             <p className="text-3xs text-muted-foreground" data-testid="road-cable-mechanics">
               Max tension {kN(mechanics.span.maxTension.tensionN)} kN at the{' '}
               {mechanics.span.maxTension.atSupport === 'near' ? 'start' : 'end'} support (allowable{' '}
@@ -2783,6 +2820,20 @@ export function CableChart({
             }
           >
             <Grid width={width} height={height} domain={domain} xLabel="Horizontal span (m)" yLabel="Elevation (m)" />
+            {layout?.sectors.map(([a, b], i) => (
+              <rect
+                key={`sector-${i}`}
+                data-testid="road-cable-sector"
+                x={f.x(a)}
+                y={f.top}
+                width={Math.max(1, f.x(b) - f.x(a))}
+                height={Math.max(0, height - f.bottom - f.top)}
+                fill={ROAD_CHART_COLORS.cut}
+                opacity={0.08}
+              >
+                <title>{`No supports ${format(a, 0)}–${format(b, 0)} m`}</title>
+              </rect>
+            ))}
             {differencePolygons(points, f.x, f.y).map((p, i) => (
               <polygon
                 key={i}
@@ -2797,7 +2848,7 @@ export function CableChart({
               strokeWidth={1.8}
               fill="none"
             />
-            {mechanics && (
+            {(mechanics || multi) && (
               <path
                 d={linePath(emptyRope, 'design', f.x, f.y)}
                 stroke={ROAD_CHART_COLORS.mass}
@@ -2812,21 +2863,63 @@ export function CableChart({
               strokeWidth={2.3}
               fill="none"
             />
-            {[points[0], points[points.length - 1]]
-              .filter((p): p is Point => Boolean(p))
-              .map((p, i) =>
-                finite(p.ground) && finite(p.design) ? (
-                  <line
-                    key={i}
-                    x1={f.x(p.x)}
-                    x2={f.x(p.x)}
-                    y1={f.y(p.ground)}
-                    y2={f.y(p.design)}
-                    stroke={ROAD_CHART_COLORS.design}
-                    strokeWidth={3}
-                  />
-                ) : null,
-              )}
+            {layout?.supports.map((s, i) => (
+              <g key={`support-${i}`} data-testid="road-cable-support" data-kind={s.kind}>
+                <title>{`${s.kind === 'anchor' ? 'Anchor' : s.kind === 'ground-anchor' ? 'Ground anchor' : s.kind === 'yarder' ? 'Yarder' : /^\d+$/.test(s.label) ? `Support ${s.label}` : s.label === 'S' ? 'Start support' : 'End support'} at ${format(s.x, 0)} m, ${format(s.top - s.ground)} m high`}</title>
+                <line
+                  x1={f.x(s.x)}
+                  x2={f.x(s.x)}
+                  y1={f.y(s.ground)}
+                  y2={f.y(s.top)}
+                  stroke={ROAD_CHART_COLORS.selected}
+                  strokeWidth={s.kind === 'anchor' || s.kind === 'ground-anchor' ? 1 : 3}
+                />
+                {s.kind !== 'anchor' && s.kind !== 'ground-anchor' && (
+                  <text x={f.x(s.x)} y={f.y(s.top) - 4} textAnchor="middle" fontSize="9" fill="hsl(var(--foreground))">
+                    {s.label}
+                  </text>
+                )}
+              </g>
+            ))}
+            {layout?.fixed.map((p, i) => (
+              <path
+                key={`fixed-${i}`}
+                data-testid="road-cable-fixed-support"
+                d={`M${f.x(p.x) - 4},${f.top} L${f.x(p.x) + 4},${f.top} L${f.x(p.x)},${f.top + 7} z`}
+                fill={ROAD_CHART_COLORS.selected}
+              >
+                <title>{`Fixed support at ${format(p.x, 0)} m${p.heightM === undefined ? '' : `, ${format(p.heightM)} m high`}`}</title>
+              </path>
+            ))}
+            {layout?.peaks.map((x, i) => (
+              <line
+                key={`peak-${i}`}
+                x1={f.x(x)}
+                x2={f.x(x)}
+                y1={height - f.bottom}
+                y2={height - f.bottom - 5}
+                stroke={ROAD_CHART_COLORS.ground}
+                strokeWidth={1.5}
+              >
+                <title>{`Convexity peak (support candidate) at ${format(x, 0)} m`}</title>
+              </line>
+            ))}
+            {!multi &&
+              [points[0], points[points.length - 1]]
+                .filter((p): p is Point => Boolean(p))
+                .map((p, i) =>
+                  finite(p.ground) && finite(p.design) ? (
+                    <line
+                      key={i}
+                      x1={f.x(p.x)}
+                      x2={f.x(p.x)}
+                      y1={f.y(p.ground)}
+                      y2={f.y(p.design)}
+                      stroke={ROAD_CHART_COLORS.design}
+                      strokeWidth={3}
+                    />
+                  ) : null,
+                )}
             {onDistance && active && (
               <g pointerEvents="none">
                 <line

@@ -10,6 +10,7 @@ import { crossingRegisterSummary } from '../crossingRegister'
 import { gradeRule, gradeRuleText } from '../designStandards'
 import { DesignStandardsFields } from '../DesignStandardsFields'
 import { CableRiggingFields } from '../CableRiggingFields'
+import { CableSupportsSection } from '../CableSupportsSection'
 import { jobStandardsOf, standardVehicleCheck, withJobStandards } from '../jobStandards'
 import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
@@ -305,6 +306,9 @@ function CableLines(p: SidebarProps) {
             </RoadSelect>
           </Field>
           <CableRiggingFields line={c} onChange={(next) => edit(c.id, () => next)} />
+          {c.sagModel === 'mechanics' && c.rigging && (
+            <CableSupportsSection line={c} terrain={p.workspace.source} onEdit={(change) => edit(c.id, change)} />
+          )}
           <div className="grid grid-cols-3 gap-1">
             {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (
               <NumberField
