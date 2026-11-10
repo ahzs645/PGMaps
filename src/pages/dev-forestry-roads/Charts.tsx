@@ -25,6 +25,8 @@ import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
+import type { CableChartEdit } from './cableLayout/useLayoutEdit'
+import { CableLayoutChartLayer } from './CableLayoutChartLayer'
 import type {
   Alignment,
   AlignmentEngineering,
@@ -2714,12 +2716,15 @@ export function CableChart({
   distance = 0,
   onDistance,
   layout,
+  edit,
 }: {
   analysis: CableAnalysis
   distance?: number
   onDistance?: (distance: number) => void
   /** Intermediate supports (`cableLayout/overlay.ts`): a found layout replaces the single span. */
   layout?: CableLayoutOverlay
+  /** Edits the support layout from the chart (`CableLayoutChartLayer.tsx`). */
+  edit?: CableChartEdit
 }) {
   // A found support layout, else a solved skyline, replaces the assumed line: the load path is what
   // clears (or hits) the ground.
@@ -2827,6 +2832,12 @@ export function CableChart({
               Cursor {format(active?.distance)} m · ground {format(active?.ground)} m ·{' '}
               {mechanics ? 'carriage' : 'cable'} {format(active?.cable)} m · clearance {format(active?.clearance)} m.
               Click or drag to inspect the same point on the plan.
+            </p>
+          )}
+          {edit && (
+            <p className="text-3xs text-muted-foreground" data-testid="road-cable-edit-hint">
+              {edit.edited ? 'Drag a support handle to move it or change its height. ' : ''}Double-click the profile to
+              add a support; Shift-drag along it to draw a no-support sector; Escape cancels.
             </p>
           )}
         </>
@@ -2979,6 +2990,16 @@ export function CableChart({
                   <circle cx={f.x(active.distance)} cy={f.y(active.cable)} r={4} fill={ROAD_CHART_COLORS.selected} />
                 )}
               </g>
+            )}
+            {layout && (
+              <CableLayoutChartLayer
+                layout={layout}
+                edit={edit}
+                frame={f}
+                domain={domain}
+                height={height}
+                onDistance={onDistance}
+              />
             )}
           </svg>
         )
