@@ -9,6 +9,11 @@ import type { SidebarProps } from './DesignSidebarBody'
 import { runCooperatively } from './cooperative'
 import { ExtractionReachFields } from './ExtractionReachFields'
 import { ExtractionReachResults } from './ExtractionReachResults'
+import { CableCoverageResults } from './CableCoverageResults'
+import { cableLineFeatures, type CableCoverageResult } from './cableCoverage'
+import { runCableCoverage } from './cableCoverageRun'
+import { screenCoverLines } from './cableLayout/cableLayoutClient'
+import { DEFAULT_CABLE_SELECTION, selectCableLines, type CableSelectionRule } from './cableLineSelection'
 import {
   asSkidReachResult,
   compareExtraction,
@@ -21,6 +26,7 @@ import {
   prepareExtractionGrid,
   type ExtractionArea,
   type ExtractionComparison,
+  type ExtractionGrid,
   type ExtractionResult,
   type ExtractionSettings,
 } from './extractionReach'
@@ -38,13 +44,20 @@ import { localFrame } from './junctionTurn'
 import { loopTurnaroundFit, turningTemplate } from './turningTemplate'
 import { roadFromRoute } from './routeFit'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
-import { DEFAULT_OFF_BLOCK_M, DEFAULT_SKID_CELL_M, skidRoadsFromProject, type SkidRoad } from './skidReach'
+import {
+  DEFAULT_OFF_BLOCK_M,
+  DEFAULT_SKID_CELL_M,
+  skidRoadsFromProject,
+  type SkidProgress,
+  type SkidRoad,
+} from './skidReach'
 import { DEFAULT_SPUR_OPTIONS, MAX_SKID_SPURS, suggestSpursSteps, type SpurSuggestion } from './skidSpurs'
 import { localMetricGrid } from './terrain'
 import type { Alignment, ContextFeature, Coordinate } from './types'
 
 const MAX_ROADS = 20
 const SPUR_COLOR = '#ea580c'
+const MACHINE_NAMES = { skidder: 'Skidder', forwarder: 'Forwarder', cable: 'Cable yarder' } as const
 const pct = (share: number) => `${(100 * share).toFixed(share > 0 && share < 0.01 ? 1 : 0)}%`
 const metres = (m: number) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(2)} km`)
 
@@ -67,6 +80,8 @@ interface SkidRun {
   comparison: ExtractionComparison | null
   spurs: SpurSuggestion | null
   adopted: string[]
+  /** The cable yarder's lines, when the run was for one. */
+  cable: CableCoverageResult | null
 }
 
 /**
@@ -99,6 +114,7 @@ export function SkidReachPanel(p: SidebarProps) {
   const [haulExit, setHaulExit] = useState<Coordinate | null>(null)
   const [picking, setPicking] = useState(false)
   const [showOnPlan, setShowOnPlan] = useState(true)
+  const [lineRule, setLineRule] = useState<CableSelectionRule>(DEFAULT_CABLE_SELECTION)
   const [run, setRun] = useState<SkidRun | null>(null)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
@@ -179,6 +195,17 @@ export function SkidReachPanel(p: SidebarProps) {
   const current = run && !stale ? run : null
   const roadsChanged = !!current && current.roadsFingerprint !== roadsFingerprint
 
+  // Suggested cable lines: a fast greedy pass, so it follows its settings without a new run.
+  const cableSelection = useMemo(() => {
+    if (!current?.cable) return null
+    try {
+      const eg = current.result.grid
+      return selectCableLines(eg, current.cable.landings, current.cable.lines, eg.settings.cable.lateralM, lineRule)
+    } catch {
+      return null
+    }
+  }, [current, lineRule])
+
   // The landing screen is cheap, so it follows its inputs without a new run.
   const landings = useMemo((): LandingScreen | null => {
     if (!current) return null
@@ -225,10 +252,17 @@ export function SkidReachPanel(p: SidebarProps) {
   const { onPreviewSkidReach, onPickOnPlan } = p
   const features = useMemo(() => {
     if (!current || !showOnPlan) return null
+    const chosen = new Set(cableSelection?.ids ?? [])
     return [
       ...(current.comparison
         ? comparisonMapFeatures(current.result, current.comparison)
         : extractionMapFeatures(current.result)),
+      ...(current.cable
+        ? cableLineFeatures(
+            current.result.grid,
+            current.cable.lines.filter((line) => chosen.has(line.id)),
+          )
+        : []),
       ...(landings ? landingMapFeatures(landings) : []),
       ...(current.spurs?.spurs ?? [])
         .filter((spur) => !current.adopted.includes(spur.id))
@@ -244,7 +278,7 @@ export function SkidReachPanel(p: SidebarProps) {
           }),
         ),
     ]
-  }, [current, landings, showOnPlan])
+  }, [current, landings, showOnPlan, cableSelection])
   useEffect(() => onPreviewSkidReach?.(features), [features, onPreviewSkidReach])
   useEffect(() => () => onPreviewSkidReach?.(null), [onPreviewSkidReach])
   useEffect(() => () => onPickOnPlan?.(null), [onPickOnPlan])
@@ -282,7 +316,8 @@ export function SkidReachPanel(p: SidebarProps) {
         .filter((area) => areaUse[area.id])
         .map((area) => ({ polygon: area.geometry as GeoJSON.Polygon, treatment: areaUse[area.id] }))
       const withDesigned = compare && countDesigned && roads.some((road) => road.kind === 'design')
-      const steps = function* () {
+      type Prepared = { eg: ExtractionGrid; after: ExtractionResult | null; before: ExtractionResult | null }
+      const steps = function* (): Generator<SkidProgress, Prepared> {
         const eg = yield* prepareExtractionGrid({
           block: block.geometry as GeoJSON.Polygon,
           roads,
@@ -295,15 +330,28 @@ export function SkidReachPanel(p: SidebarProps) {
           offBlockM,
           cellM,
         })
+        if (eg.settings.machine === 'cable') return { eg, after: null, before: null }
         const after = yield* extractionOnGrid(eg)
         const before = withDesigned ? yield* extractionOnGrid(eg, (road) => road.kind !== 'design') : null
-        return { after, before }
+        return { eg, after, before }
       }
-      const { after, before } = await runCooperatively(
+      const prepared = await runCooperatively(
         steps(),
         { signal: controller.signal, onProgress: progress },
         'Extraction reach cancelled.',
       )
+      // The cable yarder's lines are tested in the cable-layout worker; Cancel terminates it.
+      const cable =
+        prepared.eg.settings.machine === 'cable'
+          ? await runCableCoverage(
+              { eg: prepared.eg, terrain: source, compare: withDesigned, barriersStop: streamsStop },
+              (batches, onProgress, signal) =>
+                screenCoverLines(batches, { signal, onProgress: (done, lines) => onProgress(done, lines) }),
+              { signal: controller.signal, onProgress: progress },
+            )
+          : null
+      const after = cable ? cable.after : prepared.after!
+      const before = cable ? cable.before : prepared.before
       setRun({
         key,
         source,
@@ -313,10 +361,11 @@ export function SkidReachPanel(p: SidebarProps) {
         comparison: before ? compareExtraction(before, after) : null,
         spurs: null,
         adopted: [],
+        cable: cable?.coverage ?? null,
       })
       const s = after.summary
       w.setNotice(
-        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${settings.machine} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${compare && !before ? ' No designed road to compare.' : ''}`,
+        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${MACHINE_NAMES[settings.machine].toLowerCase()} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${cable ? ` ${cable.coverage.lines.length} of ${cable.coverage.stats.candidates} lines work.` : ''}${compare && !before ? ' No designed road to compare.' : ''}`,
       )
     } catch (cause) {
       if (controller.signal.aborted) w.setNotice('Extraction reach cancelled. Nothing was changed.')
@@ -415,14 +464,13 @@ export function SkidReachPanel(p: SidebarProps) {
     <RoadSection
       title="Extraction reach"
       data-testid="skid-reach-panel"
-      summary={
-        s ? `${s.machine === 'skidder' ? 'Skidder' : 'Forwarder'} · ${pct(s.coveredShare)} within reach` : 'Not run'
-      }
+      summary={s ? `${MACHINE_NAMES[s.machine]} · ${pct(s.coveredShare)} within reach` : 'Not run'}
       help={
         <>
-          How a skidder or forwarder brings each part of a block to a truck road: driving over the ground, winching
-          along straight lines, forwarding in straight runs, or loading with its crane. Distances follow the ground over
-          the terrain grid. Mapped and designed roads are truck roads unless marked as skid trails.
+          How a skidder, forwarder or cable yarder brings each part of a block to a truck road: driving over the ground,
+          winching along straight lines, forwarding in straight runs, loading with its crane, or yarding along skylines
+          from landings on the road. Distances follow the ground over the terrain grid. Mapped and designed roads are
+          truck roads unless marked as skid trails.
           <br />
           The skidder&apos;s default reach is a field rule of thumb, not a standard: 350 m on level ground, falling to
           200 m where logs are dragged uphill to the road at 30 % (percent, not degrees). It does not drive on ground
@@ -488,6 +536,11 @@ export function SkidReachPanel(p: SidebarProps) {
               </InfoTip>
             </label>
           </div>
+          {settings.machine === 'cable' && (
+            <p className="text-2xs text-muted-foreground">
+              Cable lines start from truck roads; skid trails are not used.
+            </p>
+          )}
           <RoadSection
             title="Skid trails"
             summary={`${Object.keys(trails).filter((id) => nearbyRoads.some((r) => r.id === id)).length} of ${nearbyRoads.length} roads`}
@@ -572,6 +625,18 @@ export function SkidReachPanel(p: SidebarProps) {
           {s && current && (
             <div className="space-y-2" data-testid="skid-reach-results">
               <ExtractionReachResults summary={s} comparison={current.comparison} />
+              {current.cable && (
+                <CableCoverageResults
+                  coverage={current.cable}
+                  selection={cableSelection}
+                  rule={lineRule}
+                  onRule={setLineRule}
+                  roadName={(landing) => {
+                    const sg = current.result.grid.sg
+                    return sg.roads[current.cable!.landings[landing].roadIndex]?.road.name ?? ''
+                  }}
+                />
+              )}
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={showOnPlan} onChange={(e) => setShowOnPlan(e.target.checked)} />
                 Show on plan
@@ -579,121 +644,129 @@ export function SkidReachPanel(p: SidebarProps) {
                   Fill: ground within reach, coloured by distance class (or, with the comparison on, green where newly
                   within reach and teal where shortened). Outlines: blue winched, red beyond reach, purple too steep for
                   the machine, dark purple too steep to fell, slate no extraction, grey unknown. Orange lines are spur
-                  candidates; cyan rectangles are landing candidates.
+                  candidates; cyan rectangles are landing candidates. Dark cyan lines are suggested skylines, with their
+                  supports as dots.
                 </InfoTip>
               </label>
 
-              <div className="space-y-1.5 border-t pt-2">
-                <div className="flex items-center gap-1 font-medium">
-                  Spurs
-                  <InfoTip label="About spur suggestions">
-                    Closest uncovered ground first: each spur is routed from the nearest road by the route search, with
-                    its grade limit, exclusions and crossing prices, and cut back to the shortest length that keeps its
-                    coverage. It ends at its landing. With a haul exit or a known haul direction it joins swept back, so
-                    a loaded truck turns 90° or less onto the parent road. Unreviewed streams block every crossing.
-                    Coverage is judged by the extraction reach above. Adapted from LANDIS-II Forest Roads (Apache-2.0).
-                  </InfoTip>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <NumberField
-                    label="Target (%)"
-                    value={targetPercent}
-                    min={1}
-                    max={100}
-                    step={1}
-                    hint="Of the block's known extractable area: less unknown, too-steep and closed ground."
-                    onChange={setTargetPercent}
-                  />
-                  <NumberField
-                    label="Most spurs"
-                    value={maxSpurs}
-                    min={1}
-                    max={MAX_SKID_SPURS}
-                    step={1}
-                    onChange={(value) => setMaxSpurs(Math.round(value))}
-                  />
-                </div>
-                <div className="flex items-center gap-1">
+              {current.cable ? (
+                <p className="border-t pt-2 text-2xs text-muted-foreground">
+                  Spur suggestions read ground-based reach: run the skidder or forwarder for them.
+                </p>
+              ) : (
+                <div className="space-y-1.5 border-t pt-2">
+                  <div className="flex items-center gap-1 font-medium">
+                    Spurs
+                    <InfoTip label="About spur suggestions">
+                      Closest uncovered ground first: each spur is routed from the nearest road by the route search,
+                      with its grade limit, exclusions and crossing prices, and cut back to the shortest length that
+                      keeps its coverage. It ends at its landing. With a haul exit or a known haul direction it joins
+                      swept back, so a loaded truck turns 90° or less onto the parent road. Unreviewed streams block
+                      every crossing. Coverage is judged by the extraction reach above. Adapted from LANDIS-II Forest
+                      Roads (Apache-2.0).
+                    </InfoTip>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <NumberField
+                      label="Target (%)"
+                      value={targetPercent}
+                      min={1}
+                      max={100}
+                      step={1}
+                      hint="Of the block's known extractable area: less unknown, too-steep and closed ground."
+                      onChange={setTargetPercent}
+                    />
+                    <NumberField
+                      label="Most spurs"
+                      value={maxSpurs}
+                      min={1}
+                      max={MAX_SKID_SPURS}
+                      step={1}
+                      onChange={(value) => setMaxSpurs(Math.round(value))}
+                    />
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant={picking ? 'default' : 'outline'}
+                      className="h-7 gap-1 px-2 text-xs"
+                      disabled={!onPickOnPlan}
+                      aria-pressed={picking}
+                      onClick={pickExit}
+                    >
+                      <Crosshair className="size-3" />
+                      {haulExit ? 'Haul exit set' : 'Pick haul exit'}
+                    </Button>
+                    {haulExit && (
+                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setHaulExit(null)}>
+                        Clear
+                      </Button>
+                    )}
+                  </div>
                   <Button
                     size="sm"
-                    variant={picking ? 'default' : 'outline'}
-                    className="h-7 gap-1 px-2 text-xs"
-                    disabled={!onPickOnPlan}
-                    aria-pressed={picking}
-                    onClick={pickExit}
+                    variant="outline"
+                    className="h-8 w-full"
+                    onClick={() => void suggest()}
+                    data-testid="skid-reach-suggest"
                   >
-                    <Crosshair className="size-3" />
-                    {haulExit ? 'Haul exit set' : 'Pick haul exit'}
+                    Suggest spurs
                   </Button>
-                  {haulExit && (
-                    <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setHaulExit(null)}>
-                      Clear
-                    </Button>
+                  {spurs && (
+                    <ul className="space-y-1" data-testid="skid-spur-list">
+                      {spurs.spurs.map((spur) => {
+                        const added = current.adopted.includes(spur.id)
+                        return (
+                          <li key={spur.id} className="flex items-start gap-1 rounded-md border px-2 py-1.5">
+                            <span className="min-w-0 flex-1">
+                              <span className="font-medium">
+                                Spur {spur.index} · {metres(spur.lengthM)}
+                              </span>
+                              <span className="block text-2xs text-muted-foreground tabular-nums">
+                                +{spur.gainHa.toFixed(1)} ha ({spur.gainPoints.toFixed(1)} pts) · {spur.crossings}{' '}
+                                crossing
+                                {spur.crossings === 1 ? '' : 's'} · from {spur.parentName}
+                                {spur.loadedTurnDeg !== null ? ` · loaded turn ${Math.round(spur.loadedTurnDeg)}°` : ''}
+                              </span>
+                            </span>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 shrink-0 gap-1 px-2 text-xs"
+                              disabled={added}
+                              onClick={() => adopt(spur.id)}
+                              aria-label={`Add spur ${spur.index} as a road`}
+                            >
+                              {added ? (
+                                'Added'
+                              ) : (
+                                <>
+                                  <Plus className="size-3" />
+                                  Add
+                                </>
+                              )}
+                            </Button>
+                          </li>
+                        )
+                      })}
+                      <li className="text-2xs text-muted-foreground">
+                        {spurs.stopped === 'already-met'
+                          ? 'The block already meets the target.'
+                          : spurs.stopped === 'target-met'
+                            ? `Meets the target: ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground.`
+                            : spurs.stopped === 'spur-budget'
+                              ? `Stopped at ${maxSpurs} spurs with ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`
+                              : `No further spur found; ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`}
+                      </li>
+                      {spurs.skipped.map((skip, i) => (
+                        <li key={i} className="text-2xs text-muted-foreground">
+                          {skip.reason}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8 w-full"
-                  onClick={() => void suggest()}
-                  data-testid="skid-reach-suggest"
-                >
-                  Suggest spurs
-                </Button>
-                {spurs && (
-                  <ul className="space-y-1" data-testid="skid-spur-list">
-                    {spurs.spurs.map((spur) => {
-                      const added = current.adopted.includes(spur.id)
-                      return (
-                        <li key={spur.id} className="flex items-start gap-1 rounded-md border px-2 py-1.5">
-                          <span className="min-w-0 flex-1">
-                            <span className="font-medium">
-                              Spur {spur.index} · {metres(spur.lengthM)}
-                            </span>
-                            <span className="block text-2xs text-muted-foreground tabular-nums">
-                              +{spur.gainHa.toFixed(1)} ha ({spur.gainPoints.toFixed(1)} pts) · {spur.crossings}{' '}
-                              crossing
-                              {spur.crossings === 1 ? '' : 's'} · from {spur.parentName}
-                              {spur.loadedTurnDeg !== null ? ` · loaded turn ${Math.round(spur.loadedTurnDeg)}°` : ''}
-                            </span>
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 shrink-0 gap-1 px-2 text-xs"
-                            disabled={added}
-                            onClick={() => adopt(spur.id)}
-                            aria-label={`Add spur ${spur.index} as a road`}
-                          >
-                            {added ? (
-                              'Added'
-                            ) : (
-                              <>
-                                <Plus className="size-3" />
-                                Add
-                              </>
-                            )}
-                          </Button>
-                        </li>
-                      )
-                    })}
-                    <li className="text-2xs text-muted-foreground">
-                      {spurs.stopped === 'already-met'
-                        ? 'The block already meets the target.'
-                        : spurs.stopped === 'target-met'
-                          ? `Meets the target: ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground.`
-                          : spurs.stopped === 'spur-budget'
-                            ? `Stopped at ${maxSpurs} spurs with ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`
-                            : `No further spur found; ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`}
-                    </li>
-                    {spurs.skipped.map((skip, i) => (
-                      <li key={i} className="text-2xs text-muted-foreground">
-                        {skip.reason}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              )}
 
               <div className="space-y-1.5 border-t pt-2">
                 <div className="flex items-center gap-1 font-medium">

@@ -21,10 +21,11 @@
  * treating them as level and passable; a block cell reached only in the second run is unknown,
  * never within or beyond reach.
  *
- * Cable yarding is not modelled here. A cable-coverage model plugs in by producing per-cell
- * `ExtractionCells` with method `cable` for the cells its lines cover; classification, statistics,
- * distance classes, the plan layer, before/after comparison and spur suggestions then read it like
- * any other machine (see `docs/forestry-road-design/extraction-reach.md`, "Cable hook").
+ * Cable yarding is modelled in `cableCoverage.ts`, which needs the cable-layout module in a worker:
+ * it produces per-cell `ExtractionCells` with method `cable` for the cells its lines cover, and
+ * `cableExtractionResult` turns them into a result that classification, statistics, distance
+ * classes, the plan layer and the before/after comparison read like any other machine's (see
+ * `docs/forestry-road-design/extraction-reach.md`, "How the cable yarder is modelled").
  *
  * Sources: Dupire S., Bourrier F., Monnet J.-M., Berger F. (2015), Sylvaccess : un modèle pour
  * cartographier automatiquement l'accessibilité des forêts, Revue forestière française 67(2):
@@ -86,11 +87,12 @@ import {
   type RunSource,
 } from './forwarderReach'
 import type { Coordinate } from './types'
+import { DEFAULT_CABLE_RULE, validateCableRule, type CableCoverageRule } from './cableCoverageRule'
 
 type XY = [number, number]
 
-/** The machines modelled. Cable yarding is a separate model (see the module note). */
-export type ExtractionMachine = 'skidder' | 'forwarder'
+/** The machines modelled. The cable yarder's lines come from `cableCoverage.ts` (see the module note). */
+export type ExtractionMachine = 'skidder' | 'forwarder' | 'cable'
 /**
  * Where the skidder winches from: `roads` first (Sylvaccess option 1, "limit soil damage"), only
  * from the `edge` of the ground it drives to (option 2, "limit winching"), or `none`.
@@ -104,6 +106,8 @@ export interface ExtractionSettings {
   winch: WinchRule
   winchFrom: WinchFrom
   forwarder: ForwarderRule
+  /** The cable yarder's rigging and line rules. */
+  cable: CableCoverageRule
   /** Ground whose steepest 3 × 3 slope is above this cannot be felled by hand, percent. */
   fellableSlopePercent: number
   /** Lower bounds of the extraction-distance classes, m, ascending from 0. */
@@ -124,6 +128,7 @@ export const DEFAULT_EXTRACTION_SETTINGS: ExtractionSettings = {
   winch: DEFAULT_WINCH_RULE,
   winchFrom: 'edge',
   forwarder: DEFAULT_FORWARDER_RULE,
+  cable: DEFAULT_CABLE_RULE,
   fellableSlopePercent: DEFAULT_FELLABLE_SLOPE_PERCENT,
   classBoundsM: DEFAULT_CLASS_BOUNDS_M,
 }
@@ -155,7 +160,7 @@ export const X_OUTSIDE = 0,
   X_EXCLUDED = 5,
   X_UNKNOWN = 6
 
-/** How a covered cell's logs leave, by index. `cable` is reserved for a cable-coverage model. */
+/** How a covered cell's logs leave, by index. `cable` comes from `cableCoverage.ts`. */
 export const EXTRACTION_METHODS = [
   'none',
   'road',
@@ -177,11 +182,12 @@ export const M_NONE = 0,
   M_CABLE = 7
 
 export function validateExtractionSettings(settings: ExtractionSettings): ExtractionSettings {
-  if (settings.machine !== 'skidder' && settings.machine !== 'forwarder')
-    throw Error('Choose a skidder or a forwarder.')
+  if (settings.machine !== 'skidder' && settings.machine !== 'forwarder' && settings.machine !== 'cable')
+    throw Error('Choose a skidder, a forwarder or a cable yarder.')
   validateSkidRule(settings.skid)
   if (settings.machine === 'skidder' && settings.winchFrom !== 'none') validateWinchRule(settings.winch)
   if (settings.machine === 'forwarder') validateForwarderRule(settings.forwarder)
+  if (settings.machine === 'cable') validateCableRule(settings.cable)
   const f = settings.fellableSlopePercent
   if (!(Number.isFinite(f) && f >= MIN_FELLABLE_SLOPE_PERCENT && f <= MAX_FELLABLE_SLOPE_PERCENT))
     throw Error(`Use a hand-falling slope limit from ${MIN_FELLABLE_SLOPE_PERCENT}% to ${MAX_FELLABLE_SLOPE_PERCENT}%.`)
@@ -211,7 +217,7 @@ export function parseClassBounds(text: string): number[] {
 
 /** The skid grid's own rule for a machine: the skid rule, or the forwarder's free travel. */
 function gridRule(settings: ExtractionSettings): SkidReachRule {
-  if (settings.machine === 'skidder') return settings.skid
+  if (settings.machine !== 'forwarder') return settings.skid
   const reach = settings.forwarder.reachM
   return {
     flatReachM: reach,
@@ -866,8 +872,13 @@ function classify(eg: ExtractionGrid, strict: ExtractionCells, optimistic: Extra
   const n = z.length
   const states = new Uint8Array(n),
     status = new Uint8Array(n)
+  // A skyline has no ground slope limit: unfellable ground is the only "too steep" for cable.
   const steepAbove =
-    settings.machine === 'skidder' ? settings.skid.maxGroundSlopePercent : steepestDrivenPercent(settings.forwarder)
+    settings.machine === 'skidder'
+      ? settings.skid.maxGroundSlopePercent
+      : settings.machine === 'forwarder'
+        ? steepestDrivenPercent(settings.forwarder)
+        : Infinity
   for (const i of sg.blockCells) {
     let state: number
     if (!Number.isFinite(z[i])) state = X_UNKNOWN
@@ -1077,6 +1088,64 @@ export function* extractionOnGrid(
 export function* extractionReachSteps(input: ExtractionInput): Generator<SkidProgress, ExtractionResult> {
   const eg = yield* prepareExtractionGrid(input)
   return yield* extractionOnGrid(eg)
+}
+
+/**
+ * A cable run as an extraction result, from the per-cell coverage `cableCoverage.ts` built for the
+ * roads `include` accepts (strict and optimistic runs). Lines start from truck roads only, so skid
+ * trails are left out. Truck-road cells in the block are within reach, as for the other machines.
+ */
+export function cableExtractionResult(
+  eg: ExtractionGrid,
+  include: (road: SkidRoad) => boolean,
+  coverage: readonly [ExtractionCells, ExtractionCells],
+): ExtractionResult {
+  if (eg.settings.machine !== 'cable') throw Error('Prepare the grid for the cable yarder.')
+  const roadUse = roadUseFor(eg, (road) => include(road) && road.use !== 'track')
+  const masks = masksFor(eg, roadUse)
+  const n = roadUse.length
+  const truck = new Uint8Array(n)
+  for (let i = 0; i < n; i++) if (roadUse[i] === 2) truck[i] = 1
+  const layers = (optimistic: boolean): RunLayers => ({
+    optimistic,
+    truck,
+    trail: new Uint8Array(n),
+    trailField: emptyGroundField(n),
+    viaRoad: emptyGroundField(n),
+    viaTrail: emptyGroundField(n),
+    roadWinch: null,
+    runs: null,
+  })
+  const cells = coverage.map((c) => {
+    const copy: ExtractionCells = {
+      method: new Uint8Array(c.method),
+      totalM: new Float32Array(c.totalM),
+      forestM: new Float32Array(c.forestM),
+      trackM: new Float32Array(c.trackM),
+      winchM: new Float32Array(c.winchM),
+      reach: new Float64Array(c.reach),
+      exit: new Int32Array(c.exit),
+    }
+    for (let i = 0; i < n; i++)
+      if (truck[i]) {
+        copy.method[i] = M_ROAD
+        copy.totalM[i] = copy.forestM[i] = copy.trackM[i] = copy.reach[i] = 0
+        copy.winchM[i] = NaN
+        copy.exit[i] = i
+      }
+    return copy
+  }) as [ExtractionCells, ExtractionCells]
+  const { states, status } = classify(eg, cells[0], cells[1])
+  return resultOf(eg, {
+    layers: [layers(false), layers(true)],
+    cells,
+    states,
+    status,
+    roadUse,
+    masks,
+    strict: reachField(cells[0]),
+    optimistic: reachField(cells[1]),
+  })
 }
 
 /**
