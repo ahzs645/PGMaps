@@ -1,11 +1,14 @@
 /**
- * A D-line's supports as the plan, the exports and the D-line sheet show them: from the support
- * layout's current result where there is one (with ground, forces and anchors), else from the
- * layout saved on the line (stations and heights; ground read from the line's own ground). Also
- * the stake-out table: each support's ground point in the project grid and in longitude/latitude.
+ * A D-line's supports as the plan, the exports and the D-line sheet show them. One rule picks the
+ * layout, the same one the D-line chart and the limits table follow: **the edited layout while an
+ * edit is open, else the found layout** (`shownLayout`). Of that layout, the rows come from its
+ * current result where there is one (with ground, forces and anchors), else from the stations and
+ * heights saved on the line (ground read from the line's own ground). Also the stake-out table:
+ * each support's ground point in the project grid and in longitude/latitude.
  * Pure: no DOM or network access.
  */
 import { intermediateSupports, type CableLayoutResult, type LayoutSupportKind } from '../cableLayout/cableLayout'
+import type { EditedLayout, SupportCategory, SupportIdentity } from '../cableLayout/layoutEdit'
 import { DEFAULT_SUPPORT_LAYOUT } from '../cableLayout/settings'
 import type { CableLine, Coordinate, TerrainSource } from '../types'
 import { dLineFrame, type DLineFrame } from './frame'
@@ -29,10 +32,23 @@ export interface DLineSupportRow {
   emptyBreakDeg: number | null
   loadedBreakDeg: number | null
   maxForceKN: number | null
+  /** The crew's name and category for the support, given in an edited layout; null otherwise. */
+  supportName: string | null
+  category: SupportCategory | null
 }
 
+/** Which layout the outputs show: the edited one while an edit is open, else the found one. */
+export type ShownLayout = 'found' | 'edited'
+export const shownLayout = (line: CableLine): ShownLayout => (line.supportLayout?.edited ? 'edited' : 'found')
+export const SHOWN_LAYOUT_TEXT: Record<ShownLayout, string> = { found: 'Found layout', edited: 'Edited layout' }
+
 export interface DLineSupportSet {
-  /** `result`: the support search or check that is current for the line; `saved`: the layout saved on it. */
+  /** The layout shown: the edited one while an edit is open, else the found one (`shownLayout`). */
+  layout: ShownLayout
+  /**
+   * `result`: a search or check of that layout, current for the line as it is now; `saved`: its
+   * stations and heights as saved on the line, not (yet) checked, so without forces or angles.
+   */
   source: 'result' | 'saved'
   status: 'complete' | 'incomplete'
   preTensionKN: number | null
@@ -60,10 +76,27 @@ function labelled(
 }
 
 const finiteOrNull = (v: number) => (Number.isFinite(v) ? v : null)
+const noIdentity = { supportName: null, category: null }
+const identityOf = (id: SupportIdentity | undefined) => ({
+  supportName: id?.name?.trim() ? id.name : null,
+  category: id?.category ?? null,
+})
+/** Stations an edit and its check agree on, m (edits round to 0.1 m). */
+const SAME_STATION_M = 0.05
+
+/** Whether `result` is the check of `edited`: the same stations and pre-tension (the ends as the line is now). */
+export function resultIsOfEdit(result: CableLayoutResult, edited: EditedLayout, lengthM: number): boolean {
+  if (result.preTensionKN === null || Math.abs(result.preTensionKN - edited.preTensionKN) > 1e-6) return false
+  const onLine = result.supports.filter((s) => s.kind !== 'anchor').map((s) => s.stationM)
+  const wanted = [0, ...edited.supports.map((s) => s.stationM), lengthM]
+  return onLine.length === wanted.length && onLine.every((m, i) => Math.abs(m - wanted[i]) <= SAME_STATION_M)
+}
 
 /**
- * The D-line's supports, or null when it has no layout to show. `result` is the layout result that
- * is current for this line (it wins over the saved layout); `ground` is the ground the line reads.
+ * The D-line's supports, or null when it has no layout to show. The layout is `shownLayout(line)`:
+ * the edited one while an edit is open, else the found one. `result` is the current result of
+ * that layout (`shownLayoutResult` in `useCableLayout.ts`); a result that is not of the open edit
+ * is ignored, so the rows never mix the found layout with the edit. `ground` is the line's ground.
  */
 export function dLineSupports(
   line: CableLine,
@@ -71,12 +104,24 @@ export function dLineSupports(
 ): DLineSupportSet | null {
   const frame = dLineFrame(line)
   if (!frame) return null
-  const { result, ground } = options
+  const { ground } = options
+  const edited = line.supportLayout?.edited
+  const result =
+    options.result && (!edited || resultIsOfEdit(options.result, edited, frame.lengthM)) ? options.result : null
   if (result && result.status !== 'no-layout' && result.supports.length) {
     const middleSupports = new Set(intermediateSupports(result))
     const middle = new Set(result.supports.flatMap((s, i) => (middleSupports.has(s) ? [i] : [])))
     const names = labelled(result.supports, middle)
+    const onLine = result.supports.filter((s) => s.kind !== 'anchor')
+    const identity = (i: number) => {
+      if (!edited) return noIdentity
+      const s = result.supports[i]
+      if (s === onLine[0]) return identityOf(edited.start)
+      if (s === onLine.at(-1)) return identityOf(edited.end)
+      return identityOf(edited.supports.find((e) => Math.abs(e.stationM - s.stationM) <= SAME_STATION_M))
+    }
     return {
+      layout: edited ? 'edited' : 'found',
       source: 'result',
       status: result.status,
       preTensionKN: result.preTensionKN,
@@ -93,11 +138,26 @@ export function dLineSupports(
         emptyBreakDeg: s.emptyBreakDeg,
         loadedBreakDeg: s.loadedBreakDeg,
         maxForceKN: s.maxForceKN,
+        ...(s.kind === 'anchor' ? noIdentity : identity(i)),
       })),
     }
   }
   const settings = line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT
-  const saved = line.supportLayout?.saved
+  // An open edit is shown as edited (its check not current yet); otherwise the found layout as saved.
+  const identities: ReturnType<typeof identityOf>[] | null = edited
+    ? [identityOf(edited.start), ...edited.supports.map(identityOf), identityOf(edited.end)]
+    : null
+  const saved = edited
+    ? {
+        preTensionKN: edited.preTensionKN,
+        complete: true,
+        supports: [
+          { stationM: 0, heightM: edited.start.heightM },
+          ...edited.supports.map((s) => ({ stationM: s.stationM, heightM: s.heightM })),
+          { stationM: frame.lengthM, heightM: edited.end.heightM },
+        ],
+      }
+    : line.supportLayout?.saved
   if (!saved || saved.supports.length < 2) return null
   const last = saved.supports.length - 1
   const kinds = saved.supports.map((_, i): LayoutSupportKind => {
@@ -112,6 +172,7 @@ export function dLineSupports(
     middle,
   )
   return {
+    layout: edited ? 'edited' : 'found',
     source: 'saved',
     status: saved.complete ? 'complete' : 'incomplete',
     preTensionKN: saved.preTensionKN,
@@ -133,6 +194,7 @@ export function dLineSupports(
         emptyBreakDeg: null,
         loadedBreakDeg: null,
         maxForceKN: null,
+        ...(identities?.[i] ?? noIdentity),
       }
     }),
   }
@@ -152,6 +214,8 @@ export interface StakeoutRow {
   groundM: number | null
   heightM: number
   saddleM: number | null
+  supportName: string | null
+  category: SupportCategory | null
 }
 
 /** One stake per support or anchor, in station order, with grid and geographic coordinates. */
@@ -176,6 +240,8 @@ export function supportStakeout(
         groundM: row.groundM,
         heightM: row.heightM,
         saddleM: row.saddleM,
+        supportName: row.supportName,
+        category: row.category,
       }
     })
 }
@@ -196,6 +262,9 @@ const STAKEOUT_COLUMNS = [
   'support_height_m',
   'saddle_elevation_m',
   'layout_source',
+  'layout',
+  'support_name',
+  'support_category',
 ] as const
 
 const cell = (v: string | number | null, digits = 3) => {
@@ -226,6 +295,9 @@ export function supportStakeoutCsv(lineName: string, set: DLineSupportSet, rows:
         cell(r.heightM, 2),
         cell(r.saddleM, 2),
         set.source,
+        set.layout,
+        cell(r.supportName),
+        r.category ?? '',
       ].join(','),
     )
   return out.join('\n') + '\n'
@@ -234,8 +306,9 @@ export function supportStakeoutCsv(lineName: string, set: DLineSupportSet, rows:
 export const DLINE_SUPPORT_COLOR = '#6d28d9'
 
 /**
- * Plan dots for every D-line's saved intermediate supports, labelled on hover. A click hands back
- * the D-line and the support's chart distance (`cableId`, `chartDistance`).
+ * Plan dots for every D-line's intermediate supports, of the layout its chart shows (the edited one
+ * while an edit is open), labelled on hover. A click hands back the D-line and the support's chart
+ * distance (`cableId`, `chartDistance`).
  */
 export function dLineSupportPlanFeatures(cables: readonly CableLine[]): GeoJSON.Feature<GeoJSON.Point>[] {
   const out: GeoJSON.Feature<GeoJSON.Point>[] = []
@@ -255,7 +328,7 @@ export function dLineSupportPlanFeatures(cables: readonly CableLine[]): GeoJSON.
           color: DLINE_SUPPORT_COLOR,
           cableId: line.id,
           chartDistance: frame.chartDistance(row.stationM),
-          label: `${line.name} · support ${row.label} · ${row.stationM.toFixed(0)} m from the yarder · ${row.heightM.toFixed(1)} m tall${row.fixed ? ' (fixed)' : ''}`,
+          label: `${line.name} · support ${row.label}${row.supportName ? ` (${row.supportName})` : ''} · ${row.stationM.toFixed(0)} m from the yarder · ${row.heightM.toFixed(1)} m tall${row.fixed ? ' (fixed)' : ''} · ${SHOWN_LAYOUT_TEXT[set.layout].toLowerCase()}`,
         },
       })
     }

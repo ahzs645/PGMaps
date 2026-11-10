@@ -12,11 +12,11 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
 
 **Where it is.**
 
-- **Plan:** every D-line with a saved layout shows its intermediate supports as violet dots; hover
-  for the D-line, support number, station from the yarder and height; click to open that D-line's
-  profile with the cursor on the support.
+- **Plan:** every D-line with a saved layout or an open edit shows its intermediate supports as
+  violet dots; hover for the D-line, support number (and name), station from the yarder, height and
+  which layout it is; click to open that D-line's profile with the cursor on the support.
 - **D-line detail pane** (Profile → D-line): **D-line CSV** and **D-line report** carry the supports;
-  **Stake-out CSV** appears once the line has a saved layout.
+  **Stake-out CSV** appears once the line has a saved layout or an open edit.
 - **Files → Save & export → Documents → D-line sheet:** the D-line on screen as a one-page PDF, with
   a preview and the **Issue stamp** tab.
 - **Review → D-line / cable geometry** → a D-line on _Rope and load_: **Rigging set** under the
@@ -26,6 +26,18 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
 
 ## Before you rely on it
 
+- **Every output shows the layout the chart shows.** While a layout edit is open (**Adjust layout**
+  or **Place supports by hand**), the plan dots and their click target, the D-line CSV and report,
+  the Stake-out CSV and the D-line sheet all use the edited layout, as the D-line chart and the
+  limits table do; otherwise they use the found layout. One rule picks it for all of them
+  (`shownLayoutResult` in `cableLayout/useCableLayout.ts` and `dLineSupports` in `dline/supports.ts`,
+  which ignores a result that is not of the open edit), and each says which: `support_layout` =
+  `found` or `edited` in the D-line CSV, `layout` in the stake-out, the report's supports paragraph,
+  the sheet's summary line ("Edited layout · …") and the plan dot's hover title. Until the edit's
+  re-check finishes, its stations and heights are given without forces (`support_layout_source`
+  reads `saved`). The edit's support names and categories reach the stake-out (`support_name`,
+  `support_category`), the report and the sheet. **Discard edits** returns every output to the
+  found layout.
 - **Stations run from the yarder, horizontally, along the D-line.** Every support stands on the line
   (offset 0). The stake-out's ground is the D-line's own ground (the field profile where one is used),
   not a survey of the stake: check each site before it is rigged.
@@ -47,12 +59,12 @@ cable-layout worker when no result is current, and renders the sheet with jsPDF.
 
 ## What each output carries
 
-| Output               | Added                                                                                                                                                                                                                                                                                                                          | Only when                                                                  |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
-| D-line CSV           | After every existing column (and the rope-mechanics columns): `rigging_set`; `support_layout_source`, `_status`, `_pre_tension_kn`, `intermediate_supports`, `supports_station_height_m`; the layout's load path, empty skyline and load clearance per sample; `ground_source`, `terrain_elevation_m`, `field_minus_terrain_m` | the line uses a set / has a layout / a current result / field shots in use |
-| D-line report (HTML) | After the sample schedule: rigging set, intermediate supports (forces and angles from a current result), support stake-out, field-measured ground with each shot's difference to the terrain                                                                                                                                   | as above                                                                   |
-| Stake-out CSV        | One row per support and anchor: point, label, station, offset 0, easting, northing, EPSG, longitude, latitude, ground, support height, saddle elevation, layout source                                                                                                                                                         | the line has a saved layout                                                |
-| D-line sheet         | Header and issue stamp; profile from the yarder (field ground and the terrain dashed); plan strip with contours, north arrow and scale bar; supports and stake-out; forces and angles; limits in three states; rigging; assumptions                                                                                            | the D-line's own inputs are valid                                          |
+| Output               | Added                                                                                                                                                                                                                                                                                                                                                              | Only when                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| D-line CSV           | After every existing column (and the rope-mechanics columns): `rigging_set`; `support_layout` (found or edited), `support_layout_source`, `_status`, `_pre_tension_kn`, `intermediate_supports`, `supports_station_height_m`; the layout's load path, empty skyline and load clearance per sample; `ground_source`, `terrain_elevation_m`, `field_minus_terrain_m` | the line uses a set / has a layout / a current result / field shots in use |
+| D-line report (HTML) | After the sample schedule: rigging set, intermediate supports (forces and angles from a current result), support stake-out, field-measured ground with each shot's difference to the terrain                                                                                                                                                                       | as above                                                                   |
+| Stake-out CSV        | One row per support and anchor: point, label, station, offset 0, easting, northing, EPSG, longitude, latitude, ground, support height, saddle elevation, layout source, layout (found or edited), support name, support category                                                                                                                                   | the line has a saved layout or an open edit                                |
+| D-line sheet         | Header and issue stamp; profile from the yarder (field ground and the terrain dashed); plan strip with contours, north arrow and scale bar; supports and stake-out; forces and angles; limits in three states; rigging; assumptions                                                                                                                                | the D-line's own inputs are valid                                          |
 
 A D-line without supports, a rigging set or field shots exports exactly as before (a unit test pins
 it). The sheet's rule in `INVALID_INPUT_RULES` is `unaffected`: no road input reaches a D-line. The

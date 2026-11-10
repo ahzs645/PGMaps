@@ -16,6 +16,7 @@ import { CABLE_GEOMETRY_ASSUMPTIONS, CABLE_MECHANICS_ASSUMPTIONS } from '../prof
 import type { CableAnalysis, CableLine, Coordinate, TerrainSource } from '../types'
 import { dLineFrame } from './frame'
 import { STAKEOUT_NOTE, type DLineExtras } from './outputs'
+import { SHOWN_LAYOUT_TEXT } from './supports'
 
 /** Samples across the plan strip's width for its contours. */
 export const PLAN_STRIP_SAMPLES = 160
@@ -576,6 +577,9 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   planStrip(ops, planBox, input)
   const assumptions = [
     line.sagModel === 'mechanics' ? CABLE_MECHANICS_ASSUMPTIONS : CABLE_GEOMETRY_ASSUMPTIONS,
+    extras.supports?.layout === 'edited'
+      ? 'Supports: the layout edited by hand and open on the D-line, not the found one.'
+      : '',
     extras.layout
       ? 'Supports: a static multi-span layout at one pre-tension, the carriage moved along every span. No dynamic loads, lateral yarding, anchors, trees or equipment ratings.'
       : extras.supports
@@ -600,7 +604,7 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   const supports = extras.supports
   const summary = [
     supports
-      ? `${supports.status === 'complete' ? 'Layout' : 'Partial layout'} · ${supports.intermediate} intermediate support${supports.intermediate === 1 ? '' : 's'} · pre-tension ${f(supports.preTensionKN, 0)} kN`
+      ? `${SHOWN_LAYOUT_TEXT[supports.layout]}${supports.status === 'complete' ? '' : ', partial'} · ${supports.intermediate} intermediate support${supports.intermediate === 1 ? '' : 's'} · pre-tension ${f(supports.preTensionKN, 0)} kN`
       : line.sagModel === 'mechanics'
         ? 'Single span (no intermediate supports saved)'
         : `Assumed sag ${f(line.deflectionPercent)} % of span`,
@@ -639,7 +643,7 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
       ),
       extras.stakeout.rows.map((s) => [
         String(s.point),
-        `${s.label} ${s.name}`,
+        `${s.label} ${s.supportName ?? s.name}`,
         f(s.stationM),
         f(s.easting, 1),
         f(s.northing, 1),
@@ -669,7 +673,7 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
         right / 342,
       ),
       supports.rows.map((s) => [
-        `${s.label} ${s.name}`,
+        `${s.label} ${s.supportName ?? s.name}`,
         f(s.emptyBreakDeg),
         f(s.loadedBreakDeg),
         f(s.maxForceKN),

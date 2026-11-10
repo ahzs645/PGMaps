@@ -161,6 +161,27 @@ describe('D-line sheet', () => {
     }
   })
 
+  it('says which layout it prints, and prints the open edit with its names', () => {
+    expect(
+      texts(buildDLineSheet(input()).ops).some((t) => t.startsWith('Found layout · 6 intermediate supports')),
+    ).toBe(true)
+    const edited = {
+      origin: 'found' as const,
+      preTensionKN: 85,
+      start: { heightM: 12 },
+      end: { heightM: 10 },
+      supports: [{ stationM: 175, heightM: 14, name: 'Big fir' }],
+    }
+    const editing: CableLine = { ...line, supportLayout: { ...line.supportLayout!, edited } }
+    const grid = localMetricGrid(start)
+    // Handed the found result, the sheet still prints the edit (unchecked, so without forces).
+    const extras = dLineExtras({ line: editing, analysis, terrain: hill, ground, layout: result, grid })
+    const all = texts(buildDLineSheet(input({ line: editing, extras, limits: null })).ops)
+    expect(all.some((t) => t.startsWith('Edited layout · 1 intermediate support · pre-tension 85 kN'))).toBe(true)
+    expect(all).toContain('1 Big fir')
+    expect(all).not.toContain('FORCES AND ANGLES')
+  })
+
   it('refuses a D-line whose own inputs are invalid', () => {
     expect(dLineSheetUnavailable(undefined)).toMatch(/Draw a D-line/)
     expect(dLineSheetUnavailable(line)).toBeNull()

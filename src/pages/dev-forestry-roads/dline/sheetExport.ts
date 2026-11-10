@@ -1,15 +1,17 @@
 /**
  * Builds the D-line sheet for Files → Save & export: gathers the D-line's profile on its own
- * ground, its current support-layout result (checking the saved layout in the cable-layout worker
- * when none is current), its stake-out table and limits, then draws the sheet as a PDF (jsPDF
- * passed in, rasters through `png.ts`) or as an SVG preview. jsPDF loads only when asked for.
+ * ground, the result of the layout the chart shows (the edited one while an edit is open, else the
+ * found one; checked in the cable-layout worker when no result is current), its stake-out table and
+ * limits, then draws the sheet as a PDF (jsPDF passed in, rasters through `png.ts`) or as an SVG
+ * preview. jsPDF loads only when asked for.
  */
 import { riggingErrors } from '../cableMechanics'
 import { analyzeCableLayout } from '../cableLayout/cableLayoutClient'
-import type { CableLayoutResult } from '../cableLayout/cableLayout'
+import type { CableLayoutResult, LayoutToAnalyse } from '../cableLayout/cableLayout'
 import { layoutLimitRows } from '../cableLayout/limits'
 import { DEFAULT_SUPPORT_LAYOUT, layoutRun, savedLayoutToAnalyse, supportLayoutErrors } from '../cableLayout/settings'
-import { currentLayoutResult } from '../cableLayout/useCableLayout'
+import { editedLayoutToAnalyse } from '../cableLayout/layoutEdit'
+import { shownLayoutResult } from '../cableLayout/useCableLayout'
 import { analyzeCable } from '../engine'
 import { exportGrid } from '../terrain'
 import type { CableLine, RoadProject, TerrainSource } from '../types'
@@ -47,7 +49,7 @@ export interface DLineSheetRequest {
   signal?: AbortSignal
 }
 
-/** Everything the sheet draws. Checks the saved layout in the worker when no result is current. */
+/** Everything the sheet draws. Checks the shown layout in the worker when no result is current. */
 export async function prepareDLineSheet(request: DLineSheetRequest): Promise<DLineSheetInput> {
   const { project, line, terrain, signal } = request
   const reason = dLineSheetUnavailable(line)
@@ -58,11 +60,16 @@ export async function prepareDLineSheet(request: DLineSheetRequest): Promise<DLi
   let layout: CableLayoutResult | null = null
   const settings = line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT
   if (line.sagModel === 'mechanics' && line.rigging) {
-    layout = currentLayoutResult(line, ground)
-    if (!layout && line.supportLayout?.saved) {
+    layout = shownLayoutResult(line, ground)
+    const { edited, saved } = settings
+    if (!layout && (edited || saved)) {
       const prepared = layoutRun(line, ground, settings)
-      const saved = prepared.ok ? savedLayoutToAnalyse(prepared.run, line.supportLayout.saved) : null
-      if (prepared.ok && saved) layout = await analyzeCableLayout(prepared.run.input, saved, { signal })
+      let shown: LayoutToAnalyse | null = null
+      if (prepared.ok && edited) {
+        const checked = editedLayoutToAnalyse(prepared.run, edited)
+        shown = checked.ok ? checked.layout : null
+      } else if (prepared.ok && saved) shown = savedLayoutToAnalyse(prepared.run, saved)
+      if (prepared.ok && shown) layout = await analyzeCableLayout(prepared.run.input, shown, { signal })
     }
   }
   signal?.throwIfAborted()
