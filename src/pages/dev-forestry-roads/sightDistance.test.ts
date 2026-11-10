@@ -9,10 +9,12 @@ import {
   profileSightDistance,
   reviewRoadSight,
   sampleProfile,
+  sightAtStation,
   sightAroundCurve,
   sightlineOffset,
   stoppingSightDistance,
 } from './sightDistance'
+import { blockingText, sightBandSeries, sightPlanFeatures } from './sightPresentation'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainSource } from './types'
 
@@ -270,6 +272,100 @@ describe('sight distance on the road surface (3D)', () => {
         standards: { designSpeedKmh: 30 },
       }).status,
     ).toBe('checked')
+  })
+})
+
+describe("one station's sightlines, for the plan", () => {
+  it('finds the wall on the inside of a curve and the clearing the line needs there', () => {
+    const stations = stationsAlong(200, 1, rightCurve(60), { wallAtM: 5 })
+    const view = sightAtStation({
+      analysis: analysisOf(stations),
+      alignment: road({ curveDesign: { designSpeedKmh: 50 }, sightDistance: { singleLane: false } }),
+      chainage: 50,
+    })
+    expect(view.status).toBe('checked')
+    const ahead = view.looks.find((look) => look.eye.direction === 'ahead')!
+    // The same look as the review's eye station at 50.
+    const reviewed = reviewRoadSight({
+      analysis: analysisOf(stations),
+      alignment: road({ curveDesign: { designSpeedKmh: 50 }, sightDistance: { singleLane: false } }),
+    }).eyes.find((e) => e.chainage === 50 && e.direction === 'ahead')!
+    expect(ahead.eye).toEqual(reviewed)
+    expect(ahead.seenTo?.chainage).toBeCloseTo(50 + ahead.eye.availableM, 6)
+    expect(ahead.hiddenFrom?.chainage).toBeCloseTo(50 + ahead.eye.availableM + 1, 6)
+    const blocking = ahead.needed!.blocking!
+    expect(blocking.kind).toBe('inside')
+    expect(blocking.side).toBe('right')
+    expect(blocking.offset).toBeGreaterThan(5)
+    // The wall stands 10 m over ground the line crosses at about eye height.
+    expect(blocking.aboveLineM).toBeGreaterThan(8)
+    // A chord of the lane path (radius 59, 1 m right of the centreline) over the distance needed.
+    const cap = ahead.needed!.chainage - 50
+    expect(blocking.clearToM!).toBeCloseTo(59 * (1 - Math.cos(cap / 120)) + 1, 1)
+    expect(blocking.clearedM).toBe(2)
+    expect(blocking.clearLine).not.toBeNull()
+    expect(blockingText(blocking)).toMatch(/clear and bench below the line to there \(now 2\.0 m\)/)
+    const roles = sightPlanFeatures(view).features.map((f) => f.properties?.role)
+    expect(roles).toEqual(
+      expect.arrayContaining([
+        'sight-eye',
+        'sight-seen',
+        'sight-needed',
+        'sight-hidden',
+        'sight-block',
+        'sight-clear-to',
+      ]),
+    )
+  })
+  it('names a crest when the road itself hides the target, with no clearing to offer', () => {
+    const stations = stationsAlong(500, 1, north, { elevation: crest, width: 4 })
+    const view = sightAtStation({
+      analysis: analysisOf(stations),
+      alignment: road({
+        template: { ...DEFAULT_TEMPLATE, leftWidth: 4, rightWidth: 4 },
+        curveDesign: { designSpeedKmh: 70 },
+      }),
+      profileAt: crest,
+      chainage: 200,
+    })
+    const ahead = view.looks.find((look) => look.eye.direction === 'ahead')!
+    expect(ahead.eye.availableM).toBe(82)
+    expect(ahead.needed?.blocking?.kind).toBe('crest')
+    expect(ahead.needed?.blocking?.clearToM).toBeNull()
+    expect(ahead.needed?.blocking?.clearLine).toBeNull()
+  })
+  it('draws only the seen line where the view is clear, and nothing without a speed', () => {
+    const stations = stationsAlong(300, 1, north)
+    const alignment = road({ curveDesign: { designSpeedKmh: 50 }, sightDistance: { singleLane: false } })
+    const view = sightAtStation({ analysis: analysisOf(stations), alignment, chainage: 100 })
+    expect(view.looks).toHaveLength(2)
+    for (const look of view.looks) {
+      expect(look.eye.limitedBy).toBe('clear')
+      expect(look.needed?.trace.state).toBe('clear')
+      expect(look.needed?.blocking).toBeNull()
+      expect(look.hiddenFrom).toBeNull()
+    }
+    expect(
+      sightPlanFeatures(view)
+        .features.map((f) => f.properties?.role)
+        .sort(),
+    ).toEqual(['sight-eye', 'sight-seen', 'sight-seen'])
+    // From the road start there is only the look ahead.
+    expect(sightAtStation({ analysis: analysisOf(stations), alignment, chainage: 0 }).looks).toHaveLength(1)
+    expect(sightAtStation({ analysis: analysisOf(stations), alignment: road(), chainage: 100 }).status).toBe('no-speed')
+  })
+  it('bands each eye station by its worse look', () => {
+    const stations = stationsAlong(200, 1, rightCurve(60), { wallAtM: 5 })
+    const review = reviewRoadSight({
+      analysis: analysisOf(stations),
+      alignment: road({ curveDesign: { designSpeedKmh: 50 }, sightDistance: { singleLane: false } }),
+    })
+    const series = sightBandSeries(review)
+    expect(series.map((p) => p.chainage)).toEqual([...new Set(review.eyes.map((e) => e.chainage))])
+    const at50 = series.find((p) => p.chainage === 50)!
+    expect(at50.state).toBe('short')
+    const looks = review.eyes.filter((e) => e.chainage === 50)
+    expect(at50.availableM - at50.requiredM!).toBe(Math.min(...looks.map((e) => e.availableM - (e.requiredM ?? 0))))
   })
 })
 

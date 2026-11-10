@@ -55,6 +55,7 @@ import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
+import { SightlinePlanLayers } from './SightlinePlanLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
@@ -151,6 +152,8 @@ interface PlanProps {
   noteTool?: NoteTool
   /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
   onHighlightRoad?: (road: ContextFeature) => void
+  /** Sightlines from the Sight distance section (`sightPresentation.ts`); absent draws none. */
+  sightlines?: GeoJSON.FeatureCollection | null
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
@@ -1697,6 +1700,7 @@ function Layers(
           )
         })}
       <AccessHistoryLayers data={historicalMap} selection={props.historySelection} />
+      <SightlinePlanLayers data={props.sightlines} />
       <MapLineLayer
         sourceKey="road-access-history-selected-road"
         data={selectedMappedRoad}

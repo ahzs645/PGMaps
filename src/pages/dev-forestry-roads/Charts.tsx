@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans, type SightBandInput } from './EngineeringBands'
+import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
@@ -917,15 +918,27 @@ export function ProfileChart({
       bands={{
         label: terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands',
         content: (
-          <EngineeringBands
-            analysis={analysis}
-            alignment={alignment}
-            station={station}
-            onStation={onStation}
-            terrainOnly={terrainOnly}
-            range={[domain[0], domain[1]]}
-            sight={terrainOnly ? undefined : sight}
-          />
+          <>
+            <EngineeringBands
+              analysis={analysis}
+              alignment={alignment}
+              station={station}
+              onStation={onStation}
+              terrainOnly={terrainOnly}
+              range={[domain[0], domain[1]]}
+              sight={terrainOnly ? undefined : sight}
+            />
+            {!terrainOnly && sight && (
+              <SightDistanceBand
+                analysis={analysis}
+                alignment={alignment}
+                sight={sight}
+                station={station}
+                onStation={onStation}
+                range={[domain[0], domain[1]]}
+              />
+            )}
+          </>
         ),
       }}
       footer={
