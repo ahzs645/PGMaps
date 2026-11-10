@@ -245,4 +245,51 @@ describe('plot book', () => {
     expect(half.usableCompactedM3).toBeCloseTo(half.bankCutM3 * 0.8 * 0.9, 7)
     expect(half.unusableBankM3).toBeCloseTo(half.bankCutM3 * 0.2, 7)
   })
+
+  it('prints on tabloid and ANSI D: wider sheets, the same heights, and more road per sheet at a fixed scale', () => {
+    const book = (paper: 'A3' | 'tabloid' | 'ansi-d') => {
+      const settings = createRoadReportSettings()
+      settings.paper = paper
+      settings.chapters = [
+        { ...createReportChapter('plan-profile', 'fixed'), sheetLengthM: 1000, horizontalScale: 1000 },
+        createReportChapter('schedule', 'table'),
+      ]
+      return plotBookHtml({
+        projectName: 'Demo',
+        alignment,
+        analysis,
+        terrain,
+        settings,
+        ...exportGrid(terrain, origin),
+      })
+    }
+    const a3 = book('A3'),
+      tabloid = book('tabloid'),
+      d = book('ansi-d')
+    expect(a3).toContain('viewBox="0 0 1587 1123"')
+    expect(a3).toContain('@page{size:A3 landscape;margin:0}')
+    expect(a3).toContain('.sheet{width:420mm;height:297mm;')
+    expect(tabloid).toContain('viewBox="0 0 1736 1123"')
+    expect(tabloid).toContain('@page{size:17in 11in;margin:0}')
+    expect(tabloid).toContain('.sheet{width:431.8mm;height:279.4mm;')
+    expect(d).toContain('viewBox="0 0 1736 1123"')
+    expect(d).toContain('@page{size:34in 22in;margin:0}')
+    expect(d).toContain('.sheet{width:863.6mm;height:558.8mm;')
+    // The paper's proportions hold to within a unit of the drawing.
+    expect(Math.abs(1736 / 1123 - 17 / 11)).toBeLessThan(1 / 1123)
+    // At 1:1000 a printed sheet holds its printable width of road: about 380 m on A3, 395 m on
+    // tabloid, 789 m on ANSI D, so the 600 m road takes two sheets, two, and one.
+    const plans = (html: string) => html.match(/Plan &amp; profile [^<"]*/g) ?? []
+    expect(plans(a3).filter((t) => t.includes('0+380.'))).not.toHaveLength(0)
+    expect(plans(tabloid).filter((t) => t.includes('0+394.'))).not.toHaveLength(0)
+    expect(d).toContain('Plan &amp; profile 0+000.0–0+600.0')
+    for (const html of [tabloid, d]) {
+      // Nothing is drawn past the sheet's right edge.
+      for (const rect of html.matchAll(/<rect x="([\d.]+)" y="[\d.-]+" width="([\d.]+)"/g))
+        expect(Number(rect[1]) + Number(rect[2])).toBeLessThanOrEqual(1736)
+      expect(html).toContain('data-chapter="fixed"')
+      expect(html).toContain('data-chapter="table"')
+      expect(html).not.toContain('NaN')
+    }
+  })
 })

@@ -28,7 +28,7 @@ describe('sheet layouts', () => {
 
   it('keeps the map, title and panels apart and on the page', () => {
     for (const template of SHEET_TEMPLATES)
-      for (const paper of ['tabloid', 'letter', 'a3', 'a4'] as const) {
+      for (const paper of ['tabloid', 'ansi-d', 'letter', 'a3', 'a4'] as const) {
         const sheet = resolveSheet(template, paper)
         const inset = (r: { x: number; y: number; w: number; h: number }) => ({
           x: r.x + 0.5,
@@ -53,5 +53,17 @@ describe('sheet layouts', () => {
     expect(fontSize(letter, 16)).toBeCloseTo(16 * (792 / 1224))
     expect(fontSize(letter, 5)).toBe(4.5)
     expect(resolveSheet(IMAGERY_PORTRAIT, 'a4').template.orientation).toBe('portrait')
+  })
+
+  it('prints ANSI D as tabloid at twice the size', () => {
+    for (const template of SHEET_TEMPLATES) {
+      const tabloid = resolveSheet(template, 'tabloid')
+      const d = resolveSheet(template, 'ansi-d')
+      expect(d.k).toBe(2)
+      expect(d.width).toBe(2 * tabloid.width)
+      expect(d.frame.w).toBeCloseTo(2 * tabloid.frame.w, 6)
+      expect(d.frame.h).toBeCloseTo(2 * tabloid.frame.h, 6)
+      expect(fontSize(d, 8)).toBe(16)
+    }
   })
 })

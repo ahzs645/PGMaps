@@ -4,12 +4,16 @@
  * scale with the page by `resolveSheet`'s `k`. No DOM or network access.
  */
 
-export type PaperId = 'tabloid' | 'letter' | 'a3' | 'a4'
+export type PaperId = 'tabloid' | 'ansi-d' | 'letter' | 'a3' | 'a4'
 export type Orientation = 'landscape' | 'portrait'
 
-/** Paper sizes in points, short side first. */
+/**
+ * Paper sizes in points, short side first. ANSI D (22 × 34 in) is exactly twice tabloid, so a sheet
+ * on it is the tabloid sheet at `k` = 2: the same layout and twice the ground at a given scale.
+ */
 export const PAPER_SIZES: Record<PaperId, { label: string; short: number; long: number }> = {
   tabloid: { label: 'Tabloid 11 × 17 in', short: 792, long: 1224 },
+  'ansi-d': { label: 'ANSI D 22 × 34 in', short: 1584, long: 2448 },
   letter: { label: 'Letter 8.5 × 11 in', short: 612, long: 792 },
   a3: { label: 'A3', short: 841.89, long: 1190.55 },
   a4: { label: 'A4', short: 595.28, long: 841.89 },

@@ -58,6 +58,7 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { UndoHistoryButton } from './dev-forestry-roads/UndoHistoryMenu'
 import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
 import {
   csvPreview,
@@ -2982,6 +2983,15 @@ export default function DevForestryRoads() {
           >
             <Redo2 className="size-4" />
           </Button>
+          <UndoHistoryButton
+            rows={w.historyRows}
+            onGo={w.goToHistory}
+            checkpoints={w.checkpoints}
+            onSaveCheckpoint={w.saveCheckpoint}
+            onRestoreCheckpoint={w.restoreCheckpoint}
+            onDeleteCheckpoint={w.deleteCheckpoint}
+            disabled={!!busy}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -3157,6 +3167,7 @@ export default function DevForestryRoads() {
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
         setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
+        blockSheetSettings={{ value: blockSheet.settings, onApply: blockSheet.apply }}
       />
       <CostBreakdown
         open={!investigation && costOpen && !!displayedAnalysis.stations.length}

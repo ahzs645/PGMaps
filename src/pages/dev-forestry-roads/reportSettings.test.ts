@@ -53,4 +53,16 @@ describe('portable report settings', () => {
       parseRoadReportSettings({ ...s, subviews: { ...s.subviews, plan: false, profile: false, mass: false } }),
     ).toThrow('one plot subview')
   })
+  it('takes tabloid and ANSI D paper and the report sections left out, and still reads older settings', () => {
+    for (const paper of ['A3', 'A4', 'tabloid', 'ansi-d'] as const)
+      expect(parseRoadReportSettings({ ...createRoadReportSettings(), paper }).paper).toBe(paper)
+    expect(() => parseRoadReportSettings({ ...createRoadReportSettings(), paper: 'B5' })).toThrow(/tabloid or ANSI D/)
+    const s = { ...createRoadReportSettings(), omittedSections: ['sections', 'review'] }
+    expect(parseRoadReportSettings(JSON.parse(JSON.stringify(s))).omittedSections).toEqual(['review', 'sections'])
+    // An empty list is the same as none, so a file does not change by saving it.
+    expect(parseRoadReportSettings({ ...createRoadReportSettings(), omittedSections: [] })).not.toHaveProperty(
+      'omittedSections',
+    )
+    expect(parseRoadReportSettings(createRoadReportSettings())).not.toHaveProperty('omittedSections')
+  })
 })

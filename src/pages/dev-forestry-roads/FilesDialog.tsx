@@ -24,6 +24,11 @@ import { IssueStampEditor } from './IssueStampEditor'
 import { issueLine, issueStamp, type ProjectIssue } from './projectIssue'
 import type { RoadReportSettings } from './reportSettings'
 import { ReportSettingsEditor } from './ReportSettingsEditor'
+import type { BlockSheetSettings } from './blockSheet'
+import type { PreviewPick } from './previewPick'
+import type { ReportSectionId } from './reportContents'
+import { ReportContentsEditor } from './ReportContentsEditor'
+import { SheetSetupLibrary } from './SheetSetupLibrary'
 
 export type { RoadExport } from './exportCatalog'
 
@@ -63,6 +68,7 @@ export function FilesDialog({
   buildPreview,
   previewVersion,
   setupViews,
+  blockSheetSettings,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -90,9 +96,13 @@ export function FilesDialog({
   previewVersion: unknown
   /** A Sheet setup view for outputs other than the plot book, e.g. the block map sheet. */
   setupViews?: Partial<Record<RoadExport, ReactNode>>
+  /** The block sheet's settings, so a saved sheet setup can be saved from and applied to it. */
+  blockSheetSettings?: { value: BlockSheetSettings; onApply: (settings: BlockSheetSettings) => void }
 }) {
   const [selected, setSelected] = useState<RoadExport>('project')
   const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
+  // The part of the setup a click on the preview asked for: a plot-book chapter or a report section.
+  const [setupFocus, setSetupFocus] = useState<{ chapter?: string; section?: ReportSectionId } | null>(null)
   // Each opening starts on the project file, which the header's Save button is for.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
@@ -107,7 +117,8 @@ export function FilesDialog({
   const stampNote = exportStampNote(item.kind, context)
   const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
   const setupView = setupViews?.[item.kind]
-  const setupAvailable = (item.kind === 'plotbook' && !!onReportSettings) || !!setupView
+  const reportContents = item.kind === 'report' || item.kind === 'report-pdf'
+  const setupAvailable = ((item.kind === 'plotbook' || reportContents) && !!onReportSettings) || !!setupView
   // A view the selected output does not have falls back to its preview.
   const shownView =
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
@@ -140,8 +151,22 @@ export function FilesDialog({
   }, [open, request, unavailable, settingUp])
   const current = result?.request === request ? result : null
   const pane = useRef<HTMLElement>(null)
+  // Saved sheet setups sit above the plot book's and the block sheet's own setup.
+  const setupLibrary =
+    item.kind === 'plotbook' || item.kind === 'block-sheet-pdf' ? (
+      <SheetSetupLibrary plotBook={reportSettings} onPlotBook={onReportSettings} blockSheet={blockSheetSettings} />
+    ) : null
+  /** A click on a part of the preview opens that part's settings, where the output has them. */
+  const pick = (target: PreviewPick) => {
+    if (target.view === 'issue' && stamped) setView('issue')
+    else if (target.view === 'setup' && setupAvailable) {
+      setSetupFocus({ chapter: target.chapter, section: target.section })
+      setView('setup')
+    }
+  }
   const select = (kind: RoadExport) => {
     setSelected(kind)
+    setSetupFocus(null)
     // Stacked on a phone, the preview sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
@@ -257,7 +282,9 @@ export function FilesDialog({
                   onChange={setView}
                   options={[
                     { value: 'preview' as const, label: 'Preview' },
-                    ...(setupAvailable ? [{ value: 'setup' as const, label: 'Sheet setup' }] : []),
+                    ...(setupAvailable
+                      ? [{ value: 'setup' as const, label: reportContents ? 'Contents' : 'Sheet setup' }]
+                      : []),
                     ...(stamped ? [{ value: 'issue' as const, label: 'Issue stamp' }] : []),
                   ]}
                 />
@@ -298,13 +325,30 @@ export function FilesDialog({
               {shownView === 'issue' && onIssue ? (
                 <IssueStampEditor value={issue} onChange={onIssue} today={stamp.date} />
               ) : shownView === 'setup' && setupView ? (
-                setupView
+                <div className="grid gap-3">
+                  {setupLibrary}
+                  {setupView}
+                </div>
+              ) : shownView === 'setup' && onReportSettings && reportContents ? (
+                <ReportContentsEditor value={reportSettings} onChange={onReportSettings} focus={setupFocus?.section} />
               ) : shownView === 'setup' && onReportSettings ? (
-                <ReportSettingsEditor value={reportSettings} onChange={onReportSettings} />
+                <div className="grid gap-3">
+                  {setupLibrary}
+                  <ReportSettingsEditor
+                    key={setupFocus?.chapter ?? ''}
+                    value={reportSettings}
+                    onChange={onReportSettings}
+                    initialChapter={setupFocus?.chapter}
+                  />
+                </div>
               ) : unavailable ? (
                 <p className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">{unavailable}</p>
               ) : current?.preview ? (
-                <ExportPreviewView preview={current.preview} title={item.label} />
+                <ExportPreviewView
+                  preview={current.preview}
+                  title={item.label}
+                  onPick={setupAvailable ? pick : undefined}
+                />
               ) : current?.error ? (
                 <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
                   {current.error}
