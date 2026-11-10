@@ -433,6 +433,13 @@ function nearestWithin<T extends { chainage: number }>(stations: readonly T[], t
   return best
 }
 
+/**
+ * Radii above this read as straight. Over a BEND_CHORD_M chord a 10 km radius departs 5 mm from the
+ * chord, while a straight line at an angle to the meridian, sampled and measured in this local
+ * projection, read as a bend of about 8,000 km.
+ */
+const STRAIGHT_RADIUS_M = 10_000
+
 function circumradius(a: Coordinate, b: Coordinate, c: Coordinate) {
   const kx = Math.cos(b[1] * RAD) * RAD * EARTH_M,
     ky = RAD * EARTH_M
@@ -443,5 +450,6 @@ function circumradius(a: Coordinate, b: Coordinate, c: Coordinate) {
     bc = Math.hypot(cx, cy),
     ca = Math.hypot(cx - ax, cy - ay)
   const cross = Math.abs(ax * cy - ay * cx)
-  return cross < 1e-9 ? Infinity : (ab * bc * ca) / (2 * cross)
+  const radius = cross < 1e-9 ? Infinity : (ab * bc * ca) / (2 * cross)
+  return radius > STRAIGHT_RADIUS_M ? Infinity : radius
 }
