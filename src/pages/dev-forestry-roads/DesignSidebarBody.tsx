@@ -171,6 +171,12 @@ export function DesignSidebar(p: SidebarProps) {
     setAggregateOpen(false)
     setInputsRequest((previous) => ({ tab: inputs, sequence: (previous?.sequence ?? 0) + 1 }))
   }
+  // Asking for the culvert inputs closes the aggregate view, here rather than in EngineeringControls.
+  const [engineeringRequest, setEngineeringRequest] = useState(p.engineeringRequest)
+  if (p.engineeringRequest !== engineeringRequest) {
+    setEngineeringRequest(p.engineeringRequest)
+    if (p.engineeringRequest) setAggregateOpen(false)
+  }
   const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
   const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)

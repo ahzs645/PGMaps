@@ -283,21 +283,17 @@ export function EngineeringControls({
   onShowDrainage?: () => void
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
+  // The sidebar closes the aggregate view itself when it makes either request: calling its setter
+  // here, during this component's render, is a React error.
   const [seenInputsRequest, setSeenInputsRequest] = useState(inputsRequest?.sequence)
   if (inputsRequest?.sequence !== seenInputsRequest) {
     setSeenInputsRequest(inputsRequest?.sequence)
-    if (inputsRequest) {
-      setTab(inputsRequest.tab)
-      if (inputsRequest.tab !== 'haul') onAggregateOpenChange?.(false)
-    }
+    if (inputsRequest) setTab(inputsRequest.tab)
   }
   const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
   if (culvertRequest !== seenCulvertRequest) {
     setSeenCulvertRequest(culvertRequest)
-    if (culvertRequest) {
-      setTab('culverts')
-      onAggregateOpenChange?.(false)
-    }
+    if (culvertRequest) setTab('culverts')
   }
   const [haulOpen, setHaulOpen] = useState(false)
   // Which invert a typed culvert fall keeps; the other one follows.
