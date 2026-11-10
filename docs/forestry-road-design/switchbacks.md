@@ -207,6 +207,10 @@ partial totals, and the mass cursor reports an unknown balance after a gap.
 ground, choose a culvert, find the cheapest location or solve a route to an endpoint.
 It adds editable geometry. Terrain, drainage, material and endpoint constraints
 must be reviewed using their own inputs and views.
+**Find the best route** can place switchbacks itself, screened for a platform, spacing
+and the sharpest stackable turn: see [Switchbacks found by the route search](switchback-search.md).
+Its switchbacks are drawn round the outside of the turn, entering and leaving this
+two-curve bend on reverse curves.
 
 ## Saved-state behavior
 

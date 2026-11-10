@@ -437,11 +437,15 @@ one before found nothing, and the row's note says which one produced the road:
 2. The same corridor searched again leaning toward the end (`QUICK_SEARCH_WEIGHT`, 2.5), when the
    first search spent its whole budget. On the LiDAR hillside this reached ends 1.1 km apart in
    under 3 s where the even search ran out. The line can be longer than a larger budget would find.
-3. Twice the half-width, up to ±600 m, when the corridor was searched out with no line.
-4. A terrain-cost grid route between the ends, searched once for all goals, then a road fitted
+3. With **Allow switchbacks** on (**Search settings → Switchbacks**), the switchback search in the
+   same corridor: straight graded pieces that may turn back through switchbacks screened for a
+   platform, spacing and the sharpest turn the legs can be stacked through, each drawn as a loop of
+   curves. Off by default. See [Switchbacks found by the route search](switchback-search.md).
+4. Twice the half-width, up to ±600 m, when the corridor was searched out with no line.
+5. A terrain-cost grid route between the ends, searched once for all goals, then a road fitted
    inside ±40 m of it (`ROUTED_HALF_WIDTH_M`). The grid route already meets the grade limit, so the
    search only has to round its corners, and a tube that narrow is searched in a second or two.
-5. The grid route itself with curves fitted (`roadFromRoute` in `routeFit.ts`): the tightest
+6. The grid route itself with curves fitted (`roadFromRoute` in `routeFit.ts`): the tightest
    polyline fit of 2, 4, 8 or 16 m that rounds every corner at between one and two times the
    minimum radius, kept only if every metre of its centreline has ground under it and it enters no
    blocked area. If no fit stays clear, the route as found, with sharp corners.
@@ -460,6 +464,12 @@ goal that found no line (`failureText`). A goal that found a line and could not 
 says so and gives the profile's reason; one whose search could not start, such as a grade limit over
 30 %, gives that. Lowest cost tries three lines and reports a lost line before a line never found.
 Goals that failed for the same reason share one row.
+
+With switchbacks allowed, a goal the switchback search could not serve gives that search's reason
+instead, naming the rule and the place ("the platform is too steep 50 m east-north-east of the road's
+start: 100% of the ground within 31.3 m is steeper than 55%"). With switchbacks off, a goal that
+found no line also says whether the switchback search would find one, and where its first
+switchback would be, or which switchback rule would stop it; no road is added.
 
 **An end inside a closed area is named** (`blockedRouteEnds` in `riparian.ts`). The corridor and
 terrain-cost searches stop before they start when an end sits inside an excluded area, an area or
@@ -650,8 +660,8 @@ engineering assumptions and sampling, and review the geometric and material flag
   inputs.
 - Keep a found road's sections whole. The searches check ground under the centreline, so a batter
   can still run onto a gap in the terrain.
-- Treat interior sketch points as compulsory waypoints, or validate the constructed footprint
-  against exclusions. The terrain-cost search applies the entered centreline clearance only.
+- Treat interior sketch points as compulsory waypoints (only the switchback search does, with **Pass
+  points within** set), or validate the constructed footprint against exclusions. The terrain-cost search applies the entered centreline clearance only.
 - Prove that no road exists where a search fails. Failure means none was found inside these
   bounds.
 

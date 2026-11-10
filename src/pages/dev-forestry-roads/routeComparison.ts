@@ -25,6 +25,16 @@ import { MAX_JOINT_MOVABLE_POINTS, refinePlanAndProfile } from './jointOptimizer
 import { derivedRoadName } from './roadNames'
 import { roadFromRoute, routeRoadFlags } from './routeFit'
 import { suggestRoutes, type RouteSearchOptions } from './routing'
+import { DEFAULT_SWITCHBACK_ROUTE_OPTIONS, switchbackRadius } from './switchbackOptions'
+import {
+  describeSwitchbackFailure,
+  searchSwitchbackRouteAsync,
+  SwitchbackSearchError,
+  switchbackPlaceText,
+  switchbackRefusal,
+  type SwitchbackFailure,
+  type SwitchbackRouteResult,
+} from './switchbackSearch'
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import { optimizeVerticalProfileAsync } from './verticalOptimizer'
 import { constraintRouteIssues } from './riparian'
@@ -86,8 +96,8 @@ export interface RouteComparisonOptions {
   /** Allowance per cross-drain site without a culvert, CAD. A planning placeholder. */
   crossDrainCost: number
   drainage: DrainageSettings
-  /** Smaller corridor-search budgets, for tests and constrained devices. The defaults are the documented ones. */
-  searchBudget?: { maxStates?: number; maxTerrainSamples?: number }
+  /** Smaller search budgets, for tests and constrained devices. The defaults are the documented ones. */
+  searchBudget?: { maxStates?: number; maxTerrainSamples?: number; switchbackExpansions?: number }
 }
 export const DEFAULT_CROSS_DRAIN_COST = 1500
 /** Metres of road a mapped stream contact is worth to the drainage goal's search. */
@@ -495,11 +505,12 @@ export async function compareRoutes(
     analyses.set(alignment, analysis)
     return analysis
   }
+  const { switchbackExpansions, ...corridorBudget } = options.searchBudget ?? {}
   const searchOptions = (halfWidth: number) => ({
     corridorHalfWidthM: Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth),
     groundWindowM: options.groundWindowM,
     constraintCostBasePerM: routeOptions.baseCostPerM,
-    ...options.searchBudget,
+    ...corridorBudget,
   })
 
   let wetness: ((coordinate: Coordinate) => number) | null = null
@@ -588,6 +599,98 @@ export async function compareRoutes(
       return null
     }
   }
+  /**
+   * The switchback search (`switchbackSearch.ts`): straight graded pieces with switchbacks where the
+   * road has to turn back on itself, which the corridor search cannot do. Run only when switchbacks
+   * are allowed, in the same corridor, once the corridor search found no line there. Whether a line
+   * exists does not depend on the goal, so a search that found none is not run again.
+   */
+  const switchbackRules = routeOptions.switchbacks ?? DEFAULT_SWITCHBACK_ROUTE_OPTIONS
+  const switchbackLimits = {
+    maxGradePercent: settings.maxGradePercent,
+    minRadiusM: Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M),
+    halfWidthM: Math.min(MAX_CORRIDOR_HALF_WIDTH_M, options.corridorHalfWidthM),
+    rules: switchbackRules,
+    radiusM: switchbackRadius(switchbackRules, settings.minRadius),
+    sideHillSlopePercent: routeOptions.maxTerrainSlopePercent,
+  }
+  let switchbackFailure: SwitchbackFailure | null = null
+  let switchbacksExhausted = false
+  const switchbackSearch = (
+    objective: RoadOptimizationObjective,
+    drainage: boolean,
+    rules: typeof switchbackRules,
+    doing: string,
+  ) =>
+    searchSwitchbackRouteAsync(
+      guide,
+      terrain,
+      settings,
+      context,
+      {
+        objective,
+        corridorHalfWidthM: switchbackLimits.halfWidthM,
+        rules,
+        groundWindowM: options.groundWindowM,
+        sideHillSlopePercent: routeOptions.maxTerrainSlopePercent,
+        haulGrades: routeOptions.haulGrades,
+        startHeading: routeOptions.startHeading,
+        endHeading: routeOptions.endHeading,
+        constraintCostBasePerM: routeOptions.baseCostPerM,
+        ...(drainage ? { streamContactCostM: DRAINAGE_STREAM_CONTACT_M, groundPenalty: wetness! } : {}),
+        ...(switchbackExpansions ? { maxExpansions: switchbackExpansions } : {}),
+      },
+      { signal, onProgress: ({ budgetUsed }) => detail(doing, budgetUsed) },
+    )
+  const withSwitchbacks = async (objective: RoadOptimizationObjective, drainage: boolean) => {
+    if (!switchbackRules.allow || switchbacksExhausted) return null
+    const doing = 'searching for a line with switchbacks'
+    try {
+      detail(doing)
+      return await switchbackSearch(objective, drainage, switchbackRules, doing)
+    } catch (cause) {
+      aborted()
+      switchbacksExhausted = true
+      if (cause instanceof SwitchbackSearchError) {
+        if (!switchbackFailure || cause.failure.closestRemainingM < switchbackFailure.closestRemainingM)
+          switchbackFailure = cause.failure
+      } else other ??= cause
+      return null
+    }
+  }
+  /**
+   * With switchbacks off and no line found anywhere, whether the switchback search would find one,
+   * said in the failure. It never adds a road: with switchbacks off the results stay as they were.
+   */
+  let diagnosis: Promise<string> | null = null
+  const switchbackDiagnosis = () =>
+    (diagnosis ??= (async () => {
+      if (switchbackRules.allow) return ''
+      const rules = { ...switchbackRules, allow: true }
+      const doing = 'checking whether switchbacks would help'
+      try {
+        detail(doing)
+        const found = await switchbackSearch('balanced', false, rules, doing)
+        const first = found.switchbacks[0]
+        if (!first) return ''
+        const count = found.switchbacks.length
+        return ` With switchbacks allowed, the switchback search finds a ${whole(found.lengthM)} m line with ${count} switchback${count === 1 ? '' : 's'}, the first ${switchbackPlaceText(corridorFrame(guide[0]).toXY(first.coordinate), corridorFrame(guide[0]).toXY(guide[guide.length - 1]))}. Turn on Allow switchbacks under Search settings → Switchbacks.`
+      } catch (cause) {
+        aborted()
+        const refusal =
+          cause instanceof SwitchbackSearchError
+            ? switchbackRefusal(cause.failure, { ...switchbackLimits, rules })
+            : null
+        return refusal ? ` Switchbacks would not help as set: ${refusal}` : ''
+      }
+    })())
+  const switchbackNote = (found: SwitchbackRouteResult) => {
+    const count = found.switchbacks.length
+    if (!count) return 'Found by the switchback search, on straight graded pieces; it needed no switchback.'
+    const shares = found.switchbacks.map((turn) => `${Math.round(turn.platformSteepShare * 100)}%`).join(', ')
+    const cuts = found.switchbacks.map((turn) => turn.turnCutFillM.toFixed(1)).join(', ')
+    return `${count} switchback${count === 1 ? '' : 's'} at R ${whole(found.radiusM)} m, found by the switchback search: platform ground ${shares} steep, turn cut or fill ${cuts} m${found.sideHillM > 0 ? `; ${whole(found.sideHillM)} m on side-hill` : ''}. Each is drawn as a loop round the outside of its turn: design its platform and review it as one manoeuvre under Swept path.`
+  }
   /** The terrain-cost grid route between the ends, searched once: it does not depend on the goal. */
   let gridRoute: { coordinates: Coordinate[] } | { error: unknown } | null = null
   const routed = () => {
@@ -640,6 +743,8 @@ export async function compareRoutes(
         `searching within ${halfWidth} m of your road`,
       )
       if (direct) return { result: direct.result, note: quick(direct, null) }
+      const switchbacks = await withSwitchbacks(objective, drainage)
+      if (switchbacks) return { result: switchbacks, note: switchbackNote(switchbacks) }
       // Only a corridor with no valid line can gain from more room; an exhausted budget cannot.
       const wider = Math.min(MAX_CORRIDOR_HALF_WIDTH_M, halfWidth * WIDER_CORRIDOR_FACTOR)
       if (corridors.get('guide') === 'empty' && wider > halfWidth) {
@@ -694,8 +799,12 @@ export async function compareRoutes(
    * explained by how far the searches got: one that found a line and could not fit a profile to it,
    * or whose search could not start, has its own reason, and the nearest search's would be wrong.
    */
-  const failureText = (cause: unknown) => {
+  const failureText = async (cause: unknown) => {
     const noLine = cause instanceof NoLineError
+    const grid =
+      gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : ''
+    // The switchback search is the most capable one run: its reason names the rule and the place.
+    if (noLine && switchbackFailure) return describeSwitchbackFailure(switchbackFailure, switchbackLimits) + grid
     if (noLine && nearest)
       return (
         describeCorridorFailure(nearest.failure, {
@@ -703,7 +812,8 @@ export async function compareRoutes(
           minRadiusM: Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M),
           halfWidthM: nearest.halfWidthM,
         }) +
-        (gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : '')
+        grid +
+        (await switchbackDiagnosis())
       )
     const reason = noLine ? (other ?? cause) : cause
     // The searches state their limits in plain sentences; anything else is an internal fault.
@@ -951,7 +1061,7 @@ export async function compareRoutes(
       Object.assign(row, metrics(analysis, settings.maxGradePercent, context))
     } catch (cause) {
       aborted()
-      row.blockers = [failureText(cause)]
+      row.blockers = [await failureText(cause)]
     }
     rows.push(row)
   }
