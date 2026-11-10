@@ -30,23 +30,42 @@ The source link and notes are retained in the project; linked images and reports
 embedded or automatically interpreted. A private report must remain accessible to its intended
 reviewers. Copying a project does not change the source's permissions.
 
+## LiDAR observations from Find on terrain
+
+**Find on terrain** grades a found road's bed from the point cloud as a state class 1–4
+([Finding and tracing existing roads](road-relocation-and-tracing.md)). **Record as LiDAR evidence**
+adds it here as a dated observation with source **lidar**, component **Road surface**, the LiDAR
+acquisition date as entered (not today), and the measured state kept with it (`lidar`: class, score,
+vegetation over the bed, drivable width, path conductivity, shoulders, share found and the terrain's
+name). It needs no link. The finding is a translation of the class, `lidarStateFinding`: classes 1–2
+read as serviceable, class 3 as unknown, class 4 as needing rehabilitation (brushing at least).
+
+It never sets the road's condition by itself:
+
+- it is recorded unreviewed unless a reviewer is typed when recording it;
+- it counts only within **LiDAR evidence max age**, which starts unset (`maxLidarAgeDays`; absent in
+  older files, which therefore load with LiDAR unassessed);
+- it describes the surface only, so a positive LiDAR finding cannot establish the overall road, a
+  bridge or a culvert, and LiDAR cannot be recorded against another component;
+- like every other record, it never edits the manual planning condition.
+
 ## How the estimate is resolved
 
 `roadCondition.ts` is a pure calculation over saved observations, an explicit date and a source-age
 policy. It never reads the current clock or the basemap. Calendar dates use `YYYY-MM-DD` without
 timezone conversion, and age is the whole number of calendar days since the observation.
 
-| Evidence state | Treatment |
-| --- | --- |
-| Review missing | Retained for review; cannot establish a current positive estimate |
-| Observation or review after the assessment date | Future evidence; does not participate at that date |
-| Source-age window unset | Source is unassessed; no automatic age default |
-| Age equal to the configured maximum | Still within the window on that date |
-| Age beyond the maximum | Expired; current condition becomes unknown where evidence is missing |
-| Multiple current findings for the same component and asset disagree | Conflict retained; a later date alone does not choose a winner |
-| Reviewed applicable record explicitly replaces an earlier record | Replaces that record and its supersession chain for the same component and asset |
-| Earlier reviewed closure has no applicable explicit resolution | Remains an unresolved closure flag, including after its age window expires |
-| Imagery says a bridge or culvert is serviceable | Insufficient source for that positive structure finding |
+| Evidence state                                                      | Treatment                                                                        |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Review missing                                                      | Retained for review; cannot establish a current positive estimate                |
+| Observation or review after the assessment date                     | Future evidence; does not participate at that date                               |
+| Source-age window unset                                             | Source is unassessed; no automatic age default                                   |
+| Age equal to the configured maximum                                 | Still within the window on that date                                             |
+| Age beyond the maximum                                              | Expired; current condition becomes unknown where evidence is missing             |
+| Multiple current findings for the same component and asset disagree | Conflict retained; a later date alone does not choose a winner                   |
+| Reviewed applicable record explicitly replaces an earlier record    | Replaces that record and its supersession chain for the same component and asset |
+| Earlier reviewed closure has no applicable explicit resolution      | Remains an unresolved closure flag, including after its age window expires       |
+| Imagery says a bridge or culvert is serviceable                     | Insufficient source for that positive structure finding                          |
 
 A current closure blocks reuse. An old reviewed closure does not prove that the road is still closed,
 but expiry does not reopen it: the current condition remains unknown and the unresolved closure flag
@@ -84,13 +103,14 @@ needed. **Confirm evidence scope for updated geometry** clears the marker but le
 the reviewer explicitly enables it again. The graph also blocks the marker independently, and project
 imports cannot combine a pending geometry review with enabled reuse.
 
-| Bound | Enforced in | Result |
-| --- | --- | --- |
-| 100 observations per road | `roadCondition.ts`, `MAX_ROAD_CONDITION_OBSERVATIONS` | Import or add refused beyond the bound |
-| Up to 100 replaced IDs per observation | `parseRoadConditionObservations` | Invalid, missing, duplicate, cyclic, later-dated or other-asset targets refused |
-| 2,000-character URL and notes; 200-character reviewer/asset reference | `parseRoadConditionObservations` | Invalid record refused |
-| Full HTTP/HTTPS URLs, without embedded credentials | `parseRoadConditionObservations` | Script, local-file, relative and credential-bearing links refused |
-| Integer age windows from 0 to 36,500 days, or unset | `MAX_CONDITION_EVIDENCE_AGE_DAYS`, `parseRoadConditionPolicy` | Invalid policy refused; this is an input bound, not a recommended inspection interval |
+| Bound                                                                                                                             | Enforced in                                                   | Result                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| 100 observations per road                                                                                                         | `roadCondition.ts`, `MAX_ROAD_CONDITION_OBSERVATIONS`         | Import or add refused beyond the bound                                                      |
+| Up to 100 replaced IDs per observation                                                                                            | `parseRoadConditionObservations`                              | Invalid, missing, duplicate, cyclic, later-dated or other-asset targets refused             |
+| 2,000-character URL and notes; 200-character reviewer/asset reference                                                             | `parseRoadConditionObservations`                              | Invalid record refused                                                                      |
+| Full HTTP/HTTPS URLs, without embedded credentials                                                                                | `parseRoadConditionObservations`                              | Script, local-file, relative and credential-bearing links refused                           |
+| Integer age windows from 0 to 36,500 days, or unset                                                                               | `MAX_CONDITION_EVIDENCE_AGE_DAYS`, `parseRoadConditionPolicy` | Invalid policy refused; this is an input bound, not a recommended inspection interval       |
+| A LiDAR observation is the road surface, carries its state (class 1–4, score and sub-score inputs in range) and may omit its link | `parseRoadConditionObservations`, `LIDAR_STATE_NUMBERS`       | Missing state, a state on another source, another component or out-of-range figures refused |
 
 Tests cover source-specific expiry boundaries, future and unreviewed evidence, component/asset scope,
 conflicting findings, explicit replacement chains, historical closure retention, imagery limits and

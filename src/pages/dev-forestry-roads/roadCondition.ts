@@ -1,6 +1,6 @@
 /** Dated condition evidence for planning. No deterioration curve, road-age inference or load rating. */
 export type RoadCondition = 'unknown' | 'serviceable' | 'rehabilitation' | 'closed'
-export type RoadConditionSource = 'inspection' | 'imagery'
+export type RoadConditionSource = 'inspection' | 'imagery' | 'lidar'
 export type RoadConditionComponent = 'overall' | 'surface' | 'drainage' | 'bridge' | 'culvert'
 
 export interface RoadConditionObservation {
@@ -18,12 +18,40 @@ export interface RoadConditionObservation {
   review?: { reviewer: string; reviewedAt: string }
   /** Explicitly replaced observations, on this road and the same component only. */
   supersedes?: string[]
+  /** LiDAR observations only: the measured state of the bed the finding was read from. */
+  lidar?: LidarRoadStateRecord
+}
+
+/**
+ * The state a road search measured from a point cloud (`roadState.ts`): a dated observation of the
+ * road surface as seen from the air on the acquisition date. It is evidence like any other: it is
+ * retained unreviewed unless a reviewer is recorded, counts only within a LiDAR age window the user
+ * sets, and never edits the manual planning condition.
+ */
+export interface LidarRoadStateRecord {
+  stateClass: 1 | 2 | 3 | 4
+  score: number
+  vegetationPercent: number
+  drivableWidthM: number
+  conductivity: number
+  shoulderPercent: number
+  /** Share of the record the search found, %. */
+  foundPercent: number
+  /** The terrain and point cloud the search ran on. */
+  terrainName: string
+}
+
+/** What a state class says about the surface: 1–2 usable, 3 undecided, 4 needs brushing or more. */
+export function lidarStateFinding(stateClass: LidarRoadStateRecord['stateClass']): RoadCondition {
+  return stateClass <= 2 ? 'serviceable' : stateClass === 3 ? 'unknown' : 'rehabilitation'
 }
 
 export interface RoadConditionPolicy {
   /** Null means the source has no configured applicability window and cannot establish a current estimate. */
   maxInspectionAgeDays: number | null
   maxImageryAgeDays: number | null
+  /** Absent in older files: unset, so LiDAR observations stay unassessed. */
+  maxLidarAgeDays?: number | null
 }
 
 export type RoadObservationStatus =
@@ -55,7 +83,7 @@ export interface RoadComponentAssessment {
 export interface RoadConditionAssessment {
   asOf: string
   condition: RoadCondition
-  basis: 'unknown' | 'inspection' | 'imagery' | 'mixed' | 'conflicting'
+  basis: 'unknown' | RoadConditionSource | 'mixed' | 'conflicting'
   hasCurrentEvidence: boolean
   hasConflicts: boolean
   hasOpenClosureEvidence: boolean
@@ -134,7 +162,40 @@ export function parseRoadConditionPolicy(raw: unknown): RoadConditionPolicy {
       )
     return Number(result)
   }
-  return { maxInspectionAgeDays: days('maxInspectionAgeDays'), maxImageryAgeDays: days('maxImageryAgeDays') }
+  return {
+    maxInspectionAgeDays: days('maxInspectionAgeDays'),
+    maxImageryAgeDays: days('maxImageryAgeDays'),
+    ...(value.maxLidarAgeDays !== undefined ? { maxLidarAgeDays: days('maxLidarAgeDays') } : {}),
+  }
+}
+
+const LIDAR_STATE_NUMBERS = {
+  score: [0, 100],
+  vegetationPercent: [0, 100],
+  drivableWidthM: [0, 100],
+  conductivity: [0, 1],
+  shoulderPercent: [0, 100],
+  foundPercent: [0, 100],
+} as const
+
+function parseLidarRoadState(raw: unknown): LidarRoadStateRecord {
+  const value = object(raw, 'LiDAR road state')
+  if (![1, 2, 3, 4].includes(value.stateClass as number)) throw Error('LiDAR road state class must be 1 to 4.')
+  const numbers = {} as Record<keyof typeof LIDAR_STATE_NUMBERS, number>
+  for (const [key, [min, max]] of Object.entries(LIDAR_STATE_NUMBERS) as [
+    keyof typeof LIDAR_STATE_NUMBERS,
+    readonly [number, number],
+  ][]) {
+    const v = value[key]
+    if (typeof v !== 'number' || !Number.isFinite(v) || v < min || v > max)
+      throw Error(`LiDAR road state ${key} must be from ${min} to ${max}.`)
+    numbers[key] = v
+  }
+  return {
+    stateClass: value.stateClass as LidarRoadStateRecord['stateClass'],
+    ...numbers,
+    terrainName: text(value.terrainName, 'LiDAR terrain name', 300),
+  }
 }
 
 export function parseRoadConditionObservations(raw: unknown): RoadConditionObservation[] {
@@ -142,7 +203,8 @@ export function parseRoadConditionObservations(raw: unknown): RoadConditionObser
     throw Error(`A road may contain at most ${MAX_ROAD_CONDITION_OBSERVATIONS} dated condition observations.`)
   const observations = raw.map((item): RoadConditionObservation => {
     const value = object(item, 'Condition observation')
-    if (value.source !== 'inspection' && value.source !== 'imagery') throw Error('Invalid condition evidence source.')
+    if (value.source !== 'inspection' && value.source !== 'imagery' && value.source !== 'lidar')
+      throw Error('Invalid condition evidence source.')
     if (
       typeof value.component !== 'string' ||
       !Object.prototype.hasOwnProperty.call(ROAD_COMPONENT_LABELS, value.component)
@@ -153,15 +215,19 @@ export function parseRoadConditionObservations(raw: unknown): RoadConditionObser
       !Object.prototype.hasOwnProperty.call(ROAD_CONDITION_LABELS, value.finding)
     )
       throw Error('Invalid observed road condition.')
-    const sourceUrl = text(value.sourceUrl, 'Evidence source URL', 2000)
-    let url: URL
-    try {
-      url = new URL(sourceUrl)
-    } catch {
-      throw Error('Evidence source URL must be a full HTTP or HTTPS link.')
+    // A LiDAR observation names its terrain instead of linking to a report; a link stays optional.
+    const lidarWithoutLink = value.source === 'lidar' && (value.sourceUrl === undefined || value.sourceUrl === '')
+    const sourceUrl = lidarWithoutLink ? '' : text(value.sourceUrl, 'Evidence source URL', 2000)
+    if (!lidarWithoutLink) {
+      let url: URL
+      try {
+        url = new URL(sourceUrl)
+      } catch {
+        throw Error('Evidence source URL must be a full HTTP or HTTPS link.')
+      }
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
+        throw Error('Evidence source URL must be HTTP or HTTPS and must not contain credentials.')
     }
-    if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password)
-      throw Error('Evidence source URL must be HTTP or HTTPS and must not contain credentials.')
     const observation: RoadConditionObservation = {
       id: identifier(value.id, 'Observation ID'),
       source: value.source,
@@ -173,6 +239,12 @@ export function parseRoadConditionObservations(raw: unknown): RoadConditionObser
     }
     if (value.assetReference !== undefined)
       observation.assetReference = text(value.assetReference, 'Observed asset / station', 200)
+    if ((value.source === 'lidar') !== (value.lidar !== undefined))
+      throw Error('A LiDAR observation needs its measured road state, and only a LiDAR observation has one.')
+    if (value.lidar !== undefined) {
+      if (observation.component !== 'surface') throw Error('A LiDAR observation describes the road surface only.')
+      observation.lidar = parseLidarRoadState(value.lidar)
+    }
     if (value.review !== undefined) {
       const review = object(value.review, 'Observation review')
       observation.review = {
@@ -234,7 +306,12 @@ export function assessRoadCondition(
   const observations = parseRoadConditionObservations(input)
   const records: AssessedRoadObservation[] = observations.map((observation) => {
     const ageDays = Math.round((dateValue(asOf) - dateValue(observation.observedAt)) / DAY_MS)
-    const limit = observation.source === 'inspection' ? policy.maxInspectionAgeDays : policy.maxImageryAgeDays
+    const limit =
+      observation.source === 'inspection'
+        ? policy.maxInspectionAgeDays
+        : observation.source === 'lidar'
+          ? (policy.maxLidarAgeDays ?? null)
+          : policy.maxImageryAgeDays
     const expiresAt =
       limit === null ? null : new Date(dateValue(observation.observedAt) + limit * DAY_MS).toISOString().slice(0, 10)
     let status: RoadObservationStatus = 'current'

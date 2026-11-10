@@ -807,6 +807,11 @@ export interface PointCloudImport {
   surface: 'mean' | 'tin'
   /** GeoJSON lines (WGS84) whose vertices and segments the TIN must keep. */
   breaklines?: unknown
+  /**
+   * Keep vegetation evidence for road finding from the unthinned returns (on unless false). It is
+   * kept for this session under the terrain's checksum (`vegetationEvidenceStore.ts`).
+   */
+  vegetationEvidence?: boolean
   onProgress?: (message: string) => void
   signal?: AbortSignal
 }
@@ -931,6 +936,7 @@ export async function loadLas(
   // before the ground filter runs.
   const result = await runPointCloudWorker(bytes, {
     additionalBytes,
+    vegetation: options.vegetationEvidence !== false,
     classify: options.classify,
     preserve,
     ...(assumed !== null ? { assumedEpsg: assumed } : {}),
@@ -968,6 +974,17 @@ export async function loadLas(
   })
   const epsg = result.cloud.epsg
   if (epsg === null) throw Error(`${files[0].name} came back from the reader without a CRS. Import it again.`)
+  // Vegetation evidence stays in this session, keyed by the terrain it was imported with.
+  let vegetationLine = ''
+  if (result.vegetation) {
+    const { keepVegetationEvidence } = await import('./vegetationEvidenceStore')
+    const { describeVegetationEvidence } = await import('./vegetationEvidence')
+    keepVegetationEvidence(terrainHash, result.vegetation)
+    vegetationLine =
+      'evidence' in result.vegetation
+        ? `kept in the importing browser session only: ${describeVegetationEvidence(result.vegetation.evidence.info)}`
+        : `not kept: ${result.vegetation.refused}`
+  }
   const projection = roadProjection(epsg)
   const grid = result.surface!.grid
   // Where the CRS and the datum came from, for the summary: a stated value is the person's claim.
@@ -1024,6 +1041,7 @@ export async function loadLas(
         missingCells: grid.width * grid.height - grid.values.filter((v) => v !== null).length,
         crsSource: crsEntered ? 'entered' : 'file',
         verticalSource: datumEntered ? 'entered' : 'file',
+        ...(vegetationLine ? { vegetationEvidence: vegetationLine.slice(0, 1000) } : {}),
       },
       ...(result.surface?.retainedTin ? { tin: result.surface.retainedTin } : {}),
     },
@@ -1044,6 +1062,7 @@ export async function loadLas(
       : `, ${count(grid.filledCells)} short gaps filled`,
     `, ${count(grid.width * grid.height - known)} cells left missing.`,
     ` CRS EPSG:${epsg} ${crsEntered ? 'as entered (the file states none)' : 'from the file'}; vertical datum ${raster.verticalReference} ${datumEntered ? 'as entered' : 'from the file'}.`,
+    vegetationLine ? ` Vegetation evidence for road finding ${vegetationLine}.` : '',
   ]
   return { metadata, source: rasterSource(raster), summary: parts.join('') }
 }
@@ -1123,6 +1142,9 @@ export function pointCloudImportSummary(metadata: TerrainMetadata): Array<{ labe
       label: 'Vertical datum',
       value: `${metadata.verticalReference} ${p.verticalSource === 'entered' ? 'as entered' : 'from the files'}`,
     },
+    ...(typeof p.vegetationEvidence === 'string' && p.vegetationEvidence
+      ? [{ label: 'Vegetation evidence', value: p.vegetationEvidence }]
+      : []),
     { label: 'Sources', value: record.sources.map((source) => source.name).join(', ') },
   ]
 }
