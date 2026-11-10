@@ -16,6 +16,7 @@
 ## Data hosts
 
 - `docs/data-hosts.md` is the contract for `src/config/data-hosts.json`, which lists the `public/data` folders served from another host. Moving a folder off Pages is one entry there; the sync script, deploy cache key and service worker follow it.
+- `canada-admin`, `cciss`, `citypg`, `drought`, `forest` and `network-availability` are served by bcdatamapper's own Pages site, not this build. Their layout lives in `vendor/bcdatamapper/pages/site.json`; do not re-add their mappings to `scripts/sync-bcdatamapper-data.mjs`. A bcdatamapper data push reaches the live app without a deploy, and `scripts/check-data-hosts.mjs` warns in the deploy when the live folders differ from the pinned submodule.
 - Resolve every data URL with `withBase` (`src/lib/dataUrl.ts`), directly or through `fetchJson`/`fetchBytes`. A bare `'/data/...'` handed to MapLibre, deck.gl, a worker or a link, or a URL built from `import.meta.env.BASE_URL`, always loads from this site and breaks once its folder moves.
 
 ## LiDAR point cloud tiles

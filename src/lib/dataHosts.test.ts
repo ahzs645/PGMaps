@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import config from '@/config/data-hosts.json'
 import { dataHostOrigins, parseDataHosts, remoteDataUrl, type DataHost } from './dataHosts'
@@ -14,6 +15,12 @@ const HOSTS: DataHost[] = [
 describe('the checked-in data-hosts config', () => {
   it('parses', () => {
     expect(() => parseDataHosts(config)).not.toThrow()
+  })
+
+  it('sends bcdatamapper only folders its Pages site publishes', () => {
+    const site = JSON.parse(readFileSync('vendor/bcdatamapper/pages/site.json', 'utf8')) as { folders: string[] }
+    const bcdatamapper = parseDataHosts(config).find((host) => host.name === 'bcdatamapper')
+    expect(site.folders).toEqual(expect.arrayContaining(bcdatamapper?.folders ?? []))
   })
 })
 

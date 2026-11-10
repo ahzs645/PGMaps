@@ -2,7 +2,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, 
 import { execFileSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { dirname, join, relative } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { beginDataBuild, createIncrementalCopier } from './lib/incremental-data.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -72,10 +72,8 @@ const contentMappings = [
 
 const pathMappings = [
   ['datascrapers/climate/echoscreen/output', 'echoscreen-climate'],
-  ['datascrapers/bc/cciss/output', 'cciss'],
   ['datascrapers/bc/laep/output', 'bc/laep'],
   ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],
-  ['datascrapers/bc/forest-map-sources/output/visual-inventory', 'forest/visual-inventory'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],
   ['datascrapers/manual/output/indicators', 'indicators'],
   ['data-sources/healthdata/bc_wait_times/output/bc-wait-specialists.json', 'bc-wait-specialists.json'],
@@ -95,9 +93,7 @@ const pathMappings = [
     'health/msp-facility-geocode-cache.json',
   ],
   ['datascrapers/fallout/output', 'fallout'],
-  ['datascrapers/citypg/output', 'citypg'],
   ['datascrapers/citypg/output-boundaries/CityPG', 'boundaries/CityPG'],
-  ['datascrapers/bc/drought/output', 'drought'],
   ['datascrapers/bc/environmental-reporting/output/manifest.json', 'bc/environmental-reporting/manifest.json'],
   [
     'datascrapers/bc/environmental-reporting/output/regional_district_environmental_indicators.json',
@@ -114,19 +110,12 @@ const pathMappings = [
   ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
   ['datascrapers/census/output', 'census'],
-  ['datascrapers/canada/admin-geographies/output', 'canada-admin'],
   ['datascrapers/bc/outdoors/output', 'bc/outdoors'],
-  [
-    'datascrapers/bc/forest-map-sources/output/bc_bigtree_registry.geojson',
-    'forest/big-trees/bc_bigtree_registry.geojson',
-  ],
-  ['datascrapers/bc/forest-map-sources/output/species-at-risk', 'forest/species-at-risk'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],
   ['datascrapers/bc/wars/output', 'wars'],
   ['datascrapers/bc/nechako-portal/output', 'nechako-portal'],
   ['datascrapers/ev-charging/output', 'ev-charging'],
-  ['datascrapers/network-availability/output', 'network-availability'],
   ['datascrapers/open-litter-map/output', 'open-litter-map'],
   ['datascrapers/cell-coverage/output', 'cell-coverage'],
   ['datascrapers/healthyplan-pg/output', 'healthyplan-pg'],
@@ -267,6 +256,17 @@ const restrictedEarlyLearningMappings = [
 if (includeRestrictedEarlyLearning) {
   pathMappings.push(...restrictedEarlyLearningMappings)
 }
+
+// The folders bcdatamapper publishes on its own Pages site are mapped once,
+// in its pages/site.json. They are copied only when VITE_DATA_HOSTS_LOCAL=1
+// keeps every folder local; otherwise isRemoteDataPath skips them.
+const pagesSiteModule = join(vendorRoot, 'pages', 'site.mjs')
+if (!existsSync(pagesSiteModule)) {
+  console.error(`[data] Missing ${relative(root, pagesSiteModule)}; update the bcdatamapper submodule`)
+  process.exit(1)
+}
+const { readSite } = await import(pathToFileURL(pagesSiteModule).href)
+pathMappings.push(...readSite(vendorRoot).mappings)
 
 const optionalPathMappings = [
   ['datascrapers/environmental-burden/output/bc-enviro-screen', 'environmental-burden/bc-enviro-screen'],
