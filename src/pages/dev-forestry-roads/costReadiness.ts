@@ -1,5 +1,6 @@
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines } from './engineering'
+import { materialPlanMissing } from './engineeringTypes'
 import { surfacingSupplyCost } from './gravel'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
@@ -114,7 +115,8 @@ export function unpricedQuantities(
   for (const culvert of result?.culverts ?? [])
     if (culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id))
       add('structures', `culvert (${culvert.name})`, culvert.barrelLengthM ?? 0, 'm', 'installed cost')
-  if (result?.haul.enabled && engineering)
+  // A plan that was not adopted has no borrow, waste or haul quantity to call unpriced.
+  if (result?.haul.enabled && engineering && !materialPlanMissing(result.haul))
     for (const line of haulCostLines(engineering, result)) {
       if (line.rate !== 0) continue
       const supply = (line.group === 'borrow' || line.group === 'waste') && !line.id.startsWith('sidecast-')
@@ -216,7 +218,8 @@ export function assessCostReadiness(
       label: 'Aggregate minimum borrow demand',
       detail: `${quantity(minimumBorrowCompactedM3)} compacted m³ = covered fill minus assumed usable compacted cut, floored at zero. This screening lower bound assumes all usable cut can reach fill; road with unknown earthwork, unsuitable material or site constraints can increase demand. No supply or haul price is added by this check.`,
     })
-  if (result?.haul.enabled && engineering) {
+  // The infeasible and unsolved prompts above stand for the whole plan; nothing below applies to one.
+  if (result?.haul.enabled && engineering && !materialPlanMissing(result.haul)) {
     if (result.haul.unallocatedBorrowM3 > EPS || result.haul.unallocatedWasteM3 > EPS)
       flags.push({
         id: 'unallocated-haul',

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { designInputsOf, safeAnalyzeRoad } from './analysisResult'
-import { assessCostReadiness } from './costReadiness'
+import { assessCostReadiness, unpricedQuantities } from './costReadiness'
 import { buildCrossingRegister, CROSSING_MATCH_DISTANCE_M, crossingRegisterSummary } from './crossingRegister'
 import { DEFAULT_DESIGN_STANDARDS, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
@@ -594,6 +594,85 @@ describe('assessReadiness: vertical curves the engine did not apply', () => {
     expect(assess().row('vertical-curves')).toMatchObject({
       state: 'met',
       result: 'The 1 grade break has a vertical curve',
+    })
+  })
+})
+
+describe('assessReadiness: a material plan that was not solved', () => {
+  /** Thirteen priced sites: one over what the economic model opens, so the allocation stops. */
+  const unsolved = () => {
+    const alignment = road()
+    Object.assign(alignment.engineering!.haul, { enabled: true, allocation: 'economic', borrowRate: 12, wasteRate: 7 })
+    alignment.engineering!.sites = Array.from({ length: 13 }, (_, i) => ({
+      id: `site${i}`,
+      name: `Site ${i + 1}`,
+      kind: i % 2 ? ('borrow' as const) : ('waste' as const),
+      chainage: 10 + i * 30,
+      accessDistanceM: 30,
+      capacityM3: null,
+      unitRate: 3,
+      fixedCost: 100,
+    }))
+    return alignment
+  }
+
+  it('says the plan was not solved instead of stating a deficit no allocation found', () => {
+    const { row, rows, analysis, alignment } = assess({ alignment: unsolved() })
+    expect(analysis.engineering!.haul.optimizationStatus).toBe('unsolved')
+    expect(analysis.fillVolumeM3).toBeGreaterThan(100)
+    expect(row('earthwork-balance')).toMatchObject({
+      state: 'not-assessed',
+      result: 'The material plan was not solved, so borrow and waste have no source or site yet',
+      action: { label: 'Haul', target: 'haul' },
+    })
+    expect(row('earthwork-balance').measured).toMatch(/m³ usable cut − .* m³ fill = /)
+    expect(row('earthwork-balance').measured).not.toMatch(/borrow|waste/)
+    expect(row('haul')).toMatchObject({
+      state: 'not-assessed',
+      result: 'The material plan was not solved, so haul, borrow and waste are not priced',
+      action: { label: 'Haul', target: 'haul' },
+    })
+    expect(row('haul').measured).toMatch(/^Material plan not solved: /)
+    // One state, said once: no third row, and no prompt about unallocated or unpriced borrow.
+    expect(rows.filter((item) => item.id.startsWith('cost-'))).toEqual([])
+    const flags = assessCostReadiness(analysis, alignment, DEFAULT_ROAD_SETTINGS).flags.map((flag) => flag.id)
+    expect(flags).toContain('unsolved-material-plan')
+    expect(flags).not.toContain('unallocated-haul')
+    expect(flags).not.toContain('zero-supply-rates')
+    expect(unpricedQuantities(analysis, alignment, DEFAULT_ROAD_SETTINGS).map((item) => item.rowId)).not.toEqual(
+      expect.arrayContaining([expect.stringMatching(/^(borrow|waste)-/)]),
+    )
+  })
+
+  it('still states a real deficit when the plan is solved and a site is missing', () => {
+    const alignment = unsolved()
+    // One borrow pit and nowhere for the surplus cut to go, allocated nearest-first.
+    alignment.engineering!.haul.allocation = 'nearest'
+    alignment.engineering!.sites = alignment.engineering!.sites.slice(1, 2)
+    const { row, analysis } = assess({ alignment })
+    expect(analysis.engineering!.haul.optimizationStatus).toBeUndefined()
+    expect(row('earthwork-balance')).toMatchObject({ state: 'attention', severity: 'limit' })
+    expect(row('earthwork-balance').result).toMatch(/m³ of waste has no site$/)
+  })
+
+  it('reads an infeasible plan as a broken limit, without a volume the model never placed', () => {
+    const alignment = unsolved()
+    // The economic model must place every cubic metre: with no waste site it has no answer.
+    alignment.engineering!.sites = alignment.engineering!.sites.slice(1, 2)
+    const { row, analysis } = assess({ alignment })
+    expect(analysis.engineering!.haul).toMatchObject({
+      optimizationStatus: 'infeasible',
+      unallocatedBorrowM3: 0,
+      unallocatedWasteM3: 0,
+    })
+    expect(row('earthwork-balance')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+      result: 'The material plan is infeasible: the sites, capacities and rules entered cannot meet every demand',
+    })
+    expect(row('haul')).toMatchObject({
+      state: 'attention',
+      result: 'Material supply and construction rules are infeasible',
     })
   })
 })

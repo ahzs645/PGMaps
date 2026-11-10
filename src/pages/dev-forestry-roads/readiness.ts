@@ -18,6 +18,7 @@ import { buildCrossingRegister, type CrossingRegister } from './crossingRegister
 import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
@@ -217,6 +218,7 @@ const COST_FLAG_OWNERS: Record<string, string> = {
   'haul-disabled': 'haul',
   'borrow-screening': 'earthwork-balance',
   'infeasible-material-plan': 'haul',
+  'unsolved-material-plan': 'haul',
   'unallocated-haul': 'haul',
   'zero-supply-rates': 'haul',
   'zero-haul-rates': 'haul',
@@ -852,6 +854,33 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       state: 'not-assessed',
       result: 'No earthwork was calculated',
     })
+  else if (haul && materialPlanMissing(haul))
+    // No allocation was adopted, so there is no borrow, waste or shortfall to state: the totals
+    // are known, where they go is not.
+    add(
+      haul.optimizationStatus === 'unsolved'
+        ? {
+            id: 'earthwork-balance',
+            group: 'earthwork',
+            check: 'Earthwork balanced, or borrow and waste given a source',
+            state: 'not-assessed',
+            result: 'The material plan was not solved, so borrow and waste have no source or site yet',
+            measured: balanceText,
+            judgedOn: balanceLimit,
+            action: { label: 'Haul', target: 'haul' },
+          }
+        : {
+            id: 'earthwork-balance',
+            group: 'earthwork',
+            check: 'Earthwork balanced, or borrow and waste given a source',
+            state: 'attention',
+            severity: 'limit',
+            result: 'The material plan is infeasible: the sites, capacities and rules entered cannot meet every demand',
+            measured: balanceText,
+            judgedOn: balanceLimit,
+            action: { label: 'Haul', target: 'haul' },
+          },
+    )
   else if (haul?.enabled) {
     const open = haul.unallocatedBorrowM3 > EPS || haul.unallocatedWasteM3 > EPS
     const moved = `${num(haul.borrowCompactedM3)} m³ borrow${sites('borrow').length ? ` from ${sites('borrow').join(', ')}` : ''} · ${num(haul.wasteBankM3)} m³ waste${sites('waste').length ? ` to ${sites('waste').join(', ')}` : ''}`
@@ -1297,29 +1326,44 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
             judgedOn: 'Haul allocation on, with sites, distances and rates',
             action: { label: 'Haul', target: 'haul' },
           }
-        : haulFlags.length
+        : haul?.optimizationStatus === 'unsolved'
           ? {
               id: 'haul',
               group: 'cost',
               check: 'Haul, borrow and waste priced',
-              state: 'attention',
-              severity: 'todo',
-              result: haulFlags[0].label,
-              measured: haulFlags.map((flag) => flag.detail.split('. ')[0]).join(' · '),
+              state: 'not-assessed',
+              result: 'The material plan was not solved, so haul, borrow and waste are not priced',
+              // The engine's own reason: which limit the allocation reached.
+              measured:
+                result?.warnings
+                  .find((warning) => warning.startsWith('Material plan not solved: '))
+                  ?.split(' The road, ')[0] ?? 'The allocation did not finish',
               judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
               action: { label: 'Haul', target: 'haul' },
             }
-          : {
-              id: 'haul',
-              group: 'cost',
-              check: 'Haul, borrow and waste priced',
-              state: 'met',
-              result: 'Haul, borrow and waste are allocated and priced',
-              measured: result
-                ? `Haul ${money(result.costs.haul)} · borrow ${money(result.costs.borrow)} · waste ${money(result.costs.waste)}`
-                : undefined,
-              judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
-            },
+          : haulFlags.length
+            ? {
+                id: 'haul',
+                group: 'cost',
+                check: 'Haul, borrow and waste priced',
+                state: 'attention',
+                severity: 'todo',
+                result: haulFlags[0].label,
+                measured: haulFlags.map((flag) => flag.detail.split('. ')[0]).join(' · '),
+                judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
+                action: { label: 'Haul', target: 'haul' },
+              }
+            : {
+                id: 'haul',
+                group: 'cost',
+                check: 'Haul, borrow and waste priced',
+                state: 'met',
+                result: 'Haul, borrow and waste are allocated and priced',
+                measured: result
+                  ? `Haul ${money(result.costs.haul)} · borrow ${money(result.costs.borrow)} · waste ${money(result.costs.waste)}`
+                  : undefined,
+                judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
+              },
   )
 
   const culverts = engineering?.culverts ?? []
@@ -1404,7 +1448,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         severity: 'todo',
         result: flag.label,
         measured: flag.detail,
-        action: { label: 'Engineering', target: 'materials' },
+        // Material and haul settings are all one tab; the haul view holds allocation and its sites.
+        action: { label: 'Engineering', target: 'haul' },
       })
   return rows
 }

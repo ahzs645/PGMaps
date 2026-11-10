@@ -948,6 +948,37 @@ describe('culvert ditch dip', () => {
 })
 
 describe('haul cost lines', () => {
+  it('lists no borrow or waste for a plan that was not solved, so rows and total agree', () => {
+    // Cut at the start, fill at the end. Thirteen priced sites are one over what the economic
+    // model opens, so the allocation stops and the plan is unsolved.
+    const a = road()
+    a.vertical[1].elevation = 802
+    Object.assign(a.engineering!.haul, { enabled: true, allocation: 'economic', borrowRate: 12, wasteRate: 7 })
+    a.engineering!.sites = Array.from({ length: 13 }, (_, i) => ({
+      id: `site${i}`,
+      name: `Site ${i + 1}`,
+      kind: i % 2 ? ('borrow' as const) : ('waste' as const),
+      chainage: 5 + i * 7,
+      accessDistanceM: 30,
+      capacityM3: null,
+      unitRate: 3,
+      fixedCost: 100,
+    }))
+    const r = analyzeRoad(a, flat, settings),
+      e = r.engineering!
+    expect(e.haul.optimizationStatus).toBe('unsolved')
+    expect(r.fillVolumeM3).toBeGreaterThan(100)
+    // Nothing was allocated, so nothing is reported as left without a site.
+    expect(e.haul).toMatchObject({ unallocatedBorrowM3: 0, unallocatedWasteM3: 0, complete: false })
+    const lines = haulCostLines(a.engineering!, e)
+    expect(lines.filter((line) => line.group === 'borrow' || line.group === 'waste')).toEqual([])
+    expect(lines.reduce((total, line) => total + line.amount, 0)).toBeCloseTo(
+      e.costs.haul + e.costs.borrow + e.costs.waste + e.costs.sitePreparation,
+      6,
+    )
+    expect(e.costs.borrow + e.costs.waste + e.costs.haul).toBe(0)
+    expect(e.warnings.some((warning) => warning.startsWith('Material plan not solved: '))).toBe(true)
+  })
   it('prices every line as quantity × rate, keeps compacted and bank work apart and sums to the costs', () => {
     // Cut at the start, fill at the end; half the cut is unusable, so there is waste, and borrow with no site.
     const a = road()

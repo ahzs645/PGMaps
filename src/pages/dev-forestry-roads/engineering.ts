@@ -22,6 +22,7 @@ import type {
   TerrainSource,
 } from './types'
 import { hasCompleteCoverage } from './analysisResult'
+import { materialPlanMissing } from './engineeringTypes'
 import { curveDesignAt, surfaceLayersAt } from './engine'
 import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
@@ -264,7 +265,8 @@ export function haulCostLines(e: AlignmentEngineering, result: EngineeringAnalys
     }
     const unallocated = kind === 'borrow' ? result.haul.unallocatedBorrowM3 : result.haul.unallocatedWasteM3
     const rateKey = kind === 'borrow' ? 'borrowRate' : 'wasteRate'
-    if (unallocated > EPS && result.haul.allocationMethod !== 'economic')
+    // A plan that was not adopted has no volume to price; its costs are zero and so are its rows.
+    if (unallocated > EPS && result.haul.allocationMethod !== 'economic' && !materialPlanMissing(result.haul))
       lines.push({
         id: `${kind}-unallocated`,
         group: kind,
@@ -335,12 +337,8 @@ function economicHaul(
   })
   summary.optimizationStatus = h.deferExternalSupply ? 'not-requested' : solved.status
   if (solved.status === 'infeasible') {
+    // No prescription was adopted, so no volume is reported as allocated or as left without a site.
     summary.complete = false
-    summary.unallocatedBorrowM3 = intervals.reduce(
-      (sum, p) => sum + p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
-      0,
-    )
-    summary.unallocatedWasteM3 = intervals.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
     warnings.push(
       `${solved.reason} No economic material prescription or movement cost was adopted; zero movement costs do not mean the work is free.`,
     )
@@ -594,13 +592,10 @@ function allocateOrReport(
     return allocateHaul(e, intervals, coverageComplete, unknownLengthM)
   } catch (cause) {
     const h = e.haul
+    // The allocation never ran to an answer. It found no borrow, no waste and no shortfall, so the
+    // summary states none: all fill is not "borrow with no source" because nothing looked for one.
     const summary = emptyHaul(h.enabled, false)
     summary.optimizationStatus = 'unsolved'
-    summary.unallocatedBorrowM3 = intervals.reduce(
-      (sum, p) => sum + p.fill + (p.demands ?? []).filter((d) => !d.subgrade).reduce((s, d) => s + d.volumeM3, 0),
-      0,
-    )
-    summary.unallocatedWasteM3 = intervals.reduce((sum, p) => sum + p.cut.reduce((s, m) => s + m.bank, 0), 0)
     return {
       summary,
       movements: [],

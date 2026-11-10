@@ -317,6 +317,14 @@ export interface HaulSummary {
   /** Economic supply/movement/disposal/opening cost, excluding excavation and placement. */
   objectiveCost?: number
 }
+/**
+ * True when haul allocation is on and no material plan was adopted: the model was infeasible, or
+ * it could not be solved. Movements, borrow, waste and their costs are then absent, not zero, and
+ * the unallocated volumes are zero because nothing was allocated. Every reader that would state a
+ * borrow or waste quantity checks this first.
+ */
+export const materialPlanMissing = (haul: Pick<HaulSummary, 'enabled' | 'optimizationStatus'>) =>
+  haul.enabled && (haul.optimizationStatus === 'infeasible' || haul.optimizationStatus === 'unsolved')
 export interface EngineeringCosts {
   cut: number
   stripping: number

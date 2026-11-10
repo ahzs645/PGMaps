@@ -134,6 +134,21 @@ describe('pits and haul classes on the mass-haul diagram', () => {
     expect(d.haul!.closingM3).toBeCloseTo(0, 6)
   })
 
+  it('draws no line after sites for a plan that was not solved', () => {
+    const a = road(802, 798)
+    Object.assign(a.engineering!.haul, { enabled: true, allocation: 'economic' })
+    // Thirteen priced sites are one over what the economic model opens.
+    a.engineering!.sites = Array.from({ length: 13 }, (_, i) => ({
+      ...site(`s${i}`, i % 2 ? 'borrow' : 'waste', 5 + i * 7),
+      fixedCost: 100,
+    }))
+    const r = analyzeRoad(a, flat, settings)
+    expect(r.engineering!.haul.optimizationStatus).toBe('unsolved')
+    const d = massHaulDiagram(r, a.engineering)
+    expect(d.haul).toBeNull()
+    expect(d.endBalanceM3).not.toBeNull()
+  })
+
   it('leaves the line open by what no site could take', () => {
     const a = road(802, 801)
     a.engineering!.haul.enabled = true

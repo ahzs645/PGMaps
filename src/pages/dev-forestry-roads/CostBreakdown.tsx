@@ -7,7 +7,7 @@ import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import { surfacingSupplyCost } from './gravel'
-import type { HaulSettings } from './engineeringTypes'
+import { materialPlanMissing, type HaulSettings } from './engineeringTypes'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
 import { unpricedQuantities } from './costReadiness'
@@ -60,6 +60,8 @@ type Row = {
   unit: string
   rate?: Rate
   amount: number
+  /** Shown in place of the amount where a zero would read as a price: a cost that was not calculated. */
+  amountText?: string
   note?: string
 }
 
@@ -179,6 +181,12 @@ export function CostBreakdown({
       note: 'The entered fill-placement rate places these courses; source material and haul are separate allocation lines. No delivered surfacing rate is charged on this volume.',
     })
   const haulLines = result && alignment.engineering ? haulCostLines(alignment.engineering, result) : []
+  const noPlan =
+    result && materialPlanMissing(result.haul)
+      ? result.haul.optimizationStatus === 'unsolved'
+        ? 'was not solved'
+        : 'is infeasible'
+      : null
   const haulRows: Row[] = haulLines.length
     ? haulLines.map((line) => ({
         id: line.id,
@@ -204,9 +212,13 @@ export function CostBreakdown({
           quantity: null,
           unit: '',
           amount: costs ? costs.haul + costs.borrow + costs.waste + costs.sitePreparation : 0,
-          note: result?.haul.enabled
-            ? 'No material is moved, supplied or wasted.'
-            : 'Haul allocation is off; turn it on in Engineering → Haul.',
+          // A plan that was not adopted leaves these costs out of the total; that is not $0 of work.
+          ...(noPlan ? { amountText: 'Not calculated' } : {}),
+          note: noPlan
+            ? `The material plan ${noPlan}, so no haul, borrow or waste cost is in the total. Open Engineering → Haul.`
+            : result?.haul.enabled
+              ? 'No material is moved, supplied or wasted.'
+              : 'Haul allocation is off; turn it on in Engineering → Haul.',
         },
       ]
   const rows: Row[] = costs
@@ -317,7 +329,8 @@ export function CostBreakdown({
         <p className="text-2xs text-muted-foreground" data-testid="road-cost-status">
           {analysis.invalidInput ? 'Leaves out an invalid input · ' : ''}
           {hasCompleteCoverage(analysis) ? '' : 'Section coverage partial · '}
-          {result?.complete === false ? 'Engineering inputs incomplete · ' : ''}
+          {noPlan ? `Material plan ${noPlan.replace('was ', '')}: haul, borrow and waste are left out · ` : ''}
+          {result?.complete === false && !noPlan ? 'Engineering inputs incomplete · ' : ''}
           {unpriced.length ? `${unpriced.length} unpriced ${unpriced.length === 1 ? 'quantity' : 'quantities'} · ` : ''}
           Recalculated on every edit
           {processMs === undefined
@@ -413,7 +426,11 @@ export function CostBreakdown({
                     </td>
                     <td className="font-mono">
                       {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
-                      {missing.length > 0 && row.amount === 0 ? (
+                      {row.amountText ? (
+                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">
+                          {row.amountText}
+                        </span>
+                      ) : missing.length > 0 && row.amount === 0 ? (
                         <span className="font-sans font-medium text-amber-700 dark:text-amber-400">No rate</span>
                       ) : (
                         <>
