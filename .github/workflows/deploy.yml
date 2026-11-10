@@ -1,12 +1,16 @@
 name: Deploy to GitHub Pages
 
+# Nothing under docs/ and no Markdown file reaches the site, so a push that
+# only touches those skips the build. checks.yml still runs for it.
 on:
   push:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   # Pull requests run the full build and verification without deploying, so a
   # snapshot that no longer matches CI's products fails the PR, not main.
   pull_request:
     branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 
 permissions:
@@ -31,7 +35,21 @@ jobs:
           node-version-file: '.nvmrc'
           cache: npm
 
-      - run: npm ci
+      # npm ci spends most of a minute rebuilding node_modules from the npm
+      # cache. Restore the whole tree when the lockfile and Node version match.
+      # node_modules/.cache is left out: it holds build caches, not packages.
+      - name: Restore installed dependencies
+        id: node-modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            node_modules
+            packages/*/node_modules
+            !node_modules/.cache
+          key: ${{ runner.os }}-node-modules-v1-${{ hashFiles('.nvmrc', 'package-lock.json') }}
+
+      - if: steps.node-modules.outputs.cache-hit != 'true'
+        run: npm ci
 
       # Both scraper submodules feed public/data, so a pointer move in either
       # must miss the cache.
@@ -101,7 +119,9 @@ jobs:
           python3 vendor/bcdatamapper/datascrapers/transit/audit-travel-time.py --strict --report "$RUNNER_TEMP/transit-coverage-audit.json"
           npx vitest run src/pages/dev-transit/
 
-      - run: npm run build
+      # build:deploy is build without `tsc -b`: checks.yml typechecks every PR
+      # and every push to main, and the type check took a minute here.
+      - run: npm run build:deploy
         env:
           PGMAPS_SKIP_VENDOR_DATA_SYNC: '1'
           VITE_BC_DB_CHUNK_BASE_URL: https://data.map.ahmad.sh/census/bc-db-chunks
@@ -231,9 +251,11 @@ jobs:
 
       # GitHub Pages sites may be no larger than 1 GB. Warn while there is still room to move
       # data out; docs/lidar-viewer.md shows how the LiDAR tiles were moved.
+      # pigz compresses on every core; plain gzip took 26 s for this one number.
       - name: Check the site size
         run: |
-          bytes=$(tar -C dist -cf - . | gzip -1 | wc -c)
+          if command -v pigz >/dev/null; then compress='pigz -1'; else compress='gzip -1'; fi
+          bytes=$(tar -C dist -cf - . | $compress | wc -c)
           echo "Compressed site size: $((bytes / 1000000)) MB"
           if [ "$bytes" -gt 900000000 ]; then
             echo "::warning::The site is $((bytes / 1000000)) MB compressed, close to the 1 GB Pages limit."
