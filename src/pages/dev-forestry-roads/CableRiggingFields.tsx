@@ -27,22 +27,32 @@ const STEP: Partial<Record<NumericField, number>> = {
  * The D-line's sag model and, for rope mechanics, its rigging. The rigging starts from example
  * values and is kept when the line switches back to the assumed sag.
  */
-export function CableRiggingFields({ line, onChange }: { line: CableLine; onChange: (next: CableLine) => void }) {
+export function CableRiggingFields({
+  line,
+  onChange,
+  omit = [],
+}: {
+  line: CableLine
+  onChange: (next: CableLine) => void
+  /** Fields the caller sets itself (the landing screen has its own clearance). */
+  omit?: readonly NumericField[]
+}) {
   const mechanics = line.sagModel === 'mechanics'
   const rigging = line.rigging ?? EXAMPLE_RIGGING
   const set = (patch: Partial<CableRigging>) => onChange({ ...line, rigging: { ...rigging, ...patch } })
   const errors = mechanics ? riggingErrors(rigging) : []
-  const field = (key: NumericField) => (
-    <NumberField
-      key={key}
-      label={RIGGING_LABELS[key]}
-      value={rigging[key]}
-      min={RIGGING_LIMITS[key][0]}
-      max={RIGGING_LIMITS[key][1]}
-      step={STEP[key] ?? 1}
-      onChange={(value) => set({ [key]: value })}
-    />
-  )
+  const field = (key: NumericField) =>
+    omit.includes(key) ? null : (
+      <NumberField
+        key={key}
+        label={RIGGING_LABELS[key]}
+        value={rigging[key]}
+        min={RIGGING_LIMITS[key][0]}
+        max={RIGGING_LIMITS[key][1]}
+        step={STEP[key] ?? 1}
+        onChange={(value) => set({ [key]: value })}
+      />
+    )
   return (
     <div className="space-y-2">
       <Field

@@ -218,7 +218,7 @@ export function MaxReachPanel({
             </div>
           </fieldset>
         ))}
-        <CableRiggingFields line={sag} onChange={setSag} />
+        <CableRiggingFields line={sag} onChange={setSag} omit={['minClearanceM']} />
       </CollapsibleSection>
       <div className="mb-2 flex flex-wrap items-center gap-2">
         {progress ? (
