@@ -19,7 +19,7 @@ import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
-import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
+import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { materialPlanMissing } from './engineeringTypes'
@@ -425,7 +425,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
           },
   )
 
-  const grades = reviewGrades(stations, rule)
+  const grades = reviewGrades(stations, rule, gradeSpanOf(alignment))
   const signedRanges = (analysis.verticalChecks ?? []).filter(
     (check) => check.kind === 'grade' || check.kind === 'control-grade',
   )

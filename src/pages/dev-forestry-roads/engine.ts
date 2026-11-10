@@ -8,7 +8,7 @@
  */
 import { incompleteReasonSummary, incompleteReasonText } from './sectionCompleteness'
 import { checkVerticalDesign } from './verticalStandards'
-import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
+import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import { MAX_DRAG_GRADE } from './verticalTools'
 import type {
   Alignment,
@@ -1618,7 +1618,7 @@ export function analyzeRoad(
     if (reasons) warnings.push(`Incomplete sections: ${reasons}`)
   }
   // Favourable and adverse limits and the short-pitch allowance are one rule: `designStandards.ts`.
-  const grades = reviewGrades(stations, gradeRule(settings, options?.gradeStandards))
+  const grades = reviewGrades(stations, gradeRule(settings, options?.gradeStandards), gradeSpanOf(alignment))
   for (const [index, flag] of grades.flags) stations[index].flags.push(flag)
   if (grades.breachStationCount)
     warnings.push(

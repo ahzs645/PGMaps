@@ -122,9 +122,8 @@ screen already reads them: the grade limit (`maxGradePercent`) and the minimum r
 | Source                              | Printed in the report                                                                                                   |
 
 **The grade rule.** `reviewGrades` (`designStandards.ts`) judges station grades. A run is a set of
-consecutive stations steeper than the sustained limit for their direction. Each station stands for
-the road halfway to its neighbours, so one over-limit station at 10 m spacing is a 10 m run. Without
-a short-pitch allowance every run is a breach. With one ("12 %, 18 % for pitches up to 100 m"):
+consecutive stations steeper than the sustained limit for their direction. Without a short-pitch
+allowance every run is a breach. With one ("12 %, 18 % for pitches up to 100 m"):
 
 - a run no steeper than the short-pitch limit and no longer than the longest pitch is allowed, and
   its stations carry no flag;
@@ -132,9 +131,24 @@ a short-pitch allowance every run is a breach. With one ("12 %, 18 % for pitches
 - a run short enough but steeper than the short-pitch limit is a breach only at the stations past
   that limit.
 
+**How a pitch is measured.** A run's length is the sum of the intervals its stations describe
+(`GradeSpan`). On a designed profile a station carries the grade of the road ahead of it, and PVIs
+are stations, so a pitch from one PVI to the next measures its own length; the last station
+repeats the grade behind it and adds nothing. On a ground-following road a station carries the
+grade of the interval behind it, and station 0 repeats the first interval. One over-limit station
+at 10 m spacing is a 10 m run, and a 50 m pitch measures 50 m at the road start, mid-road and at
+the road end. On a vertical curve the grade is sampled at the stations, so a run's ends are known
+to within one station spacing.
+
 With a haul direction and an adverse limit, a grade that loaded trucks climb is held to the adverse
 limit and one they descend to the grade limit. The adverse limit can only tighten the grade limit.
 Empty-truck limits are not part of this record.
+
+**A short-pitch limit relaxes a side only where it is above that side's limit.** With an 18 % grade
+limit, an 8 % adverse limit and "12 % for pitches up to 100 m", a 50 m loaded-uphill pitch at 10 %
+is allowed, and a loaded-downhill grade is still held to 18 %: the rule prints as "18 % favourable,
+8 % adverse; 12 % for adverse pitches up to 100 m". A short-pitch limit at or below every sustained
+limit permits nothing; the field says so, and the rule is applied and printed without it.
 
 **Confirmation.** The record starts as starting values and the Review list says so until someone
 presses **Confirm standards**. Confirming records the date; it does not lock the fields.

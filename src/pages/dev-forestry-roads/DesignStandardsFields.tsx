@@ -1,5 +1,5 @@
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
-import { STANDARD_LIMITS, type DesignStandards } from './designStandards'
+import { gradeRule, STANDARD_LIMITS, type DesignStandards } from './designStandards'
 import { settleJobStandards, type JobStandards } from './jobStandards'
 import { VEHICLE_PRESETS } from './sweptPath'
 
@@ -24,6 +24,9 @@ export function DesignStandardsFields({
   const standard = (patch: Partial<DesignStandards>) => set({ standards: { ...s, ...patch } })
   // A vehicle typed by hand in the swept-path check keeps its name here.
   const custom = s.designVehicle !== null && !VEHICLE_PRESETS.some((preset) => preset.id === s.designVehicle)
+  // An allowance no steeper than every sustained limit allows nothing; say so where it is typed.
+  const rule = gradeRule({ maxGradePercent: value.maxGradePercent }, s)
+  const idlePitch = s.shortPitchGradePercent !== null && s.shortPitchMaxLengthM !== null && !rule.shortPitch
   return (
     <div className="space-y-2" data-testid="road-design-standards">
       <div className="grid grid-cols-2 items-end gap-2">
@@ -49,7 +52,12 @@ export function DesignStandardsFields({
         />
         <OptionalNumberField
           label="Short-pitch limit (%)"
-          hint="A pitch may be steeper than the grade limit up to this grade, as long as it is no longer than the pitch length beside it. Enter both: 12 %, 18 % for pitches up to 100 m."
+          hint="A pitch may be steeper than the grade limit up to this grade, as long as it is no longer than the pitch length beside it. Enter both: 12 %, 18 % for pitches up to 100 m. A value between the adverse limit and the grade limit applies to loaded-uphill pitches only."
+          error={
+            idlePitch
+              ? `Enter more than ${Math.min(rule.adversePercent, rule.favourablePercent)} %: at or below every grade limit, the allowance permits nothing.`
+              : undefined
+          }
           value={s.shortPitchGradePercent}
           min={STANDARD_LIMITS.gradePercent[0]}
           max={STANDARD_LIMITS.gradePercent[1]}
