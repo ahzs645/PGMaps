@@ -9,6 +9,11 @@ interface EngineeringTableProps extends TableHTMLAttributes<HTMLTableElement> {
   variant?: 'numeric' | 'text'
   /** Style a `<th scope="row">` in the body as the row's left-aligned first cell. */
   rowHeaders?: boolean
+  /**
+   * For a narrow sidebar: halve the cells' side padding and let row headers wrap, so a few
+   * numeric columns fit without scrolling sideways. Numbers still stay on one line.
+   */
+  compact?: boolean
 }
 
 /**
@@ -20,6 +25,7 @@ export function EngineeringTable({
   className,
   variant = 'numeric',
   rowHeaders = false,
+  compact = false,
   ...props
 }: EngineeringTableProps) {
   const text = variant === 'text'
@@ -33,6 +39,7 @@ export function EngineeringTable({
         rowHeaders &&
           '[&_tbody_th]:border-x [&_tbody_th]:border-b [&_tbody_th]:border-border/60 [&_tbody_th]:text-left [&_tbody_th]:font-normal',
         rowHeaders && (text ? '[&_tbody_th]:p-2' : '[&_tbody_th]:px-2 [&_tbody_th]:py-0.5'),
+        compact && '[&_td]:px-1 [&_tbody_th]:px-1 [&_tbody_th]:whitespace-normal [&_thead_th]:px-1',
         '[&_tbody_tr:nth-child(even)]:bg-muted/25 [&_tbody_tr:hover]:bg-muted/50',
         '[&_tbody_tr[aria-selected=true]]:bg-rose-500/15 [&_tbody_tr[aria-selected=true]]:font-medium',
         className,

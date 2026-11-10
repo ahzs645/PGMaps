@@ -70,7 +70,7 @@ export function ExtractionReachResults({
         )}
       </dl>
       <div className="overflow-x-auto">
-        <EngineeringTable rowHeaders data-testid="extraction-area-table">
+        <EngineeringTable rowHeaders compact data-testid="extraction-area-table">
           <thead>
             <tr>
               <ColumnHeader label="Block area" className="text-left" />
@@ -106,13 +106,13 @@ export function ExtractionReachResults({
         </EngineeringTable>
       </div>
       <div className="overflow-x-auto">
-        <EngineeringTable rowHeaders data-testid="extraction-class-table">
+        <EngineeringTable rowHeaders compact data-testid="extraction-class-table">
           <thead>
             <tr>
               <ColumnHeader label="Distance class" className="text-left" />
               <ColumnHeader label="Area" unit="ha" />
               <ColumnHeader label="Share" unit="%" />
-              <ColumnHeader label="Cumulative" unit="%" />
+              <ColumnHeader label="Cum." unit="%" title="Cumulative share" />
             </tr>
           </thead>
           <tbody>

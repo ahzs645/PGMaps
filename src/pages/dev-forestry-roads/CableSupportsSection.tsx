@@ -359,24 +359,25 @@ export function CableSupportsSection({
             {result.ropeLengthM !== null && ` · rope ${n0(result.ropeLengthM)} m between end supports`}
           </p>
           {result.reason !== 'none' && <InlineAlert tone="warning">{layoutReasonText(result)}</InlineAlert>}
-          <EngineeringTable className="whitespace-normal" data-testid="cable-supports-limits">
+          <EngineeringTable rowHeaders compact data-testid="cable-supports-limits">
             <thead>
               <tr>
                 <ColumnHeader label="Check" className="text-left" />
                 <ColumnHeader label="Limit" />
                 <ColumnHeader label="Layout" />
-                <ColumnHeader label="" />
               </tr>
             </thead>
             <tbody>
               {layoutLimitRows(result, settings, line.rigging!.minClearanceM).map((row) => (
                 <tr key={row.id} data-state={row.state}>
-                  <td className="text-left">{row.label}</td>
+                  <th scope="row">
+                    <span className="mr-1 inline-block align-middle">
+                      <LimitIcon state={row.state} />
+                    </span>
+                    {row.label}
+                  </th>
                   <td>{row.limit}</td>
                   <td>{row.value}</td>
-                  <td>
-                    <LimitIcon state={row.state} />
-                  </td>
                 </tr>
               ))}
             </tbody>
