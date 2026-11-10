@@ -9,7 +9,7 @@ import { Magnet, Plus, X } from 'lucide-react'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { NumberField } from './Controls'
+import { GradeEntryField } from './GradeEntryField'
 import {
   dragPvi,
   dragTangent,
@@ -62,6 +62,15 @@ function focusIsLoose() {
   return !active || active === document.body || !!active.closest('[data-floating-layer]')
 }
 
+/** After a PVI is deleted, focus the handle now at `index` (or the last), else the chart itself. */
+export function focusAfterRemoval(chart: SVGSVGElement, index: number) {
+  const active = document.activeElement
+  if (active && active !== document.body) return
+  const handles = chart.querySelectorAll<SVGElement>('[data-pvi][tabindex]')
+  const next = handles[Math.min(index, handles.length - 1)] ?? (chart.hasAttribute('tabindex') ? chart : null)
+  next?.focus({ preventScroll: true })
+}
+
 function readSnap() {
   try {
     return window.localStorage.getItem(SNAP_STORAGE_KEY) !== 'off'
@@ -104,6 +113,12 @@ export interface ProfileEditingOptions {
   freezeDomain: (domain: ChartDomain | null) => void
   junctions?: ProfileJunction[]
   onAddControl?: (control: VerticalControl) => void
+  /**
+   * Brackets a drag for the undo history (`useRoadWorkspace` `editGesture`): one step for the whole
+   * drag, and Escape ('cancel') returns to the pre-drag project with no step. Without it, Escape puts
+   * the PVIs back as an ordinary edit.
+   */
+  onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
 }
 
 export function useProfileEditing(options: ProfileEditingOptions) {
@@ -116,7 +131,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [snap, setSnapState] = useState(readSnap)
   const [status, setStatus] = useState('')
-  const [gradeEditor, setGradeEditor] = useState<{ backId: string; error?: string } | null>(null)
+  const [gradeEditor, setGradeEditor] = useState<{ backId: string } | null>(null)
   const [hold, setHold] = useState<GradeHold>('back')
   const [openJunction, setOpenJunction] = useState<string | null>(null)
   const gradeAnchor = useRef<HTMLSpanElement>(null)
@@ -159,7 +174,9 @@ export function useProfileEditing(options: ProfileEditingOptions) {
       if (event.key !== 'Escape' || !drag.current) return
       event.preventDefault()
       event.stopPropagation()
-      latest.current.onVerticalChange?.(drag.current.points)
+      const { onEditGesture, onVerticalChange: change } = latest.current
+      if (onEditGesture) onEditGesture('cancel')
+      else change?.(drag.current.points)
       finish()
     }
     window.addEventListener('keydown', onKey, true)
@@ -171,6 +188,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     setSelectedId(id)
     event.currentTarget.focus({ preventScroll: true })
     drag.current = { kind: 'pvi', id, points: sorted }
+    options.onEditGesture?.('start')
     setDragging(true)
     setDraggedPviId(id)
     freezeDomain(domain)
@@ -183,6 +201,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     event.preventDefault()
     event.currentTarget.focus({ preventScroll: true })
     drag.current = { kind: 'tangent', index, points: sorted, startY: event.clientY, moved: false }
+    options.onEditGesture?.('start')
     setDragging(true)
     freezeDomain(domain)
     event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId)
@@ -244,6 +263,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const end = () => {
     const active = drag.current
     if (!active) return
+    latest.current.onEditGesture?.('end')
     finish()
     if (active.kind === 'tangent' && !active.moved) {
       setOpenJunction(null)
@@ -251,7 +271,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     }
   }
 
-  const remove = (id: string) => {
+  const remove = (id: string, chart?: SVGSVGElement | null) => {
     if (!onVerticalChange) return
     const index = sorted.findIndex((p) => p.id === id)
     const result = removePvi(sorted, id)
@@ -259,6 +279,9 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     onVerticalChange(result.points)
     setSelectedId(null)
     say(`V${index + 1} removed. Undo brings it back.`)
+    // The focused handle is gone: hand focus to the PVI that now holds its place (or the one
+    // before it, at the end), else the chart, so the keyboard keeps its place.
+    if (chart) requestAnimationFrame(() => focusAfterRemoval(chart, index))
   }
 
   /** Keys on a focused PVI handle; true when handled. */
@@ -267,7 +290,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     if (isRemoveKey(event)) {
       event.preventDefault()
       event.stopPropagation()
-      remove(id)
+      remove(id, event.currentTarget?.ownerSVGElement)
       return true
     }
     if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
@@ -315,11 +338,11 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     }
   }
 
+  /** Applies a typed grade; returns why it was refused, and then nothing moves. */
   const typeGrade = (backId: string, grade: number, end: GradeHold) => {
-    if (!onVerticalChange) return
+    if (!onVerticalChange) return 'This profile cannot be edited here.'
     const result = setTangentGrade(sorted, backId, grade, end, options.controls)
-    if ('error' in result) return setGradeEditor({ backId, error: result.error })
-    setGradeEditor({ backId })
+    if ('error' in result) return result.error
     onVerticalChange(result.points)
   }
 
@@ -519,6 +542,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
           onClose={closeGrade}
           role="dialog"
           ariaLabel="Tangent grade"
+          initialFocus
           className="z-workspace-popover w-64 max-w-[calc(100vw-2rem)] rounded-lg p-3"
         >
           {back && ahead && (
@@ -531,15 +555,13 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                   <X className="size-3.5" />
                 </Button>
               </div>
-              <NumberField
+              <GradeEntryField
+                key={back.id}
                 label="Grade (%)"
                 value={Math.round(tangentGrade(back, ahead) * 1e4) / 1e4}
-                min={-MAX_EDIT_GRADE_PERCENT}
                 max={MAX_EDIT_GRADE_PERCENT}
-                step={0.5}
-                precision={2}
-                error={gradeEditor?.error}
-                onChange={(grade) => typeGrade(back.id, grade, hold)}
+                autoFocus
+                onGrade={(grade) => typeGrade(back.id, grade, hold)}
               />
               <SegmentedControl
                 label="End that holds"
@@ -578,6 +600,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
           onClose={closeJunction}
           role="dialog"
           ariaLabel="Junction"
+          initialFocus
           className="z-workspace-popover w-64 max-w-[calc(100vw-2rem)] rounded-lg p-3"
         >
           {junction && (
@@ -615,6 +638,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                   size="sm"
                   variant="outline"
                   className="h-7 w-full"
+                  data-autofocus
                   disabled={!options.onAddControl || junction.level === null || controlsFull}
                   onClick={() => {
                     const control = controlForJunction(junction, crypto.randomUUID())

@@ -645,6 +645,7 @@ export function ProfileChart({
   junctions,
   onAddControl,
   rangePick,
+  onEditGesture,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -668,6 +669,8 @@ export function ProfileChart({
   onAddControl?: (control: VerticalControl) => void
   /** While set, a drag on the plot marks a station range (`SectionPaneTools`) instead of moving the station. */
   rangePick?: { range: [number, number] | null; onRange: (range: [number, number]) => void }
+  /** Brackets a PVI or tangent drag as one undo step that Escape cancels (`useProfileEditing`). */
+  onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
@@ -813,6 +816,7 @@ export function ProfileChart({
     freezeDomain: setFixedDomain,
     junctions: terrainOnly ? undefined : junctions,
     onAddControl: editable ? onAddControl : undefined,
+    onEditGesture,
   })
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
@@ -1649,7 +1653,7 @@ export function ProfileChart({
                       }
                       tabIndex={editable ? 0 : undefined}
                       role={editable ? 'slider' : undefined}
-                      aria-label={`Vertical control ${index + 1} elevation`}
+                      aria-label={`PVI ${index + 1} elevation`}
                       aria-valuemin={-12000}
                       aria-valuemax={12000}
                       aria-valuenow={p.elevation}
@@ -1678,7 +1682,7 @@ export function ProfileChart({
                       }}
                     >
                       <title>
-                        Control {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
+                        PVI {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
                         {editable
                           ? ' Drag or use arrow keys; Shift-drag (Alt+arrows) holds a grade; Delete removes it.'
                           : ' Preview only.'}

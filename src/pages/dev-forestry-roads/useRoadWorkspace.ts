@@ -94,12 +94,25 @@ export function useRoadWorkspace() {
   // Each road's section and engineering inputs as last calculated, for when an edit is invalid.
   const [lastValidInputs] = useState(() => new Map<string, DesignInputs>())
   const lastEdit = useRef(0)
+  // A drag in progress (`editGesture`): its edits make one undo step, and cancelling it returns to
+  // where it started without one.
+  const gesture = useRef<{
+    before: RoadProject
+    history: History<RoadProject>
+    lastEdit: number
+    recorded: boolean
+  } | null>(null)
   const abort = useRef<AbortController | null>(null)
 
   /** `label` names the step in the undo history; without one it is named from what changed. */
   const commit = useCallback((next: RoadProject, remember = true, label?: string) => {
     next = { ...next, alignments: next.alignments.map(snapshotActiveVerticalAlternative) }
-    if (remember && Date.now() - lastEdit.current > UNDO_MERGE_MS)
+    const drag = gesture.current
+    if (remember && drag) {
+      // However long the drag pauses, it is one step.
+      if (!drag.recorded) history.current = recordStep(history.current, current.current, label, Date.now())
+      drag.recorded = true
+    } else if (remember && Date.now() - lastEdit.current > UNDO_MERGE_MS)
       history.current = recordStep(history.current, current.current, label, Date.now())
     if (remember) {
       history.current.future = []
@@ -160,6 +173,7 @@ export function useRoadWorkspace() {
       commit(next, false)
       setStation(0)
       history.current = emptyHistory()
+      gesture.current = null
       setCheckpoints([])
       setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(id)
@@ -179,6 +193,7 @@ export function useRoadWorkspace() {
       setStation(0)
       setFeatureSelection(null)
       history.current = emptyHistory()
+      gesture.current = null
       setCheckpoints([])
       setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(crypto.randomUUID())
@@ -385,6 +400,7 @@ export function useRoadWorkspace() {
   const calculatedAlignment = useMemo(() => calculatedRoad(alignment, analysis), [alignment, analysis])
   /** Undoes (negative) or redoes (positive) `steps` steps at once: the history list's jump. */
   const goToHistory = (steps: number) => {
+    gesture.current = null
     const moved = travel(history.current, current.current, steps)
     if (!moved) return
     const terrain = terrainFromMetadata(moved.state.terrain)
@@ -397,6 +413,37 @@ export function useRoadWorkspace() {
     commit(moved.state, false)
     lastEdit.current = 0
   }
+  /**
+   * Brackets a drag: 'start' before its first edit, then 'end' to keep it as one undo step, or
+   * 'cancel' (Escape) to put the project back as it was before the drag, leaving no step behind and
+   * the redo list as it stood.
+   */
+  const editGesture = useCallback(
+    (phase: 'start' | 'end' | 'cancel') => {
+      const drag = gesture.current
+      if (phase === 'start') {
+        const { past, future } = history.current
+        gesture.current = {
+          before: current.current,
+          history: { past: [...past], future: [...future] },
+          lastEdit: lastEdit.current,
+          recorded: false,
+        }
+        return
+      }
+      gesture.current = null
+      if (!drag) return
+      if (phase === 'end') {
+        // The next edit starts its own step rather than merging into the drag.
+        lastEdit.current = drag.recorded ? 0 : drag.lastEdit
+        return
+      }
+      history.current = drag.history
+      lastEdit.current = drag.lastEdit
+      if (current.current !== drag.before) commit(drag.before, false)
+    },
+    [commit],
+  )
   const undo = () => goToHistory(-1)
   const redo = () => goToHistory(1)
   /** Names the open project's state, to return to later in the session. */
@@ -482,6 +529,7 @@ export function useRoadWorkspace() {
     /** The undo history, oldest first, each state named by the step that made it; read when shown. */
     historyRows: () => historyRows(history.current, current.current, describeProjectChange),
     goToHistory,
+    editGesture,
     checkpoints,
     saveCheckpoint,
     restoreCheckpoint,

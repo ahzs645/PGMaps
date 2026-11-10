@@ -228,7 +228,7 @@ describe('profile chart', () => {
     )
     const readout = () => root.findAll((n) => n.props['data-testid'] === 'road-profile-pvi-readout')
     expect(readout()).toHaveLength(0)
-    const handle = root.find((n) => n.type === 'circle' && n.props['aria-label'] === 'Vertical control 2 elevation')
+    const handle = root.find((n) => n.type === 'circle' && n.props['aria-label'] === 'PVI 2 elevation')
     await act(async () =>
       handle.props.onPointerDown({
         stopPropagation() {},

@@ -168,6 +168,7 @@ import {
   terrainProfileCsv,
   terrainProfileReportHtml,
 } from './dev-forestry-roads/project'
+import { shareUnchanged } from './dev-forestry-roads/shareUnchanged'
 import {
   createDemoProject,
   DEFAULT_ROAD_SETTINGS,
@@ -1255,7 +1256,8 @@ export default function DevForestryRoads() {
   const commitValidated = (next: RoadProject) => {
     if (busy) return false
     try {
-      w.commit(parseProject(next))
+      // Keep unchanged parts as they were, so the undo history names only what this edit changed.
+      w.commit(shareUnchanged(project, parseProject(next)))
       w.setError('')
       return true
     } catch (cause) {
@@ -4002,6 +4004,7 @@ export default function DevForestryRoads() {
                                     ? undefined
                                     : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
                                 }
+                                onEditGesture={w.editGesture}
                                 junctions={profileJunctions}
                                 onAddControl={(control) =>
                                   w.updateAlignment((a) => {

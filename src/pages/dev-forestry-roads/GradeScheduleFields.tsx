@@ -1,9 +1,8 @@
 /** Typed tangent grades in the Vertical schedule; the rule is `setTangentGrade` in `gradeEdit.ts`. */
-import { useState } from 'react'
 import { engineeringCellInputClass } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { NumberField } from './Controls'
+import { GradeEntryField } from './GradeEntryField'
 import { MAX_EDIT_GRADE_PERCENT, setTangentGrade, type GradeHold } from './gradeEdit'
 import type { VerticalControl, VerticalPoint } from './types'
 
@@ -58,25 +57,19 @@ export function GradeCell({
   controls?: VerticalControl[]
   onVerticalChange?: (points: VerticalPoint[]) => void
 }) {
-  const [error, setError] = useState<string | undefined>()
   if (value === null || backId === null || !Number.isFinite(value)) return <>—</>
   return (
-    <NumberField
+    <GradeEntryField
       label={label}
       hideLabel
       value={Math.round(value * 1e4) / 1e4}
-      min={-MAX_EDIT_GRADE_PERCENT}
       max={MAX_EDIT_GRADE_PERCENT}
-      step={0.5}
-      precision={2}
       fixedDecimals
       inputClassName={engineeringCellInputClass}
       disabled={!onVerticalChange}
-      error={error}
-      onChange={(grade) => {
+      onGrade={(grade) => {
         const result = setTangentGrade(points, backId, grade, hold, controls)
-        if ('error' in result) return setError(result.error)
-        setError(undefined)
+        if ('error' in result) return result.error
         onVerticalChange?.(result.points)
       }}
     />

@@ -5,6 +5,8 @@ import { cn } from '@/lib/utils'
 
 const GAP = 6,
   MARGIN = 8
+const FOCUSABLE =
+  'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
 
 /**
  * Positions `panel` under its anchor, or above it without room below. Returns
@@ -60,6 +62,7 @@ export function AnchoredPopover({
   ariaLabel,
   panelRef: externalPanelRef,
   container,
+  initialFocus = false,
 }: {
   anchorRef: RefObject<HTMLElement>
   open: boolean
@@ -75,6 +78,12 @@ export function AnchoredPopover({
   panelRef?: RefObject<HTMLDivElement>
   /** Portal target when `document.body` will not do, such as an expanded `FullscreenPanel`. */
   container?: Element | null
+  /**
+   * Move focus into the panel when it opens: to its `[data-autofocus]` element, else its first
+   * control. For a panel opened from the keyboard on an element whose next Tab stop is not the
+   * panel (it renders in a portal at the end of the page). The caller hands focus back on close.
+   */
+  initialFocus?: boolean
 }) {
   const ownPanelRef = useRef<HTMLDivElement>(null)
   const panelRef = externalPanelRef ?? ownPanelRef
@@ -84,6 +93,24 @@ export function AnchoredPopover({
     if (open && !placePanel(panelRef.current, anchorRef.current, align)) onClose()
     if (!open && panelRef.current?.contains(document.activeElement)) anchorRef.current?.focus()
   })
+
+  useEffect(() => {
+    if (!open || !initialFocus) return
+    const panel = panelRef.current
+    if (!panel || panel.contains(document.activeElement)) return
+    const target =
+      panel.querySelector<HTMLElement>('[data-autofocus]:not([disabled])') ??
+      panel.querySelector<HTMLElement>(FOCUSABLE)
+    target?.focus({ preventScroll: true })
+    if (target instanceof HTMLInputElement) {
+      try {
+        target.select()
+      } catch {
+        /* Not every input type can be selected; focus is what matters. */
+      }
+    }
+    // `present` too: the panel may mount a render after `open` turns on.
+  }, [open, present, initialFocus, panelRef])
 
   useEffect(() => {
     if (!open) return
