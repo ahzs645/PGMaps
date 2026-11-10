@@ -523,7 +523,8 @@ export interface RoadJunction {
 
 const M_PER_DEG = 111195.0802335329
 
-function localFrame(origin: Coordinate) {
+/** A local east/north metric frame about `origin` (equirectangular; good to a few kilometres). */
+export function localFrame(origin: Coordinate) {
   const kx = M_PER_DEG * Math.cos(origin[1] * RAD),
     ky = M_PER_DEG
   return {

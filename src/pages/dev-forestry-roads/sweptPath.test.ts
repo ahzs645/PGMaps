@@ -178,7 +178,7 @@ describe('design-vehicle swept path', () => {
     expect(() => validateVehicleCheck({ ...DEFAULT_VEHICLE_CHECK, clearanceM: -1 })).toThrow(/clearance/)
     expect(() =>
       validateVehicleCheck({ ...DEFAULT_VEHICLE_CHECK, vehicle: { ...DEFAULT_VEHICLE_CHECK.vehicle, units: [] } }),
-    ).toThrow(/one to three/)
+    ).toThrow(/1–6 units/)
   })
 
   it('finds the smallest switchback radius whose turn keeps the wheels on the formation', () => {

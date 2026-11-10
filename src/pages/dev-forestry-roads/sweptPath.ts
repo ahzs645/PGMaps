@@ -11,6 +11,7 @@ import {
   locate,
   minimumSteerRadius,
   STEERING_LOCK_TOLERANCE_DEG,
+  straightBunkSpacing,
   trackVehicle,
   vehicleLength,
   wheelPoints,
@@ -27,7 +28,8 @@ export const SWEPT_PATH_BASIS =
   'With a steering lock entered, the steering angle the path demands is compared with it.'
 
 export const VEHICLE_LIMITS = {
-  units: 3,
+  /** A lowbed with jeep and booster, or a B-train with converter dollies, needs more than three. */
+  units: 6,
   widthM: [1.5, 4] as const,
   wheelbaseM: [1, 25] as const,
   overhangM: [0, 15] as const,
@@ -192,7 +194,7 @@ export function validateVehicleCheck(check: VehicleCheck): void {
     throw Error('Vehicle source is too long.')
   if (!inRange(vehicle.widthM, VEHICLE_LIMITS.widthM)) throw Error('Vehicle width must be 1.5–4 m.')
   if (!Array.isArray(vehicle.units) || vehicle.units.length < 1 || vehicle.units.length > VEHICLE_LIMITS.units)
-    throw Error('A design vehicle needs one to three units.')
+    throw Error(`A design vehicle needs 1–${VEHICLE_LIMITS.units} units.`)
   for (const u of vehicle.units)
     if (
       typeof u.name !== 'string' ||
@@ -227,6 +229,10 @@ export function validateVehicleCheck(check: VehicleCheck): void {
         (load.widthM !== undefined && !inRange(load.widthM, VEHICLE_LIMITS.widthM))
       )
         throw Error('Load bunks must be −15–30 m behind their pivots, overhangs 0–20 m and width 1.5–4 m.')
+      if (load.lengthMode !== undefined && load.lengthMode !== 'from-bunks' && load.lengthMode !== 'rigid')
+        throw Error('A load’s length is rigid or measured from each bunk.')
+      if (load.lengthMode === 'rigid' && !(straightBunkSpacing(vehicle, load) > 0))
+        throw Error('A rigid load needs its rear bunk behind its front bunk travelling straight.')
     }
   }
 }

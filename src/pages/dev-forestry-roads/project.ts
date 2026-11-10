@@ -27,6 +27,7 @@ import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports
 import { validateCurveCriteria } from './roadCriteria'
 import { validateTemplate } from './templates'
 import { analyzeSweptPath, validateVehicleCheck } from './sweptPath'
+import { parseDesignVehicle, parseVehicleLibrary } from './vehicleLibrary'
 import { parseRoadReportSettings } from './reportSettings'
 import { parseVerticalAlternativeFields, snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import {
@@ -302,51 +303,10 @@ function parseVerticalControl(raw: unknown): VerticalControl {
 }
 function parseVehicleCheck(raw: unknown): VehicleCheck {
   const r = object(raw, 'Vehicle check')
-  const v = object(r.vehicle, 'Design vehicle')
   const result: VehicleCheck = {
     direction: r.direction === 'up' || r.direction === 'down' || r.direction === 'both' ? r.direction : 'both',
     clearanceM: number(r.clearanceM, 'Wheel clearance', 0, 5),
-    vehicle: {
-      name: typeof v.name === 'string' ? v.name.slice(0, 200) : 'Design vehicle',
-      // An emptied source field is simply absent, not an invalid file.
-      ...(typeof v.source === 'string' && v.source.trim() ? { source: v.source.slice(0, 2000) } : {}),
-      widthM: number(v.widthM, 'Vehicle width', 1.5, 4),
-      units: list(v.units, 'Vehicle units', 3, 1).map((rawUnit) => {
-        const u = object(rawUnit, 'Vehicle unit')
-        return {
-          name: typeof u.name === 'string' ? u.name.slice(0, 100) : 'Unit',
-          wheelbaseM: number(u.wheelbaseM, 'Unit wheelbase', 1, 25),
-          frontOverhangM: number(u.frontOverhangM, 'Unit front overhang', 0, 15),
-          rearOverhangM: number(u.rearOverhangM, 'Unit rear overhang', 0, 15),
-          hitchOffsetM: number(u.hitchOffsetM, 'Unit hitch offset', -5, 10),
-        }
-      }),
-      ...(v.steeringLockDeg === undefined
-        ? {}
-        : { steeringLockDeg: number(v.steeringLockDeg, 'Steering lock', 5, 60) }),
-      ...(v.loads === undefined
-        ? {}
-        : {
-            loads: list(v.loads, 'Vehicle loads', 2).map((rawLoad) => {
-              const l = object(rawLoad, 'Vehicle load')
-              const end = (raw: unknown, label: string) => {
-                const e = object(raw, label)
-                return {
-                  unit: number(e.unit, `${label} unit`, 0, 2),
-                  behindPivotM: number(e.behindPivotM, `${label} position`, -15, 30),
-                }
-              }
-              return {
-                name: typeof l.name === 'string' ? l.name.slice(0, 100) : 'Load',
-                front: end(l.front, 'Load front bunk'),
-                rear: end(l.rear, 'Load rear bunk'),
-                aheadOfFrontBunkM: number(l.aheadOfFrontBunkM, 'Load ahead of front bunk', 0, 20),
-                behindRearBunkM: number(l.behindRearBunkM, 'Load behind rear bunk', 0, 20),
-                ...(l.widthM === undefined ? {} : { widthM: number(l.widthM, 'Load width', 1.5, 4) }),
-              }
-            }),
-          }),
-    },
+    vehicle: parseDesignVehicle(r.vehicle),
   }
   validateVehicleCheck(result)
   return result
@@ -784,6 +744,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.totalCostPlanning !== undefined ? { totalCostPlanning: parseTotalCostPlanning(r.totalCostPlanning) } : {}),
     ...(r.standards === undefined ? {} : { standards: parseDesignStandards(r.standards) }),
     ...(r.issue === undefined ? {} : { issue: parseProjectIssue(r.issue) }),
+    ...(r.vehicleLibrary === undefined ? {} : { vehicleLibrary: parseVehicleLibrary(r.vehicleLibrary) }),
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
