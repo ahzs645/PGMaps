@@ -106,6 +106,14 @@ describe('road tool block sheet', () => {
     expect(layers.notes?.[0].head).toHaveLength(3)
   })
 
+  it('crosses a deactivated mapped road, as the plan does with sheet symbols on', () => {
+    const p = project()
+    const road = p.context.find((feature) => feature.id === 'r1')!
+    road.roadEvidence = { ...road.roadEvidence!, deactivation: { status: 'deactivated' } as never }
+    expect(blockSheetLayers(p, new Map(), '').existingRoads?.[0]).toMatchObject({ deactivated: true })
+    expect(blockSheetLayers(project(), new Map(), '').existingRoads?.[0].deactivated).toBe(false)
+  })
+
   it('needs a canopy surface for the canopy height sheet and finds one by name', () => {
     expect(blockSheetUnavailable('lidar-canopy-height', { terrain: syntheticTerrain })).toMatch(/canopy height grid/)
     expect(blockSheetUnavailable('lidar-slope', {})).toMatch(/terrain/)
