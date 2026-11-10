@@ -217,7 +217,7 @@ export function CableSupportsSection({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-6 shrink-0 px-2 text-xs"
             disabled={lengthM <= 0}
             onClick={() => set({ fixedSupports: [...settings.fixedSupports, { stationM: Math.round(lengthM / 2) }] })}
           >
@@ -269,7 +269,7 @@ export function CableSupportsSection({
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-6 shrink-0 px-2 text-xs"
             disabled={lengthM <= 0}
             onClick={() => {
               const mid = Math.round(lengthM / 2)
