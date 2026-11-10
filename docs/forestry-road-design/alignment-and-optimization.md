@@ -474,6 +474,14 @@ start: 100% of the ground within 31.3 m is steeper than 55%"). With switchbacks 
 found no line also says whether the switchback search would find one, and where its first
 switchback would be, or which switchback rule would stop it; no road is added.
 
+**A failed goal shows where its search stopped, and can be tried steeper.** Clicking the row marks
+on the plan the line the search reached, the gap to the end and, for a switchback-search reason, the
+place the reason names; clicking the mark selects the row. **Try 14% and 16%** (the limit plus
+`STEEPER_GRADE_STEPS_PERCENT`) reports whether the ends connect a little steeper, as information
+only. **Search presets** fill the grade limit and tightest curve from Engineering Manual Table 3-5,
+and every road found keeps the settings it was found with (`searchSettings`). See
+[Failed searches, steeper grades, presets and found-road settings](route-search-failures-and-presets.md).
+
 **An end inside a closed area is named** (`blockedRouteEnds` in `riparian.ts`). The corridor and
 terrain-cost searches stop before they start when an end sits inside an excluded area, an area or
 stream whose conditional review is not recorded, or a clearance the search keeps from either. The
