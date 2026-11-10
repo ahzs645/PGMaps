@@ -31,6 +31,20 @@ describe('saveStateText', () => {
     expect(saveStateText({ kind: 'training', at: at(14, 2) }, null, now)).toMatchObject({ tone: 'warning' })
   })
 
+  it('has a short form of every state for a narrow header', () => {
+    const file = { at: at(13, 58), current: true }
+    expect(saveStateText({ kind: 'saved', at: at(14, 2) }, null, now).short).toBe('Saved 14:02 · no file')
+    expect(saveStateText({ kind: 'saved', at: at(14, 2) }, file, now).short).toBe('Saved 14:02 · file saved')
+    expect(saveStateText({ kind: 'saved', at: at(14, 2) }, { ...file, current: false }, now).short).toBe(
+      'Saved 14:02 · file out of date',
+    )
+    expect(saveStateText({ kind: 'failed' }, null, now).short).toBe('Not saved · no file')
+    expect(saveStateText({ kind: 'invalid', reason: 'x' }, null, now).short).toBe('Last valid version kept')
+    for (const kind of ['pending', 'saving'] as const)
+      expect(saveStateText({ kind }, null, now).short.length).toBeLessThanOrEqual(25)
+    expect(saveStateText({ kind: 'training', at: at(14, 2) }, null, now).short).toBe('Training session · no file')
+  })
+
   it('adds the date to a time that is not today', () => {
     expect(clockText(at(9, 7), now)).toBe('09:07')
     expect(clockText(at(16, 30, 8), now)).toBe('8 Nov 16:30')

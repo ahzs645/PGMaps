@@ -323,9 +323,13 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   to a file", "· file saved 13:58" or "· not saved to a file since 13:58" once the project has
   changed (`saveState.ts`). A file counts when it was saved with **Save** or opened in this session;
   the workspace cannot see a file saved in an earlier session. A refused save reads "Not saved in
-  this browser", and inputs that cannot be saved read "Last valid version kept"; a red dot beside
-  the buttons marks both on narrow headers. A notice takes the line's place for eight seconds; when
-  it is longer than the line, an (i) beside it shows the whole message.
+  this browser", and inputs that cannot be saved read "Last valid version kept". A red dot beside
+  the buttons marks both, in the same words, for a header too small to show the line; the state is
+  said once, not in a second wording. Below a wide desktop (1280 px) the line uses its short form,
+  "Saved 14:02 · no file", and the project name and that line keep a floor of 12 rem beside the
+  road switcher, so both stay readable down to the 768 px tablet width without the header growing
+  a row (`workspace.css`, `.road-workspace-heading`). A notice takes the line's place for eight
+  seconds; when it is longer than the line, an (i) beside it shows the whole message.
 - **A reload says what it reopened.** "Previous session restored", with the project's name and the
   time of its save, shows once in the notification stack. A first visit opens an example road and
   says so, with **New project** and **Open a project file** on the card.

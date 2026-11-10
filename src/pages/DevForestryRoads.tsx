@@ -36,6 +36,7 @@ import {
   SaveStateLine,
   SessionRestoredNotice,
 } from './dev-forestry-roads/ProjectHeader'
+import { saveStateText } from './dev-forestry-roads/saveState'
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
@@ -965,10 +966,12 @@ export default function DevForestryRoads() {
     const timer = window.setTimeout(() => setNotice(''), 8000)
     return () => window.clearTimeout(timer)
   }, [notice, setNotice])
-  // A routine save shows nothing and a training session's is a dot; only a save that failed is spelled out.
-  const trainingSave = !!w.saving?.startsWith('Training session saved')
-  const saveNotice =
-    !!w.saving && !trainingSave && w.saving !== 'Saved on this device' && w.saving !== 'Saving locally…'
+  // The save line under the title states where the project is kept. Beside the buttons a dot marks
+  // a session that will not be kept and a save that failed, in the line's own words, for a header
+  // too small to show the line.
+  const saveState = saveStateText(w.browserSave, w.fileSave, Date.now())
+  const trainingSave = w.browserSave.kind === 'training'
+  const saveNotice = w.browserSave.kind === 'failed' || w.browserSave.kind === 'invalid'
   const planningBasis = [
     ...(project.terrain.kind === 'regional'
       ? [
@@ -2535,7 +2538,7 @@ export default function DevForestryRoads() {
         className="flex shrink-0 flex-wrap items-center justify-between gap-2"
         data-testid="road-workspace-header"
       >
-        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+        <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
             {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
@@ -2557,19 +2560,24 @@ export default function DevForestryRoads() {
               data-testid="road-planning-basis"
               className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
             >
-              {project.terrain.kind === 'demo'
-                ? compact
-                  ? 'SYNTHETIC'
-                  : 'SYNTHETIC TRAINING'
-                : compact
-                  ? `${Math.round(project.terrain.resolutionM)} m terrain`
-                  : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
+              {/* The short wording also serves a header narrower than a wide desktop. */}
+              <span className={compact ? undefined : 'lg:hidden'}>
+                {project.terrain.kind === 'demo' ? 'SYNTHETIC' : `${Math.round(project.terrain.resolutionM)} m terrain`}
+              </span>
+              {!compact && (
+                <span className="hidden lg:inline">
+                  {project.terrain.kind === 'demo'
+                    ? 'SYNTHETIC TRAINING'
+                    : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
+                </span>
+              )}
             </span>
           )}
         </div>
         {!investigation && !awaitingFirstRoad(project) && (
           <RoadSwitcher
-            className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
+            // It grows from a small basis to its full width, so the title keeps its floor beside it.
+            className="order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]"
             alignments={project.alignments}
             analyses={w.analyses}
             activeId={project.activeAlignmentId}
@@ -2636,19 +2644,14 @@ export default function DevForestryRoads() {
               portalContainer={ref.current}
             />
           )}
-          {/* On narrow headers a failed save is a dot too; its title and label carry the text. */}
-          {saveNotice && (
-            <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
-              {w.saving}
-            </span>
-          )}
-          {/* A routine autosave shows nothing: only a session that will not be kept, or a failed save. */}
+          {/* A routine autosave shows nothing here: only a session that will not be kept, or a failed save. */}
           {(trainingSave || saveNotice) && (
             <span
               role="img"
-              aria-label={w.saving}
-              title={w.saving}
-              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'} ${saveNotice ? 'xl:hidden' : ''}`}
+              aria-label={saveState.detail}
+              title={saveState.detail}
+              data-testid="road-save-mark"
+              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
             />
           )}
           <Button
@@ -2708,17 +2711,17 @@ export default function DevForestryRoads() {
           <Button
             variant="outline"
             size="sm"
-            className="size-8 px-0 md:w-auto md:px-3"
+            className="size-8 px-0 lg:w-auto lg:px-3"
             title="Open project"
             disabled={!!w.busy}
             onClick={() => requestFile('project')}
           >
-            <FolderOpen className="size-4 md:mr-1 md:size-3" />
-            <span className="sr-only md:not-sr-only">Open</span>
+            <FolderOpen className="size-4 lg:mr-1 lg:size-3" />
+            <span className="sr-only lg:not-sr-only">Open</span>
           </Button>
           <Button
             size="sm"
-            className="size-8 px-0 md:w-auto md:px-3"
+            className="size-8 px-0 lg:w-auto lg:px-3"
             title="Save & export"
             disabled={!!w.busy}
             onClick={() => {
@@ -2727,8 +2730,8 @@ export default function DevForestryRoads() {
               setFilesOpen(true)
             }}
           >
-            <Download className="size-4 md:mr-1 md:size-3" />
-            <span className="sr-only md:not-sr-only">Save</span>
+            <Download className="size-4 lg:mr-1 lg:size-3" />
+            <span className="sr-only lg:not-sr-only">Save</span>
           </Button>
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
