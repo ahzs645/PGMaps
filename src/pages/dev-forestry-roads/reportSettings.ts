@@ -39,7 +39,17 @@ export interface RoadReportSettings {
   schema: 'pgmaps-road-report-v1'
   paper: 'A3' | 'A4'
   chapters: ReportChapter[]
-  subviews: { plan: boolean; profile: boolean; mass: boolean; contours: boolean; legend: boolean }
+  subviews: {
+    plan: boolean
+    profile: boolean
+    mass: boolean
+    contours: boolean
+    legend: boolean
+    /** Numeric bands under the profile (`plotBookProfile.ts`). Absent (older files) is off. */
+    bands?: boolean
+    /** BVC/EVC, high and low point labels and over-limit tangents on the profile. Absent is off. */
+    profileLabels?: boolean
+  }
   stationLabel: string
   gradeLabel: string
   labelOffsetX: number
@@ -164,6 +174,9 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
   const subviews = record(r.subviews, 'Drawing subviews')
   for (const key of ['plan', 'profile', 'mass', 'contours', 'legend'])
     if (typeof subviews[key] !== 'boolean') throw Error('Drawing subview visibility must be true or false.')
+  for (const key of ['bands', 'profileLabels'])
+    if (subviews[key] !== undefined && typeof subviews[key] !== 'boolean')
+      throw Error('Drawing subview visibility must be true or false.')
   if (!subviews.plan && !subviews.profile && !subviews.mass && chapters.some((c) => c.kind === 'plan-profile'))
     throw Error('Keep at least one plot subview.')
   if (!['chapter', 'plan-sheet', 'none'].includes(r.curveTablePosition as string))
@@ -178,6 +191,9 @@ export function parseRoadReportSettings(raw: unknown): RoadReportSettings {
       mass: subviews.mass as boolean,
       contours: subviews.contours as boolean,
       legend: subviews.legend as boolean,
+      // Written only when set, so a file saved before these existed reads back unchanged.
+      ...(subviews.bands === undefined ? {} : { bands: subviews.bands as boolean }),
+      ...(subviews.profileLabels === undefined ? {} : { profileLabels: subviews.profileLabels as boolean }),
     },
     stationLabel: validateLabelTemplate(r.stationLabel),
     gradeLabel: validateLabelTemplate(r.gradeLabel),

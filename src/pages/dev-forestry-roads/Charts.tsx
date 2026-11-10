@@ -13,12 +13,21 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, PanelBottom, Rows3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelBottom, Rows3, TableProperties } from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans, type SightBandInput } from './EngineeringBands'
+import { ProfileCurvePoints, ProfileGradeTrouble, PviDragReadoutBox, GRADE_TROUBLE_COLOR } from './ProfileOverlays'
+import {
+  curvePoints,
+  isGradeTrouble,
+  pviDragReadout,
+  tangentGrades,
+  type ProfileGradeLimits,
+} from './profileAnnotations'
+import { ProfileValueBands, useStoredFlag } from './ProfileValueBands'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
@@ -444,18 +453,22 @@ function ChartSlot({
   children,
   footer,
   bands,
+  valueBands,
 }: {
   /** May return absolutely positioned controls beside the svg; they float over the chart. */
   children: (width: number, height: number) => ReactNode
   footer?: ReactNode
   /** Data bands that line up under the plot, folded until the header toggle opens them. */
   bands?: { label: string; content: ReactNode }
+  /** A second set of bands under the plot with its own header toggle, remembered in this browser. */
+  valueBands?: { label: string; storageKey: string; content: ReactNode }
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
   const header = useContext(ChartHeaderContext)
   const [localView, setLocalView] = useState<ChartView | null>(null)
   const [bandsOpen, setBandsOpen] = useState(false)
+  const [valueBandsOpen, setValueBandsOpen] = useStoredFlag(valueBands?.storageKey ?? 'pgmaps-chart-value-bands')
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -484,6 +497,19 @@ function ChartSlot({
       <Rows3 className="size-3.5" />
     </Button>
   )
+  const valueBandsToggle = valueBands && (
+    <Button
+      size="icon"
+      variant="ghost"
+      className={toggle(valueBandsOpen)}
+      aria-label={valueBands.label}
+      aria-pressed={valueBandsOpen}
+      title={`${valueBandsOpen ? 'Hide' : 'Show'} ${valueBands.label.toLowerCase()}`}
+      onClick={() => setValueBandsOpen(!valueBandsOpen)}
+    >
+      <TableProperties className="size-3.5" />
+    </Button>
+  )
   const detailsToggle = footer && (
     <Button
       size="icon"
@@ -497,9 +523,10 @@ function ChartSlot({
       <PanelBottom className="size-3.5" />
     </Button>
   )
-  const switcher = (bandsToggle || detailsToggle) && (
+  const switcher = (bandsToggle || valueBandsToggle || detailsToggle) && (
     <>
       {bandsToggle}
+      {valueBandsToggle}
       {detailsToggle}
     </>
   )
@@ -525,6 +552,9 @@ function ChartSlot({
       {/* Capped so a short panel keeps most of its height for the plot; the bands scroll instead. */}
       {bands && bandsOpen && (
         <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{bands.content}</div>
+      )}
+      {valueBands && valueBandsOpen && (
+        <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{valueBands.content}</div>
       )}
       {footer && (
         <div
@@ -587,6 +617,7 @@ export function ProfileChart({
   onSelectCulvert,
   terrainOnly = false,
   sight,
+  gradeLimits,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -602,6 +633,8 @@ export function ProfileChart({
   terrainOnly?: boolean
   /** The project's design speed and station spacing, for the sight distance band. */
   sight?: SightBandInput
+  /** The project's grade rule: tangents over it are drawn red. Absent judges only the road's vertical standards. */
+  gradeLimits?: ProfileGradeLimits
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
@@ -765,6 +798,20 @@ export function ProfileChart({
     )
     onStation(placed.chainage)
   }
+  const tangents = useMemo(
+    () => (terrainOnly ? [] : tangentGrades(alignment, analysis.length, gradeLimits)),
+    [terrainOnly, alignment, analysis.length, gradeLimits],
+  )
+  const troubleIds = new Set(tangents.filter(isGradeTrouble).map((t) => t.id))
+  const curvePointList = useMemo(
+    () => (terrainOnly ? [] : curvePoints(alignment, analysis.length, analysis.engineering?.culverts)),
+    [terrainOnly, alignment, analysis.length, analysis.engineering?.culverts],
+  )
+  // A PVI drag holds the domain (`fixedDomain`) and moves the selected station onto the PVI each move
+  // (unrounded; the PVI is stored to the centimetre).
+  const draggedPviId =
+    fixedDomain && !terrainOnly ? sorted.find((p) => Math.abs(p.chainage - station) < 0.02)?.id : undefined
+  const dragReadout = draggedPviId ? pviDragReadout(analysis, alignment, draggedPviId) : null
   const profileGrades = analysis.stations.map((s) => s.gradePercent).filter(finite)
   const first = analysis.stations.find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
   const last = [...analysis.stations].reverse().find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
@@ -928,6 +975,21 @@ export function ProfileChart({
           />
         ),
       }}
+      valueBands={{
+        label: 'Value bands',
+        storageKey: 'pgmaps-road-profile-value-bands',
+        content: (
+          <ProfileValueBands
+            analysis={analysis}
+            alignment={alignment}
+            start={domain[0]}
+            end={domain[1]}
+            station={station}
+            onStation={onStation}
+            terrainOnly={terrainOnly}
+          />
+        ),
+      }}
       footer={
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1005,6 +1067,14 @@ export function ProfileChart({
           lastCalloutX = x
         }
         const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
+        const annotationFrame = {
+          x: f.x,
+          y: f.y,
+          top: f.top,
+          bottom: height - f.bottom,
+          left: f.left,
+          right: width - f.right,
+        }
         return (
           <>
             <svg
@@ -1132,6 +1202,12 @@ export function ProfileChart({
                   fill="none"
                   stroke={ROAD_CHART_COLORS.design}
                   strokeWidth={2.4}
+                />
+                <ProfileGradeTrouble
+                  tangents={tangents}
+                  stations={analysis.stations}
+                  frame={annotationFrame}
+                  domain={[displayedDomain[0], displayedDomain[1]]}
                 />
                 {ditches.map((ditch) => (
                   <path
@@ -1327,13 +1403,15 @@ export function ProfileChart({
                         y={y}
                         transform={`rotate(${angle.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`}
                         fontSize="9"
-                        fill="hsl(var(--foreground))"
+                        fill={troubleIds.has(span.id) ? GRADE_TROUBLE_COLOR : 'hsl(var(--foreground))'}
+                        fontWeight={troubleIds.has(span.id) ? 700 : undefined}
                         stroke="hsl(var(--background))"
                         strokeWidth={3}
                         paintOrder="stroke"
                         textAnchor="middle"
                         pointerEvents="none"
                         data-grade-label
+                        data-grade-trouble={troubleIds.has(span.id) || undefined}
                       >
                         {f.x(span.end) - f.x(span.start) > FULL_GRADE_LABEL_PX
                           ? span.label
@@ -1342,6 +1420,12 @@ export function ProfileChart({
                       </text>
                     )
                   })}
+                <ProfileCurvePoints
+                  points={curvePointList}
+                  frame={annotationFrame}
+                  domain={[displayedDomain[0], displayedDomain[1]]}
+                  onStation={onStation}
+                />
                 {sorted
                   .filter((p) => calloutIds.has(p.id))
                   .map((p) => {
@@ -1514,6 +1598,14 @@ export function ProfileChart({
                     </circle>
                   </g>
                 ))}
+              {dragReadout && (
+                <PviDragReadoutBox
+                  readout={dragReadout}
+                  tangents={tangents}
+                  stations={analysis.stations}
+                  frame={annotationFrame}
+                />
+              )}
               {!points.some((p) => finite(p.ground)) && (
                 <text
                   x={width / 2}

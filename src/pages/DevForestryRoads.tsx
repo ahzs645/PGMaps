@@ -117,7 +117,7 @@ import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPane
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
-import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import { gradeRule, isGradeBreachFlag } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
   startingJobStandards,
@@ -870,6 +870,11 @@ export default function DevForestryRoads() {
   const sightBand = useMemo(
     () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
     [project.standards, project.settings.stationInterval],
+  )
+  // The profile draws tangents over the project's grade rule red.
+  const profileGradeLimits = useMemo(
+    () => ({ rule: gradeRule(project.settings, project.standards) }),
+    [project.settings, project.standards],
   )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
@@ -2179,6 +2184,7 @@ export default function DevForestryRoads() {
             terrain: project.terrain,
             contours,
             ...exportGrid(project.terrain, alignment.points[0].coordinate),
+            gradeLimits: { rule: gradeRule(project.settings, project.standards) },
           }),
           `${basename}-plot-book.html`,
           'text/html;charset=utf-8',
@@ -3850,6 +3856,7 @@ export default function DevForestryRoads() {
                                 onSelectCulvert={selectCulvert}
                                 terrainOnly={!!terrainProfile}
                                 sight={sightBand}
+                                gradeLimits={profileGradeLimits}
                                 analysis={profileAnalysis}
                                 alignment={displayedAlignment}
                                 station={station}
