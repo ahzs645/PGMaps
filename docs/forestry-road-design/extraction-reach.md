@@ -226,6 +226,14 @@ method of testing a line is PGMaps' own, on the cable-layout module's span check
   is yarded by no other, least unique first. With no penalty and no share rule this is the classic
   greedy, within 1 − 1/e of the best set of that many lines. It is not Sylvaccess's selection (a
   weighted criteria score, a two-line overlap count and 60 % pruning).
+- **Open a suggested line as a profile.** Click its number in the Suggested lines table: it is drawn
+  selected on the plan, its supports are checked as one multi-span layout at its pre-tension (the
+  same check as **Check saved layout**), and the profile shows the loaded path. **Use as D-line**
+  keeps it, with the supports as its saved layout (see
+  [D-line outputs, rigging sets and field profiles](cable-outputs-and-field-profiles.md)).
+- **Rigging sets.** _Rope and load_ offers the project's named rigging sets, shared with the
+  D-lines. Applying one sets the tension mode to the allowable (coverage always tensions to it) and,
+  when the set carries a loaded break limit inside 5–60°, the **Max loaded break**.
 
 ## Limits and budgets
 
@@ -312,7 +320,8 @@ Selection takes 10–160 ms and follows its settings without a new run.
   distinguished only by the reach rule, not by the distance reported.
 - **A cable line passes on the coverage grid but not on its D-line.** The screen reads the ground
   every half cell; a knoll or bank narrower than that can stop the carriage in the field. On a 10 m
-  grid, check the suggested lines on their D-line profiles (1 m) with **Find supports**.
+  grid, open each suggested line as a profile, or use it as a D-line and check it (1 m) with
+  **Check saved layout** or **Find supports**.
 - **Too many cable lines.** Over 12,000 landings × bearings the run is refused: widen the landing
   spacing or the bearing step, or narrow the travel band.
 - **Lines reported at their span budget** are counted among those not kept; they are lines whose
