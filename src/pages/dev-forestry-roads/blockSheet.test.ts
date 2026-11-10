@@ -7,6 +7,7 @@ import {
   blockSheetUnavailable,
   buildBlockSheet,
   canopySurfaceId,
+  changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
   parseBlockSheetSettings,
 } from './blockSheet'
@@ -128,6 +129,13 @@ describe('road tool block sheet', () => {
       fields: { blockId: 'B1' },
     })
     expect(parseBlockSheetSettings({ scale: 10_000_000 }).scale).toBe(10000)
+  })
+
+  it('starts a newly picked sheet at its own default scale and keeps a scale picked for the same sheet', () => {
+    const field = { ...DEFAULT_BLOCK_SHEET, scale: 20000 }
+    expect(changeBlockSheetSettings(field, { ...field, kind: 'general-access' }).scale).toBe(50000)
+    expect(changeBlockSheetSettings({ ...field, kind: 'general-access', scale: 50000 }, field).scale).toBe(10000)
+    expect(changeBlockSheetSettings(field, { ...field, scale: 'fit' }).scale).toBe('fit')
   })
 
   it('is a stamped document under the invalid-input rules', () => {

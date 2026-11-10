@@ -16,6 +16,7 @@ import {
   blockChoices,
   blockSheetUnavailable,
   canopySurfaceId,
+  changeBlockSheetSettings,
   DEFAULT_BLOCK_SHEET,
   parseBlockSheetSettings,
   type BlockSheetSettings,
@@ -129,7 +130,11 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
     <div className="grid gap-2">
       <MapSheetSetup
         value={{ ...effective, fields: effective.fields as Record<string, string> }}
-        onChange={(value) => setSettings(parseBlockSheetSettings({ ...value, block: effective.block }))}
+        onChange={(value) =>
+          setSettings(
+            changeBlockSheetSettings(effective, parseBlockSheetSettings({ ...value, block: effective.block })),
+          )
+        }
         kinds={SHEET_KINDS.map((kind: SheetKind) => ({
           value: kind,
           label: SHEET_PRESETS[kind].label,

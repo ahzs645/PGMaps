@@ -72,6 +72,11 @@ export function parseBlockSheetSettings(raw: unknown): BlockSheetSettings {
   }
 }
 
+/** Settings after an edit in the setup form: picking another sheet starts it at that sheet's default scale. */
+export function changeBlockSheetSettings(current: BlockSheetSettings, next: BlockSheetSettings): BlockSheetSettings {
+  return next.kind === current.kind ? next : { ...next, scale: SHEET_PRESETS[next.kind].defaultScale }
+}
+
 /** Polygons that can be the sheet's block: harvest areas and imported reference areas. */
 export function blockChoices(project: RoadProject): { value: string; label: string; geometry: GeoJSON.Polygon }[] {
   return [
