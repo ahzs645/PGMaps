@@ -7,6 +7,23 @@ import { Field, NumberField, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import type { SidebarProps } from './DesignSidebarBody'
 import { runCooperatively } from './cooperative'
+import { ExtractionReachFields } from './ExtractionReachFields'
+import { ExtractionReachResults } from './ExtractionReachResults'
+import {
+  asSkidReachResult,
+  compareExtraction,
+  comparisonMapFeatures,
+  DEFAULT_EXTRACTION_SETTINGS,
+  extractionMapFeatures,
+  extractionOnGrid,
+  extractionSpurModel,
+  parseClassBounds,
+  prepareExtractionGrid,
+  type ExtractionArea,
+  type ExtractionComparison,
+  type ExtractionResult,
+  type ExtractionSettings,
+} from './extractionReach'
 import { groundTrendTerrain, resolvedGroundWindow } from './groundTrend'
 import { withAddedAlignments } from './investigationWorkspace'
 import {
@@ -19,18 +36,7 @@ import {
 import { parseProject } from './project'
 import { roadFromRoute } from './routeFit'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
-import {
-  DEFAULT_OFF_BLOCK_M,
-  DEFAULT_SKID_RULE,
-  MAX_OFF_BLOCK_M,
-  MAX_SKID_REACH_M,
-  MIN_SKID_REACH_M,
-  skidReachMapFeatures,
-  skidReachSteps,
-  skidRoadsFromProject,
-  type SkidReachResult,
-  type SkidReachRule,
-} from './skidReach'
+import { DEFAULT_OFF_BLOCK_M, DEFAULT_SKID_CELL_M, skidRoadsFromProject, type SkidRoad } from './skidReach'
 import { DEFAULT_SPUR_OPTIONS, MAX_SKID_SPURS, suggestSpursSteps, type SpurSuggestion } from './skidSpurs'
 import { localMetricGrid } from './terrain'
 import type { Alignment, ContextFeature, Coordinate } from './types'
@@ -40,20 +46,30 @@ const SPUR_COLOR = '#ea580c'
 const pct = (share: number) => `${(100 * share).toFixed(share > 0 && share < 0.01 ? 1 : 0)}%`
 const metres = (m: number) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(2)} km`)
 
+/** Roads listed for a trail/truck choice: those within this distance of the block. */
+const ROAD_USE_RADIUS_M = 1000
+const MAX_ROAD_USE_ROWS = 30
+const AREA_TREATMENTS = [
+  { value: 'ignore', label: 'Not used' },
+  { value: 'no-machines', label: 'No machines' },
+  { value: 'no-extraction', label: 'No extraction' },
+]
+
 interface SkidRun {
   key: string
   source: unknown
   context: unknown
   alignments: unknown
-  result: SkidReachResult
+  result: ExtractionResult
+  comparison: ExtractionComparison | null
   spurs: SpurSuggestion | null
   adopted: string[]
 }
 
 /**
- * How far a skidder drags each part of a block to a road, the share within reach, spurs that would
- * bring the rest in, and flat places for landings. Everything here is a candidate: a spur becomes a
- * road only when it is added.
+ * Extraction reach: how a skidder or forwarder brings each part of a block to a truck road, the
+ * share within reach and by how far, spurs that would bring the rest in, and flat places for
+ * landings. Everything here is a candidate: a spur becomes a road only when it is added.
  */
 export function SkidReachPanel(p: SidebarProps) {
   const w = p.workspace
@@ -64,8 +80,13 @@ export function SkidReachPanel(p: SidebarProps) {
   )
   const [blockId, setBlockId] = useState('')
   const block: ContextFeature | undefined = blocks.find((b) => b.id === blockId) ?? blocks[0]
-  const [rule, setRule] = useState<SkidReachRule>(DEFAULT_SKID_RULE)
+  const [settings, setSettings] = useState<ExtractionSettings>(DEFAULT_EXTRACTION_SETTINGS)
+  const [classText, setClassText] = useState(DEFAULT_EXTRACTION_SETTINGS.classBoundsM.join(';'))
   const [offBlockM, setOffBlockM] = useState(DEFAULT_OFF_BLOCK_M)
+  const [cellM, setCellM] = useState(DEFAULT_SKID_CELL_M)
+  const [trails, setTrails] = useState<Record<string, true>>({})
+  const [areaUse, setAreaUse] = useState<Record<string, ExtractionArea['treatment']>>({})
+  const [compare, setCompare] = useState(false)
   const [countMapped, setCountMapped] = useState(true)
   const [countDesigned, setCountDesigned] = useState(true)
   const [streamsStop, setStreamsStop] = useState(false)
@@ -79,7 +100,61 @@ export function SkidReachPanel(p: SidebarProps) {
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
 
-  const key = JSON.stringify([block?.geometry, rule, offBlockM, countMapped, countDesigned, streamsStop])
+  const classParse = useMemo(() => {
+    try {
+      return { bounds: parseClassBounds(classText), error: '' }
+    } catch (cause) {
+      return { bounds: null, error: cause instanceof Error ? cause.message : 'Check the distance classes.' }
+    }
+  }, [classText])
+  const closedAreas = useMemo(
+    () => project.context.filter((feature) => feature.kind === 'avoid' && feature.geometry.type === 'Polygon'),
+    [project.context],
+  )
+  const roadsFor = (include: { mapped: boolean; designed: boolean }): SkidRoad[] =>
+    skidRoadsFromProject(
+      project,
+      new Map([...w.analyses].map(([id, analysis]) => [id, analysis.centerline])),
+      include,
+    ).map((road) => (trails[road.id] ? { ...road, use: 'track' as const } : road))
+  // Roads near the block, for the trail/truck choice.
+  const nearbyRoads = useMemo(() => {
+    if (!block) return []
+    const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
+    const projection = localMetricGrid([ring[0][0], ring[0][1]])
+    const xy = ring.map((c) => projection.toGrid([c[0], c[1]]))
+    const minX = Math.min(...xy.map((p) => p[0])),
+      maxX = Math.max(...xy.map((p) => p[0])),
+      minY = Math.min(...xy.map((p) => p[1])),
+      maxY = Math.max(...xy.map((p) => p[1]))
+    return skidRoadsFromProject(project, new Map(), { mapped: countMapped, designed: countDesigned })
+      .map((road) => {
+        let near = Infinity
+        for (const c of road.coordinates) {
+          const [x, y] = projection.toGrid(c)
+          near = Math.min(near, Math.hypot(Math.max(minX - x, 0, x - maxX), Math.max(minY - y, 0, y - maxY)))
+        }
+        return { road, near }
+      })
+      .filter((entry) => entry.near <= ROAD_USE_RADIUS_M)
+      .sort((a, b) => a.near - b.near)
+      .slice(0, MAX_ROAD_USE_ROWS)
+      .map((entry) => entry.road)
+  }, [block, project, countMapped, countDesigned])
+
+  const key = JSON.stringify([
+    block?.geometry,
+    settings,
+    classText,
+    offBlockM,
+    cellM,
+    trails,
+    areaUse,
+    compare,
+    countMapped,
+    countDesigned,
+    streamsStop,
+  ])
   const stale = !!run && (run.key !== key || run.source !== source || run.context !== project.context)
   const current = run && !stale ? run : null
   const roadsChanged = !!current && current.alignments !== project.alignments
@@ -87,7 +162,7 @@ export function SkidReachPanel(p: SidebarProps) {
   // The landing screen is cheap, so it follows its inputs without a new run.
   const landings = useMemo((): LandingScreen | null => {
     if (!current) return null
-    const sg = current.result.skidGrid
+    const sg = current.result.grid.sg
     const spurRoads = (current.spurs?.spurs ?? []).map((spur) => ({
       road: { id: spur.id, name: `Spur ${spur.index}`, kind: 'spur' as const, coordinates: spur.coordinates },
       xy: spur.coordinates.map((c) => sg.toGrid(c)),
@@ -103,7 +178,9 @@ export function SkidReachPanel(p: SidebarProps) {
   const features = useMemo(() => {
     if (!current || !showOnPlan) return null
     return [
-      ...skidReachMapFeatures(current.result),
+      ...(current.comparison
+        ? comparisonMapFeatures(current.result, current.comparison)
+        : extractionMapFeatures(current.result)),
       ...(landings ? landingMapFeatures(landings) : []),
       ...(current.spurs?.spurs ?? [])
         .filter((spur) => !current.adopted.includes(spur.id))
@@ -131,7 +208,7 @@ export function SkidReachPanel(p: SidebarProps) {
     abort.current = controller
     w.setError('')
     w.setBusy(label)
-    w.setBusyCancel({ label: 'Cancel', title: 'Skid reach', onCancel: () => controller.abort() })
+    w.setBusyCancel({ label: 'Cancel', title: 'Extraction reach', onCancel: () => controller.abort() })
     return controller
   }
   const progress = ({ phase, done, total }: { phase: string; done: number; total: number }) =>
@@ -139,50 +216,63 @@ export function SkidReachPanel(p: SidebarProps) {
 
   const runReach = async () => {
     if (!block || abort.current || w.busy) return
-    const controller = start('Reading skid reach…')
+    if (!classParse.bounds) {
+      w.setError(classParse.error)
+      return
+    }
+    const controller = start('Reading extraction reach…')
     try {
       const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
       const projection = localMetricGrid([ring[0][0], ring[0][1]])
-      const roads = skidRoadsFromProject(
-        project,
-        new Map([...w.analyses].map(([id, analysis]) => [id, analysis.centerline])),
-        { mapped: countMapped, designed: countDesigned },
-      )
+      const roads = roadsFor({ mapped: countMapped, designed: countDesigned })
       const barriers = streamsStop
         ? project.context
             .filter((f) => f.kind === 'stream' && f.geometry.type === 'LineString')
             .map((f) => (f.geometry as GeoJSON.LineString).coordinates.map((c) => [c[0], c[1]] as Coordinate))
         : []
-      const result = await runCooperatively(
-        skidReachSteps({
+      const areas: ExtractionArea[] = closedAreas
+        .filter((area) => areaUse[area.id])
+        .map((area) => ({ polygon: area.geometry as GeoJSON.Polygon, treatment: areaUse[area.id] }))
+      const withDesigned = compare && countDesigned && roads.some((road) => road.kind === 'design')
+      const steps = function* () {
+        const eg = yield* prepareExtractionGrid({
           block: block.geometry as GeoJSON.Polygon,
           roads,
           barriers,
           ground: ground(),
           toGrid: projection.toGrid,
           toLonLat: projection.toLonLat,
-          rule,
+          settings: { ...settings, classBoundsM: classParse.bounds! },
+          areas,
           offBlockM,
-        }),
+          cellM,
+        })
+        const after = yield* extractionOnGrid(eg)
+        const before = withDesigned ? yield* extractionOnGrid(eg, (road) => road.kind !== 'design') : null
+        return { after, before }
+      }
+      const { after, before } = await runCooperatively(
+        steps(),
         { signal: controller.signal, onProgress: progress },
-        'Skid reach cancelled.',
+        'Extraction reach cancelled.',
       )
       setRun({
         key,
         source,
         context: project.context,
         alignments: project.alignments,
-        result,
+        result: after,
+        comparison: before ? compareExtraction(before, after) : null,
         spurs: null,
         adopted: [],
       })
-      const s = result.summary
+      const s = after.summary
       w.setNotice(
-        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within skid reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.`,
+        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${settings.machine} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${compare && !before ? ' No designed road to compare.' : ''}`,
       )
     } catch (cause) {
-      if (controller.signal.aborted) w.setNotice('Skid reach cancelled. Nothing was changed.')
-      else w.setError(cause instanceof Error ? cause.message : 'Could not read skid reach.')
+      if (controller.signal.aborted) w.setNotice('Extraction reach cancelled. Nothing was changed.')
+      else w.setError(cause instanceof Error ? cause.message : 'Could not read extraction reach.')
     } finally {
       abort.current = null
       w.setBusy('')
@@ -195,13 +285,14 @@ export function SkidReachPanel(p: SidebarProps) {
     try {
       const route = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
       const spurs = await runCooperatively(
-        suggestSpursSteps(current.result, {
+        suggestSpursSteps(asSkidReachResult(current.result), {
           terrain: source,
           ground: ground(),
           settings: project.settings,
           context: project.context,
           routeOptions: { ...route, groundWindowM: resolvedGroundWindow(route, project.terrain.resolutionM) },
           options: { targetShare: targetPercent / 100, maxSpurs, haulExit },
+          model: extractionSpurModel(current.result),
         }),
         { signal: controller.signal, onProgress: progress },
         'Spur suggestion cancelled.',
@@ -209,7 +300,7 @@ export function SkidReachPanel(p: SidebarProps) {
       setRun({ ...current, spurs, adopted: [] })
       w.setNotice(
         spurs.spurs.length
-          ? `${spurs.spurs.length} spur candidate${spurs.spurs.length === 1 ? '' : 's'}: ${pct(spurs.before.coveredOfSkiddable)} → ${pct(spurs.after.coveredOfSkiddable)} of the skiddable ground within reach. Add the ones you want as roads.`
+          ? `${spurs.spurs.length} spur candidate${spurs.spurs.length === 1 ? '' : 's'}: ${pct(spurs.before.coveredOfSkiddable)} → ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground within reach. Add the ones you want as roads.`
           : 'No spur was suggested. The list says why.',
       )
     } catch (cause) {
@@ -249,7 +340,7 @@ export function SkidReachPanel(p: SidebarProps) {
       // and the other spurs stay on the list to add.
       setRun({ ...current, context: next.context, adopted: [...current.adopted, spur.id] })
       w.setNotice(
-        `Added ${road.name}, ${metres(spur.lengthM)} from ${spur.parentName}. Its landing is not designed: check the junction, grade and crossings, and run skid reach again.`,
+        `Added ${road.name}, ${metres(spur.lengthM)} from ${spur.parentName}. Its landing is not designed: check the junction, grade and crossings, and run extraction reach again.`,
       )
     } catch (cause) {
       w.setError(cause instanceof Error ? cause.message : 'Could not add the spur.')
@@ -274,17 +365,20 @@ export function SkidReachPanel(p: SidebarProps) {
   const spurs = current?.spurs
   return (
     <RoadSection
-      title="Skid reach"
+      title="Extraction reach"
       data-testid="skid-reach-panel"
-      summary={s ? `${pct(s.coveredShare)} within reach` : 'Not run'}
+      summary={
+        s ? `${s.machine === 'skidder' ? 'Skidder' : 'Forwarder'} · ${pct(s.coveredShare)} within reach` : 'Not run'
+      }
       help={
         <>
-          How far a ground skidder drags each part of a block to the nearest road or landing, measured along the ground
-          over the terrain grid, not in a straight line. Mapped roads and designed roads count as landings.
+          How a skidder or forwarder brings each part of a block to a truck road: driving over the ground, winching
+          along straight lines, forwarding in straight runs, or loading with its crane. Distances follow the ground over
+          the terrain grid. Mapped and designed roads are truck roads unless marked as skid trails.
           <br />
-          The default limit is a field rule of thumb, not a standard: 350 m on level ground, falling to 200 m where logs
-          are dragged uphill to the road at 30 % (percent, not degrees), and 350 m downhill. Ground steeper than 40 % is
-          not ground-skidded and is reported as cable or another system.
+          The skidder&apos;s default reach is a field rule of thumb, not a standard: 350 m on level ground, falling to
+          200 m where logs are dragged uphill to the road at 30 % (percent, not degrees). It does not drive on ground
+          steeper than 40 % but can winch logs off it. Winching and forwarder rules follow Sylvaccess (INRAE).
           <br />
           Missing terrain is never counted as covered: ground reachable only across it is reported unknown.
         </>
@@ -303,77 +397,112 @@ export function SkidReachPanel(p: SidebarProps) {
         <div className="space-y-2 text-xs">
           <Field label="Block">
             <RoadSelect
-              ariaLabel="Skid reach block"
+              ariaLabel="Extraction reach block"
               value={block?.id ?? ''}
               onValueChange={setBlockId}
               options={blocks.map((b) => ({ value: b.id, label: b.name }))}
             />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
-            <NumberField
-              label="Level reach (m)"
-              value={rule.flatReachM}
-              min={MIN_SKID_REACH_M}
-              max={MAX_SKID_REACH_M}
-              step={10}
-              onChange={(flatReachM) =>
-                setRule((r) => ({ ...r, flatReachM, adverseReachM: Math.min(r.adverseReachM, flatReachM) }))
-              }
-            />
-            <NumberField
-              label="Uphill reach (m)"
-              value={rule.adverseReachM}
-              min={MIN_SKID_REACH_M}
-              max={rule.flatReachM}
-              step={10}
-              onChange={(adverseReachM) => setRule((r) => ({ ...r, adverseReachM }))}
-            />
-            <NumberField
-              label="at uphill grade (%)"
-              value={rule.adverseSlopePercent}
-              min={1}
-              max={200}
-              step={1}
-              hint="Percent. The field rule's 30 is read as 30 %, about 17°; 30° would be 58 %."
-              onChange={(adverseSlopePercent) => setRule((r) => ({ ...r, adverseSlopePercent }))}
-            />
-            <NumberField
-              label="Ground skid limit (%)"
-              value={rule.maxGroundSlopePercent}
-              min={1}
-              max={200}
-              step={1}
-              hint="Steeper ground is reported as cable or another system."
-              onChange={(maxGroundSlopePercent) => setRule((r) => ({ ...r, maxGroundSlopePercent }))}
-            />
-            <NumberField
-              label="Skid outside block (m)"
-              value={offBlockM}
-              min={0}
-              max={MAX_OFF_BLOCK_M}
-              step={10}
-              hint="How far a skid path may run outside the block to reach a road."
-              onChange={setOffBlockM}
-            />
-          </div>
+          <ExtractionReachFields
+            settings={settings}
+            onSettings={setSettings}
+            offBlockM={offBlockM}
+            onOffBlockM={setOffBlockM}
+            cellM={cellM}
+            onCellM={setCellM}
+            classText={classText}
+            onClassText={setClassText}
+            classError={classParse.error}
+          />
           <div className="space-y-1">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={countMapped} onChange={(e) => setCountMapped(e.target.checked)} />
-              Mapped roads count as landings
+              Mapped roads count
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={countDesigned} onChange={(e) => setCountDesigned(e.target.checked)} />
-              Designed roads count as landings
+              Designed roads count
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={streamsStop} onChange={(e) => setStreamsStop(e.target.checked)} />
-              Streams stop skidding
-              <InfoTip label="About streams and skidding">
-                Off: skid paths cross mapped streams freely. On: no skid path crosses any mapped stream line, whatever
-                its size.
+              Streams stop extraction
+              <InfoTip label="About streams and extraction">
+                Off: machines and winch lines cross mapped streams freely. On: no ground path or winch line crosses any
+                mapped stream line, whatever its size.
+              </InfoTip>
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
+              Compare with mapped roads only
+              <InfoTip label="About the before and after comparison">
+                Runs the block twice, without and with the designed roads, and shows the ground they bring within reach
+                and how much they shorten extraction.
               </InfoTip>
             </label>
           </div>
+          <RoadSection
+            title="Skid trails"
+            summary={`${Object.keys(trails).filter((id) => nearbyRoads.some((r) => r.id === id)).length} of ${nearbyRoads.length} roads`}
+            help="A skid trail carries machines, not trucks: logs are dragged or forwarded along it to a truck road. A trail that joins no truck road is left out and named."
+          >
+            {nearbyRoads.length ? (
+              <ul className="space-y-1" data-testid="extraction-trails">
+                {nearbyRoads.map((road) => (
+                  <li key={road.id}>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={!!trails[road.id]}
+                        onChange={(e) =>
+                          setTrails((t) => {
+                            const next = { ...t }
+                            if (e.target.checked) next[road.id] = true
+                            else delete next[road.id]
+                            return next
+                          })
+                        }
+                      />
+                      <span className="min-w-0 truncate">{road.name}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">
+                No counted road within {ROAD_USE_RADIUS_M / 1000} km of the block.
+              </p>
+            )}
+          </RoadSection>
+          <RoadSection
+            title="Closed areas"
+            summary={`${Object.keys(areaUse).filter((id) => closedAreas.some((a) => a.id === id)).length} of ${closedAreas.length} used`}
+            help="Exclusion areas are used only when you say how. No machines: no driving, but winch lines may cross. No extraction: neither."
+          >
+            {closedAreas.length ? (
+              <ul className="space-y-1" data-testid="extraction-areas">
+                {closedAreas.map((area) => (
+                  <li key={area.id} className="grid grid-cols-[1fr_9rem] items-center gap-2">
+                    <span className="min-w-0 truncate">{area.name}</span>
+                    <RoadSelect
+                      ariaLabel={`${area.name} for extraction`}
+                      value={areaUse[area.id] ?? 'ignore'}
+                      onValueChange={(value) =>
+                        setAreaUse((u) => {
+                          const next = { ...u }
+                          if (value === 'ignore') delete next[area.id]
+                          else next[area.id] = value as ExtractionArea['treatment']
+                          return next
+                        })
+                      }
+                      options={AREA_TREATMENTS}
+                    />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground">The project has no exclusion areas.</p>
+            )}
+          </RoadSection>
           <Button
             size="sm"
             className="h-8 w-full"
@@ -381,11 +510,11 @@ export function SkidReachPanel(p: SidebarProps) {
             onClick={() => void runReach()}
             data-testid="skid-reach-run"
           >
-            {run ? 'Run skid reach again' : 'Run skid reach'}
+            {run ? 'Run extraction reach again' : 'Run extraction reach'}
           </Button>
           {stale && (
             <InlineAlert tone="warning">
-              The block, limits, terrain or mapped data changed since the last run.
+              The block, machine, limits, terrain or mapped data changed since the last run.
             </InlineAlert>
           )}
           {roadsChanged && (
@@ -394,32 +523,15 @@ export function SkidReachPanel(p: SidebarProps) {
 
           {s && current && (
             <div className="space-y-2" data-testid="skid-reach-results">
-              <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 tabular-nums">
-                <dt className="text-muted-foreground">Within reach</dt>
-                <dd>
-                  {pct(s.coveredShare)} · {s.coveredHa.toFixed(1)} ha
-                </dd>
-                <dt className="text-muted-foreground">Beyond reach</dt>
-                <dd>
-                  {pct(s.beyondShare)} · {s.beyondHa.toFixed(1)} ha
-                </dd>
-                <dt className="text-muted-foreground">Too steep (cable/other)</dt>
-                <dd>
-                  {pct(s.steepShare)} · {s.steepHa.toFixed(1)} ha
-                </dd>
-                <dt className="text-muted-foreground">Unknown</dt>
-                <dd>
-                  {pct(s.unknownShare)} · {s.unknownHa.toFixed(1)} ha
-                </dd>
-                <dt className="text-muted-foreground">Farthest cell</dt>
-                <dd>{s.farthest ? `${metres(s.farthest.skidM)}${s.farthest.covered ? '' : ' (beyond)'}` : '—'}</dd>
-              </dl>
+              <ExtractionReachResults summary={s} comparison={current.comparison} />
               <label className="flex items-center gap-2">
                 <input type="checkbox" checked={showOnPlan} onChange={(e) => setShowOnPlan(e.target.checked)} />
                 Show on plan
-                <InfoTip label="About the skid reach layer">
-                  Outlines: red is beyond reach, purple too steep to skid, grey unknown. Orange lines are spur
-                  candidates; blue rectangles are landing candidates.
+                <InfoTip label="About the extraction reach layer">
+                  Fill: ground within reach, coloured by distance class (or, with the comparison on, green where newly
+                  within reach and teal where shortened). Outlines: blue winched, red beyond reach, purple too steep for
+                  the machine, dark purple too steep to fell, slate no extraction, grey unknown. Orange lines are spur
+                  candidates; cyan rectangles are landing candidates.
                 </InfoTip>
               </label>
 
@@ -431,7 +543,7 @@ export function SkidReachPanel(p: SidebarProps) {
                     its grade limit, exclusions and crossing prices, and cut back to the shortest length that keeps its
                     coverage. It ends at its landing. With a haul exit or a known haul direction it joins swept back, so
                     a loaded truck turns 90° or less onto the parent road. Unreviewed streams block every crossing.
-                    Adapted from LANDIS-II Forest Roads (Apache-2.0).
+                    Coverage is judged by the extraction reach above. Adapted from LANDIS-II Forest Roads (Apache-2.0).
                   </InfoTip>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
@@ -441,7 +553,7 @@ export function SkidReachPanel(p: SidebarProps) {
                     min={1}
                     max={100}
                     step={1}
-                    hint="Of the block's known ground-skiddable area."
+                    hint="Of the block's known extractable area: less unknown, too-steep and closed ground."
                     onChange={setTargetPercent}
                   />
                   <NumberField
@@ -521,10 +633,10 @@ export function SkidReachPanel(p: SidebarProps) {
                       {spurs.stopped === 'already-met'
                         ? 'The block already meets the target.'
                         : spurs.stopped === 'target-met'
-                          ? `Meets the target: ${pct(spurs.after.coveredOfSkiddable)} of the skiddable ground.`
+                          ? `Meets the target: ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground.`
                           : spurs.stopped === 'spur-budget'
-                            ? `Stopped at ${maxSpurs} spurs with ${pct(spurs.after.coveredOfSkiddable)} of the skiddable ground covered.`
-                            : `No further spur found; ${pct(spurs.after.coveredOfSkiddable)} of the skiddable ground covered.`}
+                            ? `Stopped at ${maxSpurs} spurs with ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`
+                            : `No further spur found; ${pct(spurs.after.coveredOfSkiddable)} of the extractable ground covered.`}
                     </li>
                     {spurs.skipped.map((skip, i) => (
                       <li key={i} className="text-2xs text-muted-foreground">

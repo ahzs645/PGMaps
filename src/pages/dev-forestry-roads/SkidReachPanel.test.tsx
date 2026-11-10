@@ -20,7 +20,7 @@ vi.mock('./SidebarParts', () => ({
   RoadSection: ({ children }: { children: ReactNode }) => createElement('section', {}, children),
 }))
 
-it('runs skid reach, suggests spurs and adds one only when asked', async () => {
+it('runs extraction reach, suggests spurs and adds one only when asked', async () => {
   const origin: Coordinate = [-122.6, 54.0]
   const at = (x: number, y: number) => offsetCoordinate(offsetCoordinate(origin, 90, x), 0, y)
   const demo = createDemoProject()
@@ -48,6 +48,7 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
     project = next
   })
   const preview = vi.fn()
+  const notices = vi.fn()
   const source = { elevationAt: () => 700 }
   const workspace = () => ({
     project,
@@ -59,7 +60,7 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
     setBusy: vi.fn(),
     setBusyCancel: vi.fn(),
     setBusyProgress: vi.fn(),
-    setNotice: vi.fn(),
+    setNotice: notices,
     setError: vi.fn((message: string) => {
       if (message) throw Error(message)
     }),
@@ -87,8 +88,10 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
     .findAllByType('dt')
     .map((node) => node.children.join(''))
   expect(terms).toContain('Within reach')
+  expect(byTestId('extraction-class-table')).toBeTruthy()
   const shown = preview.mock.calls.at(-1)![0] as GeoJSON.Feature[]
   expect(shown.some((feature) => feature.properties?.role === 'beyond')).toBe(true)
+  expect(shown.some((feature) => feature.properties?.kind === 'extraction-class' && feature.properties.fill)).toBe(true)
 
   await act(async () => byTestId('skid-reach-suggest').props.onClick())
   const add = await eventually(() => renderer.root.findByProps({ 'aria-label': 'Add spur 1 as a road' }))
@@ -105,6 +108,18 @@ it('runs skid reach, suggests spurs and adds one only when asked', async () => {
   await act(async () => renderer.update(view()))
   expect(byTestId('skid-spur-list')).toBeTruthy()
   expect(renderer.root.findByProps({ 'aria-label': 'Add spur 1 as a road' }).props.disabled).toBe(true)
+  // The forwarder runs on the same block from the machine picker.
+  const forwarder = renderer.root.find(
+    (node) => node.type === 'button' && [node.props.children].flat().includes('Forwarder'),
+  )
+  await act(async () => forwarder.props.onClick())
+  await act(async () => byTestId('skid-reach-run').props.onClick())
+  const notice = await eventually(() => {
+    const call = notices.mock.calls.find((args) => String(args[0]).includes('forwarder reach'))
+    if (!call) throw Error('not yet')
+    return String(call[0])
+  })
+  expect(notice).toMatch(/^Block A: \d+% of [\d.]+ ha within forwarder reach of \d+ roads/)
   await act(async () => renderer.unmount())
   expect(preview.mock.calls.at(-1)![0]).toBeNull()
 })
