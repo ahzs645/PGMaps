@@ -13,6 +13,7 @@ import { jobStandardsOf, standardVehicleCheck, withJobStandards } from '../jobSt
 import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
 import { projectReadiness, type ReadinessRow } from '../readiness'
+import { HaulPanel } from '../HaulPanel'
 
 const SAMPLING: [keyof RoadSettings, string, number, number, ReactNode][] = [
   [
@@ -56,6 +57,8 @@ export function ReviewTab(
   )
   const [ratesOpen, setRatesOpen] = useState(false)
   const [standardsOpen, setStandardsOpen] = useState(false)
+  const [haulOpen, setHaulOpen] = useState(false)
+  const haul = useRef<HTMLDivElement>(null)
   const rates = useRef<HTMLDivElement>(null)
   const standards = useRef<HTMLDivElement>(null)
   const reveal = (target: { current: HTMLDivElement | null }) =>
@@ -70,6 +73,9 @@ export function ReviewTab(
       case 'rates':
         setRatesOpen(true)
         return reveal(rates)
+      case 'haul-destination':
+        setHaulOpen(true)
+        return reveal(haul)
       case 'terrain':
       case 'streams':
       case 'constraints':
@@ -132,6 +138,8 @@ export function ReviewTab(
           </Button>
         )}
       </RoadSection>
+      <div ref={haul} className="scroll-mt-2" />
+      <HaulPanel workspace={p.workspace} open={haulOpen} onOpenChange={setHaulOpen} />
       <div ref={standards} className="scroll-mt-2" />
       <RoadSection
         title="Design standards"

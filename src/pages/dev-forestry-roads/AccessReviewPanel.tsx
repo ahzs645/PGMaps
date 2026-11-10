@@ -32,6 +32,9 @@ import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { loadRegionalTerrain, localMetricGrid } from './terrain'
 import { parseProject } from './project'
+import { departureBearingAt } from './haulDestination'
+import { projectHaulField } from './haulReview'
+import type { JunctionOrientation } from './junctionOrientation'
 import type { Coordinate, RoadProject, TerrainSource } from './types'
 
 const MAX_ROADS = 20
@@ -80,6 +83,10 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
   const pickedRoad = project.context.find((feature) => feature.id === roadId)
   const [goals, setGoals] = useState<RouteGoal[]>(['cost', 'shortest', 'gentle', 'drainage'])
   const [picking, setPicking] = useState<'end' | 'road' | null>(null)
+  // Places each junction along its host so loaded trucks turn out toward the haul destination.
+  const destination = project.haulDestination?.destination ?? null
+  const [orientChoice, setOrient] = useState(true)
+  const orient = orientChoice && !!destination
   const [run, setRun] = useState<{
     review: AccessReview
     key: string
@@ -139,6 +146,8 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
     goals,
     regional,
     project.settings,
+    orient,
+    project.haulDestination,
   ])
   const stale = !!run && (run.key !== key || run.source !== source)
   const review = run && !stale ? run.review : null
@@ -282,9 +291,16 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
         terrain = loaded.source
         terrainMetadata = loaded.metadata
       }
+      let orientation: JunctionOrientation | undefined
+      if (orient && project.haulDestination) {
+        const field = projectHaulField({ context, alignments: project.alignments }, project.haulDestination)
+        if (field)
+          orientation = { departureAt: (at) => departureBearingAt(field, at), rule: project.haulDestination.junction }
+      }
       const result = await compareAccessRoutes(
         {
           starts,
+          orientation,
           endName,
           template: w.alignment.template,
           terrain,
@@ -624,6 +640,22 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
           ))}
         </div>
         <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={orient}
+            disabled={!destination}
+            onChange={(event) => setOrient(event.target.checked)}
+            data-testid="road-access-orient"
+          />
+          {destination ? `Orient junctions toward ${destination.name}` : 'Orient junctions (choose a haul destination)'}
+          <InfoTip label="About orienting junctions">
+            Moves each junction along its road, within the window set under Review → Haul, and holds the new road&apos;s
+            arrival so a loaded truck turns out toward the destination through at most the project&apos;s largest turn.
+            Where no such junction can be reached, the nearest point is used and its turn is shown. The route goals
+            after the first search keep the junction but not its heading.
+          </InfoTip>
+        </label>
+        <label className="flex items-center gap-2 text-xs">
           <input type="checkbox" checked={regional} onChange={(event) => setRegional(event.target.checked)} />
           Search on regional terrain (screening)
           <InfoTip label="About regional terrain">
@@ -704,6 +736,25 @@ export function AccessReviewPanel({ full, ...p }: SidebarProps & { full: boolean
                           ↑ {grade(row.loadedUphillPercent)} · empty ↑ {grade(row.emptyUphillPercent)}
                           {row.totalCost === null ? '' : ` · ${money(row.totalCost)}`}
                         </span>
+                        {row.junction && (
+                          <span
+                            className={cn(
+                              'mt-0.5 block tabular-nums',
+                              row.junction.turnDeg !== null &&
+                                row.junction.turnDeg > (project.haulDestination?.junction.maxTurnDeg ?? 90)
+                                ? 'text-amber-700 dark:text-amber-400'
+                                : 'text-muted-foreground',
+                            )}
+                          >
+                            Loaded turn{' '}
+                            {row.junction.turnDeg === null ? 'unknown' : `${Math.round(row.junction.turnDeg)}°`}
+                            {row.junction.oriented
+                              ? row.junction.movedM > 0
+                                ? ` · junction moved ${length(row.junction.movedM)}`
+                                : ''
+                              : ' · nearest point'}
+                          </span>
+                        )}
                         {row.blockers[0] && (
                           <span className="mt-0.5 block text-amber-700 dark:text-amber-400">{row.blockers[0]}</span>
                         )}
