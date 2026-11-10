@@ -22,7 +22,17 @@ export const EMPTY_PROJECT_ISSUE: ProjectIssue = {
 
 export const PLANNING_CAVEAT = 'Preliminary planning geometry · not for construction'
 
-const DATE = /^\d{4}-\d{2}-\d{2}$/
+/**
+ * True for a real calendar day written YYYY-MM-DD. `Date.parse` rolls 2026-02-31 over to March and
+ * a pattern alone accepts 2026-13-45, so the date is rebuilt and compared with what was written.
+ */
+export function isCalendarDate(text: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
+  if (!match) return false
+  const [year, month, day] = match.slice(1).map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+}
 
 export function parseProjectIssue(raw: unknown): ProjectIssue {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error('The issue stamp must be an object.')
@@ -34,8 +44,7 @@ export function parseProjectIssue(raw: unknown): ProjectIssue {
     return value
   }
   const issuedOn = text(r.issuedOn, 'Date of issue', 10)
-  if (issuedOn && (!DATE.test(issuedOn) || !Number.isFinite(Date.parse(issuedOn))))
-    throw Error('The date of issue must be YYYY-MM-DD.')
+  if (issuedOn && !isCalendarDate(issuedOn)) throw Error('The date of issue must be a real date, written YYYY-MM-DD.')
   return {
     preparedBy: text(r.preparedBy, 'Prepared by', 200),
     organisation: text(r.organisation, 'Organisation', 200),

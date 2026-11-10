@@ -132,7 +132,7 @@ screen already reads them: the grade limit (`maxGradePercent`) and the minimum r
 | Running surface                     | The Review template row; New project sets the first road's template to it                                               |
 | Clearing limit                      | The Review clearing row                                                                                                 |
 | Drain spacing                       | The Review cross-drain spacing row                                                                                      |
-| Design speed                        | Printed in the report only. Section → Curve rules has its own speed per road                                            |
+| Design speed                        | Printed in the report only. Section → Superelevation & widening has its own speed per road                              |
 | Source                              | Printed in the report                                                                                                   |
 
 **The grade rule.** `reviewGrades` (`designStandards.ts`) judges station grades. A run is a set of

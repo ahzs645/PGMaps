@@ -133,7 +133,7 @@ export function DesignStandardsFields({
         />
         <OptionalNumberField
           label="Design speed (km/h)"
-          hint="Recorded and printed with the standards. Section → Curve rules applies a speed to superelevation and widening on each road."
+          hint="Recorded and printed with the standards. Section → Superelevation & widening applies a speed to each road."
           value={s.designSpeedKmh}
           min={STANDARD_LIMITS.designSpeedKmh[0]}
           max={STANDARD_LIMITS.designSpeedKmh[1]}

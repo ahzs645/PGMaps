@@ -492,6 +492,76 @@ describe('assessReadiness: limits and states', () => {
     expect(new Set(rows.map((item) => item.id)).size).toBe(rows.length)
   })
 
+  it('counts unpriced culverts by record, whatever their names contain', () => {
+    const alignment = road()
+    alignment.engineering!.culverts = [
+      culvert({ name: 'CMP 600 mm, km 0.2', chainage: 120 }),
+      culvert({ id: 'c2', name: 'Creek No. 4 crossing', chainage: 260 }),
+      culvert({ id: 'c3', name: 'Culvert 3', chainage: 300, unitCost: 450 }),
+    ]
+    const { row, analysis } = assess({ alignment })
+    expect(row('structure-costs')).toMatchObject({
+      state: 'attention',
+      severity: 'todo',
+      result: '2 culverts have no price',
+    })
+    expect(row('structure-costs').measured).toMatch(/^No price: CMP 600 mm, km 0\.2; Creek No\. 4 crossing/)
+    // The button goes to the first culvert that has no price, not the first culvert entered.
+    expect(row('structure-costs').action).toMatchObject({ target: 'culverts', chainage: 120 })
+    // The cost dialog lists the same culverts, with or without inverts.
+    const unpriced = unpricedQuantities(analysis, alignment, DEFAULT_ROAD_SETTINGS).filter(
+      (item) => item.rowId === 'structures',
+    )
+    expect(unpriced.map((item) => item.text)).toEqual([
+      '12 m of culvert (CMP 600 mm, km 0.2) has no installed cost',
+      '12 m of culvert (Creek No. 4 crossing) has no installed cost',
+    ])
+  })
+
+  it('sends an unpriced rate to where that rate is edited', () => {
+    const rates = { cutRate: 9, fillRate: 7, surfacingRate: 31, clearingRate: 1.4 }
+    // Every base rate is entered; one ground material has no excavation rate.
+    const alignment = road()
+    alignment.engineering!.materials = [
+      { id: 'till', name: 'Till', color: '#987654', cutRate: 0, reusableFraction: 1, compactionFactor: 0.9 },
+    ]
+    alignment.engineering!.strata = [
+      { id: 'all', materialId: 'till', start: 0, end: 400, topDepthM: 0, bottomDepthM: null },
+    ]
+    const material = assess({ alignment, settings: rates }).row('rates')
+    expect(material).toMatchObject({
+      state: 'attention',
+      result: 'Positive work quantities have zero amounts',
+      action: { label: 'Materials', target: 'materials' },
+    })
+    expect(material.measured).toContain('excavation (Till) has no rate')
+    // A base rate at zero is edited under Unit rates, and so is a rate still at its starting value.
+    expect(assess({ settings: { ...rates, fillRate: 0 } }).row('rates').action).toEqual({
+      label: 'Enter rates',
+      target: 'rates',
+    })
+    expect(assess().row('rates').action).toEqual({ label: 'Enter rates', target: 'rates' })
+    // An aggregate source with no evidence is completed under Engineering → Haul.
+    const sourced = road()
+    sourced.engineering!.surfacingSupply = {
+      enabled: true,
+      name: 'Pit 7',
+      acquisitionRate: 5,
+      processingRate: 4,
+      loadingRate: 2,
+      haulDistanceKm: 3,
+      haulRate: 1,
+      placementRate: 3,
+      capacityM3: null,
+      sourceNotes: '',
+    }
+    const aggregate = assess({ alignment: sourced, settings: rates }).row('rates')
+    expect(aggregate).toMatchObject({
+      result: 'Aggregate source assumptions need evidence',
+      action: { label: 'Aggregate source', target: 'haul' },
+    })
+  })
+
   it('counts and names the culverts that have no price', () => {
     const alignment = road()
     alignment.engineering!.culverts = [

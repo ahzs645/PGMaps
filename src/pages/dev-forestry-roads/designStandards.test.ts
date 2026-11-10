@@ -261,6 +261,14 @@ describe('parseDesignStandards', () => {
     expect(parseDesignStandards(JSON.parse(JSON.stringify(record)))).toEqual(record)
   })
 
+  it('refuses a confirmation date that is not a real day', () => {
+    for (const confirmedOn of ['2026-13-45', '2026-02-31', '2026-11-9', 'today'])
+      expect(() => parseDesignStandards(standards({ confirmedOn }))).toThrow(
+        'The design standards confirmation date must be a real date, written YYYY-MM-DD.',
+      )
+    expect(parseDesignStandards(standards({ confirmedOn: '2026-11-09' })).confirmedOn).toBe('2026-11-09')
+  })
+
   it('refuses half a short-pitch allowance and out-of-range limits', () => {
     expect(() => parseDesignStandards(standards({ shortPitchGradePercent: 18 }))).toThrow(/both/)
     expect(() => parseDesignStandards(standards({ adverseGradePercent: 0 }))).toThrow(/Adverse grade limit/)

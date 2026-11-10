@@ -7,6 +7,7 @@
  * what those two numbers cannot say (an adverse limit, a short-pitch allowance, the design vehicle,
  * speed and widths) and whether a person has confirmed the set.
  */
+import { isCalendarDate } from './projectIssue'
 import type { Alignment, RoadSettings, RoadStation } from './types'
 
 export interface DesignStandards {
@@ -91,8 +92,8 @@ export function parseDesignStandards(raw: unknown): DesignStandards {
     shortPitchMaxLengthM = optional(r.shortPitchMaxLengthM, 'Short-pitch length', STANDARD_LIMITS.shortPitchLengthM)
   if ((shortPitchGradePercent === null) !== (shortPitchMaxLengthM === null))
     throw Error('A short-pitch allowance needs both its grade limit and its longest pitch length.')
-  if (r.confirmedOn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(r.confirmedOn)))
-    throw Error('The design standards confirmation date must be YYYY-MM-DD.')
+  if (r.confirmedOn !== undefined && !isCalendarDate(String(r.confirmedOn)))
+    throw Error('The design standards confirmation date must be a real date, written YYYY-MM-DD.')
   return {
     adverseGradePercent: optional(r.adverseGradePercent, 'Adverse grade limit', STANDARD_LIMITS.gradePercent),
     loadedDirection: (r.loadedDirection as DesignStandards['loadedDirection']) ?? null,

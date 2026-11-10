@@ -560,7 +560,7 @@ warning someone must see stays an `InlineAlert`.
   options, terrain preparation, imagery, the field book and existing roads fold.
 - **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
   that open elsewhere are tiles at the end.
-- **Section:** the eight template numbers. Components and curve rules fold.
+- **Section:** the eight template numbers. Components and **Superelevation & widening** fold.
 - **Engineering:** four input tabs. The aggregate source sits under Haul.
 - **Review:** **Ready to review**, the checks a designer answers for on the active road, in three
   states: met, needs attention, not assessed. A check the workspace could not make is never shown as
@@ -760,7 +760,7 @@ sketch highlights the selected one. A side value overrides the symmetric base; "
 value" clears it. The tree is an editor over these fixed components, not a way to add new
 component types.
 
-**Design speed** (Template → Design speed) turns on curve rules:
+**Design speed** (Section → Superelevation & widening → Design speed) turns on curve rules:
 
 - Superelevation e = V²/(127 R) − f, held between the normal crown and the entered maximum.
   The section rotates about the centreline, so the inside falls by e and the outside rises

@@ -1360,6 +1360,20 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       .filter((flag) => flag.id !== 'placeholder-rates')
       .map((flag) => `${flag.label}: ${flag.detail.split('. ')[0]}`),
   ].filter(Boolean)
+  // The button leads to where the outstanding rate is edited. The four base rates are under Unit
+  // rates; a ground material's excavation rate is with the material; the aggregate source's rates
+  // and its evidence are in the haul view.
+  const unpricedWork = cost.unpriced.filter((item) => /^(material-|cut$|fill$|surfacing|clearing$)/.test(item.rowId))
+  // Unclassified excavation takes the base cut rate, and course placement the base fill rate.
+  const ofGroundMaterial = (rowId: string) => /^material-(?!course-placement$|__unclassified$)/.test(rowId)
+  const baseRateOpen =
+    cost.placeholderRates.length > 0 ||
+    unpricedWork.some((item) => !ofGroundMaterial(item.rowId) && item.rowId !== 'surfacing-source')
+  const rateAction: NonNullable<ReadinessRow['action']> = baseRateOpen
+    ? { label: 'Enter rates', target: 'rates' }
+    : unpricedWork.some((item) => ofGroundMaterial(item.rowId))
+      ? { label: 'Materials', target: 'materials' }
+      : { label: 'Aggregate source', target: 'haul' }
   // A rate is judged where it prices something: with no quantity, none is in use.
   const quantities =
     analysis.cutVolumeM3 + analysis.fillVolumeM3 + analysis.surfaceVolumeM3 + analysis.clearingAreaM2 > EPS
@@ -1386,7 +1400,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
               : rateFlags[0].label,
             measured: `${ratesText} · ${rateNotes.join(' · ')}`,
             judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
-            action: { label: 'Enter rates', target: 'rates' },
+            action: rateAction,
           }
         : {
             id: 'rates',
@@ -1464,12 +1478,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
 
   const culverts = engineering?.culverts ?? []
   const structureFlags = costFlags('structure-costs')
-  // The unpriced culverts are named first in that prompt's detail; the count leads the row.
-  const unpricedNames =
-    structureFlags
-      .find((flag) => flag.id === 'zero-culvert-rates')
-      ?.detail.split('. ')[0]
-      .split(', ') ?? []
+  // Counted and named from the records, never from the prompt's sentence: a name can hold a comma.
+  const unpricedNames = cost.unpricedCulverts.map((culvert) => culvert.name)
   add(
     culverts.length && !(calculated && result)
       ? {
@@ -1493,7 +1503,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
               : structureFlags[0].label,
             measured:
               [
-                unpricedNames.length ? `No price: ${unpricedNames.join(', ')}` : '',
+                unpricedNames.length ? `No price: ${unpricedNames.join('; ')}` : '',
                 // The first prompt is the result when no culvert is unpriced; do not print it twice.
                 ...structureFlags
                   .filter((flag) => flag.id !== 'zero-culvert-rates')
@@ -1503,7 +1513,12 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
                 .filter(Boolean)
                 .join(' · ') || undefined,
             judgedOn: 'An installed price on every culvert and current crossing record',
-            action: { label: 'Set price', target: 'culverts', chainage: culverts[0]?.chainage },
+            // The first culvert with no price, where there is one; else the first entered.
+            action: {
+              label: 'Set price',
+              target: 'culverts',
+              chainage: (cost.unpricedCulverts[0] ?? culverts[0])?.chainage,
+            },
           }
         : culverts.length
           ? {
