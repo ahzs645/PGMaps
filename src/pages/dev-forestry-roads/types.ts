@@ -14,6 +14,7 @@ import type { FullCostReviewRecord } from './fullCostRecord'
 import type { DrainageProjectState } from './drainageEvidence'
 import type { RoadReportSettings } from './reportSettings'
 import type { InvalidInput } from './inputErrors'
+import type { CableRigging, SkylineSpanResult } from './cableMechanics'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -342,6 +343,13 @@ export interface CableLine {
   endOffsetM?: number
   /** startHeight is the yarder height; endHeight is the tailhold height. */
   yarderAt?: 'start' | 'end'
+  /**
+   * Where the profile's sag comes from. Absent or `assumed`: the entered percentage of span
+   * (unchanged behaviour). `mechanics`: also solve the skyline from `rigging` (`cableMechanics.ts`).
+   */
+  sagModel?: 'assumed' | 'mechanics'
+  /** Rope, load and tensioning for the `mechanics` sag model; kept when switching back to `assumed`. */
+  rigging?: CableRigging
 }
 export interface RoadSettings {
   stationInterval: number
@@ -458,6 +466,13 @@ export interface RoadStation {
   /** Surfacing since the previous station, on the same terms. The stations' values add up to the road's. */
   surfaceVolumeM3?: number | null
   /**
+   * Cut and fill since the previous station corrected for plan curvature (Pappus); equal to the
+   * average-end-area volumes on tangents, null where those are. Reported only: costs, mass and haul
+   * use `cutVolumeM3`/`fillVolumeM3`.
+   */
+  curvedCutVolumeM3?: number | null
+  curvedFillVolumeM3?: number | null
+  /**
    * Cumulative usable cut minus fill of the known earthwork up to this station. An interval with
    * unknown volumes adds nothing, so the ordinate is carried across it rather than cut off.
    */
@@ -497,6 +512,18 @@ export interface RoadAnalysis {
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
   /**
+   * Covered cut and fill corrected for plan curvature (Pappus), beside the uncorrected totals above.
+   * Reported only; `curvedLengthM` is the covered length on curves and spirals, and
+   * `uncorrectedIntervals` counts intervals left uncorrected because a centroid lies past the
+   * centre of curvature.
+   */
+  curvatureCorrection?: {
+    cutVolumeM3: number
+    fillVolumeM3: number
+    curvedLengthM: number
+    uncorrectedIntervals: number
+  }
+  /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the
    * results leave the invalid input out and use its last valid value; without, nothing calculated.
    */
@@ -523,5 +550,25 @@ export interface CableAnalysis {
   length: number
   minClearance: number | null
   complete: boolean
+  /** Present only for a line with `sagModel: 'mechanics'`; the fields above stay the assumed-sag screen. */
+  mechanics?: CableMechanicsProfile
+}
+/** The solved skyline drawn on the D-line's own samples. */
+export interface CableMechanicsProfile {
+  rigging: CableRigging
+  /** Why the skyline could not be solved (unknown support ground, rigging, or a span the rope cannot carry). */
+  error: string | null
+  span: SkylineSpanResult | null
+  /** Aligned with `CableAnalysis.samples`. Elevations in the terrain's vertical reference. */
+  samples: { loadPath: number | null; emptyRope: number | null; loadClearance: number | null }[]
+  /** Smallest load-path clearance and where; null while any sample's ground is unknown. */
+  minLoadClearance: number | null
+  minLoadClearanceAt: number | null
+  /** Every sample's load clearance is known. */
+  complete: boolean
+  /** Load clearance ≥ `rigging.minClearanceM` at every sample; null when unknown. */
+  clearanceOk: boolean | null
+  /** Largest support tension over every load position ≤ allowable; null when unsolved. */
+  tensionOk: boolean | null
 }
 export type TerrainSource = ElevationSource

@@ -9,6 +9,7 @@ import { surfacingSupplyCost } from '../gravel'
 import { crossingRegisterSummary } from '../crossingRegister'
 import { gradeRule, gradeRuleText } from '../designStandards'
 import { DesignStandardsFields } from '../DesignStandardsFields'
+import { CableRiggingFields } from '../CableRiggingFields'
 import { jobStandardsOf, standardVehicleCheck, withJobStandards } from '../jobStandards'
 import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
@@ -267,7 +268,7 @@ function CableLines(p: SidebarProps) {
     <RoadSection
       title="D-line / cable geometry"
       summary={`${project.cables.length}`}
-      help="Positive offsets inset the supports; negative offsets extend the span. Heights follow the selected yarder and tailhold ends. An assumed parabolic sag screens clearance; it does not calculate tension or payload."
+      help="Positive offsets inset the supports; negative offsets extend the span. Heights follow the selected yarder and tailhold ends. An assumed parabolic sag screens clearance; Rope and load solves one static skyline span for tension and the loaded carriage path."
     >
       <Button variant="outline" size="sm" className="w-full" onClick={() => p.onMode('cable')}>
         Draw landing-to-tailhold line
@@ -303,6 +304,7 @@ function CableLines(p: SidebarProps) {
               <option value="end">End endpoint</option>
             </RoadSelect>
           </Field>
+          <CableRiggingFields line={c} onChange={(next) => edit(c.id, () => next)} />
           <div className="grid grid-cols-3 gap-1">
             {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (
               <NumberField
