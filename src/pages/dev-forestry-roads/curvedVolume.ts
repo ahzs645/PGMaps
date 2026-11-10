@@ -92,26 +92,53 @@ export const withReportedArea = (sampled: AreaMoment, reportedArea: number): Are
   moment: reportedArea * centroidOffset(sampled),
 })
 
-/** One sentence for reports: the corrected totals beside the ones the estimate uses. */
+/** One sentence for reports: the corrected totals beside the ones the estimate uses, or the reverse. */
 export function curvatureCorrectionText(
   correction:
-    | { cutVolumeM3: number; fillVolumeM3: number; curvedLengthM: number; uncorrectedIntervals: number }
+    | {
+        cutVolumeM3: number
+        fillVolumeM3: number
+        curvedLengthM: number
+        uncorrectedIntervals: number
+        applied?: true
+        averageEndCutVolumeM3?: number
+        averageEndFillVolumeM3?: number
+      }
     | undefined,
   cutVolumeM3: number,
   fillVolumeM3: number,
 ): string {
-  if (!correction || correction.curvedLengthM <= 0)
-    return 'No covered interval lies on a horizontal curve, so no curvature correction applies.'
   const m3 = (value: number) => Math.round(value).toLocaleString('en-CA')
   const percent = (corrected: number, base: number) =>
     base > 0 ? ` (${corrected >= base ? '+' : ''}${(((corrected - base) / base) * 100).toFixed(1)} %)` : ''
+  const folded = correction?.uncorrectedIntervals
+    ? ` ${correction.uncorrectedIntervals} interval(s) with a centroid past the centre of curvature are left uncorrected.`
+    : ''
+  if (correction?.applied) {
+    const cut = correction.averageEndCutVolumeM3 ?? cutVolumeM3,
+      fill = correction.averageEndFillVolumeM3 ?? fillVolumeM3
+    return (
+      `Cut and fill are corrected for plan curvature by each region's centroid (Pappus) over ${m3(correction.curvedLengthM)} m of curves, ` +
+      `and every total, cost, mass and haul figure here uses the corrected volumes: cut ${m3(cutVolumeM3)} m³${percent(cutVolumeM3, cut)} ` +
+      `and fill ${m3(fillVolumeM3)} m³${percent(fillVolumeM3, fill)} against ${m3(cut)} m³ and ${m3(fill)} m³ by uncorrected average end areas.` +
+      folded
+    )
+  }
+  if (!correction || correction.curvedLengthM <= 0)
+    return 'No covered interval lies on a horizontal curve, so no curvature correction applies.'
   return (
     `Corrected for plan curvature by each region's centroid (Pappus) over ${m3(correction.curvedLengthM)} m of curves, ` +
     `cut would be ${m3(correction.cutVolumeM3)} m³${percent(correction.cutVolumeM3, cutVolumeM3)} and fill ` +
     `${m3(correction.fillVolumeM3)} m³${percent(correction.fillVolumeM3, fillVolumeM3)}; the totals, costs, mass and haul ` +
     `here use the uncorrected average end areas.` +
-    (correction.uncorrectedIntervals
-      ? ` ${correction.uncorrectedIntervals} interval(s) with a centroid past the centre of curvature are left uncorrected.`
-      : '')
+    folded
   )
 }
+
+/**
+ * Prismoidal volume of an interval from its end areas and the area of the section midway, for
+ * comparison with average end areas: V = s/6 · (A₁ + 4·Aₘ + A₂) (Meyer & Gibson 1980; Wolf &
+ * Ghilani 2012, ch. 26). Not used by the quantities, which stay on average end areas.
+ */
+export const prismoidalVolume = (a1: number, middle: number, a2: number, lengthM: number) =>
+  (lengthM / 6) * (a1 + 4 * middle + a2)

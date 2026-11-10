@@ -16,6 +16,7 @@ import { resolvedCableLine } from './cableGeometry'
 import { parseRigging, parseSagModel } from './cableMechanics'
 import { parseSupportLayout } from './cableLayout/settings'
 import { curvatureCorrectionText } from './curvedVolume'
+import { parseSightSettings } from './sightDistance'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseAccessHistoryState } from './accessHistory'
@@ -195,6 +196,13 @@ function parseSettings(raw: unknown): RoadSettings {
     surfacingRate: number(r.surfacingRate, 'Surfacing unit cost', 0, 10000),
     clearingRate: number(r.clearingRate, 'Clearing unit cost', 0, 10000),
     shrinkFactor: number(r.shrinkFactor, 'Reusable cut factor', 0.1, 2),
+    ...(r.curvatureCorrection === undefined || r.curvatureCorrection === 'report'
+      ? {}
+      : r.curvatureCorrection === 'apply'
+        ? { curvatureCorrection: 'apply' as const }
+        : (() => {
+            throw Error('Curvature correction must be report or apply.')
+          })()),
   }
 }
 function parseOverride(raw: unknown): WidthOverride {
@@ -429,6 +437,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
+    ...(r.sightDistance === undefined ? {} : { sightDistance: parseSightSettings(r.sightDistance) }),
     ...(r.fsrConnection === undefined ? {} : { fsrConnection: parseFsrConnection(r.fsrConnection) }),
     ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
@@ -1248,8 +1257,9 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
     'right_width_m',
     'cut_area_m2',
     'fill_area_m2',
-    'interval_cut_volume_m3',
-    'interval_fill_volume_m3',
+    // The column names say when the volumes are corrected for plan curvature.
+    analysis.curvatureCorrection?.applied ? 'interval_cut_volume_curvature_corrected_m3' : 'interval_cut_volume_m3',
+    analysis.curvatureCorrection?.applied ? 'interval_fill_volume_curvature_corrected_m3' : 'interval_fill_volume_m3',
     'mass_balance_m3',
     'interval_surfacing_volume_m3',
     'interval_stripping_bank_m3',

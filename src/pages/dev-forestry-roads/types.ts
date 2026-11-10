@@ -204,6 +204,8 @@ export interface Alignment {
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
   curveDesign?: CurveDesign
+  /** Stopping sight distance inputs (`sightDistance.ts`); omitted values take the defaults there. */
+  sightDistance?: Partial<import('./sightDistance').SightDistanceSettings>
   vehicleCheck?: VehicleCheck
   fullCostRecord?: FullCostReviewRecord
   /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */
@@ -402,6 +404,12 @@ export interface RoadSettings {
   surfacingRate: number
   clearingRate: number
   shrinkFactor: number
+  /**
+   * Whether cut and fill corrected for plan curvature (Pappus, `curvedVolume.ts`) are only reported
+   * beside the average-end-area volumes (`report`, the default when absent) or replace them in every
+   * total, cost, mass and haul figure (`apply`).
+   */
+  curvatureCorrection?: 'report' | 'apply'
 }
 export interface TerrainMetadata {
   kind: 'demo' | 'geotiff' | 'regional'
@@ -510,8 +518,8 @@ export interface RoadStation {
   surfaceVolumeM3?: number | null
   /**
    * Cut and fill since the previous station corrected for plan curvature (Pappus); equal to the
-   * average-end-area volumes on tangents, null where those are. Reported only: costs, mass and haul
-   * use `cutVolumeM3`/`fillVolumeM3`.
+   * average-end-area volumes on tangents, null where those are. Costs, mass and haul use
+   * `cutVolumeM3`/`fillVolumeM3`, which equal these when `settings.curvatureCorrection` is `apply`.
    */
   curvedCutVolumeM3?: number | null
   curvedFillVolumeM3?: number | null
@@ -565,6 +573,13 @@ export interface RoadAnalysis {
     fillVolumeM3: number
     curvedLengthM: number
     uncorrectedIntervals: number
+    /**
+     * Set when `settings.curvatureCorrection` is `apply`: the totals above them, the stations'
+     * volumes, cost, mass and haul are the corrected ones, and these are the average end areas.
+     */
+    applied?: true
+    averageEndCutVolumeM3?: number
+    averageEndFillVolumeM3?: number
   }
   /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the

@@ -877,6 +877,15 @@ export function calculateEngineering(
     }
     const ds = b.chainage - a.chainage,
       cut: MaterialCut[] = []
+    // With the curvature correction applied, the interval's cut is the corrected one: each
+    // material's bank takes the interval's correction, as their moments are not kept apart.
+    const allPreparation = (station: RoadStation) =>
+      (station.preparationAreas ?? []).reduce((sum, p) => sum + p.areaM2, 0)
+    const averageEndCut = ((a.cutAreaM2! + allPreparation(a) + b.cutAreaM2! + allPreparation(b)) * ds) / 2
+    const cutScale =
+      settings.curvatureCorrection === 'apply' && averageEndCut > EPS && b.cutVolumeM3 !== null
+        ? b.cutVolumeM3 / averageEndCut
+        : 1
     let usable = 0,
       unusable = 0,
       stripping = 0
@@ -887,12 +896,13 @@ export function calculateEngineering(
           .filter((p) => (p.materialId ?? defaults.id) === m.id)
           .reduce((sum, p) => sum + p.areaM2, 0)
       const bank =
-        ((previous.materialAreas[j].cutAreaM2! +
+        (((previous.materialAreas[j].cutAreaM2! +
           current.materialAreas[j].cutAreaM2! +
           preparation(a) +
           preparation(b)) *
           ds) /
-        2
+          2) *
+        cutScale
       const reusable = bank * m.reusableFraction * m.compactionFactor,
         waste = bank * (1 - m.reusableFraction)
       const q = quantities.get(m.id)!

@@ -317,15 +317,26 @@ export const derivedRoadName = (alignment: Pick<Alignment, 'name' | 'mappedRoad'
   alignment.mappedRoad ? `${alignment.mappedRoad.roadName} alternative` : alignment.name
 export const isMappedRoad = (alignment: Pick<Alignment, 'mappedRoad'> | undefined) => !!alignment?.mappedRoad
 
-/** An editable proposal on the mapped road's line: same points, no record attached. */
-export function designFromMappedRoad(alignment: Alignment, id: string, color: string): Alignment {
+/** Horizontal points without ids, such as a fitted alignment of a mapped road (`leastSquaresFit.ts`). */
+export type DesignPoints = readonly Omit<Alignment['points'][number], 'id'>[]
+
+/**
+ * An editable proposal on the mapped road's line: same points, no record attached. With `points`,
+ * the proposal takes those instead (a fitted alignment of the same road).
+ */
+export function designFromMappedRoad(
+  alignment: Alignment,
+  id: string,
+  color: string,
+  points: DesignPoints = alignment.points,
+): Alignment {
   const { mappedRoad, ...rest } = alignment
   return {
     ...rest,
     id,
-    name: `Design on ${mappedRoad?.roadName ?? alignment.name}`,
+    name: `${points === alignment.points ? 'Design on' : 'Fitted design on'} ${mappedRoad?.roadName ?? alignment.name}`,
     color,
-    points: alignment.points.map((point, index) => ({ ...point, id: `${id}-p${index}` })),
+    points: points.map((point, index) => ({ ...point, id: `${id}-p${index}` })),
   }
 }
 

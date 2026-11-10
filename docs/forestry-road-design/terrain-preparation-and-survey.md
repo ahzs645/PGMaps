@@ -109,6 +109,30 @@ horizontal closure and its closure ratio, while CSV includes adjusted grid coord
 vertical datum and method. There is no uncertainty estimate, angle adjustment or instrument
 correction model. A perfectly closed traverse has zero closure rather than an invented ratio.
 
+### Ground and grid distances
+
+**Horizontal distances are: Ground distances** reduces taped or EDM distances to the UTM grid
+before the traverse is laid out (`scaleFactor.ts`). The book shows the factors it uses at the
+survey start:
+
+- the point scale factor k of the Transverse Mercator grid at that place (Snyder 1987, eq. 8-11,
+  GRS 80, k₀ 0.9996);
+- the elevation factor EF = R_G / (R_G + h), with R_G the Gaussian mean radius √(ρν) and h the
+  ellipsoidal height: the start elevation plus the entered geoid height N (about −17 m around
+  Prince George on CGG2013a; 17 m of error moves the factor by under 3 parts per million);
+- the combined factor CSF = k × EF. Grid distance = ground distance × CSF, applied to each leg and
+  side-shot offset. Heights still come from the ground distance and grade.
+
+At Prince George (53.917° N, 122.75° W, 700 m) CSF is 0.99949373: 1,000 m on the ground is
+999.494 m on the grid, and a 1 km traverse left unreduced is about 0.5 m long on the grid. One
+factor serves the whole book, which is fine for a few kilometres; a long traverse that crosses
+much of a zone or climbs a lot needs splitting. **BC Albers is refused**: an equal-area grid's
+scale depends on direction (1.0027 north–south and 0.9973 east–west near Prince George), so no
+single factor exists. Reduce in the UTM zone. A grid that is not UTM is refused the same way.
+
+The LandXML export states the combined factor at the road's middle station in its header comment,
+at the road's level with no geoid height.
+
 **Save field book to project** preserves the observations and reduction settings. Saved books
 can be reopened under the same CRS and vertical datum. **Add survey line** creates a separate
 editable horizontal road line. Observed levels remain survey evidence; they are not silently
@@ -124,23 +148,35 @@ documented exchange specification; these open imports/exports do not imply binar
 
 ## Limits and checks
 
-| Limit | Enforcing implementation |
-| --- | --- |
-| 12 ground/mosaic sources; 1 GB combined point-cloud files | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas` |
-| 4,194,304 output cells, with no mosaic coarsening | `MAX_PREPARED_CELLS`, `mosaicRasters` |
-| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS` |
-| Retained TIN: 250,000 vertices / 500,000 faces | `gridSurface`, `parseTerrainPreparation` |
-| TIN elevation editing: 100,000,000 triangle-cell checks | `editTinElevation` |
-| Named analytical reference surfaces: twelve / 4,194,304 total cells | `parseTerrainReferenceSurfaces` |
-| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations | `preservedPointMask` |
-| Six backgrounds / 1,048,576 combined display pixels | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds` |
-| Resampled background: at most 524,288 display pixels; refused under 16,384 left | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground` |
-| Background file: 64 MB / 33,554,432 source pixels | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS` |
-| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V | `gradePad` |
-| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse | `parseSurveyBooks`, `reduceTraverse` |
-| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements | `xmlTree`, `parseKml`, `readSpatialFile` |
+| Limit                                                                                     | Enforcing implementation                                                    |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| 12 ground/mosaic sources; 1 GB combined point-cloud files                                 | `MAX_TERRAIN_SOURCES`, `mosaicRasters`, `loadLas`                           |
+| 4,194,304 output cells, with no mosaic coarsening                                         | `MAX_PREPARED_CELLS`, `mosaicRasters`                                       |
+| Point thinning: existing 3,000,000 decoded points / 1,500,000 TIN points                  | `DEFAULT_MAX_POINTS`, `tinSurface.ts` `MAX_POINTS`                          |
+| Retained TIN: 250,000 vertices / 500,000 faces                                            | `gridSurface`, `parseTerrainPreparation`                                    |
+| TIN elevation editing: 100,000,000 triangle-cell checks                                   | `editTinElevation`                                                          |
+| Named analytical reference surfaces: twelve / 4,194,304 total cells                       | `parseTerrainReferenceSurfaces`                                             |
+| Preservation regions: 2,000 vertices / 100 polygons / 100,000,000 point-vertex operations | `preservedPointMask`                                                        |
+| Six backgrounds / 1,048,576 combined display pixels                                       | `MAX_BACKGROUND_PIXELS`, `parseTerrainBackgrounds`                          |
+| Resampled background: at most 524,288 display pixels; refused under 16,384 left           | `BACKGROUND_LAYER_PIXELS`, `MIN_BACKGROUND_PIXELS`, `loadTerrainBackground` |
+| Background file: 64 MB / 33,554,432 source pixels                                         | `loadTerrainBackground`, `MAX_BACKGROUND_SOURCE_PIXELS`                     |
+| Graded pad ≤500 m wide / 1,000 m long, batters 0.1–10 H:V                                 | `gradePad`                                                                  |
+| 20 saved field books / 2,000 legs / 10,000 side shots / 100 km per traverse               | `parseSurveyBooks`, `reduceTraverse`                                        |
+| Combined scale factor 0.999–1.001; UTM zones only                                         | `SCALE_FACTOR_LIMITS`, `combinedScaleFactor`, `scaleFactor.ts`              |
+| KML: 30 MB expanded / 500 features / 50,000 vertices / 100,000 XML elements               | `xmlTree`, `parseKml`, `readSpatialFile`                                    |
 
 Analytical tests cover protected points and budget failure, mosaic overlap/no-data/CRS rules,
 pad planes and batters, retained-TIN validation, LandXML/ASCII coordinates and missing faces,
 Bowditch closure, signed side shots, malformed surveys, KML polygon holes/altitude handling and
 a real zipped KMZ. Existing LAS/LAZ, TIN/breakline and terrain-restoration tests remain in the run.
+
+### Provenance of the scale factors
+
+Written from a functional specification (RFLTools §7 and §13.8, clean-room stage 1, 10 November
+2026); no code from RFLTools (GPL-3.0) was used. The series and factors follow Snyder, J. P. (1987),
+_Map Projections — A Working Manual_, USGS Professional Paper 1395, §8, and the geoid note
+Natural Resources Canada's CGG2013a. Unlike RFLTools, one convention holds throughout (grid =
+ground × CSF; RFLTools' survey block uses its reciprocal), scaling is about the survey start rather
+than the drawing origin, and Albers is refused rather than given one factor. `scaleFactor.test.ts`
+reproduces the specification's table: k 0.99960000, 0.99972341 and 0.99960331; EF 0.99984340 and
+0.99989037; CSF 0.99956686 and 0.99949373; and the local-to-grid point 516,519.949 m E.

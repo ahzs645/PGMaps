@@ -17,7 +17,14 @@ import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
 import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
 
-const SAMPLING: [keyof RoadSettings, string, number, number, ReactNode][] = [
+type NumericSetting = Exclude<keyof RoadSettings, 'curvatureCorrection'>
+/** The settings with the curvature correction applied, or back to report only (the field left out). */
+const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
+  const next = { ...settings }
+  delete next.curvatureCorrection
+  return apply ? { ...next, curvatureCorrection: 'apply' } : next
+}
+const SAMPLING: [NumericSetting, string, number, number, ReactNode][] = [
   [
     'stationInterval',
     'Station spacing (m)',
@@ -50,7 +57,7 @@ export function ReviewTab(
   const { project, alignment, analysis, update, updateAlignment, setStation } = p.workspace
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
-  const setting = (key: keyof RoadSettings, value: number) =>
+  const setting = (key: NumericSetting, value: number) =>
     update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))
   const settings = project.settings
   const { rows, register } = useMemo(
@@ -209,7 +216,7 @@ export function ReviewTab(
       <div ref={rates} className="scroll-mt-2" />
       <RoadSection
         title="Unit rates"
-        summary={`$${settings.cutRate} cut · $${settings.fillRate} fill`}
+        summary={`$${settings.cutRate} cut · $${settings.fillRate} fill${settings.curvatureCorrection === 'apply' ? ' · curve-corrected' : ''}`}
         open={ratesOpen}
         onOpenChange={setRatesOpen}
         help={
@@ -219,6 +226,30 @@ export function ReviewTab(
           </>
         }
       >
+        <Field
+          label="Curvature correction"
+          hint={
+            <>
+              On a curve, earthwork inside the curve sweeps less than the centreline length and earthwork outside it
+              more (Pappus: area × the path of its centroid). Report only keeps the average end areas in every total,
+              cost, mass and haul figure and shows the corrected volumes beside them. Apply to quantities uses the
+              corrected volumes everywhere, and each total says so. An interval whose centroid lies past the centre of
+              curvature keeps its average end area.
+            </>
+          }
+        >
+          <RoadSelect
+            ariaLabel="Curvature correction"
+            className={roadFieldClass}
+            value={settings.curvatureCorrection ?? 'report'}
+            onValueChange={(value) =>
+              update((x) => ({ ...x, settings: withCurvatureCorrection(x.settings, value === 'apply') }))
+            }
+          >
+            <option value="report">Report only</option>
+            <option value="apply">Apply to quantities</option>
+          </RoadSelect>
+        </Field>
         <div className="grid grid-cols-2 gap-2">
           {RATES.map(([key, label]) => (
             <NumberField

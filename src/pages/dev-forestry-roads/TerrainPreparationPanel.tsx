@@ -32,6 +32,7 @@ import {
   type TraverseInput,
   type TraverseResult,
 } from './surveyInterchange'
+import { combinedScaleFactor, scaleFactorText } from './scaleFactor'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { TerrainMetadata } from './types'
 
@@ -95,6 +96,9 @@ export function TerrainPreparationPanel({
   const [notes, setNotes] = useState('station,bearing_deg,horizontal_m,grade_pct\nA,0,50,0\nB,90,50,0'),
     [shotNotes, setShotNotes] = useState(''),
     [survey, setSurvey] = useState<TraverseResult | null>(null)
+  // Ground distances are reduced to the grid by the combined scale factor at the survey start.
+  const [groundDistances, setGroundDistances] = useState(false),
+    [geoidM, setGeoidM] = useState(-17)
   const [tinVertex, setTinVertex] = useState(0),
     [tinElevation, setTinElevation] = useState(0)
   const file = useRef<HTMLInputElement>(null)
@@ -166,13 +170,22 @@ export function TerrainPreparationPanel({
             return { id: p[0], station: Number(p[1]), offsetM: Number(p[2]), heightDifferenceM: Number(p[3]) }
           })
       : []
+    const scale = surveyScale()
+    if (groundDistances && !scale.ok) throw Error(scale.reason)
     return {
       start: [start.easting, start.northing, start.elevation],
       target: adjust ? [target.easting, target.northing, target.elevation] : undefined,
       adjustment: adjust ? 'bowditch' : 'none',
       legs: parseTraverseLegs(notes),
       sideShots,
+      ...(groundDistances && scale.ok ? { distanceScale: scale.combined } : {}),
     }
+  }
+  /** The combined scale factor at the survey start, at its elevation plus the geoid height. */
+  const surveyScale = () => {
+    const grid = exportGrid(metadata, alignment.points[0].coordinate)
+    const [longitudeDeg, latitudeDeg] = grid.toLonLat([start.easting, start.northing])
+    return combinedScaleFactor(grid.epsg, { latitudeDeg, longitudeDeg }, start.elevation + geoidM)
   }
   const reduce = () => reduceTraverse(surveyInput())
   return (
@@ -641,6 +654,42 @@ export function TerrainPreparationPanel({
           >
             Fill start from station {formatRoadStation(w.station)}
           </Button>
+          <Field
+            label="Horizontal distances are"
+            hint="Distances taped or measured by EDM on the ground are longer than the same line on the UTM grid. Ground distances are multiplied by the combined scale factor (point scale × elevation factor) at the survey start before they are laid on the grid. BC Albers has no single factor and is refused."
+          >
+            <RoadSelect
+              ariaLabel="Horizontal distances are"
+              className={roadFieldClass}
+              value={groundDistances ? 'ground' : 'grid'}
+              onValueChange={(value) => {
+                setGroundDistances(value === 'ground')
+                setSurvey(null)
+              }}
+            >
+              <option value="grid">Grid distances</option>
+              <option value="ground">Ground distances</option>
+            </RoadSelect>
+          </Field>
+          {groundDistances && (
+            <>
+              <NumberField
+                label="Geoid height N (m)"
+                value={geoidM}
+                min={-200}
+                max={200}
+                step={0.1}
+                hint="Ellipsoidal height = elevation + N. About −17 m around Prince George (CGG2013a); 17 m of error moves the factor by under 3 parts per million."
+                onChange={(value) => {
+                  setGeoidM(value)
+                  setSurvey(null)
+                }}
+              />
+              <p className="text-2xs text-muted-foreground" data-testid="road-survey-scale-factor">
+                {scaleFactorText(surveyScale())}
+              </p>
+            </>
+          )}
           <Field label="Traverse CSV (station, bearing°, horizontal m, grade %)">
             <textarea
               className={`${roadFieldClass} min-h-28 font-mono text-2xs`}

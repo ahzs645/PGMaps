@@ -227,7 +227,7 @@ export function CostBreakdown({
           id: `material-${m.materialId}`,
           item: m.purpose === 'stripping' ? `Stripping · ${m.name}` : `Excavation · ${m.name}`,
           quantity: m.bankCutM3,
-          unit: 'bank m³',
+          unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
           rate:
             m.materialId === '__unclassified'
               ? setting('cutRate', 'Unclassified excavation rate', '$/m³')
@@ -246,7 +246,7 @@ export function CostBreakdown({
           id: 'fill',
           item: 'Fill placement',
           quantity: analysis.fillVolumeM3,
-          unit: 'm³',
+          unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
           rate: setting('fillRate', 'Fill rate', '$/m³'),
           amount: costs.fill,
         },
@@ -282,7 +282,7 @@ export function CostBreakdown({
           id: 'cut',
           item: 'Excavation',
           quantity: analysis.cutVolumeM3,
-          unit: 'bank m³',
+          unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
           rate: setting('cutRate', 'Cut rate', '$/m³'),
           amount: analysis.cutVolumeM3 * settings.cutRate,
         },
@@ -290,7 +290,7 @@ export function CostBreakdown({
           id: 'fill',
           item: 'Fill placement',
           quantity: analysis.fillVolumeM3,
-          unit: 'm³',
+          unit: analysis.curvatureCorrection?.applied ? 'm³ (curve-corrected)' : 'm³',
           rate: setting('fillRate', 'Fill rate', '$/m³'),
           amount: analysis.fillVolumeM3 * settings.fillRate,
         },

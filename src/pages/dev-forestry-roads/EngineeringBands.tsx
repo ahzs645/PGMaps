@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { horizontalCurveEvents } from './planAnnotations'
+import { reviewRoadSight } from './sightDistance'
 import type { Alignment, RoadAnalysis } from './types'
 
 interface BandSpan {
@@ -110,8 +111,56 @@ export function profileHorizontalCurveSpans(
   }
 }
 
+/** What the sight band needs beyond the road: the project's design speed and station spacing. */
+export interface SightBandInput {
+  standards?: { designSpeedKmh: number | null } | null
+  stationIntervalM?: number
+}
+
+/**
+ * Stopping sight distance at each eye station, both ways (`sightDistance.ts`): short where the surface
+ * or trees cut the view below what is needed, unknown where a sightline crosses missing terrain.
+ */
+export function sightSpans(analysis: RoadAnalysis, alignment: Alignment, input: SightBandInput): BandSpan[] {
+  const review = reviewRoadSight({
+    analysis,
+    alignment,
+    standards: input.standards,
+    stationIntervalM: input.stationIntervalM,
+  })
+  if (review.status !== 'checked') return []
+  const byStation = new Map<number, typeof review.eyes>()
+  for (const eye of review.eyes) byStation.set(eye.chainage, [...(byStation.get(eye.chainage) ?? []), eye])
+  const half = review.eyeSpacingM / 2
+  return [...byStation].map(([chainage, eyes]) => {
+    const short = eyes.filter((eye) => review.short.includes(eye)),
+      unknown = eyes.filter((eye) => review.unknown.includes(eye))
+    const state = short.length ? 'short' : unknown.length ? 'unknown' : 'clear'
+    const text = eyes
+      .map(
+        (eye) =>
+          `${eye.direction} ${eye.limitedBy === 'unknown' ? 'unknown' : `${eye.limitedBy === 'clear' ? '≥ ' : ''}${number(eye.availableM, 0)} m`} of ${eye.requiredM === null ? 'unknown' : `${number(eye.requiredM, 0)} m`}${eye.limitedBy === 'clear' ? '' : ` (${eye.limitedBy})`}`,
+      )
+      .join('; ')
+    return {
+      id: `sight-${chainage}`,
+      start: Math.max(0, chainage - half),
+      end: Math.min(analysis.length, chainage + half),
+      label: state === 'short' ? 'Short' : state === 'unknown' ? '?' : '',
+      detail: `Sight distance at ${number(chainage)} m: ${text}. Measured along the road.`,
+      color: state === 'short' ? '#dc2626' : state === 'unknown' ? '#94a3b8' : '#16a34a',
+      invalid: state === 'short',
+    }
+  })
+}
+
 /** Explicit design ranges and sampled terrain spans share the profile's horizontal scale. */
-function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: boolean): BandRow[] {
+function rowsFor(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  terrainOnly: boolean,
+  sight?: SightBandInput,
+): BandRow[] {
   const length = analysis.length
   const rows: BandRow[] = [
     {
@@ -210,6 +259,10 @@ function rowsFor(analysis: RoadAnalysis, alignment: Alignment, terrainOnly: bool
           }),
       })
   }
+  if (sight) {
+    const spans = sightSpans(analysis, alignment, sight)
+    if (spans.length) rows.push({ name: 'Sight', spans })
+  }
   if (analysis.engineering?.culverts.length)
     rows.push({
       name: 'Drainage',
@@ -235,6 +288,7 @@ export function EngineeringBands({
   onStation,
   terrainOnly = false,
   range,
+  sight,
 }: {
   analysis: RoadAnalysis
   alignment: Alignment
@@ -242,6 +296,8 @@ export function EngineeringBands({
   onStation: (station: number) => void
   terrainOnly?: boolean
   range?: [number, number]
+  /** Adds the stopping sight distance row; absent leaves it out. */
+  sight?: SightBandInput
 }) {
   const drag = useRef<{
     pointerId: number
@@ -270,7 +326,10 @@ export function EngineeringBands({
       ),
     )
   }
-  const rows = useMemo(() => rowsFor(analysis, alignment, terrainOnly), [analysis, alignment, terrainOnly])
+  const rows = useMemo(
+    () => rowsFor(analysis, alignment, terrainOnly, sight),
+    [analysis, alignment, terrainOnly, sight],
+  )
   const start = range?.[0] ?? 0,
     end = range?.[1] ?? Math.max(1, analysis.length)
   if (analysis.length <= 0) return null

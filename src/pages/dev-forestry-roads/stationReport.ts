@@ -259,10 +259,31 @@ export const STATION_COLUMNS: StationColumn[] = [
   },
 ]
 
+/** With the curvature correction applied, the volume columns say they are corrected. */
+const CORRECTED: Record<string, Pick<StationColumn, 'label' | 'title' | 'csv'>> = {
+  cutVolume: {
+    label: 'Cut vol (curve)',
+    csv: 'cut_volume_curvature_corrected_bank_m3',
+    title: `Bank cut ${SINCE}, corrected for plan curvature by its centroid (Pappus). Cost, mass and haul use it.`,
+  },
+  fillVolume: {
+    label: 'Fill vol (curve)',
+    csv: 'fill_volume_curvature_corrected_compacted_m3',
+    title: `Compacted fill ${SINCE}, corrected for plan curvature by its centroid (Pappus). Cost, mass and haul use it.`,
+  },
+}
+
 /** The columns this road's table offers: borrow and waste only once haul is allocated. */
 export function availableStationColumns(analysis: RoadAnalysis, terrainOnly = false): StationColumn[] {
   const haul = !!analysis.engineering?.haul.enabled
-  return STATION_COLUMNS.filter((c) => (terrainOnly ? c.terrain : c.road) && (!c.haul || haul))
+  const corrected = !!analysis.curvatureCorrection?.applied
+  return STATION_COLUMNS.filter(
+    (c) =>
+      (terrainOnly ? c.terrain : c.road) &&
+      (!c.haul || haul) &&
+      // The separate corrected columns repeat the main ones once the correction is applied.
+      !(corrected && (c.id === 'curvedCut' || c.id === 'curvedFill')),
+  ).map((c) => (corrected && CORRECTED[c.id] ? { ...c, ...CORRECTED[c.id] } : c))
 }
 
 /**

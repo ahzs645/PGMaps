@@ -45,38 +45,38 @@ the optional delivered-cost borrow/waste allocation.
 
 ## Limits and budgets
 
-| Limit                                | Value                                                                                                                       | Enforced in                                                                | When exceeded                                                                    |
-| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| Station spacing                      | 2–100 m                                                                                                                     | `engine.ts` `validate`                                                     | Calculation error                                                                |
-| Calculation stations                 | 3,000 including breakpoints                                                                                                 | `engine.ts` `MAX_STATIONS`                                                 | Spacing widens with a warning; too many breakpoints is an error (split the road) |
-| Section reach each side (half-width) | 5–100 m                                                                                                                     | `engine.ts` `validate`                                                     | Calculation error                                                                |
-| Section sampling pitch               | larger of 0.25 m and 2 × half-width / 220                                                                                   | `engine.ts` `sectionAt` (`step`)                                           | Fixed; template and daylight breakpoints are added exactly                       |
-| Lane width per side                  | 0.1–50 m                                                                                                                    | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Crossfall                            | base crown 0–20 %; side value −20 to 20 %                                                                                   | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Cut and fill batters                 | 0.1–10 H:V                                                                                                                  | `TemplateComponents.tsx`, `project.ts` `parseTemplate`, `validateTemplate` | Field clamps; file rejected; calculation error                                   |
-| Ditch                                | width 0–10 m, depth 0–5 m, bottom width 0–ditch width                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Surfacing depth                      | 0–2 m                                                                                                                       | `templates.ts` `validateTemplate`                                          | Calculation error                                                                |
-| Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                   | `templates.ts` `validateEngineering`                                       | Calculation error; add buttons disable at the limit                              |
-| Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                        | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
-| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; the form holds a typed taper to the room left and says so                 |
-| Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                 | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
-| Curvature correction                 | applied while every centroid is inside the centre of curvature (\|k·e\| < 1)                                                | `curvedVolume.ts` `pappusVolume`                                           | Interval left uncorrected and counted in the report sentence                     |
-| Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
-| Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
-| Reusable cut factor                  | 0.1–2                                                                                                                       | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
-| Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier         | `groundHorizons.ts` `MAX_HORIZON_DEPTH_M`, `resolveHorizons`               | Error for a depth out of range; overlaps are resolved and saved as entered       |
-| Material section work                | 15,000,000 section-sample × layer pairs                                                                                     | `engineering.ts` `calculateEngineering`                                    | Calculation error                                                                |
-| Haul allocation                      | 20,000,000 comparisons; 20,000 movements                                                                                    | `engineering.ts` `allocateHaul`                                            | Calculation error, not a truncated allocation                                    |
-| Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km                                                                 | `validateEngineering`                                                      | Calculation error                                                                |
-| Haul rates                           | free-haul, overhaul, endhaul, loading, borrow and waste 0–100,000                                                           | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
-| Mobilization                         | 0–10⁹ $                                                                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
-| Contingency                          | 0–100 %                                                                                                                     | `validateEngineering`                                                      | Calculation error                                                                |
-| Borrow and waste sites               | 100; access ≤ 100 km; capacity ≤ 10¹² m³ or unbounded; rate 0–100,000 $/m³; fixed cost ≤ 10⁹ $                              | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
-| Culverts                             | 100; span 0.2–500 m, diameter 0.1–20 m, skew ±80°, cover 0–100 m; ditch dip 0.1–50 % or none; ≤ 10⁶ $/m; fixed cost ≤ 10⁹ $ | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
-| Culvert barrel profile               | 40 intervals plus centre and formation-edge samples                                                                         | `engineering.ts` `calculateCulvert`                                        | Fixed                                                                            |
-| Stream association tolerance         | 1 m between culvert station and crossing                                                                                    | `engineering.ts` `calculateCulvert`                                        | Culvert and results marked incomplete                                            |
-| Base rates in the cost dialog        | 0–10,000 per unit; default borrow and waste 0–100,000; haul class and loading fields 0–100,000                              | `CostBreakdown.tsx` `setting`, `haulRate`                                  | Field clamps                                                                     |
-| Haul transfers listed                | 100 per page                                                                                                                | `EngineeringSummary.tsx`                                                   | Paginated                                                                        |
+| Limit                                | Value                                                                                                                                     | Enforced in                                                                   | When exceeded                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Station spacing                      | 2–100 m                                                                                                                                   | `engine.ts` `validate`                                                        | Calculation error                                                                |
+| Calculation stations                 | 3,000 including breakpoints                                                                                                               | `engine.ts` `MAX_STATIONS`                                                    | Spacing widens with a warning; too many breakpoints is an error (split the road) |
+| Section reach each side (half-width) | 5–100 m                                                                                                                                   | `engine.ts` `validate`                                                        | Calculation error                                                                |
+| Section sampling pitch               | larger of 0.25 m and 2 × half-width / 220                                                                                                 | `engine.ts` `sectionAt` (`step`)                                              | Fixed; template and daylight breakpoints are added exactly                       |
+| Lane width per side                  | 0.1–50 m                                                                                                                                  | `templates.ts` `validateTemplate`                                             | Calculation error                                                                |
+| Crossfall                            | base crown 0–20 %; side value −20 to 20 %                                                                                                 | `templates.ts` `validateTemplate`                                             | Calculation error                                                                |
+| Cut and fill batters                 | 0.1–10 H:V                                                                                                                                | `TemplateComponents.tsx`, `project.ts` `parseTemplate`, `validateTemplate`    | Field clamps; file rejected; calculation error                                   |
+| Ditch                                | width 0–10 m, depth 0–5 m, bottom width 0–ditch width                                                                                     | `templates.ts` `validateTemplate`                                             | Calculation error                                                                |
+| Surfacing depth                      | 0–2 m                                                                                                                                     | `templates.ts` `validateTemplate`                                             | Calculation error                                                                |
+| Library and inputs per alignment     | 50 templates, 200 assignments, 32 materials, 200 horizons                                                                                 | `templates.ts` `validateEngineering`                                          | Calculation error; add buttons disable at the limit                              |
+| Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                                      | `validateEngineering`; `engineeringProject.ts`                                | Calculation error                                                                |
+| Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                                    | `engine.ts` `validate`, `widthExtras`                                         | Error; the form holds a typed taper to the room left and says so                 |
+| Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                               | `project.ts` `parseCurveDesign`                                               | File rejected                                                                    |
+| Curvature correction                 | applied while every centroid is inside the centre of curvature (\|k·e\| < 1); used in quantities only with `curvatureCorrection: 'apply'` | `curvedVolume.ts` `pappusVolume`; `engine.ts` `analyzeRoad`, `engineering.ts` | Interval left uncorrected and counted in the report sentence                     |
+| Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                                     | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                    | Dip stops at 4 m                                                                 |
+| Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                                   | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Reusable cut factor                  | 0.1–2                                                                                                                                     | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                         | Field clamps; file rejected                                                      |
+| Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier                       | `groundHorizons.ts` `MAX_HORIZON_DEPTH_M`, `resolveHorizons`                  | Error for a depth out of range; overlaps are resolved and saved as entered       |
+| Material section work                | 15,000,000 section-sample × layer pairs                                                                                                   | `engineering.ts` `calculateEngineering`                                       | Calculation error                                                                |
+| Haul allocation                      | 20,000,000 comparisons; 20,000 movements                                                                                                  | `engineering.ts` `allocateHaul`                                               | Calculation error, not a truncated allocation                                    |
+| Haul distances                       | free haul ≤ 100 km; overhaul limit ≥ free haul and ≤ 100 km                                                                               | `validateEngineering`                                                         | Calculation error                                                                |
+| Haul rates                           | free-haul, overhaul, endhaul, loading, borrow and waste 0–100,000                                                                         | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Mobilization                         | 0–10⁹ $                                                                                                                                   | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Contingency                          | 0–100 %                                                                                                                                   | `validateEngineering`                                                         | Calculation error                                                                |
+| Borrow and waste sites               | 100; access ≤ 100 km; capacity ≤ 10¹² m³ or unbounded; rate 0–100,000 $/m³; fixed cost ≤ 10⁹ $                                            | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Culverts                             | 100; span 0.2–500 m, diameter 0.1–20 m, skew ±80°, cover 0–100 m; ditch dip 0.1–50 % or none; ≤ 10⁶ $/m; fixed cost ≤ 10⁹ $               | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Culvert barrel profile               | 40 intervals plus centre and formation-edge samples                                                                                       | `engineering.ts` `calculateCulvert`                                           | Fixed                                                                            |
+| Stream association tolerance         | 1 m between culvert station and crossing                                                                                                  | `engineering.ts` `calculateCulvert`                                           | Culvert and results marked incomplete                                            |
+| Base rates in the cost dialog        | 0–10,000 per unit; default borrow and waste 0–100,000; haul class and loading fields 0–100,000                                            | `CostBreakdown.tsx` `setting`, `haulRate`                                     | Field clamps                                                                     |
+| Haul transfers listed                | 100 per page                                                                                                                              | `EngineeringSummary.tsx`                                                      | Paginated                                                                        |
 
 The full list of project budgets is in
 [Computation and file budgets](../forestry-road-design.md#computation-and-file-budgets).
@@ -128,7 +128,7 @@ are the outer ends, tapers included: a pullout meant to be full width from 682.5
 There is no prismoidal correction. A short final interval uses its real length, not the nominal
 spacing (`engine.test.ts`).
 
-**Curvature correction (reported, not used).** On a curve the material outside the centreline
+**Curvature correction (report only, or applied).** On a curve the material outside the centreline
 travels farther than the centreline and the material inside less. By Pappus' centroid theorem
 each region's volume over an interval of centreline length s is
 s·[(A₁ + A₂)/2 − k·(M₁ + M₂)/2], where M is the region's first moment about the centreline in the
@@ -136,14 +136,36 @@ sampled section and k the signed plan curvature at the interval's mid-chainage (
 right-hand curve, with offsets negative left; zero on tangents and at a sharp PI). Cut and fill
 are corrected separately, so a sidehill section's two sides partly cancel. A spiral takes its
 curvature at the mid-chainage. Site-preparation cut is given the section's cut centroid
-(`curvedVolume.ts`). The corrected volumes are **reported only**: the station table's hidden
-_Cut vol (curve)_ and _Fill vol (curve)_ columns, the station CSV's
-`cut_volume_curvature_corrected_bank_m3` and `fill_volume_curvature_corrected_compacted_m3`, and a
-sentence in the planning report's quantity basis. The headline totals, cost estimate, mass curve,
-material allocation and haul keep the uncorrected volumes, so saved projects' results do not move
-and the materials allocation (which forms its own per-material average end areas) stays consistent
-with them. On a 40 m radius with cut centred 3 m outside, the correction is +7.5 % of that cut
-(`curvedVolume.test.ts`); compare the two before trusting a tight-curve total. Surfacing is horizontal width × vertical depth
+(`curvedVolume.ts`). On a 40 m radius with cut centred 3 m outside, the correction is +7.5 % of that
+cut (`curvedVolume.test.ts`).
+
+Review → Unit rates → **Curvature correction** chooses what the quantities use
+(`settings.curvatureCorrection`):
+
+- **Report only** (the default, and every file saved before the setting existed). The corrected
+  volumes are shown beside the totals: the station table's hidden _Cut vol (curve)_ and _Fill vol
+  (curve)_ columns, the station CSV's `cut_volume_curvature_corrected_bank_m3` and
+  `fill_volume_curvature_corrected_compacted_m3`, and a sentence in the planning report's quantity
+  basis. Totals, cost, mass curve, material allocation and haul use average end areas.
+- **Apply to quantities.** Each interval's corrected cut and fill replace its average-end-area
+  volumes, so the headline totals, cost estimate, mass curve, material allocation and haul all use
+  them. Each material's bank cut in the interval takes the interval's whole-cut correction, since
+  materials' moments are not kept apart (an assumption: a material concentrated on one side of a
+  curve is corrected by the section's mean). Every surface says so: the summary tile reads "Cut /
+  fill · curve-corrected", the cost table's units read "(curve-corrected)", the station table's
+  volume columns become _Cut vol (curve)_ and _Fill vol (curve)_, the station CSV's columns are
+  renamed `interval_cut_volume_curvature_corrected_m3` and `interval_fill_volume_curvature_corrected_m3`,
+  and the report's quantity basis gives the uncorrected totals beside the corrected ones.
+
+Surfacing, clearing and other horizontal areas are not corrected in either mode: they stay
+horizontal width × centreline chainage, which over-counts strips inside a curve and under-counts
+those outside by k·e of the strip.
+
+Lima VVA samples curvature at each section rather than mid-interval. Both converge on the exact
+volume as the spacing shrinks; an interval that straddles a curve start differs by the share of it
+on the tangent (the Lima specification's T2: 356 m³ here, 364 m³ there, 361.75 m³ exact). A
+station at each curve start removes the difference for both, and the engine already puts one there.
+Surfacing is horizontal width × vertical depth
 integrated with Simpson's rule. Clearing is the horizontal daylight-to-daylight width with no
 buffer, so it understates a right-of-way that is wider than the earthwork footprint.
 
@@ -362,3 +384,17 @@ A section or engineering input the engine refuses does not blank the road (`safe
   cut and fill stay unknown.
 
 See [Scope boundaries](../forestry-road-design.md#scope-boundaries) for the full list.
+
+## Provenance of the curvature option
+
+- Functional specification: Lima VVA §7.1, §11 (T1, T2) and gap G1 (clean-room stage 1, 10 November
+  2026). Written from that specification and the texts below; no code from Lima VVA (GPL-3.0) was
+  used. Unlike Lima, ground is never extrapolated beyond the data, and the correction stays off
+  unless asked for, so saved results do not move.
+- Pappus' second centroid theorem applied to end-area volumes: Hickerson, T. F. (1964), _Route
+  Location and Design_, 5th ed.; Meyer, C. F. & Gibson, D. W. (1980), _Route Surveying and Design_,
+  5th ed. Prismoidal formula: the same, and Wolf, P. R. & Ghilani, C. D. (2012), _Elementary
+  Surveying_, 13th ed., ch. 26.
+- Checked against the specification's hand-derived numbers (`curvedVolume.test.ts`): 400 m³ by
+  average end areas, 383.333 m³ prismoidal, 356 m³ on a 50 m right-hand curve and 444 m³ on a left,
+  and 361.75 m³ exact when the interval is split at the curve start.

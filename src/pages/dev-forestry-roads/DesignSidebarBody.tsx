@@ -26,6 +26,8 @@ export type FileKind =
   | 'cutblocks'
   | 'mapped-roads'
   | 'reference'
+  /** A LandXML alignment brought in as a road (`landXmlImport.ts`). */
+  | 'landxml'
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'
@@ -71,8 +73,11 @@ export interface SidebarProps {
   onLoadMappedRoad?: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */
   onLoadMappedRoadsInView?: () => void
-  /** Copies the active mapped road as an editable design on the same line. */
-  onCopyMappedRoad?: () => void
+  /**
+   * Copies the active mapped road as an editable design on the same line, or on `points` (a fitted
+   * alignment of it) when given.
+   */
+  onCopyMappedRoad?: (points?: import('./mappedRoad').DesignPoints) => void
   /** Shows a road found on the terrain over the plan; null clears it. */
   onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
   /** Fits the plan to the active road. */
