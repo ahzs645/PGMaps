@@ -1,4 +1,5 @@
 /* global self, postMessage, fetch, setTimeout, console, atob */
+import { withBase } from '../../lib/dataUrl'
 
 const SOURCE_ROOT = '/data/walkability/source'
 const GIS_DIR = `${SOURCE_ROOT}/data/public_gis`
@@ -580,7 +581,7 @@ async function loadInputsUncached(requestKey) {
 }
 
 async function fetchJson(url) {
-  const response = await fetch(url)
+  const response = await fetch(withBase(url))
   if (!response.ok) throw new Error(`Unable to load ${url}: ${response.status}`)
   return response.json()
 }

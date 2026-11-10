@@ -4,6 +4,7 @@ import { MapFloatingPanel } from '@/components/ui/map-overlays'
 import { MapPopupCard } from '@/components/ui/map-popup-card'
 import { cn } from '@/lib/utils'
 import { haversineKm } from '@/lib/geo'
+import { withBase } from '@/lib/dataUrl'
 
 interface NearbyItem {
   name: string
@@ -33,7 +34,6 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
   })
 
   useEffect(() => {
-    const base = import.meta.env.BASE_URL
     let cancelled = false
 
     async function load() {
@@ -41,7 +41,7 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
 
       // Restaurants
       try {
-        const res = await fetch(`${base}data/restaurants.json`)
+        const res = await fetch(withBase('/data/restaurants.json'))
         if (res.ok) {
           const restaurants = await res.json()
           const withDist = restaurants
@@ -79,7 +79,7 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
 
       // Parks
       try {
-        const res = await fetch(`${base}data/parks.json`)
+        const res = await fetch(withBase('/data/parks.json'))
         if (res.ok) {
           const fc = await res.json()
           const features = fc.features || []
@@ -107,7 +107,7 @@ export function NeighborhoodReport({ lat, lng, onClose }: NeighborhoodReportProp
 
       // Air monitors
       try {
-        const res = await fetch(`${base}data/monitors.csv`)
+        const res = await fetch(withBase('/data/monitors.csv'))
         if (res.ok) {
           const text = await res.text()
           const lines = text.split('\n').slice(1)

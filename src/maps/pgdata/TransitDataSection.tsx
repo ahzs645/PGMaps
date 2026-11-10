@@ -32,6 +32,7 @@ import { useTransitData, type TransitStop } from '@/maps/scorebuilder/hooks/useT
 import { bundleRoutes, type BundledFeatureCollection, type RouteInput } from './lib/transitiveBundling'
 import { useTransitiveZoom } from './hooks/useTransitiveZoom'
 import { formatLength, formatNumber } from '@/lib/format'
+import { withBase } from '@/lib/dataUrl'
 
 type TransitLayerId = 'stops' | 'routes'
 type StopCategory = 'shelter' | 'accessible' | 'other'
@@ -150,7 +151,7 @@ function useRouteData() {
       setLoading(true)
       setError(null)
       try {
-        const response = await fetch(ROUTES_PATH, { signal: controller.signal })
+        const response = await fetch(withBase(ROUTES_PATH), { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to fetch transit routes: ${response.status}`)
         const geojson = (await response.json()) as RouteFeatureCollection
         if (!controller.signal.aborted) setRoutes(geojson)

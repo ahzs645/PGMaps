@@ -4,16 +4,24 @@ import { describe, expect, it, vi } from 'vitest'
 
 const workerSource = readFileSync(new URL('../../public/sw.js', import.meta.url), 'utf8')
 
-function worker(fetchResponse: () => Promise<Response>, openCache: () => Promise<object>) {
+function worker(
+  fetchResponse: () => Promise<Response>,
+  openCache: () => Promise<object>,
+  {
+    request = { method: 'GET', url: 'https://example.com/pgdata?tab=crime', mode: 'navigate' },
+    search = '',
+  }: { request?: object; search?: string } = {},
+) {
   const listeners = new Map<string, (event: object) => void>()
   const match = vi.fn().mockResolvedValue(new Response('offline shell'))
   runInNewContext(workerSource, {
     self: {
       registration: { scope: 'https://example.com/' },
-      location: { origin: 'https://example.com' },
+      location: { origin: 'https://example.com', search },
       addEventListener: (type: string, listener: (event: object) => void) => listeners.set(type, listener),
     },
     URL,
+    URLSearchParams,
     Request,
     caches: { open: openCache, match },
     fetch: fetchResponse,
@@ -21,7 +29,7 @@ function worker(fetchResponse: () => Promise<Response>, openCache: () => Promise
   const background: Promise<unknown>[] = []
   let response!: Promise<Response>
   listeners.get('fetch')!({
-    request: { method: 'GET', url: 'https://example.com/pgdata?tab=crime', mode: 'navigate' },
+    request,
     respondWith: (value: Promise<Response>) => {
       response = value
     },
@@ -70,5 +78,27 @@ describe('service worker navigation caching', () => {
     }, vi.fn())
     expect(await (await response).text()).toBe('offline shell')
     expect(match).toHaveBeenCalledWith('/index.html')
+  })
+})
+
+describe('service worker data hosts', () => {
+  const remoteRequest = { method: 'GET', url: 'https://data.example.org/data/census/a.geojson', mode: 'cors' }
+
+  it('applies the data cache rules to a host passed in the registration URL', async () => {
+    const network = vi.fn(async () => new Response('{}'))
+    const { response, background } = worker(network, vi.fn(), {
+      request: remoteRequest,
+      search: '?dataOrigins=https%3A%2F%2Fdata.example.org',
+    })
+    // The harness's cache always has a copy: stale-while-revalidate serves it
+    // and refreshes from the data host in the background.
+    expect(await (await response).text()).toBe('offline shell')
+    expect(network).toHaveBeenCalledWith(remoteRequest)
+    expect(background).toHaveLength(1)
+  })
+
+  it('leaves other origins to the browser', () => {
+    const { response } = worker(async () => new Response('{}'), vi.fn(), { request: remoteRequest })
+    expect(response).toBeUndefined()
   })
 })

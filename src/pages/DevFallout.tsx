@@ -16,6 +16,7 @@ import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { featuresBounds } from '@/lib/featureBounds'
 import { formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
+import { withBase } from '@/lib/dataUrl'
 
 type FalloutProperties = {
   id: string
@@ -98,7 +99,7 @@ function DevFallout() {
       setError(null)
 
       try {
-        const response = await fetch(DATA_PATH, { signal: controller.signal })
+        const response = await fetch(withBase(DATA_PATH), { signal: controller.signal })
         if (!response.ok) throw new Error(`Failed to load fallout data: ${response.status}`)
         const data = (await response.json()) as FalloutCollection
         if (!controller.signal.aborted) setCollection(data)

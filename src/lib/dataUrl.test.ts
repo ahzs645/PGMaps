@@ -15,6 +15,12 @@ describe('withBase', () => {
     expect(withBase('data:application/json,{}')).toBe('data:application/json,{}')
   })
 
+  it('sends a folder listed in the data-hosts config to its host', () => {
+    const hosts = [{ name: 'bcdatamapper', baseUrl: 'https://data.example.org/data', folders: ['census'] }]
+    expect(withBase('/data/census/catalog.json', hosts)).toBe('https://data.example.org/data/census/catalog.json')
+    expect(withBase('/data/projects/index.json', hosts)).toBe('/data/projects/index.json')
+  })
+
   it('never rewrites already-relative paths', () => {
     expect(withBase('data/monitors.csv')).toBe('data/monitors.csv')
     expect(withBase('./a.json')).toBe('./a.json')

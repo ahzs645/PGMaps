@@ -60,6 +60,7 @@ import { usePagination } from '@/hooks/usePagination'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { escapeHtml } from '@/lib/escapeHtml'
+import { withBase } from '@/lib/dataUrl'
 
 type LoadState = 'loading' | 'ready' | 'error'
 
@@ -653,7 +654,7 @@ function isCensusParentLevel(value: unknown): value is CensusParentLevel {
 }
 
 async function fetchBoundaryExplorerJson<T>(path: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(path, { signal })
+  const response = await fetch(withBase(path), { signal })
   if (!response.ok) {
     throw new Error(`Failed to fetch ${path}: ${response.status}`)
   }
@@ -1473,7 +1474,7 @@ function DevBoundaries() {
 
     const controller = new AbortController()
     const { manifestPath } = CENSUS_CHUNK_CONFIG[activeCensusChunkLevel]
-    fetch(manifestPath, { signal: controller.signal })
+    fetch(withBase(manifestPath), { signal: controller.signal })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to fetch ${manifestPath}: ${response.status}`)
@@ -1531,7 +1532,7 @@ function DevBoundaries() {
       const chunkKey = censusChunkCacheKey(activeCensusChunkLevel, activeCensusChunkDetailLevel.id, chunk.id)
       const controller = new AbortController()
       chunkRequests.current.set(chunkKey, controller)
-      fetch(chunkUrl(activeCensusChunkLevel, chunk.path), { signal: controller.signal })
+      fetch(withBase(chunkUrl(activeCensusChunkLevel, chunk.path)), { signal: controller.signal })
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${chunk.path}: ${response.status}`)
@@ -1611,7 +1612,7 @@ function DevBoundaries() {
         ...current,
         [level]: { state: 'loading', data: EMPTY_COLLECTION },
       }))
-      fetch(chunkUrl(BC_DA_SIMPLIFIED_LEVEL, parent.path))
+      fetch(withBase(chunkUrl(BC_DA_SIMPLIFIED_LEVEL, parent.path)))
         .then((response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch ${parent.path}: ${response.status}`)

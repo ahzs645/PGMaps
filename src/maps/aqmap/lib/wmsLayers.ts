@@ -1,4 +1,5 @@
 import { CloudFog, Flame, Map, Wind } from 'lucide-react'
+import { withBase } from '@/lib/dataUrl'
 
 export type WmsLayerKey =
   | 'modelledPm25'
@@ -35,7 +36,7 @@ export const WMS_LAYERS: WmsLayerDefinition[] = [
     key: 'modelledPm25',
     label: 'Modelled PM2.5',
     icon: CloudFog,
-    tiles: ['/data/aqmap/modelled-pm25-raster-tiles/{z}/{x}/{y}.png'],
+    tiles: [withBase('/data/aqmap/modelled-pm25-raster-tiles/{z}/{x}/{y}.png')],
     opacity: 0.6,
     attribution: 'ECCC GeoMet snapshot',
     minzoom: 3,

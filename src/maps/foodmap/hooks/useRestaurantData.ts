@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { getHazardRating } from '../hazard'
 import type { Restaurant, RestaurantStats, HazardRating, EstablishmentType } from '../types'
 import { normalizeViolation } from '../violation-codes'
+import { withBase } from '@/lib/dataUrl'
 
 interface GeocodedLocation {
   dataset: string
@@ -35,10 +36,10 @@ export function useRestaurantData(enabled = true) {
 
     try {
       const [response, clsResponse, locationResponse, geocodedResponse] = await Promise.all([
-        fetch(`${import.meta.env.BASE_URL}data/restaurants.json`),
-        fetch(`${import.meta.env.BASE_URL}data/restaurant-classifications.json`),
-        fetch(`${import.meta.env.BASE_URL}data/restaurant-location-overrides.json`),
-        fetch(`${import.meta.env.BASE_URL}data/ui/restaurant-locations.json`),
+        fetch(withBase('/data/restaurants.json')),
+        fetch(withBase('/data/restaurant-classifications.json')),
+        fetch(withBase('/data/restaurant-location-overrides.json')),
+        fetch(withBase('/data/ui/restaurant-locations.json')),
       ])
       if (!response.ok) {
         throw new Error(`Failed to load data: ${response.status}`)

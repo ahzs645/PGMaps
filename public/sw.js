@@ -2,6 +2,12 @@ const SHELL_CACHE = 'pgmaps-shell-v3'
 const DATA_CACHE = 'pgmaps-data-v1'
 const CACHE_NAMES = new Set([SHELL_CACHE, DATA_CACHE])
 const SCOPE_PATH = new URL(self.registration.scope).pathname.replace(/\/$/, '')
+// Origins serving data folders moved off this site (src/config/data-hosts.json).
+// main.tsx passes them in the registration URL, so their files get the same
+// cache rules as /data on this site.
+const DATA_ORIGINS = new Set(
+  (new URLSearchParams(self.location.search || '').get('dataOrigins') || '').split(',').filter(Boolean),
+)
 
 function withScope(pathname) {
   return `${SCOPE_PATH}${pathname}` || '/'
@@ -30,10 +36,11 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event
 
-  // Only cache same-origin GET requests
-  if (request.method !== 'GET' || !request.url.startsWith(self.location.origin)) return
-
+  // Only cache GET requests to this site or a configured data host
+  if (request.method !== 'GET') return
   const url = new URL(request.url)
+  if (url.origin !== self.location.origin && !DATA_ORIGINS.has(url.origin)) return
+
   const pathname =
     SCOPE_PATH && url.pathname.startsWith(SCOPE_PATH) ? url.pathname.slice(SCOPE_PATH.length) || '/' : url.pathname
 

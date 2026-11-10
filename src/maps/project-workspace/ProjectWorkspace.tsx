@@ -65,13 +65,14 @@ import {
   ProjectPortalVectorLegend,
   type ProjectVectorPick,
 } from './ProjectPortalVectorLayer'
+import { withBase } from '@/lib/dataUrl'
 type ControllerTab = 'layers' | 'project'
 const CONTROLLER_TABS: readonly TabOption<ControllerTab>[] = [
   { value: 'layers', label: 'Layers' },
   { value: 'project', label: 'Project' },
 ]
 
-const HEALTH_AUTHORITY_BOUNDARIES_URL = '/data/boundaries/BCMoH/simplified/health_authorities.json'
+const HEALTH_AUTHORITY_BOUNDARIES_URL = withBase('/data/boundaries/BCMoH/simplified/health_authorities.json')
 const NORTHERN_HEALTH_FILTER = ['==', ['get', 'HLTH_AUTHORITY_NAME'], 'Northern']
 
 function buildPortalWmsTileUrl(portal: ProjectPortalMapDef, layerName: string, mapPath?: string) {
@@ -223,7 +224,7 @@ function ProjectPortalMapPreview({
           ) : layer.data ? (
             <MapFillLayer
               key={`${layer.id}-${layer.layerName}`}
-              data={layer.data}
+              data={typeof layer.data === 'string' ? withBase(layer.data) : layer.data}
               idProperty={layer.idProperty}
               filter={
                 layer.featureProperty && layer.featureValue !== undefined

@@ -11,6 +11,7 @@ import type {
   WordingMode,
   WordingOptions,
 } from './types'
+import { withBase } from '@/lib/dataUrl'
 
 export const sourceMeta: Record<SourceKey, { label: string; type: string; description: string }> = {
   verified: {
@@ -52,14 +53,14 @@ export const sourceMeta: Record<SourceKey, { label: string; type: string; descri
 // (npm run indigenous:sync) and queried in-browser with point-in-polygon / nearest-point.
 // The live BC ArcGIS endpoints return `Access-Control-Allow-Origin: null`, so the browser
 // blocks direct cross-origin requests from the deployed site — hence the local copies.
-const INDIGENOUS_DATA_BASE = `${import.meta.env.BASE_URL}data/indigenous/`
+const INDIGENOUS_DATA_BASE = withBase('/data/indigenous/')
 export const INDIGENOUS_MANIFEST_DATA = `${INDIGENOUS_DATA_BASE}manifest.json`
-export const RELATIONSHIP_GRAPH_DATA = `${import.meta.env.BASE_URL}data/acknowledgement/relationship-graph.json`
+export const RELATIONSHIP_GRAPH_DATA = withBase('/data/acknowledgement/relationship-graph.json')
 export const TREATY_LANDS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_lands.geojson`
 export const TREATY_AREAS_DATA = `${INDIGENOUS_DATA_BASE}first_nations_treaty_areas.geojson`
 export const RESERVES_DATA = `${INDIGENOUS_DATA_BASE}cad_pip_layer_382_indian_reserves_band_names.geojson`
 export const COMMUNITIES_DATA = `${INDIGENOUS_DATA_BASE}first_nation_community_locations.geojson`
-export const NATIVE_LAND_DATA_BASE = `${import.meta.env.BASE_URL}data/native-land/`
+export const NATIVE_LAND_DATA_BASE = withBase('/data/native-land/')
 export const NATIVE_LAND_LAYERS = [
   {
     category: 'territories',
@@ -72,7 +73,7 @@ export const NATIVE_LAND_LAYERS = [
 // First Peoples' Cultural Council — First Peoples' Map of B.C. (maps.fpcc.ca).
 // language-geo is authoritative Indigenous language-territory polygons (39);
 // community-geo is community points (205).
-export const FPCC_DATA_BASE = `${import.meta.env.BASE_URL}data/fpcc/`
+export const FPCC_DATA_BASE = withBase('/data/fpcc/')
 export const FPCC_LANGUAGES_DATA = `${FPCC_DATA_BASE}language-geo.geojson`
 export const LOCAL_COMMUNITY_MAX_KM = 120
 

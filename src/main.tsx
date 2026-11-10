@@ -5,13 +5,19 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import '@pgmaps/geo-toolkit/styles.css'
 import './index.css'
+import { dataHostOrigins } from '@/lib/dataHosts'
+import { DATA_HOSTS } from '@/lib/dataUrl'
 
 // The service worker caches aggressively, so it stays production-only; in dev
 // it would keep serving stale modules across edits.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     if (import.meta.env.PROD) {
-      const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js`
+      // Data hosts other than this site get the same cache rules as /data here.
+      const dataOrigins = dataHostOrigins(DATA_HOSTS)
+      const serviceWorkerUrl = `${import.meta.env.BASE_URL}sw.js${
+        dataOrigins.length > 0 ? `?dataOrigins=${encodeURIComponent(dataOrigins.join(','))}` : ''
+      }`
       void navigator.serviceWorker
         .register(serviceWorkerUrl, { updateViaCache: 'none' })
         .then((registration) => registration?.update())
