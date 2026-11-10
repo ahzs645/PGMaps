@@ -6,14 +6,19 @@ from this site.
 
 ## Current hosts
 
-| Host           | Base URL                                            | Folders                                                                        |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `canada-admin`, `cciss`, `citypg`, `drought`, `forest`, `network-availability` |
+| Host           | Base URL                                            | Folders                                                                                  |
+| -------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `canada-admin`, `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
 
 bcdatamapper publishes these from its own repository
 (`vendor/bcdatamapper/docs/pages-site.md`). Its `pages/site.json` is the one
 list of how they are laid out: the sync reads it for local runs instead of
-keeping its own copy. About 400 MB of the Pages build (compressed) moved there.
+keeping its own copy. The first six took about 400 MB (compressed) out of the
+Pages build; `census` is another 265 MB uncompressed.
+
+That site is at 819 MB of GitHub Pages' 1 GB limit, which its build enforces.
+`boundaries` (205 MB) does not fit beside it, so the next large folder needs
+another host or room made there first.
 
 ### Versions
 
@@ -104,28 +109,28 @@ so resolving an already-resolved URL is harmless.
 
 ## What a remote folder changes
 
-- No PGMaps script adds its own files to a synced folder: bcdatamapper builds
-  the North/South dissolve in `census/canada-csd` and the EchoScreen context
-  layers in `boundaries/BCFWA` and `health`. Some folders are still read or
-  rebuilt during a PGMaps build, and each needs this settled before it moves:
-  - `build-ui-data.mjs` reads `geocoding`, `restaurants.json`, `bc-assessment`
-    and `census/variables`; `generate-boundary-search-index.mjs` reads
-    `boundaries`, `census` and `walkability`. Both write only the app-owned
-    `ui` and `boundary-search`. Point them at the submodule first, because a
-    remote folder is not in `public/data` during a build.
-  - On a data-cache miss the deploy runs bcdatamapper's
-    `census:canada-csd-simplified`, `census:variables` and `bc-assessment:build`,
-    which write into `census` and `bc-assessment`. bcdatamapper must commit
-    those results before it can publish either folder. Checked on 10 November
-    2026: its committed `census/variables` matches a rebuild, its
-    `canada-csd-simplified.geojson` is git-ignored, and its `parcels.geojson`
-    differs from a rebuild in the `chsa` and `assessmentWatershed` of 1,564
-    parcels.
-  - `build-aqmap-forecast-zones.mjs` copies bcdatamapper's forecast zones into
-    `aqmap`.
-  - Unit tests read synced folders from `public/data`, `boundaries` among
-    them. When one of those folders moves, run the sync in `checks.yml` with
-    `VITE_DATA_HOSTS_LOCAL=1`, as the Playwright server does.
+- A remote folder is not in `public/data` during a build. No PGMaps script
+  writes into a synced folder, and the deploy only copies what bcdatamapper
+  commits, already built. Three things still read synced folders from disk:
+  - Build scripts. `generate-boundary-search-index.mjs` reads `boundaries`,
+    `census` and `walkability`; `build-ui-data.mjs` reads `geocoding`,
+    `restaurants.json`, `bc-assessment` and `census/variables`. Both write only
+    the app-owned `boundary-search` and `ui`. The index resolves every input
+    with `createDataSourceResolver` (`scripts/lib/data-source-path.mjs`), which
+    returns the submodule's copy of anything in bcdatamapper's
+    `pages/site.json`; `build-ui-data.mjs` names the submodule path of its one
+    census file. Do the same for the next folder that moves.
+  - Unit tests. A test that opens a moved folder's file reads the submodule
+    (`src/maps/project-story/testing/readStoryData.ts` for story layers), so
+    the suite passes after a normal sync.
+  - bcdatamapper's own builds. `bc-assessment:build` reads that repository's
+    census and boundary snapshots, not `public/data`.
+- `build-aqmap-forecast-zones.mjs` copies bcdatamapper's forecast zones into
+  `aqmap`, which is why that folder needs its copy published with it.
+- In development, `DevBoundaries` looks for dissemination-block chunks under
+  `/data/census/bc-db-chunks`, which now resolves to the host and is not
+  published there. Run with `VITE_DATA_HOSTS_LOCAL=1` to use locally built
+  chunks. Production reads them from `data.map.ahmad.sh` as before.
 - Browsers ignore the `download` attribute on a cross-origin link, so a dataset
   download link to a remote folder opens the file instead of saving it.
 - The Vite dev server's own `/data/smoke`, `/data/recent`, `/data/meta`,

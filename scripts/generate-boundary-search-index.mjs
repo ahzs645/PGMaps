@@ -1,14 +1,17 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync, gzipSync } from 'node:zlib'
+import { createDataSourceResolver } from './lib/data-source-path.mjs'
 import { beginDataBuild, mapLimit } from './lib/incremental-data.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const dataRoot = join(root, 'public', 'data')
 const outputDirectory = join(dataRoot, 'boundary-search')
+// A folder served from bcdatamapper's own site is read from the submodule.
+const sourcePath = createDataSourceResolver(root)
 
 const SOURCE_METADATA = {
   cityCommunity: { label: 'Community polygons', group: 'Local' },
@@ -75,8 +78,8 @@ function normalizeSearchText(value) {
 }
 
 async function readJson(relativePath) {
-  const path = join(dataRoot, relativePath)
-  if (!existsSync(path)) throw new Error(`Missing boundary search source: public/data/${relativePath}`)
+  const path = sourcePath(relativePath)
+  if (!existsSync(path)) throw new Error(`Missing boundary search source: ${relative(root, path)}`)
   const bytes = await readFile(path)
   const text = relativePath.endsWith('.gz') ? gunzipSync(bytes).toString('utf8') : bytes.toString('utf8')
   return JSON.parse(text)
@@ -322,11 +325,11 @@ const censusManifest = await readJson('census/bc-da-simplified/manifest.json')
 const censusChunks = censusManifest.levels?.find((level) => level.id === 'overview')?.chunks ?? censusManifest.chunks ?? []
 const build = beginDataBuild(root, 'boundary-search', [
   fileURLToPath(import.meta.url),
-  ...FILE_SOURCES.map((source) => join(dataRoot, source.path)),
-  join(dataRoot, 'census/bc-da-simplified/manifest.json'),
-  ...censusChunks.map((chunk) => join(dataRoot, 'census/bc-da-simplified', chunk.path)),
-  join(dataRoot, 'boundaries/BCDrainage/drainage_basins.geojson'),
-  join(dataRoot, 'boundaries/BCWildfire/fire_zones.geojson'),
+  ...FILE_SOURCES.map((source) => sourcePath(source.path)),
+  sourcePath('census/bc-da-simplified/manifest.json'),
+  ...censusChunks.map((chunk) => sourcePath(`census/bc-da-simplified/${chunk.path}`)),
+  sourcePath('boundaries/BCDrainage/drainage_basins.geojson'),
+  sourcePath('boundaries/BCWildfire/fire_zones.geojson'),
 ], [join(outputDirectory, 'catalog.json.gz'), join(outputDirectory, 'manifest.json')], process.argv.includes('--force'))
 if (!build.needsBuild) {
   console.log('Boundary search index is unchanged.')

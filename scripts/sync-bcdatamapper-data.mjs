@@ -118,7 +118,6 @@ const pathMappings = [
   ],
   ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
-  ['datascrapers/census/output', 'census'],
   ['datascrapers/bc/outdoors/output', 'bc/outdoors'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],

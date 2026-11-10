@@ -6,9 +6,9 @@
   "scripts": {
     "remediation:sync": "npm --prefix vendor/bcdatamapper run remediation:sync --",
     "boundaries:fsa": "npm --prefix vendor/bcdatamapper run boundaries:fsa -- && npm run data:sync-from-bcdatamapper",
-    "predev": "npm run toolkit:build && node scripts/ensure-vendor-json-url.mjs && npm run projects:build && npm run census:canada-csd-simplified -- --if-missing && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
+    "predev": "npm run toolkit:build && node scripts/ensure-vendor-json-url.mjs && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run boundaries:search-index",
     "dev": "vite",
-    "prebuild": "npm run ci:prepare && npm run projects:build && node scripts/ensure-canada-csd-simplified.mjs && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
+    "prebuild": "npm run ci:prepare && npm run projects:build && npm run data:sync-from-bcdatamapper && node scripts/ensure-indigenous-data.mjs && node scripts/ensure-native-land-data.mjs && npm run aqmap:forecast-zones -- --if-missing && npm run boundaries:search-index",
     "build": "tsc -b && vite build && node scripts/write-spa-fallback.mjs",
     "prebuild:deploy": "npm run prebuild",
     "build:deploy": "vite build && node scripts/write-spa-fallback.mjs",
