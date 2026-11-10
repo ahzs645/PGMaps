@@ -95,3 +95,41 @@ export function horizonReplacements(strata: readonly StratumAssignment[]): Map<s
   }
   return replaced
 }
+
+/**
+ * The top depth of the shallowest piece of `materialId` in a station's resolved column, or null
+ * where that material has no horizon. A site-preparation range that removes ground "to" a material
+ * reads it, and so does the top of rock.
+ */
+export function horizonTopDepth(pieces: readonly HorizonPiece[], materialId: string): number | null {
+  let top: number | null = null
+  for (const piece of pieces)
+    if (piece.materialId === materialId && (top === null || piece.topDepthM < top)) top = piece.topDepthM
+  return top
+}
+
+/** A depth interval below original ground; a null bottom extends below every finite horizon. */
+export interface DepthInterval {
+  topDepthM: number
+  bottomDepthM: number | null
+}
+
+/**
+ * The depth intervals of a station's column whose material passes `isRock`, top down, with pieces
+ * that touch merged into one. The first interval's top is the top of rock; each interval's top is a
+ * boundary where a cut batter climbs out of rock into the material above.
+ */
+export function rockIntervals(
+  pieces: readonly HorizonPiece[],
+  isRock: (materialId: string) => boolean,
+): DepthInterval[] {
+  const out: DepthInterval[] = []
+  for (const piece of [...pieces].sort((a, b) => a.topDepthM - b.topDepthM)) {
+    if (!isRock(piece.materialId)) continue
+    const last = out[out.length - 1]
+    if (last && last.bottomDepthM !== null && Math.abs(last.bottomDepthM - piece.topDepthM) < EPS)
+      last.bottomDepthM = piece.bottomDepthM
+    else out.push({ topDepthM: piece.topDepthM, bottomDepthM: piece.bottomDepthM })
+  }
+  return out
+}

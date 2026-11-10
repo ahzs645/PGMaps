@@ -51,6 +51,7 @@ started from this page is written to route A: the SEILAPLAN support optimizer is
 Rust compiled to WASM from the published method, not ported from SEILAPLAN's code. The Sylvaccess,
 SylvaRoad, ALSroads, QuickTurn and RFLTools features are rewritten from functional specifications
 of their options, written by reviewers who had read the code, for implementers who did not open it.
+See [the second pass](#second-pass-under-route-a--10-november-2026) for what was built.
 The permission requests in route C are drafted but not sent.
 
 ### A. Stay MIT and re-implement (current)
@@ -172,6 +173,36 @@ still take from it, and what is done so far.
 | smartlog_aco                   | Not used                                                                                                                | —        |
 | ForestRoadNetworkPluginForQGIS | Not used. Its author may relicense the plugin to match the LANDIS-II extension.                                         | —        |
 | roads (LandSciTech)            | Done                                                                                                                    | —        |
+
+## Second pass under route A — 10 November 2026
+
+The owner asked for the remaining features to be brought in while the licence decision stays open,
+with the SEILAPLAN optimizer as Rust compiled to WebAssembly. It was done as a two-stage clean room:
+
+1. **Specification.** Three reviewers read the projects and wrote functional specifications: every
+   interface option with its unit, default and effect, the behaviour as a problem statement with
+   paper citations, the outputs, and the defects found. No code, pseudocode or internal names. Where
+   the original could run unmodified, they ran it on synthetic inputs and recorded the results as
+   test vectors.
+2. **Implementation.** Six implementers worked only from those specifications, the vectors, the
+   papers and PGMaps' own code. They were told never to open the projects, the reviewers' driver
+   scripts or the earlier method reports, and each new module carries a provenance header saying so.
+
+The specifications and vectors are kept outside the repository, like the earlier reports.
+
+| Project               | What was built                                                                                                                                                                                              | Against the reference run                                                                                                    | Guide                                                                                                                                      |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| SEILAPLAN             | Multi-span skyline and intermediate-support optimizer as an MIT Rust crate (`crates/cable-layout`) compiled to a 154 KB WASM file, loaded in a worker only when used                                        | Parity mode: supports, heights and objective exact on all six solvable vectors; pre-tension within 0–2 kN                    | [cable-supports.md](cable-supports.md)                                                                                                     |
+| Sylvaccess            | Skidder winching (three modes), skid trails versus truck roads, obstacle classes, forwarder runs, side-slope rule, crane, steep budget; before/after comparison                                             | Skidder cases within one 5 m cell; forwarder fans −14 % to +6 % through two documented rule choices                          | [extraction-reach.md](extraction-reach.md)                                                                                                 |
+| SylvaRoad             | Switchbacks found by the route search: sharpest-turn, platform and spacing rules, drawn loops, chord cut/fill, minimum grade, side-hill budget, grade-change penalty, self-crossing                         | 30 % fall line 640.8 m with one 133.6° switchback (reference 641 m); contour 307.4 m (308 m)                                 | [switchback-search.md](switchback-search.md)                                                                                               |
+| ALSroads              | Point-cloud terms before thinning, the paper's combination, road and drivable width, state score and class 1–4 as dated LiDAR evidence, water crossings                                                     | All score, class, activation and combination vectors equal; the shift check differs on purpose (nearest-point pairing)       | [road-relocation-and-tracing.md](road-relocation-and-tracing.md)                                                                           |
+| QuickTurn             | Drive any path, steady-state template, loop-turnaround check, vehicle at a station, swept-area polygon and area, point traces, up to 6 units, project vehicles, fixed-length loads                          | All offtracking vectors within 0.001 m (steady) and 0.01 m (manoeuvre)                                                       | [vehicle-turning.md](vehicle-turning.md)                                                                                                   |
+| RFLTools and Lima VVA | Sight distance along the road and in 3D with a Review row, clearing on curves, least-squares geometry fits, curve-corrected quantities option, DXF export, LandXML import, scale factor, vertical clearance | All worked vectors reproduced (stopping sight distance, crest, clearing, circle fits, spiral, volumes, Prince George factor) | [sight-distance.md](sight-distance.md), [least-squares-geometry.md](least-squares-geometry.md), [profile-geometry.md](profile-geometry.md) |
+
+A third pass the same day, from the same specifications, added cable coverage of a block with
+suggested lines (a batch entry point in the cable-layout crate), Lima VVA's rock excavation and
+stripping to a ground layer ([rock-excavation.md](rock-excavation.md)), and finding several roads at
+once with reconnection where the records met. What is still left is listed in each guide.
 
 ## Found during this check: GPL code already in the bundle
 

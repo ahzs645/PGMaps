@@ -12,7 +12,8 @@ This guide says what those numbers mean, where they stop and what they never che
 (forms).
 
 **Where it is.** Review → **D-line / cable geometry** → **Sag from**. The rigging fields open
-under it. The profile is the detail pane's **D-line** view. Maximum reach is the
+under it. A line with rope and load can also be given intermediate supports: see
+[Intermediate supports](cable-supports.md). The profile is the detail pane's **D-line** view. Maximum reach is the
 **Landing** view's **Maximum reach** switch.
 
 ## Before you rely on it
@@ -42,14 +43,14 @@ under it. The profile is the detail pane's **D-line** view. Maximum reach is the
 
 ## What the mechanics do and do not check
 
-| Checked                                                                | Not checked                                                                 |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Static rope shape with the carriage at every position along one span   | Intermediate supports, multi-span lines, saddle friction and break angles   |
-| Largest support tension over every load position, and where it happens | Anchors, stumps, guylines, tailhold trees and spar trees                    |
-| That tension against breaking force ÷ safety factor                    | Yarder, carriage, drum or tower ratings and line speeds                     |
-| Carriage clearance to the sampled ground along the profile             | Dynamic, braking and impact loads; lateral yarding; side-hill and wind load |
-| The empty skyline at the same rope length                              | Running-skyline interlock and mainline/haulback tension                     |
-| Unsolvable rigging: a load the rope cannot carry on any span length    | Rope wear, splices, temperature and creep                                   |
+| Checked                                                                | Not checked                                                                        |
+| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Static rope shape with the carriage at every position along one span   | Multi-span lines (see [Intermediate supports](cable-supports.md)), saddle friction |
+| Largest support tension over every load position, and where it happens | Anchors, stumps, guylines, tailhold trees and spar trees                           |
+| That tension against breaking force ÷ safety factor                    | Yarder, carriage, drum or tower ratings and line speeds                            |
+| Carriage clearance to the sampled ground along the profile             | Dynamic, braking and impact loads; lateral yarding; side-hill and wind load        |
+| The empty skyline at the same rope length                              | Running-skyline interlock and mainline/haulback tension                            |
+| Unsolvable rigging: a load the rope cannot carry on any span length    | Rope wear, splices, temperature and creep                                          |
 
 None of it is a rigging plan, an anchor assessment or a WorkSafeBC compliance check. Plan the
 operation with the BC cable-yarding references and the equipment's own ratings.

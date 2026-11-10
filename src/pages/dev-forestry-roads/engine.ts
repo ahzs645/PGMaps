@@ -40,6 +40,8 @@ import { resolvedCableLine } from './cableGeometry'
 import { cableMechanicsProfile } from './cableMechanics'
 import { pappusVolume, sectionAreaMoments, withReportedArea } from './curvedVolume'
 import { assembledSection } from './assembledSection'
+import { resolveHorizons } from './groundHorizons'
+import { rockCutAt, rockSection } from './rockExcavation'
 import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
 import type { SectionReferenceSources } from './sectionReferences'
 import { evaluateCurveCriteria, validateCurveCriteria } from './roadCriteria'
@@ -884,8 +886,11 @@ export function designProfileAt(alignment: Alignment, chainage: number) {
 }
 
 function validate(alignment: Alignment, settings: RoadSettings) {
-  if (Object.values(settings).some((v) => !Number.isFinite(v)))
+  // Every setting is a number but the quantity basis, which is a word.
+  if (Object.entries(settings).some(([key, v]) => key !== 'curvatureCorrection' && !Number.isFinite(v)))
     throw new Error('Design settings must be finite numbers.')
+  if (settings.curvatureCorrection !== undefined && !['report', 'apply'].includes(settings.curvatureCorrection))
+    throw new Error('Curvature correction must be report or apply.')
   if (
     settings.stationInterval < 2 ||
     settings.stationInterval > 100 ||
@@ -951,6 +956,7 @@ type SectionResult = Pick<
   | 'clearingWidthM'
   | 'leftClearingM'
   | 'rightClearingM'
+  | 'rock'
 >
 /** A dip never deepens a ditch past this, whatever the inlet invert. */
 export const MAX_DITCH_DIP_DEPTH = 4
@@ -986,10 +992,23 @@ function sectionAt(
     groundCache.set(key, value)
     return value
   }
+  const rockMaterials = new Set(alignment.engineering?.materials.filter((m) => m.rock).map((m) => m.id))
+  // Rock horizons entered at this station. Without one, marking a material rock changes nothing here.
+  const rockPieces = rockMaterials.size
+    ? resolveHorizons(
+        alignment.engineering!.strata.filter((h) => assignmentStation >= h.start && assignmentStation < h.end - 1e-7),
+      ).filter((piece) => rockMaterials.has(piece.materialId))
+    : []
   const enhanced = !!(
     t.components?.length ||
     alignment.engineering?.sitePreparation?.some((p) => assignmentStation >= p.start && assignmentStation < p.end) ||
-    alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined)
+    alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined) ||
+    // A rock ledge or rock batter is cut where the batter search meets the top of rock.
+    (rockPieces.length &&
+      (['left', 'right'] as const).some((side) => {
+        const rock = rockCutAt(t, side)
+        return !!rock && ((rock.ledgeWidthM ?? 0) > 0 || rock.cutSlope !== undefined)
+      }))
   )
   const section = enhanced
     ? assembledSection({
@@ -1012,6 +1031,29 @@ function sectionAt(
         },
       })
     : legacySectionAt(coordinate, heading, z, alignment, s, halfWidth, terrain)
+  if (rockPieces.length) {
+    // Rock horizons here: the top of rock, the blasting level and the rock quantities.
+    const rock = rockSection({
+      section: section.section,
+      pieces: rockPieces,
+      template: t,
+      ...widths,
+      ditch: {
+        left: { widthM: sideValue(t, 'left', 'DitchWidth'), bottomWidthM: sideValue(t, 'left', 'DitchBottomWidth') },
+        right: {
+          widthM: sideValue(t, 'right', 'DitchWidth'),
+          bottomWidthM: sideValue(t, 'right', 'DitchBottomWidth'),
+        },
+      },
+      complete: section.complete,
+    })
+    return {
+      ...section,
+      section: rock.section,
+      ...(rock.rock ? { rock: rock.rock } : {}),
+      layerAreas: surfaceLayersAt(alignment, s),
+    }
+  }
   return { ...section, layerAreas: surfaceLayersAt(alignment, s) }
 }
 
@@ -1607,8 +1649,10 @@ export function analyzeRoad(
   const surfaceArea = (s: number) => {
     return surfaceLayersAt(alignment, s).reduce((sum, layer) => sum + layer.areaM2, 0)
   }
-  // Curvature-corrected (Pappus) volumes, reported beside the average-end-area ones that every
-  // cost, mass and haul figure uses (`curvedVolume.ts`).
+  // Curvature-corrected (Pappus) volumes (`curvedVolume.ts`). Reported beside the average-end-area
+  // ones by default; with `curvatureCorrection: 'apply'` they replace them, so every total, cost,
+  // mass and haul figure reads the corrected volume.
+  const applyCorrection = settings.curvatureCorrection === 'apply'
   const moments = new Map<number, ReturnType<typeof sectionAreaMoments>>()
   const momentsOf = (station: RoadStation) => {
     let value = moments.get(station.index)
@@ -1618,7 +1662,9 @@ export function analyzeRoad(
   let curvedCutM3 = 0,
     curvedFillM3 = 0,
     curvedLengthM = 0,
-    foldedIntervals = 0
+    foldedIntervals = 0,
+    straightCutM3 = 0,
+    straightFillM3 = 0
   for (let i = 0; i < stations.length; i++) {
     const p = stations[i],
       a = stations[i > 0 ? i - 1 : i],
@@ -1670,6 +1716,14 @@ export function analyzeRoad(
       }
       curvedCutM3 += p.curvedCutVolumeM3
       curvedFillM3 += p.curvedFillVolumeM3
+      straightCutM3 += p.cutVolumeM3
+      straightFillM3 += p.fillVolumeM3
+      if (applyCorrection) {
+        cutVolumeM3 += p.curvedCutVolumeM3 - p.cutVolumeM3
+        fillVolumeM3 += p.curvedFillVolumeM3 - p.fillVolumeM3
+        p.cutVolumeM3 = p.curvedCutVolumeM3
+        p.fillVolumeM3 = p.curvedFillVolumeM3
+      }
       completeLength += ds
       // Width and surface depth may both transition linearly: their product is quadratic.
       p.surfaceVolumeM3 =
@@ -1750,6 +1804,9 @@ export function analyzeRoad(
       fillVolumeM3: curvedFillM3,
       curvedLengthM,
       uncorrectedIntervals: foldedIntervals,
+      ...(applyCorrection
+        ? { applied: true, averageEndCutVolumeM3: straightCutM3, averageEndFillVolumeM3: straightFillM3 }
+        : {}),
     },
   }
   if (alignment.engineering) {
@@ -1759,6 +1816,7 @@ export function analyzeRoad(
       designElevationAt: (s) =>
         profile.value(s)?.elevation ?? finite(terrain.elevationAt(...location(path, s).coordinate)),
       widthsAt: (s) => effectiveWidths(alignment, s),
+      curvatureAt: (s) => signedCurvatureAt(path, s),
     })
     result.engineering = engineering
     result.estimatedCost = engineering.costs.total

@@ -5,6 +5,7 @@
  */
 import { horizontalGeometry } from './engine'
 import { refuseInvalidResults } from './inputErrors'
+import { combinedScaleFactor } from './scaleFactor'
 import { sectionCodePoints } from './sectionGeometry'
 import type { ShapeLayer } from './shapefile'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
@@ -132,6 +133,69 @@ function gridElement(piece: ReturnType<typeof horizontalGeometry>[number], toGri
   }
 }
 
+/** Section point codes drawn as 3D feature lines, and the layer (string) name each takes. */
+export const FEATURE_LINE_CODES: Record<string, { layer: string; description: string }> = {
+  centreline: { layer: 'CL_3D', description: 'centreline at design level' },
+  'left-formation-edge': { layer: 'EDGE_L', description: 'left formation edge' },
+  'right-formation-edge': { layer: 'EDGE_R', description: 'right formation edge' },
+  'left-ditch-bottom': { layer: 'DITCH_L', description: 'left ditch bottom' },
+  'right-ditch-bottom': { layer: 'DITCH_R', description: 'right ditch bottom' },
+  'left-daylight': { layer: 'CATCH_L', description: 'left catch point' },
+  'right-daylight': { layer: 'CATCH_R', description: 'right catch point' },
+}
+
+/** A point `offset` metres right of a station (negative left), perpendicular to its bearing. */
+export function stationOffsetCoordinate(station: RoadStation, offset: number): Coordinate {
+  const R = 6371008.8,
+    RAD = Math.PI / 180
+  const bearing = (station.bearing + 90) * RAD,
+    [lng, lat] = station.coordinate
+  return [
+    lng + (Math.sin(bearing) * offset) / (R * Math.cos(lat * RAD) * RAD),
+    lat + (Math.cos(bearing) * offset) / (R * RAD),
+  ]
+}
+
+/**
+ * 3D feature lines along the road, one per section code: a vertex at every calculated station,
+ * in grid metres with the design level (the ground where a catch point meets it). A station where
+ * the point or its level is missing breaks the line into parts.
+ */
+export function sectionFeatureLines(
+  alignment: Alignment,
+  analysis: RoadAnalysis,
+  toGrid: ToGrid,
+): { code: string; layer: string; description: string; parts: [number, number, number][][] }[] {
+  const templates = new Map(analysis.engineering?.stations.map((s) => [s.chainage, s.template]))
+  const lines = new Map<string, ([number, number, number] | null)[]>()
+  for (const s of analysis.stations) {
+    const points = sectionCodePoints(s, templates.get(s.chainage) ?? alignment.template)
+    for (const code of Object.keys(FEATURE_LINE_CODES)) {
+      const p = points.find((point) => point.code === code)
+      const level = p ? (code.endsWith('daylight') ? (p.ground ?? p.design) : p.design) : null
+      const list = lines.get(code) ?? []
+      if (p && level !== null && Number.isFinite(level)) {
+        const [x, y] = toGrid(stationOffsetCoordinate(s, p.offset))
+        list.push(Number.isFinite(x) && Number.isFinite(y) ? [x, y, level] : null)
+      } else list.push(null)
+      lines.set(code, list)
+    }
+  }
+  return [...lines].map(([code, list]) => {
+    const parts: [number, number, number][][] = []
+    let current: [number, number, number][] = []
+    for (const item of list) {
+      if (item) current.push(item)
+      else {
+        if (current.length > 1) parts.push(current)
+        current = []
+      }
+    }
+    if (current.length > 1) parts.push(current)
+    return { code, ...FEATURE_LINE_CODES[code], parts }
+  })
+}
+
 /**
  * LandXML 1.2 for the active road. A missing value is never written as a number: a point, PVI,
  * section surface or element whose value is missing is left out.
@@ -202,6 +266,33 @@ export function landXml({
     .filter(Boolean)
     .join('\n        ')
   const ratio = modelLength > 0 ? num(gridLength / modelLength, 5) : null
+  // The grid's combined scale factor at the road's middle station, for reducing to ground.
+  const middle = analysis.stations[Math.floor(analysis.stations.length / 2)]
+  const scale = middle
+    ? combinedScaleFactor(
+        epsg,
+        { latitudeDeg: middle.coordinate[1], longitudeDeg: middle.coordinate[0] },
+        middle.designElevation ?? middle.groundElevation ?? 0,
+      )
+    : null
+  const scaleNote = scale?.ok
+    ? ` At station ${num(middle.chainage, 1)} the grid's combined scale factor is ${scale.combined.toFixed(8)} (point scale ${scale.pointScale.toFixed(8)} × elevation factor ${scale.elevationFactor.toFixed(8)}, at the road's level with no geoid height): ground distance = grid distance ÷ ${scale.combined.toFixed(8)}.`
+    : ''
+  // 3D feature lines (string lines) for machine control and CAD: one PlanFeature per code and part.
+  const features = sectionFeatureLines(alignment, analysis, toGrid)
+    .flatMap((line) =>
+      line.parts.map((part, index) => {
+        const list = part
+          .map(([x, y, z]) => [num(y), num(x), num(z)])
+          .filter((v) => v.every((n) => n !== null))
+          .map((v) => v.join(' '))
+        if (list.length < 2) return ''
+        const ends = [part[0], part[part.length - 1]].map(([x, y]) => `${num(y)} ${num(x)}`)
+        return `<PlanFeature name="${line.layer}${line.parts.length > 1 ? `_${index + 1}` : ''}" desc="${xml(line.description)}"><CoordGeom><IrregularLine><Start>${ends[0]}</Start><End>${ends[1]}</End><PntList3D>${list.join(' ')}</PntList3D></IrregularLine></CoordGeom></PlanFeature>`
+      }),
+    )
+    .filter(Boolean)
+    .join('\n    ')
   const pad = (v: number) => String(v).padStart(2, '0')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2" version="1.2" date="${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}" time="${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}">
@@ -209,7 +300,7 @@ export function landXml({
   <CoordinateSystem epsgCode="${epsg}" name="EPSG:${epsg}" verticalDatum="${xml(terrain.verticalReference)}"/>
   <Project name="${xml(name)}" desc="Preliminary planning geometry; not a construction design"/>
   <Application name="PG Maps forest road design" manufacturer="PG Maps" version="1"/>
-  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}. -->
+  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}.${scaleNote} -->
   <Alignments name="${xml(name)}">
     <Alignment name="${xml(alignment.name)}" length="${num(gridLength)}" staStart="0">
       <CoordGeom>
@@ -230,7 +321,14 @@ export function landXml({
           : ''
       }
     </Alignment>
-  </Alignments>
+  </Alignments>${
+    features
+      ? `
+  <PlanFeatures name="${xml(alignment.name)} feature lines">
+    ${features}
+  </PlanFeatures>`
+      : ''
+  }
 </LandXML>
 `
 }

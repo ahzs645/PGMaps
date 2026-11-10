@@ -1,4 +1,6 @@
 /** Open geographic interchange and projected survey reduction. No inferred vertical datum. */
+import { SCALE_FACTOR_LIMITS } from './scaleFactor'
+
 export interface TraverseLeg {
   id: string
   bearingDegrees: number
@@ -11,6 +13,12 @@ export interface TraverseInput {
   adjustment: 'none' | 'bowditch'
   legs: TraverseLeg[]
   sideShots?: Array<{ id: string; station: number; offsetM: number; heightDifferenceM: number }>
+  /**
+   * Combined scale factor (grid ÷ ground) when the horizontal distances and offsets were measured on
+   * the ground (`scaleFactor.ts`): each is multiplied by it before it is laid on the grid. Absent,
+   * distances are grid distances.
+   */
+  distanceScale?: number
 }
 export interface TraverseResult {
   stations: Array<{ id: string; raw: [number, number, number]; adjusted: [number, number, number]; chainage: number }>
@@ -67,6 +75,11 @@ export function reduceTraverse(input: TraverseInput): TraverseResult {
     throw Error('Enter a starting easting, northing and elevation, and 1–2,000 traverse legs.')
   if (input.adjustment === 'bowditch' && !input.target)
     throw Error('Bowditch adjustment needs a known closing coordinate.')
+  const scale = input.distanceScale ?? 1
+  if (!finite(scale) || scale < SCALE_FACTOR_LIMITS[0] || scale > SCALE_FACTOR_LIMITS[1])
+    throw Error(
+      `A combined scale factor must be between ${SCALE_FACTOR_LIMITS[0]} and ${SCALE_FACTOR_LIMITS[1]}; leave it out for grid distances.`,
+    )
   const stations: TraverseResult['stations'] = [
     { id: 'start', raw: [...input.start], adjusted: [...input.start], chainage: 0 },
   ]
@@ -88,13 +101,15 @@ export function reduceTraverse(input: TraverseInput): TraverseResult {
     )
       throw Error('Each leg needs a unique station ID, bearing 0–<360°, distance 0–10 km and grade ±100%.')
     ids.add(leg.id)
-    lengthM += leg.horizontalDistanceM
+    // On the grid the leg is the ground distance times the scale factor; its rise is the ground's.
+    const gridM = leg.horizontalDistanceM * scale
+    lengthM += gridM
     if (lengthM > 100_000) throw Error('Traverse exceeds 100 km.')
     const last = stations[stations.length - 1].raw,
       a = (leg.bearingDegrees * Math.PI) / 180
     const raw: [number, number, number] = [
-      last[0] + Math.sin(a) * leg.horizontalDistanceM,
-      last[1] + Math.cos(a) * leg.horizontalDistanceM,
+      last[0] + Math.sin(a) * gridM,
+      last[1] + Math.cos(a) * gridM,
       last[2] + (leg.gradePercent * leg.horizontalDistanceM) / 100,
     ]
     stations.push({ id: leg.id, raw, adjusted: [...raw], chainage: lengthM })
@@ -130,8 +145,8 @@ export function reduceTraverse(input: TraverseInput): TraverseResult {
     return {
       id: s.id,
       coordinate: [
-        at[0] + Math.cos(bearing) * s.offsetM,
-        at[1] - Math.sin(bearing) * s.offsetM,
+        at[0] + Math.cos(bearing) * s.offsetM * scale,
+        at[1] - Math.sin(bearing) * s.offsetM * scale,
         at[2] + s.heightDifferenceM,
       ] as [number, number, number],
     }

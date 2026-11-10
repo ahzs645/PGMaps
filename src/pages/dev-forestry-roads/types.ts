@@ -15,6 +15,7 @@ import type { DrainageProjectState } from './drainageEvidence'
 import type { RoadReportSettings } from './reportSettings'
 import type { InvalidInput } from './inputErrors'
 import type { CableRigging, SkylineSpanResult } from './cableMechanics'
+import type { CableSupportLayout } from './cableLayout/settings'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -90,6 +91,35 @@ export interface RoadTemplate {
   components?: SectionComponent[]
   /** Explicit surface course stack replaces legacy surfaceDepth when present. */
   layers?: SectionLayer[]
+  /**
+   * Rock cut in ground horizons whose material is marked rock (`rockExcavation.ts`). Omitted: rock
+   * is classified only, cut at its material's or the template's batter. `leftRockCut` and
+   * `rightRockCut` replace it on one side, as the side values above do.
+   */
+  rockCut?: RockCutTemplate
+  leftRockCut?: RockCutTemplate
+  rightRockCut?: RockCutTemplate
+}
+/**
+ * How a template cuts rock. Every field is optional and an omitted one is off, so a template without
+ * it builds and prices the section exactly as before.
+ */
+export interface RockCutTemplate {
+  /** Batter H:V in a rock material that has no cut batter of its own. Omitted: the side's cut batter. */
+  cutSlope?: number
+  /** Horizontal width of the bench where the cut batter rises out of rock into the soil above, m. */
+  ledgeWidthM?: number
+  /** Blasting (overbreak) level below the subgrade at the centreline, m. Omitted: no overbreak. */
+  blastDepthM?: number
+  /** Fall of the blasting level outward from the centreline, %. Omitted with a depth: 10 %. */
+  blastCrossfallPercent?: number
+  /**
+   * Slope of the drainage surface from the ditch's inner bottom edge to the rock face, %; negative
+   * rises outward, so the blasting level's low point lies under the ditch. Omitted with a depth: −25 %.
+   */
+  drainageCrossfallPercent?: number
+  /** Rock cut whose thickness down to the blasting level is at most this is shallow, m. Omitted: no split. */
+  shallowDepthM?: number
 }
 export interface WidthOverride {
   id: string
@@ -167,6 +197,13 @@ export interface LoadSpan {
   behindRearBunkM: number
   /** Load width; the vehicle width when absent. */
   widthM?: number
+  /**
+   * How the load's length behaves as the bunks move apart or together in a turn. `from-bunks`
+   * (the default when absent) keeps both overhangs, so the load stretches with the bunk spacing.
+   * `rigid` keeps the length it has travelling straight: the load rides the front bunk, slides over
+   * the rear one, and the tail behind the rear bunk changes by the change in spacing.
+   */
+  lengthMode?: 'from-bunks' | 'rigid'
 }
 /** User-entered swept-path check for one road; never inferred from a road class. */
 export interface VehicleCheck {
@@ -196,6 +233,8 @@ export interface Alignment {
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
   curveDesign?: CurveDesign
+  /** Stopping sight distance inputs (`sightDistance.ts`); omitted values take the defaults there. */
+  sightDistance?: Partial<import('./sightDistance').SightDistanceSettings>
   vehicleCheck?: VehicleCheck
   fullCostRecord?: FullCostReviewRecord
   /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */
@@ -350,6 +389,18 @@ export interface RoadLineOrigin {
   /** Trace: segments between clicks, and how many followed the terrain. */
   segments?: number
   snappedSegments?: number
+  /** Relocation: what the ground was scored with, and the settings the search ran with. */
+  scoredWith?: 'terrain' | 'terrain+vegetation'
+  corridorM?: number
+  confidence?: number
+  flatToleranceM?: number
+  /** Relocation with a point cloud: mean drivable width (m), vegetation over the bed (%), state. */
+  drivableWidthM?: number
+  vegetationPercent?: number
+  stateScore?: number
+  stateClass?: number
+  /** Relocation found with other roads: ends moved to rebuild the record's junctions (0–2). */
+  reconnectedEnds?: number
 }
 export interface CableLine {
   id: string
@@ -371,6 +422,8 @@ export interface CableLine {
   sagModel?: 'assumed' | 'mechanics'
   /** Rope, load and tensioning for the `mechanics` sag model; kept when switching back to `assumed`. */
   rigging?: CableRigging
+  /** Intermediate-support search settings and the last layout found (`cableLayout/settings.ts`). */
+  supportLayout?: CableSupportLayout
 }
 export interface RoadSettings {
   stationInterval: number
@@ -382,6 +435,12 @@ export interface RoadSettings {
   surfacingRate: number
   clearingRate: number
   shrinkFactor: number
+  /**
+   * Whether cut and fill corrected for plan curvature (Pappus, `curvedVolume.ts`) are only reported
+   * beside the average-end-area volumes (`report`, the default when absent) or replace them in every
+   * total, cost, mass and haul figure (`apply`).
+   */
+  curvatureCorrection?: 'report' | 'apply'
 }
 export interface TerrainMetadata {
   kind: 'demo' | 'geotiff' | 'regional'
@@ -426,6 +485,8 @@ export interface RoadProject {
   standards?: import('./designStandards').DesignStandards
   /** Printed on the report and every plot-book sheet: author, organisation, revision and date. */
   issue?: import('./projectIssue').ProjectIssue
+  /** The project's own design vehicles (a contractor's fleet), reused by every road's vehicle check. */
+  vehicleLibrary?: DesignVehicle[]
   /** Portable drawing settings; report intervals never alter analytical station spacing. */
   reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */
@@ -457,6 +518,26 @@ export interface SectionSample {
   design: number | null
   /** Ground after site preparation; ground above retains the source measurement. */
   preparedGround?: number | null
+  /** Top of rock: ground less the depth of the shallowest rock horizon. Present only where rock is entered. */
+  rockTop?: number | null
+  /** Blasting (overbreak) level where it lies below the design line; null outside the blasted region. */
+  blastLevel?: number | null
+}
+/** One rock material's part of a section (`rockExcavation.ts`). Areas are m², moments ∫ offset dA in m³. */
+export interface RockSectionArea {
+  materialId: string
+  /** Rock cut above the design line: part of the section's cut area. */
+  cutAreaM2: number
+  /** The part of that cut where rock is at most the shallow depth thick down to the blasting level. */
+  shallowAreaM2: number
+  /** Rock blasted below the design line down to the blasting level: not part of the cut area. */
+  deepAreaM2: number
+  deepMomentM3: number
+}
+export interface StationRock {
+  areas: RockSectionArea[]
+  /** Horizontal width of shallow rock cut, m. */
+  shallowWidthM: number
 }
 export interface RoadStation {
   index: number
@@ -475,6 +556,8 @@ export interface RoadStation {
   layerAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
   componentAreas?: { id: string; name: string; materialId?: string; areaM2: number }[]
   componentPoints?: { code: string; offset: number; design: number }[]
+  /** Rock cut, shallow rock and overbreak of a complete section with rock horizons; absent otherwise. */
+  rock?: StationRock
   /** Includes preparation margins beyond the constructed catches. */
   clearingWidthM?: number
   leftClearingM?: number
@@ -488,8 +571,8 @@ export interface RoadStation {
   surfaceVolumeM3?: number | null
   /**
    * Cut and fill since the previous station corrected for plan curvature (Pappus); equal to the
-   * average-end-area volumes on tangents, null where those are. Reported only: costs, mass and haul
-   * use `cutVolumeM3`/`fillVolumeM3`.
+   * average-end-area volumes on tangents, null where those are. Costs, mass and haul use
+   * `cutVolumeM3`/`fillVolumeM3`, which equal these when `settings.curvatureCorrection` is `apply`.
    */
   curvedCutVolumeM3?: number | null
   curvedFillVolumeM3?: number | null
@@ -543,6 +626,13 @@ export interface RoadAnalysis {
     fillVolumeM3: number
     curvedLengthM: number
     uncorrectedIntervals: number
+    /**
+     * Set when `settings.curvatureCorrection` is `apply`: the totals above them, the stations'
+     * volumes, cost, mass and haul are the corrected ones, and these are the average end areas.
+     */
+    applied?: true
+    averageEndCutVolumeM3?: number
+    averageEndFillVolumeM3?: number
   }
   /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the

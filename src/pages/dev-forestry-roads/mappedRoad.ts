@@ -317,15 +317,26 @@ export const derivedRoadName = (alignment: Pick<Alignment, 'name' | 'mappedRoad'
   alignment.mappedRoad ? `${alignment.mappedRoad.roadName} alternative` : alignment.name
 export const isMappedRoad = (alignment: Pick<Alignment, 'mappedRoad'> | undefined) => !!alignment?.mappedRoad
 
-/** An editable proposal on the mapped road's line: same points, no record attached. */
-export function designFromMappedRoad(alignment: Alignment, id: string, color: string): Alignment {
+/** Horizontal points without ids, such as a fitted alignment of a mapped road (`leastSquaresFit.ts`). */
+export type DesignPoints = readonly Omit<Alignment['points'][number], 'id'>[]
+
+/**
+ * An editable proposal on the mapped road's line: same points, no record attached. With `points`,
+ * the proposal takes those instead (a fitted alignment of the same road).
+ */
+export function designFromMappedRoad(
+  alignment: Alignment,
+  id: string,
+  color: string,
+  points: DesignPoints = alignment.points,
+): Alignment {
   const { mappedRoad, ...rest } = alignment
   return {
     ...rest,
     id,
-    name: `Design on ${mappedRoad?.roadName ?? alignment.name}`,
+    name: `${points === alignment.points ? 'Design on' : 'Fitted design on'} ${mappedRoad?.roadName ?? alignment.name}`,
     color,
-    points: alignment.points.map((point, index) => ({ ...point, id: `${id}-p${index}` })),
+    points: points.map((point, index) => ({ ...point, id: `${id}-p${index}` })),
   }
 }
 
@@ -422,6 +433,13 @@ function nearestWithin<T extends { chainage: number }>(stations: readonly T[], t
   return best
 }
 
+/**
+ * Radii above this read as straight. Over a BEND_CHORD_M chord a 10 km radius departs 5 mm from the
+ * chord, while a straight line at an angle to the meridian, sampled and measured in this local
+ * projection, read as a bend of about 8,000 km.
+ */
+const STRAIGHT_RADIUS_M = 10_000
+
 function circumradius(a: Coordinate, b: Coordinate, c: Coordinate) {
   const kx = Math.cos(b[1] * RAD) * RAD * EARTH_M,
     ky = RAD * EARTH_M
@@ -432,5 +450,6 @@ function circumradius(a: Coordinate, b: Coordinate, c: Coordinate) {
     bc = Math.hypot(cx, cy),
     ca = Math.hypot(cx - ax, cy - ay)
   const cross = Math.abs(ax * cy - ay * cx)
-  return cross < 1e-9 ? Infinity : (ab * bc * ca) / (2 * cross)
+  const radius = cross < 1e-9 ? Infinity : (ab * bc * ca) / (2 * cross)
+  return radius > STRAIGHT_RADIUS_M ? Infinity : radius
 }

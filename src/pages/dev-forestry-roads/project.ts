@@ -14,7 +14,9 @@ import { sectionStations } from './designExports'
 import { createEngineeringDesign, materialPlanMissing } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { parseRigging, parseSagModel } from './cableMechanics'
+import { parseSupportLayout } from './cableLayout/settings'
 import { curvatureCorrectionText } from './curvedVolume'
+import { parseSightSettings } from './sightDistance'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseAccessHistoryState } from './accessHistory'
@@ -27,6 +29,7 @@ import { fullCostExportEvidence, fullCostReportSection } from './fullCostExports
 import { validateCurveCriteria } from './roadCriteria'
 import { validateTemplate } from './templates'
 import { analyzeSweptPath, validateVehicleCheck } from './sweptPath'
+import { parseDesignVehicle, parseVehicleLibrary } from './vehicleLibrary'
 import { parseRoadReportSettings } from './reportSettings'
 import { parseVerticalAlternativeFields, snapshotActiveVerticalAlternative } from './verticalAlternatives'
 import {
@@ -38,6 +41,7 @@ import {
 import { parseTerrainPreparation, parseTerrainBackgrounds } from './terrainPreparation'
 import { parseTerrainReferenceSurfaces, pointCloudImportSummary } from './terrain'
 import { parseSectionComponents, parseSectionLayers } from './sectionAssembly'
+import { parseRockCut } from './rockExcavation'
 import { parseSurveyBooks } from './surveyInterchange'
 import { localRasterResolution } from '../dev-forestry/localRaster'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE, roadProjection, validateRoadRaster } from './terrain'
@@ -176,6 +180,8 @@ function parseTemplate(raw: unknown): RoadTemplate {
   for (const [key, min, max] of optional) if (r[key] !== undefined) result[key] = number(r[key], key, min, max)
   if (r.components !== undefined) result.components = parseSectionComponents(r.components)
   if (r.layers !== undefined) result.layers = parseSectionLayers(r.layers)
+  for (const key of ['rockCut', 'leftRockCut', 'rightRockCut'] as const)
+    if (r[key] !== undefined) result[key] = parseRockCut(r[key], `Template ${key}`)
   // The rules that relate one value to another (a ditch bottom no wider than its top) are the
   // engine's. A file is held to them too, so it never opens as a road that cannot be calculated.
   validateTemplate(result)
@@ -193,6 +199,13 @@ function parseSettings(raw: unknown): RoadSettings {
     surfacingRate: number(r.surfacingRate, 'Surfacing unit cost', 0, 10000),
     clearingRate: number(r.clearingRate, 'Clearing unit cost', 0, 10000),
     shrinkFactor: number(r.shrinkFactor, 'Reusable cut factor', 0.1, 2),
+    ...(r.curvatureCorrection === undefined || r.curvatureCorrection === 'report'
+      ? {}
+      : r.curvatureCorrection === 'apply'
+        ? { curvatureCorrection: 'apply' as const }
+        : (() => {
+            throw Error('Curvature correction must be report or apply.')
+          })()),
   }
 }
 function parseOverride(raw: unknown): WidthOverride {
@@ -302,51 +315,10 @@ function parseVerticalControl(raw: unknown): VerticalControl {
 }
 function parseVehicleCheck(raw: unknown): VehicleCheck {
   const r = object(raw, 'Vehicle check')
-  const v = object(r.vehicle, 'Design vehicle')
   const result: VehicleCheck = {
     direction: r.direction === 'up' || r.direction === 'down' || r.direction === 'both' ? r.direction : 'both',
     clearanceM: number(r.clearanceM, 'Wheel clearance', 0, 5),
-    vehicle: {
-      name: typeof v.name === 'string' ? v.name.slice(0, 200) : 'Design vehicle',
-      // An emptied source field is simply absent, not an invalid file.
-      ...(typeof v.source === 'string' && v.source.trim() ? { source: v.source.slice(0, 2000) } : {}),
-      widthM: number(v.widthM, 'Vehicle width', 1.5, 4),
-      units: list(v.units, 'Vehicle units', 3, 1).map((rawUnit) => {
-        const u = object(rawUnit, 'Vehicle unit')
-        return {
-          name: typeof u.name === 'string' ? u.name.slice(0, 100) : 'Unit',
-          wheelbaseM: number(u.wheelbaseM, 'Unit wheelbase', 1, 25),
-          frontOverhangM: number(u.frontOverhangM, 'Unit front overhang', 0, 15),
-          rearOverhangM: number(u.rearOverhangM, 'Unit rear overhang', 0, 15),
-          hitchOffsetM: number(u.hitchOffsetM, 'Unit hitch offset', -5, 10),
-        }
-      }),
-      ...(v.steeringLockDeg === undefined
-        ? {}
-        : { steeringLockDeg: number(v.steeringLockDeg, 'Steering lock', 5, 60) }),
-      ...(v.loads === undefined
-        ? {}
-        : {
-            loads: list(v.loads, 'Vehicle loads', 2).map((rawLoad) => {
-              const l = object(rawLoad, 'Vehicle load')
-              const end = (raw: unknown, label: string) => {
-                const e = object(raw, label)
-                return {
-                  unit: number(e.unit, `${label} unit`, 0, 2),
-                  behindPivotM: number(e.behindPivotM, `${label} position`, -15, 30),
-                }
-              }
-              return {
-                name: typeof l.name === 'string' ? l.name.slice(0, 100) : 'Load',
-                front: end(l.front, 'Load front bunk'),
-                rear: end(l.rear, 'Load rear bunk'),
-                aheadOfFrontBunkM: number(l.aheadOfFrontBunkM, 'Load ahead of front bunk', 0, 20),
-                behindRearBunkM: number(l.behindRearBunkM, 'Load behind rear bunk', 0, 20),
-                ...(l.widthM === undefined ? {} : { widthM: number(l.widthM, 'Load width', 1.5, 4) }),
-              }
-            }),
-          }),
-    },
+    vehicle: parseDesignVehicle(r.vehicle),
   }
   validateVehicleCheck(result)
   return result
@@ -468,6 +440,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
+    ...(r.sightDistance === undefined ? {} : { sightDistance: parseSightSettings(r.sightDistance) }),
     ...(r.fsrConnection === undefined ? {} : { fsrConnection: parseFsrConnection(r.fsrConnection) }),
     ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
@@ -675,6 +648,7 @@ function parseCable(raw: unknown): CableLine {
         }),
     ...(r.sagModel === undefined ? {} : { sagModel: parseSagModel(r.sagModel, r.rigging !== undefined) }),
     ...(r.rigging === undefined ? {} : { rigging: parseRigging(r.rigging) }),
+    ...(r.supportLayout === undefined ? {} : { supportLayout: parseSupportLayout(r.supportLayout) }),
   }
   resolvedCableLine(result)
   return result
@@ -784,6 +758,7 @@ export function parseProject(raw: unknown): RoadProject {
     ...(r.totalCostPlanning !== undefined ? { totalCostPlanning: parseTotalCostPlanning(r.totalCostPlanning) } : {}),
     ...(r.standards === undefined ? {} : { standards: parseDesignStandards(r.standards) }),
     ...(r.issue === undefined ? {} : { issue: parseProjectIssue(r.issue) }),
+    ...(r.vehicleLibrary === undefined ? {} : { vehicleLibrary: parseVehicleLibrary(r.vehicleLibrary) }),
     ...(r.reportSettings === undefined ? {} : { reportSettings: parseRoadReportSettings(r.reportSettings) }),
     ...(r.drainage === undefined ? {} : { drainage: parseDrainageProjectState(r.drainage) }),
     ...(r.surveyBooks === undefined ? {} : { surveyBooks: parseSurveyBooks(r.surveyBooks) }),
@@ -857,6 +832,10 @@ export function importRoadLibrary(
       material.cutSlope ?? null,
       material.fillSlope ?? null,
       material.quality ?? null,
+      // Rock values join the definition only when set, so libraries written before them still match.
+      ...(material.rock ? [true] : []),
+      ...(material.shallowCutRate !== undefined ? [`shallow:${material.shallowCutRate}`] : []),
+      ...(material.overbreakRate !== undefined ? [`overbreak:${material.overbreakRate}`] : []),
     ])
   if (mode === 'replace') {
     // Only template assignment/horizon ranges are explicitly cleared by this import mode.
@@ -866,7 +845,10 @@ export function importRoadLibrary(
       ...[...new Set(options.retainedMaterialIds ?? [])]
         .filter((id) => existing.materials.some((material) => material.id === id))
         .map((id) => ({ id, label: 'Reviewed project source quote' })),
-      ...(existing.sitePreparation ?? []).map((row) => ({ id: row.materialId, label: `Site preparation ${row.id}` })),
+      ...(existing.sitePreparation ?? []).flatMap((row) => [
+        { id: row.materialId, label: `Site preparation ${row.id}` },
+        ...(row.removeToMaterialId ? [{ id: row.removeToMaterialId, label: `Site preparation ${row.id}` }] : []),
+      ]),
       ...(existing.fillRequirements ?? [])
         .filter((row) => row.materialId !== undefined)
         .map((row) => ({ id: row.materialId!, label: `Fill requirement ${row.id}` })),
@@ -1285,8 +1267,9 @@ export function stationsCsv(analysis: RoadAnalysis, metadata: TerrainMetadata): 
     'right_width_m',
     'cut_area_m2',
     'fill_area_m2',
-    'interval_cut_volume_m3',
-    'interval_fill_volume_m3',
+    // The column names say when the volumes are corrected for plan curvature.
+    analysis.curvatureCorrection?.applied ? 'interval_cut_volume_curvature_corrected_m3' : 'interval_cut_volume_m3',
+    analysis.curvatureCorrection?.applied ? 'interval_fill_volume_curvature_corrected_m3' : 'interval_fill_volume_m3',
     'mass_balance_m3',
     'interval_surfacing_volume_m3',
     'interval_stripping_bank_m3',
@@ -1514,7 +1497,7 @@ function reportSections(analysis: RoadAnalysis, intervalM = 20, limit = 240): st
   const plot = (station: RoadStation) => {
     const samples = station.section
     const values = samples
-      .flatMap((p) => [p.ground, p.preparedGround, p.design])
+      .flatMap((p) => [p.ground, p.preparedGround, p.design, p.blastLevel])
       .filter((v): v is number => v != null && Number.isFinite(v))
     if (!values.length) return ''
     const low = Math.min(...values) - 1,
@@ -1522,12 +1505,13 @@ function reportSections(analysis: RoadAnalysis, intervalM = 20, limit = 240): st
     const half = Math.max(...samples.map((p) => Math.abs(p.offset)), 1)
     const x = (o: number) => 30 + ((o + half) / (2 * half)) * 410,
       y = (z: number) => 150 - ((z - low) / Math.max(1, high - low)) * 130
-    const line = (key: 'ground' | 'preparedGround' | 'design') => {
+    const line = (key: 'ground' | 'preparedGround' | 'design' | 'rockTop' | 'blastLevel') => {
       let pen = false
       return samples
         .map((p) => {
           const z = p[key]
-          if (z == null || !Number.isFinite(z)) {
+          // The top of rock can lie far below the road; it is drawn only inside the frame.
+          if (z == null || !Number.isFinite(z) || (key === 'rockTop' && (z < low || z > high))) {
             pen = false
             return ''
           }
@@ -1537,13 +1521,26 @@ function reportSections(analysis: RoadAnalysis, intervalM = 20, limit = 240): st
         })
         .join(' ')
     }
-    return `<figure class="section"><svg viewBox="0 0 450 175" role="img" aria-label="Cross-section at ${fmt(station.chainage)} m, looking up-station"><rect width="450" height="175" fill="#f8fafc"/><path d="M${x(0)} 15V150" stroke="#e11d48" stroke-dasharray="3 3"/><path d="${line('ground')}" fill="none" stroke="#64748b" stroke-width="1.6"/><path d="${line('preparedGround')}" fill="none" stroke="#8b5cf6" stroke-dasharray="4 3" stroke-width="1.6"/><path d="${line('design')}" fill="none" stroke="#c2410c" stroke-width="2.2"/><g font-size="11" fill="#334155"><text x="${x(0)}" y="12" text-anchor="middle">${html(stationLabel(station.chainage))}</text><text x="4" y="24">${fmt(high)}</text><text x="4" y="150">${fmt(low)}</text><text x="30" y="168">L −${fmt(half, 0)} m</text><text x="440" y="168" text-anchor="end">R +${fmt(half, 0)} m</text><text x="225" y="168" text-anchor="middle">cut ${fmt(station.cutAreaM2)} m² · fill ${fmt(station.fillAreaM2)} m²</text></g></svg></figure>`
+    return `<figure class="section"><svg viewBox="0 0 450 175" role="img" aria-label="Cross-section at ${fmt(station.chainage)} m, looking up-station"><rect width="450" height="175" fill="#f8fafc"/><path d="M${x(0)} 15V150" stroke="#e11d48" stroke-dasharray="3 3"/><path d="${line('ground')}" fill="none" stroke="#64748b" stroke-width="1.6"/><path d="${line('preparedGround')}" fill="none" stroke="#8b5cf6" stroke-dasharray="4 3" stroke-width="1.6"/><path d="${line('design')}" fill="none" stroke="#c2410c" stroke-width="2.2"/><path d="${line('rockTop')}" fill="none" stroke="#57534e" stroke-dasharray="2 3" stroke-width="1.4"/><path d="${line('blastLevel')}" fill="none" stroke="#be123c" stroke-dasharray="6 2 1 2" stroke-width="1.2"/><g font-size="11" fill="#334155"><text x="${x(0)}" y="12" text-anchor="middle">${html(stationLabel(station.chainage))}</text><text x="4" y="24">${fmt(high)}</text><text x="4" y="150">${fmt(low)}</text><text x="30" y="168">L −${fmt(half, 0)} m</text><text x="440" y="168" text-anchor="end">R +${fmt(half, 0)} m</text><text x="225" y="168" text-anchor="middle">cut ${fmt(station.cutAreaM2)} m² · fill ${fmt(station.fillAreaM2)} m²</text></g></svg></figure>`
   }
   return `<h2 class="chapter">Cross-sections · every ${fmt(intervalM, 0)} m</h2><p class="muted">Looking up-station: the road's left is on the left at negative offsets. Original ground grey, prepared ground dashed violet where entered, design orange.${stations.length === limit ? ` First ${limit} sections shown.` : ''}</p><div class="sections">${stations.map(plot).join('')}</div>`
 }
 const stationLabel = (chainage: number) => {
   const rounded = Math.round(Math.max(0, chainage) * 10) / 10
   return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
+}
+/** Rock quantities, once a ground material is marked rock (`rockExcavation.ts`). */
+function reportRock(e: NonNullable<RoadAnalysis['engineering']>): string {
+  if (!e.rock) return ''
+  const r = e.rock
+  const rows = e.materials
+    .filter((m) => m.rock)
+    .map(
+      (m) =>
+        `<tr><td>${html(m.name)}</td><td>${fmt(m.bankCutM3)}</td><td>${fmt(m.rock!.shallowBankM3)}</td><td>${fmt(m.rock!.overbreakBankM3)}</td><td>${fmt(m.rock!.swellCompactedM3)}</td><td>${fmt(m.excavationCost, 2)}</td></tr>`,
+    )
+    .join('')
+  return `<h2>Rock excavation</h2><p>Rock is the ground horizons whose material is marked rock; their top is the top of rock. Rock cut above the subgrade ${fmt(r.cutM3)} bank m³, of which shallow ${fmt(r.shallowM3)} m³ over ${fmt(r.shallowAreaM2)} m²; overbreak blasted below the subgrade to the blasting level ${fmt(r.deepM3)} m³, refilled in place, leaving a swell of ${fmt(r.swellM3)} compacted m³ in the mass balance. Common excavation ${fmt(r.commonM3)} m³ (earthwork materials that are neither rock nor stripping; unclassified excavation is not counted). Rock depths are entered, not inferred from the terrain, and ground is never extended past its samples.</p><table><thead><tr><th>Rock material</th><th>Rock cut bank m³</th><th>Shallow bank m³</th><th>Overbreak bank m³</th><th>Swell compacted m³</th><th>Excavation CAD</th></tr></thead><tbody>${rows}</tbody></table>`
 }
 function reportEngineering(analysis: RoadAnalysis): string {
   const e = analysis.engineering
@@ -1554,7 +1551,7 @@ function reportEngineering(analysis: RoadAnalysis): string {
     .map(([key, value]) => `<tr><td>${html(key)}</td><td>$${fmt(value, 2)}</td></tr>`)
     .join(
       '',
-    )}</tbody></table><h2>Material quantities</h2><p>Ground horizons are entered assumptions or measurements. They are not inferred from the terrain model. Excavated stripping horizons classify cut. Explicit site-preparation ranges remove ground before section construction and add replacement fill; preparation quantities are reported separately and are never reusable fill.</p><table><thead><tr><th>Material</th><th>Bank cut m³</th><th>Usable compacted m³</th><th>Unusable bank m³</th><th>Excavation CAD</th></tr></thead><tbody>${e.materials.map((m) => `<tr><td>${html(m.name)}</td><td>${fmt(m.bankCutM3)}</td><td>${fmt(m.usableCompactedM3)}</td><td>${fmt(m.unusableBankM3)}</td><td>${fmt(m.excavationCost, 2)}</td></tr>`).join('')}</tbody></table><h2>Culvert geometry</h2>${e.culverts.length ? `<table><thead><tr><th>Name</th><th>Station m</th><th>Grade %</th><th>Minimum cover m</th><th>Required horizontal span m</th><th>Inclined barrel m</th><th>Flags</th></tr></thead><tbody>${e.culverts.map((c) => `<tr><td>${html(c.name)}</td><td>${fmt(c.chainage)}</td><td>${fmt(c.gradePercent, 2)}</td><td>${fmt(c.coverM, 2)}</td><td>${fmt(c.requiredLengthM)}</td><td>${fmt(c.barrelLengthM)}</td><td>${html(c.warnings.join('; '))}</td></tr>`).join('')}</tbody></table>` : '<p>No culvert inventory supplied.</p>'}<h2>Haul scenario</h2><p>${!e.haul.enabled ? 'Haul allocation disabled.' : e.haul.optimizationStatus === 'optimal' ? 'Bounded economic material-flow allocation solved to optimality for the entered model.' : e.haul.optimizationStatus === 'infeasible' ? 'Entered material requirements, construction directions or disposal/supply capacities are infeasible.' : e.haul.optimizationStatus === 'unsolved' ? 'The material allocation could not be calculated; no movement, borrow, waste or haul cost is included.' : 'Deterministic chainage-order source allocation along the whole road enabled.'} ${materialPlanMissing(e.haul) ? 'No material plan was adopted, so no borrow, waste or haul quantity is stated; these are not zero.' : `Borrow: ${fmt(e.haul.borrowCompactedM3)} compacted m³; waste: ${fmt(e.haul.wasteBankM3)} bank m³; cut/fill and borrow haul: ${fmt(e.haul.haulM3Km)} compacted m³·km; waste haul: ${fmt(e.haul.wasteHaulM3Km)} bank m³·km. Unallocated borrow: ${fmt(e.haul.unallocatedBorrowM3)} compacted m³; unallocated waste: ${fmt(e.haul.unallocatedWasteM3)} bank m³.`} Haul distances follow road chainage plus site access. Economic optimality applies only to the entered, bounded material-flow model; it does not establish a global road design optimum.</p>${e.warnings.length ? `<ul>${e.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}`
+    )}</tbody></table><h2>Material quantities</h2><p>Ground horizons are entered assumptions or measurements. They are not inferred from the terrain model. Excavated stripping horizons classify cut. Explicit site-preparation ranges remove ground before section construction and add replacement fill; preparation quantities are reported separately and are never reusable fill.</p><table><thead><tr><th>Material</th><th>Bank cut m³</th><th>Usable compacted m³</th><th>Unusable bank m³</th><th>Excavation CAD</th></tr></thead><tbody>${e.materials.map((m) => `<tr><td>${html(m.name)}</td><td>${fmt(m.bankCutM3)}</td><td>${fmt(m.usableCompactedM3)}</td><td>${fmt(m.unusableBankM3)}</td><td>${fmt(m.excavationCost, 2)}</td></tr>`).join('')}</tbody></table>${reportRock(e)}<h2>Culvert geometry</h2>${e.culverts.length ? `<table><thead><tr><th>Name</th><th>Station m</th><th>Grade %</th><th>Minimum cover m</th><th>Required horizontal span m</th><th>Inclined barrel m</th><th>Flags</th></tr></thead><tbody>${e.culverts.map((c) => `<tr><td>${html(c.name)}</td><td>${fmt(c.chainage)}</td><td>${fmt(c.gradePercent, 2)}</td><td>${fmt(c.coverM, 2)}</td><td>${fmt(c.requiredLengthM)}</td><td>${fmt(c.barrelLengthM)}</td><td>${html(c.warnings.join('; '))}</td></tr>`).join('')}</tbody></table>` : '<p>No culvert inventory supplied.</p>'}<h2>Haul scenario</h2><p>${!e.haul.enabled ? 'Haul allocation disabled.' : e.haul.optimizationStatus === 'optimal' ? 'Bounded economic material-flow allocation solved to optimality for the entered model.' : e.haul.optimizationStatus === 'infeasible' ? 'Entered material requirements, construction directions or disposal/supply capacities are infeasible.' : e.haul.optimizationStatus === 'unsolved' ? 'The material allocation could not be calculated; no movement, borrow, waste or haul cost is included.' : 'Deterministic chainage-order source allocation along the whole road enabled.'} ${materialPlanMissing(e.haul) ? 'No material plan was adopted, so no borrow, waste or haul quantity is stated; these are not zero.' : `Borrow: ${fmt(e.haul.borrowCompactedM3)} compacted m³; waste: ${fmt(e.haul.wasteBankM3)} bank m³; cut/fill and borrow haul: ${fmt(e.haul.haulM3Km)} compacted m³·km; waste haul: ${fmt(e.haul.wasteHaulM3Km)} bank m³·km. Unallocated borrow: ${fmt(e.haul.unallocatedBorrowM3)} compacted m³; unallocated waste: ${fmt(e.haul.unallocatedWasteM3)} bank m³.`} Haul distances follow road chainage plus site access. Economic optimality applies only to the entered, bounded material-flow model; it does not establish a global road design optimum.</p>${e.warnings.length ? `<ul>${e.warnings.map((w) => `<li>${html(w)}</li>`).join('')}</ul>` : ''}`
 }
 export function terrainProfileReportHtml(name: string, analysis: RoadAnalysis, metadata: TerrainMetadata): string {
   if (!analysis.stations.length)

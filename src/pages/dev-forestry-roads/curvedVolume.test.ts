@@ -3,10 +3,12 @@ import {
   centroidOffset,
   curvatureCorrectionText,
   pappusVolume,
+  prismoidalVolume,
   sectionAreaMoments,
   withReportedArea,
 } from './curvedVolume'
 import { analyzeRoad, offsetCoordinate } from './engine'
+import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, Coordinate, RoadSettings, TerrainSource } from './types'
 
 describe('Pappus volumes', () => {
@@ -155,5 +157,70 @@ describe('curvature-corrected road quantities', () => {
     expect(text).toMatch(/over 63 m of curves, cut would be [\d,]+ m³ \(\+[\d.]+ %\)/)
     expect(text).toContain('use the uncorrected average end areas')
     expect(curvatureCorrectionText(undefined, 1, 1)).toMatch(/no curvature correction applies/)
+  })
+
+  it('applies the corrected volumes to totals, mass and cost when asked, and says so', () => {
+    const curved = road([
+      { id: 'a', coordinate: origin, radiusM: 0 },
+      { id: 'pi', coordinate: xy(0, 100), radiusM: 40 },
+      { id: 'b', coordinate: xy(100, 100), radiusM: 0 },
+    ])
+    const reported = analyzeRoad(curved, sidehill, settings)
+    const applied = analyzeRoad(curved, sidehill, { ...settings, curvatureCorrection: 'apply' })
+    const c = applied.curvatureCorrection!
+    expect(c.applied).toBe(true)
+    expect(applied.cutVolumeM3).toBeCloseTo(reported.curvatureCorrection!.cutVolumeM3, 6)
+    expect(applied.fillVolumeM3).toBeCloseTo(reported.curvatureCorrection!.fillVolumeM3, 6)
+    expect(c.averageEndCutVolumeM3).toBeCloseTo(reported.cutVolumeM3, 6)
+    expect(c.averageEndFillVolumeM3).toBeCloseTo(reported.fillVolumeM3, 6)
+    expect(applied.balanceM3).toBeCloseTo(applied.cutVolumeM3 * 0.8 - applied.fillVolumeM3, 6)
+    expect(applied.stations[applied.stations.length - 1].massM3).toBeCloseTo(applied.balanceM3, 6)
+    expect(applied.estimatedCost).toBeCloseTo(
+      applied.cutVolumeM3 * settings.cutRate +
+        applied.fillVolumeM3 * settings.fillRate +
+        applied.surfaceVolumeM3 * settings.surfacingRate +
+        applied.clearingAreaM2 * settings.clearingRate,
+      6,
+    )
+    for (const s of applied.stations) expect(s.cutVolumeM3).toBe(s.curvedCutVolumeM3)
+    const text = curvatureCorrectionText(c, applied.cutVolumeM3, applied.fillVolumeM3)
+    expect(text).toContain('uses the corrected volumes')
+    // Off by default: the same road without the setting is the reported one.
+    expect(reported.curvatureCorrection!.applied).toBeUndefined()
+  })
+
+  it('carries the correction into every material excavated when engineering is on', () => {
+    const curved = {
+      ...road([
+        { id: 'a', coordinate: origin, radiusM: 0 },
+        { id: 'pi', coordinate: xy(0, 100), radiusM: 40 },
+        { id: 'b', coordinate: xy(100, 100), radiusM: 0 },
+      ]),
+      engineering: createEngineeringDesign(),
+    }
+    const applied = analyzeRoad(curved, sidehill, { ...settings, curvatureCorrection: 'apply' })
+    const bank = applied.engineering!.materials.reduce((sum, m) => sum + m.bankCutM3, 0)
+    expect(bank).toBeCloseTo(applied.cutVolumeM3, 3)
+  })
+})
+
+// Lima VVA functional specification §11, T1 and T2 (hand-derived): two triangular cut sections 20 m
+// apart, A₁ = 10 m² with its centroid 4 m right (M₁ = 40 m³/m), A₂ = 30 m² at 6 m right (M₂ = 180).
+describe('reference volumes (Lima specification T1, T2)', () => {
+  const first = { area: 10, moment: 40 },
+    second = { area: 30, moment: 180 }
+  it('average end area, prismoidal, and Pappus on right and left curves', () => {
+    expect(pappusVolume(first, second, 0, 20)).toBeCloseTo(400, 9)
+    expect(prismoidalVolume(10, 18.75, 30, 20)).toBeCloseTo(383.333, 3)
+    expect(pappusVolume(first, second, 0.02, 20)).toBeCloseTo(356, 9)
+    expect(pappusVolume(first, second, -0.02, 20)).toBeCloseTo(444, 9)
+  })
+  it('samples curvature mid-interval; a section at the curve start makes it exact', () => {
+    // The curve starts 5 m in. Mid-interval (10 m) is on the curve, so the whole interval is corrected.
+    expect(pappusVolume(first, second, 0.02, 20)).toBeCloseTo(356, 9)
+    // A, M linear in x: A(5) = 15, M(5) = 75. Split there, the trapezoid rule is exact: 361.75 m³.
+    const atCurveStart = { area: 15, moment: 75 }
+    const split = pappusVolume(first, atCurveStart, 0, 5)! + pappusVolume(atCurveStart, second, 0.02, 15)!
+    expect(split).toBeCloseTo(361.75, 9)
   })
 })

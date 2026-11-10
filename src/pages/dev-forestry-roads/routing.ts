@@ -7,6 +7,7 @@
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
 import { blockedRouteEndMessage, routingContext } from './riparian'
 import { deactivatedRoadNeedsReview } from './roadHistory'
+import { parseSwitchbackRouteOptions, type SwitchbackRouteOptions } from './switchbackOptions'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 type XY = [number, number]
@@ -93,6 +94,11 @@ export interface RouteSearchOptions {
   groundWindowM: number | null
   /** Direction-specific grade limits; null applies the overall grade limit both ways. */
   haulGrades: HaulGradeLimits | null
+  /**
+   * The switchback search's settings (`switchbackSearch.ts`), used by Find the best route. Absent in
+   * older projects, which keep switchbacks off. The terrain-cost grid search here does not read them.
+   */
+  switchbacks?: SwitchbackRouteOptions
 }
 /**
  * The defaults keep the original relative weighting (a crossing worth 80 m of level road). They are
@@ -310,6 +316,7 @@ export function parseRouteSearchOptions(input?: unknown): RouteSearchOptions {
       maxEmptyUphillPercent: haul.maxEmptyUphillPercent ?? null,
     }
   }
+  if (values?.switchbacks !== undefined) options.switchbacks = parseSwitchbackRouteOptions(values.switchbacks)
   const groups = options.crossingGroups
   if (groups === null || typeof groups !== 'object' || Array.isArray(groups) || Object.keys(groups ?? {}).length > 100)
     throw Error('Crossing groups must be an object of at most 100 named prices.')

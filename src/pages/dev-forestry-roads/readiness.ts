@@ -24,6 +24,7 @@ import type { DrainageEvidence } from './drainageEvidence'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
+import { reviewRoadSight } from './sightDistance'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
 import { reviewRoadHaul, type RoadHaulReview } from './haulReview'
@@ -826,6 +827,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: kLimit,
     })
 
+  add(sightDistanceRow(input, calculated))
+
   if (input.haul) add(junctionTurnRow(input.haul))
 
   // ---- Section and earthwork -----------------------------------------------------------------
@@ -1608,6 +1611,95 @@ const JUNCTION_CHECK = 'Junction turns loaded trucks toward the destination'
  * The loaded truck's turn where the road joins the loaded roads, toward the haul destination. Not
  * assessed without a destination, a junction, or a known way to the destination from it.
  */
+/**
+ * Stopping sight distance along the road (`sightDistance.ts`): every eye station, both ways, on the
+ * surface the road leaves. A sightline that crosses missing elevation is unknown, never clear, so
+ * unknown stations hold the row at not-assessed unless a shortfall is already proven elsewhere.
+ */
+export function sightDistanceRow(
+  input: Pick<ReadinessInput, 'alignment' | 'analysis' | 'standards' | 'settings'>,
+  calculated = input.analysis.stations.length > 0,
+): ReadinessRow {
+  const { alignment, analysis } = input
+  const check = 'Stopping sight distance along the road'
+  const id = 'sight-distance'
+  if (!calculated)
+    return { id, group: 'alignment', check, state: 'not-assessed', result: 'No calculated stations to look along' }
+  const review = reviewRoadSight({
+    analysis,
+    alignment,
+    standards: input.standards,
+    stationIntervalM: input.settings.stationInterval,
+  })
+  if (review.status === 'no-speed')
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'not-assessed',
+      result: 'No design speed is entered, so the distance needed is not known',
+      judgedOn: 'Stopping sight distance from design speed, reaction time and braking friction',
+      action: { label: 'Set design speed', target: 'standards' },
+    }
+  const s = review.settings
+  const judgedOn = `${review.singleLane ? 'Both vehicles stop (single lane)' : 'Stopping sight distance'}: ${trim(review.levelRequiredM ?? 0)} m on the level at ${trim(review.speedKmh ?? 0)} km/h · reaction ${trim(s.reactionTimeS, 2)} s · friction ${trim(review.friction ?? 0, 2)} · eye ${trim(s.eyeHeightM, 2)} m · ${review.singleLane ? 'oncoming vehicle' : 'object'} ${trim(review.targetHeightM, 2)} m${s.vegetationHeightM ? ` · trees ${trim(s.vegetationHeightM)} m beyond the clearing` : ''}; measured along the road every ${trim(review.eyeSpacingM)} m, both ways`
+  const where = (eye: (typeof review.eyes)[number]) => `${station(eye.chainage)} looking ${eye.direction}`
+  const ends = review.nearEnd.length ? `${plural(review.nearEnd.length, 'look')} toward a road end not judged` : ''
+  if (review.short.length) {
+    const worst = review.short.reduce((best, eye) =>
+      eye.availableM - (eye.requiredM ?? 0) < best.availableM - (best.requiredM ?? 0) ? eye : best,
+    )
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'attention',
+      severity: 'limit',
+      result: `Sight distance is short at ${plural(new Set(review.short.map((eye) => eye.chainage)).size, 'station')}`,
+      measured: [
+        `Least ${trim(worst.availableM)} m of ${trim(worst.requiredM ?? 0)} m needed at ${where(worst)}, limited by ${worst.limitedBy === 'vegetation' ? 'trees beyond the clearing' : 'the road surface or ground'}`,
+        review.unknown.length ? `unknown at ${plural(review.unknown.length, 'look')}` : '',
+        ends,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      judgedOn,
+      action: { label: `Go to ${station(worst.chainage)}`, target: 'profile', chainage: worst.chainage },
+    }
+  }
+  if (review.unknown.length) {
+    const first = review.unknown[0]
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'not-assessed',
+      result: `Sight distance is unknown at ${plural(review.unknown.length, 'look')}: a sightline crosses missing terrain`,
+      measured: [`First at ${where(first)}`, ends].filter(Boolean).join(' · '),
+      judgedOn,
+      action: { label: `Go to ${station(first.chainage)}`, target: 'profile', chainage: first.chainage },
+    }
+  }
+  if (review.nearEnd.length === review.eyes.length)
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'not-assessed',
+      result: 'The road is shorter than the distance needed, so no look could be judged',
+      judgedOn,
+    }
+  return {
+    id,
+    group: 'alignment',
+    check,
+    state: 'met',
+    result: 'Every station sees the distance it needs, both ways',
+    measured: ends || undefined,
+    judgedOn,
+  }
+}
+
 export function junctionTurnRow(haul: RoadHaulReview): ReadinessRow {
   const base = { id: 'junction-turn', group: 'alignment' as const, check: JUNCTION_CHECK }
   const action = { label: 'Haul destination', target: 'haul-destination' as const }

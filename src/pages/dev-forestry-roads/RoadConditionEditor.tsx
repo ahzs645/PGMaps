@@ -207,9 +207,20 @@ export function RoadConditionEditor({
                     : 'No review recorded'}
                   {observation.supersedes?.length ? ` · replaces ${observation.supersedes.join(', ')}` : ''}
                 </p>
-                <a className="underline" href={observation.sourceUrl} target="_blank" rel="noreferrer">
-                  Open linked evidence
-                </a>
+                {observation.lidar && (
+                  <p data-testid="lidar-road-state">
+                    LiDAR state class {observation.lidar.stateClass} · score {observation.lidar.score.toFixed(1)} ·
+                    drivable {observation.lidar.drivableWidthM.toFixed(1)} m · vegetation{' '}
+                    {observation.lidar.vegetationPercent.toFixed(1)}% · shoulders{' '}
+                    {observation.lidar.shoulderPercent.toFixed(0)}% · conductivity{' '}
+                    {observation.lidar.conductivity.toFixed(2)} · {observation.lidar.terrainName}
+                  </p>
+                )}
+                {observation.sourceUrl && (
+                  <a className="underline" href={observation.sourceUrl} target="_blank" rel="noreferrer">
+                    Open linked evidence
+                  </a>
+                )}
               </li>
             ))}
           </ul>
@@ -401,6 +412,18 @@ export function RoadConditionEditor({
                 placeholder="not set"
                 onChange={(value) =>
                   onChangePolicy({ ...policy, maxImageryAgeDays: value === null ? null : Math.round(value) })
+                }
+              />
+              <OptionalNumberField
+                label="LiDAR evidence max age (days)"
+                value={policy.maxLidarAgeDays ?? null}
+                min={0}
+                max={MAX_CONDITION_EVIDENCE_AGE_DAYS}
+                step={1}
+                placeholder="not set"
+                hint="How long a LiDAR state class, recorded from Find on terrain, may inform planning, counted from the acquisition date."
+                onChange={(value) =>
+                  onChangePolicy({ ...policy, maxLidarAgeDays: value === null ? null : Math.round(value) })
                 }
               />
             </div>

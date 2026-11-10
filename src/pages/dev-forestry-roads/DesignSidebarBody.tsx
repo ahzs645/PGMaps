@@ -26,6 +26,8 @@ export type FileKind =
   | 'cutblocks'
   | 'mapped-roads'
   | 'reference'
+  /** A LandXML alignment brought in as a road (`landXmlImport.ts`). */
+  | 'landxml'
 export interface PointCloudChoice {
   classify: boolean | 'auto'
   surface: 'mean' | 'tin'
@@ -71,10 +73,15 @@ export interface SidebarProps {
   onLoadMappedRoad?: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */
   onLoadMappedRoadsInView?: () => void
-  /** Copies the active mapped road as an editable design on the same line. */
-  onCopyMappedRoad?: () => void
+  /**
+   * Copies the active mapped road as an editable design on the same line, or on `points` (a fitted
+   * alignment of it) when given.
+   */
+  onCopyMappedRoad?: (points?: import('./mappedRoad').DesignPoints) => void
   /** Shows a road found on the terrain over the plan; null clears it. */
   onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
+  /** Shows the roads found together on the terrain, and their junctions; null clears it. */
+  onPreviewTerrainRoads?: (overlay: GeoJSON.FeatureCollection | null) => void
   /** Fits the plan to the active road. */
   onLocateActiveRoad?: () => void
   /** Loads regional terrain over the active road's extent. */
@@ -164,6 +171,12 @@ export function DesignSidebar(p: SidebarProps) {
     setAggregateOpen(false)
     setInputsRequest((previous) => ({ tab: inputs, sequence: (previous?.sequence ?? 0) + 1 }))
   }
+  // Asking for the culvert inputs closes the aggregate view, here rather than in EngineeringControls.
+  const [engineeringRequest, setEngineeringRequest] = useState(p.engineeringRequest)
+  if (p.engineeringRequest !== engineeringRequest) {
+    setEngineeringRequest(p.engineeringRequest)
+    if (p.engineeringRequest) setAggregateOpen(false)
+  }
   const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
   const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)
@@ -216,6 +229,7 @@ export function DesignSidebar(p: SidebarProps) {
                   <ExistingRoadsPanel
                     key={p.roadReviewRequest?.sequence ?? 0}
                     initialSelectedRoadId={p.roadReviewRequest?.id}
+                    onPreviewFoundRoads={p.onPreviewTerrainRoads}
                     workspace={p.workspace}
                     onLocateRoad={p.onLocateRoad}
                     onReviewRoad={tab === 'terrain' ? p.onReviewRoad : undefined}

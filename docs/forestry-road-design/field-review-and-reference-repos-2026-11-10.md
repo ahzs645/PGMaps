@@ -134,16 +134,17 @@ Ranked by value to the layout person, with the reviewers' effort estimates:
 2. **A regional DRA snapshot in `vendor/bcdatamapper`.** Most junctions in TFL 30 are on DRA-only or
    road-permit roads, and haul routing reaches the highway only when they are loaded. About 2 days plus a
    scraper.
-3. **Road-end turnaround template and landing width on adopted spurs.** About 1–2 days.
-4. **Switchbacks found by the corridor search** (SylvaRoad's platform, spacing and cut/fill rules), so a
-   60 % face no longer reports "no line". About 6–10 days.
+3. **Landing width on adopted spurs.** The turnaround check now exists ([vehicle turning](vehicle-turning.md):
+   turning template and loop-turnaround check); writing a landing width into an adopted spur does not. About 1 day.
+4. ~~Switchbacks found by the corridor search~~ — done in the second pass
+   ([switchback search](switchback-search.md)); map markers at switchback centres and a Review row remain.
 5. **Ruling-grade reach map** and "the gentlest connection here needs X %" in route-search failures. About 2–4
    days.
 6. **Wood flux and road-class suggestion** on network-planner results, with the loaded direction fed to the
    haul-grade checks. About 2–3 days.
-7. **3D available sight distance** on the burned design surface, as a Review row. About 3–5 days.
-8. **Intermediate cable supports, winching rays, forwarder model and cable coverage of a block.** About 1–2
-   weeks together.
+7. ~~3D available sight distance~~ — done in the second pass ([sight distance](sight-distance.md)).
+8. ~~Cable coverage of a block~~ — done in the third pass ([extraction reach](extraction-reach.md),
+   cable yarder).
 9. **Small follow-ups from the browser run:**
    - Station-table column choices are saved as a hidden-column list, so anyone who customised columns
      before this change sees the two curvature columns switched on.

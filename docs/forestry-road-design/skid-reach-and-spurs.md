@@ -1,10 +1,16 @@
 # Skid reach, spur suggestions and landing sites
 
-**Design → Skid reach** answers a layout question: is every part of a harvest block within
+**Design → Extraction reach** answers a layout question: is every part of a harvest block within
 ground-skidding distance of a road or landing? Where it is not, it suggests spurs that would bring
-the rest within reach, and it screens nearby ground for flat landing and decking sites. The model
-is in `skidReach.ts`, the spur generator in `skidSpurs.ts`, the landing screen in
+the rest within reach, and it screens nearby ground for flat landing and decking sites. The skid
+model is in `skidReach.ts`, the spur generator in `skidSpurs.ts`, the landing screen in
 `landingSites.ts`, and the panel in `SkidReachPanel.tsx`.
+
+The panel now runs the extraction-reach model (`extractionReach.ts`), which keeps this skid reach
+as the skidder's default and adds winching, skid trails, closed areas, a forwarder, distance
+classes and a before/after comparison: see [Extraction reach](extraction-reach.md). With winching
+set to **No winching** and no skid trails, its result is this page's model cell for cell. This page
+still describes the skid reach itself, the spur suggestions and the landing screen.
 
 ## Before you rely on it
 
@@ -32,7 +38,7 @@ is in `skidReach.ts`, the spur generator in `skidSpurs.ts`, the landing screen i
    **Ground skid limit (%)** and how far a skid may run **outside the block** to reach a road.
 3. Choose what counts as a landing: mapped roads, designed roads, or both. **Streams stop
    skidding** turns every mapped stream line into a barrier.
-4. **Run skid reach.** The section's folded row then shows the share within reach. The results
+4. **Run extraction reach.** The section's folded row then shows the share within reach. The results
    list the block's area within reach, beyond reach, too steep (cable or other systems) and
    unknown, and the farthest cell. **Show on plan** outlines beyond-reach ground in red, too-steep
    ground in purple and unknown ground in grey.
@@ -40,7 +46,9 @@ is in `skidReach.ts`, the spur generator in `skidSpurs.ts`, the landing screen i
    reach, its stream crossings, its parent road and, when the haul direction is known, the loaded
    truck's turn onto the parent. **Pick haul exit** marks where loaded trucks leave the area.
 6. **Add** turns one spur into a road, named after the block, with curves fitted at the project's
-   minimum radius where the ground and constraints allow (`roadFromRoute`).
+   minimum radius where the ground and constraints allow and the road reads no steeper than the
+   spur (`roadFromRoute`). A spur that holds its grade by zig-zagging keeps its zig-zags, and the
+   notice gives the added road's length and any sharp corners left to curve or redraw.
 7. **Landing sites** lists flat footprints near the roads and spur ends, flattest first. Change
    the slope limit or footprint size and the list follows without a new run.
 
@@ -139,12 +147,13 @@ reported as a polygon only.
 
 ## What Sylvaccess does differently
 
-Sylvaccess (GPL-3; only its published method was read) maps skidder and forwarder reach with an
-isotropic cost distance (no uphill/downhill difference in driving), a separate winching model with
-slope-dependent winch length and a ground-shape check along the cable, a non-forest crossing budget,
-and distance classes rather than one limit. This tool has no winching, no forwarder side-slope rule
-and no machine presets; it adds the directional limit the field rule asks for, which Sylvaccess does
-not have.
+Sylvaccess (GPL-3; re-implemented from a functional specification and its papers, no code used)
+maps skidder and forwarder reach with an isotropic cost distance (no uphill/downhill difference in
+driving), a separate winching model with slope-dependent winch length and a ground-shape check
+along the line, a non-forest crossing budget, and distance classes rather than one limit. Its
+winching, skid trails, closed areas, forwarder and comparison are now in the
+[extraction-reach model](extraction-reach.md); the directional limit the field rule asks for,
+which Sylvaccess does not have, stays the skidder's reach.
 
 ## Limits and budgets
 
@@ -178,8 +187,8 @@ not have.
 - Uphill or downhill is judged step by step along the path, from the elevation difference between
   neighbouring cells. The reach on a mixed path blends the rule by length; the rule itself says
   nothing about mixed paths.
-- Ground steeper than the ground skid limit is a hard stop for skidding; nothing models winching
-  from the edge of skiddable ground.
+- Ground steeper than the ground skid limit is a hard stop for skidding. Winching from the edge of
+  skiddable ground is the extraction-reach model's (`winchReach.ts`).
 - Any cell a counted road passes through is a landing. Roads are not checked for condition, access
   rights or whether trucks can reach them. Closed and retired mapped roads are never counted.
 - Mapped streams are crossed freely unless **Streams stop skidding** is on, and then every mapped

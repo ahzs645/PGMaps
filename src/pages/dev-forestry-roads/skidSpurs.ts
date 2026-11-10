@@ -77,6 +77,47 @@ export interface SpurInput {
   context: readonly ContextFeature[]
   routeOptions: Partial<RouteSearchOptions>
   options: SpurOptions
+  /**
+   * The reach model a spur is judged by. Absent: the skid-reach model of `skidReach.ts`. The
+   * extraction-reach model (`extractionSpurModel`) adds winching, trails and the forwarder.
+   */
+  model?: SpurReachModel
+}
+
+/** What the spur suggester reads of a reach run: the two fields and the cell states. */
+export interface SpurReachState {
+  strict: ReachField
+  optimistic: ReachField
+  status: Uint8Array
+}
+/** A reach model the spur suggester can extend with a candidate road. */
+export interface SpurReachModel {
+  start: SpurReachState
+  /** The state with `seeds` (grid cells) added as a truck road, built on `from` without changing it. */
+  withRoad(from: SpurReachState, seeds: number[]): Generator<SkidProgress, SpurReachState>
+  /** Block cells within reach. */
+  covered(state: SpurReachState): number
+}
+
+/** The skid-reach model: Dijkstra from the new road cells on copies of both fields. */
+export function skidSpurModel(base: SkidReachResult): SpurReachModel {
+  const sg = base.skidGrid
+  return {
+    start: { strict: copyReachField(base.strict), optimistic: copyReachField(base.optimistic), status: base.status },
+    covered: (state) => {
+      let n = 0
+      for (const i of sg.blockCells)
+        if (state.strict.reach[i] <= 1 + 1e-9 && sg.slopePercent[i] <= sg.rule.maxGroundSlopePercent) n++
+      return n
+    },
+    *withRoad(from, seeds) {
+      const strict = copyReachField(from.strict),
+        optimistic = copyReachField(from.optimistic)
+      yield* propagateReach(sg, strict, seeds, false)
+      yield* propagateReach(sg, optimistic, seeds, true)
+      return { strict, optimistic, status: classifySkidCells(sg, strict, optimistic) }
+    },
+  }
 }
 
 export interface SpurCandidate {
@@ -319,12 +360,6 @@ function hull(points: XY[]): XY[] {
   return [...lower.slice(0, -1), ...upper.slice(0, -1)]
 }
 
-interface ReachState {
-  strict: ReachField
-  optimistic: ReachField
-  status: Uint8Array
-}
-
 /**
  * Suggests spurs into the block's uncovered ground, closest patch first, until the covered share of
  * its ground-skiddable area reaches the target or the spur budget is spent.
@@ -368,11 +403,8 @@ export function* suggestSpursSteps(base: SkidReachResult, input: SpurInput): Gen
     .filter((feature) => feature.kind === 'stream' && feature.geometry.type === 'LineString')
     .map((feature) => (feature.geometry as GeoJSON.LineString).coordinates.map((c) => sg.toGrid([c[0], c[1]])))
   const roads: ProjectedRoad[] = [...sg.roads]
-  let state: ReachState = {
-    strict: copyReachField(base.strict),
-    optimistic: copyReachField(base.optimistic),
-    status: base.status,
-  }
+  const model = input.model ?? skidSpurModel(base)
+  let state = model.start
   const skipped = new Uint8Array(grid.values.length)
   const skippedNotes: SpurSuggestion['skipped'] = []
   const spurs: SpurCandidate[] = []
@@ -386,22 +418,10 @@ export function* suggestSpursSteps(base: SkidReachResult, input: SpurInput): Gen
     for (const road of roads.slice(sg.roads.length)) list.push(...lineCells(grid, road.xy))
     return list
   }
-  const summary = (s: ReachState) => summarizeSkidReach(sg, s.strict, s.status)
-  const coveredCount = (field: ReachField) => {
-    let n = 0
-    for (const i of sg.blockCells)
-      if (field.reach[i] <= 1 + 1e-9 && sg.slopePercent[i] <= sg.rule.maxGroundSlopePercent) n++
-    return n
-  }
-  /** Fields with `line` added as a road, built on `from` without changing it. */
-  function* withRoad(from: ReachState, line: XY[]): Generator<SkidProgress, ReachState> {
-    const seeds = lineCells(grid, line)
-    const strict = copyReachField(from.strict),
-      optimistic = copyReachField(from.optimistic)
-    yield* propagateReach(sg, strict, seeds, false)
-    yield* propagateReach(sg, optimistic, seeds, true)
-    return { strict, optimistic, status: classifySkidCells(sg, strict, optimistic) }
-  }
+  const summary = (s: SpurReachState) => summarizeSkidReach(sg, s.strict, s.status)
+  const coveredCount = (s: SpurReachState) => model.covered(s)
+  /** The state with `line` added as a road, built on `from` without changing it. */
+  const withRoad = (from: SpurReachState, line: XY[]) => model.withRoad(from, lineCells(grid, line))
   const before = summary(state)
   let searches = 0
   let stopped: SpurSuggestion['stopped'] =
@@ -537,9 +557,9 @@ export function* suggestSpursSteps(base: SkidReachResult, input: SpurInput): Gen
     }
     const full = route.map((c) => sg.toGrid(c))
     const fullLength = lineLength(full)
-    const baseCovered = coveredCount(state.strict)
+    const baseCovered = coveredCount(state)
     const fullState = yield* withRoad(state, full)
-    const fullGain = coveredCount(fullState.strict) - baseCovered
+    const fullGain = coveredCount(fullState) - baseCovered
     if (fullGain * cellHa < MIN_SPUR_GAIN_HA) {
       skipPatch(
         `A spur from ${join.road.road.name} would bring ${(fullGain * cellHa).toFixed(2)} ha into reach, under the ${MIN_SPUR_GAIN_HA} ha a spur is suggested for.`,
@@ -553,13 +573,13 @@ export function* suggestSpursSteps(base: SkidReachResult, input: SpurInput): Gen
     while (high - low > cellM / 2) {
       const mid = (low + high) / 2
       const trial = yield* withRoad(state, linePrefix(full, mid))
-      if (coveredCount(trial.strict) - baseCovered >= SPUR_TRIM_KEEP * fullGain) {
+      if (coveredCount(trial) - baseCovered >= SPUR_TRIM_KEEP * fullGain) {
         high = mid
         kept = trial
       } else low = mid
     }
     const line = high >= fullLength ? full : linePrefix(full, high)
-    const gain = coveredCount(kept.strict) - baseCovered
+    const gain = coveredCount(kept) - baseCovered
     state = kept
     const coordinates = line.map((p) => sg.toLonLat(p))
     coordinates[0] = sg.toLonLat(join.point)

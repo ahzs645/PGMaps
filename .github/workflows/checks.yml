@@ -36,3 +36,28 @@ jobs:
       - run: npm run lint -- --max-warnings=0
       - run: npm run format:check
       - run: npx vitest run
+
+  cable-wasm:
+    # The cable-layout optimizer is Rust compiled to WebAssembly. The built file is committed beside
+    # its loader so Vite, Vitest and the Pages build need no Rust; this job runs the crate's tests,
+    # rebuilds it with the pinned toolchain and fails when the committed bytes differ. The rebuilt
+    # file is uploaded as `cable-layout-wasm-rebuilt`: commit it as
+    # src/pages/dev-forestry-roads/cableLayout/cable_layout.wasm.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install the pinned Rust toolchain
+        working-directory: crates/cable-layout
+        run: rustup toolchain install 1.98.0 --profile minimal --target wasm32-unknown-unknown
+      - name: Crate tests
+        working-directory: crates/cable-layout
+        run: cargo test --release --locked
+      - name: Rebuild cable_layout.wasm and compare
+        run: npm run wasm:cable -- --check
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cable-layout-wasm-rebuilt
+          path: crates/cable-layout/target/wasm32-unknown-unknown/release/cable_layout.wasm
+          if-no-files-found: ignore

@@ -159,6 +159,19 @@ to the worker rather than copying it (`loadLas` in `terrain.ts`, `transfer: true
 holds the file and every point's coordinates before thinning, so a large file can still exhaust
 the browser tab before the 1 GB check matters. The practical ceiling has not been measured.
 
+**Vegetation evidence for road finding.** Before the cloud is thinned, the worker also adds every
+return into 1 m vegetation evidence (`vegetationEvidence.ts`): ground returns and their spread, the
+highest return above the ground, returns 0.5–3 m and 0.5–5 m up, and the intensity range. Thinning
+keeps one point per cell, so these returns exist nowhere else. The evidence uses the files' own
+ground classes (the ground filter here runs on the thinned cloud), so a cloud without class 2, a
+height-normalised cloud, or one already thinned to its ground is refused by name in the import
+summary and the terrain is imported as before. It covers at most 4,194,304 cells
+(`MAX_VEGETATION_CELLS`) and adds about 30 bytes per cell to the worker's memory while it runs. Only
+the grids come back to the page, where they are kept for the browser session under the terrain's
+checksum (`vegetationEvidenceStore.ts`), not in the project file: after a reload, **Find on terrain**
+says it runs on the terrain alone until the cloud is imported again. See
+[Finding and tracing existing roads](road-relocation-and-tracing.md).
+
 ## Built-in assumptions
 
 **Sampling.** Every source is read by bilinear interpolation between the four nearest cell

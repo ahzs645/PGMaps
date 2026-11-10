@@ -21,6 +21,7 @@ import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { localMetricGrid } from './terrain'
+import { SwitchbackSettings } from './SwitchbackSettings'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { RoadDrawing } from './DesignSidebarBody'
 import type { Coordinate } from './types'
@@ -76,7 +77,15 @@ export function RouteFinder({
   const groundWindowM = resolvedGroundWindow(route, project.terrain.resolutionM)
   const roadKey = JSON.stringify([alignment.id, alignment.points.map((p) => p.coordinate), alignment.vertical.length])
   // By value: keeping a road rewrites the project, and that must not expire the other results.
-  const inputs = useMemo(() => JSON.stringify([project.settings, project.context]), [project.settings, project.context])
+  // The switchback search's rules and the side-hill limit decide what the search finds too.
+  const searchKey = JSON.stringify([
+    project.routeSearch?.switchbacks ?? null,
+    project.routeSearch?.maxTerrainSlopePercent ?? null,
+  ])
+  const inputs = useMemo(
+    () => JSON.stringify([project.settings, project.context]) + searchKey,
+    [project.settings, project.context, searchKey],
+  )
   const inProject = useMemo(() => new Set(project.alignments.map((road) => road.id)), [project.alignments])
   const stale =
     !!run &&
@@ -357,6 +366,12 @@ export function RouteFinder({
               </InfoTip>
             </p>
           )}
+          <SwitchbackSettings
+            route={route}
+            minRadiusM={project.settings.minRadius}
+            maxGradePercent={project.settings.maxGradePercent}
+            onChange={(routeSearch) => w.update((x) => ({ ...x, routeSearch }))}
+          />
         </details>
         {stale && !drawing && (
           <InlineAlert tone="warning">

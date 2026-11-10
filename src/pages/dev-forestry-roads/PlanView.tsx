@@ -126,7 +126,10 @@ interface PlanProps {
   overlay?: GeoJSON.FeatureCollection
   /** Drainage results: features carry `role` ('stream-existing' | 'stream-design' | 'diversion' | 'pond' | 'low-point'). */
   drainage?: GeoJSON.FeatureCollection
-  /** Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit'). */
+  /**
+   * Design-vehicle swept path: features carry `role` ('swept-wheels' | 'swept-body' | 'swept-deficit',
+   * and from the vehicle tools 'swept-area' | 'vehicle-outline' | 'vehicle-trace' | 'vehicle-template' | 'vehicle-lock').
+   */
   swept?: GeoJSON.FeatureCollection
   /** Consume a plan click as a drain-to-point selection rather than changing road chainage. */
   pourPointPicking?: boolean
@@ -1099,6 +1102,57 @@ function Layers(
       filter: ['==', ['get', 'role'], 'swept-deficit'],
       paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 },
     })
+    // Overlay areas that ask for a fill (`fill: true`), such as extraction-reach distance classes.
+    add({
+      id: 'road-exploration-fill',
+      type: 'fill',
+      source: 'road-overlay',
+      filter: ['all', ['==', ['geometry-type'], 'Polygon'], ['==', ['get', 'fill'], true]],
+      paint: { 'fill-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'fill-opacity': 0.3 },
+    })
+    // Vehicle tools: swept area filled under everything, then templates, traces, lock runs and the vehicle itself.
+    add({
+      id: 'road-swept-area',
+      type: 'fill',
+      source: 'road-swept',
+      filter: ['all', ['==', ['get', 'role'], 'swept-area'], ['==', ['geometry-type'], 'Polygon']],
+      paint: { 'fill-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'fill-opacity': 0.18 },
+    })
+    add({
+      id: 'road-swept-area-line',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['all', ['==', ['get', 'role'], 'swept-area'], ['==', ['geometry-type'], 'Polygon']],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#7c3aed'], 'line-width': 1 },
+    })
+    add({
+      id: 'road-vehicle-template',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-template'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#475569'], 'line-width': 1.5, 'line-dasharray': [3, 2] },
+    })
+    add({
+      id: 'road-vehicle-trace',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-trace'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#0891b2'], 'line-width': 1.5 },
+    })
+    add({
+      id: 'road-vehicle-lock',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-lock'],
+      paint: { 'line-color': '#dc2626', 'line-width': 5, 'line-opacity': 0.85 },
+    })
+    add({
+      id: 'road-vehicle-outline',
+      type: 'line',
+      source: 'road-swept',
+      filter: ['==', ['get', 'role'], 'vehicle-outline'],
+      paint: { 'line-color': ['coalesce', ['get', 'color'], '#0f172a'], 'line-width': 1.5 },
+    })
     add({
       id: 'road-exploration-line',
       type: 'line',
@@ -1156,9 +1210,16 @@ function Layers(
       'road-drainage-catchment-outline',
       'road-drainage-line',
       'road-drainage-point',
+      'road-swept-area',
+      'road-swept-area-line',
       'road-swept-body',
       'road-swept-wheels',
       'road-swept-deficit',
+      'road-exploration-fill',
+      'road-vehicle-template',
+      'road-vehicle-trace',
+      'road-vehicle-lock',
+      'road-vehicle-outline',
       'road-exploration-line',
       'road-exploration-point',
     ])
@@ -1360,13 +1421,25 @@ function Layers(
             latitude={feature.geometry.coordinates[1]}
           >
             <MarkerContent>
-              <button
-                className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
-                onClick={() => props.onOverlaySelect?.(feature.properties)}
-                title={String(feature.properties?.label ?? 'Planning candidate')}
-              >
-                {String(feature.properties?.label ?? 'Candidate')}
-              </button>
+              {feature.properties?.marker === 'dot' ? (
+                // Many points close together (cable supports): a dot, its label on hover.
+                <button
+                  type="button"
+                  className="block size-2.5 rounded-full border border-white shadow-sm"
+                  style={{ background: String(feature.properties?.color ?? '#475569') }}
+                  onClick={() => props.onOverlaySelect?.(feature.properties)}
+                  title={String(feature.properties?.label ?? 'Planning candidate')}
+                  aria-label={String(feature.properties?.label ?? 'Planning candidate')}
+                />
+              ) : (
+                <button
+                  className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
+                  onClick={() => props.onOverlaySelect?.(feature.properties)}
+                  title={String(feature.properties?.label ?? 'Planning candidate')}
+                >
+                  {String(feature.properties?.label ?? 'Candidate')}
+                </button>
+              )}
             </MarkerContent>
           </MapMarker>
         ))}

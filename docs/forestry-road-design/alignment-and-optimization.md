@@ -42,26 +42,27 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 
 ### Horizontal geometry and curve design
 
-| Limit                                        | Value                                                                       | Enforced in                                                                | When exceeded                                                   |
-| -------------------------------------------- | --------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Horizontal points per alignment              | 2,000                                                                       | `engine.ts` `compile`                                                      | Error                                                           |
-| Alignment length; distance from first point  | 100 km each                                                                 | `engine.ts` `compile`                                                      | Error                                                           |
-| Horizontal radius                            | 0–10,000 m                                                                  | `engine.ts` `MAX_HORIZONTAL_RADIUS_M`, `project.ts`                        | Error; the radius field holds it and says so                    |
-| Curve tangent (trim)                         | must be shorter than both legs                                              | `engine.ts` `compile`                                                      | Sharp PI kept, warning, note under the radius field             |
-| Adjacent curves                              | trims must not overlap on the shared leg                                    | `engine.ts` `compile`                                                      | Both become sharp PIs, warning, note naming the neighbour       |
-| Spiral length each side                      | 0–2,000 m                                                                   | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
-| Spiral against deflection                    | Ls / R must be less than Δ                                                  | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
-| Bulk fit: tangent use                        | 98 % of each leg (`FIT`)                                                    | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
-| Bulk fit: largest radius                     | 10,000 m                                                                    | `horizontalTools.ts`                                                       | Capped                                                          |
-| Polyline to alignment: maximum deviation     | 0.1–500 m (`MIN_FIT_DEVIATION_M`, `MAX_FIT_DEVIATION_M`)                    | `polylineFit.ts`, `CurveTools.tsx`                                         | Error, or the field rejects it                                  |
-| Polyline to alignment: source points         | 5,000 (`MAX_FIT_SOURCE_POINTS`)                                             | `polylineFit.ts`                                                           | Error: thin the line first                                      |
-| Polyline to alignment: tangent use; merge    | 98 % of each leg; corners merged up to 120° of turn (`MAX_MERGED_TURN`)     | `polylineFit.ts`                                                           | Curve reduced, or the corners stay separate                     |
-| Road from a found route: fit; smallest curve | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`) | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
-| Design speed                                 | 1–150 km/h                                                                  | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Maximum superelevation; side friction f      | 0–20 %; 0–1                                                                 | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Runoff; widening vehicle length              | 0–1,000 m; 0–50 m                                                           | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
-| Stations per analysis                        | 3,000 (`MAX_STATIONS`)                                                      | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
-| Road alternatives per project                | 20                                                                          | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
+| Limit                                              | Value                                                                                       | Enforced in                                                                | When exceeded                                                   |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Horizontal points per alignment                    | 2,000                                                                                       | `engine.ts` `compile`                                                      | Error                                                           |
+| Alignment length; distance from first point        | 100 km each                                                                                 | `engine.ts` `compile`                                                      | Error                                                           |
+| Horizontal radius                                  | 0–10,000 m                                                                                  | `engine.ts` `MAX_HORIZONTAL_RADIUS_M`, `project.ts`                        | Error; the radius field holds it and says so                    |
+| Curve tangent (trim)                               | must be shorter than both legs                                                              | `engine.ts` `compile`                                                      | Sharp PI kept, warning, note under the radius field             |
+| Adjacent curves                                    | trims must not overlap on the shared leg                                                    | `engine.ts` `compile`                                                      | Both become sharp PIs, warning, note naming the neighbour       |
+| Spiral length each side                            | 0–2,000 m                                                                                   | `project.ts`, `CurveTools.tsx`                                             | Rejected                                                        |
+| Spiral against deflection                          | Ls / R must be less than Δ                                                                  | `engine.ts` `compile`                                                      | Simple curve used, warning                                      |
+| Bulk fit: tangent use                              | 98 % of each leg (`FIT`)                                                                    | `horizontalTools.ts`                                                       | Radius reduced; notice counts it                                |
+| Bulk fit: largest radius                           | 10,000 m                                                                                    | `horizontalTools.ts`                                                       | Capped                                                          |
+| Polyline to alignment: maximum deviation           | 0.1–500 m (`MIN_FIT_DEVIATION_M`, `MAX_FIT_DEVIATION_M`)                                    | `polylineFit.ts`, `CurveTools.tsx`                                         | Error, or the field rejects it                                  |
+| Polyline to alignment: source points               | 5,000 (`MAX_FIT_SOURCE_POINTS`)                                                             | `polylineFit.ts`                                                           | Error: thin the line first                                      |
+| Polyline to alignment: tangent use; merge          | 98 % of each leg; corners merged up to 120° of turn (`MAX_MERGED_TURN`)                     | `polylineFit.ts`                                                           | Curve reduced, or the corners stay separate                     |
+| Road from a found route: fit; smallest curve       | within 2, 4, 8 or 16 m (`ROUTE_FIT_DEVIATIONS_M`); 5 m (`SMALLEST_CURVE_M`)                 | `routeFit.ts`                                                              | Tighter fit tried; corner left sharp                            |
+| Road from a found route: no steeper than the route | over 20 m chords (`ROUTE_FIT_GRADE_WINDOW_M`), 1 percentage point (`ROUTE_FIT_GRADE_SLACK`) | `routeFit.ts`                                                              | Tighter fit tried; route kept as found                          |
+| Design speed                                       | 1–150 km/h                                                                                  | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Maximum superelevation; side friction f            | 0–20 %; 0–1                                                                                 | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Runoff; widening vehicle length                    | 0–1,000 m; 0–50 m                                                                           | `project.ts` `parseCurveDesign`                                            | Rejected                                                        |
+| Stations per analysis                              | 3,000 (`MAX_STATIONS`)                                                                      | `engine.ts` `analyzeRoad`                                                  | Spacing widened with a warning; error if events alone exceed it |
+| Road alternatives per project                      | 20                                                                                          | `VerticalDesignControls.tsx`, `DesignSidebar.tsx`, `sidebar/DesignTab.tsx` | Buttons disabled or error                                       |
 
 ### Vertical alignment and profile optimizer
 
@@ -346,7 +347,8 @@ in `routeFit.ts`):
 
 - **Curves.** The tightest polyline fit of 2, 4, 8 or 16 m that rounds every corner, with radii
   between one and two times the minimum, kept only if every metre of its centreline has ground under
-  it and it enters no blocked area. A corner with no room for the minimum radius takes the largest
+  it, it enters no blocked area, and its ground reads no steeper than the route as found (over 20 m
+  chords, one percentage point of slack). A corner with no room for the minimum radius takes the largest
   curve its tangents hold, of 5 m or more, and is flagged below the minimum radius. A corner where
   no curve stays on the terrain stays sharp. The notice counts both. With no minimum radius set (0),
   radii run from 5 to 10 m and none is flagged as tight.
@@ -437,14 +439,19 @@ one before found nothing, and the row's note says which one produced the road:
 2. The same corridor searched again leaning toward the end (`QUICK_SEARCH_WEIGHT`, 2.5), when the
    first search spent its whole budget. On the LiDAR hillside this reached ends 1.1 km apart in
    under 3 s where the even search ran out. The line can be longer than a larger budget would find.
-3. Twice the half-width, up to ±600 m, when the corridor was searched out with no line.
-4. A terrain-cost grid route between the ends, searched once for all goals, then a road fitted
+3. With **Allow switchbacks** on (**Search settings → Switchbacks**), the switchback search in the
+   same corridor: straight graded pieces that may turn back through switchbacks screened for a
+   platform, spacing and the sharpest turn the legs can be stacked through, each drawn as a loop of
+   curves. Off by default. See [Switchbacks found by the route search](switchback-search.md).
+4. Twice the half-width, up to ±600 m, when the corridor was searched out with no line.
+5. A terrain-cost grid route between the ends, searched once for all goals, then a road fitted
    inside ±40 m of it (`ROUTED_HALF_WIDTH_M`). The grid route already meets the grade limit, so the
    search only has to round its corners, and a tube that narrow is searched in a second or two.
-5. The grid route itself with curves fitted (`roadFromRoute` in `routeFit.ts`): the tightest
+6. The grid route itself with curves fitted (`roadFromRoute` in `routeFit.ts`): the tightest
    polyline fit of 2, 4, 8 or 16 m that rounds every corner at between one and two times the
-   minimum radius, kept only if every metre of its centreline has ground under it and it enters no
-   blocked area. If no fit stays clear, the route as found, with sharp corners.
+   minimum radius, kept only if every metre of its centreline has ground under it, it enters no
+   blocked area and it reads no steeper than the grid route. If no fit stays clear, the route as
+   found, with sharp corners.
 
 What one goal learns about a corridor the others reuse. The limits a line must meet do not depend
 on the goal, so a corridor one goal searched out, or spent both searches in, is skipped by the
@@ -460,6 +467,12 @@ goal that found no line (`failureText`). A goal that found a line and could not 
 says so and gives the profile's reason; one whose search could not start, such as a grade limit over
 30 %, gives that. Lowest cost tries three lines and reports a lost line before a line never found.
 Goals that failed for the same reason share one row.
+
+With switchbacks allowed, a goal the switchback search could not serve gives that search's reason
+instead, naming the rule and the place ("the platform is too steep 50 m east-north-east of the road's
+start: 100% of the ground within 31.3 m is steeper than 55%"). With switchbacks off, a goal that
+found no line also says whether the switchback search would find one, and where its first
+switchback would be, or which switchback rule would stop it; no road is added.
 
 **An end inside a closed area is named** (`blockedRouteEnds` in `riparian.ts`). The corridor and
 terrain-cost searches stop before they start when an end sits inside an excluded area, an area or
@@ -650,8 +663,8 @@ engineering assumptions and sampling, and review the geometric and material flag
   inputs.
 - Keep a found road's sections whole. The searches check ground under the centreline, so a batter
   can still run onto a gap in the terrain.
-- Treat interior sketch points as compulsory waypoints, or validate the constructed footprint
-  against exclusions. The terrain-cost search applies the entered centreline clearance only.
+- Treat interior sketch points as compulsory waypoints (only the switchback search does, with **Pass
+  points within** set), or validate the constructed footprint against exclusions. The terrain-cost search applies the entered centreline clearance only.
 - Prove that no road exists where a search fails. Failure means none was found inside these
   bounds.
 

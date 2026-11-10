@@ -16,7 +16,7 @@ import {
   type JunctionTurnOutcome,
   type RoadJunction,
 } from './junctionTurn'
-import type { Alignment, ContextFeature, DesignVehicle } from './types'
+import type { Alignment, ContextFeature, Coordinate, DesignVehicle } from './types'
 import { minimumSteerRadius } from './vehicleKinematics'
 
 /** Where the junction check finds the other roads, and how it reports its plan lines. */
@@ -98,6 +98,7 @@ export function JunctionTurnPanel({
   junctions: { alignments, context, onOverlay },
   onStation,
   showOnPlan,
+  onDrive,
 }: {
   alignment: Alignment
   vehicle: DesignVehicle
@@ -105,6 +106,8 @@ export function JunctionTurnPanel({
   junctions: JunctionTurnProps
   onStation: (chainage: number) => void
   showOnPlan: boolean
+  /** Hands the selected turn's steer path to the drive-a-path tool. */
+  onDrive?: (path: { label: string; coordinates: Coordinate[]; filletRadiusM: number }) => void
 }) {
   const minimum = useMemo(() => minimumSteerRadius(vehicle), [vehicle])
   const [steerRadiusM, setSteerRadiusM] = useState<number | null>(null)
@@ -260,6 +263,29 @@ export function JunctionTurnPanel({
             </ul>
           </section>
         ))}
+        {onDrive && shown && !isJunctionError(shown.outcome) && (
+          <button
+            type="button"
+            className="text-2xs underline underline-offset-2"
+            onClick={() => {
+              const turn = shown.outcome as Exclude<JunctionTurnOutcome, { error: string }>
+              const { fromLocal } = shown.junction
+              // The steer path is the two centrelines through the junction point, its corner filleted at the turn radius.
+              const points = [
+                turn.steerPath[0],
+                ...(turn.tangentM > 0 ? [[0, 0] as [number, number]] : []),
+                turn.steerPath.at(-1)!,
+              ]
+              onDrive({
+                label: `Junction turn: ${armLabel(shown.junction, turn.from)} → ${armLabel(shown.junction, turn.to)}`,
+                coordinates: points.map((p) => fromLocal(p)),
+                filletRadiusM: turn.steerRadiusM,
+              })
+            }}
+          >
+            Drive the selected turn as a path (trace points, show the vehicle, export the swept area)
+          </button>
+        )}
         {found.alternatives > 0 && (
           <p className="text-2xs text-muted-foreground">
             {found.alternatives === 1 ? 'One road starts' : `${found.alternatives} roads start`} where this road starts.

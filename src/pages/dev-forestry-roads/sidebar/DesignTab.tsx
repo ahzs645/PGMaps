@@ -39,6 +39,9 @@ import type { SidebarProps } from '../DesignSidebarBody'
 import { FirstRoadPanel } from '../FirstRoadPanel'
 import { isLoadableMappedRoad } from '../mappedRoad'
 import { MappedRoadPanel } from '../MappedRoadPanel'
+import { SightDistancePanel } from '../SightDistancePanel'
+import { RoadGeometryFitPanel } from '../RoadGeometryFitPanel'
+import { ProfileGeometryPanel } from '../ProfileGeometryPanel'
 import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
@@ -230,6 +233,11 @@ export function DesignTab(p: SidebarProps) {
           onPreviewTerrainRoad={p.onPreviewTerrainRoad}
         />
       )}
+      {mapped && (
+        <RoadGeometryFitPanel workspace={p.workspace} full={full} onCopy={(points) => p.onCopyMappedRoad?.(points)} />
+      )}
+      {mapped && <SightDistancePanel workspace={p.workspace} />}
+      {mapped && <ProfileGeometryPanel workspace={p.workspace} />}
       {mapped && <RouteFinding {...p} full={full} />}
       {!mapped && <DesignRoadSections {...p} full={full} />}
     </>
@@ -257,6 +265,8 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
       <HorizontalPoints {...p} />
       <VerticalAlignment {...p} />
       <VerticalDesignControls workspace={p.workspace} />
+      <SightDistancePanel workspace={p.workspace} />
+      <ProfileGeometryPanel workspace={p.workspace} />
       <SwitchbackTools
         key={alignment.id}
         workspace={p.workspace}

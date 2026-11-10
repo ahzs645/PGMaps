@@ -11,6 +11,7 @@ import {
 import {
   derivedRoadName,
   designFromMappedRoad,
+  type DesignPoints,
   isLoadableMappedRoad,
   isMappedRoad,
   loadableMappedRoads,
@@ -88,6 +89,7 @@ import {
   MassHaulChart,
   ProfileChart,
 } from './dev-forestry-roads/Charts'
+import { useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
@@ -213,7 +215,7 @@ import {
 
 const uid = () => crypto.randomUUID()
 /** What each spatial picker is for; the reader asks about anything in the file outside it. */
-const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines'>, ImportIntent> = {
+const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breaklines' | 'landxml'>, ImportIntent> = {
   alignment: 'road',
   context: 'streams',
   cutblocks: 'cutblocks',
@@ -464,6 +466,7 @@ export default function DevForestryRoads() {
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
   const trace = useRoadTrace({ active: mode === 'trace', clicks: draft, source, terrain: project.terrain })
   const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [terrainRoadsOverlay, setTerrainRoadsOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
   const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
   useEffect(() => {
@@ -545,6 +548,7 @@ export default function DevForestryRoads() {
         ...overlay.features,
         ...(mode === 'trace' ? trace.overlay : []),
         ...(terrainRoadOverlay?.features ?? []),
+        ...(terrainRoadsOverlay?.features ?? []),
         ...(networkOverlay?.features ?? []),
         ...(costPreview?.overlay.features ?? []),
         ...project.context
@@ -616,6 +620,7 @@ export default function DevForestryRoads() {
       mode,
       trace.overlay,
       terrainRoadOverlay,
+      terrainRoadsOverlay,
       skidReachFeatures,
     ],
   )
@@ -864,6 +869,11 @@ export default function DevForestryRoads() {
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
     [completeCostRecord, alignment, project],
   )
+  // The profile's sight distance band reads the project's design speed and station spacing.
+  const sightBand = useMemo(
+    () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
+    [project.standards, project.settings.stationInterval],
+  )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
     const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, project.context, {
@@ -1061,6 +1071,7 @@ export default function DevForestryRoads() {
     }
   }, [cableLine, source])
   const cableAnalysis = cableResult.analysis
+  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, source)
   const saveCableProfile = (kind: 'csv' | 'report') => {
     if (!cableLine || !cableAnalysis) return
     try {
@@ -1324,14 +1335,14 @@ export default function DevForestryRoads() {
       w.setError(cause instanceof Error ? cause.message : 'Could not load this mapped road.')
     }
   }
-  /** An editable design on the active mapped road's line. */
-  const copyMappedRoad = () => {
+  /** An editable design on the active mapped road's line, or on a fitted alignment of it. */
+  const copyMappedRoad = (points?: DesignPoints) => {
     if (!isMappedRoad(alignment)) return
     if (roadCount(project) >= MAX_PROJECT_ROADS) {
       w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before copying this road.`)
       return
     }
-    const copy = designFromMappedRoad(alignment, uid(), colors[project.alignments.length % colors.length])
+    const copy = designFromMappedRoad(alignment, uid(), colors[project.alignments.length % colors.length], points)
     if (!commitValidated(withAddedAlignments(project, [copy]))) return
     setActiveProfile(null)
     w.setNotice(`${copy.name} is an editable design on the mapped line. The mapped road is kept for comparison.`)
@@ -1808,7 +1819,13 @@ export default function DevForestryRoads() {
     pendingProject.current = newProject
     if (fileRef.current) {
       fileRef.current.accept =
-        kind === 'terrain' ? '.tif,.tiff,.las,.laz' : kind === 'project' ? '.json' : SPATIAL_ACCEPT
+        kind === 'terrain'
+          ? '.tif,.tiff,.las,.laz'
+          : kind === 'project'
+            ? '.json'
+            : kind === 'landxml'
+              ? '.xml,application/xml,text/xml'
+              : SPATIAL_ACCEPT
       // Several LAS/LAZ tiles of one job import together as one surface.
       fileRef.current.multiple = kind === 'terrain'
       fileRef.current.value = ''
@@ -1885,6 +1902,34 @@ export default function DevForestryRoads() {
         w.setNotice(
           `${lines.length} breakline${lines.length === 1 ? '' : 's'} from ${file.name} will be used by the next LAS/LAZ TIN import.`,
         )
+        return
+      } else if (fileKind.current === 'landxml') {
+        const { landXmlImportSummary, landXmlRoads, MAX_LANDXML_BYTES } =
+          await import('./dev-forestry-roads/landXmlImport')
+        if (file.size > MAX_LANDXML_BYTES) throw Error(`${file.name} is over 50 MB.`)
+        const { roads } = landXmlRoads(await file.text(), {
+          newId: uid,
+          color: (index) => colors[(project.alignments.length + index) % colors.length],
+          template: { ...alignment.template },
+        })
+        if (signal.aborted) return
+        if (roadCount(project) + roads.length > MAX_PROJECT_ROADS)
+          throw Error(
+            `A project holds at most ${MAX_PROJECT_ROADS} roads. Remove some before importing ${roads.length}.`,
+          )
+        // New roads only: an import never replaces the active road.
+        if (
+          !commitValidated(
+            withAddedAlignments(
+              project,
+              roads.map((road) => road.alignment),
+            ),
+          )
+        )
+          return
+        w.setNotice(`Imported from ${file.name}. ${roads.map(landXmlImportSummary).join(' ')}`)
+        w.enablePersistence()
+        setFitRevision((n) => n + 1)
         return
       } else if (fileKind.current === 'project') {
         if (file.size > 120_000_000) throw Error(`${file.name} is over 120 MB. Open a cropped project.`)
@@ -2169,6 +2214,17 @@ export default function DevForestryRoads() {
             ? `Shapefiles downloaded with ${warnings.length} field warning${warnings.length === 1 ? '' : 's'}: ${warnings.join(' ')}`
             : 'Shapefiles downloaded.',
         }
+      }
+      case 'dxf': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const { roadDxf } = await import('./dev-forestry-roads/dxfExport')
+        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+        return text(
+          roadDxf({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
+          `${basename}.dxf`,
+          'application/dxf',
+          `DXF downloaded: plan in EPSG:${grid.epsg} grid metres, profile and sections at true scale below it.`,
+        )
       }
       case 'landxml':
       case 'stakeout': {
@@ -2549,6 +2605,7 @@ export default function DevForestryRoads() {
   const sweptAlignment = useDeferredValue(displayedAlignment)
   const [showSwept, setShowSwept] = useState(true)
   const [junctionOverlay, setJunctionOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [vehicleToolOverlay, setVehicleToolOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const sweptState = useMemo(() => {
     const check = sweptAlignment.vehicleCheck
     if (!check || terrainProfile) return { result: null, error: '' }
@@ -2559,8 +2616,8 @@ export default function DevForestryRoads() {
     }
   }, [sweptAlignment, terrainProfile])
   const sweptOnPlan = useMemo(
-    () => withJunctionOverlay(sweptState.result?.overlay, junctionOverlay),
-    [sweptState.result, junctionOverlay],
+    () => withJunctionOverlay(withJunctionOverlay(sweptState.result?.overlay, junctionOverlay), vehicleToolOverlay),
+    [sweptState.result, junctionOverlay, vehicleToolOverlay],
   )
   // Review reads the result only once it is for the road on screen, never a deferred earlier one.
   const vehicleFitOnRoad = useMemo(
@@ -2570,6 +2627,21 @@ export default function DevForestryRoads() {
   const swept: SweptPathProps = {
     ...sweptState,
     junctions: { alignments: project.alignments, context: project.context, onOverlay: setJunctionOverlay },
+    tools: {
+      onOverlay: setVehicleToolOverlay,
+      notes: project.notes,
+      reference: project.reference,
+      alignments: project.alignments,
+      library: project.vehicleLibrary ?? [],
+      onLibraryChange:
+        busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
+          ? undefined
+          : (library) => {
+              const { vehicleLibrary: _old, ...rest } = project
+              void _old
+              commitValidated(library.length ? { ...rest, vehicleLibrary: library } : rest)
+            },
+    },
     showOnPlan: showSwept,
     onShowOnPlan: setShowSwept,
     onFocus: (turn) => {
@@ -3186,8 +3258,8 @@ export default function DevForestryRoads() {
                     label: staleResults
                       ? summaryLabel('Cut / fill · invalid input left out', 'C/F · input left out')
                       : summaryLabel(
-                          !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
-                          !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
+                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve-corrected' : ''}`,
+                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve' : ''} (m³)`,
                         ),
                     value: displayedAnalysis.stations.length
                       ? summaryValue(
@@ -3366,6 +3438,7 @@ export default function DevForestryRoads() {
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
                 onCopyMappedRoad={copyMappedRoad}
                 onPreviewTerrainRoad={setTerrainRoadOverlay}
+                onPreviewTerrainRoads={setTerrainRoadsOverlay}
                 onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
                 onLoadTerrainAroundRoad={() => loadTerrain('regional')}
                 onLocateRoad={locateRoad}
@@ -3776,6 +3849,7 @@ export default function DevForestryRoads() {
                                 selectedCulvertId={currentCulvertId}
                                 onSelectCulvert={selectCulvert}
                                 terrainOnly={!!terrainProfile}
+                                sight={sightBand}
                                 analysis={profileAnalysis}
                                 alignment={displayedAlignment}
                                 station={station}
@@ -4095,6 +4169,7 @@ export default function DevForestryRoads() {
                                       onFocus={swept.onFocus}
                                       alignment={displayedAlignment}
                                       junctions={swept.junctions}
+                                      tools={swept.tools}
                                     />
                                   </div>
                                 )}
@@ -4172,6 +4247,7 @@ export default function DevForestryRoads() {
                                           analysis={cableAnalysis}
                                           distance={cableDistance}
                                           onDistance={setCableDistance}
+                                          layout={cableLayoutOverlay}
                                         />
                                       </div>
                                     </div>

@@ -222,6 +222,18 @@ describe('reviewing a mapped road against the project limits', () => {
     expect(review.belowMinRadiusM).toBe(0)
   })
 
+  it('reads a straight line at an angle to the meridian as straight, not as a great-circle bend', () => {
+    const diagonal = mappedRoadAlignment({
+      seed: road('d', [at(0, 0), at(300, 400)]),
+      context: [],
+      id: 'diagonal',
+      template: DEFAULT_TEMPLATE,
+      terrainResolutionM: 1,
+      pointBudget: 2000,
+    })
+    expect(reviewMappedRoad(analyzeRoad(diagonal, climb, settings), settings, 1).tightestBend).toBeNull()
+  })
+
   it('reads a sharp mapped corner as the tight bend it implies, and flags coarse terrain', () => {
     const corner = mappedRoadAlignment({
       seed: road('c', [at(0, 0), at(0, 200), at(200, 200)]),

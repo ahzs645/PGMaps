@@ -14,6 +14,7 @@ import { importRoadLibrary, serializeRoadLibrary } from './project'
 import { TemplateSandbox } from './TemplateSandbox'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
 import { SitePreparationEditor } from './SitePreparationEditor'
+import { RockCutFields, rockCutSummary } from './RockCutFields'
 import { GravelSourcesPanel } from './GravelSourcesPanel'
 import { MaterialAllocationControls } from './MaterialAllocationControls'
 import { surfacingSupplyCost } from './gravel'
@@ -282,21 +283,17 @@ export function EngineeringControls({
   onShowDrainage?: () => void
 }) {
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
+  // The sidebar closes the aggregate view itself when it makes either request: calling its setter
+  // here, during this component's render, is a React error.
   const [seenInputsRequest, setSeenInputsRequest] = useState(inputsRequest?.sequence)
   if (inputsRequest?.sequence !== seenInputsRequest) {
     setSeenInputsRequest(inputsRequest?.sequence)
-    if (inputsRequest) {
-      setTab(inputsRequest.tab)
-      if (inputsRequest.tab !== 'haul') onAggregateOpenChange?.(false)
-    }
+    if (inputsRequest) setTab(inputsRequest.tab)
   }
   const [seenCulvertRequest, setSeenCulvertRequest] = useState(culvertRequest)
   if (culvertRequest !== seenCulvertRequest) {
     setSeenCulvertRequest(culvertRequest)
-    if (culvertRequest) {
-      setTab('culverts')
-      onAggregateOpenChange?.(false)
-    }
+    if (culvertRequest) setTab('culverts')
   }
   const [haulOpen, setHaulOpen] = useState(false)
   // Which invert a typed culvert fall keeps; the other one follows.
@@ -372,7 +369,8 @@ export function EngineeringControls({
     !!candidate &&
     ([...templateFields, ...sideFields].some(({ key }) => candidate[key] !== selected.template[key]) ||
       JSON.stringify(candidate.components) !== JSON.stringify(selected.template.components) ||
-      JSON.stringify(candidate.layers) !== JSON.stringify(selected.template.layers))
+      JSON.stringify(candidate.layers) !== JSON.stringify(selected.template.layers) ||
+      JSON.stringify(candidate.rockCut) !== JSON.stringify(selected.template.rockCut))
   const edit = (change: (e: AlignmentEngineering) => AlignmentEngineering) =>
     w.updateAlignment((a) => ({ ...a, engineering: change(a.engineering ?? createEngineeringDesign()) }))
   const patch = <K extends 'assignments' | 'materials' | 'strata' | 'culverts' | 'sites'>(
@@ -393,7 +391,7 @@ export function EngineeringControls({
     const e = design
     const referenced =
       e.strata.some((s) => s.materialId === id) ||
-      e.sitePreparation?.some((s) => s.materialId === id) ||
+      e.sitePreparation?.some((s) => s.materialId === id || s.removeToMaterialId === id) ||
       e.fillRequirements?.some((r) => r.materialId === id) ||
       e.sites.some((site) => site.materialId === id) ||
       e.haul.sidecastRanges?.some((range) => range.materialIds?.includes(id)) ||
@@ -737,6 +735,18 @@ export function EngineeringControls({
                   onChange={(value) => updateTemplate(value)}
                 />
                 <details className="rounded border p-2">
+                  <summary className="cursor-pointer text-xs">Rock cut · {rockCutSummary(candidate)}</summary>
+                  <div className="pt-2">
+                    <RockCutFields
+                      template={candidate}
+                      list="templates"
+                      id={selected.id}
+                      problem={problem}
+                      onChange={(rockCut) => updateTemplate({ rockCut })}
+                    />
+                  </div>
+                </details>
+                <details className="rounded border p-2">
                   <summary className="cursor-pointer text-xs">Independent left / right components</summary>
                   <div className="space-y-2">
                     <div className="flex flex-wrap gap-1 pt-2">
@@ -1001,15 +1011,17 @@ export function EngineeringControls({
                     <RoadSelect
                       ariaLabel="Excavated material type"
                       className={roadFieldClass}
-                      value={m.purpose ?? 'earthwork'}
+                      value={m.rock ? 'rock' : (m.purpose ?? 'earthwork')}
                       onValueChange={(value) =>
                         patch('materials', m.id, {
-                          purpose: value as GroundMaterial['purpose'],
+                          purpose: value === 'stripping' ? 'stripping' : 'earthwork',
+                          rock: value === 'rock' ? true : undefined,
                           ...(value === 'stripping' ? { reusableFraction: 0 } : {}),
                         })
                       }
                     >
                       <option value="earthwork">Earthwork</option>
+                      <option value="rock">Rock</option>
                       <option value="stripping">Excavated stripping</option>
                     </RoadSelect>
                   </Field>
@@ -1065,6 +1077,30 @@ export function EngineeringControls({
                     onChange={(fillSlope) => patch('materials', m.id, { fillSlope: fillSlope ?? undefined })}
                   />
                 </div>
+                {m.rock && (
+                  <div className="grid grid-cols-2 gap-2" data-testid="road-rock-material-rates">
+                    <OptionalNumberField
+                      label={`${m.name} shallow rock ($/bank m³)`}
+                      value={m.shallowCutRate ?? null}
+                      min={0}
+                      max={10000}
+                      placeholder="excavation rate"
+                      hint="Rock cut no thicker than the template's shallow depth, often ripped rather than drilled and blasted. Blank prices it at the excavation rate."
+                      error={inputMessage(problem, 'materials', m.id, 'shallowCutRate')}
+                      onChange={(value) => patch('materials', m.id, { shallowCutRate: value ?? undefined })}
+                    />
+                    <OptionalNumberField
+                      label={`${m.name} overbreak ($/bank m³)`}
+                      value={m.overbreakRate ?? null}
+                      min={0}
+                      max={10000}
+                      placeholder="excavation rate"
+                      hint="Rock blasted below the subgrade to the template's blasting level and refilled in place. Blank prices it at the excavation rate."
+                      error={inputMessage(problem, 'materials', m.id, 'overbreakRate')}
+                      onChange={(value) => patch('materials', m.id, { overbreakRate: value ?? undefined })}
+                    />
+                  </div>
+                )}
                 {m.purpose !== 'stripping' && (
                   <p className="text-2xs text-muted-foreground" data-testid="road-material-placement-rate">
                     Placed as fill at ${project.settings.fillRate.toFixed(2)}/m³, the one fill placement rate for every

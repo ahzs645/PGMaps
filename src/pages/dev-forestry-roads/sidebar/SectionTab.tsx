@@ -6,6 +6,7 @@ import { formatRoadStation } from '../Charts'
 import { CURVE_DESIGN_HELP, CurveDesignControls } from '../CurveTools'
 import { RoadSettingsDialog } from '../RoadSettingsDialog'
 import { TemplateComponents } from '../TemplateComponents'
+import { RockCutFields, rockCutSummary } from '../RockCutFields'
 import { RoadSection } from '../SidebarParts'
 import { EntryProblem } from '../InputProblem'
 import { inputMessage } from '../inputErrors'
@@ -109,6 +110,24 @@ export function SectionTab(
           problem={problem}
           onRockFillTemplate={startRockFillTemplate}
           onChange={(template) => updateAlignment((a) => ({ ...a, template }))}
+        />
+      </RoadSection>
+      <RoadSection
+        title="Rock cut"
+        summary={rockCutSummary(alignment.template)}
+        help="Applies where a ground horizon's material is marked rock (Engineering → Ground). The rock batter serves rock materials without their own; the ledge is a bench where the cut batter climbs out of rock. The blasting level lies the given depth below the subgrade at the centreline, falls outward to the ditch's inner bottom edge and rises at the drainage fall to the rock face; rock above it is blasted and refilled in place. Rock cut no thicker than the shallow depth down to the blasting level is reported as shallow. Lima VVA's starting values; not a BC standard."
+      >
+        <RockCutFields
+          template={alignment.template}
+          problem={problem}
+          onChange={(rockCut) =>
+            updateAlignment((a) => {
+              const template = { ...a.template }
+              if (rockCut) template.rockCut = rockCut
+              else delete template.rockCut
+              return { ...a, template }
+            })
+          }
         />
       </RoadSection>
       <RoadSection

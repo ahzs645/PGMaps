@@ -15,6 +15,7 @@ type WasmSource = BufferSource | URL | string
 import { readPointCloudHeader, asBytes, type PointCloudHeader } from '@/lib/lidar/lasHeader'
 export { readPointCloudHeader, isLaz, type PointCloudHeader } from '@/lib/lidar/lasHeader'
 import { strategicPointIndices, type PointPreservation } from './terrainPreparation'
+import type { FullPointCloud } from './vegetationEvidence'
 
 export interface PointCloud {
   x: Float64Array
@@ -126,7 +127,7 @@ function loadTools(): Promise<WhiteboxTools> {
 
 // --- reading --------------------------------------------------------------------------------------
 
-function decodeLas(bytes: Uint8Array, h: PointCloudHeader) {
+function decodeLas(bytes: Uint8Array, h: PointCloudHeader, withIntensity = false) {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const n = h.points
   const x = new Float64Array(n),
@@ -136,6 +137,11 @@ function decodeLas(bytes: Uint8Array, h: PointCloudHeader) {
   // Classification: low five bits of byte 15 in formats 0–5, the whole byte 16 in formats 6–10.
   const classAt = h.pointFormat >= 6 ? 16 : 15,
     classMask = h.pointFormat >= 6 ? 0xff : 0x1f
+  // Intensity is bytes 12–13 in every format; the point source ID (flight line) 18–19 in formats
+  // 0–5 and 20–21 in formats 6–10.
+  const intensity = withIntensity ? new Uint16Array(n) : null,
+    pointSource = withIntensity ? new Uint16Array(n) : null
+  const sourceAt = h.pointFormat >= 6 ? 20 : 18
   const [sx, sy, sz] = h.scale,
     [ox, oy, oz] = h.offset
   for (let i = 0, at = h.pointOffset; i < n; i++, at += h.pointLength) {
@@ -143,8 +149,12 @@ function decodeLas(bytes: Uint8Array, h: PointCloudHeader) {
     y[i] = view.getInt32(at + 4, true) * sy + oy
     z[i] = view.getInt32(at + 8, true) * sz + oz
     classification[i] = view.getUint8(at + classAt) & classMask
+    if (intensity) {
+      intensity[i] = view.getUint16(at + 12, true)
+      pointSource![i] = view.getUint16(at + sourceAt, true)
+    }
   }
-  return { x, y, z, classification }
+  return { x, y, z, classification, intensity, pointSource }
 }
 
 function boundsOf(x: Float64Array, y: Float64Array, z: Float64Array): PointCloud['bounds'] {
@@ -224,17 +234,31 @@ export function thinLowest(
 
 /**
  * Decode a LAS or LAZ file (detected from the header, not the name). Clouds over `maxPoints` are
- * thinned with `thinLowest`; `sourceCount` and `thinCellM` say so.
+ * thinned with `thinLowest`; `sourceCount` and `thinCellM` say so. `beforeThin` sees every decoded
+ * point first, with intensity (and, for LAS, the point source ID) when `withIntensity` is set: the
+ * only place the unthinned returns exist.
  */
 export async function readPointCloud(
   data: Uint8Array | ArrayBuffer,
-  { maxPoints = DEFAULT_MAX_POINTS, preserve }: { maxPoints?: number; preserve?: PointPreservation } = {},
+  {
+    maxPoints = DEFAULT_MAX_POINTS,
+    preserve,
+    withIntensity = false,
+    beforeThin,
+  }: {
+    maxPoints?: number
+    preserve?: PointPreservation
+    withIntensity?: boolean
+    beforeThin?: (cloud: FullPointCloud) => void
+  } = {},
 ): Promise<PointCloud> {
   const bytes = asBytes(data)
   const header = readPointCloudHeader(bytes)
   const format = header.compressed ? 'laz' : 'las'
   let x: Float64Array, y: Float64Array, z: Float64Array, classification: Uint8Array
-  if (format === 'las') ({ x, y, z, classification } = decodeLas(bytes, header))
+  let intensity: Uint16Array | null = null,
+    pointSource: Uint16Array | null = null
+  if (format === 'las') ({ x, y, z, classification, intensity, pointSource } = decodeLas(bytes, header, withIntensity))
   else {
     const wb = await loadWhitebox()
     let xyz: Float64Array
@@ -258,9 +282,18 @@ export async function readPointCloud(
       const info = JSON.parse(wb.lidar_info(bytes, 'laz')) as { epsg?: number | null }
       header.epsg = info.epsg ?? null
     }
+    if (withIntensity)
+      try {
+        const read = wb.lidar_read_intensity(bytes, 'laz')
+        intensity = read.length === n ? read : null
+      } catch {
+        // A LAZ without a readable intensity is evidence without that term, not a failed import.
+        intensity = null
+      }
   }
   const sourceCount = x.length
   if (!sourceCount) throw Error('The point cloud has no points.')
+  beforeThin?.({ x, y, z, classification, intensity, pointSource })
   let thinCellM: number | null = null
   let preservedPoints = 0
   if (sourceCount > maxPoints) {

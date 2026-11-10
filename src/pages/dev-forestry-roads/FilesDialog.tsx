@@ -182,6 +182,10 @@ export function FilesDialog({
             <Upload className="size-3.5" />
             Import road lines
           </Button>
+          <Button variant="outline" size="sm" className="h-8" disabled={busy} onClick={() => fileAction('landxml')}>
+            <Upload className="size-3.5" />
+            Import LandXML alignment
+          </Button>
         </div>
       }
       contentProps={{ 'data-testid': 'road-files-dialog' }}

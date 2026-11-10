@@ -28,6 +28,8 @@ import { sectionCrossfall, templateAt } from './templates'
 import { solveMaterialAllocation, type AllocationParcel } from './materialAllocation'
 import { materialDemandKey, requiredFillAt } from './allocationPolicy'
 import { resolveHorizons } from './groundHorizons'
+import { pappusVolume } from './curvedVolume'
+import { overbreakSwell } from './rockExcavation'
 
 const EPS = 1e-7
 const R = 6371008.8
@@ -41,6 +43,8 @@ export interface EngineeringGeometry {
   offsetCoordinate(point: Coordinate, bearing: number, distance: number): Coordinate
   designElevationAt(chainage: number): number | null
   widthsAt(chainage: number): { leftWidth: number; rightWidth: number }
+  /** Signed plan curvature (1/m, positive right); omitted is a straight road. Corrects overbreak volumes. */
+  curvatureAt?(chainage: number): number
 }
 
 function activeLayers(alignment: Alignment, chainage: number, length: number): ResolvedGroundLayer[] {
@@ -828,6 +832,10 @@ export function calculateEngineering(
     ]),
   )
   const materialMap = new Map(materials.map((m) => [m.id, m]))
+  // Rock quantities are reported once any material is marked rock; until then nothing here changes.
+  const hasRock = e.materials.some((m) => m.rock)
+  const rock = { cutM3: 0, shallowM3: 0, shallowAreaM2: 0, deepM3: 0, swellM3: 0, commonM3: 0 }
+  let overbreakShortfallM3 = 0
   let sectionWork = 0
   const stations: EngineeringStation[] = analysis.stations.map((s) => {
     const layers = activeLayers(alignment, s.chainage, analysis.length)
@@ -857,6 +865,15 @@ export function calculateEngineering(
       unusableCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       strippingCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
       massM3: null,
+      ...(hasRock
+        ? {
+            rockCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
+            shallowRockVolumeM3: s.complete && s.index === 0 ? 0 : null,
+            shallowRockAreaM2: s.complete && s.index === 0 ? 0 : null,
+            commonCutVolumeM3: s.complete && s.index === 0 ? 0 : null,
+            deepRockVolumeM3: s.complete && s.index === 0 ? 0 : null,
+          }
+        : {}),
     }
   })
   // The ordinate is the known earthwork so far. An interval with unknown ground adds nothing to
@@ -877,9 +894,26 @@ export function calculateEngineering(
     }
     const ds = b.chainage - a.chainage,
       cut: MaterialCut[] = []
+    // With the curvature correction applied, the interval's cut is the corrected one: each
+    // material's bank takes the interval's correction, as their moments are not kept apart.
+    const allPreparation = (station: RoadStation) =>
+      (station.preparationAreas ?? []).reduce((sum, p) => sum + p.areaM2, 0)
+    const averageEndCut = ((a.cutAreaM2! + allPreparation(a) + b.cutAreaM2! + allPreparation(b)) * ds) / 2
+    const cutScale =
+      settings.curvatureCorrection === 'apply' && averageEndCut > EPS && b.cutVolumeM3 !== null
+        ? b.cutVolumeM3 / averageEndCut
+        : 1
     let usable = 0,
       unusable = 0,
-      stripping = 0
+      stripping = 0,
+      rockCut = 0,
+      shallowRock = 0,
+      deepRock = 0,
+      common = 0,
+      // Overbreak refilled short of its void (a rock factor below 1): fill the interval must find.
+      backfillShortfall = 0
+    const curvature =
+      settings.curvatureCorrection === 'apply' ? (geometry.curvatureAt?.((a.chainage + b.chainage) / 2) ?? 0) : 0
     for (let j = 0; j < materials.length; j++) {
       const m = materials[j]
       const preparation = (station: RoadStation) =>
@@ -887,24 +921,76 @@ export function calculateEngineering(
           .filter((p) => (p.materialId ?? defaults.id) === m.id)
           .reduce((sum, p) => sum + p.areaM2, 0)
       const bank =
-        ((previous.materialAreas[j].cutAreaM2! +
+        (((previous.materialAreas[j].cutAreaM2! +
           current.materialAreas[j].cutAreaM2! +
           preparation(a) +
           preparation(b)) *
           ds) /
-        2
-      const reusable = bank * m.reusableFraction * m.compactionFactor,
-        waste = bank * (1 - m.reusableFraction)
+          2) *
+        cutScale
+      let reusable = bank * m.reusableFraction * m.compactionFactor,
+        waste = bank * (1 - m.reusableFraction),
+        haulBank = bank
       const q = quantities.get(m.id)!
       q.bankCutM3 += bank
+      q.excavationCost += bank * m.cutRate
+      if (m.purpose === 'stripping') stripping += bank
+      else if (!m.rock && m.id !== defaults.id) common += bank
+      if (m.rock) {
+        // Shallow rock is part of the cut and takes the cut's correction; overbreak lies below the
+        // subgrade, so it is corrected by its own centroid.
+        const areaOf = (station: RoadStation) => station.rock?.areas.find((r) => r.materialId === m.id)
+        const ra = areaOf(a),
+          rb = areaOf(b)
+        const shallow = (((ra?.shallowAreaM2 ?? 0) + (rb?.shallowAreaM2 ?? 0)) * ds * cutScale) / 2
+        const deepArea = (area: typeof ra) => ({ area: area?.deepAreaM2 ?? 0, moment: area?.deepMomentM3 ?? 0 })
+        const deep =
+          (curvature !== 0 ? pappusVolume(deepArea(ra), deepArea(rb), curvature, ds) : null) ??
+          (((ra?.deepAreaM2 ?? 0) + (rb?.deepAreaM2 ?? 0)) * ds) / 2
+        const shallowCost = shallow * ((m.shallowCutRate ?? m.cutRate) - m.cutRate),
+          overbreakCost = deep * (m.overbreakRate ?? m.cutRate)
+        const swell = overbreakSwell(m, deep)
+        reusable += swell.usableCompactedM3
+        waste += swell.unusableBankM3
+        haulBank += swell.usableCompactedM3 / m.compactionFactor + swell.unusableBankM3
+        backfillShortfall += swell.shortfallCompactedM3
+        q.excavationCost += shallowCost + overbreakCost
+        const totals = (q.rock ??= {
+          shallowBankM3: 0,
+          shallowCost: 0,
+          overbreakBankM3: 0,
+          overbreakCost: 0,
+          swellCompactedM3: 0,
+        })
+        totals.shallowBankM3 += shallow
+        totals.shallowCost += shallow * (m.shallowCutRate ?? m.cutRate)
+        totals.overbreakBankM3 += deep
+        totals.overbreakCost += overbreakCost
+        totals.swellCompactedM3 += swell.swellCompactedM3
+        rockCut += bank
+        shallowRock += shallow
+        deepRock += deep
+        rock.swellM3 += swell.swellCompactedM3
+      }
       q.usableCompactedM3 += reusable
       q.unusableBankM3 += waste
-      q.excavationCost += bank * m.cutRate
       usable += reusable
       unusable += waste
-      if (m.purpose === 'stripping') stripping += bank
-      if (bank > EPS)
-        cut.push({ materialId: m.id, bank, usable: reusable, unusable: waste, factor: m.compactionFactor })
+      if (haulBank > EPS)
+        cut.push({ materialId: m.id, bank: haulBank, usable: reusable, unusable: waste, factor: m.compactionFactor })
+    }
+    if (hasRock) {
+      const shallowArea = ((a.rock?.shallowWidthM ?? 0) + (b.rock?.shallowWidthM ?? 0)) * ds * 0.5
+      current.rockCutVolumeM3 = rockCut
+      current.shallowRockVolumeM3 = shallowRock
+      current.shallowRockAreaM2 = shallowArea
+      current.commonCutVolumeM3 = common
+      current.deepRockVolumeM3 = deepRock
+      rock.cutM3 += rockCut
+      rock.shallowM3 += shallowRock
+      rock.shallowAreaM2 += shallowArea
+      rock.deepM3 += deepRock
+      rock.commonM3 += common
     }
     current.usableCutVolumeM3 = usable
     current.unusableCutVolumeM3 = unusable
@@ -957,7 +1043,12 @@ export function calculateEngineering(
         true,
       )
     }
-    mass += usable - b.fillVolumeM3! - demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
+    overbreakShortfallM3 += backfillShortfall
+    mass +=
+      usable -
+      b.fillVolumeM3! -
+      backfillShortfall -
+      demands.filter((d) => !d.subgrade).reduce((sum, d) => sum + d.volumeM3, 0)
     current.massM3 = mass
     intervalStations.push(current)
     intervals.push({
@@ -966,7 +1057,7 @@ export function calculateEngineering(
       end: b.chainage,
       chainage,
       cut,
-      fill: b.fillVolumeM3!,
+      fill: b.fillVolumeM3! + backfillShortfall,
       ...(demands.length ? { demands } : {}),
     })
   }
@@ -1081,10 +1172,11 @@ export function calculateEngineering(
     usableCutM3,
     unusableCutM3,
     strippingCutM3,
-    balanceM3: usableCutM3 - analysis.fillVolumeM3 - materialLayerVolumeM3,
+    balanceM3: usableCutM3 - analysis.fillVolumeM3 - materialLayerVolumeM3 - overbreakShortfallM3,
     complete: coverageComplete && haul.summary.complete && culverts.every((c) => c.complete) && !outOfRange.length,
     warnings,
     ...(materialLayerVolumeM3 > EPS ? { materialLayerVolumeM3, materialLayerPlacementCost } : {}),
+    ...(hasRock ? { rock } : {}),
   }
 }
 
