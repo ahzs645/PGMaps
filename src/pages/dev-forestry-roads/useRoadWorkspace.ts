@@ -23,6 +23,18 @@ import {
 } from './projectLibrary'
 import type { Alignment, RoadAnalysis, RoadProject, TerrainSource } from './types'
 import type { BrowserSave } from './saveState'
+import {
+  addCheckpoint,
+  checkpointName,
+  emptyHistory,
+  historyRows,
+  recordStep,
+  travel,
+  UNDO_MERGE_MS,
+  type Checkpoint,
+  type History,
+} from './undoHistory'
+import { describeProjectChange } from './projectChangeLabel'
 
 const training = () => new URLSearchParams(location.search).get('example') === 'training'
 
@@ -76,16 +88,19 @@ export function useRoadWorkspace() {
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const libraryRef = useRef(library)
   libraryRef.current = library
-  const history = useRef<{ past: RoadProject[]; future: RoadProject[] }>({ past: [], future: [] })
+  const history = useRef<History<RoadProject>>(emptyHistory())
+  // Named states to return to within the session (`undoHistory.ts`); cleared when another project opens.
+  const [checkpoints, setCheckpoints] = useState<Checkpoint<RoadProject>[]>([])
   // Each road's section and engineering inputs as last calculated, for when an edit is invalid.
   const [lastValidInputs] = useState(() => new Map<string, DesignInputs>())
   const lastEdit = useRef(0)
   const abort = useRef<AbortController | null>(null)
 
-  const commit = useCallback((next: RoadProject, remember = true) => {
+  /** `label` names the step in the undo history; without one it is named from what changed. */
+  const commit = useCallback((next: RoadProject, remember = true, label?: string) => {
     next = { ...next, alignments: next.alignments.map(snapshotActiveVerticalAlternative) }
-    if (remember && Date.now() - lastEdit.current > 450)
-      history.current.past = [...history.current.past.slice(-29), current.current]
+    if (remember && Date.now() - lastEdit.current > UNDO_MERGE_MS)
+      history.current = recordStep(history.current, current.current, label, Date.now())
     if (remember) {
       history.current.future = []
       lastEdit.current = Date.now()
@@ -98,15 +113,18 @@ export function useRoadWorkspace() {
   /** Records that a project file now holds exactly what is open. */
   const markFileSaved = useCallback(() => setFileSaved({ at: Date.now(), revision: revisionRef.current }), [])
   const update = useCallback(
-    (change: (previous: RoadProject) => RoadProject) => commit(change(current.current)),
+    (change: (previous: RoadProject) => RoadProject, label?: string) => commit(change(current.current), true, label),
     [commit],
   )
   const updateAlignment = useCallback(
-    (change: (alignment: Alignment) => Alignment) =>
-      update((p) => ({
-        ...p,
-        alignments: p.alignments.map((a) => (a.id === p.activeAlignmentId ? change(a) : a)),
-      })),
+    (change: (alignment: Alignment) => Alignment, label?: string) =>
+      update(
+        (p) => ({
+          ...p,
+          alignments: p.alignments.map((a) => (a.id === p.activeAlignmentId ? change(a) : a)),
+        }),
+        label,
+      ),
     [update],
   )
 
@@ -141,7 +159,8 @@ export function useRoadWorkspace() {
       lastValidInputs.clear()
       commit(next, false)
       setStation(0)
-      history.current = { past: [], future: [] }
+      history.current = emptyHistory()
+      setCheckpoints([])
       setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(id)
       setCanPersist(true)
@@ -159,7 +178,8 @@ export function useRoadWorkspace() {
       commit(next, false)
       setStation(0)
       setFeatureSelection(null)
-      history.current = { past: [], future: [] }
+      history.current = emptyHistory()
+      setCheckpoints([])
       setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(crypto.randomUUID())
       setCanPersist(true)
@@ -363,31 +383,46 @@ export function useRoadWorkspace() {
   const analysis = analyses.get(alignment.id)!
   // While an edit is invalid the analysis is of the last inputs that calculated, not of `alignment`.
   const calculatedAlignment = useMemo(() => calculatedRoad(alignment, analysis), [alignment, analysis])
-  const undo = () => {
-    const previous = history.current.past.pop()
-    if (!previous) return
-    const terrain = terrainFromMetadata(previous.terrain)
+  /** Undoes (negative) or redoes (positive) `steps` steps at once: the history list's jump. */
+  const goToHistory = (steps: number) => {
+    const moved = travel(history.current, current.current, steps)
+    if (!moved) return
+    const terrain = terrainFromMetadata(moved.state.terrain)
     if (!terrain) {
-      history.current.past.push(previous)
-      setError('Reload this terrain before undoing the source change.')
+      if (steps < 0) setError('Reload this terrain before undoing the source change.')
       return
     }
-    history.current.future.push(current.current)
+    history.current = moved.history
     setSource(terrain)
-    commit(previous, false)
+    commit(moved.state, false)
     lastEdit.current = 0
   }
-  const redo = () => {
-    const next = history.current.future.pop()
-    if (!next) return
-    const terrain = terrainFromMetadata(next.terrain)
+  const undo = () => goToHistory(-1)
+  const redo = () => goToHistory(1)
+  /** Names the open project's state, to return to later in the session. */
+  const saveCheckpoint = (name: string) => {
+    const checkpoint = {
+      id: crypto.randomUUID(),
+      name: checkpointName(name, checkpoints),
+      state: current.current,
+      at: Date.now(),
+    }
+    setCheckpoints((list) => addCheckpoint(list, checkpoint))
+    return checkpoint.name
+  }
+  /** Returns to a checkpoint as one undoable step, so Undo goes back to where you were. */
+  const restoreCheckpoint = (id: string) => {
+    const checkpoint = checkpoints.find((entry) => entry.id === id)
+    if (!checkpoint || checkpoint.state === current.current) return
+    const terrain = terrainFromMetadata(checkpoint.state.terrain)
     if (!terrain) {
-      history.current.future.push(next)
+      setError('Reload this terrain before returning to that checkpoint.')
       return
     }
-    history.current.past.push(current.current)
     setSource(terrain)
-    commit(next, false)
+    lastEdit.current = 0
+    commit(checkpoint.state, true, `Returned to checkpoint ${checkpoint.name}`)
+    // A following edit starts a step of its own rather than merging into the return.
     lastEdit.current = 0
   }
   return {
@@ -444,6 +479,13 @@ export function useRoadWorkspace() {
     redo,
     canUndo: revision >= 0 && history.current.past.length > 0,
     canRedo: history.current.future.length > 0,
+    /** The undo history, oldest first, each state named by the step that made it; read when shown. */
+    historyRows: () => historyRows(history.current, current.current, describeProjectChange),
+    goToHistory,
+    checkpoints,
+    saveCheckpoint,
+    restoreCheckpoint,
+    deleteCheckpoint: (id: string) => setCheckpoints((list) => list.filter((entry) => entry.id !== id)),
   }
 }
 export type RoadWorkspace = ReturnType<typeof useRoadWorkspace>

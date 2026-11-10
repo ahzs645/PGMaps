@@ -79,7 +79,9 @@ book.
 | Library JSON                         | 2,000,000 characters                                                                                                                                                  | `project.ts`, `importRoadLibrary`                                                                                                                                                                                                                                                                          | Refused                                                                                                                    |
 | Autosave delay                       | 650 ms after the last edit                                                                                                                                            | `useRoadWorkspace.ts`                                                                                                                                                                                                                                                                                      | —                                                                                                                          |
 | New project from a regional DEM      | A 1–10 km square around the chosen point (default 3 km); at most 64 z12 DEM tiles                                                                                     | `ProjectsDialog.tsx`; `terrain.ts` `loadRegionalTerrain`                                                                                                                                                                                                                                                   | Field clamps; error before loading                                                                                         |
-| Undo history                         | 30 steps; edits within 450 ms merge into one                                                                                                                          | `useRoadWorkspace.ts`, `commit`                                                                                                                                                                                                                                                                            | Oldest step dropped                                                                                                        |
+| Undo history                         | 30 steps, each named; edits within 450 ms merge into one                                                                                                              | `undoHistory.ts`, `MAX_UNDO_STEPS`, `UNDO_MERGE_MS`                                                                                                                                                                                                                                                        | Oldest step dropped                                                                                                        |
+| Checkpoints                          | 12 a session, names 60 characters; lost on reload or when another project opens                                                                                       | `undoHistory.ts`, `MAX_CHECKPOINTS`, `MAX_CHECKPOINT_NAME`                                                                                                                                                                                                                                                 | Oldest checkpoint dropped                                                                                                  |
+| Saved sheet setups                   | 30 in this browser, names 80 characters; a file read as one up to 120,000,000 bytes                                                                                   | `sheetSetups.ts`, `MAX_SHEET_SETUPS`, `MAX_SHEET_SETUP_NAME`, `MAX_SHEET_SETUP_FILE_BYTES`                                                                                                                                                                                                                 | Saving one more is refused until one is deleted; a damaged entry is dropped                                                |
 | Section and stake interval           | 20 m (nearest calculated station)                                                                                                                                     | `designExports.ts`, `landXml` / `stakeoutCsv` (`sectionStations`)                                                                                                                                                                                                                                          | Fixed                                                                                                                      |
 | LandXML import                       | 50,000,000 characters; 4,000 elements an alignment; checks 7 mm, 1 mm, 0.06°                                                                                          | `landXmlImport.ts` `MAX_LANDXML_BYTES`, `MAX_LANDXML_ELEMENTS`, `LANDXML_LENGTH_TOLERANCE_M`, `LANDXML_JOINT_TOLERANCE_M`, `LANDXML_KINK_TOLERANCE_DEG`                                                                                                                                                    |
 | DXF sections                         | Every 20 m (nearest calculated station), at most 500, five to a row; ticks and labels every 20 m                                                                      | `dxfExport.ts` `DEFAULT_DXF_OPTIONS`, `MAX_DXF_SECTIONS`, `DXF_SECTIONS_PER_ROW`                                                                                                                                                                                                                           |
@@ -343,9 +345,28 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 - **Every sheet's title block carries the issue stamp:** the revision, the date of issue and who
   prepared it, with the terrain source and "Preliminary planning geometry · not for construction".
   See [Issue stamp](#issue-stamp).
+- **Paper is A3, A4, tabloid 11 × 17 in (ANSI B) or ANSI D 22 × 34 in, all landscape**
+  (`REPORT_PAPERS`, `reportSettings.ts`). Every sheet is drawn 1,123 units high; A3 and A4 keep
+  the original 1,587-unit width and tabloid and ANSI D are 1,736 units wide, the 17 : 11
+  proportion. Plans, profiles, tables and the title block take the extra width; nothing moves
+  vertically. Type is sized to the drawing, so ANSI D prints it twice as large as tabloid. At a
+  fixed print scale the sheet holds its printable width of road: at 1:1,000 about 380 m on A3,
+  395 m on tabloid and 789 m on ANSI D. Print at 100 % on the chosen paper; the page size is set
+  in the file (`@page`), but some browsers still need the paper picked in their print dialog.
+- **A click on a preview sheet opens that chapter's settings,** and a click on a title block
+  opens the issue stamp (`previewPick.ts`). The Preview / Sheet setup / Issue stamp switch does
+  the same from the keyboard.
 
 ### Printed report
 
+- **You choose the sections it prints.** Save & export → Report → **Contents** has a checkbox per
+  optional section (`REPORT_SECTIONS`, `reportContents.ts`), and the choice is saved in the
+  project's `reportSettings.omittedSections`; the HTML and the PDF report both follow it. The
+  title, issue stamp, a "Not current" stamp, the status and totals, terrain and assumptions, and
+  quantity basis and limitations always print. A print that leaves anything out says so under its
+  status line, naming each section. Clicking a section heading in the preview opens Contents at
+  that section. A project file from a newer version that names a section this one does not know
+  still opens; the unknown name is dropped.
 - **Profile and section plots are fitted to their boxes,** with different horizontal and
   vertical scales. They show shape, not true slope. Use the plot book for equal-scale sections.
 - **An adopted complete-access comparison has a separate total.** The report keeps the
@@ -435,6 +456,40 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
 The embedded checksum identifies the file you imported. It is not recomputed from the stored
 cells, so it records provenance, not integrity of the cells in the JSON.
 
+### Saved sheet setups
+
+The plot book's and the block map sheet's Sheet setup panes start with **Saved setups**
+(`SheetSetupLibrary.tsx`, `sheetSetups.ts`, schema `pgmaps-sheet-setup-v1`).
+
+- **A setup is an office standard, not a project's sheet.** It keeps the plot book's paper,
+  chapters, ranges, scales, subviews, labels and report contents, and the block sheet's sheet,
+  paper, scale and typed fields. It never keeps the block a sheet shows or its access comments.
+- **Save current setup as** stores both parts under a name in this browser's `localStorage`
+  (`pgmaps.forestryRoads.sheetSetups`); a name already used (ignoring case) is replaced.
+  **Apply** sets every part the setup holds on the open project, keeping its block and comments,
+  and says what it changed. Undo takes back the plot-book part; the block sheet's settings are
+  per browser and are not in the undo history.
+- **Download** writes the setup as `<name>.sheet-setup.json`; **Import** reads one, or a project
+  file, whose plot-book settings become a setup named "<project> plot book". A project file
+  without plot-book settings of its own has nothing to read and says so.
+- **A damaged library entry is dropped,** not the library. A setup with an invalid plot book is
+  refused whole, with the reason.
+
+### Edit history and checkpoints
+
+- **Every undo step has a name.** The clock button beside Redo lists the last 30 steps, newest
+  first, each named by what it changed ("Spur A: moved point 3", "Spur A: PVI 2 moved to
+  0+412.0", "Deleted road Spur B", "Issue stamp"; `projectChangeLabel.ts`). A name is worked out
+  by comparing the project before and after the step when the list opens, so it costs nothing
+  while you edit. Several changes at once read "… and 2 other changes".
+- **Choosing a step goes back or forward to it in one move** (`travel`, `undoHistory.ts`). Steps
+  after it stay available to redo until the next edit. A step whose terrain cannot be rebuilt
+  without re-importing is refused, as Undo refuses it.
+- **A checkpoint names the project as it is now.** Returning to one is itself an edit, named
+  "Returned to checkpoint …", so Undo takes you back. Checkpoints hold the project in memory: they
+  are not in the project file and are lost on reload or when another project opens. To keep a
+  version, duplicate the road or download the project file.
+
 ### Saved layouts
 
 Screen layouts, their pane sizes and the station table's hidden columns are kept in this
@@ -469,6 +524,10 @@ and unchecksummed regional terrain needs a fresh run after reopening.
 | Plans print "Contours unavailable"                            | The contour build failed (the notice gives the reason) or found none     | Check the terrain covers the road; re-export                               |
 | Work missing after reopening the browser                      | Private window, cleared site data, another tab's save, or another device | Open your downloaded project JSON                                          |
 | "Last valid save retained: …" in the header                   | The current edit is invalid                                              | Correct it; nothing is lost until you do                                   |
+| The report misses a section                                   | It was left out in Report → Contents; the status line names it           | Tick it in Contents and print again                                        |
+| "This browser keeps 30 sheet setups"                          | The library is full                                                      | Delete a setup, or download it first                                       |
+| A plot book prints shrunk or clipped                          | The browser's print dialog has another paper or "Fit to page"            | Pick the sheet's paper and 100 % scale in the print dialog                 |
+| A checkpoint is gone                                          | The page was reloaded or another project opened                          | Checkpoints last one session; save versions as roads or project files      |
 
 ## What it does not do
 
@@ -482,8 +541,8 @@ and unchecksummed regional terrain needs a fresh run after reopening.
 - **No full drainage raster output.** Project/evidence exports retain compact review geometry and
   metrics, not accumulation, fill-depth or direction grids.
 - **No per-chart PNG or PDF export.** Print the HTML to PDF.
-- **No cloud sync, sharing or version history.** Undo is in memory and lost on reload; the
-  downloaded project JSON is the record.
+- **No cloud sync, sharing or version history.** Undo, its named history and checkpoints are in
+  memory and lost on reload; the downloaded project JSON is the record.
 - **No migration between schema versions.** Only `pgmaps-road-project-v1` opens.
 - **Nothing is for construction.** The plot book, report and LandXML all say so. Construction
   drawings and set-out need field survey and the professional sign-off your jurisdiction
