@@ -717,7 +717,7 @@ export async function compareRoutes(
     return (gridRoad = {
       points: road.points.map((point) => ({ id: id(), ...point })),
       note: road.fit
-        ? `Built from a terrain-cost grid route, with curves fitted within ${road.maxDeviationM} m of it${flags ? `: ${flags}` : ''}. Its ground grades were checked along the grid route, not along the curves.`
+        ? `Built from a terrain-cost grid route, with curves fitted within ${road.maxDeviationM} m of it${flags ? `: ${flags}` : ''}. Fits steeper than the grid route were refused; its ground grades were checked along the grid route, not along the curves.`
         : // Every leg of the route as found was checked for ground, grade and blocked areas by its own search.
           `This is a terrain-cost grid route as found: no simpler line stays on the terrain and off blocked areas${flags ? `. It has ${flags}` : ''}.`,
     })

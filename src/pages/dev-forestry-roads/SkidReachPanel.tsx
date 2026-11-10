@@ -42,7 +42,7 @@ import {
 import { parseProject } from './project'
 import { localFrame } from './junctionTurn'
 import { loopTurnaroundFit, turningTemplate } from './turningTemplate'
-import { roadFromRoute } from './routeFit'
+import { roadFromRoute, routeRoadFlags } from './routeFit'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import {
   DEFAULT_OFF_BLOCK_M,
@@ -436,8 +436,14 @@ export function SkidReachPanel(p: SidebarProps) {
       // Parsing rebuilds the context list; carry it so the run reads as roads changed, not as stale,
       // and the other spurs stay on the list to add.
       setRun({ ...current, context: next.context, adopted: [...current.adopted, spur.id] })
+      // The road keeps the spur's line unless a smoother one stays clear and no steeper (`roadFromRoute`),
+      // so its length is the spur's to within the curves; say so when it is not, and what it still breaks.
+      const flags = routeRoadFlags(fitted, project.settings.minRadius)
+      const differs = Math.abs(fitted.lengthM - spur.lengthM) > Math.max(5, 0.05 * spur.lengthM)
       w.setNotice(
-        `Added ${road.name}, ${metres(spur.lengthM)} from ${spur.parentName}. Its landing is not designed: check the junction, grade and crossings, and run extraction reach again.`,
+        `Added ${road.name}, ${metres(fitted.lengthM)} from ${spur.parentName}${
+          differs ? ` (the suggested line was ${metres(spur.lengthM)})` : ''
+        }.${flags ? ` It has ${flags}; curve or redraw those corners.` : ''} Its landing is not designed: check the junction, grade and crossings, and run extraction reach again.`,
       )
     } catch (cause) {
       w.setError(cause instanceof Error ? cause.message : 'Could not add the spur.')

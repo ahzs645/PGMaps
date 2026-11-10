@@ -20,10 +20,13 @@ that fixes it, and add one, with the file and function, when you find a new defe
   leave; it does not shrink a neighbour's curve to make room. On a 20 m search grid with a 35 m
   minimum radius, several corners of a route can stay sharp. **Reduce points, fit curves** with a
   larger deviation removes most of them.
-- **Ground grade along fitted curves is not rechecked (read).** `roadFromRoute` verifies that a
-  fitted centreline has ground under it and enters no blocked area. The grade limit was checked
-  along the grid route's straight legs, up to 16 m away. The designed profile is what holds the
-  grade afterwards.
+- **Ground grade along fitted curves is compared, not checked against the limit (confirmed fixed
+  in part).** `roadFromRoute` refuses a fit whose ground reads steeper than the route as found, over
+  20 m chords, by more than one percentage point (`ROUTE_FIT_GRADE_WINDOW_M`,
+  `ROUTE_FIT_GRADE_SLACK`). Before that, a suggested skid spur that zig-zagged across a 15 % slope
+  to hold 12 % was fitted straight up it within 16 m: listed at 730 m, added as 516 m at 15 %. A
+  route that holds its grade with short zig-zags is now kept as found, with its sharp corners
+  flagged. The grade limit itself is still held by the designed profile afterwards.
 - **"Had no line left to try" is not proof (confirmed).** The corridor search keeps one arrival
   per cell and heading (`best` in `corridorOptimizer.ts`), so a search that ends with no candidate
   has not tried every line: a second search leaning toward the end found a road in a tube where

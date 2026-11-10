@@ -22,12 +22,25 @@ export const ROUTE_FIT_DEVIATIONS_M = [2, 4, 8, 16]
 const ROUTE_FIT_RADIUS_FACTOR = 2
 export { SMALLEST_CURVE_M }
 const CHECK_STEP_M = 1
+/** Ground grade along a centreline is read over chords this long, so a single cell's relief does not decide it. */
+export const ROUTE_FIT_GRADE_WINDOW_M = 20
+/**
+ * How much steeper than the route as found a fitted road may read, as a fraction (0.01 = one
+ * percentage point). A grid route that holds a grade limit by zig-zagging across a slope can be fitted
+ * straight up it within 16 m; the grade check refuses that fit rather than cut the switchbacks.
+ */
+export const ROUTE_FIT_GRADE_SLACK = 0.01
 
 export type RoutePoint = { coordinate: Coordinate; radiusM: number }
 export interface CentrelineCheck {
   lengthM: number
   /** Length of centreline with no ground under it, to the nearest sample. */
   offTerrainM: number
+  /**
+   * The steepest ground grade along the centreline over `ROUTE_FIT_GRADE_WINDOW_M` chords, as a
+   * fraction; null when no chord has ground at both ends.
+   */
+  steepestGrade: number | null
   /** One sentence per blocked area the centreline enters or touches. */
   blocked: string[]
 }
@@ -51,9 +64,22 @@ export function checkCentreline(
   const centre = centrelineSamples(road, CHECK_STEP_M)
   const line = centre.samples.map((sample) => centre.toCoordinate(sample.x, sample.y))
   const spacing = centre.length / Math.max(1, line.length - 1)
+  const z = line.map((at) => terrain.elevationAt(...at))
+  const known = (v: number | null | undefined): v is number => typeof v === 'number' && Number.isFinite(v)
+  // Chords of the grade window, or the whole line when it is shorter.
+  const step = Math.max(1, Math.min(line.length - 1, Math.round(ROUTE_FIT_GRADE_WINDOW_M / Math.max(spacing, 1e-9))))
+  let steepestGrade: number | null = null
+  for (let i = 0; i + step < line.length; i++) {
+    const a = z[i],
+      b = z[i + step]
+    if (!known(a) || !known(b)) continue
+    const grade = Math.abs(b - a) / (step * spacing)
+    if (steepestGrade === null || grade > steepestGrade) steepestGrade = grade
+  }
   return {
     lengthM: centre.length,
-    offTerrainM: line.filter((at) => !Number.isFinite(terrain.elevationAt(...at))).length * spacing,
+    offTerrainM: z.filter((v) => !known(v)).length * spacing,
+    steepestGrade,
     blocked: constraintRouteIssues(line, context),
   }
 }
@@ -68,12 +94,15 @@ export interface RouteRoad {
   tightCurves: number
   /** Corners with no curve at all. */
   sharpCorners: number
+  /** Length of the road's centreline with its curves, m. */
+  lengthM: number
 }
 
 /**
  * The route with fewer points and a curve at each corner, taking the fit with the fewest sharp
- * corners among those whose whole centreline stays on the terrain and off blocked areas. When none
- * does, the route is taken as found.
+ * corners among those whose whole centreline stays on the terrain and off blocked areas, and reads
+ * no steeper than the route as found (`ROUTE_FIT_GRADE_SLACK`). When none does, the route is taken
+ * as found.
  *
  * A corner the minimum radius does not fit then gets the largest curve its tangents hold, of at
  * least `SMALLEST_CURVE_M`, if the road still stays clear with it: a tight curve is flagged against
@@ -90,6 +119,19 @@ export function roadFromRoute(
   deviationsM: readonly number[] = ROUTE_FIT_DEVIATIONS_M,
 ): RouteRoad {
   const fitted = fittedMinimumRadius(minRadiusM)
+  const asFound = route.map((coordinate) => ({ coordinate: [...coordinate] as Coordinate, radiusM: 0 }))
+  // The search held its grade along the route as found; a fit may not read steeper than that.
+  const routeGrade = checkCentreline(asFound, terrain, []).steepestGrade
+  const clear = (points: readonly RoutePoint[]) => {
+    const check = checkCentreline(points, terrain, context)
+    return (
+      !check.offTerrainM &&
+      !check.blocked.length &&
+      (routeGrade === null ||
+        check.steepestGrade === null ||
+        check.steepestGrade <= routeGrade + ROUTE_FIT_GRADE_SLACK + 1e-9)
+    )
+  }
   let best: { points: RoutePoint[]; fit: PolylineFitResult; maxDeviationM: number } | null = null
   for (const maxDeviationM of deviationsM) {
     const fit = fitPolylineAlignment(route, {
@@ -98,12 +140,11 @@ export function roadFromRoute(
       maxRadiusM: fitted * ROUTE_FIT_RADIUS_FACTOR,
     })
     if (best && fit.sharpCorners >= best.fit.sharpCorners) continue
-    const check = checkCentreline(fit.points, terrain, context)
-    if (check.offTerrainM || check.blocked.length) continue
+    if (!clear(fit.points)) continue
     best = { points: fit.points, fit, maxDeviationM }
     if (!fit.sharpCorners) break
   }
-  const kept = best?.points ?? route.map((coordinate) => ({ coordinate: [...coordinate] as Coordinate, radiusM: 0 }))
+  const kept = best?.points ?? asFound
   const tightened = fitHorizontalRadii(
     kept.map((point, i) => ({ id: `route-fit-${i}`, ...point })),
     { kind: 'radius', radiusM: fitted },
@@ -113,10 +154,6 @@ export function roadFromRoute(
     tightened.report.filter((corner) => corner.radiusM >= SMALLEST_CURVE_M).map((corner) => corner.index),
   )
   const curved = kept.map((point, i) => (tight.has(i) ? { ...point, radiusM: tightened.points[i].radiusM } : point))
-  const clear = (points: RoutePoint[]) => {
-    const check = checkCentreline(points, terrain, context)
-    return !check.offTerrainM && !check.blocked.length
-  }
   let points = kept
   if (tight.size && clear(curved)) points = curved
   // One curve that leaves the terrain should not cost the others theirs: take them a corner at a time.
@@ -132,6 +169,7 @@ export function roadFromRoute(
     tightCurves: points.filter((point) => point.radiusM > 0 && point.radiusM < minRadiusM - 1e-6).length,
     // The engine flags every interior point without a curve, as this does.
     sharpCorners: points.slice(1, -1).filter((point) => !(point.radiusM > 0)).length,
+    lengthM: checkCentreline(points, terrain, []).lengthM,
   }
 }
 

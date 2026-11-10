@@ -46,7 +46,9 @@ still describes the skid reach itself, the spur suggestions and the landing scre
    reach, its stream crossings, its parent road and, when the haul direction is known, the loaded
    truck's turn onto the parent. **Pick haul exit** marks where loaded trucks leave the area.
 6. **Add** turns one spur into a road, named after the block, with curves fitted at the project's
-   minimum radius where the ground and constraints allow (`roadFromRoute`).
+   minimum radius where the ground and constraints allow and the road reads no steeper than the
+   spur (`roadFromRoute`). A spur that holds its grade by zig-zagging keeps its zig-zags, and the
+   notice gives the added road's length and any sharp corners left to curve or redraw.
 7. **Landing sites** lists flat footprints near the roads and spur ends, flattest first. Change
    the slope limit or footprint size and the list follows without a new run.
 
