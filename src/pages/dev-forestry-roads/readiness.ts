@@ -8,16 +8,22 @@
  * a limit was not entered, a result is missing or out of date, or the subject is outside what it
  * models. A check that was not made never reads as met.
  *
+ * Two things make a rule unable to judge, and each rule tests for both before it can read met: the
+ * calculation it reads is absent (`calculated` is false when the analysis has no stations), or its
+ * own input is empty (no streams, no limit, no culvert). `readiness.test.ts` holds one case per rule.
+ *
  * None of this certifies a road standard: the limits are the project's own inputs.
  */
-import { hasCompleteCoverage } from './analysisResult'
+import { calculatedAlignment, hasCompleteCoverage } from './analysisResult'
 import { MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M } from './connectorCheckOptions'
 import { CONSTRAINT_LABELS, resolveConstraint } from './constraints'
 import { assessCostReadiness, type CostReadinessAssessment } from './costReadiness'
 import { buildCrossingRegister, type CrossingRegister } from './crossingRegister'
-import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
+import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import type { DrainageEvidence } from './drainageEvidence'
-import { horizontalCurveSummary } from './engine'
+import { horizontalCurveSummary, verticalCurveSummary } from './engine'
+import { materialPlanMissing } from './engineeringTypes'
+import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
 import { DEFAULT_TEMPLATE } from './terrain'
@@ -32,7 +38,7 @@ import type {
 } from './types'
 
 export type ReadinessState = 'met' | 'attention' | 'not-assessed'
-export type ReadinessGroup = 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
+export type ReadinessGroup = 'inputs' | 'terrain' | 'alignment' | 'earthwork' | 'water' | 'cost'
 /** Where a row's action leads. The interface maps each to the place the check is cleared. */
 export type ReadinessTarget =
   | 'terrain'
@@ -43,6 +49,7 @@ export type ReadinessTarget =
   | 'vehicle'
   | 'vertical-standards'
   | 'template'
+  | 'templates'
   | 'materials'
   | 'haul'
   | 'rates'
@@ -69,6 +76,8 @@ export interface ReadinessRow {
 }
 
 export const READINESS_GROUP_LABELS: Record<ReadinessGroup, string> = {
+  // Shown only while an input cannot be calculated; it leads because it qualifies every row after it.
+  inputs: 'Inputs',
   terrain: 'Terrain',
   alignment: 'Alignment',
   earthwork: 'Section and earthwork',
@@ -188,6 +197,22 @@ export function isStartingTemplate(template: RoadTemplate): boolean {
   )
 }
 
+/** Where each kind of engineering input is corrected. */
+const INPUT_TARGETS: Record<EngineeringInputList, ReadinessTarget> = {
+  template: 'template',
+  templates: 'templates',
+  assignments: 'templates',
+  materials: 'materials',
+  strata: 'materials',
+  sitePreparation: 'materials',
+  culverts: 'culverts',
+  sites: 'haul',
+  fillRequirements: 'haul',
+  directionRanges: 'haul',
+  sidecastRanges: 'haul',
+  haul: 'haul',
+}
+
 const COST_FLAG_OWNERS: Record<string, string> = {
   'partial-sections': 'terrain-coverage',
   'placeholder-rates': 'rates',
@@ -197,6 +222,7 @@ const COST_FLAG_OWNERS: Record<string, string> = {
   'haul-disabled': 'haul',
   'borrow-screening': 'earthwork-balance',
   'infeasible-material-plan': 'haul',
+  'unsolved-material-plan': 'haul',
   'unallocated-haul': 'haul',
   'zero-supply-rates': 'haul',
   'zero-haul-rates': 'haul',
@@ -220,11 +246,56 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const mapped = !!alignment.mappedRoad
   const designed = alignment.vertical.length > 1
   const costFlags = (owner: string) => cost.flags.filter((flag) => COST_FLAG_OWNERS[flag.id] === owner)
+  /** False when the analysis produced nothing: every rule that reads it is then not assessed. */
+  const calculated = stations.length > 0
+
+  // ---- Inputs --------------------------------------------------------------------------------
+  // An input that cannot be calculated is left out of the results, so every row below is judged on
+  // its last valid value. The list says so first, and cannot read as clear while it stands.
+  const invalid = analysis.invalidInput
+  if (invalid) {
+    const messages = invalidInputMessages(invalid)
+    add({
+      id: 'invalid-input',
+      group: 'inputs',
+      check: 'Every input can be calculated',
+      state: 'attention',
+      severity: 'limit',
+      result: !stations.length
+        ? 'Nothing is calculated: an input is invalid'
+        : invalid.leftOut === 'all'
+          ? 'The results leave out every section and engineering edit since the inputs were last valid'
+          : `The results leave out ${plural(messages.length, 'invalid input')}`,
+      measured: `${messages.join(' ')}${
+        !stations.length
+          ? ''
+          : invalid.leftOut === 'all'
+            ? ' The checks below are judged on the last valid inputs.'
+            : ` The checks below use ${messages.length === 1 ? 'its last valid value' : 'their last valid values'}.`
+      }`,
+      judgedOn: 'Every section and engineering input inside its allowed range',
+      action: {
+        label: 'Correct the input',
+        target: invalid.target ? INPUT_TARGETS[invalid.target.list] : 'template',
+      },
+    })
+  }
 
   // ---- Terrain -------------------------------------------------------------------------------
   const sourceText = `${terrain.name} · ${trim(terrain.resolutionM, 2)} m cells · ${terrain.verticalReference || 'no vertical datum'}`
   const siteLimit = `${MAX_CONNECTOR_SITE_TERRAIN_RESOLUTION_M} m cells or finer, from a survey you have checked`
-  if (terrain.kind === 'demo')
+  if (terrain.kind !== 'demo' && !(Number.isFinite(terrain.resolutionM) && terrain.resolutionM > 0))
+    add({
+      id: 'terrain-source',
+      group: 'terrain',
+      check: 'Terrain fit for site quantities',
+      state: 'not-assessed',
+      result: 'The terrain’s cell size is not recorded',
+      measured: terrain.name,
+      judgedOn: siteLimit,
+      action: { label: 'Terrain', target: 'terrain' },
+    })
+  else if (terrain.kind === 'demo')
     add({
       id: 'terrain-source',
       group: 'terrain',
@@ -354,7 +425,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
           },
   )
 
-  const grades = reviewGrades(stations, rule)
+  const grades = reviewGrades(stations, rule, gradeSpanOf(alignment))
   const signedRanges = (analysis.verticalChecks ?? []).filter(
     (check) => check.kind === 'grade' || check.kind === 'control-grade',
   )
@@ -419,34 +490,52 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       })
   }
 
-  const curves = horizontalCurveSummary(alignment)
+  // The engine refuses a line it cannot read; the curve rows then have nothing to judge.
+  const fittedCurves = (() => {
+    try {
+      return horizontalCurveSummary(alignment)
+    } catch {
+      return null
+    }
+  })()
+  const curves = fittedCurves ?? []
   const sharp = ranges(stations, (s) => s.flags.some((flag) => /Sharp horizontal PI/i.test(flag)))
   const corners = Math.max(0, alignment.points.length - 2)
   add(
-    sharp.length
+    !calculated
       ? {
+          // A sharp corner is a flag on a calculated station: without stations none can be found.
           id: 'curves-fitted',
           group: 'alignment',
           check: 'Every corner fitted with a curve',
-          state: 'attention',
-          severity: 'limit',
-          result: `${plural(sharp.length, 'corner has', 'corners have')} no curve`,
-          measured: `${plural(curves.length, 'curve')} on ${plural(corners, 'corner')} · sharp at ${sharp
-            .slice(0, 3)
-            .map((range) => station(range.start))
-            .join(', ')}`,
+          state: 'not-assessed',
+          result: 'No sections were calculated, so the corners were not checked',
           judgedOn: 'A curve at every IP (intersection point)',
-          action: { label: `Go to ${station(sharp[0].start)}`, target: 'curves', chainage: sharp[0].start },
         }
-      : {
-          id: 'curves-fitted',
-          group: 'alignment',
-          check: 'Every corner fitted with a curve',
-          state: 'met',
-          result: corners ? `${every(corners, 'corner has', 'corners have')} a curve` : 'Straight road: no corners',
-          measured: corners ? plural(curves.length, 'curve') : undefined,
-          judgedOn: 'A curve at every IP (intersection point)',
-        },
+      : sharp.length
+        ? {
+            id: 'curves-fitted',
+            group: 'alignment',
+            check: 'Every corner fitted with a curve',
+            state: 'attention',
+            severity: 'limit',
+            result: `${plural(sharp.length, 'corner has', 'corners have')} no curve`,
+            measured: `${plural(curves.length, 'curve')} on ${plural(corners, 'corner')} · sharp at ${sharp
+              .slice(0, 3)
+              .map((range) => station(range.start))
+              .join(', ')}`,
+            judgedOn: 'A curve at every IP (intersection point)',
+            action: { label: `Go to ${station(sharp[0].start)}`, target: 'curves', chainage: sharp[0].start },
+          }
+        : {
+            id: 'curves-fitted',
+            group: 'alignment',
+            check: 'Every corner fitted with a curve',
+            state: 'met',
+            result: corners ? `${every(corners, 'corner has', 'corners have')} a curve` : 'Straight road: no corners',
+            measured: corners ? plural(curves.length, 'curve') : undefined,
+            judgedOn: 'A curve at every IP (intersection point)',
+          },
   )
 
   const tight = curves.filter((curve) => curve.radius < settings.minRadius - EPS)
@@ -454,7 +543,16 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     (best, curve) => (!best || curve.radius < best.radius ? curve : best),
     null,
   )
-  if (settings.minRadius <= 0)
+  if (!fittedCurves)
+    add({
+      id: 'curve-radius',
+      group: 'alignment',
+      check: 'Curve radius at or above the minimum',
+      state: 'not-assessed',
+      result: 'The line could not be calculated',
+      judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
+    })
+  else if (settings.minRadius <= 0)
     add({
       id: 'curve-radius',
       group: 'alignment',
@@ -483,13 +581,23 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         chainage: (tightest.start + tightest.end) / 2,
       },
     })
+  else if (!curves.length && corners > 0)
+    // Corners with no curve fitted are the corner row's finding; there is no radius here to pass.
+    add({
+      id: 'curve-radius',
+      group: 'alignment',
+      check: 'Curve radius at or above the minimum',
+      state: 'not-assessed',
+      result: 'No curve is fitted, so there is no radius to judge',
+      judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
+    })
   else
     add({
       id: 'curve-radius',
       group: 'alignment',
       check: 'Curve radius at or above the minimum',
       state: 'met',
-      result: curves.length ? `Every curve is ${trim(settings.minRadius)} m or wider` : 'No curves to check',
+      result: curves.length ? `Every curve is ${trim(settings.minRadius)} m or wider` : 'Straight road: no curves',
       measured: tightest ? `Tightest ${trim(tightest.radius)} m at ${station(tightest.start)}` : undefined,
       judgedOn: `Minimum radius ${trim(settings.minRadius)} m`,
     })
@@ -530,8 +638,21 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: `Wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
     })
 
-  // Grade breaks and K from the PVIs themselves, so the row holds when no K limit is entered.
+  // Grade breaks from the PVIs themselves, so the row holds when no K limit is entered. A curve
+  // counts only where the engine applied it: one that does not fit its tangents, or overlaps its
+  // neighbour, is dropped there and leaves the break unrounded.
   const pvis = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  // The engine refuses PVIs it cannot order or read; the rows then have nothing to judge.
+  const curveSummary = (() => {
+    try {
+      return verticalCurveSummary(alignment)
+    } catch {
+      return null
+    }
+  })()
+  const profileRead = designed && curveSummary !== null
+  const noProfile = designed ? 'The profile could not be calculated' : 'No designed profile to check'
+  const enteredCurves = new Map((curveSummary ?? []).map((curve) => [curve.pviId, curve]))
   const breaks = pvis.slice(1, -1).flatMap((pvi, i) => {
     const before = pvis[i],
       after = pvis[i + 2]
@@ -541,31 +662,66 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     const g1 = ((pvi.elevation - before.elevation) / run1) * 100,
       g2 = ((after.elevation - pvi.elevation) / run2) * 100
     const change = Math.abs(g2 - g1)
-    return change < MIN_GRADE_BREAK_PERCENT
-      ? []
-      : [{ pvi, change, k: pvi.curveLength > 0 ? pvi.curveLength / change : 0 }]
+    if (change < MIN_GRADE_BREAK_PERCENT) return []
+    const curve = enteredCurves.get(pvi.id)
+    const applied = !!curve?.valid
+    return [
+      {
+        pvi,
+        change,
+        applied,
+        /** Set when a curve was entered and the engine did not apply it. */
+        dropped: curve && !applied ? curve : null,
+        k: applied ? pvi.curveLength / change : 0,
+      },
+    ]
   })
-  const unrounded = breaks.filter((item) => item.pvi.curveLength <= 0)
-  if (!designed)
+  const unrounded = breaks.filter((item) => !item.applied)
+  const droppedBreaks = unrounded.filter((item) => item.dropped)
+  const bareBreaks = unrounded.filter((item) => !item.dropped)
+  const stationList = <T>(items: readonly T[], text: (item: T) => string, limit = 4) =>
+    `${items.slice(0, limit).map(text).join(', ')}${items.length > limit ? ` and ${items.length - limit} more` : ''}`
+  const curveRule = `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`
+  if (!profileRead)
     add({
       id: 'vertical-curves',
       group: 'alignment',
       check: 'Vertical curve at every grade break',
       state: 'not-assessed',
-      result: 'No designed profile to check',
+      result: noProfile,
     })
   else if (unrounded.length) {
     const largest = unrounded.reduce((best, item) => (item.change > best.change ? item : best))
+    const first = droppedBreaks[0] ?? largest
     add({
       id: 'vertical-curves',
       group: 'alignment',
       check: 'Vertical curve at every grade break',
       state: 'attention',
-      severity: 'todo',
-      result: `${unrounded.length} of ${plural(breaks.length, 'grade break')} ${unrounded.length === 1 ? 'has' : 'have'} no vertical curve`,
-      measured: `Largest unrounded break ${largest.change.toFixed(1)}% at ${station(largest.pvi.chainage)}`,
-      judgedOn: `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`,
-      action: { label: `Go to ${station(largest.pvi.chainage)}`, target: 'profile', chainage: largest.pvi.chainage },
+      // An entered curve the road does not have is a broken design, not an input still to make.
+      severity: droppedBreaks.length ? 'limit' : 'todo',
+      result: `${unrounded.length} of ${plural(breaks.length, 'grade break')} ${unrounded.length === 1 ? 'has' : 'have'} no vertical curve${
+        droppedBreaks.length
+          ? `: ${plural(droppedBreaks.length, 'entered curve does', 'entered curves do')} not fit and ${droppedBreaks.length === 1 ? 'is' : 'are'} not applied`
+          : ''
+      }`,
+      measured: [
+        droppedBreaks.length
+          ? `Entered curve not applied at ${stationList(
+              droppedBreaks,
+              (item) =>
+                `${station(item.pvi.chainage)} (${trim(item.pvi.curveLength)} m, ${item.dropped!.reason === 'overlap' ? 'overlaps its neighbour' : 'does not fit its tangents'})`,
+            )}`
+          : '',
+        droppedBreaks.length && bareBreaks.length
+          ? `no curve entered at ${stationList(bareBreaks, (item) => station(item.pvi.chainage))}`
+          : '',
+        `${droppedBreaks.length ? 'largest' : 'Largest'} unrounded break ${largest.change.toFixed(1)}% at ${station(largest.pvi.chainage)}`,
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      judgedOn: droppedBreaks.length ? `${curveRule}; a curve counts only where it fits and is applied` : curveRule,
+      action: { label: `Go to ${station(first.pvi.chainage)}`, target: 'profile', chainage: first.pvi.chainage },
     })
   } else
     add({
@@ -576,7 +732,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       result: breaks.length
         ? `${every(breaks.length, 'grade break has', 'grade breaks have')} a vertical curve`
         : 'No grade breaks',
-      judgedOn: `A curve at every PVI where the grade changes by ${MIN_GRADE_BREAK_PERCENT}% or more`,
+      judgedOn: curveRule,
     })
 
   const vertical = alignment.verticalStandards
@@ -589,20 +745,35 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const kFailures = (analysis.verticalChecks ?? []).filter(
     (check) => check.kind === 'k' || check.kind === 'curve-length' || check.kind === 'tangent',
   )
+  // K is quoted for applied curves only: a dropped curve has no K to report.
   const smallestK = breaks
     .filter((item) => item.k > 0)
     .reduce<(typeof breaks)[number] | null>((best, item) => (!best || item.k < best.k ? item : best), null)
-  const kMeasured = smallestK ? `Smallest K ${smallestK.k.toFixed(1)} at ${station(smallestK.pvi.chainage)}` : undefined
-  if (!designed || !kEntered)
+  const notApplied = droppedBreaks.length
+    ? `${plural(droppedBreaks.length, 'entered curve')} not applied at ${stationList(droppedBreaks, (item) => station(item.pvi.chainage))}`
+    : ''
+  const kMeasured =
+    [
+      smallestK
+        ? `Smallest K ${smallestK.k.toFixed(1)} at ${station(smallestK.pvi.chainage)}`
+        : droppedBreaks.length
+          ? 'No vertical curve is applied'
+          : '',
+      smallestK ? notApplied : '',
+    ]
+      .filter(Boolean)
+      .join(' · ') || undefined
+  const kLimit = `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`
+  if (!profileRead || !kEntered)
     add({
       id: 'vertical-k',
       group: 'alignment',
       check: 'Vertical curves long enough for sight distance (K)',
       state: 'not-assessed',
-      result: designed ? 'No minimum K is entered, so curve length is not checked' : 'No designed profile to check',
-      measured: kMeasured,
+      result: profileRead ? 'No minimum K is entered, so curve length is not checked' : noProfile,
+      measured: profileRead ? kMeasured : undefined,
       judgedOn: 'K is curve length divided by the grade change in percent',
-      action: designed ? { label: 'Set minimum K', target: 'vertical-standards' } : undefined,
+      action: profileRead ? { label: 'Set minimum K', target: 'vertical-standards' } : undefined,
     })
   else if (kFailures.length)
     add({
@@ -613,7 +784,7 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       severity: 'limit',
       result: `${plural(kFailures.length, 'vertical curve check')} failed`,
       measured: kFailures[0].message,
-      judgedOn: `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`,
+      judgedOn: kLimit,
       action: { label: `Go to ${station(kFailures[0].chainage)}`, target: 'profile', chainage: kFailures[0].chainage },
     })
   else
@@ -622,9 +793,12 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       group: 'alignment',
       check: 'Vertical curves long enough for sight distance (K)',
       state: 'met',
-      result: 'Every vertical curve meets the minimum K',
+      // A dropped curve reaches here only where no minimum applies to its kind of break.
+      result: droppedBreaks.length
+        ? 'Every applied vertical curve meets the minimum K'
+        : 'Every vertical curve meets the minimum K',
       measured: kMeasured,
-      judgedOn: `Minimum K: sag ${vertical?.minSagK ?? 'not set'}, crest ${vertical?.minCrestK ?? 'not set'}`,
+      judgedOn: kLimit,
     })
 
   // ---- Section and earthwork -----------------------------------------------------------------
@@ -684,13 +858,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   const unclassified = result
     ? (result.materials.find((material) => material.materialId === '__unclassified')?.bankCutM3 ?? 0)
     : analysis.cutVolumeM3
+  // Earthwork exists only between complete sections: with none, zero cut is not "no cut".
+  const earthworkKnown = calculated && analysis.completeLength > EPS
   if (analysis.cutVolumeM3 <= EPS)
     add({
       id: 'materials',
       group: 'earthwork',
       check: 'Ground materials entered for the cut',
-      state: stations.length ? 'met' : 'not-assessed',
-      result: stations.length ? 'No cut to classify' : 'No earthwork was calculated',
+      state: earthworkKnown ? 'met' : 'not-assessed',
+      result: earthworkKnown ? 'No cut to classify' : 'No earthwork was calculated',
     })
   else if (unclassified > EPS)
     add({
@@ -734,6 +910,33 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       state: 'not-assessed',
       result: 'No earthwork was calculated',
     })
+  else if (haul && materialPlanMissing(haul))
+    // No allocation was adopted, so there is no borrow, waste or shortfall to state: the totals
+    // are known, where they go is not.
+    add(
+      haul.optimizationStatus === 'unsolved'
+        ? {
+            id: 'earthwork-balance',
+            group: 'earthwork',
+            check: 'Earthwork balanced, or borrow and waste given a source',
+            state: 'not-assessed',
+            result: 'The material plan was not solved, so borrow and waste have no source or site yet',
+            measured: balanceText,
+            judgedOn: balanceLimit,
+            action: { label: 'Haul', target: 'haul' },
+          }
+        : {
+            id: 'earthwork-balance',
+            group: 'earthwork',
+            check: 'Earthwork balanced, or borrow and waste given a source',
+            state: 'attention',
+            severity: 'limit',
+            result: 'The material plan is infeasible: the sites, capacities and rules entered cannot meet every demand',
+            measured: balanceText,
+            judgedOn: balanceLimit,
+            action: { label: 'Haul', target: 'haul' },
+          },
+    )
   else if (haul?.enabled) {
     const open = haul.unallocatedBorrowM3 > EPS || haul.unallocatedWasteM3 > EPS
     const moved = `${num(haul.borrowCompactedM3)} m³ borrow${sites('borrow').length ? ` from ${sites('borrow').join(', ')}` : ''} · ${num(haul.wasteBankM3)} m³ waste${sites('waste').length ? ` to ${sites('waste').join(', ')}` : ''}`
@@ -864,6 +1067,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: sizedRule,
       action: { label: 'Add streams', target: 'streams' },
     })
+  else if (!calculated)
+    add({
+      id: 'crossing-structures',
+      group: 'water',
+      check: 'Every stream crossing has a sized structure',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so crossings were not found',
+      judgedOn: sizedRule,
+    })
   else if (!crossed.length)
     add({
       id: 'crossing-structures',
@@ -931,6 +1143,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       state: 'not-assessed',
       result: 'No stream lines are in the project',
       action: { label: 'Add streams', target: 'streams' },
+    })
+  else if (!calculated)
+    add({
+      id: 'stream-class',
+      group: 'water',
+      check: 'Every crossed stream has a reviewed riparian class',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so crossed streams were not found',
+      judgedOn: 'A class S1 to S6 reviewed by a person (FPPR s. 47)',
     })
   else if (unclassed.length)
     add({
@@ -1077,6 +1298,15 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: 'Every sampled centreline station outside each excluded or unreviewed area',
       action: { label: 'Constraints', target: 'constraints' },
     })
+  else if (!calculated)
+    add({
+      id: 'constraints',
+      group: 'water',
+      check: 'Excluded and conditional areas kept clear',
+      state: 'not-assessed',
+      result: 'No sections were calculated, so the areas were not tested',
+      judgedOn: 'Every sampled centreline station outside each excluded or unreviewed area',
+    })
   else if (entered.size) {
     const hits = [...entered.entries()].map(([name, range]) => {
       // Several areas can share a name; judge on the most restrictive.
@@ -1130,30 +1360,57 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       .filter((flag) => flag.id !== 'placeholder-rates')
       .map((flag) => `${flag.label}: ${flag.detail.split('. ')[0]}`),
   ].filter(Boolean)
+  // The button leads to where the outstanding rate is edited. The four base rates are under Unit
+  // rates; a ground material's excavation rate is with the material; the aggregate source's rates
+  // and its evidence are in the haul view.
+  const unpricedWork = cost.unpriced.filter((item) => /^(material-|cut$|fill$|surfacing|clearing$)/.test(item.rowId))
+  // Unclassified excavation takes the base cut rate, and course placement the base fill rate.
+  const ofGroundMaterial = (rowId: string) => /^material-(?!course-placement$|__unclassified$)/.test(rowId)
+  const baseRateOpen =
+    cost.placeholderRates.length > 0 ||
+    unpricedWork.some((item) => !ofGroundMaterial(item.rowId) && item.rowId !== 'surfacing-source')
+  const rateAction: NonNullable<ReadinessRow['action']> = baseRateOpen
+    ? { label: 'Enter rates', target: 'rates' }
+    : unpricedWork.some((item) => ofGroundMaterial(item.rowId))
+      ? { label: 'Materials', target: 'materials' }
+      : { label: 'Aggregate source', target: 'haul' }
+  // A rate is judged where it prices something: with no quantity, none is in use.
+  const quantities =
+    analysis.cutVolumeM3 + analysis.fillVolumeM3 + analysis.surfaceVolumeM3 + analysis.clearingAreaM2 > EPS
   add(
-    rateFlags.length
+    !quantities
       ? {
           id: 'rates',
           group: 'cost',
           check: 'Unit rates entered for the work',
-          state: 'attention',
-          severity: 'todo',
-          result: cost.placeholderRates.length
-            ? `${plural(cost.placeholderRates.length, 'rate is', 'rates are')} still the starting value`
-            : rateFlags[0].label,
-          measured: `${ratesText} · ${rateNotes.join(' · ')}`,
-          judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
-          action: { label: 'Enter rates', target: 'rates' },
-        }
-      : {
-          id: 'rates',
-          group: 'cost',
-          check: 'Unit rates entered for the work',
-          state: 'met',
-          result: 'Every base rate with a quantity has been entered',
+          state: 'not-assessed',
+          result: 'No quantities were calculated, so no rate is in use',
           measured: ratesText,
           judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
-        },
+        }
+      : rateFlags.length
+        ? {
+            id: 'rates',
+            group: 'cost',
+            check: 'Unit rates entered for the work',
+            state: 'attention',
+            severity: 'todo',
+            result: cost.placeholderRates.length
+              ? `${plural(cost.placeholderRates.length, 'rate is', 'rates are')} still the starting value`
+              : rateFlags[0].label,
+            measured: `${ratesText} · ${rateNotes.join(' · ')}`,
+            judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
+            action: rateAction,
+          }
+        : {
+            id: 'rates',
+            group: 'cost',
+            check: 'Unit rates entered for the work',
+            state: 'met',
+            result: 'Every base rate with a quantity has been entered',
+            measured: ratesText,
+            judgedOn: 'A rate that differs from the starting value, and no positive quantity priced at $0',
+          },
   )
 
   const haulFlags = costFlags('haul')
@@ -1179,82 +1436,108 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
             judgedOn: 'Haul allocation on, with sites, distances and rates',
             action: { label: 'Haul', target: 'haul' },
           }
-        : haulFlags.length
+        : haul?.optimizationStatus === 'unsolved'
           ? {
               id: 'haul',
               group: 'cost',
               check: 'Haul, borrow and waste priced',
-              state: 'attention',
-              severity: 'todo',
-              result: haulFlags[0].label,
-              measured: haulFlags.map((flag) => flag.detail.split('. ')[0]).join(' · '),
+              state: 'not-assessed',
+              result: 'The material plan was not solved, so haul, borrow and waste are not priced',
+              // The engine's own reason: which limit the allocation reached.
+              measured:
+                result?.warnings
+                  .find((warning) => warning.startsWith('Material plan not solved: '))
+                  ?.split(' The road, ')[0] ?? 'The allocation did not finish',
               judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
               action: { label: 'Haul', target: 'haul' },
             }
-          : {
-              id: 'haul',
-              group: 'cost',
-              check: 'Haul, borrow and waste priced',
-              state: 'met',
-              result: 'Haul, borrow and waste are allocated and priced',
-              measured: result
-                ? `Haul ${money(result.costs.haul)} · borrow ${money(result.costs.borrow)} · waste ${money(result.costs.waste)}`
-                : undefined,
-              judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
-            },
+          : haulFlags.length
+            ? {
+                id: 'haul',
+                group: 'cost',
+                check: 'Haul, borrow and waste priced',
+                state: 'attention',
+                severity: 'todo',
+                result: haulFlags[0].label,
+                measured: haulFlags.map((flag) => flag.detail.split('. ')[0]).join(' · '),
+                judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
+                action: { label: 'Haul', target: 'haul' },
+              }
+            : {
+                id: 'haul',
+                group: 'cost',
+                check: 'Haul, borrow and waste priced',
+                state: 'met',
+                result: 'Haul, borrow and waste are allocated and priced',
+                measured: result
+                  ? `Haul ${money(result.costs.haul)} · borrow ${money(result.costs.borrow)} · waste ${money(result.costs.waste)}`
+                  : undefined,
+                judgedOn: 'Every movement beyond free haul and every borrow or waste volume has a price',
+              },
   )
 
   const culverts = engineering?.culverts ?? []
   const structureFlags = costFlags('structure-costs')
-  // The unpriced culverts are named first in that prompt's detail; the count leads the row.
-  const unpricedNames =
-    structureFlags
-      .find((flag) => flag.id === 'zero-culvert-rates')
-      ?.detail.split('. ')[0]
-      .split(', ') ?? []
+  // Counted and named from the records, never from the prompt's sentence: a name can hold a comma.
+  const unpricedNames = cost.unpricedCulverts.map((culvert) => culvert.name)
   add(
-    structureFlags.length
+    culverts.length && !(calculated && result)
       ? {
+          // Entered culverts are priced by the calculation; without one there is no cost to read.
           id: 'structure-costs',
           group: 'cost',
           check: 'Structures priced',
-          state: 'attention',
-          severity: 'todo',
-          result: unpricedNames.length
-            ? `${plural(unpricedNames.length, 'culvert has', 'culverts have')} no price`
-            : structureFlags[0].label,
-          measured:
-            [
-              unpricedNames.length ? `No price: ${unpricedNames.join(', ')}` : '',
-              // The first prompt is the result when no culvert is unpriced; do not print it twice.
-              ...structureFlags
-                .filter((flag) => flag.id !== 'zero-culvert-rates')
-                .slice(unpricedNames.length ? 0 : 1)
-                .map((flag) => flag.label),
-            ]
-              .filter(Boolean)
-              .join(' · ') || undefined,
+          state: 'not-assessed',
+          result: 'No structure cost was calculated',
           judgedOn: 'An installed price on every culvert and current crossing record',
-          action: { label: 'Set price', target: 'culverts', chainage: culverts[0]?.chainage },
         }
-      : culverts.length
+      : structureFlags.length
         ? {
             id: 'structure-costs',
             group: 'cost',
             check: 'Structures priced',
-            state: 'met',
-            result: `${every(culverts.length, 'culvert has', 'culverts have')} a price`,
-            measured: result ? `Structures ${money(result.costs.structures)}` : undefined,
+            state: 'attention',
+            severity: 'todo',
+            result: unpricedNames.length
+              ? `${plural(unpricedNames.length, 'culvert has', 'culverts have')} no price`
+              : structureFlags[0].label,
+            measured:
+              [
+                unpricedNames.length ? `No price: ${unpricedNames.join('; ')}` : '',
+                // The first prompt is the result when no culvert is unpriced; do not print it twice.
+                ...structureFlags
+                  .filter((flag) => flag.id !== 'zero-culvert-rates')
+                  .slice(unpricedNames.length ? 0 : 1)
+                  .map((flag) => flag.label),
+              ]
+                .filter(Boolean)
+                .join(' · ') || undefined,
             judgedOn: 'An installed price on every culvert and current crossing record',
+            // The first culvert with no price, where there is one; else the first entered.
+            action: {
+              label: 'Set price',
+              target: 'culverts',
+              chainage: (cost.unpricedCulverts[0] ?? culverts[0])?.chainage,
+            },
           }
-        : {
-            id: 'structure-costs',
-            group: 'cost',
-            check: 'Structures priced',
-            state: 'not-assessed',
-            result: 'No structures are entered, so there is nothing to price',
-            judgedOn: 'An installed price on every culvert and current crossing record',
-          },
+        : culverts.length
+          ? {
+              id: 'structure-costs',
+              group: 'cost',
+              check: 'Structures priced',
+              state: 'met',
+              result: `${every(culverts.length, 'culvert has', 'culverts have')} a price`,
+              measured: result ? `Structures ${money(result.costs.structures)}` : undefined,
+              judgedOn: 'An installed price on every culvert and current crossing record',
+            }
+          : {
+              id: 'structure-costs',
+              group: 'cost',
+              check: 'Structures priced',
+              state: 'not-assessed',
+              result: 'No structures are entered, so there is nothing to price',
+              judgedOn: 'An installed price on every culvert and current crossing record',
+            },
   )
 
   const mobilization = engineering?.haul.mobilizationCost ?? 0,
@@ -1286,7 +1569,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
         severity: 'todo',
         result: flag.label,
         measured: flag.detail,
-        action: { label: 'Engineering', target: 'materials' },
+        // Material and haul settings are all one tab; the haul view holds allocation and its sites.
+        action: { label: 'Engineering', target: 'haul' },
       })
   return rows
 }
@@ -1305,6 +1589,8 @@ export function projectReadiness(
     record: project.drainage?.records.find((record) => record.alignmentId === alignment.id),
     stale: options.drainageStale,
   }
+  // Rows that quote an input (the template, a culvert price) quote the one the results used.
+  alignment = calculatedAlignment(alignment, analysis)
   const register = buildCrossingRegister({ alignment, analysis, context: project.context, drainage })
   return {
     register,
@@ -1331,6 +1617,44 @@ export function readinessCounts(rows: readonly ReadinessRow[]) {
     notAssessed: count('not-assessed'),
     limits: rows.filter((row) => row.state === 'attention' && row.severity === 'limit').length,
   }
+}
+
+/**
+ * The rows as the Review step lays them out: what needs attention first, a broken limit before an
+ * input still to do, then the checks that were not made, then the ones that are met. Every row is
+ * in exactly one part, and each part keeps the list's own order.
+ */
+export function readinessParts(rows: readonly ReadinessRow[]) {
+  const attention = rows.filter((row) => row.state === 'attention')
+  return {
+    attention: [
+      ...attention.filter((row) => row.severity === 'limit'),
+      ...attention.filter((row) => row.severity !== 'limit'),
+    ],
+    notAssessed: rows.filter((row) => row.state === 'not-assessed'),
+    met: rows.filter((row) => row.state === 'met'),
+  }
+}
+
+/**
+ * What the list says as a whole. It reads clear only when every check was made and met: a broken
+ * limit, an input still to do and a check that was not made each stop it, in that order.
+ */
+export function readinessVerdict(rows: readonly ReadinessRow[]): {
+  tone: 'danger' | 'warning' | 'neutral' | 'success'
+  text: string
+} {
+  const counts = readinessCounts(rows)
+  const todo = counts.attention - counts.limits
+  if (counts.limits)
+    return { tone: 'danger', text: `Not ready: ${counts.limits} outside a limit${todo ? `, ${todo} to do` : ''}` }
+  if (todo) return { tone: 'warning', text: `Not ready: ${todo} to do` }
+  if (counts.notAssessed)
+    return {
+      tone: 'neutral',
+      text: `Nothing needs attention, but ${plural(counts.notAssessed, 'check was', 'checks were')} not made`,
+    }
+  return { tone: 'success', text: rows.length === 1 ? 'The 1 check is met' : `All ${rows.length} checks are met` }
 }
 
 /** "5 need attention · 4 not assessed · 14 met". */

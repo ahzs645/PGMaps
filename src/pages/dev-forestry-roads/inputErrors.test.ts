@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { EngineeringInputError, freeStationRange, inputMessage } from './inputErrors'
 import { createEngineeringDesign, type AlignmentEngineering } from './engineeringTypes'
-import { validateEngineering, validateTemplate } from './templates'
+import { ditchWidthRange, validateEngineering, validateTemplate } from './templates'
 import type { RoadTemplate } from './types'
 
 const template: RoadTemplate = {
@@ -151,5 +151,33 @@ describe('the default range of an Add button', () => {
       ),
     ).toBeNull()
     expect(freeStationRange([], 0)).toBeNull()
+  })
+})
+
+describe('ditch width fields', () => {
+  it('limit each other so a bottom is never typed wider than its top', () => {
+    // A 1 m ditch on both sides; the left has a 0.5 m flat bottom.
+    const t: RoadTemplate = { ...template, leftDitchBottomWidth: 0.5 }
+    expect(ditchWidthRange(t, 'leftDitchBottomWidth')).toEqual({ min: 0, max: 1 })
+    expect(ditchWidthRange(t, 'leftDitchWidth')).toEqual({ min: 0.5, max: 10 })
+    expect(ditchWidthRange(t, 'rightDitchWidth')).toEqual({ min: 0, max: 10 })
+    // The base width is held by the side that inherits it and has the wider bottom.
+    expect(ditchWidthRange(t, 'ditchWidth')).toEqual({ min: 0.5, max: 10 })
+    // A side with its own top width no longer limits the base.
+    expect(ditchWidthRange({ ...t, leftDitchWidth: 2 }, 'ditchWidth')).toEqual({ min: 0, max: 10 })
+    expect(ditchWidthRange({ ...t, leftDitchWidth: 2 }, 'leftDitchBottomWidth')).toEqual({ min: 0, max: 2 })
+    // The base bottom is held by the narrowest top among the sides that inherit it.
+    expect(ditchWidthRange({ ...template, rightDitchWidth: 0.4 }, 'ditchBottomWidth')).toEqual({ min: 0, max: 0.4 })
+    expect(ditchWidthRange(t, 'cutSlope')).toBeNull()
+  })
+
+  it('agree with the engine: a value at either limit validates and one past it does not', () => {
+    const t: RoadTemplate = { ...template, leftDitchBottomWidth: 0.5 }
+    const top = ditchWidthRange(t, 'ditchWidth')!
+    expect(() => validateTemplate({ ...t, ditchWidth: top.min })).not.toThrow()
+    expect(() => validateTemplate({ ...t, ditchWidth: top.min - 0.1 })).toThrow(/left ditch bottom width/)
+    const bottom = ditchWidthRange(t, 'leftDitchBottomWidth')!
+    expect(() => validateTemplate({ ...t, leftDitchBottomWidth: bottom.max })).not.toThrow()
+    expect(() => validateTemplate({ ...t, leftDitchBottomWidth: bottom.max + 0.1 })).toThrow(/left ditch bottom width/)
   })
 })

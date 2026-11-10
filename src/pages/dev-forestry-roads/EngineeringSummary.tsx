@@ -5,6 +5,7 @@ import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { TabBar } from '@/components/ui/tab-bar'
 import { hasCompleteCoverage } from './analysisResult'
+import { materialPlanMissing } from './engineeringTypes'
 import { formatRoadStation } from './Charts'
 import type { CulvertAnalysis, RoadAnalysis, RoadSettings } from './types'
 
@@ -98,6 +99,7 @@ export function EngineeringSummary({
   const [tab, setTab] = useState<'cost' | 'materials' | 'haul' | 'structures'>('cost')
   const [page, setPage] = useState(0)
   const result = analysis.engineering
+  const noPlan = result && materialPlanMissing(result.haul) ? 'Not calculated' : null
   const costs = result?.costs
   const rows: [string, number][] = costs
     ? [
@@ -263,10 +265,14 @@ export function EngineeringSummary({
                   variant="tiles"
                   size="sm"
                   items={[
-                    { label: 'Borrow · compacted', value: `${fmt(result.haul.borrowCompactedM3)} m³` },
-                    { label: 'Waste · bank', value: `${fmt(result.haul.wasteBankM3)} m³` },
-                    { label: 'Cut/fill + borrow haul', value: `${fmt(result.haul.haulM3Km)} compacted m³·km` },
-                    { label: 'Waste haul', value: `${fmt(result.haul.wasteHaulM3Km)} bank m³·km` },
+                    // A plan that was not adopted has no quantities; a zero here would read as a result.
+                    { label: 'Borrow · compacted', value: noPlan ?? `${fmt(result.haul.borrowCompactedM3)} m³` },
+                    { label: 'Waste · bank', value: noPlan ?? `${fmt(result.haul.wasteBankM3)} m³` },
+                    {
+                      label: 'Cut/fill + borrow haul',
+                      value: noPlan ?? `${fmt(result.haul.haulM3Km)} compacted m³·km`,
+                    },
+                    { label: 'Waste haul', value: noPlan ?? `${fmt(result.haul.wasteHaulM3Km)} bank m³·km` },
                   ]}
                 />
                 {(result.haul.unallocatedBorrowM3 > 0 || result.haul.unallocatedWasteM3 > 0) && (

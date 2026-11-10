@@ -23,9 +23,11 @@ formats are specified in the
   plot book title block and the report.
 - **Close previews before exporting.** Results exports are refused while a draft, numeric peg or
   template preview is open, and when the road has no calculated stations.
-- **Fix invalid inputs first.** Every export, the project JSON included, re-validates the whole
-  project. A project that fails validation cannot be downloaded until the input is corrected;
-  autosave keeps the last valid version meanwhile.
+- **Fix invalid inputs first.** While a section or engineering input is invalid the results leave
+  it out, and only the report and the map PDF are written, stamped. Every other results file is
+  refused until the input is corrected. See
+  [While an input is invalid](#while-an-input-is-invalid). The project JSON re-validates the whole
+  project and cannot be downloaded either; autosave keeps the last valid version meanwhile.
 - **Open the file before you send it.** Check that the CRS, station range and number of features
   are what you expect in the receiving program.
 
@@ -142,6 +144,37 @@ reference layer**. The picker only says what it is for; the file's contents deci
   `kind: "reference"`, so they import back as reference. The printed report and the map PDF do not
   draw them.
 - **A KML altitude or a third coordinate** is dropped: it is not ground and carries no datum.
+
+### While an input is invalid
+
+An input the engine refuses (a station range the wrong way round, a ditch bottom wider than its
+top) does not blank the workspace. The road is calculated with that input at its last valid value
+and every other edit as entered, and `RoadAnalysis.invalidInput` names what was left out
+([Sections, quantities and costs](sections-quantities-and-costs.md#while-an-input-is-invalid)).
+Those results are not the current design, so each output follows one rule
+(`INVALID_INPUT_RULES`, `exportCatalog.ts`):
+
+| Rule       | Outputs                                                                                                                                  | Why                                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Stamped    | Report HTML, Report PDF, Map PDF                                                                                                         | A person reads them, and the stamp is the first thing on the page                                              |
+| Refused    | LandXML, Stakeout CSV, Plot book, Station CSV, GeoJSON, Shapefile, and the Station table, Engineering and Selected-section CSV downloads | They go to a contractor or into other software, and have nowhere to carry a notice their reader will see       |
+| Unaffected | Project JSON, Map notes, Terrain surface and grid, Stream register, Fish & watershed evidence                                            | They hold no calculated design result. The project JSON is still refused by its own validation, as noted above |
+
+- **The stamp** on the report is a red box under the title: "Not current: this report leaves out an
+  invalid input", the input's own message, and the instruction to correct it and print again. The
+  Readiness checks table leads with the same statement, and Model flags repeats it. The map PDF
+  carries "NOT CURRENT" and the message on its source line.
+- **A stamped report prints the inputs its results came from,** not the invalid value: the template
+  in the readiness table is the one the sections were calculated with (`calculatedAlignment`,
+  `analysisResult.ts`).
+- **A refusal names the input:** "LandXML alignment was not exported: an input is invalid, and this
+  file would leave it out without saying so. … Correct it and export again." Save & export shows
+  the reason on each refused row before anything is pressed. The writers refuse too
+  (`refuseInvalidResults`, `inputErrors.ts`), so no other caller can produce the file.
+- **A multi-road file is refused when any road it would write has an invalid input,** not only the
+  road on screen.
+- **A terrain profile is ground only.** Its CSV and report are written whatever the road's inputs
+  are.
 
 ### LandXML
 
@@ -290,9 +323,13 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   to a file", "· file saved 13:58" or "· not saved to a file since 13:58" once the project has
   changed (`saveState.ts`). A file counts when it was saved with **Save** or opened in this session;
   the workspace cannot see a file saved in an earlier session. A refused save reads "Not saved in
-  this browser", and inputs that cannot be saved read "Last valid version kept"; a red dot beside
-  the buttons marks both on narrow headers. A notice takes the line's place for eight seconds; when
-  it is longer than the line, an (i) beside it shows the whole message.
+  this browser", and inputs that cannot be saved read "Last valid version kept". A red dot beside
+  the buttons marks both, in the same words, for a header too small to show the line; the state is
+  said once, not in a second wording. Below a wide desktop (1280 px) the line uses its short form,
+  "Saved 14:02 · no file", and the project name and that line keep a floor of 12 rem beside the
+  road switcher, so both stay readable down to the 768 px tablet width without the header growing
+  a row (`workspace.css`, `.road-workspace-heading`). A notice takes the line's place for eight
+  seconds; when it is longer than the line, an (i) beside it shows the whole message.
 - **A reload says what it reopened.** "Previous session restored", with the project's name and the
   time of its save, shows once in the notification stack. A first visit opens an example road and
   says so, with **New project** and **Open a project file** on the card.
@@ -351,6 +388,8 @@ and unchecksummed regional terrain needs a fresh run after reopening.
 | ------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
 | "Finish or close the design preview before exporting"         | A draft, peg or template preview is open                                 | Finish or cancel it                                                        |
 | Save refuses with a validation message                        | The current inputs are invalid                                           | Correct the named field; autosave still holds the last valid version       |
+| "… was not exported: an input is invalid"                     | The results leave out an invalid input and this file cannot say so       | Correct the input the message names; print the stamped report meanwhile    |
+| A red "Not current" box at the top of the report              | The report was printed while an input was invalid                        | Correct the input and print it again before relying on it                  |
 | "This project needs its original terrain GeoTIFF re-imported" | A GeoTIFF project without embedded cells                                 | Import the original GeoTIFF, then open the project                         |
 | "Source raster hash mismatch"                                 | The published LiDAR file changed since the project was saved             | The project cannot be restored on that terrain; do not substitute another  |
 | Regional project reopens with different elevations            | Tiles re-downloaded, or the road's extent changed                        | Compare against your exported results; regional numbers are screening only |

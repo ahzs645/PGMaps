@@ -475,10 +475,20 @@ export interface RoadAnalysis {
   verticalChecks?: VerticalCheck[]
   /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the
-   * results are from the last valid inputs and leave this edit out; without, nothing calculated.
+   * results leave the invalid input out and use its last valid value; without, nothing calculated.
    */
   invalidInput?: InvalidInput
+  /**
+   * The section and engineering inputs the results were calculated from, when `invalidInput` is set
+   * and they differ from the road's current ones. Show and print these beside the results.
+   */
+  calculatedInputs?: DesignInputs
 }
+/**
+ * The section and engineering inputs of a road, as distinct from its line and grade. An analysis
+ * that fails on these is recalculated with the invalid ones at their last valid values.
+ */
+export type DesignInputs = Pick<Alignment, 'template' | 'engineering' | 'overrides' | 'curveDesign'>
 export interface CableSample {
   distance: number
   ground: number | null

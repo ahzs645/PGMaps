@@ -172,8 +172,12 @@ export function StationTable({
         variant={headerControls ? 'ghost' : 'outline'}
         className="size-8 shrink-0"
         aria-label="Download table as CSV"
-        title={`Download these ${reported.length} rows as CSV, with every column and the totals`}
-        disabled={!reported.length}
+        title={
+          analysis.invalidInput
+            ? 'Correct the invalid input first: this table leaves it out, and a CSV cannot say so'
+            : `Download these ${reported.length} rows as CSV, with every column and the totals`
+        }
+        disabled={!reported.length || !!analysis.invalidInput}
         onClick={() =>
           downloadText(
             stationReportCsv(analysis, reported, terrainOnly),

@@ -35,10 +35,57 @@ export class EngineeringInputError extends Error {
   }
 }
 
-/** The failure an analysis carries while it shows the last valid inputs instead of the current ones. */
+/** The failure an analysis carries while its results leave an invalid input out. */
 export interface InvalidInput {
   message: string
   target?: EngineeringInputTarget
+  /** Messages of further inputs that are invalid at the same time and are left out too. */
+  others?: string[]
+  /**
+   * What the results leave out. `input`: only the invalid input, at its last valid value, so every
+   * other edit is in the figures. `all`: every section and engineering edit since the inputs were
+   * last valid, because the invalid one could not be separated from them.
+   */
+  leftOut?: 'input' | 'all'
+}
+
+/** Every invalid input's message, the one the fields show first. */
+export const invalidInputMessages = (invalid: InvalidInput): string[] => [invalid.message, ...(invalid.others ?? [])]
+
+/**
+ * What a set of results leaves out, in one statement for every surface that shows, prints or
+ * exports them. The messages name the inputs.
+ */
+export function invalidInputNotice(invalid: InvalidInput): string {
+  const messages = invalidInputMessages(invalid)
+  if (invalid.leftOut === 'all')
+    return `These results leave out every section and engineering edit made since the inputs were last valid, because one cannot be calculated: ${messages.join(' ')}`
+  return messages.length === 1
+    ? `These results leave out one invalid input and use its last valid value: ${messages[0]}`
+    : `These results leave out ${messages.length} invalid inputs and use their last valid values: ${messages.join(' ')}`
+}
+
+/** Why a results file is not written while an input is invalid, naming the input and what to do. */
+export function invalidInputRefusal(label: string, invalid: InvalidInput): string {
+  const messages = invalidInputMessages(invalid)
+  const one = messages.length === 1
+  return `${label} was not exported: ${
+    one ? 'an input is invalid' : `${messages.length} inputs are invalid`
+  }, and this file would leave ${one ? 'it' : 'them'} out without saying so. ${messages.join(' ')} Correct ${
+    one ? 'it' : 'them'
+  } and export again.`
+}
+
+/**
+ * Stops a file that has nowhere to carry a notice from being written from results that leave an
+ * invalid input out. The rule for each output is `INVALID_INPUT_RULES` in `exportCatalog.ts`.
+ */
+export function refuseInvalidResults(
+  label: string,
+  ...analyses: ({ invalidInput?: InvalidInput } | undefined)[]
+): void {
+  const invalid = analyses.find((analysis) => analysis?.invalidInput)?.invalidInput
+  if (invalid) throw Error(invalidInputRefusal(label, invalid))
 }
 
 const plain = (value: number) => Number(value.toFixed(3)).toLocaleString('en-CA', { maximumFractionDigits: 3 })

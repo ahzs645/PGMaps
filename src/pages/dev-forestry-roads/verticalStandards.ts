@@ -49,8 +49,12 @@ export interface VerticalCurveInfo {
   length: number
   g1: number | null
   g2: number | null
+  /** K on the entered length. It describes the road only where `valid` is true. */
   k: number | null
+  /** False when the engine could not apply the entered curve and kept the tangent grades. */
   valid: boolean
+  /** Why an entered curve was not applied; undefined when it was. */
+  reason?: 'tangent' | 'overlap' | 'end'
 }
 export type VerticalCheckKind = 'grade' | 'k' | 'curve-length' | 'tangent' | 'control-elevation' | 'control-grade'
 export interface VerticalCheck {
@@ -167,6 +171,8 @@ export function checkVerticalDesign({
     close()
 
     for (const curve of curves) {
+      // A curve the engine did not apply is judged below, as the unrounded break it leaves.
+      if (!curve.valid) continue
       if (curve.g1 === null || curve.g2 === null || Math.abs(curve.g2 - curve.g1) < EPS) continue
       const kind = curveKind(curve.g1, curve.g2)
       const rule = curvatureRuleAt(standards, curve.start, curve.end, length)
@@ -196,16 +202,24 @@ export function checkVerticalDesign({
           message: `Vertical curve ${curve.length.toFixed(0)} m shorter than ${standards.minCurveLengthM.toFixed(0)} m at ${stn(curve.chainage)}`,
         })
     }
-    // A grade break with no curve still needs K: an unrounded break has K = 0.
+    // A grade break with no curve still needs K: an unrounded break has K = 0. That includes a
+    // break whose entered curve does not fit, which is never judged on the length that was typed.
+    const dropped = new Map(curves.filter((curve) => !curve.valid).map((curve) => [curve.pviId, curve]))
     for (let i = 1; i < pvis.length - 1; i++) {
       const p = pvis[i]
-      if (p.curveLength > 0) continue
+      const notApplied = dropped.get(p.id)
+      if (p.curveLength > 0 && !notApplied) continue
       const before = valueAt(p.chainage - 0.01),
         after = valueAt(p.chainage + 0.01)
       if (!before || !after || Math.abs(after.grade - before.grade) < 0.05) continue
       const kind = curveKind(before.grade, after.grade)
       const rule = curvatureRuleAt(standards, p.chainage - 0.00001, p.chainage + 0.00001, length)
       const minimum = kind === 'sag' ? rule.minSagK : rule.minCrestK
+      const entered = notApplied
+        ? `The ${notApplied.length.toFixed(0)} m vertical curve at ${stn(p.chainage)} ${
+            notApplied.reason === 'overlap' ? 'overlaps its neighbour' : 'does not fit its tangents'
+          } and is not applied`
+        : ''
       if (rule.linear)
         checks.push({
           kind: 'k',
@@ -214,13 +228,25 @@ export function checkVerticalDesign({
           end: p.chainage,
           message: `Grade break enters a linear-only range at ${stn(p.chainage)}`,
         })
-      if (minimum !== null && minimum > 0)
+      if (minimum !== null && minimum > 0) {
+        const needs = `${kind} minimum K ${minimum.toFixed(1)} needs a ${(minimum * Math.abs(after.grade - before.grade)).toFixed(0)} m curve`
         checks.push({
           kind: 'k',
           chainage: p.chainage,
           start: p.chainage,
           end: p.chainage,
-          message: `Unrounded ${kind} grade break at ${stn(p.chainage)}; ${kind} minimum K ${minimum.toFixed(1)} needs a ${(minimum * Math.abs(after.grade - before.grade)).toFixed(0)} m curve`,
+          message: entered
+            ? `${entered}: the ${kind} grade break is unrounded, and ${needs}`
+            : `Unrounded ${kind} grade break at ${stn(p.chainage)}; ${needs}`,
+        })
+      }
+      if (entered && standards.minCurveLengthM !== null)
+        checks.push({
+          kind: 'curve-length',
+          chainage: p.chainage,
+          start: p.chainage,
+          end: p.chainage,
+          message: `${entered}; the minimum curve length is ${standards.minCurveLengthM.toFixed(0)} m`,
         })
     }
     if (standards.minTangentLengthM !== null) {

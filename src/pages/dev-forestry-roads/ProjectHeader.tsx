@@ -84,7 +84,9 @@ export function SaveStateLine({ browser, file }: { browser: BrowserSave; file: F
             : 'text-muted-foreground'
       }`}
     >
-      {state.text}
+      {/* Beside the road switcher the line is narrow below a wide desktop; the short form fits it. */}
+      <span className="xl:hidden">{state.short}</span>
+      <span className="hidden xl:inline">{state.text}</span>
       <span className="sr-only">. {state.detail}</span>
     </span>
   )

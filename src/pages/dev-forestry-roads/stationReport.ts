@@ -4,6 +4,7 @@
  */
 import { csvRows } from '@pgmaps/geo-toolkit/export'
 import { nearestStation } from './engine'
+import { refuseInvalidResults } from './inputErrors'
 import type { RoadAnalysis, RoadStation } from './types'
 
 /**
@@ -321,6 +322,7 @@ export const totalsNote = (totals: StationTotals) =>
  * unrounded.
  */
 export function stationReportCsv(analysis: RoadAnalysis, rows: StationRow[], terrainOnly = false): string {
+  refuseInvalidResults('Station table CSV', analysis)
   const columns = availableStationColumns(analysis, terrainOnly)
   const totals = tableTotals(rows)
   return (

@@ -560,13 +560,14 @@ warning someone must see stays an `InlineAlert`.
   options, terrain preparation, imagery, the field book and existing roads fold.
 - **Design:** the road, then **Find the best route**. Everything hand-tuned folds below it, and tools
   that open elsewhere are tiles at the end.
-- **Section:** the eight template numbers. Components and curve rules fold.
+- **Section:** the eight template numbers. Components and **Superelevation & widening** fold.
 - **Engineering:** four input tabs. The aggregate source sits under Haul.
 - **Review:** **Ready to review**, the checks a designer answers for on the active road, in three
   states: met, needs attention, not assessed. A check the workspace could not make is never shown as
   met. Each row states the result, the measured value and the limit it was judged on, and a row with
-  something outstanding has an action that leads to what clears it. The rules are `readiness.ts`; the
-  report prints the same rows. The **Crossing register** lists mapped and modelled crossings once and
+  something outstanding has an action that leads to what clears it. The rows that need attention
+  lead, under a one-line verdict; **Not assessed** and **Met** fold to a line each that gives their
+  count. The rules are `readiness.ts`; the report prints every row. The **Crossing register** lists mapped and modelled crossings once and
   says which are the same crossing. **Design standards** holds the job's limits, including the
   short-pitch grade allowance. See
   [Review checks, design standards and the crossing register](forestry-road-design/review-and-standards.md).
@@ -759,7 +760,7 @@ sketch highlights the selected one. A side value overrides the symmetric base; "
 value" clears it. The tree is an editor over these fixed components, not a way to add new
 component types.
 
-**Design speed** (Template → Design speed) turns on curve rules:
+**Design speed** (Section → Superelevation & widening → Design speed) turns on curve rules:
 
 - Superelevation e = V²/(127 R) − f, held between the normal crown and the entered maximum.
   The section rotates about the centreline, so the inside falls by e and the outside rises
@@ -1193,7 +1194,9 @@ says there is no grade to read.
 Any value left empty is not checked, and the road-wide maximum grade still applies. Each
 failure becomes a station flag (in the tables and on the plan), a workspace warning and a
 line in the sidebar that selects the station when clicked. An unrounded grade break counts
-as K = 0. The profile draws control points as squares with tolerance bars, green when met and
+as K = 0, and so does a break whose entered curve does not fit its tangents or overlaps its
+neighbour: the engine does not apply that curve, so it is never judged on the length that was
+typed. The profile draws control points as squares with tolerance bars, green when met and
 red when not, and labels a failing curve in red. “Set every curve from K” gives each interior
 PVI a curve length of K × its grade change (and at least the minimum length). Curves are
 rounded up to 0.1 m, and a curve is shrunk only when its tangents cannot hold it.

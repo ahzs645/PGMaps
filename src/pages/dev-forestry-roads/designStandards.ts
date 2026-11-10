@@ -7,7 +7,8 @@
  * what those two numbers cannot say (an adverse limit, a short-pitch allowance, the design vehicle,
  * speed and widths) and whether a person has confirmed the set.
  */
-import type { RoadSettings, RoadStation } from './types'
+import { isCalendarDate } from './projectIssue'
+import type { Alignment, RoadSettings, RoadStation } from './types'
 
 export interface DesignStandards {
   /**
@@ -91,8 +92,8 @@ export function parseDesignStandards(raw: unknown): DesignStandards {
     shortPitchMaxLengthM = optional(r.shortPitchMaxLengthM, 'Short-pitch length', STANDARD_LIMITS.shortPitchLengthM)
   if ((shortPitchGradePercent === null) !== (shortPitchMaxLengthM === null))
     throw Error('A short-pitch allowance needs both its grade limit and its longest pitch length.')
-  if (r.confirmedOn !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(r.confirmedOn)))
-    throw Error('The design standards confirmation date must be YYYY-MM-DD.')
+  if (r.confirmedOn !== undefined && !isCalendarDate(String(r.confirmedOn)))
+    throw Error('The design standards confirmation date must be a real date, written YYYY-MM-DD.')
   return {
     adverseGradePercent: optional(r.adverseGradePercent, 'Adverse grade limit', STANDARD_LIMITS.gradePercent),
     loadedDirection: (r.loadedDirection as DesignStandards['loadedDirection']) ?? null,
@@ -122,6 +123,11 @@ export interface GradeRule {
   /** Loaded uphill. Equals the favourable limit when no adverse limit applies. */
   adversePercent: number
   loadedDirection: DesignStandards['loadedDirection']
+  /**
+   * The allowance, kept when it is above at least one sustained limit. It relaxes a side only where
+   * it is above that side's limit (`pitchAllowance`): 12 % between an 8 % adverse and an 18 %
+   * favourable limit is for loaded-uphill pitches only.
+   */
   shortPitch: { gradePercent: number; maxLengthM: number } | null
 }
 
@@ -132,15 +138,30 @@ export function gradeRule(settings: Pick<RoadSettings, 'maxGradePercent'>, stand
     standards && standards.shortPitchGradePercent !== null && standards.shortPitchMaxLengthM !== null
       ? { gradePercent: standards.shortPitchGradePercent, maxLengthM: standards.shortPitchMaxLengthM }
       : null
+  // An adverse limit can only tighten the road-wide one, as the route search's directional limits do.
+  const adversePercent = directional ? Math.min(favourablePercent, standards!.adverseGradePercent!) : favourablePercent
   return {
     favourablePercent,
-    // An adverse limit can only tighten the road-wide one, as the route search's directional limits do.
-    adversePercent: directional ? Math.min(favourablePercent, standards!.adverseGradePercent!) : favourablePercent,
+    adversePercent,
     loadedDirection: directional ? standards!.loadedDirection : null,
-    // An allowance at or below the sustained limit allows nothing.
-    shortPitch: pitch && pitch.gradePercent > favourablePercent ? pitch : null,
+    // An allowance at or below every sustained limit allows nothing.
+    shortPitch: pitch && pitch.gradePercent > adversePercent ? pitch : null,
   }
 }
+
+/** The allowance as it applies to a run held to `limitPercent`: null where it is not above that limit. */
+const pitchAllowance = (rule: GradeRule, limitPercent: number) =>
+  rule.shortPitch && rule.shortPitch.gradePercent > limitPercent + EPS ? rule.shortPitch : null
+
+/**
+ * Which stretch of road a station's grade describes, which is what makes a pitch's length exact.
+ * `ahead`: a designed profile, where a station on a grade break carries the grade leaving it and
+ * the last station repeats the grade behind. `behind`: a ground-following road, where a station
+ * carries the grade of the interval it closes and station 0 repeats the first interval.
+ */
+export type GradeSpan = 'ahead' | 'behind'
+export const gradeSpanOf = (alignment: Pick<Alignment, 'vertical'>): GradeSpan =>
+  alignment.vertical.length ? 'ahead' : 'behind'
 
 type GradeSide = 'adverse' | 'favourable' | 'either'
 
@@ -160,8 +181,8 @@ export interface GradeRun {
   start: number
   end: number
   /**
-   * Each station stands for the road halfway to its neighbours, so a run's length is the sum of
-   * those shares: one over-limit station at 10 m spacing is a 10 m pitch.
+   * The sum of the intervals the run's stations describe (`GradeSpan`): one over-limit station at
+   * 10 m spacing is a 10 m pitch, and a 50 m pitch measures 50 m wherever it lies on the road.
    */
   lengthM: number
   /** Signed grade of the largest magnitude in the run. */
@@ -197,9 +218,10 @@ export function gradeRuleText(rule: GradeRule): string {
     rule.adversePercent === rule.favourablePercent
       ? `${trim(rule.favourablePercent)}%`
       : `${trim(rule.favourablePercent)}% favourable, ${trim(rule.adversePercent)}% adverse`
-  return rule.shortPitch
-    ? `${sustained}; ${trim(rule.shortPitch.gradePercent)}% for pitches up to ${trim(rule.shortPitch.maxLengthM)} m`
-    : sustained
+  if (!rule.shortPitch) return sustained
+  // Between the two limits the allowance relaxes the adverse one only, and the text says so.
+  const side = rule.shortPitch.gradePercent > rule.favourablePercent + EPS ? '' : 'adverse '
+  return `${sustained}; ${trim(rule.shortPitch.gradePercent)}% for ${side}pitches up to ${trim(rule.shortPitch.maxLengthM)} m`
 }
 
 const GRADE_FLAG = /^(Grade exceeds |Pitch over )/
@@ -208,7 +230,7 @@ export const isGradeBreachFlag = (flag: string) => GRADE_FLAG.test(flag)
 
 /** The flag one over-limit station carries, or null inside a permitted pitch. */
 function stationFlag(run: GradeRun, gradePercent: number, rule: GradeRule): string | null {
-  const pitch = rule.shortPitch
+  const pitch = pitchAllowance(rule, run.limitPercent)
   if (!pitch) {
     // The plain road-wide limit keeps the wording it has always had.
     return run.side === 'either'
@@ -224,25 +246,33 @@ function stationFlag(run: GradeRun, gradePercent: number, rule: GradeRule): stri
 
 /**
  * Judges station grades against the rule. A run is a set of consecutive stations over the sustained
- * limit for their direction. With a short-pitch allowance, a run no steeper than the allowance and
- * no longer than its length is permitted. A run that is too long is a breach along its whole
- * length; a run short enough but too steep is a breach only where it passes the allowance's grade.
+ * limit for their direction. With a short-pitch allowance above that limit, a run no steeper than
+ * the allowance and no longer than its length is permitted. A run that is too long is a breach
+ * along its whole length; a run short enough but too steep is a breach only where it passes the
+ * allowance's grade. `span` says which interval each station's grade describes (`gradeSpanOf`).
  */
 export function reviewGrades(
   stations: readonly Pick<RoadStation, 'chainage' | 'gradePercent'>[],
   rule: GradeRule,
+  span: GradeSpan,
 ): GradeReview {
   const runs: GradeRun[] = []
   let steepest: GradeReview['steepest'] = null
   let open: GradeRun | null = null
-  const share = (i: number) => {
-    const before = i > 0 ? stations[i].chainage - stations[i - 1].chainage : 0
-    const after = i + 1 < stations.length ? stations[i + 1].chainage - stations[i].chainage : 0
-    return (before + after) / 2
-  }
+  const interval = (i: number) =>
+    i >= 0 && i + 1 < stations.length ? stations[i + 1].chainage - stations[i].chainage : 0
+  // The interval a station's grade describes. The station at the far end of the road repeats its
+  // neighbour's interval and adds nothing, so a pitch is not half a station long or short there.
+  const share = stations.map((_, i) => (span === 'ahead' ? interval(i) : interval(i - 1)))
   const close = () => {
     if (!open) return
-    const pitch = rule.shortPitch
+    // That end station on its own still stands for some road: the one interval beside it.
+    if (open.stationIndexes.length === 1 && share[open.stationIndexes[0]] <= EPS) {
+      const only = open.stationIndexes[0]
+      share[only] = span === 'ahead' ? interval(only - 1) : interval(only)
+      open.lengthM = share[only]
+    }
+    const pitch = pitchAllowance(rule, open.limitPercent)
     const worst = Math.abs(open.worstPercent)
     open.verdict = !pitch
       ? 'over-limit'
@@ -277,7 +307,7 @@ export function reviewGrades(
         stationIndexes: [],
       }
     open.end = station.chainage
-    open.lengthM += share(i)
+    open.lengthM += share[i]
     open.stationIndexes.push(i)
     if (Math.abs(grade) > Math.abs(open.worstPercent)) {
       open.worstPercent = grade
@@ -293,7 +323,7 @@ export function reviewGrades(
       const flag = stationFlag(run, stations[index].gradePercent!, rule)
       if (!flag) continue
       flags.set(index, flag)
-      breachLengthM += share(index)
+      breachLengthM += share[index]
     }
   return {
     rule,

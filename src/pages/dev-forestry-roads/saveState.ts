@@ -22,6 +22,8 @@ export interface FileSave {
 
 export interface SaveStateText {
   text: string
+  /** The same state in a few words, for a header too narrow for `text`. */
+  short: string
   /** The full sentence, for a title and a screen reader. */
   detail: string
   tone: 'default' | 'warning' | 'danger'
@@ -53,40 +55,47 @@ export function saveStateText(browser: BrowserSave, file: FileSave | null, now: 
     : file.current
       ? `The project file from ${clockText(file.at, now)} matches what is open.`
       : `The project has changed since the project file of ${clockText(file.at, now)}.`
+  const fileShort = !file ? 'no file' : file.current ? 'file saved' : 'file out of date'
   switch (browser.kind) {
     case 'pending':
       return {
         text: `Not saved yet · ${fileText}`,
+        short: `Not saved yet · ${fileShort}`,
         detail: `Nothing has been saved yet. ${fileDetail}`,
         tone: 'default',
       }
     case 'saving':
       return {
         text: `Saving in this browser… · ${fileText}`,
+        short: `Saving… · ${fileShort}`,
         detail: `Saving in this browser. ${fileDetail}`,
         tone: 'default',
       }
     case 'saved':
       return {
         text: `Saved in this browser ${clockText(browser.at, now)} · ${fileText}`,
+        short: `Saved ${clockText(browser.at, now)} · ${fileShort}`,
         detail: `Saved in this browser at ${clockText(browser.at, now)}. It stays on this device only. ${fileDetail}`,
         tone: 'default',
       }
     case 'training':
       return {
         text: `Training session · a reload starts fresh · ${fileText}`,
+        short: `Training session · ${fileShort}`,
         detail: `Training session saved at ${clockText(browser.at, now)}. A reload starts the example again; save a project file to keep your edits. ${fileDetail}`,
         tone: 'warning',
       }
     case 'failed':
       return {
         text: `Not saved in this browser · ${fileText}`,
+        short: `Not saved · ${fileShort}`,
         detail: `This browser refused the save. Use Save to download the project file. ${fileDetail}`,
         tone: 'danger',
       }
     case 'invalid':
       return {
         text: `Last valid version kept · ${fileText}`,
+        short: 'Last valid version kept',
         detail: `The current inputs cannot be saved: ${browser.reason} The last valid version is kept in this browser. ${fileDetail}`,
         tone: 'danger',
       }

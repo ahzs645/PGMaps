@@ -4,6 +4,7 @@
  * projected CRS. Pure: no DOM or network access.
  */
 import { horizontalGeometry } from './engine'
+import { refuseInvalidResults } from './inputErrors'
 import { sectionCodePoints } from './sectionGeometry'
 import type { ShapeLayer } from './shapefile'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
@@ -154,6 +155,7 @@ export function landXml({
   sectionIntervalM?: number
   date?: Date
 }): string {
+  refuseInvalidResults('LandXML alignment', analysis)
   const elements = horizontalGeometry(alignment)
     .map((piece) => gridElement(piece, toGrid))
     .filter((element) => element !== null)
@@ -268,6 +270,7 @@ export function stakeoutCsv({
   epsg: number
   intervalM?: number
 }): string {
+  refuseInvalidResults('Stakeout', analysis)
   const rows = ['point,station_m,code,offset_m,easting,northing,elevation_m,ground_m,cut_fill_m,epsg']
   let point = 0
   const R = 6371008.8,
@@ -317,6 +320,11 @@ export function roadShapefileLayers(
   analyses: Map<string, RoadAnalysis>,
   activeId: string,
 ): ShapeLayer[] {
+  refuseInvalidResults(
+    'Shapefile',
+    ...alignments.map((alignment) => analyses.get(alignment.id)),
+    analyses.get(activeId),
+  )
   const active = analyses.get(activeId)
   const round = (v: number | null | undefined, d = 2) =>
     v == null || !Number.isFinite(v) ? null : Number(v.toFixed(d))

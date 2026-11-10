@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { NumberField } from './Controls'
-import { copyTemplateSide, ditchSideSlope, ditchTopWidthForSlope, sideValue } from './templates'
+import { copyTemplateSide, ditchSideSlope, ditchTopWidthForSlope, ditchWidthRange, sideValue } from './templates'
 import { SectionAssemblyEditor } from './SectionAssemblyEditor'
 import { inputMessage, type InvalidInput } from './inputErrors'
 import type { ContextFeature, GroundMaterial, RoadTemplate } from './types'
@@ -159,8 +159,16 @@ export function TemplateComponents({
               <NumberField
                 label={field.label}
                 value={value(field, selected.side)}
-                min={field.min}
-                max={field.max}
+                // A ditch's bottom is no wider than its top, so each of the two limits the other.
+                min={ditchWidthRange(template, String(field.key))?.min ?? field.min}
+                max={ditchWidthRange(template, String(field.key))?.max ?? field.max}
+                hint={
+                  /DitchBottomWidth$/.test(String(field.key))
+                    ? 'At most the top width. 0 is a V ditch.'
+                    : /DitchWidth$/.test(String(field.key))
+                      ? 'At least the bottom width.'
+                      : undefined
+                }
                 step={field.step ?? 0.1}
                 error={inputMessage(problem, 'template', undefined, field.key)}
                 onChange={(v) => onChange({ ...template, [field.key]: v })}

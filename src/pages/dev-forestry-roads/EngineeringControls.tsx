@@ -19,13 +19,14 @@ import { MaterialAllocationControls } from './MaterialAllocationControls'
 import { surfacingSupplyCost } from './gravel'
 import { ReferenceSelect } from './CostReferenceControls'
 import { EntryProblem } from './InputProblem'
-import { freeStationRange, inputMessage, type EngineeringInputList } from './inputErrors'
+import { freeStationRange, inputMessage, invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { horizonReplacements } from './groundHorizons'
 import { culvertFallPercent, culvertScreeningCapacity, invertsForFall } from './culvertGrade'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { nearestStation } from './engine'
 import {
   copyTemplateSide,
+  ditchWidthRange,
   keyedRockFillTemplate,
   templateFromStarter,
   validateTemplate,
@@ -496,9 +497,15 @@ export function EngineeringControls({
         </Button>
         {problem && (
           <div data-testid="road-engineering-problem">
-            <InlineAlert tone="error" title="Not calculated yet">
-              {problem.message}
-              {analysis.stations.length > 0 && ' Results show the last valid inputs.'}
+            <InlineAlert
+              tone="error"
+              title={analysis.stations.length ? 'Left out of the results' : 'Not calculated yet'}
+            >
+              {invalidInputMessages(problem).join(' ')}
+              {analysis.stations.length > 0 &&
+                (problem.leftOut === 'all'
+                  ? ' The results leave out every section and engineering edit made since the inputs were last valid.'
+                  : ' The results use the last valid value; every other edit is included.')}
             </InlineAlert>
           </div>
         )}
@@ -717,7 +724,11 @@ export function EngineeringControls({
                     ? 'Unsaved template changes. Preview the candidate, then save to update assigned road sections and library exports.'
                     : 'Saved template parameters. Edits can be previewed before saving.'}
                 </p>
-                <Fields value={candidate} fields={templateFields} onChange={updateTemplate} />
+                <Fields
+                  value={candidate}
+                  fields={templateFields.map((field) => ({ ...field, ...ditchWidthRange(candidate, field.key) }))}
+                  onChange={updateTemplate}
+                />
                 <SectionAssemblyEditor
                   template={candidate}
                   materials={design.materials}
@@ -755,6 +766,7 @@ export function EngineeringControls({
                         <div className="min-w-0 flex-1">
                           <NumberField
                             {...field}
+                            {...ditchWidthRange(candidate, field.key)}
                             label={field.label}
                             value={
                               (candidate[field.key] ??

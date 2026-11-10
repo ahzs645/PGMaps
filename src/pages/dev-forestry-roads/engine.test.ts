@@ -308,6 +308,53 @@ describe('vertical design and station-specific widths', () => {
     )
   })
 
+  it('measures a pitch at the road end by its own length, on a profile and on the ground', () => {
+    const allowance = (shortPitchGradePercent: number, shortPitchMaxLengthM: number) => ({
+      adverseGradePercent: null,
+      loadedDirection: null,
+      shortPitchGradePercent,
+      shortPitchMaxLengthM,
+      designVehicle: null,
+      designSpeedKmh: null,
+      runningSurfaceWidthM: null,
+      maxClearingWidthM: null,
+      maxCrossDrainSpacingM: null,
+    })
+    const flagged = (result: ReturnType<typeof analyzeRoad>) =>
+      result.stations.flatMap((s) => s.flags.filter((f) => /^Grade exceeds|^Pitch over/.test(f)))
+    // 200 m road: 4 % to 150 m, then a 50 m pitch at 16 % to the end. 12 %, 18 % for 50 m.
+    const road = alignment(200)
+    road.vertical = [
+      { id: 'a', chainage: 0, elevation: 800, curveLength: 0 },
+      { id: 'b', chainage: 150, elevation: 806, curveLength: 0 },
+      { id: 'c', chainage: 200, elevation: 814, curveLength: 0 },
+    ]
+    expect(flagged(analyzeRoad(road, flat, settings, [], { gradeStandards: allowance(18, 50) }))).toEqual([])
+    // The same pitch at the road start.
+    road.vertical = [
+      { id: 'a', chainage: 0, elevation: 800, curveLength: 0 },
+      { id: 'b', chainage: 50, elevation: 808, curveLength: 0 },
+      { id: 'c', chainage: 200, elevation: 814, curveLength: 0 },
+    ]
+    expect(flagged(analyzeRoad(road, flat, settings, [], { gradeStandards: allowance(18, 50) }))).toEqual([])
+    // One metre over the allowance is refused, and the flag gives the pitch its true length.
+    expect(flagged(analyzeRoad(road, flat, settings, [], { gradeStandards: allowance(18, 49) }))[0]).toBe(
+      'Pitch over 12% runs 50 m; the allowance is 49 m',
+    )
+    // A ground-following road: level, then 16 % over its last 60 m.
+    const ramp: TerrainSource = {
+      elevationAt: (_lng, lat) => 800 + Math.max(0, (((lat - origin[1]) * Math.PI) / 180) * 6371008.8 - 140) * 0.16,
+    }
+    const ground = alignment(200)
+    ground.vertical = []
+    const sixty = analyzeRoad(ground, ramp, settings, [], { gradeStandards: allowance(18, 60) })
+    expect(sixty.maxGradePercent).toBeCloseTo(16, 3)
+    expect(flagged(sixty)).toEqual([])
+    expect(flagged(analyzeRoad(ground, ramp, settings, [], { gradeStandards: allowance(18, 59) }))[0]).toBe(
+      'Pitch over 12% runs 60 m; the allowance is 59 m',
+    )
+  })
+
   it('has an independent vertical design with tangent-continuous parabolic curves', () => {
     const road = alignment(200)
     road.vertical = [

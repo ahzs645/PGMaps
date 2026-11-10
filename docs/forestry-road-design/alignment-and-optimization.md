@@ -262,7 +262,9 @@ and keeps the distance, and always pegs from the last point.
 **Vertical checks.** Grade ranges and the road-wide grade limit are checked at the analysis
 stations (default every 10 m, plus curve and event stations), not continuously. K, curve
 lengths and controls are checked at their own stations. A grade break below 0.05 % is not treated as unrounded. The first
-and last tangents are exempt from the minimum tangent length.
+and last tangents are exempt from the minimum tangent length. A curve that is not applied (it
+does not fit its tangents, or overlaps its neighbour) is checked as the unrounded break it leaves,
+with K = 0 and no curve length, not on its entered length.
 
 **Profile optimizer** (`verticalOptimizer.ts`):
 

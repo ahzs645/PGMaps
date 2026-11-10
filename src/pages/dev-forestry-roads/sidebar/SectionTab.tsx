@@ -10,7 +10,7 @@ import { RoadSection } from '../SidebarParts'
 import { EntryProblem } from '../InputProblem'
 import { inputMessage } from '../inputErrors'
 import { createEngineeringDesign } from '../engineeringTypes'
-import { keyedRockFillTemplate } from '../templates'
+import { ditchWidthRange, keyedRockFillTemplate } from '../templates'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
 import type { RoadTemplate, WidthOverride } from '../types'
 import { appliedTapers, duplicateWideningAt, fullWidthRange, limitedTaper } from '../wideningEntry'
@@ -75,8 +75,14 @@ export function SectionTab(
               key={key}
               label={label}
               value={alignment.template[key] ?? 0}
-              min={min}
+              // A ditch cannot be narrower than a flat bottom entered under Template components.
+              min={ditchWidthRange(alignment.template, key)?.min ?? min}
               max={max}
+              hint={
+                key === 'ditchWidth' && (ditchWidthRange(alignment.template, key)?.min ?? 0) > 0
+                  ? 'No narrower than the ditch bottom width set under Template components. Reduce the bottom width first.'
+                  : undefined
+              }
               error={inputMessage(problem, 'template', undefined, key)}
               onChange={(value) => updateAlignment((a) => ({ ...a, template: { ...a.template, [key]: value } }))}
             />

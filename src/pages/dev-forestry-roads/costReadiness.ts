@@ -1,5 +1,6 @@
 import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines } from './engineering'
+import { materialPlanMissing } from './engineeringTypes'
 import { surfacingSupplyCost } from './gravel'
 import { DEFAULT_ROAD_SETTINGS } from './terrain'
 import type { Alignment, RoadAnalysis, RoadSettings } from './types'
@@ -33,6 +34,11 @@ export interface CostReadinessAssessment {
    * nothing, so an estimate that falls after it is added is missing a price, not cheaper.
    */
   unpriced: UnpricedQuantity[]
+  /**
+   * The culverts with no installed cost, as records. Anything that counts or names them reads this
+   * list, never the prompt's sentence: a culvert's name can hold a comma or a full stop.
+   */
+  unpricedCulverts: { id: string; name: string; chainage: number }[]
   /** Aggregate lower bound on covered fill demand, subject to the entered material assumptions. */
   minimumBorrowCompactedM3: number
   flags: CostReviewFlag[]
@@ -65,6 +71,12 @@ export function crossingsWithoutStructure(analysis: RoadAnalysis, engineering: A
       ),
   )
 }
+
+/** Entered culverts whose installed cost is zero and that no crossing record has replaced. */
+const unpricedCulvertsOf = (analysis: RoadAnalysis) =>
+  (analysis.engineering?.culverts ?? []).filter(
+    (culvert) => culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id),
+  )
 
 /**
  * The quantities with no rate, in cost breakdown order. A zero rate is never replaced by an
@@ -111,10 +123,17 @@ export function unpricedQuantities(
   if (settings.surfacingRate === 0) add('surfacing', 'surfacing', surfacing.fallbackM3, 'm³')
   if (settings.fillRate === 0) add('material-course-placement', 'material course placement', courses, 'm³')
   if (settings.clearingRate === 0) add('clearing', 'clearing', analysis.clearingAreaM2, 'm²')
-  for (const culvert of result?.culverts ?? [])
-    if (culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id))
-      add('structures', `culvert (${culvert.name})`, culvert.barrelLengthM ?? 0, 'm', 'installed cost')
-  if (result?.haul.enabled && engineering)
+  for (const culvert of unpricedCulvertsOf(analysis))
+    // Without inverts there is no inclined barrel length yet; the entered length is the quantity.
+    add(
+      'structures',
+      `culvert (${culvert.name})`,
+      culvert.barrelLengthM ?? engineering?.culverts.find((entered) => entered.id === culvert.id)?.lengthM ?? 0,
+      'm',
+      'installed cost',
+    )
+  // A plan that was not adopted has no borrow, waste or haul quantity to call unpriced.
+  if (result?.haul.enabled && engineering && !materialPlanMissing(result.haul))
     for (const line of haulCostLines(engineering, result)) {
       if (line.rate !== 0) continue
       const supply = (line.group === 'borrow' || line.group === 'waste') && !line.id.startsWith('sidecast-')
@@ -216,7 +235,8 @@ export function assessCostReadiness(
       label: 'Aggregate minimum borrow demand',
       detail: `${quantity(minimumBorrowCompactedM3)} compacted m³ = covered fill minus assumed usable compacted cut, floored at zero. This screening lower bound assumes all usable cut can reach fill; road with unknown earthwork, unsuitable material or site constraints can increase demand. No supply or haul price is added by this check.`,
     })
-  if (result?.haul.enabled && engineering) {
+  // The infeasible and unsolved prompts above stand for the whole plan; nothing below applies to one.
+  if (result?.haul.enabled && engineering && !materialPlanMissing(result.haul)) {
     if (result.haul.unallocatedBorrowM3 > EPS || result.haul.unallocatedWasteM3 > EPS)
       flags.push({
         id: 'unallocated-haul',
@@ -273,9 +293,7 @@ export function assessCostReadiness(
       label: 'Stream crossing estimate needs review or prices',
       detail: analysis.crossingEstimate.warnings.join(' '),
     })
-  const unpricedCulverts = culverts.filter(
-    (culvert) => culvert.installedCost === 0 && !analysis.crossingEstimate?.replacedLegacyIds.includes(culvert.id),
-  )
+  const unpricedCulverts = unpricedCulvertsOf(analysis)
   if (unpricedCulverts.length)
     flags.push({
       id: 'zero-culvert-rates',
@@ -289,7 +307,8 @@ export function assessCostReadiness(
       detail:
         'Review Engineering → Drainage. Missing inverts, unresolved cover or unmatched crossing associations prevent complete structure geometry.',
     })
-  if (engineering?.culverts.some((culvert) => culvert.chainage > analysis.length + 1e-6))
+  // With nothing calculated the road has no length to be beyond.
+  if (analysis.stations.length && engineering?.culverts.some((culvert) => culvert.chainage > analysis.length + 1e-6))
     flags.push({
       id: 'excluded-culverts',
       label: 'Culverts beyond the road end are excluded',
@@ -307,6 +326,7 @@ export function assessCostReadiness(
     quantityCoverageComplete,
     placeholderRates: placeholderItems.map((item) => item.key),
     unpriced,
+    unpricedCulverts: unpricedCulverts.map(({ id, name, chainage }) => ({ id, name, chainage })),
     minimumBorrowCompactedM3,
     flags,
   }

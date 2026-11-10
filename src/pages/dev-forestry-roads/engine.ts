@@ -8,7 +8,7 @@
  */
 import { incompleteReasonSummary, incompleteReasonText } from './sectionCompleteness'
 import { checkVerticalDesign } from './verticalStandards'
-import { gradeRule, gradeRuleText, reviewGrades, type DesignStandards } from './designStandards'
+import { gradeRule, gradeRuleText, gradeSpanOf, reviewGrades, type DesignStandards } from './designStandards'
 import { MAX_DRAG_GRADE } from './verticalTools'
 import type {
   Alignment,
@@ -909,6 +909,11 @@ function validate(alignment: Alignment, settings: RoadSettings) {
   )
     throw new Error('Widenings need a valid station range, side, taper and extra width (0–50 m).')
 }
+/**
+ * The input checks every analysis starts with, on their own. They sample no terrain, so a caller
+ * can try several candidate inputs to find which one an analysis refuses (`analysisResult.ts`).
+ */
+export const validateRoadInputs: (alignment: Alignment, settings: RoadSettings) => void = validate
 
 type SectionResult = Pick<
   RoadStation,
@@ -1613,7 +1618,7 @@ export function analyzeRoad(
     if (reasons) warnings.push(`Incomplete sections: ${reasons}`)
   }
   // Favourable and adverse limits and the short-pitch allowance are one rule: `designStandards.ts`.
-  const grades = reviewGrades(stations, gradeRule(settings, options?.gradeStandards))
+  const grades = reviewGrades(stations, gradeRule(settings, options?.gradeStandards), gradeSpanOf(alignment))
   for (const [index, flag] of grades.flags) stations[index].flags.push(flag)
   if (grades.breachStationCount)
     warnings.push(

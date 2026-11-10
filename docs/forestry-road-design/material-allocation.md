@@ -81,6 +81,20 @@ tile reads **Material plan not solved**, the allocation warning names the limit 
 and the cost review flags it. It is different from infeasible: the entered rules may well be
 satisfiable, but this model could not be calculated.
 
+**A plan that was not adopted is not a quantity.** For an infeasible or not-solved result
+(`materialPlanMissing`, `engineeringTypes.ts`) the summary's borrow, waste and unallocated volumes
+are zero because nothing was allocated, and no reader states them as results:
+
+- the cost breakdown lists no borrow, waste or haul row, so its rows add up to its total;
+- no quantity is called unpriced or unallocated (`costReadiness.ts`);
+- Review reads **not assessed** for a plan that was not solved ("The material plan was not solved,
+  so borrow and waste have no source or site yet"), and **outside a limit** for an infeasible one.
+  Neither states a borrow or waste volume. The balance of usable cut against fill is still shown:
+  that is a property of the road, not of the allocation;
+- the mass-haul diagram draws the balance only, with no line after sites;
+- the engineering summary's haul tiles and the report's haul paragraph say the plan was not
+  calculated instead of printing zeros.
+
 The solver result is independently checked against every supply, demand and capacity equation,
 its opening binaries, and the reconstructed movement cost before it reaches the workspace.
 

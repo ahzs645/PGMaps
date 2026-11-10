@@ -36,6 +36,7 @@ import {
   SaveStateLine,
   SessionRestoredNotice,
 } from './dev-forestry-roads/ProjectHeader'
+import { saveStateText } from './dev-forestry-roads/saveState'
 import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   BarChart3,
@@ -56,8 +57,11 @@ import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
 import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
 import {
   csvPreview,
+  EXPORT_ITEMS,
   exportRoads,
   geoJsonPreview,
+  INVALID_INPUT_RULES,
+  MULTI_ROAD_EXPORTS,
   textPreview,
   type ExportPreview,
   type RoadScope,
@@ -176,7 +180,8 @@ import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/hori
 import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
-import { hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { calculatedAlignment, hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { invalidInputNotice, invalidInputRefusal, refuseInvalidResults } from './dev-forestry-roads/inputErrors'
 import { incompleteReasonSummary, incompleteReasonText } from './dev-forestry-roads/sectionCompleteness'
 import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
@@ -916,6 +921,8 @@ export default function DevForestryRoads() {
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
   const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
+  /** The results on screen leave an invalid input out; every surface that shows a figure says so. */
+  const staleResults = displayedAnalysis.stations.length > 0 && !!displayedAnalysis.invalidInput
   const unpricedCount = useMemo(
     () =>
       displayedAnalysis.stations.length
@@ -959,10 +966,12 @@ export default function DevForestryRoads() {
     const timer = window.setTimeout(() => setNotice(''), 8000)
     return () => window.clearTimeout(timer)
   }, [notice, setNotice])
-  // A routine save shows nothing and a training session's is a dot; only a save that failed is spelled out.
-  const trainingSave = !!w.saving?.startsWith('Training session saved')
-  const saveNotice =
-    !!w.saving && !trainingSave && w.saving !== 'Saved on this device' && w.saving !== 'Saving locally…'
+  // The save line under the title states where the project is kept. Beside the buttons a dot marks
+  // a session that will not be kept and a save that failed, in the line's own words, for a header
+  // too small to show the line.
+  const saveState = saveStateText(w.browserSave, w.fileSave, Date.now())
+  const trainingSave = w.browserSave.kind === 'training'
+  const saveNotice = w.browserSave.kind === 'failed' || w.browserSave.kind === 'invalid'
   const planningBasis = [
     ...(project.terrain.kind === 'regional'
       ? [
@@ -1041,6 +1050,7 @@ export default function DevForestryRoads() {
     try {
       if (draftAlignment || numericPegAlignment || templatePreview || costPreview)
         throw Error('Finish or close the design preview before exporting calculated results.')
+      refuseInvalidResults('Selected-section CSV', displayedAnalysis)
       const template =
         displayedAnalysis.engineering?.stations.find((s) => s.chainage === at.chainage)?.template ??
         displayedAlignment.template
@@ -1945,18 +1955,40 @@ export default function DevForestryRoads() {
       setFitRevision((n) => n + 1)
     })
   }
+  /** The invalid input the roads an output would write leave out, by `INVALID_INPUT_RULES`. */
+  const exportInvalidInput = (kind: RoadExport) => {
+    // A terrain profile is ground only: no section or engineering input reaches it.
+    if (INVALID_INPUT_RULES[kind] === 'unaffected' || (terrainProfile && !MULTI_ROAD_EXPORTS.includes(kind)))
+      return undefined
+    const roads = MULTI_ROAD_EXPORTS.includes(kind)
+      ? exportRoads(project.alignments, alignment.id, roadScope)
+      : [alignment]
+    return roads.map((road) => w.analyses.get(road.id)?.invalidInput).find((invalid) => invalid)
+  }
   /** The project as saved and the file name stem, after the checks every results export shares. */
   const exportBasis = (kind: RoadExport) => {
-    const safe = parseProject(project)
+    const calculated = kind !== 'project' && kind !== 'notes'
+    // The project file holds the inputs as entered. A results file holds the inputs its results were
+    // calculated from, so a stamped report never prints an invalid value beside the old quantities.
+    const safe = parseProject(
+      calculated
+        ? {
+            ...project,
+            alignments: project.alignments.map((road) => calculatedAlignment(road, w.analyses.get(road.id))),
+          }
+        : project,
+    )
     if (investigation && kind !== 'project' && kind !== 'notes')
       throw Error(
         'This is an access investigation. Export its evidence bundle or report in Access history; start a design before exporting engineering results.',
       )
-    const calculated = kind !== 'project' && kind !== 'notes'
     if (calculated && (draftAlignment || numericPegAlignment || templatePreview || costPreview))
       throw Error('Finish or close the design preview before exporting calculated results.')
     if (calculated && !displayedAnalysis.stations.length)
       throw Error('Calculated results are unavailable. Resolve the model errors before exporting results.')
+    const invalid = exportInvalidInput(kind)
+    if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
+      throw Error(invalidInputRefusal(EXPORT_ITEMS.find((item) => item.kind === kind)?.label ?? 'This file', invalid))
     const basename = (safe.name.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'forest-road').slice(0, 70)
     return { safe, basename }
   }
@@ -2141,7 +2173,9 @@ export default function DevForestryRoads() {
               map,
               safe.name,
               project.terrain.name,
-              `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}`,
+              `${project.terrain.verticalReference} | ${issueLine(issueStamp(safe.issue))} | ${PLANNING_CAVEAT}${
+                exportInvalidInput(kind) ? ` | NOT CURRENT: ${invalidInputNotice(exportInvalidInput(kind)!)}` : ''
+              }`,
               `${basename}-map.pdf`,
               signal,
             )
@@ -2504,7 +2538,7 @@ export default function DevForestryRoads() {
         className="flex shrink-0 flex-wrap items-center justify-between gap-2"
         data-testid="road-workspace-header"
       >
-        <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+        <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
           <ForestryBackLink />
           <div className="road-workspace-title min-w-0">
             {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
@@ -2526,19 +2560,24 @@ export default function DevForestryRoads() {
               data-testid="road-planning-basis"
               className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
             >
-              {project.terrain.kind === 'demo'
-                ? compact
-                  ? 'SYNTHETIC'
-                  : 'SYNTHETIC TRAINING'
-                : compact
-                  ? `${Math.round(project.terrain.resolutionM)} m terrain`
-                  : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
+              {/* The short wording also serves a header narrower than a wide desktop. */}
+              <span className={compact ? undefined : 'lg:hidden'}>
+                {project.terrain.kind === 'demo' ? 'SYNTHETIC' : `${Math.round(project.terrain.resolutionM)} m terrain`}
+              </span>
+              {!compact && (
+                <span className="hidden lg:inline">
+                  {project.terrain.kind === 'demo'
+                    ? 'SYNTHETIC TRAINING'
+                    : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
+                </span>
+              )}
             </span>
           )}
         </div>
         {!investigation && !awaitingFirstRoad(project) && (
           <RoadSwitcher
-            className="order-last w-full md:order-none md:w-auto md:flex-[0_1_26rem]"
+            // It grows from a small basis to its full width, so the title keeps its floor beside it.
+            className="order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]"
             alignments={project.alignments}
             analyses={w.analyses}
             activeId={project.activeAlignmentId}
@@ -2605,19 +2644,14 @@ export default function DevForestryRoads() {
               portalContainer={ref.current}
             />
           )}
-          {/* On narrow headers a failed save is a dot too; its title and label carry the text. */}
-          {saveNotice && (
-            <span className="mx-1 hidden max-w-40 truncate text-3xs text-muted-foreground xl:inline" title={w.saving}>
-              {w.saving}
-            </span>
-          )}
-          {/* A routine autosave shows nothing: only a session that will not be kept, or a failed save. */}
+          {/* A routine autosave shows nothing here: only a session that will not be kept, or a failed save. */}
           {(trainingSave || saveNotice) && (
             <span
               role="img"
-              aria-label={w.saving}
-              title={w.saving}
-              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'} ${saveNotice ? 'xl:hidden' : ''}`}
+              aria-label={saveState.detail}
+              title={saveState.detail}
+              data-testid="road-save-mark"
+              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
             />
           )}
           <Button
@@ -2677,17 +2711,17 @@ export default function DevForestryRoads() {
           <Button
             variant="outline"
             size="sm"
-            className="size-8 px-0 md:w-auto md:px-3"
+            className="size-8 px-0 lg:w-auto lg:px-3"
             title="Open project"
             disabled={!!w.busy}
             onClick={() => requestFile('project')}
           >
-            <FolderOpen className="size-4 md:mr-1 md:size-3" />
-            <span className="sr-only md:not-sr-only">Open</span>
+            <FolderOpen className="size-4 lg:mr-1 lg:size-3" />
+            <span className="sr-only lg:not-sr-only">Open</span>
           </Button>
           <Button
             size="sm"
-            className="size-8 px-0 md:w-auto md:px-3"
+            className="size-8 px-0 lg:w-auto lg:px-3"
             title="Save & export"
             disabled={!!w.busy}
             onClick={() => {
@@ -2696,8 +2730,8 @@ export default function DevForestryRoads() {
               setFilesOpen(true)
             }}
           >
-            <Download className="size-4 md:mr-1 md:size-3" />
-            <span className="sr-only md:not-sr-only">Save</span>
+            <Download className="size-4 lg:mr-1 lg:size-3" />
+            <span className="sr-only lg:not-sr-only">Save</span>
           </Button>
           <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
         </div>
@@ -2827,6 +2861,7 @@ export default function DevForestryRoads() {
         context={{
           designPreview: !!(draftAlignment || numericPegAlignment || templatePreview || costPreview),
           hasResults: displayedAnalysis.stations.length > 0,
+          invalidInput: exportInvalidInput,
           terrainProfile: !!terrainProfile,
           hasTerrainGrid: !!project.terrain.raster,
           hasProvincialEvidence: !!project.provincialStreamData,
@@ -3041,10 +3076,14 @@ export default function DevForestryRoads() {
               : [
                   {
                     key: 'earthworks',
-                    label: summaryLabel(
-                      !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
-                      !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
-                    ),
+                    // While an input is invalid the figures leave it out, and each tile says so.
+                    tone: staleResults ? ('warning' as const) : ('default' as const),
+                    label: staleResults
+                      ? summaryLabel('Cut / fill · invalid input left out', 'C/F · input left out')
+                      : summaryLabel(
+                          !hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill',
+                          !hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F (m³)' : 'Cut / fill (m³)',
+                        ),
                     value: displayedAnalysis.stations.length
                       ? summaryValue(
                           `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`,
@@ -3054,20 +3093,24 @@ export default function DevForestryRoads() {
                   },
                   {
                     key: 'cost',
+                    tone:
+                      staleResults && !costPreview && !completeCostRecord ? ('warning' as const) : ('default' as const),
                     label: costPreview
                       ? 'Candidate complete cost'
                       : completeCostRecord
                         ? 'Complete access cost'
-                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible' ||
-                            displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
-                          ? 'Incomplete estimate'
-                          : unpricedCount
-                            ? // Work with no rate adds nothing, so the figure must not read as a finished price.
-                              summaryLabel(`Estimate · ${unpricedCount} unpriced`, `Est. · ${unpricedCount} unpriced`)
-                            : summaryLabel(
-                                'Base engineering estimate',
-                                hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                              ),
+                        : staleResults
+                          ? summaryLabel('Estimate · invalid input left out', 'Est. · input left out')
+                          : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible' ||
+                              displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
+                            ? 'Incomplete estimate'
+                            : unpricedCount
+                              ? // Work with no rate adds nothing, so the figure must not read as a finished price.
+                                summaryLabel(`Estimate · ${unpricedCount} unpriced`, `Est. · ${unpricedCount} unpriced`)
+                              : summaryLabel(
+                                  'Base engineering estimate',
+                                  hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
+                                ),
                     value: costPreview
                       ? costPreview.totalCost === null
                         ? costPreview.status === 'infeasible'
@@ -3299,8 +3342,9 @@ export default function DevForestryRoads() {
                 )}
                 {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
                   <div data-testid="road-invalid-input">
-                    <InlineAlert tone="warning" title="The road and results below leave out your latest edit">
-                      {displayedAnalysis.invalidInput.message} They show the last valid inputs until it is corrected.
+                    <InlineAlert tone="warning" title="The charts, quantities and cost leave out an invalid input">
+                      {invalidInputNotice(displayedAnalysis.invalidInput)} Correct it where it was typed; its field
+                      shows the message.
                     </InlineAlert>
                   </div>
                 )}

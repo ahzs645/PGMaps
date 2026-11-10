@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { analyzeRoad } from './engine'
 import { parseProject, projectReportHtml } from './project'
-import { EMPTY_PROJECT_ISSUE, isoDate, issueLine, issueStamp, parseProjectIssue } from './projectIssue'
+import { EMPTY_PROJECT_ISSUE, isCalendarDate, isoDate, issueLine, issueStamp, parseProjectIssue } from './projectIssue'
 import { createDemoProject, demoTerrain } from './terrain'
 
 const today = new Date(2026, 10, 9)
@@ -26,6 +26,15 @@ describe('issue stamp', () => {
     expect(saved.issue).toEqual(issue)
     expect(parseProject(createDemoProject()).issue).toBeUndefined()
     expect(() => parseProjectIssue({ issuedOn: '9 Nov 2026' })).toThrow(/YYYY-MM-DD/)
+    // A day that does not exist is refused, not rolled over into the next month.
+    expect(() => parseProjectIssue({ issuedOn: '2026-02-31' })).toThrow(
+      'The date of issue must be a real date, written YYYY-MM-DD.',
+    )
+    expect(() => parseProjectIssue({ issuedOn: '2026-13-45' })).toThrow(/real date/)
+    expect(parseProjectIssue({ issuedOn: '2028-02-29' }).issuedOn).toBe('2028-02-29')
+    expect(isCalendarDate('2026-02-28')).toBe(true)
+    expect(isCalendarDate('2026-02-29')).toBe(false)
+    expect(isCalendarDate('2026-2-9')).toBe(false)
     expect(() => parseProjectIssue({ preparedBy: 'x'.repeat(201) })).toThrow(/Prepared by/)
   })
 })

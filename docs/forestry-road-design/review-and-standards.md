@@ -27,6 +27,15 @@ Each row has one of three states.
 entered, shows its measured value and stays not assessed. A drainage check that no longer matches
 the road is not assessed, not "checked".
 
+**A rule reads met only on a calculation it made.** Two things stop a rule judging: its own input
+is empty (no streams, no limit, no culvert), or the analysis it reads produced nothing (an invalid
+input with no earlier valid result, or a line the engine cannot read). In both, the row is not
+assessed. With nothing calculated, a project that has a stream and an excluded area does not read
+"the road crosses none of the 1 mapped stream" or "the centreline is clear": those were never
+tested. Rules judged on an input alone (terrain cell size, the profile's PVIs, the template, the
+standards) keep their state, because nothing they read is missing. `readiness.test.ts` holds one
+case per rule.
+
 A row that needs attention is one of two kinds, shown differently: **outside a limit** (red) for a
 broken limit, and **to do** (amber) for an input still at its starting value. A 20 % grade against a
 12 % limit and an unedited unit rate are not the same weight.
@@ -35,34 +44,62 @@ Each row states the result ("4 of 4 curves are tighter than 60 m"), the measured
 30 m at 0+280.9"), what it was judged on ("Minimum radius 60 m") and, when something is outstanding,
 a button that leads to where it is cleared.
 
-| Row                                         | Met when                                                                                                                                            | Not assessed when                                                                                                       |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Terrain fit for site quantities             | Imported terrain at 2 m cells or finer                                                                                                              | never: synthetic or coarse terrain needs attention                                                                      |
-| Ground and design known at every section    | Coverage is complete (`hasCompleteCoverage`)                                                                                                        | no sections were calculated                                                                                             |
-| Design standards confirmed                  | A person pressed **Confirm standards**                                                                                                              | never                                                                                                                   |
-| Profile designed                            | The road has two or more PVIs                                                                                                                       | the road is a mapped road                                                                                               |
-| Grade within the standard                   | No station breaks the grade rule and no station-range grade limit fails                                                                             | no grades were calculated                                                                                               |
-| Every corner fitted with a curve            | No station carries a sharp-PI flag                                                                                                                  | never                                                                                                                   |
-| Curve radius at or above the minimum        | Every fitted curve is at or above the minimum radius                                                                                                | the minimum radius is 0                                                                                                 |
-| Design vehicle stays on the running surface | The swept path fits at every turn                                                                                                                   | no vehicle has been run on this road                                                                                    |
-| Vertical curve at every grade break         | Every PVI whose grade changes by 0.5 % or more has a curve                                                                                          | there is no designed profile                                                                                            |
-| Vertical curves long enough (K)             | No K, curve-length or tangent check fails                                                                                                           | no minimum K or curve length is entered                                                                                 |
-| Cross-section template set                  | The template differs from the starting one, or matches a confirmed running-surface width                                                            | the road is a mapped road                                                                                               |
-| Ground materials entered                    | No cut is unclassified                                                                                                                              | no earthwork was calculated                                                                                             |
-| Earthwork balanced or sourced               | Cut and fill balance within tolerance, or haul allocation is on and no borrow or waste is unallocated                                               | no earthwork was calculated                                                                                             |
-| Clearing width within the limit             | No complete section is wider than the limit                                                                                                         | no clearing limit is entered                                                                                            |
-| Every stream crossing has a sized structure | Each mapped crossing has a culvert with both inverts and a current capacity check that passes                                                       | no stream lines are in the project, or a crossing has a recorded bridge or other structure this workspace does not size |
-| Every crossed stream has a reviewed class   | Each crossed stream's status is Reviewed (`streamStatus`)                                                                                           | no stream lines are in the project                                                                                      |
-| Low points and modelled streams drained     | The current drainage check has no unrelieved low point, no modelled stream without a culvert, none carried along the road and no undersized culvert | the check was not run or is out of date                                                                                 |
-| Cross-drain spacing within the limit        | No run between culverts, or from a road end, is longer than the limit                                                                               | no spacing limit is entered                                                                                             |
-| Excluded and conditional areas kept clear   | No sampled centreline station lies inside a constraint area                                                                                         | no constraint areas are in the project                                                                                  |
-| Unit rates entered                          | No base rate with a quantity is still the starting value or zero                                                                                    | never                                                                                                                   |
-| Haul, borrow and waste priced               | Haul allocation is on and no haul prompt remains                                                                                                    | no earthwork was calculated                                                                                             |
-| Structures priced                           | Every culvert and current crossing record has a price                                                                                               | no structures are entered                                                                                               |
-| Mobilization and contingency set            | At least one of the two is not zero                                                                                                                 | never                                                                                                                   |
+**How the Review step lays the list out** (`ReadinessList`, `ReadinessPanel.tsx`; `readinessParts`
+and `readinessVerdict`, `readiness.ts`):
+
+- A verdict line leads: "Not ready: 1 outside a limit, 6 to do". It reads "All 23 checks are met"
+  only when every check was made and met. With nothing outstanding and some checks not made it
+  reads "Nothing needs attention, but 9 checks were not made".
+- The rows that need attention follow, **Outside a limit** before **To do**. A row shows its result,
+  its measured value and its button; opening it adds the check's own wording and what it was judged
+  on.
+- **Not assessed** and **Met** are folded groups. Each summary line gives its count ("9 checks"),
+  and opening a group lists its rows under the same headings the report uses. A not-assessed row
+  keeps its button there ("Run check", "Set standards").
+- The printed report lists every row in full, in the report's own order.
+
+| Row                                         | Met when                                                                                                                                            | Not assessed when                                                                                                                    |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Terrain fit for site quantities             | Imported terrain at 2 m cells or finer                                                                                                              | the terrain records no cell size. Synthetic or coarse terrain needs attention                                                        |
+| Ground and design known at every section    | Coverage is complete (`hasCompleteCoverage`)                                                                                                        | no sections were calculated                                                                                                          |
+| Design standards confirmed                  | A person pressed **Confirm standards**                                                                                                              | never                                                                                                                                |
+| Profile designed                            | The road has two or more PVIs                                                                                                                       | the road is a mapped road                                                                                                            |
+| Grade within the standard                   | No station breaks the grade rule and no station-range grade limit fails                                                                             | no grades were calculated                                                                                                            |
+| Every corner fitted with a curve            | No station carries a sharp-PI flag                                                                                                                  | no sections were calculated                                                                                                          |
+| Curve radius at or above the minimum        | Every fitted curve is at or above the minimum radius, or the road is straight                                                                       | the minimum radius is 0, the road has corners and no curve is fitted, or the line cannot be read                                     |
+| Design vehicle stays on the running surface | The swept path fits at every turn                                                                                                                   | no vehicle has been run on this road                                                                                                 |
+| Vertical curve at every grade break         | Every PVI whose grade changes by 0.5 % or more has a curve the engine applied                                                                       | there is no designed profile                                                                                                         |
+| Vertical curves long enough (K)             | No K, curve-length or tangent check fails                                                                                                           | no minimum K or curve length is entered                                                                                              |
+| Cross-section template set                  | The template differs from the starting one, or matches a confirmed running-surface width                                                            | the road is a mapped road                                                                                                            |
+| Ground materials entered                    | No cut is unclassified                                                                                                                              | no earthwork was calculated: no stations, or no complete section                                                                     |
+| Earthwork balanced or sourced               | Cut and fill balance within tolerance, or haul allocation is on and no borrow or waste is unallocated                                               | no earthwork was calculated, or the material plan was not solved                                                                     |
+| Clearing width within the limit             | No complete section is wider than the limit                                                                                                         | no clearing limit is entered                                                                                                         |
+| Every stream crossing has a sized structure | Each mapped crossing has a culvert with both inverts and a current capacity check that passes                                                       | no stream lines are in the project, no sections were calculated, or a crossing has a recorded structure this workspace does not size |
+| Every crossed stream has a reviewed class   | Each crossed stream's status is Reviewed (`streamStatus`)                                                                                           | no stream lines are in the project, or no sections were calculated                                                                   |
+| Low points and modelled streams drained     | The current drainage check has no unrelieved low point, no modelled stream without a culvert, none carried along the road and no undersized culvert | the check was not run or is out of date                                                                                              |
+| Cross-drain spacing within the limit        | No run between culverts, or from a road end, is longer than the limit                                                                               | no spacing limit is entered                                                                                                          |
+| Excluded and conditional areas kept clear   | No sampled centreline station lies inside a constraint area                                                                                         | no constraint areas are in the project, or no sections were calculated                                                               |
+| Unit rates entered                          | No base rate with a quantity is still the starting value or zero                                                                                    | no quantity was calculated                                                                                                           |
+| Haul, borrow and waste priced               | Haul allocation is on and no haul prompt remains                                                                                                    | no earthwork was calculated, or the material plan was not solved                                                                     |
+| Structures priced                           | Every culvert and current crossing record has a price                                                                                               | no structures are entered, or no structure cost was calculated                                                                       |
+| Mobilization and contingency set            | At least one of the two is not zero                                                                                                                 | never                                                                                                                                |
 
 A cost prompt from `costReadiness.ts` that the list has no row for is shown as its own row, so a
 prompt added there is never dropped here.
+
+**While an input is invalid** the list leads with one more row, under **Inputs**: "The results
+leave out 1 invalid input", outside a limit, with the input's message and a button to where it is
+corrected. Every row after it is judged on the results, which use that input's last valid value,
+and rows that quote an input quote the one the results used. See
+[While an input is invalid](sections-quantities-and-costs.md#while-an-input-is-invalid).
+
+**A vertical curve counts only where it is applied.** The engine drops an entered curve that is
+longer than its tangents, or that overlaps the curve at the next PVI, and keeps the tangent grades
+(`verticalProfile`, `engine.ts`). That PVI is then a grade break without a curve. The curve row
+reads "outside a limit" and lists each dropped curve with its station, entered length and reason,
+separately from breaks where no curve was entered ("to do"). K is never quoted or judged on the
+entered length of a dropped curve: with a minimum K or a minimum curve length entered,
+`checkVerticalDesign` raises a failed check at that station instead.
 
 ### What the list does not do
 
@@ -95,13 +132,12 @@ screen already reads them: the grade limit (`maxGradePercent`) and the minimum r
 | Running surface                     | The Review template row; New project sets the first road's template to it                                               |
 | Clearing limit                      | The Review clearing row                                                                                                 |
 | Drain spacing                       | The Review cross-drain spacing row                                                                                      |
-| Design speed                        | Printed in the report only. Section → Curve rules has its own speed per road                                            |
+| Design speed                        | Printed in the report only. Section → Superelevation & widening has its own speed per road                              |
 | Source                              | Printed in the report                                                                                                   |
 
 **The grade rule.** `reviewGrades` (`designStandards.ts`) judges station grades. A run is a set of
-consecutive stations steeper than the sustained limit for their direction. Each station stands for
-the road halfway to its neighbours, so one over-limit station at 10 m spacing is a 10 m run. Without
-a short-pitch allowance every run is a breach. With one ("12 %, 18 % for pitches up to 100 m"):
+consecutive stations steeper than the sustained limit for their direction. Without a short-pitch
+allowance every run is a breach. With one ("12 %, 18 % for pitches up to 100 m"):
 
 - a run no steeper than the short-pitch limit and no longer than the longest pitch is allowed, and
   its stations carry no flag;
@@ -109,9 +145,24 @@ a short-pitch allowance every run is a breach. With one ("12 %, 18 % for pitches
 - a run short enough but steeper than the short-pitch limit is a breach only at the stations past
   that limit.
 
+**How a pitch is measured.** A run's length is the sum of the intervals its stations describe
+(`GradeSpan`). On a designed profile a station carries the grade of the road ahead of it, and PVIs
+are stations, so a pitch from one PVI to the next measures its own length; the last station
+repeats the grade behind it and adds nothing. On a ground-following road a station carries the
+grade of the interval behind it, and station 0 repeats the first interval. One over-limit station
+at 10 m spacing is a 10 m run, and a 50 m pitch measures 50 m at the road start, mid-road and at
+the road end. On a vertical curve the grade is sampled at the stations, so a run's ends are known
+to within one station spacing.
+
 With a haul direction and an adverse limit, a grade that loaded trucks climb is held to the adverse
 limit and one they descend to the grade limit. The adverse limit can only tighten the grade limit.
 Empty-truck limits are not part of this record.
+
+**A short-pitch limit relaxes a side only where it is above that side's limit.** With an 18 % grade
+limit, an 8 % adverse limit and "12 % for pitches up to 100 m", a 50 m loaded-uphill pitch at 10 %
+is allowed, and a loaded-downhill grade is still held to 18 %: the rule prints as "18 % favourable,
+8 % adverse; 12 % for adverse pitches up to 100 m". A short-pitch limit at or below every sustained
+limit permits nothing; the field says so, and the rule is applied and printed without it.
 
 **Confirmation.** The record starts as starting values and the Review list says so until someone
 presses **Confirm standards**. Confirming records the date; it does not lock the fields.

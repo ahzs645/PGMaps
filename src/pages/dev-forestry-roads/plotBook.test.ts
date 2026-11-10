@@ -26,6 +26,17 @@ const terrain: TerrainMetadata = { kind: 'demo', name: 'Slope', resolutionM: 1, 
 const analysis = analyzeRoad(alignment, { elevationAt: (lng) => 800 + (lng - origin[0]) * 1000 }, DEFAULT_ROAD_SETTINGS)
 
 describe('plot book', () => {
+  it('is not printed from results that leave out an invalid input', () => {
+    const stale = {
+      ...analysis,
+      invalidInput: { message: 'Road section: cut batter (H:V) must be 0.1 to 10.', leftOut: 'input' as const },
+    }
+    expect(() =>
+      plotBookHtml({ projectName: 'Demo', alignment, analysis: stale, terrain, ...exportGrid(terrain, origin) }),
+    ).toThrow(
+      'Plot book was not exported: an input is invalid, and this file would leave it out without saying so. Road section: cut batter (H:V) must be 0.1 to 10. Correct it and export again.',
+    )
+  })
   it('lays out plan-and-profile sheets per window and section sheets of twelve', () => {
     const book = plotBookHtml({
       projectName: 'Demo & book',

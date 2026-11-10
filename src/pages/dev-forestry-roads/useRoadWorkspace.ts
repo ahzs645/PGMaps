@@ -341,11 +341,13 @@ export function useRoadWorkspace() {
     project.sharedCrossingCosts,
     project.standards,
   ])
-  // Remember what calculated, after the render that calculated it, for the next invalid edit.
+  // Remember what calculated, after the render that calculated it, for the next invalid edit. While
+  // an input is invalid that is the set the results used: the valid edits made since are in it, so
+  // a second invalid edit falls back to them and not to an older state.
   useEffect(() => {
     for (const a of project.alignments) {
       const result = analyses.get(a.id)
-      if (result?.stations.length && !result.invalidInput) lastValidInputs.set(a.id, designInputsOf(a))
+      if (result?.stations.length) lastValidInputs.set(a.id, result.calculatedInputs ?? designInputsOf(a))
     }
   }, [analyses, project.alignments, lastValidInputs])
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]

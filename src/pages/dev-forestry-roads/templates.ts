@@ -270,6 +270,31 @@ const attributed = (cause: unknown, owner: string, target: EngineeringInputTarge
     : new EngineeringInputError(`${owner}: ${cause instanceof Error ? cause.message : 'invalid value.'}`, target)
 
 /**
+ * The range a ditch width field accepts so that no side's flat bottom is wider than its top: the
+ * rule `validateTemplate` enforces, for the field it is typed in. A base value is limited by every
+ * side that inherits it. Null for any other template key.
+ */
+export function ditchWidthRange(t: RoadTemplate, key: string): { min: number; max: number } | null {
+  const sides = ['left', 'right'] as const
+  const side = /^(left|right)Ditch(Bottom)?Width$/.exec(key)?.[1] as Side | undefined
+  if (side)
+    return key.endsWith('BottomWidth')
+      ? { min: 0, max: Math.min(10, sideValue(t, side, 'DitchWidth')) }
+      : { min: Math.min(10, sideValue(t, side, 'DitchBottomWidth')), max: 10 }
+  if (key === 'ditchBottomWidth') {
+    const tops = sides.filter((s) => t[`${s}DitchBottomWidth`] === undefined).map((s) => sideValue(t, s, 'DitchWidth'))
+    return { min: 0, max: Math.min(10, ...tops) }
+  }
+  if (key === 'ditchWidth') {
+    const bottoms = sides
+      .filter((s) => t[`${s}DitchWidth`] === undefined)
+      .map((s) => sideValue(t, s, 'DitchBottomWidth'))
+    return { min: Math.min(10, Math.max(0, ...bottoms)), max: 10 }
+  }
+  return null
+}
+
+/**
  * Checks one template. `target` says which editor holds it (the road's base section by default, or
  * a named library template) and `owner` names it in the message, so a failure can be shown there.
  */

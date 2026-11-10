@@ -80,6 +80,7 @@ export function ReviewTab(
         return p.onTab('design')
       case 'template':
         return p.onTab('template')
+      case 'templates':
       case 'materials':
       case 'haul':
         return p.onEngineeringInputs ? p.onEngineeringInputs(action.target) : p.onTab('engineering')
@@ -101,11 +102,11 @@ export function ReviewTab(
   const confirmedOn = project.standards?.confirmedOn
   return (
     <>
-      <RoadSection
-        title="Ready to review"
+      <ReadinessList
+        rows={rows}
+        onAction={act}
         help="The checks a designer answers for on the active road. Met means the check was made and nothing is outstanding. Needs attention means a limit is broken or an input is still to do. Not assessed means the workspace could not make the check, which is not a pass. Every limit is this project's own input; none of this certifies a road standard. The same list is printed in the report."
       >
-        <ReadinessList rows={rows} onAction={act} />
         <SectionReachAlert workspace={p.workspace} />
         <Button
           size="sm"
@@ -115,7 +116,7 @@ export function ReviewTab(
         >
           Review connected access & complete route costs
         </Button>
-      </RoadSection>
+      </ReadinessList>
       <RoadSection
         title="Crossing register"
         summary={crossingRegisterSummary(register)}

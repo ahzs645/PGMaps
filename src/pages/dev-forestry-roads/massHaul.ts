@@ -3,7 +3,7 @@
  * is unknown, the borrow and waste each site takes at its access station, and where on the road
  * each haul class works. No DOM: the chart, the tables and the tests read the same numbers.
  */
-import type { AlignmentEngineering, HaulMovement } from './engineeringTypes'
+import { materialPlanMissing, type AlignmentEngineering, type HaulMovement } from './engineeringTypes'
 import type { RoadAnalysis, RoadStation } from './types'
 
 const EPS = 1e-7
@@ -140,7 +140,8 @@ export function massHaulDiagram(
     haul: null,
   }
   const engineering = analysis.engineering
-  if (!engineering?.haul.enabled || !balance.length) return result
+  // A plan that is infeasible or was not solved allocated nothing: there is no line after sites.
+  if (!engineering?.haul.enabled || materialPlanMissing(engineering.haul) || !balance.length) return result
 
   // Every borrow and waste movement changes the balance where it joins or leaves the road. Sidecast
   // leaves at its own interval; only real sites are named as pits. A site between two stations
