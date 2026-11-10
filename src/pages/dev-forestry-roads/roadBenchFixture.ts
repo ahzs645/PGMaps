@@ -6,6 +6,7 @@
  */
 import type { XY } from './roadGrid'
 import type { SurfaceGrid } from './surfaceGrid'
+import type { VegetationEvidence } from './vegetationEvidence'
 
 export const BENCH_X0 = 500_000
 export const BENCH_Y0 = 6_000_600
@@ -84,4 +85,95 @@ export function benchTerrain({ bench = true, crossSlope = 0.3, noiseSd = 0.01 }:
 export function benchMappedLine(offsetM: number): XY[] {
   const line = benchCentreline().filter((_, i) => i % 20 === 0)
   return line.map((p, i) => [p[0] + offsetM + 3 * Math.sin((9 * i) / (line.length - 1)), p[1]] as XY)
+}
+
+export interface BenchEvidenceOptions {
+  /** Brush and regeneration on the bed instead of an open running surface. */
+  overgrown?: boolean
+  /** Rows (from the top) the point cloud covers; the rest has no returns. */
+  rows?: number
+}
+
+/**
+ * Point-cloud vegetation evidence on the bench fixture's cells, as `vegetationEvidence.ts` would
+ * aggregate it: an open, smooth bed of dense ground returns within 3 m of the centreline (or, when
+ * `overgrown`, brush 0.5–5 m up across it) under a forest of 20 m crowns elsewhere.
+ */
+export function benchEvidence({ overgrown = false, rows = ROWS }: BenchEvidenceOptions = {}): VegetationEvidence {
+  const line = benchCentreline()
+  const n = COLS * ROWS
+  const evidence: VegetationEvidence = {
+    origin: [BENCH_X0 + 0.5, BENCH_Y0 - 0.5],
+    cellM: 1,
+    width: COLS,
+    height: ROWS,
+    returns: new Uint16Array(n),
+    ground: new Uint16Array(n),
+    groundSdM: new Float32Array(n).fill(NaN),
+    canopyM: new Float32Array(n).fill(NaN),
+    low: new Uint16Array(n),
+    brush: new Uint16Array(n),
+    under5: new Uint16Array(n),
+    intensityRange: new Float32Array(n).fill(NaN),
+    info: {
+      points: 0,
+      pointsPerM2: 10,
+      groundPerM2: 5,
+      coveredCells: 0,
+      intensity: 'raw',
+      flightLines: null,
+      lowDensity: false,
+      sources: 1,
+    },
+  }
+  for (let r = 0; r < Math.min(rows, ROWS); r++) {
+    const y = BENCH_Y0 - 0.5 - r
+    const guess = Math.round(((BENCH_Y0 - 20 - y) / 560) * 600)
+    const lo = Math.max(0, Math.min(599, guess - 60)),
+      hi = Math.max(1, Math.min(600, guess + 60))
+    for (let c = 0; c < COLS; c++) {
+      const x = BENCH_X0 + 0.5 + c
+      let best = Infinity
+      for (let i = lo; i < hi; i++) {
+        const a = line[i],
+          b = line[i + 1]
+        const dx = b[0] - a[0],
+          dy = b[1] - a[1],
+          l2 = dx * dx + dy * dy
+        const t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / l2))
+        best = Math.min(best, Math.hypot(x - a[0] - t * dx, y - a[1] - t * dy))
+      }
+      const k = r * COLS + c
+      const jitter = (cellNoise(c, r, 1) + 1.8) / 3.6 // 0–1, repeatable
+      if (best <= 3 && !overgrown) {
+        evidence.returns[k] = 8 + Math.round(4 * jitter)
+        evidence.ground[k] = evidence.returns[k]
+        evidence.under5[k] = evidence.returns[k]
+        evidence.canopyM[k] = 0.03
+        evidence.groundSdM[k] = 0.02
+        evidence.intensityRange![k] = 10 + 10 * jitter
+      } else if (best <= 3) {
+        evidence.returns[k] = 12
+        evidence.ground[k] = 4
+        evidence.under5[k] = 12
+        evidence.brush[k] = 7
+        evidence.low[k] = 6
+        evidence.canopyM[k] = 2.5
+        evidence.groundSdM[k] = 0.04
+        evidence.intensityRange![k] = 60 + 40 * jitter
+      } else {
+        evidence.returns[k] = 14
+        evidence.ground[k] = 2 + Math.round(2 * jitter)
+        evidence.under5[k] = 6
+        evidence.brush[k] = 3
+        evidence.low[k] = 2
+        evidence.canopyM[k] = 20
+        evidence.groundSdM[k] = 0.05
+        evidence.intensityRange![k] = 70 + 60 * jitter
+      }
+      evidence.info.points += evidence.returns[k]
+      evidence.info.coveredCells++
+    }
+  }
+  return evidence
 }

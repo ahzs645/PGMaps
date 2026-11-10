@@ -14,6 +14,7 @@ import {
   setWhiteboxSources,
 } from './pointCloud'
 import { gridSurface } from './pointCloud.worker'
+import { vegetationEvidence, type FullPointCloud } from './vegetationEvidence'
 
 const wasmDir = dirname(createRequire(import.meta.url).resolve('whitebox-wasm'))
 const toolsWasm = readFileSync(join(wasmDir, 'whitebox-cli.wasm'))
@@ -191,6 +192,30 @@ describe('LAS and LAZ point clouds', () => {
     expect(cloud.count).toBeGreaterThan(250)
     expect(cloud.thinCellM).toBeGreaterThan(1)
     expect(groundSummary(cloud).ground).toBe(cloud.count)
+  })
+
+  it('hands every decoded point, with intensity, to vegetation evidence before thinning', async () => {
+    for (const bytes of [lasBytes, lazBytes]) {
+      let seen: FullPointCloud | null = null
+      const cloud = await readPointCloud(bytes, {
+        maxPoints: 500,
+        withIntensity: true,
+        beforeThin: (full) => (seen = full),
+      })
+      expect(cloud.count).toBeLessThanOrEqual(500)
+      const full = seen! as FullPointCloud
+      expect(full.x.length).toBe(points.length)
+      expect(full.intensity?.length).toBe(points.length)
+      const outcome = vegetationEvidence(full)
+      if (!('evidence' in outcome)) throw Error(outcome.refused)
+      // Crowns 15–25 m up every 2 m: the thinned cloud has lost them, the evidence has not.
+      expect(Math.max(...Array.from(outcome.evidence.canopyM).filter(Number.isFinite))).toBeGreaterThan(14)
+      expect(outcome.evidence.info.points).toBe(points.length)
+    }
+    // Without the option nothing is read twice.
+    let called = false
+    await readPointCloud(lasBytes, { beforeThin: (full) => (called = full.intensity === null) })
+    expect(called).toBe(true)
   })
 
   it('round-trips through encodeLas into the existing ground grid', async () => {

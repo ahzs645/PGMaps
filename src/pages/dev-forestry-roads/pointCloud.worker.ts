@@ -13,6 +13,14 @@ import type { GroundGrid } from './lasSurface'
 import type { Breakline } from './tinSurface'
 import type { PointPreservation, TerrainPreparationRecord } from './terrainPreparation'
 import {
+  addVegetationCloud,
+  finishVegetationEvidence,
+  vegetationAccumulator,
+  vegetationBuffers,
+  type VegetationEvidenceOutcome,
+} from './vegetationEvidence'
+import { readPointCloudHeader } from '@/lib/lidar/lasHeader'
+import {
   classifyGround,
   groundSummary,
   readPointCloud,
@@ -41,6 +49,11 @@ export interface PointCloudWorkerRequest {
   askBreaklines?: boolean
   method?: GroundMethod
   params?: ClassifyGroundOptions['params']
+  /**
+   * Aggregate the unthinned returns into vegetation evidence for road finding
+   * (`vegetationEvidence.ts`) before the cloud is thinned. Only the grids come back.
+   */
+  vegetation?: boolean
 }
 
 export interface SurfaceRequest {
@@ -78,6 +91,8 @@ export type PointCloudWorkerResponse =
       /** Without its point arrays when a surface was requested. */
       cloud: PointCloud
       surface?: SurfaceResult
+      /** With `vegetation`: the evidence grids, or why there are none. */
+      vegetation?: VegetationEvidenceOutcome
       summary: GroundSummary
       classifiedBy: GroundMethod | null
       timings: { readMs: number; classifyMs: number; gridMs: number }
@@ -105,15 +120,36 @@ async function run({
   params,
   surface: requested,
   askBreaklines,
+  vegetation,
 }: PointCloudWorkerRequest) {
   const post = (message: PointCloudWorkerResponse, transfer: Transferable[] = []) =>
     scope.postMessage(message, transfer)
   try {
     post({ type: 'progress', stage: 'reading', done: 0, total: 1 })
     let started = performance.now()
+    // One evidence grid over every file's stated extent, fed each file before it is thinned.
+    let evidence: ReturnType<typeof vegetationAccumulator> | null = null
+    if (vegetation) {
+      const headers = [bytes, ...(additionalBytes ?? [])].map((b) => readPointCloudHeader(new Uint8Array(b)))
+      evidence = vegetationAccumulator([
+        Math.min(...headers.map((h) => h.min[0])),
+        Math.min(...headers.map((h) => h.min[1])),
+        Math.max(...headers.map((h) => h.max[0])),
+        Math.max(...headers.map((h) => h.max[1])),
+      ])
+    }
+    const accumulator = evidence && !('refused' in evidence) ? evidence : null
     // Read after decoding, so a LAZ whose CRS only whitebox finds keeps it over the stated one.
     const read = async (source: ArrayBuffer) =>
-      assumeCrs(await readPointCloud(new Uint8Array(source), { maxPoints, preserve }), assumedEpsg)
+      assumeCrs(
+        await readPointCloud(new Uint8Array(source), {
+          maxPoints,
+          preserve,
+          withIntensity: !!accumulator,
+          beforeThin: accumulator ? (full) => addVegetationCloud(accumulator, full) : undefined,
+        }),
+        assumedEpsg,
+      )
     let cloud = await read(bytes)
     if (additionalBytes?.length) {
       const clouds = [cloud]
@@ -148,6 +184,13 @@ async function run({
       gridMs = performance.now() - started
     }
     const summary = groundSummary(cloud)
+    const vegetationResult: VegetationEvidenceOutcome | undefined = !evidence
+      ? undefined
+      : accumulator
+        ? finishVegetationEvidence(accumulator)
+        : (evidence as { refused: string })
+    const vegetationTransfer =
+      vegetationResult && 'evidence' in vegetationResult ? vegetationBuffers(vegetationResult.evidence) : []
     const empty = {
       x: new Float64Array(),
       y: new Float64Array(),
@@ -160,11 +203,12 @@ async function run({
         type: 'done',
         cloud: result,
         surface,
+        ...(vegetationResult ? { vegetation: vegetationResult } : {}),
         summary,
         classifiedBy: classifying ? method : null,
         timings: { readMs, classifyMs, gridMs },
       },
-      [result.x.buffer, result.y.buffer, result.z.buffer, result.classification.buffer],
+      [result.x.buffer, result.y.buffer, result.z.buffer, result.classification.buffer, ...vegetationTransfer],
     )
   } catch (error) {
     post({ type: 'error', message: error instanceof Error ? error.message : String(error) })

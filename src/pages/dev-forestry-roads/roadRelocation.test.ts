@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { runCooperatively } from './cooperative'
-import { BENCH_Y0, benchCentreline, benchMappedLine, benchTerrain } from './roadBenchFixture'
+import { BENCH_X0, BENCH_Y0, benchCentreline, benchEvidence, benchMappedLine, benchTerrain } from './roadBenchFixture'
 import { cumulativeLength, nearestOnLine, resampleLine, spreadOf, type TerrainSampler, type XY } from './roadGrid'
 import { findRoadOnTerrain, findRoadOnTerrainSteps, ROAD_FIND_CHUNK_M } from './roadRelocation'
 import type { SurfaceGrid } from './surfaceGrid'
@@ -149,5 +149,106 @@ describe('finding a mapped road on the terrain', () => {
       terrainCellM: 1,
     })
     expect(result.status).toBe('refused')
+  })
+})
+
+describe('finding and grading a road with point-cloud evidence', () => {
+  const bench = benchTerrain()
+  const open = benchEvidence()
+
+  it('runs the full conductivity, measures the drivable bed and grades an open road', () => {
+    const line = benchMappedLine(10)
+    const result = findRoadOnTerrain({ line, ground: bench, terrainCellM: 1, evidence: open })
+    expect(result.status).toBe('found')
+    expect(result.mode).toBe('terrain+vegetation')
+    expect(result.modeNote).toMatch(/canopy, low vegetation, ground density, intensity/)
+    expect(result.evidenceCoverage).toBe(1)
+    expect(offTruth(result.candidate).p90).toBeLessThanOrEqual(1)
+    expect(result.slices!.drivableWidthM!.p50).toBeGreaterThan(5)
+    expect(result.slices!.vegetationPercent!).toBeLessThan(2)
+    expect(result.state).not.toBeNull()
+    expect(result.state!.stateClass).toBeLessThanOrEqual(2)
+    expect(result.state!.input.conductivity).toBeGreaterThan(0.5)
+    expect(result.stateRanges.length).toBeGreaterThan(0)
+    expect(result.sinuosity!).toBeGreaterThan(1)
+    expect(result.endShiftM!).toBeLessThan(25)
+  })
+
+  it('still finds a brushed-in road from its bench, and grades it as overgrown', () => {
+    const result = findRoadOnTerrain({
+      line: benchMappedLine(10),
+      ground: bench,
+      terrainCellM: 1,
+      evidence: benchEvidence({ overgrown: true }),
+    })
+    expect(result.status).toBe('found')
+    expect(result.mode).toBe('terrain+vegetation')
+    expect(result.slices!.vegetationPercent!).toBeGreaterThan(40)
+    expect(result.modeNote).toMatch(/followed on the terrain alone and then graded/)
+    expect(offTruth(result.candidate).p90).toBeLessThanOrEqual(1)
+    expect(result.state!.stateClass).toBeGreaterThanOrEqual(3)
+    expect(result.state!.subScores.vegetation).toBe(0)
+    // The path conductivity is read from the full score, which the brush closes.
+    expect(result.state!.subScores.conductivity).toBe(0)
+  })
+
+  it('stays terrain-only, and says why, when the cloud covers too little of the corridor', () => {
+    const line = benchMappedLine(10)
+    const partial = findRoadOnTerrain({ line, ground: bench, terrainCellM: 1, evidence: benchEvidence({ rows: 150 }) })
+    const plain = findRoadOnTerrain({ line, ground: bench, terrainCellM: 1 })
+    expect(partial.mode).toBe('terrain')
+    expect(partial.modeNote).toMatch(/covers \d+% of the search corridor, below the 80%/)
+    expect(partial.state).toBeNull()
+    expect(partial.stateNote).toMatch(/needs point-cloud vegetation evidence/)
+    // The terrain-only result is the one a run without evidence gives.
+    expect(partial.candidate).toEqual(plain.candidate)
+    expect(partial.ranges).toEqual(plain.ranges)
+  })
+
+  it('reports the harmonic path conductivity in terrain-only mode without grading', () => {
+    const result = findRoadOnTerrain({ line: benchMappedLine(10), ground: bench, terrainCellM: 1 })
+    expect(result.mode).toBe('terrain')
+    expect(result.conductivity).not.toBeNull()
+    expect(result.conductivity!).toBeLessThanOrEqual(result.likenessAlong!.mean + 0.01)
+    expect(result.state).toBeNull()
+    expect(result.settings.corridorM).toBe(40)
+  })
+
+  it('takes the corridor and pull from the settings, and refuses nothing silently', () => {
+    const result = findRoadOnTerrain({
+      line: benchMappedLine(10),
+      ground: bench,
+      terrainCellM: 1,
+      settings: { corridorM: 60, confidence: 0.2 },
+    })
+    expect(result.corridorHalfWidthM).toBe(60)
+    expect(result.settings).toMatchObject({ corridorM: 60, confidence: 0.2 })
+  })
+
+  it('crosses water only at the record, as a presumed structure kept as the record', () => {
+    // A 15 m river across the whole window, 280–295 m below the top.
+    const top = BENCH_Y0 - 280,
+      bottom = BENCH_Y0 - 295
+    const river: XY[][] = [
+      [
+        [BENCH_X0 - 10, top],
+        [BENCH_X0 + 510, top],
+        [BENCH_X0 + 510, bottom],
+        [BENCH_X0 - 10, bottom],
+      ],
+    ]
+    const line = benchMappedLine(2)
+    const result = findRoadOnTerrain({ line, ground: bench, terrainCellM: 1, water: [river] })
+    expect(result.water).toEqual({ polygons: 1, crossings: 1 })
+    expect(['found', 'partial']).toContain(result.status)
+    const presumed = result.ranges.filter((r) => r.kind === 'presumed-structure')
+    expect(presumed.length).toBeGreaterThanOrEqual(1)
+    expect(presumed[0].from).toBeGreaterThan(240)
+    expect(presumed[0].to).toBeLessThan(330)
+    expect(result.reason).toMatch(/presumed structure/)
+    // The found path never runs through the river away from the crossing.
+    const crossing = resampleLine(result.foundLine!, 1).filter(([, y]) => y < top && y > bottom)
+    const recordCum = cumulativeLength(line)
+    expect(Math.max(...crossing.map((p) => nearestOnLine(line, recordCum, p).distance))).toBeLessThanOrEqual(5.5)
   })
 })

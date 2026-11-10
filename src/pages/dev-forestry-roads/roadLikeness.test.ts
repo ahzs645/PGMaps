@@ -1,7 +1,20 @@
 import { describe, expect, it } from 'vitest'
-import { benchCentreline, benchTerrain } from './roadBenchFixture'
+import { benchCentreline, benchEvidence, benchTerrain } from './roadBenchFixture'
 import { cumulativeLength, resampleLine } from './roadGrid'
-import { ROAD_FIND_MAX_CELL_M, roadFindingTerrainProblem, roadLikeness } from './roadLikeness'
+import {
+  canopyActivation,
+  combineRoadConductivity,
+  edgeActivation,
+  lowVegetationActivation,
+  risingActivation,
+  ROAD_FIND_MAX_CELL_M,
+  roadFindingTerrainProblem,
+  roadLikeness,
+  roughnessActivation,
+  slopeActivation,
+  type RoadConductivityTerms,
+} from './roadLikeness'
+import { evidenceOnFrame } from './vegetationEvidence'
 import type { SurfaceGrid } from './surfaceGrid'
 
 const plane = (rise: number, cellM = 1, size = 20): SurfaceGrid => ({
@@ -67,5 +80,69 @@ describe('road-likeness', () => {
     const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length
     expect(mean(onRoad)).toBeGreaterThan(0.5)
     expect(mean(offRoad)).toBeLessThan(0.3)
+  })
+})
+
+/**
+ * The point-cloud form against a reference run of ALSroads 0.2.0, 10 November 2026 (its activation
+ * and combination code run unmodified on these inputs), and the spec's hand-derived cases.
+ */
+describe('road conductivity with point-cloud terms', () => {
+  it.each([
+    ['slope 5–20°', slopeActivation, [0, 5, 8, 10, 12.5, 15, 20, 30], [1, 1, 0.8, 0.667, 0.5, 0.333, 0, 0]],
+    [
+      'roughness 0.05–0.10 m',
+      roughnessActivation,
+      [0.02, 0.05, 0.06, 0.075, 0.09, 0.1, 0.2],
+      [1, 1, 0.8, 0.5, 0.2, 0, 0],
+    ],
+    ['slope edge 40', edgeActivation, [0, 39.9, 40, 80], [1, 1, 0, 0]],
+    ['low vegetation, 2 returns', lowVegetationActivation, [0, 1, 2, 5], [1, 1, 0, 0]],
+    ['canopy 0.1–0.2 m', canopyActivation, [0, 0.1, 0.15, 0.2, 3], [1, 1, 0.5, 0, 0]],
+  ] as const)('activates %s as the reference run', (_, activation, inputs, outputs) => {
+    expect(inputs.map((v) => (activation as (x: number) => number)(v))).toEqual(outputs)
+  })
+
+  it('ramps density up between the corridor percentiles', () => {
+    // P25 = 4, P95 = 12 points per cell.
+    expect([2, 4, 6, 8, 12, 20].map((d) => risingActivation(d, 4, 12))).toEqual([0, 0, 0.25, 0.5, 1, 1])
+  })
+
+  const ones: RoadConductivityTerms = { slope: 1, roughness: 1, edge: 1, low: 1, canopy: 1, density: 1, intensity: 1 }
+  it.each([
+    ['all seven terms 1', {}, 1],
+    ['slope term 0.5', { slope: 0.5 }, 0.5],
+    ['brush on the bed (low-vegetation gate closed)', { low: 0 }, 0.1],
+    ['canopy over the bed, density 0.5', { canopy: 0, density: 0.5 }, 0.6],
+    ['no intensity in the cloud, roughness 0.5', { intensity: null, roughness: 0.5 }, 0.875],
+  ] as const)('combines %s as equation 1', (_, terms, sigma) => {
+    expect(combineRoadConductivity({ ...ones, ...terms })).toBeCloseTo(sigma, 10)
+  })
+
+  it('makes roughness a vote, not a gate, unlike the terrain-only product', () => {
+    expect(combineRoadConductivity({ ...ones, slope: 0.8, roughness: 0.8 })).toBeCloseTo(0.768, 10)
+    // Terrain only on the same cell: 0.8 × 0.8 × 1.
+    expect(slopeActivation(8) * roughnessActivation(0.06)).toBeCloseTo(0.64, 10)
+  })
+
+  it('scores an open bed above the forest beside it, and a brushed-in bed down to the floor', () => {
+    const dtm = benchTerrain()
+    const frame = { origin: dtm.origin, cellM: 1, width: dtm.width, height: dtm.height }
+    const population = new Uint8Array(dtm.width * dtm.height).fill(1)
+    const sample = (grid: typeof dtm, p: [number, number]) =>
+      grid.values[
+        Math.round((grid.origin[1] - p[1]) / grid.cellM) * grid.width + Math.round((p[0] - grid.origin[0]) / grid.cellM)
+      ]
+    const along = resampleLine(benchCentreline(), 2).slice(5, -5)
+    const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length
+    const open = roadLikeness(dtm, {}, { layers: evidenceOnFrame(benchEvidence(), frame), population })
+    expect(mean(along.map((p) => sample(open, p)))).toBeGreaterThan(0.7)
+    expect(mean(along.map(([x, y]) => sample(open, [x + 25, y])))).toBeLessThan(0.2)
+    const brushed = roadLikeness(
+      dtm,
+      {},
+      { layers: evidenceOnFrame(benchEvidence({ overgrown: true }), frame), population },
+    )
+    expect(mean(along.map((p) => sample(brushed, p)))).toBeLessThan(0.15)
   })
 })
