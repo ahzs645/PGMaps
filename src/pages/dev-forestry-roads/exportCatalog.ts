@@ -16,6 +16,7 @@ export type RoadExport =
   | 'map-pdf'
   | 'block-sheet-pdf'
   | 'landxml'
+  | 'dxf'
   | 'stakeout'
   | 'shapefile'
   | 'plotbook'
@@ -78,6 +79,7 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   'block-sheet-pdf': 'stamp',
   plotbook: 'refuse',
   landxml: 'refuse',
+  dxf: 'refuse',
   stakeout: 'refuse',
   csv: 'refuse',
   geojson: 'refuse',
@@ -189,6 +191,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     description: 'Horizontal and vertical alignment with cross-sections, for civil design software.',
   },
   {
+    kind: 'dxf',
+    group: 'survey',
+    label: 'CAD drawing (DXF)',
+    extension: '.dxf',
+    description:
+      'Plan centreline with true arcs, 3D edge, ditch and catch lines, station labels, and the profile and cross-sections at true scale, as AutoCAD R12 DXF.',
+  },
+  {
     kind: 'stakeout',
     group: 'survey',
     label: 'Stakeout',
@@ -235,7 +245,8 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (kind === 'notes') return context.hasNotes ? null : 'Draw a note on the plan first.'
   if (context.designPreview) return 'Finish or close the design preview first.'
   if (!context.hasResults) return 'No calculated results yet.'
-  if (context.terrainProfile && ['plotbook', 'landxml', 'stakeout'].includes(kind)) return 'Return to the road first.'
+  if (context.terrainProfile && ['plotbook', 'landxml', 'dxf', 'stakeout'].includes(kind))
+    return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'
   if (kind === 'provincial-evidence' && !context.hasProvincialEvidence) return 'Load provincial stream evidence first.'

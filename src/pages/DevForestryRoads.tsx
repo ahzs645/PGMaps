@@ -2176,6 +2176,17 @@ export default function DevForestryRoads() {
             : 'Shapefiles downloaded.',
         }
       }
+      case 'dxf': {
+        if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
+        const { roadDxf } = await import('./dev-forestry-roads/dxfExport')
+        const grid = exportGrid(project.terrain, alignment.points[0].coordinate)
+        return text(
+          roadDxf({ name: safe.name, alignment, analysis, terrain: project.terrain, ...grid }),
+          `${basename}.dxf`,
+          'application/dxf',
+          `DXF downloaded: plan in EPSG:${grid.epsg} grid metres, profile and sections at true scale below it.`,
+        )
+      }
       case 'landxml':
       case 'stakeout': {
         if (terrainProfile) throw Error('Return to the road before exporting design geometry.')
