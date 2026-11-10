@@ -27,16 +27,17 @@ describe('withBase', () => {
   })
 })
 
+// `projects` is app-owned, so no data host can take it and these stay local.
 describe('dataUrl', () => {
   it('joins segments under /data', () => {
-    expect(dataUrl('census', 'catalog.json')).toBe('/data/census/catalog.json')
+    expect(dataUrl('projects', 'index.json')).toBe('/data/projects/index.json')
   })
 
   it('tolerates leading and trailing slashes on segments', () => {
-    expect(dataUrl('/census/', '/catalog.json')).toBe('/data/census/catalog.json')
+    expect(dataUrl('/projects/', '/index.json')).toBe('/data/projects/index.json')
   })
 
   it('drops empty segments', () => {
-    expect(dataUrl('census', '', 'catalog.json')).toBe('/data/census/catalog.json')
+    expect(dataUrl('projects', '', 'index.json')).toBe('/data/projects/index.json')
   })
 })

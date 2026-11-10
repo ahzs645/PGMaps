@@ -70,28 +70,10 @@ jobs:
           path: public/data
           key: ${{ runner.os }}-pgmaps-data-v2-${{ steps.data-source.outputs.revision }}-${{ hashFiles('scripts/**', '!scripts/lidar/**', '!scripts/nechako-server/**', '!scripts/nechako-worker/**', '!scripts/forestry/**','!scripts/prepare-lidar.py', '!scripts/lidar-environment.yml', 'package.json', 'package-lock.json', 'src/config/data-hosts.json', 'public/data/**') }}
 
-      - name: Install data-generation dependencies
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: pip install -r vendor/bcdatamapper/datascrapers/bc/assessment/requirements.txt
-
-      - name: Build national Census Subdivision overview
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: npm run census:canada-csd-simplified -- --if-missing
-
+      # bcdatamapper commits its outputs already built, so this only copies them.
       - name: Assemble bcdatamapper snapshots
         if: steps.data-cache.outputs.cache-hit != 'true'
         run: npm run data:sync-from-bcdatamapper:clean
-
-      - name: Verify generated Census Subdivision deployment data
-        run: test -s public/data/census/canada-csd-simplified.geojson
-
-      - name: Build Census variable catalog
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: npm run census:variables
-
-      - name: Build BC Assessment dataset
-        if: steps.data-cache.outputs.cache-hit != 'true'
-        run: npm run bc-assessment:build
 
       - name: Copy Indigenous snapshot
         if: steps.data-cache.outputs.cache-hit != 'true'

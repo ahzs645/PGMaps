@@ -6,14 +6,24 @@ from this site.
 
 ## Current hosts
 
-| Host           | Base URL                                            | Folders                                                                        |
-| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `canada-admin`, `cciss`, `citypg`, `drought`, `forest`, `network-availability` |
+| Host           | Base URL                                            | Folders                                                                  |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
 
 bcdatamapper publishes these from its own repository
 (`vendor/bcdatamapper/docs/pages-site.md`). Its `pages/site.json` is the one
 list of how they are laid out: the sync reads it for local runs instead of
-keeping its own copy. About 400 MB of the Pages build (compressed) moved there.
+keeping its own copy. Moving the first folders took about 400 MB (compressed)
+out of the Pages build; `census` is another 265 MB uncompressed.
+
+That site is 617 MB of GitHub Pages' 1 GB limit, which its build enforces, and
+it warns above 800 MB. `boundaries` is 205 MB, of which the app loads about 92:
+the full-detail `BCMoH` files (89 MB) and the two province-wide `BCFWA` files
+(23 MB) are sources for the simplified layers it does load.
+
+`canada-admin` was published there until 10 November 2026. Nothing loaded it:
+the Canada administrative divisions story reads PMTiles on R2. bcdatamapper no
+longer commits those snapshots.
 
 ### Versions
 
@@ -49,7 +59,7 @@ host's `baseUrl` with the same layout below it:
     {
       "name": "bcdatamapper",
       "baseUrl": "https://projects.ahmadjalil.com/bcdatamapper/data",
-      "folders": ["canada-admin", "census"]
+      "folders": ["drought", "census"]
     }
   ]
 }
@@ -104,13 +114,28 @@ so resolving an already-resolved URL is harmless.
 
 ## What a remote folder changes
 
-- Prebuild scripts write derived files into some synced folders:
-  `build-ui-data.mjs` (`ui`, `census/variables`, `bc-assessment`, `geocoding`),
-  `build-census-north-south-dissolved.mjs` (`census/canada-csd`),
-  `build-echoscreen-project-data.mjs` (`boundaries/BCFWA`, `health`),
-  `build-aqmap-forecast-zones.mjs` (`aqmap`) and
-  `generate-boundary-search-index.mjs`. Those files must be published with the
-  folder, or the folder listed more narrowly.
+- A remote folder is not in `public/data` during a build. No PGMaps script
+  writes into a synced folder, and the deploy only copies what bcdatamapper
+  commits, already built. Three things still read synced folders from disk:
+  - Build scripts. `generate-boundary-search-index.mjs` reads `boundaries`,
+    `census` and `walkability`; `build-ui-data.mjs` reads `geocoding`,
+    `restaurants.json`, `bc-assessment` and `census/variables`. Both write only
+    the app-owned `boundary-search` and `ui`. The index resolves every input
+    with `createDataSourceResolver` (`scripts/lib/data-source-path.mjs`), which
+    returns the submodule's copy of anything in bcdatamapper's
+    `pages/site.json`; `build-ui-data.mjs` names the submodule path of its one
+    census file. Do the same for the next folder that moves.
+  - Unit tests. A test that opens a moved folder's file reads the submodule
+    (`src/maps/project-story/testing/readStoryData.ts` for story layers), so
+    the suite passes after a normal sync.
+  - bcdatamapper's own builds. `bc-assessment:build` reads that repository's
+    census and boundary snapshots, not `public/data`.
+- `build-aqmap-forecast-zones.mjs` copies bcdatamapper's forecast zones into
+  `aqmap`, which is why that folder needs its copy published with it.
+- In development, `DevBoundaries` looks for dissemination-block chunks under
+  `/data/census/bc-db-chunks`, which now resolves to the host and is not
+  published there. Run with `VITE_DATA_HOSTS_LOCAL=1` to use locally built
+  chunks. Production reads them from `data.map.ahmad.sh` as before.
 - Browsers ignore the `download` attribute on a cross-origin link, so a dataset
   download link to a remote folder opens the file instead of saving it.
 - The Vite dev server's own `/data/smoke`, `/data/recent`, `/data/meta`,

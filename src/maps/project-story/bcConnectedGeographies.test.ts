@@ -1,14 +1,10 @@
 import { readFileSync } from 'node:fs'
-import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { normalizeProjectPackage } from '@/lib/projectPackages'
+import { readStoryData as readData } from './testing/readStoryData'
 
 const raw = JSON.parse(readFileSync('public/data/projects/bc-connected-geographies.json', 'utf8'))
 const pkg = normalizeProjectPackage(raw)!
-function readData(url: string) {
-  const bytes = readFileSync(`public${url}`)
-  return JSON.parse((url.endsWith('.gz') ? gunzipSync(bytes) : bytes).toString())
-}
 
 describe('connected geographies story', () => {
   it('preserves the six scenes and every authored layer', () => {

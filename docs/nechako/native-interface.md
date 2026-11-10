@@ -89,9 +89,9 @@ and linked media are not. The **16,765-byte** native learning package lives unde
 images, legends and identify responses and the basemap use live HTTPS sources.
 The boundary is the generated local asset already used by
 `/projects/echoscreen-climate-health`; it is not duplicated in the showcase.
-The scraper submodule owns its source shards. Standard data sync builds the shared
-asset; `npm run projects:echoscreen-data -- --watersheds-only` builds just the
-watershed asset for isolated preview/browser checks. Workspace export/restore
+The scraper submodule owns its source shards and builds the shared asset
+(`datascrapers/climate/echoscreen/build-project-layers.mjs`); the standard data
+sync copies it into `public/data`. Workspace export/restore
 preserves the selected polygon, styling and provenance. Submission search can use
 it as the polygon geographic limit; genuine server-side filtering still requires
 repairing the portal registration failure.
