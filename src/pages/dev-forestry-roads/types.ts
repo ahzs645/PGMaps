@@ -145,6 +145,27 @@ export interface DesignVehicle {
   /** Out-to-out width of body and tyres. */
   widthM: number
   units: VehicleUnit[]
+  /** Largest steering angle of the first unit's steer axle, degrees. Absent: the lock is not checked. */
+  steeringLockDeg?: number
+  /** Loads carried on bunks of two different units, such as logs spanning a truck and its trailer. */
+  loads?: LoadSpan[]
+}
+/**
+ * A rigid load lying from a bunk on one unit to a bunk on a later unit. It is drawn along the line
+ * between the two bunks and adds to the body envelope; it does not steer the units.
+ */
+export interface LoadSpan {
+  name: string
+  /** Bunk on the leading unit, measured behind that unit's front pivot. */
+  front: { unit: number; behindPivotM: number }
+  /** Bunk on a later unit, measured behind that unit's front pivot. */
+  rear: { unit: number; behindPivotM: number }
+  /** Load ahead of the front bunk. */
+  aheadOfFrontBunkM: number
+  /** Load behind the rear bunk. */
+  behindRearBunkM: number
+  /** Load width; the vehicle width when absent. */
+  widthM?: number
 }
 /** User-entered swept-path check for one road; never inferred from a road class. */
 export interface VehicleCheck {

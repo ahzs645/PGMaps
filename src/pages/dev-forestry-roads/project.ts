@@ -318,6 +318,31 @@ function parseVehicleCheck(raw: unknown): VehicleCheck {
           hitchOffsetM: number(u.hitchOffsetM, 'Unit hitch offset', -5, 10),
         }
       }),
+      ...(v.steeringLockDeg === undefined
+        ? {}
+        : { steeringLockDeg: number(v.steeringLockDeg, 'Steering lock', 5, 60) }),
+      ...(v.loads === undefined
+        ? {}
+        : {
+            loads: list(v.loads, 'Vehicle loads', 2).map((rawLoad) => {
+              const l = object(rawLoad, 'Vehicle load')
+              const end = (raw: unknown, label: string) => {
+                const e = object(raw, label)
+                return {
+                  unit: number(e.unit, `${label} unit`, 0, 2),
+                  behindPivotM: number(e.behindPivotM, `${label} position`, -15, 30),
+                }
+              }
+              return {
+                name: typeof l.name === 'string' ? l.name.slice(0, 100) : 'Load',
+                front: end(l.front, 'Load front bunk'),
+                rear: end(l.rear, 'Load rear bunk'),
+                aheadOfFrontBunkM: number(l.aheadOfFrontBunkM, 'Load ahead of front bunk', 0, 20),
+                behindRearBunkM: number(l.behindRearBunkM, 'Load behind rear bunk', 0, 20),
+                ...(l.widthM === undefined ? {} : { widthM: number(l.widthM, 'Load width', 1.5, 4) }),
+              }
+            }),
+          }),
     },
   }
   validateVehicleCheck(result)

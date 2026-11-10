@@ -6,13 +6,25 @@
  */
 import { centrelineSamples, effectiveWidths, horizontalCurveSummary } from './engine'
 import type { Alignment, DesignVehicle, VehicleCheck, VehicleUnit } from './types'
+import {
+  bodyPoints,
+  locate,
+  minimumSteerRadius,
+  STEERING_LOCK_TOLERANCE_DEG,
+  trackVehicle,
+  vehicleLength,
+  wheelPoints,
+  type Sample,
+  type XY,
+} from './vehicleKinematics'
 
 export const SWEPT_PATH_BASIS =
   'Low-speed kinematic tracking: the steer-axle centre follows the fitted centreline and each axle group ' +
   'trails its hitch without slip, starting straight on the first tangent. Excludes tandem scrub, tyre and ' +
   'suspension compliance, driver line, speed, grade, traction and braking, mirrors and vertical clearance. ' +
   'Wheel extents use the out-to-out width at each axle-group centre. Compared with the formation half-width ' +
-  'at each metre less the entered clearance; body and load overhang are reported, not required to fit.'
+  'at each metre less the entered clearance; body and load overhang are reported, not required to fit. ' +
+  'With a steering lock entered, the steering angle the path demands is compared with it.'
 
 export const VEHICLE_LIMITS = {
   units: 3,
@@ -21,7 +33,13 @@ export const VEHICLE_LIMITS = {
   overhangM: [0, 15] as const,
   hitchOffsetM: [-5, 10] as const,
   clearanceM: [0, 5] as const,
+  steeringLockDeg: [5, 60] as const,
+  loads: 2,
+  /** Bunk position behind its unit's front pivot. */
+  loadBunkM: [-15, 30] as const,
+  loadOverhangM: [0, 20] as const,
 }
+export { STEERING_LOCK_TOLERANCE_DEG }
 
 const unit = (name: string, wheelbaseM: number, frontOverhangM: number, rearOverhangM: number, hitchOffsetM = 0) => ({
   name,
@@ -31,9 +49,20 @@ const unit = (name: string, wheelbaseM: number, frontOverhangM: number, rearOver
   hitchOffsetM,
 })
 
+const MOTI_720 =
+  'BC Ministry of Transportation and Infrastructure, Supplement to TAC Geometric Design Guide, 2019 edition, ' +
+  'Section 720 Design Vehicles (April 2019),'
+/** The figures give no steering lock; the lock is the one that reproduces Table 720.A's turning radius. */
+const lockFromTable = (vehicle: string, outerFrontM: number) =>
+  `The figure gives no steering lock, so confirm it: the lock is the angle that reproduces Table 720.A’s ` +
+  `${outerFrontM} m minimum outside-front-wheel radius for the ${vehicle} vehicle at 0–15 km/h, with the ` +
+  '2.60 m width as the wheel track. The fleet’s own trucks may steer tighter or wider.'
+
 /**
- * Starting points only. Each is an illustrative configuration whose dimensions must be replaced
- * with the fleet's or the governing criteria's values before relying on the result.
+ * Starting points only. The first three are illustrative configurations. The BC MoTI entries are
+ * named dimension sets transcribed from a stated figure, with every value the figure does not give
+ * marked "confirm" in the source text. None is a certified design vehicle or approves a road:
+ * replace the dimensions with the fleet's or the governing criteria's values before relying on a result.
  */
 export const VEHICLE_PRESETS: { id: string; label: string; vehicle: DesignVehicle }[] = [
   {
@@ -68,6 +97,82 @@ export const VEHICLE_PRESETS: { id: string; label: string; vehicle: DesignVehicl
       units: [unit('Tractor', 6.6, 0.9, 0.6, -0.3), unit('Semitrailer', 12.5, 0.9, 0.9)],
     },
   },
+  {
+    id: 'bc-moti-lg5',
+    label: 'LG5 log truck, jeep and pole trailer (BC MoTI figure)',
+    vehicle: {
+      name: 'LG5 log truck, jeep and pole trailer (BC MoTI figure)',
+      source:
+        `${MOTI_720} Figure 720.A, LG5 (page 720-4): wheelbases, overhangs, pin offsets, 2.60 m widths, ` +
+        '10.80 m between log bunks, logs 4.20 m ahead of and 1.80 m behind the bunks. The figure marks the pole ' +
+        'trailer as telescoping; it is modelled at its 5.95 m length. Not dimensioned in the figure, so confirm: ' +
+        'the rear bunk is taken over the pole-trailer axle and the front bunk 3.34 m behind the jeep kingpin, which ' +
+        'puts the bunks 10.80 m apart travelling straight. ' +
+        lockFromTable('LLT', 13.6) +
+        ' MoTI uses LG5 for offtracking. A named dimension set for modelling, not an approval of a road.',
+      widthM: 2.6,
+      units: [
+        unit('Truck', 5.9, 1.1, 1.8, -0.32),
+        unit('Jeep', 6.59, 0.7, 1.6, 1.6),
+        unit('Pole trailer', 5.95, 0, 1.85),
+      ],
+      steeringLockDeg: 28.31,
+      loads: [
+        {
+          name: 'Logs',
+          front: { unit: 1, behindPivotM: 3.34 },
+          rear: { unit: 2, behindPivotM: 5.95 },
+          aheadOfFrontBunkM: 4.2,
+          behindRearBunkM: 1.8,
+        },
+      ],
+    },
+  },
+  {
+    id: 'bc-moti-lg3',
+    label: 'LG3 log truck and tri-axle trailer (BC MoTI figure)',
+    vehicle: {
+      name: 'LG3 log truck and tri-axle trailer (BC MoTI figure)',
+      source:
+        `${MOTI_720} Figure 720.A, LG3 (page 720-4): wheelbases, overhangs, pin offsets, 2.60 m widths, ` +
+        '10.35 m between log bunks, logs 2.50 m ahead of and 3.85 m behind the bunks. The figure marks the ' +
+        'first trailer unit as telescoping; it is modelled at its 3.99 m length. Not dimensioned in the figure, ' +
+        'so confirm: the front bunk is taken over the truck’s drive-axle centre and the rear bunk 1.05 m ahead of ' +
+        'the trailer axles, which puts the bunks 10.35 m apart travelling straight. ' +
+        lockFromTable('LLT', 13.6) +
+        ' MoTI uses LG3 for load sweep. A named dimension set for modelling, not an approval of a road.',
+      widthM: 2.6,
+      units: [
+        unit('Truck', 6.8, 1.1, 2.76, 2.76),
+        unit('Trailer reach', 3.99, 0.5, 0.5, 0),
+        unit('Tri-axle trailer', 4.65, 0.5, 2.42),
+      ],
+      steeringLockDeg: 32.98,
+      loads: [
+        {
+          name: 'Logs',
+          front: { unit: 0, behindPivotM: 6.8 },
+          rear: { unit: 2, behindPivotM: 3.6 },
+          aheadOfFrontBunkM: 2.5,
+          behindRearBunkM: 3.85,
+        },
+      ],
+    },
+  },
+  {
+    id: 'bc-moti-wb15',
+    label: 'WB-15 (BC) tractor–semitrailer (BC MoTI figure)',
+    vehicle: {
+      name: 'WB-15 (BC) tractor–semitrailer (BC MoTI figure)',
+      source:
+        `${MOTI_720} Figure 720.B, W15 (page 720-5): wheelbases, overhangs, pin offset and 2.60 m widths. ` +
+        lockFromTable('WB-15 (BC)', 13.7) +
+        ' A named dimension set for modelling, not an approval of a road.',
+      widthM: 2.6,
+      units: [unit('Tractor', 5.5, 0.9, 1.2, 0), unit('Semitrailer', 11, 1.55, 2.15)],
+      steeringLockDeg: 26.06,
+    },
+  },
 ]
 
 export const DEFAULT_VEHICLE_CHECK: VehicleCheck = {
@@ -98,6 +203,32 @@ export function validateVehicleCheck(check: VehicleCheck): void {
       !inRange(u.hitchOffsetM, VEHICLE_LIMITS.hitchOffsetM)
     )
       throw Error('Vehicle units need wheelbase 1–25 m, overhangs 0–15 m and hitch offset −5–10 m.')
+  if (vehicle.steeringLockDeg !== undefined && !inRange(vehicle.steeringLockDeg, VEHICLE_LIMITS.steeringLockDeg))
+    throw Error('The steering lock must be 5–60°.')
+  if (vehicle.loads !== undefined) {
+    if (!Array.isArray(vehicle.loads) || vehicle.loads.length > VEHICLE_LIMITS.loads)
+      throw Error('A design vehicle carries at most two spanning loads.')
+    const count = vehicle.units.length
+    for (const load of vehicle.loads) {
+      const unitIndex = (u: number) => Number.isInteger(u) && u >= 0 && u < count
+      if (
+        typeof load.name !== 'string' ||
+        load.name.length > 100 ||
+        !unitIndex(load.front?.unit) ||
+        !unitIndex(load.rear?.unit) ||
+        load.front.unit >= load.rear.unit
+      )
+        throw Error('A load spans a bunk on one unit and a bunk on a later unit.')
+      if (
+        !inRange(load.front.behindPivotM, VEHICLE_LIMITS.loadBunkM) ||
+        !inRange(load.rear.behindPivotM, VEHICLE_LIMITS.loadBunkM) ||
+        !inRange(load.aheadOfFrontBunkM, VEHICLE_LIMITS.loadOverhangM) ||
+        !inRange(load.behindRearBunkM, VEHICLE_LIMITS.loadOverhangM) ||
+        (load.widthM !== undefined && !inRange(load.widthM, VEHICLE_LIMITS.widthM))
+      )
+        throw Error('Load bunks must be −15–30 m behind their pivots, overhangs 0–20 m and width 1.5–4 m.')
+    }
+  }
 }
 
 export interface SweptManeuver {
@@ -112,6 +243,10 @@ export interface SweptManeuver {
   /** Largest lateral distance between the steer path and the last axle group. */
   maxOfftrackingM: number
   maxArticulationDegrees: number
+  /** Largest steering angle the turn demands of the first unit, degrees. */
+  maxSteerDegrees: number
+  /** True when that angle is beyond the vehicle's steering lock; null when no lock is entered. */
+  lockExceeded: boolean | null
   wheelLeftM: number
   wheelRightM: number
   bodyLeftM: number
@@ -125,6 +260,7 @@ export interface SweptManeuver {
   bodyBeyondRightM: number
   /** Station of the largest wheel deficit, or of the tightest wheel clearance when it fits. */
   worstChainage: number
+  /** The wheels stay on the formation with the clearance. The steering lock is reported separately. */
   fits: boolean
 }
 
@@ -143,6 +279,8 @@ export interface SweptPathResult {
   bins: SweptBin[]
   maneuvers: SweptManeuver[]
   fits: boolean
+  /** Steady minimum radius of the steer-axle path at the entered lock; null when no lock is entered. */
+  minSteerRadiusM: number | null
   warnings: string[]
   /** GeoJSON lines for the plan: wheel and body envelopes and wheel deficits within curve zones. */
   overlay: GeoJSON.FeatureCollection
@@ -152,8 +290,6 @@ const STEP = 0.25
 const BIN = 1
 const RECORD_EVERY = 2 // Record positions every 0.5 m of steer travel.
 
-type XY = [number, number]
-type Sample = { s: number; x: number; y: number }
 type Run = {
   direction: 'up' | 'down'
   wheelLeft: Float64Array
@@ -162,53 +298,7 @@ type Run = {
   bodyRight: Float64Array
   offtracking: Float64Array
   articulation: Float64Array
-}
-
-const totalLength = (vehicle: DesignVehicle) =>
-  vehicle.units.reduce((sum, u, i) => sum + u.wheelbaseM + (i < vehicle.units.length - 1 ? u.hitchOffsetM : 0), 0) +
-  vehicle.units[0].frontOverhangM +
-  vehicle.units.at(-1)!.rearOverhangM
-
-/** Signed lateral offset (left positive) and station of a point, searched within an index window. */
-function locate(samples: Sample[], px: number, py: number, lo: number, hi: number) {
-  lo = Math.max(0, lo)
-  hi = Math.min(samples.length - 1, hi)
-  let best = lo,
-    bestD = Infinity
-  for (let i = lo; i <= hi; i += 4) {
-    const d = (samples[i].x - px) ** 2 + (samples[i].y - py) ** 2
-    if (d < bestD) {
-      bestD = d
-      best = i
-    }
-  }
-  for (let i = Math.max(lo, best - 4); i <= Math.min(hi, best + 4); i++) {
-    const d = (samples[i].x - px) ** 2 + (samples[i].y - py) ** 2
-    if (d < bestD) {
-      bestD = d
-      best = i
-    }
-  }
-  let result = { s: samples[best].s, offset: 0, distance: Infinity }
-  for (const [a, b] of [
-    [best - 1, best],
-    [best, best + 1],
-  ]) {
-    if (a < 0 || b >= samples.length) continue
-    const A = samples[a],
-      B = samples[b]
-    const dx = B.x - A.x,
-      dy = B.y - A.y,
-      len = Math.hypot(dx, dy)
-    if (len < 1e-9) continue
-    const t = Math.max(0, Math.min(1, ((px - A.x) * dx + (py - A.y) * dy) / len ** 2))
-    const cx = A.x + dx * t,
-      cy = A.y + dy * t
-    const distance = Math.hypot(px - cx, py - cy)
-    if (distance < result.distance)
-      result = { s: A.s + (B.s - A.s) * t, offset: (dx * (py - A.y) - dy * (px - A.x)) / len, distance }
-  }
-  return result
+  steer: Float64Array
 }
 
 function simulate(
@@ -226,29 +316,11 @@ function simulate(
     bodyRight: new Float64Array(bins).fill(-Infinity),
     offtracking: new Float64Array(bins).fill(-Infinity),
     articulation: new Float64Array(bins).fill(-Infinity),
+    steer: new Float64Array(bins).fill(-Infinity),
   }
   const n = samples.length
   const order = (k: number) => (direction === 'up' ? k : n - 1 - k)
-  const first = samples[order(0)],
-    next = samples[order(1)]
-  const len0 = Math.hypot(next.x - first.x, next.y - first.y) || 1
-  const ux = (next.x - first.x) / len0,
-    uy = (next.y - first.y) / len0
-  // Start straight, every unit trailing along the first tangent.
-  const fronts: XY[] = [],
-    rears: XY[] = []
-  let fx = first.x,
-    fy = first.y
-  for (const u of vehicle.units) {
-    fronts.push([fx, fy])
-    const rx = fx - ux * u.wheelbaseM,
-      ry = fy - uy * u.wheelbaseM
-    rears.push([rx, ry])
-    fx = rx - ux * u.hitchOffsetM
-    fy = ry - uy * u.hitchOffsetM
-  }
-  const half = vehicle.widthM / 2
-  const length = totalLength(vehicle)
+  const length = vehicleLength(vehicle)
   const back = Math.ceil((length + vehicle.widthM + 10) / STEP),
     ahead = Math.ceil((vehicle.units[0].frontOverhangM + vehicle.widthM + 10) / STEP)
   const find = (k: number, x: number, y: number) => {
@@ -259,67 +331,36 @@ function simulate(
         : locate(samples, x, y, index - ahead, index + back)
     return { bin: Math.min(bins - 1, Math.floor(hit.s / BIN)), offset: hit.offset }
   }
-  const record = (k: number, x: number, y: number, left: Float64Array, right: Float64Array) => {
+  const record = (k: number, [x, y]: XY, left: Float64Array, right: Float64Array) => {
     const { bin, offset } = find(k, x, y)
     if (offset > left[bin]) left[bin] = offset
     if (-offset > right[bin]) right[bin] = -offset
   }
-  for (let k = 0; k < n; k++) {
-    const steer = samples[order(k)]
-    fronts[0] = [steer.x, steer.y]
-    for (let i = 0; i < vehicle.units.length; i++) {
-      const u = vehicle.units[i]
-      const [Fx, Fy] = fronts[i],
-        [Rx, Ry] = rears[i]
-      const d = Math.hypot(Fx - Rx, Fy - Ry) || 1
-      rears[i] = [Fx - ((Fx - Rx) / d) * u.wheelbaseM, Fy - ((Fy - Ry) / d) * u.wheelbaseM]
-      if (i + 1 < vehicle.units.length) {
-        const [nx, ny] = rears[i]
-        fronts[i + 1] = [
-          nx - ((Fx - nx) / u.wheelbaseM) * u.hitchOffsetM,
-          ny - ((Fy - ny) / u.wheelbaseM) * u.hitchOffsetM,
-        ]
+  // The road check keeps the follow-the-leader update its published results were measured with.
+  trackVehicle(
+    n,
+    (k) => samples[order(k)],
+    vehicle,
+    'follow',
+    (pose) => {
+      const { k, rears, axes } = pose
+      const steer = samples[order(k)]
+      if ((k % RECORD_EVERY && k !== n - 1) || !zone[Math.min(bins - 1, Math.floor(steer.s / BIN))]) return
+      for (const point of wheelPoints(pose, vehicle)) record(k, point, run.wheelLeft, run.wheelRight)
+      for (const point of bodyPoints(pose, vehicle)) record(k, point, run.bodyLeft, run.bodyRight)
+      const last = rears.at(-1)!
+      const tail = find(k, last[0], last[1])
+      if (Math.abs(tail.offset) > run.offtracking[tail.bin]) run.offtracking[tail.bin] = Math.abs(tail.offset)
+      const steerBin = Math.min(bins - 1, Math.floor(steer.s / BIN))
+      if (pose.steerDegrees > run.steer[steerBin]) run.steer[steerBin] = pose.steerDegrees
+      for (let i = 1; i < axes.length; i++) {
+        const cross = axes[i - 1][0] * axes[i][1] - axes[i - 1][1] * axes[i][0]
+        const dot = axes[i - 1][0] * axes[i][0] + axes[i - 1][1] * axes[i][1]
+        const angle = Math.abs(Math.atan2(cross, dot)) * (180 / Math.PI)
+        if (angle > run.articulation[steerBin]) run.articulation[steerBin] = angle
       }
-    }
-    if ((k % RECORD_EVERY && k !== n - 1) || !zone[Math.min(bins - 1, Math.floor(steer.s / BIN))]) continue
-    const axes = vehicle.units.map((u, i) => {
-      const [Fx, Fy] = fronts[i],
-        [Rx, Ry] = rears[i]
-      return [(Fx - Rx) / u.wheelbaseM, (Fy - Ry) / u.wheelbaseM] as XY
-    })
-    vehicle.units.forEach((u, i) => {
-      const [ax, ay] = axes[i],
-        nx = -ay,
-        ny = ax
-      const [Fx, Fy] = fronts[i]
-      const axles: XY[] = i === 0 ? [fronts[i], rears[i]] : [rears[i]]
-      for (const [x, y] of axles) {
-        record(k, x + nx * half, y + ny * half, run.wheelLeft, run.wheelRight)
-        record(k, x - nx * half, y - ny * half, run.wheelLeft, run.wheelRight)
-      }
-      const bodyFrontX = Fx + ax * u.frontOverhangM,
-        bodyFrontY = Fy + ay * u.frontOverhangM
-      const bodyLength = u.frontOverhangM + u.wheelbaseM + u.rearOverhangM
-      const pieces = Math.max(1, Math.ceil(bodyLength))
-      for (let j = 0; j <= pieces; j++) {
-        const along = (bodyLength * j) / pieces
-        const x = bodyFrontX - ax * along,
-          y = bodyFrontY - ay * along
-        record(k, x + nx * half, y + ny * half, run.bodyLeft, run.bodyRight)
-        record(k, x - nx * half, y - ny * half, run.bodyLeft, run.bodyRight)
-      }
-    })
-    const last = rears.at(-1)!
-    const tail = find(k, last[0], last[1])
-    if (Math.abs(tail.offset) > run.offtracking[tail.bin]) run.offtracking[tail.bin] = Math.abs(tail.offset)
-    const steerBin = Math.min(bins - 1, Math.floor(steer.s / BIN))
-    for (let i = 1; i < axes.length; i++) {
-      const cross = axes[i - 1][0] * axes[i][1] - axes[i - 1][1] * axes[i][0]
-      const dot = axes[i - 1][0] * axes[i][0] + axes[i - 1][1] * axes[i][1]
-      const angle = Math.abs(Math.atan2(cross, dot)) * (180 / Math.PI)
-      if (angle > run.articulation[steerBin]) run.articulation[steerBin] = angle
-    }
-  }
+    },
+  )
   return run
 }
 
@@ -337,13 +378,14 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
       bins: [],
       maneuvers: [],
       fits: true,
+      minSteerRadiusM: minimumSteerRadius(vehicle),
       warnings: ['The road is too short to check.'],
       overlay: { type: 'FeatureCollection', features: [] },
     }
   const binCount = Math.max(1, Math.ceil(length / BIN))
   // A maneuver spans each fitted curve plus a vehicle length either side; overlapping spans merge,
   // so the two curves of a switchback are judged as one turn.
-  const reach = totalLength(vehicle) + vehicle.widthM
+  const reach = vehicleLength(vehicle) + vehicle.widthM
   const curves = horizontalCurveSummary(alignment).map((c, i) => ({
     id: `H${i + 1}`,
     start: Math.max(0, c.fullStart - reach),
@@ -402,6 +444,7 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
         beyondRight = 0,
         offtracking = 0,
         articulation = 0,
+        steer = 0,
         worst = (start + end) / 2,
         worstScore = -Infinity
       for (let b = lo; b <= hi; b++) {
@@ -438,6 +481,7 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
         }
         if (Number.isFinite(run.offtracking[b])) offtracking = Math.max(offtracking, run.offtracking[b])
         if (Number.isFinite(run.articulation[b])) articulation = Math.max(articulation, run.articulation[b])
+        if (Number.isFinite(run.steer[b])) steer = Math.max(steer, run.steer[b])
       }
       const round = (v: number) => Math.round(v * 1000) / 1000
       maneuvers.push({
@@ -449,6 +493,9 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
         deflectionDegrees: group.reduce((sum, c) => sum + c.signed, 0),
         maxOfftrackingM: round(offtracking),
         maxArticulationDegrees: round(articulation),
+        maxSteerDegrees: round(steer),
+        lockExceeded:
+          vehicle.steeringLockDeg === undefined ? null : steer > vehicle.steeringLockDeg + STEERING_LOCK_TOLERANCE_DEG,
         wheelLeftM: round(wheelLeft),
         wheelRightM: round(wheelRight),
         bodyLeftM: round(bodyLeft),
@@ -466,6 +513,11 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
   if (maneuvers.some((m) => m.maxArticulationDegrees > 80))
     warnings.push('Articulation exceeds 80° in a turn; check the vehicle can make it without jackknifing.')
   if (!groups.length) warnings.push('No fitted horizontal curves; the vehicle tracks the centreline.')
+  const beyondLock = new Set(maneuvers.filter((m) => m.lockExceeded).map((m) => m.id)).size
+  if (beyondLock)
+    warnings.push(
+      `${beyondLock === 1 ? '1 turn needs' : `${beyondLock} turns need`} more steering than the vehicle’s ${vehicle.steeringLockDeg}° lock, whatever the formation width.`,
+    )
 
   // Plan lines: wheel and body envelopes inside curve zones, with wheel deficits drawn in red.
   const pointAt = (s: number, offset: number) => {
@@ -521,6 +573,7 @@ export function analyzeSweptPath(alignment: Alignment, check: VehicleCheck): Swe
     bins,
     maneuvers,
     fits: maneuvers.every((m) => m.fits),
+    minSteerRadiusM: minimumSteerRadius(vehicle),
     warnings,
     overlay: { type: 'FeatureCollection', features },
   }
