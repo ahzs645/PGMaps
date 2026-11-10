@@ -314,11 +314,9 @@ export function RoadBatchFinder({
                 <thead className="sticky top-0">
                   <tr>
                     <ColumnHeader label="Road" className="text-left" />
-                    <ColumnHeader label="Result" />
-                    <ColumnHeader label="Found" unit="%" />
+                    <ColumnHeader label="Result" unit="found · ends joined" className="text-left" />
                     <ColumnHeader label="Shift" unit="median m" />
                     <ColumnHeader label="State" unit="LiDAR" />
-                    <ColumnHeader label="Ends" unit="joined" />
                   </tr>
                 </thead>
                 <tbody>
@@ -340,15 +338,19 @@ export function RoadBatchFinder({
                             <span>{row.name}</span>
                           </label>
                         </th>
-                        <td title={row.error ?? r?.reason}>{r ? STATUS[r.status] : 'Failed'}</td>
-                        <td>{r && offered ? Math.round(r.foundShare * 100) : '–'}</td>
+                        <td className="text-left" title={row.error ?? r?.reason}>
+                          <span className="block">{r ? STATUS[r.status] : 'Failed'}</span>
+                          <span className="block text-3xs text-muted-foreground">
+                            {r && offered ? `${Math.round(r.foundShare * 100)}%` : '–'}
+                            {network.lines[row.id] ? ` · ${network.movedEnds[row.id] ?? 0} joined` : ''}
+                          </span>
+                        </td>
                         <td>{r?.shiftM ? r.shiftM.p50.toFixed(1) : '–'}</td>
                         <td
                           title={r?.state ? `Score ${r.state.score.toFixed(1)}; evidence, not condition` : r?.stateNote}
                         >
                           {r?.state ? r.state.stateClass : '–'}
                         </td>
-                        <td>{network.lines[row.id] ? (network.movedEnds[row.id] ?? 0) : '–'}</td>
                       </tr>
                     )
                   })}

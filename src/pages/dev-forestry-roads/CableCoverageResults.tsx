@@ -28,6 +28,7 @@ const REJECTED: Record<string, string> = {
   'lift-off': 'skyline lifts off a support',
   'loaded-angle': 'loaded break angle',
   'no-candidates': 'no support site',
+  empty: 'no yardable ground in its band',
 }
 
 export function CableCoverageResults({
@@ -45,10 +46,11 @@ export function CableCoverageResults({
   roadName: (landing: number) => string
 }) {
   const { stats, lines } = coverage
-  const rejected = Object.entries(stats.rejected)
+  const allRejected = Object.entries(stats.rejected)
     .filter(([, n]) => n && n > 0)
     .sort((a, b) => b[1]! - a[1]!)
-    .slice(0, 4)
+  const rejected = allRejected.slice(0, 4)
+  const otherRejected = allRejected.slice(4).reduce((sum, [, n]) => sum + (n ?? 0), 0)
   const byId = new Map(lines.map((l) => [l.id, l]))
   const chosen = (selection?.ids ?? []).map((id) => byId.get(id)).filter((l): l is CableLineRecord => !!l)
   const field = (key: keyof CableSelectionRule, label: string, scale = 1, step = 1, hint?: string) => (
@@ -83,7 +85,8 @@ export function CableCoverageResults({
       {rejected.length > 0 && (
         <p className="text-2xs text-muted-foreground">
           Not kept:{' '}
-          {rejected.map(([reason, n]) => `${n.toLocaleString('en-CA')} ${REJECTED[reason] ?? reason}`).join(', ')}.
+          {rejected.map(([reason, n]) => `${n.toLocaleString('en-CA')} ${REJECTED[reason] ?? reason}`).join(', ')}
+          {otherRejected > 0 ? `, and ${otherRejected.toLocaleString('en-CA')} for other reasons` : ''}.
         </p>
       )}
       <div className="space-y-1.5 border-t pt-2">
@@ -118,24 +121,23 @@ export function CableCoverageResults({
             <EngineeringTable rowHeaders compact data-testid="cable-line-table">
               <thead>
                 <tr>
-                  <ColumnHeader label="Line" className="text-left" />
-                  <ColumnHeader label="From" className="text-left" />
-                  <ColumnHeader label="Bearing" unit="°" />
+                  <ColumnHeader label="Line" unit="bearing · from" className="text-left" />
                   <ColumnHeader label="Skyline" unit="m" />
                   <ColumnHeader label="Supp." title="Intermediate supports" />
                   <ColumnHeader label="Area" unit="ha" />
-                  <ColumnHeader label="Carriage" unit="m" title="Mean carriage distance" />
+                  <ColumnHeader label="Carr." unit="m" title="Mean carriage distance" />
                 </tr>
               </thead>
               <tbody>
                 {chosen.map((line) => (
                   <tr key={line.id}>
-                    <th scope="row">{line.id}</th>
-                    <td className="max-w-24 truncate text-left">
-                      {roadName(line.landing)}
-                      {line.designedLanding ? ' (designed)' : ''}
-                    </td>
-                    <td>{Math.round(line.bearingDeg)}</td>
+                    <th scope="row">
+                      <span className="block font-medium">{line.id}</span>
+                      <span className="block text-3xs text-muted-foreground">
+                        {Math.round(line.bearingDeg)}° · {roadName(line.landing)}
+                        {line.designedLanding ? ' (designed)' : ''}
+                      </span>
+                    </th>
                     <td>{Math.round(line.skylineM)}</td>
                     <td>{line.points.length - 2}</td>
                     <td>{line.areaHa.toFixed(1)}</td>

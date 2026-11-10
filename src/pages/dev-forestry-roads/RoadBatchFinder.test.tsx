@@ -107,7 +107,10 @@ it('finds the mapped roads in an area, rebuilds their junction and adopts the ch
   await act(async () => button('Find 3 roads on terrain').props.onClick())
   const table = await eventually(() => byTestId('road-batch-table'))
   const rows = table.findAll((n) => n.type === 'tr').slice(1)
-  expect(rows.map((r) => text(r.findAll((n) => n.type === 'td')[0]))).toEqual(['Found', 'Found', 'Found'])
+  // The result cell reads the status, then the found share and the ends joined.
+  const results = rows.map((r) => text(r.findAll((n) => n.type === 'td')[0]))
+  expect(results.map((t) => t.match(/^[A-Za-z ]+?(?=\d|–|$)/)?.[0])).toEqual(['Found', 'Found', 'Found'])
+  expect(results.every((t) => /\d+% · \d joined$/.test(t))).toBe(true)
   expect(text(byTestId('road-batch-junctions'))).toMatch(/^Junctions: 1 rebuilt$/)
   const overlay = onPreview.mock.calls.at(-1)![0] as GeoJSON.FeatureCollection
   expect(overlay.features.filter((f) => f.geometry.type === 'LineString')).toHaveLength(3)
