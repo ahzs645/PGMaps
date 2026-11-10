@@ -88,6 +88,10 @@ papers or from the reviewers' own written descriptions. No code was translated, 
 of their code was made. Only the Apache-2.0 LANDIS-II extension was adapted, with attribution in
 [`NOTICE-LANDIS.md`](../../src/pages/dev-forestry-roads/NOTICE-LANDIS.md).
 
+[Converting the reference projects: licence routes](reference-repo-licensing-and-conversion.md) sets out,
+project by project, what a TypeScript port or a WASM build would mean for the licence and which route
+each project is suited to.
+
 | Project                           | What it is                                                                    | Licence                    | Outcome                                                                                                                                                                                                                                 |
 | --------------------------------- | ----------------------------------------------------------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | forestroaddesigner                | QGIS grade-band route finder after PEGGER                                     | GPL-3                      | Ideas only. PGMaps' router already checks every metre; FRD checks long moves at their ends, so its routes can jump gullies. Its grade-change penalty and "lowest grade that connects" diagnostic are open.                              |
