@@ -106,20 +106,20 @@ not executable formulas or scripts.
 
 ## Limits and checks
 
-| Bound | Enforcing code |
-| --- | --- |
-| 40 components; 20 surface courses per template | `sectionAssembly.ts`, `parseSectionComponents` / `parseSectionLayers` |
-| Component width 0.01–50 m; rise −30–30 m; key depth 0–20 m and edge offset 0–50 m | `parseSectionComponents` |
-| Course depth 0–2 m; stack at most 5 m per side | `parseSectionLayers` |
-| 100 preparation ranges; depth 0–20 m; inside offsets 0–100 m; outside offsets 0–50 m | `parseSitePreparation` |
-| A removal ("remove to") material must be one of the road's materials | `validatePreparation` |
-| No overlapping preparation station ranges or overlapping keys on one side | `parseSitePreparation`, `parseSectionComponents` |
-| Material batters 0.1–10 H:V | `validatePreparation` |
-| 24 preparation footprint iterations; 0.00001 m convergence; whole preparation footprint must lie inside section reach | `assembledSection.ts`, preparation iteration loop / reach check |
-| Batter sampling step 0.05–0.25 m, plus refined horizon/daylight intersections | `assembledSection.ts`, `step` / side solve |
-| 2,000,000 reference segment checks per analysis | `sectionReferences.ts`, `MAX_REFERENCE_SEGMENT_CHECKS` |
-| Reference horizontal/vertical adjustment −100–100 m | `parseSectionComponents` |
-| Component library import 1 MB, at most 40 definitions | `ComponentLibrary.tsx`, shared parser |
+| Bound                                                                                                                 | Enforcing code                                                        |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 40 components; 20 surface courses per template                                                                        | `sectionAssembly.ts`, `parseSectionComponents` / `parseSectionLayers` |
+| Component width 0.01–50 m; rise −30–30 m; key depth 0–20 m and edge offset 0–50 m                                     | `parseSectionComponents`                                              |
+| Course depth 0–2 m; stack at most 5 m per side                                                                        | `parseSectionLayers`                                                  |
+| 100 preparation ranges; depth 0–20 m; inside offsets 0–100 m; outside offsets 0–50 m                                  | `parseSitePreparation`                                                |
+| A removal ("remove to") material must be one of the road's materials                                                  | `validatePreparation`                                                 |
+| No overlapping preparation station ranges or overlapping keys on one side                                             | `parseSitePreparation`, `parseSectionComponents`                      |
+| Material batters 0.1–10 H:V                                                                                           | `validatePreparation`                                                 |
+| 24 preparation footprint iterations; 0.00001 m convergence; whole preparation footprint must lie inside section reach | `assembledSection.ts`, preparation iteration loop / reach check       |
+| Batter sampling step 0.05–0.25 m, plus refined horizon/daylight intersections                                         | `assembledSection.ts`, `step` / side solve                            |
+| 2,000,000 reference segment checks per analysis                                                                       | `sectionReferences.ts`, `MAX_REFERENCE_SEGMENT_CHECKS`                |
+| Reference horizontal/vertical adjustment −100–100 m                                                                   | `parseSectionComponents`                                              |
+| Component library import 1 MB, at most 40 definitions                                                                 | `ComponentLibrary.tsx`, shared parser                                 |
 
 An unresolved preparation footprint or reference leaves quantities partial. Numerical integration
 still depends on terrain support and station spacing. Surface courses are separate volume demands;

@@ -199,8 +199,10 @@ The specifications and vectors are kept outside the repository, like the earlier
 | QuickTurn             | Drive any path, steady-state template, loop-turnaround check, vehicle at a station, swept-area polygon and area, point traces, up to 6 units, project vehicles, fixed-length loads                          | All offtracking vectors within 0.001 m (steady) and 0.01 m (manoeuvre)                                                       | [vehicle-turning.md](vehicle-turning.md)                                                                                                   |
 | RFLTools and Lima VVA | Sight distance along the road and in 3D with a Review row, clearing on curves, least-squares geometry fits, curve-corrected quantities option, DXF export, LandXML import, scale factor, vertical clearance | All worked vectors reproduced (stopping sight distance, crest, clearing, circle fits, spiral, volumes, Prince George factor) | [sight-distance.md](sight-distance.md), [least-squares-geometry.md](least-squares-geometry.md), [profile-geometry.md](profile-geometry.md) |
 
-Still not done from these projects: cable coverage of a block, Lima's rock excavation and stripping
-model, finding several roads at once in ALSroads' manner, and the smaller items each guide lists.
+A third pass the same day, from the same specifications, added cable coverage of a block with
+suggested lines (a batch entry point in the cable-layout crate), Lima VVA's rock excavation and
+stripping to a ground layer ([rock-excavation.md](rock-excavation.md)), and finding several roads at
+once with reconnection where the records met. What is still left is listed in each guide.
 
 ## Found during this check: GPL code already in the bundle
 
