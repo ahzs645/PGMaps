@@ -21,11 +21,18 @@
  * This is PGMaps' own design, not Sylvaccess's selection: it has no criteria score or overlap
  * count, and it never keeps a line that adds less than the share rule.
  *
+ * Volume (optional, off by default). Given cell weights in m³ (`cableVolume.ts`), a line's gain is
+ * the volume of the ground no chosen line yards rather than its area, so a line through heavier
+ * timber wins over one through light timber of the same area. The new-share rule, the target and
+ * the final pass stay on area. Cells with no volume weigh the mean of the known ones, and the
+ * volume reported for a line counts known volume only, with the unknown area beside it.
+ *
  * Pure: no DOM or network access.
  */
 import { forBandCells, cableYardable, type CableLineRecord } from './cableCoverage'
 import type { ExtractionGrid } from './extractionReach'
 import type { CableLanding } from './cableCoverage'
+import type { VolumeWeights } from './cableVolume'
 
 export interface CableSelectionRule {
   /** Most lines chosen. */
@@ -64,6 +71,17 @@ export interface CableSelection {
   stopped: 'target' | 'max-lines' | 'no-gain'
   /** Lines dropped by the final pass. */
   dropped: number
+  /** With volume weighting: the chosen lines' known volume, and per line. */
+  volume: SelectionVolume | null
+}
+
+export interface SelectionVolume {
+  source: string
+  /** Known volume the chosen lines yard together, m³, and the chosen ground with no volume, ha. */
+  knownM3: number
+  unknownHa: number
+  /** Per chosen line: known volume in its band, m³, and its band's ground with no volume, ha. */
+  lines: Record<number, { knownM3: number; unknownHa: number }>
 }
 
 export function validateSelectionRule(rule: CableSelectionRule): CableSelectionRule {
@@ -128,8 +146,11 @@ export function selectCableLines(
   lines: readonly CableLineRecord[],
   lateralM: number,
   rule: CableSelectionRule,
+  /** Weight new ground by volume (`cableVolume.ts`); area alone when absent. */
+  volume?: VolumeWeights | null,
 ): CableSelection {
   validateSelectionRule(rule)
+  if (volume && volume.m3.length !== eg.sg.grid.values.length) throw Error('The volume was read on another grid.')
   const n = eg.sg.grid.values.length
   const cellHa = (eg.sg.grid.cellM * eg.sg.grid.cellM) / 10_000
   const yardable = cableYardable(eg)
@@ -159,8 +180,18 @@ export function selectCableLines(
     -line.meanCarriageM,
     -line.id,
   ]
+  const gainOf = (cells: readonly number[]) => {
+    let fresh = 0,
+      gain = 0
+    for (const i of cells)
+      if (!count[i]) {
+        fresh++
+        gain += volume ? volume.m3[i] : 1
+      }
+    return { fresh, gain }
+  }
   const heap = new MaxHeap<CableLineRecord>()
-  for (const line of lines) if (line.cells) heap.push(key(line, line.cells), line)
+  for (const line of lines) if (line.cells) heap.push(key(line, volume ? gainOf(cellsOf(line)).gain : line.cells), line)
   const chosen: CableLineRecord[] = []
   const chosenCells = new Map<number, number[]>()
   let stopped: CableSelection['stopped'] = 'no-gain'
@@ -175,10 +206,9 @@ export function selectCableLines(
     }
     const { key: stale, value: line } = heap.pop()
     const cells = cellsOf(line)
-    let fresh = 0
-    for (const i of cells) if (!count[i]) fresh++
+    const { fresh, gain } = gainOf(cells)
     if (!fresh || fresh < rule.minNewShare * cells.length - 1e-9) continue
-    const now = key(line, fresh)
+    const now = key(line, gain)
     const next = heap.peekKey()
     // Re-queue unless the refreshed gain still leads (gains only fall).
     if (now[0] < stale[0] - 1e-12 && next && next[0] > now[0] + 1e-12) {
@@ -205,7 +235,29 @@ export function selectCableLines(
     for (const i of chosenCells.get(worst.line.id)!) if (--count[i] === 0) covered--
     dropped++
   }
+  let selectionVolume: SelectionVolume | null = null
+  if (volume) {
+    const known = (i: number) => volume.known[i] === 1
+    let knownM3 = 0,
+      unknownCells = 0
+    for (let i = 0; i < n; i++)
+      if (count[i]) {
+        if (known(i)) knownM3 += volume.m3[i]
+        else unknownCells++
+      }
+    const perLine: SelectionVolume['lines'] = {}
+    for (const line of chosen) {
+      let m3 = 0,
+        unknown = 0
+      for (const i of chosenCells.get(line.id)!)
+        if (known(i)) m3 += volume.m3[i]
+        else unknown++
+      perLine[line.id] = { knownM3: m3, unknownHa: unknown * cellHa }
+    }
+    selectionVolume = { source: volume.source, knownM3, unknownHa: unknownCells * cellHa, lines: perLine }
+  }
   return {
+    volume: selectionVolume,
     ids: chosen.map((l) => l.id),
     coveredHa: covered * cellHa,
     shareOfFeasible: feasible ? covered / feasible : 0,

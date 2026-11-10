@@ -56,14 +56,19 @@ export async function runCableCoverage(
   const { signal, onProgress } = control
   const ground = await runCooperatively(cableGroundSteps(eg, input.terrain), control, 'Cable coverage cancelled.')
   const landings = cableLandings(eg, ground, include, rule.landingSpacingM)
+  const picked = !!eg.landings?.length
   if (!landings.length)
-    throw Error('No counted truck road lies within the travel band around the block, so no line can start.')
+    throw Error(
+      picked
+        ? 'No landing lies on known ground, so no line can start.'
+        : 'No counted truck road lies within the travel band around the block, so no line can start.',
+    )
   const candidates = await runCooperatively(
     cableCandidateSteps(eg, ground, rule, landings, { barriersStop: input.barriersStop }),
     control,
     'Cable coverage cancelled.',
   )
-  const { batches, index } = cableCoverBatches(rule, eg.sg.grid.cellM, candidates)
+  const { batches, index } = cableCoverBatches(rule, eg.sg.grid.cellM, candidates, landings)
   const screened = batches.length
     ? await screen(
         batches,
@@ -79,11 +84,15 @@ export async function runCableCoverage(
     'Cable coverage cancelled.',
   )
   const after = cableExtractionResult(eg, include, coverage.after)
-  const designed =
-    landings.some((l) => l.designed) || eg.sg.roads.some((r) => include(r.road) && r.road.kind === 'design')
+  // With landings set, "before" is the existing landings on the same roads; otherwise the roads without designed ones.
+  const designed = picked
+    ? landings.some((l) => l.designed)
+    : landings.some((l) => l.designed) || eg.sg.roads.some((r) => include(r.road) && r.road.kind === 'design')
   const before =
     input.compare && designed
-      ? cableExtractionResult(eg, (road) => include(road) && road.kind !== 'design', coverage.before)
+      ? picked
+        ? cableExtractionResult(eg, include, coverage.before, (landing) => landing.status === 'existing')
+        : cableExtractionResult(eg, (road) => include(road) && road.kind !== 'design', coverage.before)
       : null
   return { coverage, after, before }
 }

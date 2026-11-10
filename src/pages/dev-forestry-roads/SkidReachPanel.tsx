@@ -10,7 +10,19 @@ import { runCooperatively } from './cooperative'
 import { ExtractionReachFields } from './ExtractionReachFields'
 import { ExtractionReachResults } from './ExtractionReachResults'
 import { CableCoverageResults } from './CableCoverageResults'
-import { cableLineFeatures, type CableCoverageResult } from './cableCoverage'
+import { cableLineFeatures, cableYardable, type CableCoverageResult } from './cableCoverage'
+import { CableVolumeSource, type VolumeChoice } from './CableVolumeSource'
+import { volumeFromSampler, volumeFromStands, volumeWeights, type VolumeStand } from './cableVolume'
+import { landingInputFeatures, type LandingInput } from './extractionLandings'
+import { harvestSystemFeatures, harvestSystemMap, type HarvestSystemMap } from './harvestSystems'
+import { HarvestSystemResults } from './HarvestSystemResults'
+import { LandingCatchmentResults } from './LandingCatchmentResults'
+import { catchmentColor, catchmentMapFeatures, landingCatchments } from './landingCatchments'
+import { LandingInputSection } from './LandingInputSection'
+import { comparePinnedRun, pinnedChangeFeatures } from './pinnedRun'
+import { PinnedRunResults } from './PinnedRunResults'
+import { loadVolumeRaster } from './volumeRasterImport'
+import { fetchVriVolume, VRI_VOLUME_SOURCE } from './vriVolume'
 import { runCableCoverage } from './cableCoverageRun'
 import { screenCoverLines } from './cableLayout/cableLayoutClient'
 import { DEFAULT_CABLE_SELECTION, selectCableLines, type CableSelectionRule } from './cableLineSelection'
@@ -19,6 +31,7 @@ import {
   compareExtraction,
   comparisonMapFeatures,
   DEFAULT_EXTRACTION_SETTINGS,
+  extractionGridFor,
   extractionMapFeatures,
   extractionOnGrid,
   extractionSpurModel,
@@ -84,6 +97,13 @@ interface SkidRun {
   cable: CableCoverageResult | null
 }
 
+/** What the plan colours the block by. */
+type PlanLayer = 'classes' | 'catchments' | 'pinned' | 'systems'
+/** A volume source read for the block: inventory polygons or a raster sampler. */
+type VolumeInput =
+  | { kind: 'vri'; stands: VolumeStand[]; source: string }
+  | { kind: 'raster'; sample: (lon: number, lat: number) => number; source: string }
+
 /**
  * Extraction reach: how a skidder or forwarder brings each part of a block to a truck road, the
  * share within reach and by how far, spurs that would bring the rest in, and flat places for
@@ -116,6 +136,14 @@ export function SkidReachPanel(p: SidebarProps) {
   const [showOnPlan, setShowOnPlan] = useState(true)
   const [lineRule, setLineRule] = useState<CableSelectionRule>(DEFAULT_CABLE_SELECTION)
   const [run, setRun] = useState<SkidRun | null>(null)
+  const [landingInputs, setLandingInputs] = useState<LandingInput[]>([])
+  const [planLayer, setPlanLayer] = useState<PlanLayer>('classes')
+  const [pinned, setPinned] = useState<{ result: ExtractionResult; label: string } | null>(null)
+  const [systems, setSystems] = useState<{ key: string; map: HarvestSystemMap; cableNote: string | null } | null>(null)
+  const [volumeChoice, setVolumeChoice] = useState<VolumeChoice>('none')
+  const [volumeInput, setVolumeInput] = useState<VolumeInput | null>(null)
+  const [volumeStatus, setVolumeStatus] = useState('')
+  const [volumeBusy, setVolumeBusy] = useState(false)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
 
@@ -161,6 +189,13 @@ export function SkidReachPanel(p: SidebarProps) {
       .map((entry) => entry.road)
   }, [block, project, countMapped, countDesigned])
 
+  // The block's local frame, for road stretches in metres.
+  const landingProjection = useMemo(() => {
+    if (!block) return null
+    const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
+    return localMetricGrid([ring[0][0], ring[0][1]])
+  }, [block])
+
   // What the run's roads were, by id, use and centreline: an edit elsewhere on an alignment (its
   // search settings, a label) leaves this unchanged and must not say the roads changed.
   const roadsFingerprint = useMemo(
@@ -190,21 +225,85 @@ export function SkidReachPanel(p: SidebarProps) {
     countMapped,
     countDesigned,
     streamsStop,
+    // Absent when empty, so a run without landings keys as before.
+    ...(landingInputs.length ? [landingInputs] : []),
+  ])
+  // The harvest-system suggestion runs every machine, so the machine itself does not stale it.
+  const systemsKey = JSON.stringify([
+    block?.geometry,
+    { ...settings, machine: '' },
+    classText,
+    offBlockM,
+    cellM,
+    trails,
+    areaUse,
+    countMapped,
+    countDesigned,
+    streamsStop,
+    landingInputs,
   ])
   const stale = !!run && (run.key !== key || run.source !== source || run.context !== project.context)
   const current = run && !stale ? run : null
   const roadsChanged = !!current && current.roadsFingerprint !== roadsFingerprint
 
+  // Volume on the run's grid, when a source is chosen and read.
+  const volume = useMemo(() => {
+    if (!current?.cable || volumeChoice === 'none' || volumeInput?.kind !== volumeChoice) return null
+    const eg = current.result.grid
+    try {
+      const cells =
+        volumeInput.kind === 'vri'
+          ? volumeFromStands(eg, volumeInput.stands, volumeInput.source)
+          : volumeFromSampler(eg, volumeInput.sample, volumeInput.source)
+      return { weights: volumeWeights(eg, cells, cableYardable(eg)), error: '' }
+    } catch (cause) {
+      return { weights: null, error: cause instanceof Error ? cause.message : 'Could not read the volume.' }
+    }
+  }, [current, volumeChoice, volumeInput])
   // Suggested cable lines: a fast greedy pass, so it follows its settings without a new run.
   const cableSelection = useMemo(() => {
     if (!current?.cable) return null
     try {
       const eg = current.result.grid
-      return selectCableLines(eg, current.cable.landings, current.cable.lines, eg.settings.cable.lateralM, lineRule)
+      return selectCableLines(
+        eg,
+        current.cable.landings,
+        current.cable.lines,
+        eg.settings.cable.lateralM,
+        lineRule,
+        volume?.weights,
+      )
     } catch {
       return null
     }
-  }, [current, lineRule])
+  }, [current, lineRule, volume])
+  // Which landing (or road) each part of the block leaves by.
+  const catchments = useMemo(() => {
+    if (!current) return null
+    try {
+      return landingCatchments(current.result, current.cable?.landings ?? null)
+    } catch {
+      return null
+    }
+  }, [current])
+  const pinnedComparison = useMemo(() => {
+    if (!current || !pinned || pinned.result === current.result) return { comparison: null, error: null }
+    try {
+      return { comparison: comparePinnedRun(pinned.result, current.result), error: null }
+    } catch (cause) {
+      return { comparison: null, error: cause instanceof Error ? cause.message : 'Could not compare the runs.' }
+    }
+  }, [current, pinned])
+  const systemsFresh = !!systems && systems.key === systemsKey && !stale
+  const layers: { value: PlanLayer; label: string }[] = current
+    ? [
+        { value: 'classes', label: current.comparison ? 'Before and after' : 'Distance classes' },
+        { value: 'catchments', label: catchments?.by === 'road' ? 'Road catchments' : 'Landing catchments' },
+        ...(pinnedComparison.comparison ? [{ value: 'pinned' as const, label: 'Change from pinned run' }] : []),
+        ...(systemsFresh ? [{ value: 'systems' as const, label: 'Suggested systems' }] : []),
+      ]
+    : []
+  const shownLayer = layers.some((l) => l.value === planLayer) ? planLayer : 'classes'
 
   // The landing screen is cheap, so it follows its inputs without a new run.
   const landings = useMemo((): LandingScreen | null => {
@@ -251,12 +350,23 @@ export function SkidReachPanel(p: SidebarProps) {
 
   const { onPreviewSkidReach, onPickOnPlan } = p
   const features = useMemo(() => {
-    if (!current || !showOnPlan) return null
+    if (!showOnPlan) return null
+    const landingMarks = landingInputFeatures(landingInputs, catchmentColor)
+    if (!current) return landingMarks.length ? landingMarks : null
     const chosen = new Set(cableSelection?.ids ?? [])
+    const base =
+      shownLayer === 'catchments' && catchments
+        ? catchmentMapFeatures(current.result, catchments)
+        : shownLayer === 'pinned' && pinnedComparison.comparison
+          ? pinnedChangeFeatures(current.result, pinnedComparison.comparison)
+          : shownLayer === 'systems' && systems
+            ? harvestSystemFeatures(current.result, systems.map)
+            : current.comparison
+              ? comparisonMapFeatures(current.result, current.comparison)
+              : extractionMapFeatures(current.result)
     return [
-      ...(current.comparison
-        ? comparisonMapFeatures(current.result, current.comparison)
-        : extractionMapFeatures(current.result)),
+      ...base,
+      ...landingMarks,
       ...(current.cable
         ? cableLineFeatures(
             current.result.grid,
@@ -278,7 +388,7 @@ export function SkidReachPanel(p: SidebarProps) {
           }),
         ),
     ]
-  }, [current, landings, showOnPlan, cableSelection])
+  }, [current, landings, showOnPlan, cableSelection, landingInputs, shownLayer, catchments, pinnedComparison, systems])
   useEffect(() => onPreviewSkidReach?.(features), [features, onPreviewSkidReach])
   useEffect(() => () => onPreviewSkidReach?.(null), [onPreviewSkidReach])
   useEffect(() => () => onPickOnPlan?.(null), [onPickOnPlan])
@@ -296,6 +406,90 @@ export function SkidReachPanel(p: SidebarProps) {
   const progress = ({ phase, done, total }: { phase: string; done: number; total: number }) =>
     w.setBusyProgress({ step: Math.min(done, total), total: Math.max(1, total), text: phase })
 
+  /** Everything a run reads besides the machine's settings. */
+  const runInputs = () => {
+    if (!block) throw Error('Pick a block first.')
+    if (!classParse.bounds) throw Error(classParse.error)
+    const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
+    const projection = localMetricGrid([ring[0][0], ring[0][1]])
+    const roads = roadsFor({ mapped: countMapped, designed: countDesigned })
+    const barriers = streamsStop
+      ? project.context
+          .filter((f) => f.kind === 'stream' && f.geometry.type === 'LineString')
+          .map((f) => (f.geometry as GeoJSON.LineString).coordinates.map((c) => [c[0], c[1]] as Coordinate))
+      : []
+    const areas: ExtractionArea[] = closedAreas
+      .filter((area) => areaUse[area.id])
+      .map((area) => ({ polygon: area.geometry as GeoJSON.Polygon, treatment: areaUse[area.id] }))
+    const picked = landingInputs.length > 0
+    // With landings, "before" is the existing landings; otherwise the mapped roads alone.
+    const canCompare = picked
+      ? landingInputs.some((l) => l.status === 'proposed')
+      : countDesigned && roads.some((road) => road.kind === 'design')
+    return { block, projection, roads, barriers, areas, picked, canCompare, bounds: classParse.bounds }
+  }
+  type Inputs = ReturnType<typeof runInputs>
+  type Computed = { after: ExtractionResult; before: ExtractionResult | null; cable: CableCoverageResult | null }
+  /** Prepares the grid for `machineSettings`. */
+  const prepare = (inputs: Inputs, machineSettings: ExtractionSettings) =>
+    prepareExtractionGrid({
+      block: inputs.block.geometry as GeoJSON.Polygon,
+      roads: inputs.roads,
+      barriers: inputs.barriers,
+      ground: ground(),
+      toGrid: inputs.projection.toGrid,
+      toLonLat: inputs.projection.toLonLat,
+      settings: { ...machineSettings, classBoundsM: inputs.bounds },
+      areas: inputs.areas,
+      landings: landingInputs,
+      offBlockM,
+      cellM,
+    })
+  /** One machine on a prepared grid, with the before run when `withBefore`. */
+  const computeOn = async (
+    inputs: Inputs,
+    eg: ExtractionGrid,
+    withBefore: boolean,
+    controller: AbortController,
+  ): Promise<Computed> => {
+    if (eg.settings.machine === 'cable') {
+      // The cable yarder's lines are tested in the cable-layout worker; Cancel terminates it.
+      const cable = await runCableCoverage(
+        { eg, terrain: source, compare: withBefore, barriersStop: streamsStop },
+        (batches, onProgress, signal) =>
+          screenCoverLines(batches, { signal, onProgress: (done, lines) => onProgress(done, lines) }),
+        { signal: controller.signal, onProgress: progress },
+      )
+      return { after: cable.after, before: cable.before, cable: cable.coverage }
+    }
+    const steps = function* (): Generator<SkidProgress, Computed> {
+      const after = yield* extractionOnGrid(eg)
+      const before = !withBefore
+        ? null
+        : inputs.picked
+          ? yield* extractionOnGrid(
+              eg,
+              () => true,
+              (landing) => landing.status === 'existing',
+            )
+          : yield* extractionOnGrid(eg, (road) => road.kind !== 'design')
+      return { after, before, cable: null }
+    }
+    return runCooperatively(steps(), { signal: controller.signal, onProgress: progress }, 'Extraction reach cancelled.')
+  }
+  const keepRun = (computed: Computed) =>
+    setRun({
+      key,
+      source,
+      context: project.context,
+      roadsFingerprint,
+      result: computed.after,
+      comparison: computed.before ? compareExtraction(computed.before, computed.after) : null,
+      spurs: null,
+      adopted: [],
+      cable: computed.cable,
+    })
+
   const runReach = async () => {
     if (!block || abort.current || w.busy) return
     if (!classParse.bounds) {
@@ -304,68 +498,22 @@ export function SkidReachPanel(p: SidebarProps) {
     }
     const controller = start('Reading extraction reach…')
     try {
-      const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
-      const projection = localMetricGrid([ring[0][0], ring[0][1]])
-      const roads = roadsFor({ mapped: countMapped, designed: countDesigned })
-      const barriers = streamsStop
-        ? project.context
-            .filter((f) => f.kind === 'stream' && f.geometry.type === 'LineString')
-            .map((f) => (f.geometry as GeoJSON.LineString).coordinates.map((c) => [c[0], c[1]] as Coordinate))
-        : []
-      const areas: ExtractionArea[] = closedAreas
-        .filter((area) => areaUse[area.id])
-        .map((area) => ({ polygon: area.geometry as GeoJSON.Polygon, treatment: areaUse[area.id] }))
-      const withDesigned = compare && countDesigned && roads.some((road) => road.kind === 'design')
-      type Prepared = { eg: ExtractionGrid; after: ExtractionResult | null; before: ExtractionResult | null }
-      const steps = function* (): Generator<SkidProgress, Prepared> {
-        const eg = yield* prepareExtractionGrid({
-          block: block.geometry as GeoJSON.Polygon,
-          roads,
-          barriers,
-          ground: ground(),
-          toGrid: projection.toGrid,
-          toLonLat: projection.toLonLat,
-          settings: { ...settings, classBoundsM: classParse.bounds! },
-          areas,
-          offBlockM,
-          cellM,
-        })
-        if (eg.settings.machine === 'cable') return { eg, after: null, before: null }
-        const after = yield* extractionOnGrid(eg)
-        const before = withDesigned ? yield* extractionOnGrid(eg, (road) => road.kind !== 'design') : null
-        return { eg, after, before }
-      }
-      const prepared = await runCooperatively(
-        steps(),
+      const inputs = runInputs()
+      const eg = await runCooperatively(
+        prepare(inputs, settings),
         { signal: controller.signal, onProgress: progress },
         'Extraction reach cancelled.',
       )
-      // The cable yarder's lines are tested in the cable-layout worker; Cancel terminates it.
-      const cable =
-        prepared.eg.settings.machine === 'cable'
-          ? await runCableCoverage(
-              { eg: prepared.eg, terrain: source, compare: withDesigned, barriersStop: streamsStop },
-              (batches, onProgress, signal) =>
-                screenCoverLines(batches, { signal, onProgress: (done, lines) => onProgress(done, lines) }),
-              { signal: controller.signal, onProgress: progress },
-            )
-          : null
-      const after = cable ? cable.after : prepared.after!
-      const before = cable ? cable.before : prepared.before
-      setRun({
-        key,
-        source,
-        context: project.context,
-        roadsFingerprint,
-        result: after,
-        comparison: before ? compareExtraction(before, after) : null,
-        spurs: null,
-        adopted: [],
-        cable: cable?.coverage ?? null,
-      })
+      const computed = await computeOn(inputs, eg, compare && inputs.canCompare, controller)
+      const { after, before, cable } = computed
+      keepRun(computed)
       const s = after.summary
+      const offGrid = eg.landingsOffGrid?.length ? ` Left out, off the grid: ${eg.landingsOffGrid.join(', ')}.` : ''
+      const from = inputs.picked
+        ? `${eg.landings?.length ?? 0} landing${eg.landings?.length === 1 ? '' : 's'}`
+        : `${inputs.roads.length} road${inputs.roads.length === 1 ? '' : 's'}`
       w.setNotice(
-        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${MACHINE_NAMES[settings.machine].toLowerCase()} reach of ${roads.length} road${roads.length === 1 ? '' : 's'}, read on a ${s.cellM.toFixed(0)} m grid.${cable ? ` ${cable.coverage.lines.length.toLocaleString('en-CA')} of ${cable.coverage.stats.candidates.toLocaleString('en-CA')} lines work.` : ''}${compare && !before ? ' No designed road to compare.' : ''}`,
+        `${block.name}: ${pct(s.coveredShare)} of ${s.blockHa.toFixed(1)} ha within ${MACHINE_NAMES[settings.machine].toLowerCase()} reach of ${from}, read on a ${s.cellM.toFixed(0)} m grid.${cable ? ` ${cable.lines.length.toLocaleString('en-CA')} of ${cable.stats.candidates.toLocaleString('en-CA')} lines work.` : ''}${compare && !before ? (inputs.picked ? ' No proposed landing to compare.' : ' No designed road to compare.') : ''}${offGrid}`,
       )
     } catch (cause) {
       if (controller.signal.aborted) w.setNotice('Extraction reach cancelled. Nothing was changed.')
@@ -373,6 +521,96 @@ export function SkidReachPanel(p: SidebarProps) {
     } finally {
       abort.current = null
       w.setBusy('')
+    }
+  }
+
+  // Runs the three machines on one grid and suggests a system per cell; the selected machine's run
+  // becomes the panel's run, as "Run extraction reach" would make it.
+  const runSystems = async () => {
+    if (!block || abort.current || w.busy) return
+    if (!classParse.bounds) {
+      w.setError(classParse.error)
+      return
+    }
+    const controller = start('Suggesting harvest systems…')
+    try {
+      const inputs = runInputs()
+      const base = await runCooperatively(
+        prepare(inputs, { ...settings, machine: 'skidder' }),
+        { signal: controller.signal, onProgress: progress },
+        'Harvest systems cancelled.',
+      )
+      const results: Partial<Record<ExtractionSettings['machine'], ExtractionResult>> = {}
+      let selected: Computed | null = null
+      let cableNote: string | null = null
+      for (const machine of ['skidder', 'forwarder', 'cable'] as const) {
+        const eg =
+          machine === 'skidder' ? base : extractionGridFor(base, { ...settings, machine, classBoundsM: inputs.bounds })
+        const mine = machine === settings.machine
+        try {
+          const computed = await computeOn(inputs, eg, mine && compare && inputs.canCompare, controller)
+          results[machine] = computed.after
+          if (mine) selected = computed
+        } catch (cause) {
+          // A cable run with no landing in reach leaves cable out rather than the whole suggestion.
+          if (machine !== 'cable' || controller.signal.aborted) throw cause
+          cableNote = cause instanceof Error ? cause.message : 'the cable run failed.'
+        }
+      }
+      const map = harvestSystemMap(results)
+      setSystems({ key: systemsKey, map, cableNote })
+      if (selected) keepRun(selected)
+      setPlanLayer('systems')
+      const share = (...codes: string[]) =>
+        map.rows.filter((r) => codes.includes(r.system)).reduce((a, r) => a + r.share, 0)
+      w.setNotice(
+        `${block.name}, suggested from reach only: ${pct(share('skidder', 'forwarder', 'skidder-or-forwarder'))} ground-based, ${pct(share('cable'))} cable, ${pct(share('none'))} no machine, ${pct(share('unknown'))} unknown.`,
+      )
+    } catch (cause) {
+      if (controller.signal.aborted) w.setNotice('Harvest systems cancelled. Nothing was changed.')
+      else w.setError(cause instanceof Error ? cause.message : 'Could not suggest harvest systems.')
+    } finally {
+      abort.current = null
+      w.setBusy('')
+    }
+  }
+
+  const readVri = async () => {
+    if (!block) return
+    const ring = (block.geometry as GeoJSON.Polygon).coordinates[0]
+    const lons = ring.map((c) => c[0]),
+      lats = ring.map((c) => c[1])
+    // The travel band around the block, roughly: a skyline may yard just outside the outline.
+    const padLat = (offBlockM + 50) / 111_195,
+      padLon = padLat / Math.cos((lats[0] * Math.PI) / 180)
+    setVolumeBusy(true)
+    setVolumeStatus('Reading the vegetation inventory…')
+    try {
+      const { stands, truncated } = await fetchVriVolume([
+        Math.min(...lons) - padLon,
+        Math.min(...lats) - padLat,
+        Math.max(...lons) + padLon,
+        Math.max(...lats) + padLat,
+      ])
+      setVolumeInput({ kind: 'vri', stands, source: `${VRI_VOLUME_SOURCE}${truncated ? ', partial answer' : ''}` })
+      setVolumeStatus(`${stands.length} inventory polygon${stands.length === 1 ? '' : 's'} read.`)
+    } catch (cause) {
+      setVolumeStatus(cause instanceof Error ? cause.message : 'Could not read the vegetation inventory.')
+    } finally {
+      setVolumeBusy(false)
+    }
+  }
+  const readRaster = async (file: File) => {
+    setVolumeBusy(true)
+    setVolumeStatus(`Reading ${file.name}…`)
+    try {
+      const raster = await loadVolumeRaster(file)
+      setVolumeInput({ kind: 'raster', sample: raster.sample, source: `${raster.name} (EPSG:${raster.epsg})` })
+      setVolumeStatus('')
+    } catch (cause) {
+      setVolumeStatus(cause instanceof Error ? cause.message : 'Could not read the volume raster.')
+    } finally {
+      setVolumeBusy(false)
     }
   }
 
@@ -535,16 +773,19 @@ export function SkidReachPanel(p: SidebarProps) {
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={compare} onChange={(e) => setCompare(e.target.checked)} />
-              Compare with mapped roads only
+              {landingInputs.length ? 'Compare with existing landings only' : 'Compare with mapped roads only'}
               <InfoTip label="About the before and after comparison">
-                Runs the block twice, without and with the designed roads, and shows the ground they bring within reach
-                and how much they shorten extraction.
+                Runs the block twice, without and with the designed roads (with landings set: with the existing landings
+                only, then with the proposed ones too), and shows the ground they bring within reach and how much they
+                shorten extraction.
               </InfoTip>
             </label>
           </div>
           {settings.machine === 'cable' && (
             <p className="text-2xs text-muted-foreground">
-              Cable lines start from truck roads; skid trails are not used.
+              {landingInputs.length
+                ? 'Cable lines start from the landings below; skid trails are not used.'
+                : 'Cable lines start from truck roads; skid trails are not used.'}
             </p>
           )}
           <RoadSection
@@ -610,6 +851,16 @@ export function SkidReachPanel(p: SidebarProps) {
               <p className="text-muted-foreground">The project has no exclusion areas.</p>
             )}
           </RoadSection>
+          <LandingInputSection
+            landings={landingInputs}
+            onLandings={(update) => setLandingInputs(update)}
+            machine={settings.machine}
+            roads={nearbyRoads}
+            candidates={landings?.candidates ?? []}
+            projection={landingProjection}
+            colorOf={catchmentColor}
+            onPickOnPlan={onPickOnPlan}
+          />
           <Button
             size="sm"
             className="h-8 w-full"
@@ -631,6 +882,7 @@ export function SkidReachPanel(p: SidebarProps) {
           {s && current && (
             <div className="space-y-2" data-testid="skid-reach-results">
               <ExtractionReachResults summary={s} comparison={current.comparison} />
+              {catchments && <LandingCatchmentResults catchments={catchments} />}
               {current.cable && (
                 <CableCoverageResults
                   coverage={current.cable}
@@ -638,9 +890,22 @@ export function SkidReachPanel(p: SidebarProps) {
                   rule={lineRule}
                   onRule={setLineRule}
                   roadName={(landing) => {
-                    const sg = current.result.grid.sg
-                    return sg.roads[current.cable!.landings[landing].roadIndex]?.road.name ?? ''
+                    const eg = current.result.grid
+                    const start = current.cable!.landings[landing]
+                    if (start.group !== undefined) return eg.landings?.[start.group]?.name ?? ''
+                    return eg.sg.roads[start.roadIndex]?.road.name ?? ''
                   }}
+                  volumeControl={
+                    <CableVolumeSource
+                      choice={volumeChoice}
+                      onChoice={setVolumeChoice}
+                      weights={volume?.weights ?? null}
+                      status={volume?.error || volumeStatus}
+                      onFetchVri={() => void readVri()}
+                      onRaster={(file) => void readRaster(file)}
+                      busy={volumeBusy}
+                    />
+                  }
                 />
               )}
               <label className="flex items-center gap-2">
@@ -651,9 +916,34 @@ export function SkidReachPanel(p: SidebarProps) {
                   within reach and teal where shortened). Outlines: blue winched, red beyond reach, purple too steep for
                   the machine, dark purple too steep to fell, slate no extraction, grey unknown. Orange lines are spur
                   candidates; cyan rectangles are landing candidates. Dark cyan lines are suggested skylines, with their
-                  supports as dots.
+                  supports as dots. Catchments fill each landing&apos;s ground in its colour; the change from a pinned
+                  run fills gained ground green, lost red, shorter teal, longer orange and ground unknown in one run
+                  grey; suggested systems use the colours of their table.
                 </InfoTip>
               </label>
+              {showOnPlan && (
+                <Field label="Plan shows">
+                  <RoadSelect
+                    ariaLabel="Extraction layer on the plan"
+                    value={shownLayer}
+                    onValueChange={(value) => setPlanLayer(value as PlanLayer)}
+                    options={layers}
+                  />
+                </Field>
+              )}
+              <PinnedRunResults
+                pinnedLabel={pinned?.label ?? null}
+                isPinnedRun={pinned?.result === current.result}
+                comparison={pinnedComparison.comparison}
+                error={pinnedComparison.error}
+                onPin={() => {
+                  setPinned({
+                    result: current.result,
+                    label: `${MACHINE_NAMES[s.machine]} · ${pct(s.coveredShare)} within reach · ${s.cellM.toFixed(0)} m cells${landingInputs.length ? ` · ${landingInputs.length} landing${landingInputs.length === 1 ? '' : 's'}` : ''}`,
+                  })
+                }}
+                onUnpin={() => setPinned(null)}
+              />
 
               {current.cable ? (
                 <p className="border-t pt-2 text-2xs text-muted-foreground">
@@ -827,6 +1117,13 @@ export function SkidReachPanel(p: SidebarProps) {
               </div>
             </div>
           )}
+          <HarvestSystemResults
+            map={systems?.map ?? null}
+            stale={!!systems && !systemsFresh}
+            cableNote={systems?.cableNote ?? null}
+            onRun={() => void runSystems()}
+            disabled={!block || !!p.drawing}
+          />
         </div>
       )}
     </RoadSection>

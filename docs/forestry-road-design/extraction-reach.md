@@ -42,6 +42,10 @@ cable-layout module (`crates/cable-layout/src/coverage.rs`, see
   payload and heights with your yarder's.
 - **Every result is a candidate.** Nothing here changes the project. Spurs are added only with
   **Add**, as before; suggested cable lines are drawn, never added.
+- **Landings, pinned runs and volume stay in the session.** Like the trail and closed-area choices,
+  they are not saved in the project file.
+- **Suggested harvest systems are a reach screen.** They weigh no cost, soil, season, volume or
+  crew; read them as "which machine can reach this", not as a prescription.
 
 ## Using it
 
@@ -62,8 +66,16 @@ cable-layout module (`crates/cable-layout/src/coverage.rs`, see
 5. **Closed areas**: say how each exclusion area is used. **No machines**: no driving, but winch
    lines may cross it and logs inside it may be winched out. **No extraction**: neither. Areas are
    never classified from their geometry; an area left at **Not used** changes nothing.
-6. **Compare with mapped roads only** runs the block twice, without and with the designed roads.
-7. **Run extraction reach.** The folded row shows the machine and the share within reach. The
+6. **Landings** (optional): **Pick on plan** adds a landing per click until **Done** or Escape;
+   **Landing site** → **Use** takes a candidate from the last run's landing screen; **Road stretch**
+   with **From** and **To** in metres along a counted road adds the stretch, or one landing at that
+   station when they are equal (the keyboard path). Mark each **Existing** or **Proposed** and, for
+   the cable yarder, **Yarder above**, **below** or **either side**. With none set, the run is as
+   before.
+7. **Compare with mapped roads only** runs the block twice, without and with the designed roads.
+   With landings set it reads **Compare with existing landings only**: without, then with the
+   proposed landings.
+8. **Run extraction reach.** The folded row shows the machine and the share within reach. The
    results list area by how the logs leave (on a road or trail, skidded, winched from a road or
    trail, winched from driven ground; forwarded by free travel, straight runs or crane; yarded by
    skyline), the area beyond reach, too steep for the machine, too steep to fell, closed and
@@ -74,9 +86,22 @@ cable-layout module (`crates/cable-layout/src/coverage.rs`, see
    **Show on plan** fills ground within reach by distance class (or newly within reach and
    shortened, with the comparison on) and outlines winched, beyond-reach, too-steep, unfellable,
    closed and unknown ground.
-8. **Suggest spurs** and **Landing sites** work as before, judged by this run's reach: a spur that
-   brings steep ground within winch reach counts. Spur suggestions are not offered for the cable
-   yarder: they re-run a ground-based model for every candidate spur.
+9. **Catchments** list each landing (or, without landings, each road that serves ground) with its
+   area, share of the ground within reach, and mean and farthest extraction distance. **Plan shows**
+   switches the plan between the distance classes (or the comparison), the catchments (one colour
+   per landing), the change from a pinned run and the suggested systems.
+10. **Compare with a pinned run**: **Pin this run**, change the machine, limits, landings or roads,
+    and run again. The table gives the area by state and by distance class for both runs, and the
+    ground gained, lost, shorter and longer.
+11. **Suggested harvest systems** runs the skidder, the forwarder and the cable yarder with the
+    settings in the panel on one grid and suggests a system per cell, with a legend table; the
+    selected machine's own run becomes the panel's run.
+12. **Weight lines by** (cable, under **Suggested lines**): **Area only** by default, **VRI live
+    volume** read over the block, or a **Volume raster** GeoTIFF in m³/ha. The source is named
+    under the field and in the selection summary, with the area it has no figure for.
+13. **Suggest spurs** and **Landing sites** work as before, judged by this run's reach: a spur that
+    brings steep ground within winch reach counts. Spur suggestions are not offered for the cable
+    yarder: they re-run a ground-based model for every candidate spur.
 
 ## How the skidder is modelled
 
@@ -227,6 +252,69 @@ method of testing a line is PGMaps' own, on the cable-layout module's span check
   greedy, within 1 − 1/e of the best set of that many lines. It is not Sylvaccess's selection (a
   weighted criteria score, a two-line overlap count and 60 % pruning).
 
+## Landings and catchments
+
+- **Landings set the destinations.** With landings set, only their cells are truck cells: logs end
+  there. Every counted road is demoted to a skid trail, so a skidder or forwarder may drag or carry
+  along it to a landing, with the reach rule over the whole drag as on any trail; a road joined to
+  no landing is never reached, and ground beside it leaves over the ground to a landing or not at
+  all. A stretch's cells are all landing cells. A point landing within `LANDING_JOIN_M` (25 m) of
+  a counted truck road is joined to it by the cells between them; one farther away stands alone.
+  A landing with no cell on the grid is named in the run's notice and left out; with none on the
+  grid the run is refused.
+- **Cable lines start only from landings.** A point landing is one start; a stretch starts a line
+  every **Landing spacing** along it. Each start keeps its landing's yarder side, which replaces
+  **Yarder stands** for its lines. Starts must lie on known ground; the travel band does not apply
+  to a picked landing.
+- **Existing and proposed.** The comparison's "before" run takes the existing landings only, on the
+  same roads; "after" takes them all. A run with no existing landing has nothing within reach
+  before.
+- **Catchments.** Each cell within reach records the cell its logs leave by (`ExtractionCells.exit`):
+  a landing, a truck-road cell, a trail cell or a cable start. A trail cell resolves through the
+  trail's own search to the truck or landing cell it joins (`landingCatchments.ts`). A cell whose
+  exit resolves to nothing is listed as **No landing traced**. Without landings, the groups are the
+  counted truck roads, and roads that serve nothing are left out of the table.
+
+## Comparing with a pinned run
+
+`comparePinnedRun` (`pinnedRun.ts`) reads two runs on the same grid (block, cell size and travel
+band; checked cell for cell, not by object). Per block cell: **gained** within reach now and not
+pinned, **lost** the reverse, **shorter** or **longer** by at least `MIN_SHORTENED_M` when within
+reach both times, and **unknown in one run** when exactly one run reports it unknown; that ground
+is never counted gained or lost. The state rows and the distance classes (on the current run's
+bounds) are given for both. It does not check that the two runs used the same roads or terrain:
+that is what it is for.
+
+## Suggested harvest systems
+
+`harvestSystemMap` (`harvestSystems.ts`) reads the three machines' runs on one grid
+(`extractionGridFor` shares the ground, roads, areas and landings). Per block cell, in order:
+**ground-based** when the skidder or the forwarder has it within reach (skidder, forwarder, or
+either); **cable** when only the cable yarder does; **unknown** when any run reports it unknown;
+**too steep to fell or no extraction** when every run says so; otherwise **no machine reaches**.
+When the cable run fails (no landing in reach, too many lines), the map is made from the ground
+machines and the reason is shown. The rule is PGMaps' own: Sylvaccess offers an operation-systems
+map per parcel with a minimum cable-area ratio, but its processing was not described, and none of
+it is reproduced.
+
+## Volume-weighted line selection
+
+Off by default. With a volume source, `selectCableLines` takes, at each step, the line with the most
+**volume** of new ground per unit cost instead of the most area (`cableVolume.ts`). The new-share
+rule, the target, the final pass and the selection summary's shares stay on area. Volume per
+hectare comes from:
+
+- **VRI live volume**: rank-1 `LIVE_STAND_VOLUME_125` (12.5 cm+ utilisation), live from DataBC's WFS
+  over the block and its travel band (`vriVolume.ts`); a polygon average from photo interpretation
+  and yield models, not a cruise. The box goes in `CQL_FILTER`, longitude first.
+- **Volume raster**: a single-band, north-up GeoTIFF in m³/ha in a projected CRS PGMaps knows,
+  sampled at the grid's cell centres, nearest pixel (`volumeRasterImport.ts`).
+
+A cell with no figure (no stand, no-data, negative or above `MAX_VOLUME_PER_HA`) is unknown: it
+weighs the mean of the known yardable cells in the choice, and the volumes reported per line and in
+total count known volume only, with the unknown area beside them. A source with no figure over the
+yardable ground is refused.
+
 ## Limits and budgets
 
 | Limit                                                                                                    | Enforcing code                                                                                                 |
@@ -253,6 +341,12 @@ method of testing a line is PGMaps' own, on the cable-layout module's span check
 | Anchor allowance: guyline at 45° from the tail top plus 5 m; no clearance check within 10 m of a support | `ANCHOR_EXTRA_M`, `SUPPORT_CLEARANCE_ZONE_M`                                                                   |
 | Lines sent to the worker 24 at a time (one progress step each)                                           | `COVER_BATCH_LINES`                                                                                            |
 | Suggested lines: 30 most, 30 % new share, 0.25 support penalty, 95 % target; final pass at 10 %          | `DEFAULT_CABLE_SELECTION`, `CABLE_SELECTION_LIMITS`, `MIN_UNIQUE_SHARE` (`cableLineSelection.ts`)              |
+| At most 40 landings a run; a stretch at most 5,000 m                                                     | `MAX_LANDINGS`, `MAX_LANDING_STRETCH_M` (`extractionLandings.ts`)                                              |
+| A point landing within 25 m of a counted truck road is joined to it                                      | `LANDING_JOIN_M` (`extractionLandings.ts`)                                                                     |
+| Catchment colours: 12, cycled; catchment, change and system layers within the plan's vertex budget       | `CATCHMENT_COLORS` (`landingCatchments.ts`), `keepWithinBudget`, `MAX_SKID_OUTLINE_VERTICES`                   |
+| Volume figures from 0 to 3,000 m³/ha; others are missing                                                 | `MAX_VOLUME_PER_HA` (`cableVolume.ts`)                                                                         |
+| Volume raster: 64 MB, 4,194,304 cells; VRI: 4,000 polygons, 0.35° box                                    | `MAX_VOLUME_RASTER_BYTES`, `MAX_ROAD_RASTER_CELLS`; `MAX_VEGETATION_FEATURES`, `MAX_VEGETATION_QUERY_DEGREES`  |
+| A distance counts as shorter or longer against the pinned run from 1 m                                   | `MIN_SHORTENED_M` (`pinnedRun.ts`)                                                                             |
 
 **Runtime of the cable yarder.** Measured in Node on the committed WebAssembly on the reference
 case below: about 3 ms a line on 5 m cells and 2 ms on 10 m cells (a 276 m usable skyline, half
@@ -296,6 +390,16 @@ Selection takes 10–160 ms and follows its settings without a new run.
   the screen found it.
 - Cable: no line may cross a stream when streams stop extraction; no-extraction areas may be
   crossed, but their ground is never yarded. No-machines areas do not affect cable.
+- Landings: a landing is a set of cells, not a footprint; its size, deck space and turnaround are
+  not checked. Machines travel along the counted roads to it at trail weight; a landing set on a
+  road does not stop traffic past it.
+- Landings: a suggested spur's cells join the destinations, as a truck road's do without landings;
+  a spur ends at its own landing.
+- Landings: a cable start's yarder side is judged on the line's ends as screened; the screen may
+  shorten a line, which can leave its ends level.
+- Harvest systems: ground-based wins wherever it reaches, however long the drag; cable is suggested
+  only where no ground machine reaches. No minimum cable area applies.
+- Volume: VRI is a polygon average and the raster is read at cell centres; neither is a cruise.
 
 ## Failure modes
 
@@ -320,6 +424,16 @@ Selection takes 10–160 ms and follows its settings without a new run.
 - **Lines fanning from one landing overlap near it.** Suggested lines from the same landing share
   ground there by construction; the new-share rule counts that overlap against each later line, so
   a high **New share** leaves fewer lines from each landing.
+
+- **A landing set off the roads strands them.** With landings set, a counted road with no landing
+  on it, or joined to one only across ground the machine cannot cross, carries nothing. Check the
+  catchment table for landings that serve nothing.
+- **A picked point lands on the wrong cell.** A point more than 25 m from a road is a landing of
+  its own; snap it by clicking on the road or by adding it as a road station.
+- **The pinned run's grid differs.** A change of block, grid cell or travel band cannot be compared
+  cell for cell; the panel says so and asks for a new pin.
+- **VRI returns a partial answer.** Over 4,000 polygons the inventory answer is cut and the source
+  says "partial answer"; the rest of the block weighs the mean.
 
 ## Provenance
 
