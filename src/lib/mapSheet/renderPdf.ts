@@ -23,7 +23,18 @@ export function pdfText(value: string): string {
     .replace(/[≤]/g, '<=')
     .replace(/[³]/g, '3')
     .replace(/[²]/g, '2')
+    .replace(/÷/g, '/')
+    .replace(/≈/g, '~')
+    .replace(/√/g, 'sqrt')
     .replace(/[^\x20-\x7e°±×é]/g, '?')
+}
+
+/** The characters `pdfText` cannot fold and would print as "?", for tests over a sheet's text. */
+export function pdfTextUnfolded(value: string): string[] {
+  const folded = pdfText(value)
+  const kept = (value.match(/\?/g) ?? []).length
+  if ((folded.match(/\?/g) ?? []).length === kept) return []
+  return [...new Set([...value].filter((c) => pdfText(c).includes('?') && c !== '?'))]
 }
 
 export function createSheetPdf(module: JsPdfModule, width: number, height: number): JsPdf {

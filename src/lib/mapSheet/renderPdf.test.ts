@@ -1,7 +1,7 @@
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it, vi } from 'vitest'
 import type { DrawOp } from './drawOps'
-import { createSheetPdf, drawSheetPdf, pdfText } from './renderPdf'
+import { createSheetPdf, drawSheetPdf, pdfText, pdfTextUnfolded } from './renderPdf'
 import { sheetSvg } from './renderSvg'
 
 const ops: DrawOp[] = [
@@ -50,6 +50,13 @@ describe('sheet renderers', () => {
   it('folds text into WinAnsi', () => {
     expect(pdfText('1 − 2 · 3 – 4 ≥ 95 m³')).toBe('1 - 2 - 3  -  4 >= 95 m3')
     expect(pdfText('54°4\'0"N')).toBe('54°4\'0"N')
+    expect(pdfText('MBF 424 kN ÷ 3.00 ≈ 141 kN')).toBe('MBF 424 kN / 3.00 ~ 141 kN')
+  })
+
+  it('names the characters it cannot fold, and only those', () => {
+    expect(pdfTextUnfolded('breaking force ÷ safety factor, 95 m³ · 3 °')).toEqual([])
+    expect(pdfTextUnfolded('Why? Because.')).toEqual([])
+    expect(pdfTextUnfolded('flag ⚑ and ✓')).toEqual(['⚑', '✓'])
   })
 
   it('shows the same operations as SVG, clipped and escaped', () => {

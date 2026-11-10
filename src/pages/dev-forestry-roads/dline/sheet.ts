@@ -716,7 +716,7 @@ export function buildDLineSheet(input: DLineSheetInput): DLineSheet {
   const rig = line.sagModel === 'mechanics' ? line.rigging : undefined
   const rigLines = rig
     ? [
-        `Rigging${extras.riggingSet ? `: ${extras.riggingSet}` : ''} · ${f(rig.ropeDiameterMm)} mm skyline, ${f(rig.ropeMassKgPerM, 2)} kg/m, MBF ${f(rig.breakingForceKN, 0)} kN ÷ ${f(rig.safetyFactor, 2)}`,
+        `Rigging${extras.riggingSet ? `: ${extras.riggingSet}` : ''} · ${f(rig.ropeDiameterMm)} mm skyline, ${f(rig.ropeMassKgPerM, 2)} kg/m, MBF ${f(rig.breakingForceKN, 0)} kN, safety factor ${f(rig.safetyFactor, 2)}`,
         `Load ${f(rig.payloadKg, 0)} kg + carriage ${f(rig.carriageKg, 0)} kg · running lines ${f(rig.runningLinesKgPerM, 2)} kg/m · clearance ${f(rig.minClearanceM)} m`,
       ]
     : ['Assumed sag: no rope, load or tension is calculated.']

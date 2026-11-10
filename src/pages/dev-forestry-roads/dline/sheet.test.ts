@@ -1,7 +1,7 @@
 import { GState, jsPDF } from 'jspdf'
 import { describe, expect, it } from 'vitest'
 import type { DrawOp } from '@/lib/mapSheet/drawOps'
-import { createSheetPdf, drawSheetPdf } from '@/lib/mapSheet/renderPdf'
+import { createSheetPdf, drawSheetPdf, pdfText, pdfTextUnfolded } from '@/lib/mapSheet/renderPdf'
 import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { EXAMPLE_RIGGING } from '../cableMechanics'
 import type { CableLayoutResult } from '../cableLayout/cableLayout'
@@ -146,6 +146,19 @@ describe('D-line sheet', () => {
     drawSheetPdf(pdf, { jsPDF, GState }, sheet.ops)
     expect(new TextDecoder().decode(pdf.output('arraybuffer').slice(0, 5))).toBe('%PDF-')
     expect(sheetSvg(sheet.ops, sheet.width, sheet.height)).toContain('NOT CURRENT: rigging edited')
+  })
+
+  it('prints every word in the PDF font, with no "?" for a sign it cannot set', () => {
+    for (const sheet of [
+      buildDLineSheet(input({ stamp: 'NOT CURRENT: rigging edited' })),
+      buildDLineSheet(input({ limits: null, extras: { ...input().extras, layout: null } })),
+    ]) {
+      const all = texts(sheet.ops)
+      expect(all.flatMap(pdfTextUnfolded)).toEqual([])
+      const rigging = all.find((t) => t.startsWith('Rigging'))!
+      expect(pdfText(rigging)).toContain('safety factor')
+      expect(all.join(' ')).toContain('breaking force')
+    }
   })
 
   it('refuses a D-line whose own inputs are invalid', () => {
