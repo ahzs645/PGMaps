@@ -754,8 +754,11 @@ export function EngineeringControls({
                       <div key={String(field.key)} className="flex items-end gap-1">
                         <div className="min-w-0 flex-1">
                           <NumberField
-                            {...field}
                             label={field.label}
+                            min={field.min}
+                            max={field.max}
+                            step={field.step}
+                            hint={field.hint}
                             value={
                               (candidate[field.key] ??
                                 candidate[
@@ -1225,7 +1228,7 @@ export function EngineeringControls({
                       label: `Culvert ${index + 1} skew from square (°)`,
                       min: -80,
                       max: 80,
-                      hint: 'Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
+                      hint: 'Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15° here. Positive turns the right-hand (outlet) end toward lower stations, negative toward higher ones.',
                     },
                     { key: 'lengthM', label: `Culvert ${index + 1} horizontal barrel span (m)`, min: 0.2, max: 500 },
                     { key: 'diameterM', label: `Culvert ${index + 1} diameter (m)`, min: 0.1, max: 20 },
@@ -1236,10 +1239,6 @@ export function EngineeringControls({
                   errorFor={errorsFor('culverts', c.id)}
                   onChange={(p) => patch('culverts', c.id, p)}
                 />
-                <p className="text-2xs leading-4 text-muted-foreground">
-                  Skew is measured from square to the road: 0° crosses square, and a pipe 75° from the centreline is 15°
-                  here.
-                </p>
                 <EntryProblem
                   problem={problem}
                   list="culverts"

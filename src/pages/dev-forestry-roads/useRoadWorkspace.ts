@@ -66,6 +66,8 @@ export function useRoadWorkspace() {
     projectIdRef.current = id
     setProjectIdState(id)
   }, [])
+  // Rises each time another project becomes the open one, in training mode too, where there is no id.
+  const [openedCount, setOpenedCount] = useState(0)
   const [library, setLibrary] = useState<LibraryEntry[]>([])
   const libraryRef = useRef(library)
   libraryRef.current = library
@@ -135,6 +137,7 @@ export function useRoadWorkspace() {
       commit(next, false)
       setStation(0)
       history.current = { past: [], future: [] }
+      setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(id)
       setCanPersist(true)
       setFileSaved(null)
@@ -152,6 +155,7 @@ export function useRoadWorkspace() {
       setStation(0)
       setFeatureSelection(null)
       history.current = { past: [], future: [] }
+      setOpenedCount((count) => count + 1)
       if (!training()) setProjectId(crypto.randomUUID())
       setCanPersist(true)
       setFileSaved(null)
@@ -402,6 +406,8 @@ export function useRoadWorkspace() {
     restore,
     startProject,
     projectId,
+    /** Changes whenever a project is opened, started or restored: what was held for the last one is stale. */
+    openedCount,
     library,
     flush,
     openProject,

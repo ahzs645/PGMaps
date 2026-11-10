@@ -654,7 +654,10 @@ export default function DevForestryRoads() {
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
-  const [removedRoad, setRemovedRoad] = useState<RemovedRoad | null>(null)
+  // A deleted road and the project it came from: its notice and Undo end when another project opens.
+  const [removedRoad, setRemovedRoad] = useState<{ removed: RemovedRoad; opened: number } | null>(null)
+  if (removedRoad && removedRoad.opened !== w.openedCount) setRemovedRoad(null)
+  const removedHere = removedRoad?.opened === w.openedCount ? removedRoad.removed : null
   const [fileConflict, setFileConflict] = useState<{
     opened: RoadProject
     fileName: string
@@ -2927,11 +2930,11 @@ export default function DevForestryRoads() {
       )}
       <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
       <RoadRemovedNotice
-        removed={removedRoad}
-        shownName={project.alignments.find((road) => road.id === removedRoad?.shownId)?.name ?? alignment.name}
+        removed={removedHere}
+        shownName={project.alignments.find((road) => road.id === removedHere?.shownId)?.name ?? alignment.name}
         onDismiss={() => setRemovedRoad(null)}
         onUndo={() => {
-          if (removedRoad) w.update((p) => parseProject(restoreRoad(p, removedRoad)))
+          if (removedHere) w.update((p) => parseProject(restoreRoad(p, removedHere)))
           setRemovedRoad(null)
         }}
       />
@@ -3210,7 +3213,7 @@ export default function DevForestryRoads() {
                   const result = removeRoad(project, alignment.id)
                   if (!result) return
                   w.update(() => result.project)
-                  setRemovedRoad(result.removed)
+                  setRemovedRoad({ removed: result.removed, opened: w.openedCount })
                 }}
                 onSuggest={suggest}
                 onLoadMappedRoad={loadMappedRoad}

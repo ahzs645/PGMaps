@@ -2,7 +2,8 @@
 
 The **Existing roads & reuse** panel loads Forest Tenure Road Section Lines from
 the [BC Data Catalogue](https://catalogue.data.gov.bc.ca/dataset/243c94a1-f275-41dc-bc37-91d8a2b26e10),
-or imports WGS84 GeoJSON linework supplied by a user. The catalogue query covers
+or imports linework supplied by a user as GeoJSON, a zipped shapefile, KML or KMZ
+([how files are read](exports-and-project-files.md#bringing-spatial-files-in)). The catalogue query covers
 the current map extent when supplied by the workspace, otherwise the road
 alignments plus about 1 km on each side. When that finds nothing, **Search wider** looks about 10 km out, capped
 at the service's 0.3° query limit, so an empty result says how far it looked. It retrieves complete section geometry,
@@ -117,9 +118,10 @@ the network-class field; that identification is distinct from a live BC record.
 | FSR-only area queries at most 0.5°; nearest radius at most 10 km with 3 expanding requests      | `MAX_FSR_QUERY_SPAN`, `existingRoads.ts`; `FSR_SEARCH_RADII_M`, `fsrNetwork.ts` |
 | Up to 10 listed FSR choices; automatic routes compare at most 3, a named choice runs one search | `MAX_FSR_CHOICES`, `MAX_FSR_CONNECTION_CANDIDATES`, `fsrConnections.ts`         |
 | At most 500 road/context features; at most 50,000 context vertices per project                  | `MAX_EXISTING_ROADS`, `existingRoads.ts`; `MAX_CONTEXT_VERTICES`, `project.ts`  |
-| At most 10 MB live response or user road import                                                 | `MAX_ROAD_RESPONSE_BYTES`, `existingRoads.ts` and `ExistingRoadsPanel.tsx`      |
+| At most 10 MB in a live response                                                                | `MAX_ROAD_RESPONSE_BYTES`, `existingRoads.ts`                                   |
+| A user road file: at most 120,000,000 bytes, 500 features and 50,000 vertices                   | `MAX_SPATIAL_FILE_BYTES`, `MAX_SPATIAL_FEATURES`, `MAX_SPATIAL_VERTICES`, `spatialImport.ts` |
 | Truncation is an error; no partial network is accepted                                          | `parseBcExistingRoads`, `existingRoads.ts`                                      |
 
 Zoom in or split linework when a budget is exceeded. Existing project context is
 validated together with new roads before replacing state. Reloading the same BC
-record retains the user's review evidence. GeoJSON imports receive new project IDs.
+record retains the user's review evidence. Imported road files receive new project IDs.
