@@ -54,7 +54,10 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   const [sceneGround, setSceneGround] = useState<number | null>(null)
   const [color, setColor] = useState<ColorSchemeType>('elevation')
   const [tab, setTab] = useState<PanelTab>('layers')
-  const [panelOpen, setPanelOpen] = useState<boolean | null>(null)
+  /** The desktop sidebar. On phones the controls live in the layout's bottom sheet instead. */
+  const [panelOpen, setPanelOpen] = useState(true)
+  /** Bumped to fold the phone sheet to its peek, so a choice shows on the map. */
+  const [sheetCollapse, setSheetCollapse] = useState(0)
   const [toolsOpen, setToolsOpen] = useState(false)
   const [basemap, setBasemap] = useState<Basemap>('vector')
   const [labels, setLabels] = useState(true)
@@ -68,7 +71,6 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   const [transectControl, setTransectControl] = useState<TransectControl>({ active: false, width: 2, revision: 0 })
   const [transectProfile, setTransectProfile] = useState<ElevationProfile | null>(null)
   const [benchmarkPreview, setBenchmarkPreview] = useState<BenchmarkPreview | null>(null)
-  const [inspectorWidth, setInspectorWidth] = useState(44)
   const [treeView, setTreeView] = useState<'top' | '3d'>('top')
   const focusBenchmark = useCallback((centre: [number, number], ground: number) => {
     setSceneGround(ground)
@@ -179,10 +181,13 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
   }, [workflowProducts.data, analysisOptions.selectedId])
   const sidebar = useRef<HTMLElement>(null)
   const isMobile = useIsMobile()
-  const showPanel = panelOpen ?? !isMobile
+  const showPanel = isMobile || panelOpen
+  const closeOnMobile = useCallback(() => {
+    if (isMobile) setSheetCollapse((n) => n + 1)
+  }, [isMobile])
 
   useEffect(() => {
-    const content = sidebar.current?.querySelector<HTMLElement>('[data-map-sidebar-scroll]')
+    const content = sidebar.current?.parentElement?.querySelector<HTMLElement>('[data-map-sidebar-scroll]')
     if (content) content.scrollTop = 0
   }, [tab])
 
@@ -195,12 +200,12 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setRaster(key)
     setCloud(false)
     setSurfaceVisible(true)
-    if (isMobile) setPanelOpen(false)
+    closeOnMobile()
   }
   const openTools = () => {
     setCloud(true)
     setToolsOpen(true)
-    if (isMobile) setPanelOpen(false)
+    closeOnMobile()
   }
   const review = (workflow: ReviewWorkflow) => {
     setAnalysisOptions((previous) => ({ ...previous, mode: null }))
@@ -218,7 +223,7 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setMinTreeHeight(5)
     go(summary?.highlights.findIndex((place) => place.label === workflow.highlight) ?? -1)
     setSceneGround(workflow.cloud ? defaultRoofOrigin : null)
-    if (isMobile) setPanelOpen(false)
+    closeOnMobile()
   }
   const inspectRoof = (feature: RoofFeature, mode: '2d' | '3d', record: RoofInspection | null) => {
     review(REVIEW_WORKFLOWS.find((workflow) => workflow.id === (mode === '3d' ? 'structure' : 'roofs'))!)
@@ -252,7 +257,7 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setColor(presentation.color)
     setMeshVisible(true)
     setTab('analysis')
-    if (isMobile) setPanelOpen(false)
+    closeOnMobile()
   }
   const selectWorkflow = (id: string) => {
     const restoreCrown =
@@ -287,7 +292,7 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
         zoom: analysisOptions.mode === 'trees' ? 20 : analysisOptions.mode === 'clearance' ? 19 : 17.5,
       }))
     }
-    if (isMobile) setPanelOpen(false)
+    closeOnMobile()
   }
   // These are React input transitions, so adjust owned state before commit instead
   // of first rendering a previous tool's controls and resetting them in an effect.
@@ -389,6 +394,8 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setTab,
     panelOpen,
     setPanelOpen,
+    sheetCollapse,
+    closeOnMobile,
     toolsOpen,
     setToolsOpen,
     basemap,
@@ -415,8 +422,6 @@ export function useLidarWorkspace({ analysisBase, cloudBase }: { analysisBase: s
     setTransectProfile,
     benchmarkPreview,
     setBenchmarkPreview,
-    inspectorWidth,
-    setInspectorWidth,
     treeView,
     setTreeView,
     focusBenchmark,

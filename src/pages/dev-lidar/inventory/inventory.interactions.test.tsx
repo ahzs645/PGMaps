@@ -7,6 +7,7 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { InventoryViews } from './InventoryWorkspace'
 import { downloadText } from '@/lib/download'
 import type { InventoryData } from './types'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 vi.mock('@/lib/download', () => ({ downloadText: vi.fn() }))
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
 // The InfoTip popover and the legend panel's media query need a browser window.

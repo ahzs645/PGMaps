@@ -669,7 +669,11 @@ export function NativeLidarMap(props: Props) {
   }, [ready, props.focus, props.summary])
 
   return (
-    <div className="relative h-full min-h-0 overflow-hidden" data-lidar-map>
+    <div
+      // GeoLibre's own control is a MapLibre one; drop it below the app's floating phone toolbar, as the shared controls do.
+      className="relative h-full min-h-0 overflow-hidden max-md:[&_.maplibregl-ctrl-top-left]:top-[var(--map-mobile-toolbar-height,0px)]"
+      data-lidar-map
+    >
       <LidarMap
         key={mapGeneration}
         label="Interactive native LiDAR analysis map"
@@ -690,7 +694,7 @@ export function NativeLidarMap(props: Props) {
         {props.children}
       </LidarMap>
       <div
-        className="pointer-events-none absolute bottom-9 left-3 right-14 truncate rounded bg-background/90 px-2 py-1 text-3xs text-foreground shadow"
+        className="pointer-events-none absolute bottom-9 left-3 max-md:bottom-auto max-md:top-[calc(var(--map-mobile-toolbar-height,0px)_+_3.75rem)] max-md:max-w-[calc(100%-4.5rem)] w-fit max-w-[calc(100%-1.5rem)] truncate rounded bg-background/90 px-2 py-1 text-2xs text-foreground shadow md:max-w-[calc(100%-17rem)]"
         role="status"
         title={height ?? (props.workflowOptions.mode === 'canopy-height' ? detailStatus : status)}
       >

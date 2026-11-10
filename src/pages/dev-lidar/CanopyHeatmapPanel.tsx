@@ -2,6 +2,7 @@ import { CheckboxField, SelectField } from '@/components/ui/form-field'
 import { MapGradientLegendItem, SidebarSection } from '@/components/ui/map-panels'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
 import { Download } from 'lucide-react'
 import { isHeatmapMode, heatmapKey, heatmapLegend, type CanopyHeatmaps } from './canopyHeatmaps'
@@ -23,7 +24,18 @@ export function CanopyHeatmapPanel({
     raster = data.rasters[heatmapKey(options)]
   return (
     <>
-      <SidebarSection title="Canopy heatmaps" subtitle="Cool colours: low · warm colours: high">
+      <SidebarSection
+        title="Canopy heatmaps"
+        subtitle="Cool colours: low · warm colours: high"
+        actions={
+          <InfoTip label="About this heatmap">
+            {height
+              ? 'Height above terrain from the measured surface. Blue/purple is lower canopy; yellow/red is taller canopy. Heights above 40 m use the top colour.'
+              : 'Density here means canopy cover: the share of eligible area above the chosen height in a 21 × 21 m square. It is not trees per hectare or LiDAR point density.'}{' '}
+            Click the map for an approximate value.
+          </InfoTip>
+        }
+      >
         <SegmentedControl
           value={options.mode}
           options={[
@@ -34,18 +46,13 @@ export function CanopyHeatmapPanel({
           label="Canopy heatmap metric"
           size="sm"
         />
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          {height
-            ? 'Height above terrain from the measured surface. Blue/purple is lower canopy; yellow/red is taller canopy. Heights above 40 m use the top colour.'
-            : 'Density here means canopy cover: the share of eligible area above the chosen height in a 21 × 21 m square. It is not trees per hectare or LiDAR point density.'}
-        </p>
         {height && (
           <CheckboxField
             className="mt-3"
             label="Automatic 1 m detail when zoomed in"
             checked={options.heightDetail}
             onCheckedChange={(heightDetail) => onOptions({ heightDetail })}
-            description="At zoom 16+, load the original 1 m grid. The map status confirms the active resolution. Zooming farther cannot reveal features smaller than the source cells."
+            description="From zoom 16 the map loads the original 1 m grid; the map status names the resolution in use."
           />
         )}
         {!height && (
@@ -79,29 +86,28 @@ export function CanopyHeatmapPanel({
           colors={legend.colors}
           ticks={[0, 0.25, 0.5, 0.75, 1].map((f) => `${f * legend.max}${f === 1 && height ? '+' : ''} ${legend.unit}`)}
         />
-        <p className="mt-3 text-3xs leading-4 text-muted-foreground">
-          Click the map for an approximate heatmap value. Change Vector / Satellite above to compare context. The legend
-          remains below the map when this panel is closed.
-        </p>
       </SidebarSection>
-      <SidebarSection title="Data coverage">
-        <p className="text-xs leading-5 text-muted-foreground">
-          Known roof patches plus 2 m and unsupported terrain are excluded.{' '}
-          {height
-            ? 'Heights remain an elevated-surface canopy proxy; unrecognized structures may remain.'
-            : 'A neighbourhood needs at least 80% eligible area. The percentage divides by that eligible area; missing cells never count as open canopy.'}{' '}
-          Transparent cells have no supported value.
-        </p>
-        <Button asChild size="sm" variant="outline" className="mt-3">
+      <SidebarSection
+        title="Data coverage"
+        subtitle="Transparent cells have no supported value."
+        actions={
+          <InfoTip label="About data coverage">
+            Known roof patches plus 2 m and unsupported terrain are excluded.{' '}
+            {height
+              ? 'Heights remain an elevated-surface canopy proxy; unrecognized structures may remain.'
+              : 'A neighbourhood needs at least 80% eligible area. The percentage divides by that eligible area; missing cells never count as open canopy.'}{' '}
+            The download is the overview PNG (about 3.5 m display cells). The height map switches to 1 m source detail
+            when zoomed in, and its click values come from the source grid. Density remains the 21 m neighbourhood
+            product.
+          </InfoTip>
+        }
+      >
+        <Button asChild size="sm" variant="outline">
           <a href={raster.png_data_url} download={`canopy-${heatmapKey(options)}.png`}>
             <Download className="size-3.5" aria-hidden="true" />
             Download coloured PNG
           </a>
         </Button>
-        <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-          This download is the overview PNG (about 3.5 m display cells). The height map switches to 1 m source detail
-          when zoomed in; its click values come from the source grid. Density remains the 21 m neighbourhood product.
-        </p>
       </SidebarSection>
     </>
   )

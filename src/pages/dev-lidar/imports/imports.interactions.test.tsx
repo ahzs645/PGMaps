@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ImportWorkspace } from './ImportWorkspace'
 import { getImportSession, resetImportSession } from './session'
 import { downloadText } from '@/lib/download'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
+// The InfoTip popover needs a browser window.
+vi.mock('@/components/ui/info-tip', () => ({
+  InfoTip: ({ children, label }: { children: ReactNode; label: string }) => <span aria-label={label}>{children}</span>,
+}))
 vi.mock('@/lib/download', () => ({ downloadText: vi.fn() }))
 vi.mock('./ImportMap', () => ({ ImportMap: (p: unknown) => <div data-import-map={p} /> }))
 vi.mock('@/components/ui/virtual-result-list', () => ({

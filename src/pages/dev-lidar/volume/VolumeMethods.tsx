@@ -5,7 +5,7 @@ import { ExternalLink } from '@/components/ui/text-button'
 export function VolumeMethods() {
   return (
     <section
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6"
+      className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-background p-4 sm:p-6"
       aria-label="Forest volume measurement practices"
     >
       <div className="mx-auto grid max-w-5xl gap-5 md:grid-cols-2">
@@ -94,9 +94,12 @@ export function VolumeMethods() {
             dead volumes remain unreported; a live-only partial sum is clearly labelled when dead inclusion is
             requested. LiDAR heights provide structural context without silently changing the inventory estimate.
           </p>
-          <ExternalLink className="mt-2 flex w-fit" href="https://pgmaps.ahmadjalil.com/dev/forestry/avast-volume">
+          <Link
+            className="mt-2 flex w-fit text-sm font-medium underline underline-offset-2"
+            to="/dev/forestry/avast-volume"
+          >
             Compare PGMaps AVAST's VRI planning rules
-          </ExternalLink>
+          </Link>
           <h3 className="mt-3 text-sm font-semibold">Optional local calibration</h3>
           <ol className="list-decimal space-y-2 pl-4 text-sm leading-6">
             <li>Download the matching 50 × 50 m reference footprints from the calibration view.</li>

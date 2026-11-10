@@ -1,15 +1,25 @@
-import { ArrowUpRight, Layers3 } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Layers3 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
+import { LIDAR_TOOL_ICONS } from './LidarToolLayout'
 import { LIDAR_TOOLS, toolPath } from './workspaceTools'
 
 export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8" aria-label="LiDAR tool library">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 sm:p-8" aria-label="LiDAR tool library">
       <div className="mx-auto max-w-5xl">
         <ToolPageHeader
           className="mb-0"
+          back={
+            <Link
+              to="/dev"
+              className="mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" aria-hidden="true" />
+              Dev tools
+            </Link>
+          }
           eyebrow="BC 093G086 · original LiDAR + processed products"
           eyebrowIcon={Layers3}
           eyebrowClassName="text-emerald-700 dark:text-emerald-400"
@@ -52,26 +62,32 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
           </div>
         </section>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {LIDAR_TOOLS.map((tool) => (
-            <Link
-              key={tool.id}
-              to={toolPath(tool.id)}
-              className="group flex flex-col rounded-lg border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-semibold">{tool.title}</h2>
-                <ArrowUpRight className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
-              </div>
-              <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{tool.description}</p>
-              <p className="mt-4 text-xs font-medium text-emerald-800 dark:text-emerald-300">{tool.outputs}</p>
-            </Link>
-          ))}
+          {LIDAR_TOOLS.map((tool) => {
+            const Icon = LIDAR_TOOL_ICONS[tool.id]
+            return (
+              <Link
+                key={tool.id}
+                to={toolPath(tool.id)}
+                className="group flex flex-col rounded-lg border bg-card p-5 transition-all duration-200 hover:border-primary/50 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h2 className="flex items-center gap-2 font-semibold">
+                    <Icon className="size-4 text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
+                    {tool.title}
+                  </h2>
+                  <ArrowUpRight className="size-4 text-muted-foreground transition-colors group-hover:text-primary" />
+                </div>
+                <p className="mt-2 flex-1 text-sm leading-6 text-muted-foreground">{tool.description}</p>
+                <p className="mt-4 text-xs font-medium text-emerald-800 dark:text-emerald-300">{tool.outputs}</p>
+              </Link>
+            )
+          })}
         </div>
         <p className="mt-6 text-xs text-muted-foreground">
           84.6 million source returns · candidate-based analyses · source methods and limitations are available inside
           each workspace.
         </p>
       </div>
-    </main>
+    </div>
   )
 }

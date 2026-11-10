@@ -1,9 +1,10 @@
-import { MapGradientLegendItem, MapSwatch } from '@/components/ui/map-panels'
+import { MapGradientLegendItem, MapLegendNote, MapLegendPanel, MapSwatch } from '@/components/ui/map-panels'
 import { ANALYSIS_MODES } from './analysisWorkflows'
 import { isSpeciesMode, SPECIES_COLOURS, speciesLegend } from './species'
 import type { LidarController } from './useLidarWorkspace'
 
-export function LidarLegend({ controller }: { controller: LidarController }) {
+/** The map's legend, floating in its bottom-right corner like every other map page's. */
+export function LidarLegend({ controller, className }: { controller: LidarController; className?: string }) {
   const { summary, basemap, surfaceVisible, raster, analysisOptions, forestLegend, legend, workflowProducts } =
     controller
   if (!summary || !legend) return null
@@ -15,30 +16,42 @@ export function LidarLegend({ controller }: { controller: LidarController }) {
       : analysisOptions.mode === 'edges' || analysisOptions.mode === 'canopy-density'
         ? '%'
         : ''
+  const title = forestLegend
+    ? forestLegend.label
+    : analysisOptions.mode
+      ? (ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.label ?? legend.title)
+      : surfaceVisible
+        ? legend.title
+        : 'Processed surface hidden'
+  const description =
+    !forestLegend && analysisOptions.mode
+      ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
+      : !surfaceVisible && !forestLegend
+        ? basemap === 'vector'
+          ? 'Vector context only'
+          : basemap === 'satellite'
+            ? 'Satellite context only'
+            : 'Basemap hidden'
+        : undefined
   return (
-    <div className="flex shrink-0 items-center gap-3 border-t px-3 py-2 text-3xs" aria-label="Processed surface legend">
-      <span className="min-w-0 flex-1 truncate font-medium" title={forestLegend?.label ?? legend.title}>
-        {forestLegend
-          ? forestLegend.label
-          : analysisOptions.mode
-            ? ANALYSIS_MODES.find((item) => item.id === analysisOptions.mode)?.note
-            : surfaceVisible
-              ? legend.title
-              : `${basemap === 'vector' ? 'Vector context' : basemap === 'satellite' ? 'Satellite context' : 'Basemap hidden'} · surface hidden`}
-      </span>
+    <MapLegendPanel
+      title={title}
+      description={description}
+      collapsible
+      defaultCollapsed="mobile"
+      width="sm"
+      className={className}
+      aria-label="Processed surface legend"
+    >
       {categorical && (
-        <div className="flex max-w-[65%] shrink items-center gap-2 overflow-x-auto" aria-label="Species colour legend">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs" aria-label="Species colour legend">
           {Object.entries(SPECIES_COLOURS).map(([code, colour]) => (
-            <span
-              key={code}
-              className="flex shrink-0 items-center gap-1"
-              title={workflowProducts.data?.species.species[code]}
-            >
+            <span key={code} className="flex items-center gap-1" title={workflowProducts.data?.species.species[code]}>
               <MapSwatch color={colour} />
               {code}
             </span>
           ))}
-          <span className="flex shrink-0 items-center gap-1">
+          <span className="flex items-center gap-1">
             <MapSwatch className="bg-slate-400" />
             Unknown
           </span>
@@ -46,9 +59,6 @@ export function LidarLegend({ controller }: { controller: LidarController }) {
       )}
       {(surfaceVisible || forestLegend) && !categorical && (
         <MapGradientLegendItem
-          className="w-20 min-w-0 shrink-0 space-y-0.5 sm:w-32"
-          barClassName="h-1.5 rounded border-0"
-          labelClassName="gap-1 text-[9px] tabular-nums"
           colors={forestLegend?.colors ?? legend.colors}
           ticks={
             forestLegend
@@ -59,9 +69,7 @@ export function LidarLegend({ controller }: { controller: LidarController }) {
           }
         />
       )}
-      <span className="hidden text-muted-foreground lg:inline">
-        Click map to inspect height · candidates unvalidated
-      </span>
-    </div>
+      <MapLegendNote className="mt-1.5">Click the map to inspect height · candidates are unvalidated</MapLegendNote>
+    </MapLegendPanel>
   )
 }

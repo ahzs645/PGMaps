@@ -1,4 +1,3 @@
-import { useEffect } from 'react'
 import { LidarWorkspace } from './dev-lidar/LidarWorkspace'
 
 /**
@@ -9,14 +8,6 @@ const LIDAR_CLOUD_BASE =
   import.meta.env.VITE_LIDAR_CLOUD_BASE ?? 'https://projects.ahmadjalil.com/pgmaps-lidar-data/bc-093g086/'
 
 export default function DevLidar() {
-  useEffect(() => {
-    const visibility = (hidden: boolean) =>
-      window.dispatchEvent(new CustomEvent('pgmaps:mobile-toolbar-visibility', { detail: { hidden } }))
-    visibility(true)
-    return () => {
-      visibility(false)
-    }
-  }, [])
   const origin = window.location.origin
   return (
     <LidarWorkspace
