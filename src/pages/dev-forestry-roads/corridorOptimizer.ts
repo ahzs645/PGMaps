@@ -6,6 +6,7 @@
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
+import { PointCache } from './pointCache'
 import { blockedRouteEndMessage, routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -470,15 +471,14 @@ function* search(
       buckets.set(key, ids)
     }
   })
-  const guideDistances = new Map<string, number>()
+  const guideDistances = new PointCache()
   const guideOffset = (p: XY) => {
-    const key = p[0] + ',' + p[1]
-    const cached = guideDistances.get(key)
+    const cached = guideDistances.get(p[0], p[1])
     if (cached !== undefined) return cached
     geometryBudget(sketch.length)
     let min = Infinity
     for (let i = 1; i < sketch.length; i++) min = Math.min(min, segmentDistance(p, sketch[i - 1], sketch[i]))
-    if (guideDistances.size < 200000) guideDistances.set(key, min)
+    if (guideDistances.size < 200000) guideDistances.set(p[0], p[1], min)
     return min
   }
   /** What keeps a point out of the search: the corridor's edge, an exclusion, or nothing. */
@@ -520,15 +520,17 @@ function* search(
     }
     return true
   }
-  const cache = new Map<string, number>()
+  const cache = new PointCache()
   const read = (p: XY, fresh = false) => {
     // No coordinate rounding: narrow missing cells must not be replaced by a nearby height.
-    const key = p[0] + ',' + p[1]
-    if (!fresh && cache.has(key)) return cache.get(key)!
+    if (!fresh) {
+      const known = cache.get(p[0], p[1])
+      if (known !== undefined) return known
+    }
     if (++calls > maxSamples)
       throw failed('Terrain sampling budget reached; narrow the corridor or shorten the road.', 'budget')
     const z = terrain.elevationAt(...frame.fromXY(p))
-    if (cache.size < 200000) cache.set(key, z)
+    if (cache.size < 200000) cache.set(p[0], p[1], z)
     return z
   }
   const endpointsZ = [read([0, 0]), read(end)]

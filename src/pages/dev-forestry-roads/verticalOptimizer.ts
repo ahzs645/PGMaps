@@ -29,6 +29,7 @@ import {
   type VerticalControl,
 } from './verticalStandards'
 import { simplifyProfile } from './verticalTools'
+import { fixed9Key, PointCache } from './pointCache'
 import type { Alignment, ContextFeature, RoadAnalysis, RoadSettings, TerrainSource, VerticalPoint } from './types'
 import type { CrossingCostItem } from './crossingPlanTypes'
 
@@ -221,15 +222,30 @@ export function designElevationAt(points: readonly VerticalPoint[], station: num
 }
 
 /** Ground sampling repeats the same offsets at every trial level; remember it per coordinate. */
+/**
+ * Terrain read once per position to the 9th decimal of a degree. Keyed by billionths (`fixed9Key`),
+ * which match the `toFixed(9)` strings exactly; building those strings was a tenth of a comparison.
+ */
 function memoTerrain(terrain: TerrainSource): TerrainSource {
-  const cache = new Map<string, number>()
+  const cache = new PointCache(),
+    far = new Map<string, number>()
   return {
     elevationAt: (lng: number, lat: number) => {
-      const key = `${lng.toFixed(9)},${lat.toFixed(9)}`
-      let value = cache.get(key)
+      const x = fixed9Key(lng),
+        y = fixed9Key(lat)
+      if (x === null || y === null) {
+        const key = `${lng.toFixed(9)},${lat.toFixed(9)}`
+        let value = far.get(key)
+        if (value === undefined) {
+          value = terrain.elevationAt(lng, lat)
+          far.set(key, value)
+        }
+        return value
+      }
+      let value = cache.get(x, y)
       if (value === undefined) {
         value = terrain.elevationAt(lng, lat)
-        cache.set(key, value)
+        cache.set(x, y, value)
       }
       return value
     },

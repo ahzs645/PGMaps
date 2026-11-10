@@ -823,7 +823,12 @@ export async function compareRoutes(
   }
 
   const profileOptions = { context, ...(input.analysisOptions ?? {}) }
-  /** The horizontal candidate with the profile, of those asked for, that prices lowest. */
+  type Fit = { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }
+  /**
+   * Profiles already fitted to a line, by objective. Lowest cost fits the shortest line, then the
+   * Shortest goal asks for the same fit on the same line: the profile depends only on the geometry.
+   */
+  const fits = new WeakMap<Line, Map<'earthwork' | 'total', Fit | { failure: unknown }>>()
   const fitProfile = async (
     found: Line,
     goal: (typeof ROUTE_GOALS)[number],
@@ -843,9 +848,17 @@ export async function compareRoutes(
         }
     candidate.color = goal.color
     const length = alignmentLength(candidate)
-    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }[] = []
+    const fitted: Fit[] = []
     let failure: unknown
+    const known = fits.get(found) ?? new Map<'earthwork' | 'total', Fit | { failure: unknown }>()
+    fits.set(found, known)
     const fit = async (objective: 'earthwork' | 'total') => {
+      const before = known.get(objective)
+      if (before) {
+        if ('failure' in before) failure ??= before.failure
+        else fitted.push({ ...before, vertical: before.vertical.map((point) => ({ ...point, id: id() })) })
+        return
+      }
       try {
         detail('fitting a profile')
         const profile = await optimizeVerticalProfileAsync(
@@ -859,14 +872,18 @@ export async function compareRoutes(
         await breathe()
         const vertical = profile.vertical.map((point) => ({ ...point, id: id() }))
         const analysis = analyse({ ...candidate, vertical })
-        fitted.push({
+        const made = {
           vertical,
           cost: analysis.estimatedCost,
           withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
           priced: !materialPlanGap(analysis),
-        })
+        }
+        fitted.push(made)
+        // A copy: the road the fit ends up on may be edited later in the run.
+        known.set(objective, { ...made, vertical: vertical.map((point) => ({ ...point })) })
       } catch (cause) {
         aborted()
+        known.set(objective, { failure: cause })
         failure ??= cause
       }
     }
