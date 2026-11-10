@@ -17,6 +17,8 @@ import {
   type LandingScreenOptions,
 } from './landingSites'
 import { parseProject } from './project'
+import { localFrame } from './junctionTurn'
+import { loopTurnaroundFit, turningTemplate } from './turningTemplate'
 import { roadFromRoute } from './routeFit'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import {
@@ -98,6 +100,34 @@ export function SkidReachPanel(p: SidebarProps) {
       return null
     }
   }, [current, landing, project.context])
+  // Whether a loaded truck can loop round on each candidate: the candidate's road's design vehicle,
+  // else the active road's, at its steering lock.
+  const turnarounds = useMemo(() => {
+    const fits = new Map<string, string>()
+    for (const c of landings?.candidates ?? []) {
+      const road =
+        project.alignments.find((a) => a.id === c.roadId) ??
+        project.alignments.find((a) => a.id === project.activeAlignmentId)
+      const check =
+        road?.vehicleCheck ?? project.alignments.find((a) => a.id === project.activeAlignmentId)?.vehicleCheck
+      if (!check || check.vehicle.steeringLockDeg === undefined) continue
+      try {
+        const frame = localFrame(c.centre)
+        const fit = loopTurnaroundFit(turningTemplate(check.vehicle, { clearanceM: check.clearanceM }), [
+          [c.footprint.map(frame.toLocal)],
+        ])
+        fits.set(
+          c.id,
+          fit.fits
+            ? ` · ${check.vehicle.name}: loop turnaround fits`
+            : ` · ${check.vehicle.name}: loop turnaround does not fit (${fit.shortM.toFixed(1)} m short in radius)`,
+        )
+      } catch {
+        /* A vehicle that cannot settle at its lock gets no turnaround note. */
+      }
+    }
+    return fits
+  }, [landings, project.alignments, project.activeAlignmentId])
 
   const { onPreviewSkidReach, onPickOnPlan } = p
   const features = useMemo(() => {
@@ -578,6 +608,7 @@ export function SkidReachPanel(p: SidebarProps) {
                         {c.rank}. {c.meanSlopePercent.toFixed(1)} % mean, {c.maxSlopePercent.toFixed(0)} % max ·{' '}
                         {c.placement === 'road-end' ? 'road end' : 'beside road'} · {c.roadName}
                         {c.insideBlock ? '' : ' · outside block'}
+                        {turnarounds.get(c.id) ?? ''}
                       </li>
                     ))}
                   </ol>

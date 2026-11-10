@@ -307,6 +307,15 @@ export function buildPlanLegend({
       color: '#dc2626',
       shape: 'line',
     })
+  if (roles.has('swept-area')) swept.add({ id: 'swept-area', label: 'Swept area', color: '#7c3aed', shape: 'area' })
+  if (roles.has('vehicle-outline'))
+    swept.add({ id: 'vehicle-outline', label: 'Design vehicle', color: '#0f172a', shape: 'line' })
+  if (roles.has('vehicle-trace'))
+    swept.add({ id: 'vehicle-trace', label: 'Steer path and traced points', color: '#0891b2', shape: 'line' })
+  if (roles.has('vehicle-template'))
+    swept.add({ id: 'vehicle-template', label: 'Turning template circles', color: '#475569', shape: 'dashed-line' })
+  if (roles.has('vehicle-lock'))
+    swept.add({ id: 'vehicle-lock', label: 'Beyond the steering lock', color: '#dc2626', shape: 'line' })
   swept.finish()
   const overlays = section('overlays', 'Planning overlays')
   for (const feature of sources.overlay?.features ?? []) {

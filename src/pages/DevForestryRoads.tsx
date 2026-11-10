@@ -2549,6 +2549,7 @@ export default function DevForestryRoads() {
   const sweptAlignment = useDeferredValue(displayedAlignment)
   const [showSwept, setShowSwept] = useState(true)
   const [junctionOverlay, setJunctionOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
+  const [vehicleToolOverlay, setVehicleToolOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const sweptState = useMemo(() => {
     const check = sweptAlignment.vehicleCheck
     if (!check || terrainProfile) return { result: null, error: '' }
@@ -2559,8 +2560,8 @@ export default function DevForestryRoads() {
     }
   }, [sweptAlignment, terrainProfile])
   const sweptOnPlan = useMemo(
-    () => withJunctionOverlay(sweptState.result?.overlay, junctionOverlay),
-    [sweptState.result, junctionOverlay],
+    () => withJunctionOverlay(withJunctionOverlay(sweptState.result?.overlay, junctionOverlay), vehicleToolOverlay),
+    [sweptState.result, junctionOverlay, vehicleToolOverlay],
   )
   // Review reads the result only once it is for the road on screen, never a deferred earlier one.
   const vehicleFitOnRoad = useMemo(
@@ -2570,6 +2571,21 @@ export default function DevForestryRoads() {
   const swept: SweptPathProps = {
     ...sweptState,
     junctions: { alignments: project.alignments, context: project.context, onOverlay: setJunctionOverlay },
+    tools: {
+      onOverlay: setVehicleToolOverlay,
+      notes: project.notes,
+      reference: project.reference,
+      alignments: project.alignments,
+      library: project.vehicleLibrary ?? [],
+      onLibraryChange:
+        busy || draftAlignment || numericPegAlignment || terrainProfile || templatePreview || costPreview
+          ? undefined
+          : (library) => {
+              const { vehicleLibrary: _old, ...rest } = project
+              void _old
+              commitValidated(library.length ? { ...rest, vehicleLibrary: library } : rest)
+            },
+    },
     showOnPlan: showSwept,
     onShowOnPlan: setShowSwept,
     onFocus: (turn) => {
@@ -4095,6 +4111,7 @@ export default function DevForestryRoads() {
                                       onFocus={swept.onFocus}
                                       alignment={displayedAlignment}
                                       junctions={swept.junctions}
+                                      tools={swept.tools}
                                     />
                                   </div>
                                 )}
