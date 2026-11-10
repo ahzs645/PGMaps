@@ -107,18 +107,19 @@ of their code was made. Only the Apache-2.0 LANDIS-II extension was adapted, wit
 
 ## Validation summary
 
-| Check                                                       | Result                                                                                                                         |
-| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Unit tests on the merged branch (forestry, lib, components) | 2,773 passed, 2 skipped. One suite outside this change fails for want of generated `public/data`, as it does on `main`.        |
-| `tsc -b`                                                    | Clean                                                                                                                          |
-| Skid reach on TFL 30 (local only)                           | Same 12 of 17 blocks fail without their own roads as the independent measurement; ≤ 0.5 % beyond reach with all roads          |
-| Haul routing on TFL 30 with DRA and FTEN loaded             | Loaded-turn direction agrees with the measurement at 20 of 21 junctions; distance 0.99–1.05× the measured route                |
-| Road finding, ALSroads sample (local only)                  | Median 0.9–1.0 m, P90 2.6 m from the reference line for records off by up to 38 m; a record 150 m off finds nothing            |
-| Road finding, synthetic bench                               | P90 0.3–0.5 m from 8–30 m offsets; a bench-free control reports no road                                                        |
-| Skyline span against SEILAPLAN figures                      | Mid-span sag within 0.3 %; fixed-length loaded tension 0.2–0.3 % higher; load path within 0.04 m                               |
-| Junction offtracking, 10 m unit on a 12 m turn              | 3.475 m; independent fine-step integration 3.4753 m                                                                            |
-| BCGS 1:20,000 mapsheet                                      | 093I003 and 093G087 test cases                                                                                                 |
-| Block map sheets                                            | Six presets rendered from a synthetic block and two downloaded from the app in Chromium, compared visually with the references |
+| Check                                                             | Result                                                                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Full unit suite on the merged branch                              | 4,694 passed, 2 skipped. Six story and acknowledgement suites, which this change does not touch, fail only because this checkout lacks synced `public/data` and bcdatamapper output files.                                                                                                                                                                                             |
+| `tsc -b`                                                          | Clean                                                                                                                                                                                                                                                                                                                                                                                  |
+| Skid reach on TFL 30 (local only)                                 | Same 12 of 17 blocks fail without their own roads as the independent measurement; ≤ 0.5 % beyond reach with all roads                                                                                                                                                                                                                                                                  |
+| Haul routing on TFL 30 with DRA and FTEN loaded                   | Loaded-turn direction agrees with the measurement at 20 of 21 junctions; distance 0.99–1.05× the measured route                                                                                                                                                                                                                                                                        |
+| Road finding, ALSroads sample (local only)                        | Median 0.9–1.0 m, P90 2.6 m from the reference line for records off by up to 38 m; a record 150 m off finds nothing                                                                                                                                                                                                                                                                    |
+| Road finding, synthetic bench                                     | P90 0.3–0.5 m from 8–30 m offsets; a bench-free control reports no road                                                                                                                                                                                                                                                                                                                |
+| Skyline span against SEILAPLAN figures                            | Mid-span sag within 0.3 %; fixed-length loaded tension 0.2–0.3 % higher; load path within 0.04 m                                                                                                                                                                                                                                                                                       |
+| Junction offtracking, 10 m unit on a 12 m turn                    | 3.475 m; independent fine-step integration 3.4753 m                                                                                                                                                                                                                                                                                                                                    |
+| BCGS 1:20,000 mapsheet                                            | 093I003 and 093G087 test cases                                                                                                                                                                                                                                                                                                                                                         |
+| Block map sheets                                                  | Six presets rendered from a synthetic block and two downloaded from the app in Chromium, compared visually with the references                                                                                                                                                                                                                                                         |
+| Browser run of the merged branch (Chromium, 1440×900 and 390×844) | All seven new areas exercised on the training, Kamloops regional and Prince George LiDAR scenarios, with no page or console errors. It found four defects, all fixed: the spur list hid after one Add, a picked sheet kept the previous scale, the D-line summary still read "assumed sag" in rope-and-load mode, and route alternatives sharing a start showed as a hairpin junction. |
 
 ## Still open
 
@@ -139,16 +140,22 @@ Ranked by value to the layout person, with the reviewers' effort estimates:
 7. **3D available sight distance** on the burned design surface, as a Review row. About 3–5 days.
 8. **Intermediate cable supports, winching rays, forwarder model and cable coverage of a block.** About 1–2
    weeks together.
-9. **Block sheets:**
-   - adopt them in the LiDAR tools, once the shared-layout branch lands;
-   - road surface classes;
-   - TSA, district and region lookups;
-   - the management-area hatches;
-   - a regional basemap for the 1:50,000 frame.
+9. **Small follow-ups from the browser run:**
+   - Station-table column choices are saved as a hidden-column list, so anyone who customised columns
+     before this change sees the two curvature columns switched on.
+   - In rope-and-load mode the "Sampled cable geometry" length still comes from the assumed sag.
+   - The title-bar latitude and longitude use 4 decimals on two presets and 6 on the others.
+10. **Block sheets:**
 
-   The 1:50,000 sheet currently shows only the project's own context.
+- adopt them in the LiDAR tools, once the shared-layout branch lands;
+- road surface classes;
+- TSA, district and region lookups;
+- the management-area hatches;
+- a regional basemap for the 1:50,000 frame.
 
-10. **Visual-quality items from the same conversation**, owned by the visual-quality tool, not the road tool:
+The 1:50,000 sheet currently shows only the project's own context.
+
+11. **Visual-quality items from the same conversation**, owned by the visual-quality tool, not the road tool:
     - batch input of many blocks;
     - a generated Visuals paragraph with alternative recommendations (proceed, retention in a corner,
       drop the block);
