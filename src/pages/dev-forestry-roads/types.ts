@@ -246,6 +246,8 @@ export interface Alignment {
   mappedRoad?: MappedRoadOrigin
   /** Set on a road a terrain-cost route search made: the search's own figures for it. */
   routeSearch?: RouteSearchRecord
+  /** Set on a road Find the best route made: the settings it searched with (`foundRoadSearch.ts`). */
+  searchSettings?: import('./foundRoadSearch').FoundRoadSearchSettings
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string

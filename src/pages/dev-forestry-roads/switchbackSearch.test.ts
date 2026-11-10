@@ -17,6 +17,7 @@ import {
   searchSwitchbackRouteAsync,
   segmentsMeet,
   SwitchbackSearchError,
+  switchbackFailureFocus,
   switchbackPlaceText,
   type SwitchbackSearchOptions,
 } from './switchbackSearch'
@@ -408,6 +409,32 @@ describe('switchback search rules', () => {
     })
     await expect(run).rejects.toMatchObject({ name: 'AbortError' })
   }, 30_000)
+
+  it('marks the place its reason names, and keeps the line it got furthest along', () => {
+    const off = { ...reference, allow: false }
+    const wider = { ...reference, radiusM: 12 }
+    for (const [rules, stop] of [
+      [off, 'hairpinOff'],
+      [reference, 'sharp'],
+      [wider, 'platform'],
+    ] as const) {
+      const { failure } = failureOf(() => searchSwitchbackRoute(fallLine, plane(0.6), settings, [], options(rules)))
+      const focus = switchbackFailureFocus(failure, limits(rules))!
+      expect(focus.stop).toBe(stop)
+      // The plan's mark is the place the sentence names.
+      expect(describeSwitchbackFailure(failure, limits(rules))).toContain(
+        switchbackPlaceText(focus.place.xy, failure.end),
+      )
+      // The reached line runs from the start to where the search got nearest the end.
+      const reached = failure.reached!
+      expect(reached.length).toBeGreaterThanOrEqual(1)
+      expect(frame.toXY(reached[0])[0]).toBeCloseTo(300, 0)
+      expect(frame.toXY(reached[0])[1]).toBeCloseTo(100, 0)
+      const last = frame.toXY(reached[reached.length - 1]),
+        closest = frame.toXY(failure.closest)
+      expect(Math.hypot(last[0] - closest[0], last[1] - closest[1])).toBeLessThan(1e-6)
+    }
+  }, 60_000)
 
   it('names places from the nearer end', () => {
     expect(switchbackPlaceText([-290, 200], [0, 250])).toBe("290 m west of the road's end")
