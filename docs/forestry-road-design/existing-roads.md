@@ -119,7 +119,7 @@ the network-class field; that identification is distinct from a live BC record.
 | Up to 10 listed FSR choices; automatic routes compare at most 3, a named choice runs one search | `MAX_FSR_CHOICES`, `MAX_FSR_CONNECTION_CANDIDATES`, `fsrConnections.ts`         |
 | At most 500 road/context features; at most 50,000 context vertices per project                  | `MAX_EXISTING_ROADS`, `existingRoads.ts`; `MAX_CONTEXT_VERTICES`, `project.ts`  |
 | At most 10 MB in a live response                                                                | `MAX_ROAD_RESPONSE_BYTES`, `existingRoads.ts`                                   |
-| A user road file: at most 120,000,000 bytes, 500 features and 50,000 vertices                   | `MAX_SPATIAL_FILE_BYTES`, `MAX_SPATIAL_FEATURES`, `MAX_SPATIAL_VERTICES`, `spatialImport.ts` |
+| A user road file: at most 120,000,000 bytes, 500 features and 50,000 vertices                   | `MAX_SPATIAL_FILE_BYTES` and the limits beside it, `spatialImport.ts`           |
 | Truncation is an error; no partial network is accepted                                          | `parseBcExistingRoads`, `existingRoads.ts`                                      |
 
 Zoom in or split linework when a budget is exceeded. Existing project context is
