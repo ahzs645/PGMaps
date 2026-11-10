@@ -443,6 +443,13 @@ export interface RoadStation {
   /** Surfacing since the previous station, on the same terms. The stations' values add up to the road's. */
   surfaceVolumeM3?: number | null
   /**
+   * Cut and fill since the previous station corrected for plan curvature (Pappus); equal to the
+   * average-end-area volumes on tangents, null where those are. Reported only: costs, mass and haul
+   * use `cutVolumeM3`/`fillVolumeM3`.
+   */
+  curvedCutVolumeM3?: number | null
+  curvedFillVolumeM3?: number | null
+  /**
    * Cumulative usable cut minus fill of the known earthwork up to this station. An interval with
    * unknown volumes adds nothing, so the ordinate is carried across it rather than cut off.
    */
@@ -481,6 +488,18 @@ export interface RoadAnalysis {
   crossingEstimate?: CrossingEstimate
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
+  /**
+   * Covered cut and fill corrected for plan curvature (Pappus), beside the uncorrected totals above.
+   * Reported only; `curvedLengthM` is the covered length on curves and spirals, and
+   * `uncorrectedIntervals` counts intervals left uncorrected because a centroid lies past the
+   * centre of curvature.
+   */
+  curvatureCorrection?: {
+    cutVolumeM3: number
+    fillVolumeM3: number
+    curvedLengthM: number
+    uncorrectedIntervals: number
+  }
   /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the
    * results leave the invalid input out and use its last valid value; without, nothing calculated.

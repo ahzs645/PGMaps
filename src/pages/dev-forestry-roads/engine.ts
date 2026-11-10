@@ -38,6 +38,7 @@ import { estimateCrossings } from './crossingPlan'
 import type { CrossingCostItem } from './crossingPlanTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { cableMechanicsProfile } from './cableMechanics'
+import { pappusVolume, sectionAreaMoments, withReportedArea } from './curvedVolume'
 import { assembledSection } from './assembledSection'
 import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
 import type { SectionReferenceSources } from './sectionReferences'
@@ -441,6 +442,24 @@ function location(
     bearing: bearing(coordinate, path.frame.fromXY(add(xy, tangent))),
     radius: path.sharp.some((v) => Math.abs(v - s) < 1e-5) ? 0 : p.radius,
   }
+}
+
+/**
+ * Signed plan curvature at a chainage, 1/m: positive on a right-hand curve, so that with offsets
+ * negative left the inside of the curve is the side whose offsets share its sign. Zero on tangents
+ * and at a sharp PI, whose turn has no length to sweep a section through.
+ */
+function signedCurvatureAt(path: Path, chainage: number): number {
+  const s = clamp(chainage, 0, path.length)
+  const p = path.pieces.find((piece) => s >= piece.station - EPS && s <= piece.station + piece.length + EPS)
+  if (!p) return 0
+  // Heading turns counter-clockwise (left) for positive sweep or spiral rate in the east/north frame.
+  if (p.spiral) {
+    const t = clamp(s - p.station, 0, p.length)
+    return -(p.spiral.kappa0 + ((p.spiral.kappa1 - p.spiral.kappa0) * t) / Math.max(p.length, EPS))
+  }
+  if (p.radius !== null && p.radius > 0) return -Math.sign(p.sweep ?? 0) / p.radius
+  return 0
 }
 
 export const alignmentLength = (alignment: Alignment): number => compile(alignment).length
@@ -1588,6 +1607,18 @@ export function analyzeRoad(
   const surfaceArea = (s: number) => {
     return surfaceLayersAt(alignment, s).reduce((sum, layer) => sum + layer.areaM2, 0)
   }
+  // Curvature-corrected (Pappus) volumes, reported beside the average-end-area ones that every
+  // cost, mass and haul figure uses (`curvedVolume.ts`).
+  const moments = new Map<number, ReturnType<typeof sectionAreaMoments>>()
+  const momentsOf = (station: RoadStation) => {
+    let value = moments.get(station.index)
+    if (!value) moments.set(station.index, (value = sectionAreaMoments(station.section)))
+    return value
+  }
+  let curvedCutM3 = 0,
+    curvedFillM3 = 0,
+    curvedLengthM = 0,
+    foldedIntervals = 0
   for (let i = 0; i < stations.length; i++) {
     const p = stations[i],
       a = stations[i > 0 ? i - 1 : i],
@@ -1602,6 +1633,8 @@ export function analyzeRoad(
       p.cutVolumeM3 = p.complete ? 0 : null
       p.fillVolumeM3 = p.complete ? 0 : null
       p.surfaceVolumeM3 = p.complete ? 0 : null
+      p.curvedCutVolumeM3 = p.cutVolumeM3
+      p.curvedFillVolumeM3 = p.fillVolumeM3
       p.massM3 = 0
       continue
     }
@@ -1612,6 +1645,31 @@ export function analyzeRoad(
       p.fillVolumeM3 = ((a.fillAreaM2! + p.fillAreaM2!) / 2) * ds
       cutVolumeM3 += p.cutVolumeM3
       fillVolumeM3 += p.fillVolumeM3
+      const k = signedCurvatureAt(path, (a.chainage + p.chainage) / 2)
+      if (k !== 0) {
+        const [ma, mp] = [momentsOf(a), momentsOf(p)]
+        const cut = pappusVolume(
+          withReportedArea(ma.cut, a.cutAreaM2! + preparationArea(a)),
+          withReportedArea(mp.cut, p.cutAreaM2! + preparationArea(p)),
+          k,
+          ds,
+        )
+        const fill = pappusVolume(
+          withReportedArea(ma.fill, a.fillAreaM2!),
+          withReportedArea(mp.fill, p.fillAreaM2!),
+          k,
+          ds,
+        )
+        if (cut === null || fill === null) foldedIntervals++
+        p.curvedCutVolumeM3 = cut ?? p.cutVolumeM3
+        p.curvedFillVolumeM3 = fill ?? p.fillVolumeM3
+        curvedLengthM += ds
+      } else {
+        p.curvedCutVolumeM3 = p.cutVolumeM3
+        p.curvedFillVolumeM3 = p.fillVolumeM3
+      }
+      curvedCutM3 += p.curvedCutVolumeM3
+      curvedFillM3 += p.curvedFillVolumeM3
       completeLength += ds
       // Width and surface depth may both transition linearly: their product is quadratic.
       p.surfaceVolumeM3 =
@@ -1623,7 +1681,11 @@ export function analyzeRoad(
           2) *
         ds
       mass += p.cutVolumeM3 * settings.shrinkFactor - p.fillVolumeM3
-    } else p.surfaceVolumeM3 = null
+    } else {
+      p.surfaceVolumeM3 = null
+      p.curvedCutVolumeM3 = null
+      p.curvedFillVolumeM3 = null
+    }
     p.massM3 = mass
   }
   const coveragePercent = clamp((completeLength / path.length) * 100, 0, 100)
@@ -1683,6 +1745,12 @@ export function analyzeRoad(
     coveragePercent,
     warnings: [...new Set(warnings)],
     ...(verticalChecks.length ? { verticalChecks } : {}),
+    curvatureCorrection: {
+      cutVolumeM3: curvedCutM3,
+      fillVolumeM3: curvedFillM3,
+      curvedLengthM,
+      uncorrectedIntervals: foldedIntervals,
+    },
   }
   if (alignment.engineering) {
     const engineering = calculateEngineering(alignment, result, settings, terrain, {
