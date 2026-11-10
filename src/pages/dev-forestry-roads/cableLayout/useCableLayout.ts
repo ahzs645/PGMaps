@@ -7,8 +7,11 @@ import { useMemo, useSyncExternalStore } from 'react'
 import type { CableLine, TerrainSource } from '../types'
 import type { CableLayoutResult, LayoutToAnalyse } from './cableLayout'
 import { analyzeCableLayout, searchCableLayout } from './cableLayoutClient'
+import { drawnEditResult, getEditCheck, useEditCheck, useLayoutFocus } from './editStore'
+import { focusMarks } from './layoutCompare'
+import { editCheckKey, placementIssues } from './layoutEdit'
 import { layoutOverlay, type CableLayoutOverlay } from './overlay'
-import { DEFAULT_SUPPORT_LAYOUT, lineFrame, type LayoutRun } from './settings'
+import { DEFAULT_SUPPORT_LAYOUT, layoutRun, lineFrame, type LayoutRun } from './settings'
 
 export interface CableLayoutEntry {
   key: string
@@ -40,11 +43,42 @@ let nextTerrain = 1
 export function layoutKey(line: CableLine, terrain: TerrainSource): string {
   let id = terrainIds.get(terrain)
   if (id === undefined) terrainIds.set(terrain, (id = nextTerrain++))
-  // The name and the assumed sag do not change a layout; a saved layout is its result, not input.
+  // The name and the assumed sag do not change a layout; a saved layout is its result, not input,
+  // and an edited layout is checked on its own (`useLayoutEdit.ts`).
   // A line still on the default settings has no `supportLayout` until its result is saved, so
   // both read as the defaults: otherwise saving the first result would change the key and hide it.
-  const settings = { ...(line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT), saved: undefined }
+  const settings = { ...(line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT), saved: undefined, edited: undefined }
   return JSON.stringify([id, { ...line, name: undefined, deflectionPercent: undefined, supportLayout: settings }])
+}
+
+/** The layout result current for the line on this terrain, outside React (an export reads it on click). */
+export function currentLayoutResult(line: CableLine, terrain: TerrainSource): CableLayoutResult | null {
+  const entry = entries.get(line.id)
+  return entry?.status === 'done' && entry.key === layoutKey(line, terrain) ? (entry.result ?? null) : null
+}
+
+/**
+ * The current result of the layout every D-line output shows (plan dots, D-line CSV and report,
+ * stake-out, sheet), the same one the chart and the limits table show: **the edited layout's check
+ * while an edit is open, else the found layout's result**. Null while that check is pending or
+ * failed; `dLineSupports` then lists the shown layout's stations without forces.
+ */
+export function shownLayoutResult(line: CableLine, terrain: TerrainSource): CableLayoutResult | null {
+  const edited = line.supportLayout?.edited
+  if (!edited) return currentLayoutResult(line, terrain)
+  const entry = getEditCheck(line.id)
+  return entry?.status === 'done' &&
+    entry.lineKey === layoutKey(line, terrain) &&
+    entry.checkKey === editCheckKey(edited) &&
+    entry.result?.status !== 'no-layout'
+    ? (entry.result ?? null)
+    : null
+}
+
+/** Whether a check or search for this key is running or done (so a caller need not start another). */
+export function layoutEntryFor(cableId: string, key: string): CableLayoutEntry | undefined {
+  const entry = entries.get(cableId)
+  return entry?.key === key ? entry : undefined
 }
 
 export function useCableLayoutEntry(cableId: string | undefined): CableLayoutEntry | undefined {
@@ -115,19 +149,51 @@ export function cancelLayout(cableId: string) {
   emit()
 }
 
-/** The overlay the D-line profile draws, or undefined for a line with neither support settings nor a result. */
+/**
+ * The overlay the D-line profile draws, or undefined for a line with neither support settings nor a
+ * result. While the layout is edited by hand it draws the edit, with the rope of its latest check,
+ * and the row picked in the sidebar is marked where it applies.
+ */
 export function useCableLayoutOverlay(
   line: CableLine | undefined,
   terrain: TerrainSource,
 ): CableLayoutOverlay | undefined {
   const entry = useCableLayoutEntry(line?.id)
+  const editEntry = useEditCheck(line?.id)
+  const focus = useLayoutFocus(line?.id)
   const key = line ? layoutKey(line, terrain) : ''
+  const edited = line?.supportLayout?.edited
+  // The ground under edited supports, from the run's own profile.
+  const run = useMemo(() => {
+    if (!line || !edited || line.sagModel !== 'mechanics') return null
+    const prepared = layoutRun(line, terrain, line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT)
+    return prepared.ok ? prepared.run : null
+  }, [line, terrain, edited])
   return useMemo(() => {
     if (!line || line.sagModel !== 'mechanics') return undefined
     const frame = lineFrame(line)
     if (!frame) return undefined
+    const settings = line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT
     const current = entry && entry.status === 'done' && entry.key === key ? entry.result! : null
+    const drawn = edited ? drawnEditResult(editEntry, key, editCheckKey(edited)) : null
+    const result = edited ? (drawn?.result ?? null) : current
     if (!line.supportLayout && !current) return undefined
-    return layoutOverlay(frame, line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT, current)
-  }, [line, entry, key])
+    const marks =
+      focus && result
+        ? focusMarks(focus.rowId, result, settings, edited ? placementIssues(edited, settings) : [])
+        : undefined
+    return layoutOverlay(frame, settings, result, {
+      ...(edited && run
+        ? {
+            edited: {
+              layout: edited,
+              profile: run.input.profile,
+              towerHeightM: run.input.towerHeightM,
+              pending: !drawn || drawn.pending,
+            },
+          }
+        : {}),
+      ...(marks ? { focus: marks } : {}),
+    })
+  }, [line, entry, editEntry, focus, key, edited, run])
 }

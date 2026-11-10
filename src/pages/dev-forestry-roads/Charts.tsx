@@ -13,18 +13,41 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, PanelBottom, Rows3 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelBottom, Rows3, TableProperties } from 'lucide-react'
 import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
 import { EngineeringBands, profileGradeSpans, type SightBandInput } from './EngineeringBands'
+import { ProfileCurvePoints, ProfileGradeTrouble, PviDragReadoutBox, GRADE_TROUBLE_COLOR } from './ProfileOverlays'
+import {
+  curvePoints,
+  isGradeTrouble,
+  pviDragReadout,
+  tangentGrades,
+  type ProfileGradeLimits,
+} from './profileAnnotations'
+import { ProfileValueBands, useStoredFlag } from './ProfileValueBands'
+import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
+import { useProfileEditing } from './ProfileEditing'
+import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
+import {
+  heldSectionDomain,
+  holdSectionFrame,
+  pinnedSectionOutline,
+  pinnedShiftText,
+  sectionExceedsFrame,
+  type HeldSectionFrame,
+} from './sectionFrame'
+import { BalanceLineOverlay, BalanceWhatIfPanel, useBalanceWhatIf } from './MassHaulBalanceLine'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
+import type { CableChartEdit } from './cableLayout/useLayoutEdit'
+import { CableLayoutChartLayer } from './CableLayoutChartLayer'
 import type {
   Alignment,
   AlignmentEngineering,
@@ -32,6 +55,7 @@ import type {
   RoadAnalysis,
   RoadStation,
   SectionLayer,
+  VerticalControl,
   VerticalPoint,
 } from './types'
 
@@ -112,6 +136,16 @@ function eventValue(event: { clientX: number; clientY: number }, svg: SVGSVGElem
     domain[0] + clamp((event.clientX - bounds.left - frame.left) / frame.plotWidth, 0, 1) * (domain[1] - domain[0]),
     domain[3] - clamp((event.clientY - bounds.top - frame.top) / frame.plotHeight, 0, 1) * (domain[3] - domain[2]),
   ] as const
+}
+
+/** Chart units per screen pixel along each axis. */
+function metresPerPixel(svg: SVGSVGElement, domain: Domain, top = 24) {
+  const bounds = svg.getBoundingClientRect()
+  const frame = chartFrame(bounds.width, bounds.height, domain, top)
+  return {
+    chainageM: (domain[1] - domain[0]) / frame.plotWidth,
+    elevationM: (domain[3] - domain[2]) / frame.plotHeight,
+  }
 }
 
 function linePath(points: Point[], key: 'ground' | 'design', x: (n: number) => number, y: (n: number) => number) {
@@ -444,18 +478,22 @@ function ChartSlot({
   children,
   footer,
   bands,
+  valueBands,
 }: {
   /** May return absolutely positioned controls beside the svg; they float over the chart. */
   children: (width: number, height: number) => ReactNode
   footer?: ReactNode
   /** Data bands that line up under the plot, folded until the header toggle opens them. */
   bands?: { label: string; content: ReactNode }
+  /** A second set of bands under the plot with its own header toggle, remembered in this browser. */
+  valueBands?: { label: string; storageKey: string; content: ReactNode }
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const [compact, setCompact] = useState(false)
   const header = useContext(ChartHeaderContext)
   const [localView, setLocalView] = useState<ChartView | null>(null)
   const [bandsOpen, setBandsOpen] = useState(false)
+  const [valueBandsOpen, setValueBandsOpen] = useStoredFlag(valueBands?.storageKey ?? 'pgmaps-chart-value-bands')
   useEffect(() => {
     const element = ref.current
     if (!element) return
@@ -469,6 +507,7 @@ function ChartSlot({
   const chosen = header ? header.view : localView
   const view: ChartView = !footer ? 'chart' : (chosen ?? (compact ? 'chart' : 'both'))
   const showDetails = view === 'both'
+  const bandsShown = (!!bands && bandsOpen) || (!!valueBands && valueBandsOpen)
   const toggle = (pressed: boolean) =>
     `size-8 ${pressed ? 'bg-accent text-accent-foreground' : 'text-muted-foreground'}`
   const bandsToggle = bands && (
@@ -484,6 +523,19 @@ function ChartSlot({
       <Rows3 className="size-3.5" />
     </Button>
   )
+  const valueBandsToggle = valueBands && (
+    <Button
+      size="icon"
+      variant="ghost"
+      className={toggle(valueBandsOpen)}
+      aria-label={valueBands.label}
+      aria-pressed={valueBandsOpen}
+      title={`${valueBandsOpen ? 'Hide' : 'Show'} ${valueBands.label.toLowerCase()}`}
+      onClick={() => setValueBandsOpen(!valueBandsOpen)}
+    >
+      <TableProperties className="size-3.5" />
+    </Button>
+  )
   const detailsToggle = footer && (
     <Button
       size="icon"
@@ -497,9 +549,10 @@ function ChartSlot({
       <PanelBottom className="size-3.5" />
     </Button>
   )
-  const switcher = (bandsToggle || detailsToggle) && (
+  const switcher = (bandsToggle || valueBandsToggle || detailsToggle) && (
     <>
       {bandsToggle}
+      {valueBandsToggle}
       {detailsToggle}
     </>
   )
@@ -517,21 +570,26 @@ function ChartSlot({
         ) : (
           <div className="flex shrink-0 justify-end gap-1 pb-1">{switcher}</div>
         ))}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* The plot keeps 160 px (half a short slot) however many bands are open; with bands open it reserves the
+          scrollbar gutter the bands' scroller does, so a station sits at the same x in both. */}
+      <div
+        className={`relative flex min-h-[min(160px,50%)] flex-1 flex-col ${bandsShown ? 'overflow-hidden [scrollbar-gutter:stable]' : ''}`}
+      >
         <ChartViewport className="min-h-0 flex-1" minHeight={1} initialHeight={230}>
           {(height) => <SizedChart height={height}>{(width) => children(width, height)}</SizedChart>}
         </ChartViewport>
       </div>
-      {/* Capped so a short panel keeps most of its height for the plot; the bands scroll instead. */}
-      {bands && bandsOpen && (
-        <div className="max-h-[45%] shrink-0 overflow-y-auto overscroll-contain border-t">{bands.content}</div>
+      {/* Both band sets share one capped scroller, so a short panel keeps its plot; the bands scroll instead. */}
+      {bandsShown && (
+        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+          {bands && bandsOpen && <div className="border-t">{bands.content}</div>}
+          {valueBands && valueBandsOpen && <div className="border-t">{valueBands.content}</div>}
+        </div>
       )}
       {footer && (
         <div
           className={
-            showDetails
-              ? `flex min-h-0 shrink-0 flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}`
-              : 'hidden'
+            showDetails ? `flex min-h-0 shrink flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}` : 'hidden'
           }
         >
           <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">{footer}</div>
@@ -587,6 +645,11 @@ export function ProfileChart({
   onSelectCulvert,
   terrainOnly = false,
   sight,
+  gradeLimits,
+  junctions,
+  onAddControl,
+  rangePick,
+  onEditGesture,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -602,10 +665,20 @@ export function ProfileChart({
   terrainOnly?: boolean
   /** The project's design speed and station spacing, for the sight distance band. */
   sight?: SightBandInput
+  /** The project's grade rule: tangents over it are drawn red. Absent judges only the road's vertical standards. */
+  gradeLimits?: ProfileGradeLimits
+  /** Where other project roads meet or cross this one (`profileJunctions.ts`). */
+  junctions?: ProfileJunction[]
+  /** Add a vertical control, from a junction's **Add control here**. */
+  onAddControl?: (control: VerticalControl) => void
+  /** While set, a drag on the plot marks a station range (`SectionPaneTools`) instead of moving the station. */
+  rangePick?: { range: [number, number] | null; onRange: (range: [number, number]) => void }
+  /** Brackets a PVI or tangent drag as one undo step that Escape cancels (`useProfileEditing`). */
+  onEditGesture?: (phase: 'start' | 'end' | 'cancel') => void
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
-  const drag = useRef<{ id: string; points: VerticalPoint[] } | null>(null)
+  const rangeDrag = useRef<number | null>(null)
   const [fixedDomain, setFixedDomain] = useState<Domain | null>(null)
   const [navigation, setNavigation] = useState<{
     alignmentId: string
@@ -737,6 +810,18 @@ export function ProfileChart({
       undefined,
     )
   const sorted = terrainOnly ? [] : [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  const editing = useProfileEditing({
+    sorted,
+    editable,
+    roadLength: analysis.length,
+    controls: alignment.verticalControls,
+    onVerticalChange,
+    onStation,
+    freezeDomain: setFixedDomain,
+    junctions: terrainOnly ? undefined : junctions,
+    onAddControl: editable ? onAddControl : undefined,
+    onEditGesture,
+  })
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
     ? []
@@ -765,6 +850,18 @@ export function ProfileChart({
     )
     onStation(placed.chainage)
   }
+  const tangents = useMemo(
+    () => (terrainOnly ? [] : tangentGrades(alignment, analysis.length, gradeLimits)),
+    [terrainOnly, alignment, analysis.length, gradeLimits],
+  )
+  const troubleIds = new Set(tangents.filter(isGradeTrouble).map((t) => t.id))
+  const curvePointList = useMemo(
+    () => (terrainOnly ? [] : curvePoints(alignment, analysis.length, analysis.engineering?.culverts)),
+    [terrainOnly, alignment, analysis.length, analysis.engineering?.culverts],
+  )
+  // The PVI the editing hook is dragging, from the press, so the readout shows before the first move.
+  const draggedPviId = !terrainOnly ? (editing.draggedPviId ?? undefined) : undefined
+  const dragReadout = draggedPviId ? pviDragReadout(analysis, alignment, draggedPviId) : null
   const profileGrades = analysis.stations.map((s) => s.gradePercent).filter(finite)
   const first = analysis.stations.find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
   const last = [...analysis.stations].reverse().find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
@@ -817,6 +914,7 @@ export function ProfileChart({
             {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}
           </span>
         )}
+        {editing.snapToggle(control)}
         <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile in" onClick={() => zoom(0.5)}>
           +
         </Button>
@@ -909,22 +1007,55 @@ export function ProfileChart({
   }
   const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
     const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
-    if (drag.current) edit(drag.current.id, chainage, elevation, drag.current.points)
-    else if (event.buttons === 1) onStation(chainage)
+    if (rangeDrag.current !== null) {
+      if (Math.abs(chainage - rangeDrag.current) > 1e-6)
+        rangePick?.onRange([Math.min(rangeDrag.current, chainage), Math.max(rangeDrag.current, chainage)])
+      return
+    }
+    const scale = metresPerPixel(event.currentTarget, displayedDomain, profileTop)
+    if (editing.move(event, chainage, elevation, scale)) return
+    if (event.buttons === 1) onStation(chainage)
   }
   return (
     <ChartSlot
       bands={{
         label: terrainOnly ? 'Ground grade & distance bands' : 'Grade, curve, template & material bands',
         content: (
-          <EngineeringBands
+          <>
+            <EngineeringBands
+              analysis={analysis}
+              alignment={alignment}
+              station={station}
+              onStation={onStation}
+              terrainOnly={terrainOnly}
+              range={[domain[0], domain[1]]}
+              sight={terrainOnly ? undefined : sight}
+            />
+            {!terrainOnly && sight && (
+              <SightDistanceBand
+                analysis={analysis}
+                alignment={alignment}
+                sight={sight}
+                station={station}
+                onStation={onStation}
+                range={[domain[0], domain[1]]}
+              />
+            )}
+          </>
+        ),
+      }}
+      valueBands={{
+        label: 'Value bands',
+        storageKey: 'pgmaps-road-profile-value-bands',
+        content: (
+          <ProfileValueBands
             analysis={analysis}
             alignment={alignment}
+            start={domain[0]}
+            end={domain[1]}
             station={station}
             onStation={onStation}
             terrainOnly={terrainOnly}
-            range={[domain[0], domain[1]]}
-            sight={terrainOnly ? undefined : sight}
           />
         ),
       }}
@@ -1005,6 +1136,14 @@ export function ProfileChart({
           lastCalloutX = x
         }
         const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
+        const annotationFrame = {
+          x: f.x,
+          y: f.y,
+          top: f.top,
+          bottom: height - f.bottom,
+          left: f.left,
+          right: width - f.right,
+        }
         return (
           <>
             <svg
@@ -1018,9 +1157,10 @@ export function ProfileChart({
               data-range-start={displayedDomain[0]}
               data-range-end={displayedDomain[1]}
               data-vertical-exaggeration={actualExaggeration}
+              data-range-pick={!!rangePick}
               role="group"
               tabIndex={0}
-              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit.' : ''}`}
+              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit, Shift-drag to hold a grade; drag a tangent grip to raise or lower it.' : ''}`}
               onKeyDown={(event) => {
                 if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
               }}
@@ -1028,22 +1168,28 @@ export function ProfileChart({
                 event.preventDefault()
                 if (event.button !== 0) return
                 event.currentTarget.setPointerCapture(event.pointerId)
-                onStation(eventValue(event, event.currentTarget, displayedDomain, profileTop)[0])
+                editing.deselect()
+                const chainage = eventValue(event, event.currentTarget, displayedDomain, profileTop)[0]
+                if (rangePick) rangeDrag.current = chainage
+                else onStation(chainage)
               }}
               onPointerMove={(event) => handleMove(event, displayedDomain)}
               onPointerUp={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId)
-                drag.current = null
+                editing.end()
+                rangeDrag.current = null
                 setFixedDomain(null)
               }}
               onPointerCancel={() => {
-                drag.current = null
+                editing.end()
+                rangeDrag.current = null
                 setFixedDomain(null)
               }}
               onDoubleClick={(event) => {
                 if (
                   !onVerticalChange ||
+                  rangePick ||
                   terrainOnly ||
                   analysis.length < 1 ||
                   (event.target as Element).getAttribute('data-pvi') === 'true'
@@ -1092,6 +1238,20 @@ export function ProfileChart({
               <g clipPath={`url(#profile-${id})`}>
                 <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
                 <SelectionBand range={selectedRange} frame={f} />
+                {rangePick?.range && (
+                  <rect
+                    data-testid="road-profile-range-pick"
+                    pointerEvents="none"
+                    x={f.x(rangePick.range[0])}
+                    y={f.top}
+                    width={Math.max(2, f.x(rangePick.range[1]) - f.x(rangePick.range[0]))}
+                    height={f.plotHeight}
+                    fill={ROAD_CHART_COLORS.design}
+                    fillOpacity={0.14}
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeDasharray="4 3"
+                  />
+                )}
                 {curves
                   .filter((curve) => curve.valid && !dense && f.x(curve.end) - f.x(curve.start) >= 6)
                   .map((curve) => (
@@ -1132,6 +1292,12 @@ export function ProfileChart({
                   fill="none"
                   stroke={ROAD_CHART_COLORS.design}
                   strokeWidth={2.4}
+                />
+                <ProfileGradeTrouble
+                  tangents={tangents}
+                  stations={analysis.stations}
+                  frame={annotationFrame}
+                  domain={[displayedDomain[0], displayedDomain[1]]}
                 />
                 {ditches.map((ditch) => (
                   <path
@@ -1327,13 +1493,15 @@ export function ProfileChart({
                         y={y}
                         transform={`rotate(${angle.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`}
                         fontSize="9"
-                        fill="hsl(var(--foreground))"
+                        fill={troubleIds.has(span.id) ? GRADE_TROUBLE_COLOR : 'hsl(var(--foreground))'}
+                        fontWeight={troubleIds.has(span.id) ? 700 : undefined}
                         stroke="hsl(var(--background))"
                         strokeWidth={3}
                         paintOrder="stroke"
                         textAnchor="middle"
                         pointerEvents="none"
                         data-grade-label
+                        data-grade-trouble={troubleIds.has(span.id) || undefined}
                       >
                         {f.x(span.end) - f.x(span.start) > FULL_GRADE_LABEL_PX
                           ? span.label
@@ -1342,6 +1510,12 @@ export function ProfileChart({
                       </text>
                     )
                   })}
+                <ProfileCurvePoints
+                  points={curvePointList}
+                  frame={annotationFrame}
+                  domain={[displayedDomain[0], displayedDomain[1]]}
+                  onStation={onStation}
+                />
                 {sorted
                   .filter((p) => calloutIds.has(p.id))
                   .map((p) => {
@@ -1434,6 +1608,7 @@ export function ProfileChart({
                       </g>
                     )
                   })}
+              {editing.layers(f, height, f.bottom, displayedDomain)}
               {sorted
                 .map((p, index) => ({ p, index }))
                 .filter(
@@ -1473,15 +1648,16 @@ export function ProfileChart({
                       cx={f.x(p.chainage)}
                       cy={f.y(p.elevation)}
                       r={handleRadius}
-                      fill="hsl(var(--background))"
+                      fill={editing.selectedId === p.id ? ROAD_CHART_COLORS.design : 'hsl(var(--background))'}
                       stroke={ROAD_CHART_COLORS.design}
                       strokeWidth={2}
+                      aria-keyshortcuts={editable ? 'Delete Backspace Alt+ArrowLeft Alt+ArrowRight' : undefined}
                       className={
                         editable ? 'cursor-ns-resize outline-none focus-visible:stroke-[4]' : 'pointer-events-none'
                       }
                       tabIndex={editable ? 0 : undefined}
                       role={editable ? 'slider' : undefined}
-                      aria-label={`Vertical control ${index + 1} elevation`}
+                      aria-label={`PVI ${index + 1} elevation`}
                       aria-valuemin={-12000}
                       aria-valuemax={12000}
                       aria-valuenow={p.elevation}
@@ -1489,12 +1665,14 @@ export function ProfileChart({
                       onPointerDown={(event) => {
                         if (!editable) return
                         event.stopPropagation()
-                        drag.current = { id: p.id, points: sorted }
-                        setFixedDomain(displayedDomain)
+                        editing.startPvi(event, p.id, displayedDomain)
                         event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId)
                       }}
+                      onBlur={() => {
+                        if (!editing.dragging) editing.deselect()
+                      }}
                       onKeyDown={(event) => {
-                        if (!editable) return
+                        if (!editable || editing.pviKeyDown(event, p.id)) return
                         const step = event.shiftKey ? 1 : 0.1
                         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
                           event.preventDefault()
@@ -1508,12 +1686,22 @@ export function ProfileChart({
                       }}
                     >
                       <title>
-                        Control {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
-                        {editable ? ' Drag or use arrow keys.' : ' Preview only.'}
+                        PVI {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
+                        {editable
+                          ? ' Drag or use arrow keys; Shift-drag (Alt+arrows) holds a grade; Delete removes it.'
+                          : ' Preview only.'}
                       </title>
                     </circle>
                   </g>
                 ))}
+              {dragReadout && (
+                <PviDragReadoutBox
+                  readout={dragReadout}
+                  tangents={tangents}
+                  stations={analysis.stations}
+                  frame={annotationFrame}
+                />
+              )}
               {!points.some((p) => finite(p.ground)) && (
                 <text
                   x={width / 2}
@@ -1525,8 +1713,10 @@ export function ProfileChart({
                   No terrain samples on this alignment
                 </text>
               )}
+              {editing.cursor(f, width)}
             </svg>
             {toolbar(actualExaggeration, width, f)}
+            {editing.html(f)}
           </>
         )
       }}
@@ -1543,6 +1733,8 @@ export function CrossSectionChart({
   terrainOnly = false,
   selectedCulvertId,
   onSelectCulvert,
+  holdScale = false,
+  pinnedStation,
 }: {
   station: RoadStation | undefined
   onShift?: (meters: number) => void
@@ -1552,6 +1744,10 @@ export function CrossSectionChart({
   terrainOnly?: boolean
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
+  /** Keep the frame's spans from when this turned on, following the formation (`sectionFrame.ts`). */
+  holdScale?: boolean
+  /** One station's section drawn faintly behind this one, at this one's formation level. */
+  pinnedStation?: RoadStation
 }) {
   const id = useId().replace(/:/g, '')
   const drag = useRef<number | null>(null)
@@ -1650,7 +1846,16 @@ export function CrossSectionChart({
     ...points.map((p) => Math.abs(p.x)),
     ...pipeSections.flatMap((pipe) => pipe.points.map((p) => Math.abs(p.x))),
   )
-  const domain: Domain = [-halfWidth, halfWidth, low, high]
+  const autoDomain: Domain = [-halfWidth, halfWidth, low, high]
+  // Hold scale: the spans shown when it was turned on, placed on each station's formation.
+  const [held, setHeld] = useState<HeldSectionFrame | null>(null)
+  if (holdScale && !held && station) {
+    const frame = holdSectionFrame(autoDomain, station)
+    if (frame) setHeld(frame)
+  } else if (!holdScale && held) setHeld(null)
+  const domain: Domain = (holdScale && held && heldSectionDomain(held, station)) || autoDomain
+  const clipped = holdScale && !!held && sectionExceedsFrame(points, domain)
+  const pinned = pinnedStation && station ? pinnedSectionOutline(pinnedStation, station, terrainOnly) : null
   const side = (left: number | undefined, right: number | undefined, digits = 1) =>
     `${fixed(left, digits)} / ${fixed(right, digits)}`
   const centreDepth =
@@ -1769,6 +1974,19 @@ export function CrossSectionChart({
                     ]
               }
             />
+            {pinned && (
+              <span
+                className="text-3xs text-muted-foreground"
+                data-testid="road-section-pinned-label"
+                title={pinnedShiftText(pinned)}
+              >
+                <span
+                  aria-hidden
+                  className="mr-1 inline-block w-3 border-t border-dashed border-current align-middle"
+                />
+                Pinned {formatRoadStation(pinned.chainage)}
+              </span>
+            )}
             {/* Values under the pointer; nothing while it is off the section. */}
             {hovered && (
               <p
@@ -1789,6 +2007,11 @@ export function CrossSectionChart({
             )}
           </div>
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
+          {clipped && (
+            <p role="status" data-testid="road-section-clipped" className="text-3xs leading-4 text-muted-foreground">
+              Held scale: part of this section lies outside the frame. Turn Hold scale off to fit it.
+            </p>
+          )}
           {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
           {incompleteLabel && (
             <p
@@ -1893,6 +2116,8 @@ export function CrossSectionChart({
             data-station={station?.chainage ?? 0}
             data-left-width={station?.leftWidth}
             data-right-width={station?.rightWidth}
+            data-held-scale={holdScale && !!held}
+            data-domain={domain.map((n) => Number(n.toFixed(3))).join(',')}
             role="group"
             aria-label={`${terrainOnly ? 'Terrain' : 'Road'} cross-section at ${formatRoadStation(station?.chainage ?? 0)}. Negative offsets are left looking forward.`}
             onPointerDown={
@@ -1943,14 +2168,34 @@ export function CrossSectionChart({
             />
             <g clipPath={`url(#section-${id})`}>
               <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
+              {pinned && (
+                <g data-testid="road-section-pinned" pointerEvents="none" opacity={0.45}>
+                  <path
+                    d={linePath(pinned.points, 'ground', f.x, f.y)}
+                    fill="none"
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                    strokeWidth={1.4}
+                    strokeDasharray="4 3"
+                  />
+                  <path
+                    d={linePath(pinned.points, 'design', f.x, f.y)}
+                    fill="none"
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeWidth={1.6}
+                    strokeDasharray="4 3"
+                  />
+                  <title>Pinned section at {formatRoadStation(pinned.chainage)}</title>
+                </g>
+              )}
               {engineering?.layers.flatMap((layer) =>
                 points.slice(1).flatMap((b, index) => {
                   const a = points[index]
                   if (!finite(a.ground) || !finite(b.ground)) return []
                   const az = a.ground - layer.topDepthM,
                     bz = b.ground - layer.topDepthM
-                  const bottomA = layer.bottomDepthM === null ? low : a.ground - layer.bottomDepthM
-                  const bottomB = layer.bottomDepthM === null ? low : b.ground - layer.bottomDepthM
+                  const bottomA = layer.bottomDepthM === null ? domain[2] : a.ground - layer.bottomDepthM
+                  const bottomB = layer.bottomDepthM === null ? domain[2] : b.ground - layer.bottomDepthM
                   return [
                     <polygon
                       key={`${layer.id}-${index}`}
@@ -2307,6 +2552,9 @@ export function MassHaulChart({
   const [showMovements, setShowMovements] = useState(false)
   const engineering = analysis.engineering
   const diagram = useMemo(() => massHaulDiagram(analysis, engineeringInputs), [analysis, engineeringInputs])
+  // A hand-set balance line, read only (`balanceLine.ts`); null while the what-if is off.
+  const [whatIfLevel, setWhatIfLevel] = useState<number | null>(null)
+  const whatIf = useBalanceWhatIf(diagram.balance, whatIfLevel, engineeringInputs?.haul.freeHaulDistanceM ?? null)
   const haul = diagram.haul
   const rangeStart = viewRange ? clamp(viewRange[0], 0, Math.max(0, analysis.length - 1)) : 0
   const rangeEnd = viewRange
@@ -2392,6 +2640,15 @@ export function MassHaulChart({
               ` · after borrow and waste ${closed ? 'the diagram closes at 0 m³' : `it ends at ${format(haul.closingM3)} m³`}`}
             {haul && unplaced && ` · ${unplaced}`}
           </p>
+          <BalanceWhatIfPanel
+            result={whatIf.result}
+            range={whatIf.range}
+            freeHaulM={engineeringInputs?.haul.freeHaulDistanceM ?? null}
+            onLevel={setWhatIfLevel}
+            onOpen={() => setWhatIfLevel(0)}
+            onClose={() => setWhatIfLevel(null)}
+            onStation={onStation}
+          />
           {haul && haul.pits.length > 0 && (
             <p className="flex flex-wrap gap-x-3 gap-y-0.5 text-3xs" data-testid="road-mass-pits">
               {haul.pits.map((pit) => (
@@ -2693,6 +2950,16 @@ export function MassHaulChart({
                   </rect>
                 )),
               )}
+              {whatIf.result && (
+                <BalanceLineOverlay
+                  result={whatIf.result}
+                  range={whatIf.range}
+                  frame={f}
+                  domainY={[low, high]}
+                  onLevel={setWhatIfLevel}
+                  onClose={() => setWhatIfLevel(null)}
+                />
+              )}
               <line
                 x1={f.x(station)}
                 x2={f.x(station)}
@@ -2714,12 +2981,15 @@ export function CableChart({
   distance = 0,
   onDistance,
   layout,
+  edit,
 }: {
   analysis: CableAnalysis
   distance?: number
   onDistance?: (distance: number) => void
   /** Intermediate supports (`cableLayout/overlay.ts`): a found layout replaces the single span. */
   layout?: CableLayoutOverlay
+  /** Edits the support layout from the chart (`CableLayoutChartLayer.tsx`). */
+  edit?: CableChartEdit
 }) {
   // A found support layout, else a solved skyline, replaces the assumed line: the load path is what
   // clears (or hits) the ground.
@@ -2827,6 +3097,12 @@ export function CableChart({
               Cursor {format(active?.distance)} m · ground {format(active?.ground)} m ·{' '}
               {mechanics ? 'carriage' : 'cable'} {format(active?.cable)} m · clearance {format(active?.clearance)} m.
               Click or drag to inspect the same point on the plan.
+            </p>
+          )}
+          {edit && (
+            <p className="text-3xs text-muted-foreground" data-testid="road-cable-edit-hint">
+              {edit.edited ? 'Drag a support handle to move it or change its height. ' : ''}Double-click the profile to
+              add a support; Shift-drag along it to draw a no-support sector; Escape cancels.
             </p>
           )}
         </>
@@ -2979,6 +3255,16 @@ export function CableChart({
                   <circle cx={f.x(active.distance)} cy={f.y(active.cable)} r={4} fill={ROAD_CHART_COLORS.selected} />
                 )}
               </g>
+            )}
+            {layout && (
+              <CableLayoutChartLayer
+                layout={layout}
+                edit={edit}
+                frame={f}
+                domain={domain}
+                height={height}
+                onDistance={onDistance}
+              />
             )}
           </svg>
         )

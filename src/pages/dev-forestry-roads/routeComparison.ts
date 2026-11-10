@@ -38,6 +38,9 @@ import {
 import { cellIndexAt, sampleSurfaceGrid, type ToGrid, type ToLonLat } from './surfaceGrid'
 import { optimizeVerticalProfileAsync } from './verticalOptimizer'
 import { constraintRouteIssues } from './riparian'
+import { foundRoadSearchSettings } from './foundRoadSearch'
+import { corridorStop, switchbackStop, type RouteSearchStop } from './routeSearchStop'
+import { sweepSteeperGrades, type SteeperGradeResult } from './steeperGrades'
 import type {
   Alignment,
   ContextFeature,
@@ -98,6 +101,11 @@ export interface RouteComparisonOptions {
   drainage: DrainageSettings
   /** Smaller search budgets, for tests and constrained devices. The defaults are the documented ones. */
   searchBudget?: { maxStates?: number; maxTerrainSamples?: number; switchbackExpansions?: number }
+  /**
+   * When a goal finds no line, try the search again over the grade limit (`steeperGrades.ts`) and say
+   * whether it connects. Information only: no road is made and the limit is unchanged. Off by default.
+   */
+  steeperGrades?: boolean
 }
 export const DEFAULT_CROSS_DRAIN_COST = 1500
 /** Metres of road a mapped stream contact is worth to the drainage goal's search. */
@@ -165,6 +173,15 @@ export interface RouteRow {
   notes: string[]
   /** The goals this road actually won, measured across every road that meets the limits. */
   best: RouteGoal[]
+  /**
+   * Every goal whose search returned this same line, when more than one did (`mergeSameLines`). A
+   * road that leads nothing is shown for these goals, so none of them is left without a row.
+   */
+  foundBy?: RouteGoal[]
+  /** For a goal that found no line: where the search its reason describes stopped, for the plan. */
+  stop?: RouteSearchStop
+  /** For a goal that found no line, with Try steeper grades on: whether it connects a little steeper. */
+  steeper?: SteeperGradeResult
 }
 export interface RouteComparison {
   rows: RouteRow[]
@@ -185,6 +202,8 @@ export interface RouteComparisonInput {
   /** A metric grid around a coordinate, such as `localMetricGrid`. */
   gridAt: (at: Coordinate) => { toGrid: ToGrid; toLonLat: ToLonLat }
   id?: () => string
+  /** The day the found roads' search settings are stamped with; the clock by default. */
+  now?: () => Date
 }
 export interface RouteComparisonProgress {
   /** What is happening now, in terms of the roads rather than the engine. */
@@ -349,6 +368,7 @@ export const ROUTE_GOAL_MEASURES: Record<RouteGoal, (row: RouteRow) => number | 
  * goal only because nothing was found to set against it, and the rows say why.
  */
 export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
+  const searchedFor = (row: RouteRow) => row.foundBy ?? [row.goal as RouteGoal]
   const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
   const noneDesigned = !rows.some((row) => row.goal !== 'current' && row.alignment)
   for (const goal of goals) {
@@ -363,7 +383,7 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
     (row) =>
       row.goal === 'current' ||
       row.best.length > 0 ||
-      (!usable.includes(row) && (noneDesigned || !held.has(row.goal as RouteGoal))),
+      (!usable.includes(row) && (noneDesigned || searchedFor(row).some((goal) => !held.has(goal)))),
   )
   for (const row of kept) {
     if (row.goal === 'current' || !row.best.length) continue
@@ -374,6 +394,32 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
     if (row.alignment) row.alignment.color = won[0].color
   }
   return kept
+}
+
+/**
+ * Rows whose searches returned the same fitted line, as one row: the first, carrying every goal that
+ * found it in `foundBy` and in its label. Dropping the twin silently left a goal with no row and no
+ * reason when the shared line broke a limit (Shortest at 7 % on the training road).
+ */
+export function mergeSameLines(rows: RouteRow[]): RouteRow[] {
+  const byLine = new Map<string, RouteRow>()
+  return rows.filter((row) => {
+    if (!row.alignment || row.goal === 'current') return true
+    const key = JSON.stringify(row.coordinates)
+    const twin = byLine.get(key)
+    if (!twin) {
+      byLine.set(key, row)
+      return true
+    }
+    const goals = new Set([...(twin.foundBy ?? [twin.goal as RouteGoal]), row.goal as RouteGoal])
+    if (goals.size > 1) {
+      twin.foundBy = ROUTE_GOALS.filter((goal) => goals.has(goal.id)).map((goal) => goal.id)
+      twin.label = ROUTE_GOALS.filter((goal) => goals.has(goal.id))
+        .map((goal) => goal.label)
+        .join(' · ')
+    }
+    return false
+  })
 }
 
 const whole = (value: number) => Math.round(value).toLocaleString('en-CA')
@@ -435,6 +481,81 @@ export function comparisonSummary(comparison: RouteComparison): { found: boolean
         : `${routes} found; ${flagged} ${flagged === 1 ? 'has' : 'have'} a limit broken or a check to make, shown on ${flagged === 1 ? 'its row' : 'their rows'}.`) +
       ` Click one to open it.${without}`,
   }
+}
+
+/**
+ * Whether the ends connect a little over the grade limit: the corridor search, leaning toward the end
+ * as the second search of a corridor does, then the switchback search when switchbacks are allowed,
+ * at each grade `steeperGrades.ts` lists. Information only: it returns lengths, never a road, and
+ * the settings it was handed are not changed.
+ */
+export async function probeSteeperGrades(
+  input: Pick<RouteComparisonInput, 'base' | 'terrain' | 'settings' | 'context' | 'routeOptions' | 'options'>,
+  control: { signal?: AbortSignal; onDetail?: (text: string, share?: number) => void } = {},
+): Promise<SteeperGradeResult> {
+  const { base, terrain, settings, context, routeOptions, options } = input
+  const { signal, onDetail } = control
+  const guide = simplifyGuide(base.points.map((p) => p.coordinate))
+  const { switchbackExpansions, ...corridorBudget } = options.searchBudget ?? {}
+  const halfWidthM = Math.min(MAX_CORRIDOR_HALF_WIDTH_M, options.corridorHalfWidthM)
+  const rules = routeOptions.switchbacks ?? DEFAULT_SWITCHBACK_ROUTE_OPTIONS
+  const cancelled = () => {
+    if (signal?.aborted) throw new DOMException('Route comparison cancelled.', 'AbortError')
+  }
+  return sweepSteeperGrades(settings.maxGradePercent, async (grade) => {
+    const steeper = { ...settings, maxGradePercent: grade }
+    const doing = `trying ${grade}%`
+    try {
+      onDetail?.(doing)
+      const found = await optimizeRoadCorridorAsync(
+        guide,
+        terrain,
+        steeper,
+        context,
+        {
+          objective: 'balanced',
+          corridorHalfWidthM: halfWidthM,
+          groundWindowM: options.groundWindowM,
+          constraintCostBasePerM: routeOptions.baseCostPerM,
+          searchWeight: QUICK_SEARCH_WEIGHT,
+          ...corridorBudget,
+        },
+        { signal, onProgress: ({ budgetUsed }) => onDetail?.(doing, budgetUsed) },
+      )
+      return { lengthM: found.lengthM, search: 'the corridor search' }
+    } catch (cause) {
+      cancelled()
+      if (!(cause instanceof CorridorSearchError)) throw cause
+    }
+    if (!rules.allow) return null
+    try {
+      onDetail?.(`${doing} with switchbacks`)
+      const found = await searchSwitchbackRouteAsync(
+        guide,
+        terrain,
+        steeper,
+        context,
+        {
+          objective: 'balanced',
+          corridorHalfWidthM: halfWidthM,
+          rules,
+          groundWindowM: options.groundWindowM,
+          sideHillSlopePercent: routeOptions.maxTerrainSlopePercent,
+          haulGrades: routeOptions.haulGrades,
+          startHeading: routeOptions.startHeading,
+          endHeading: routeOptions.endHeading,
+          constraintCostBasePerM: routeOptions.baseCostPerM,
+          ...(switchbackExpansions ? { maxExpansions: switchbackExpansions } : {}),
+        },
+        { signal, onProgress: ({ budgetUsed }) => onDetail?.(`${doing} with switchbacks`, budgetUsed) },
+      )
+      return { lengthM: found.lengthM, search: 'the switchback search' }
+    } catch (cause) {
+      cancelled()
+      if (!(cause instanceof SwitchbackSearchError)) throw cause
+      return null
+    }
+  })
 }
 
 /** A goal's search ended with no line between the ends, as opposed to a line that later failed a check. */
@@ -822,8 +943,32 @@ export async function compareRoutes(
       : 'The search stopped on an internal error. No road was changed.'
   }
 
+  /**
+   * Where the search that `failureText` explains stopped, for the plan. Only a goal that found no
+   * line has one: the same choice of search as its reason, so the mark and the words agree.
+   */
+  const failureStop = (cause: unknown): RouteSearchStop | undefined => {
+    if (!(cause instanceof NoLineError)) return undefined
+    const start = guide[0],
+      end = guide[guide.length - 1]
+    if (switchbackFailure) return switchbackStop(switchbackFailure, switchbackLimits, start, end)
+    if (nearest) return corridorStop(nearest.failure, start, end)
+    return undefined
+  }
+  /** Run once per comparison, and only for a goal that found no line: whether a line exists does not depend on the goal. */
+  let steeper: Promise<SteeperGradeResult> | null = null
+  const steeperFor = (cause: unknown) => {
+    if (!options.steeperGrades || !(cause instanceof NoLineError)) return undefined
+    return (steeper ??= probeSteeperGrades(input, { signal, onDetail: (text, share) => detail(text, share) }))
+  }
+
   const profileOptions = { context, ...(input.analysisOptions ?? {}) }
-  /** The horizontal candidate with the profile, of those asked for, that prices lowest. */
+  type Fit = { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }
+  /**
+   * Profiles already fitted to a line, by objective. Lowest cost fits the shortest line, then the
+   * Shortest goal asks for the same fit on the same line: the profile depends only on the geometry.
+   */
+  const fits = new WeakMap<Line, Map<'earthwork' | 'total', Fit | { failure: unknown }>>()
   const fitProfile = async (
     found: Line,
     goal: (typeof ROUTE_GOALS)[number],
@@ -843,9 +988,17 @@ export async function compareRoutes(
         }
     candidate.color = goal.color
     const length = alignmentLength(candidate)
-    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }[] = []
+    const fitted: Fit[] = []
     let failure: unknown
+    const known = fits.get(found) ?? new Map<'earthwork' | 'total', Fit | { failure: unknown }>()
+    fits.set(found, known)
     const fit = async (objective: 'earthwork' | 'total') => {
+      const before = known.get(objective)
+      if (before) {
+        if ('failure' in before) failure ??= before.failure
+        else fitted.push({ ...before, vertical: before.vertical.map((point) => ({ ...point, id: id() })) })
+        return
+      }
       try {
         detail('fitting a profile')
         const profile = await optimizeVerticalProfileAsync(
@@ -859,14 +1012,18 @@ export async function compareRoutes(
         await breathe()
         const vertical = profile.vertical.map((point) => ({ ...point, id: id() }))
         const analysis = analyse({ ...candidate, vertical })
-        fitted.push({
+        const made = {
           vertical,
           cost: analysis.estimatedCost,
           withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
           priced: !materialPlanGap(analysis),
-        })
+        }
+        fitted.push(made)
+        // A copy: the road the fit ends up on may be edited later in the run.
+        known.set(objective, { ...made, vertical: vertical.map((point) => ({ ...point })) })
       } catch (cause) {
         aborted()
+        known.set(objective, { failure: cause })
         failure ??= cause
       }
     }
@@ -1062,6 +1219,10 @@ export async function compareRoutes(
     } catch (cause) {
       aborted()
       row.blockers = [await failureText(cause)]
+      const stop = failureStop(cause)
+      if (stop) row.stop = stop
+      const probe = steeperFor(cause)
+      if (probe) row.steeper = await probe
     }
     rows.push(row)
   }
@@ -1088,21 +1249,31 @@ export async function compareRoutes(
     }
   }
   // The cheapest line is often another goal's line: one row, not two identical ones.
-  const lines = new Set<string>()
-  const distinct = rows.filter((row) => {
-    if (!row.alignment || row.goal === 'current') return true
-    const key = JSON.stringify(row.coordinates)
-    if (lines.has(key)) return false
-    lines.add(key)
-    return true
-  })
+  const distinct = mergeSameLines(rows)
   const shown = assignGoals(distinct, options.goals)
   const currentLeads = shown.find((row) => row.goal === 'current')?.best ?? []
+  const date = input.now?.() ?? new Date()
   for (const row of shown)
-    if (row.goal !== 'current' && row.alignment)
+    if (row.goal !== 'current' && row.alignment) {
       row.alignment.name = derivedRoadName(
         base.name,
         ROUTE_GOALS.find((goal) => goal.id === row.goal)!.label.toLowerCase(),
       )
+      // The settings it was found with travel with the road, into the project and the report.
+      row.alignment.searchSettings = foundRoadSearchSettings({
+        alignment: row.alignment,
+        goals: row.best.length ? row.best : (row.foundBy ?? [row.goal as RouteGoal]),
+        label: row.label,
+        settings,
+        corridorHalfWidthM: options.corridorHalfWidthM,
+        groundWindowM: options.groundWindowM,
+        crossingCost: options.crossingCost,
+        crossDrainCost: options.crossDrainCost,
+        maxTerrainSlopePercent: routeOptions.maxTerrainSlopePercent,
+        switchbacks: switchbackRules,
+        note: row.notes[0],
+        date,
+      })
+    }
   return { rows: shown, drainageChecked, currentLeads }
 }

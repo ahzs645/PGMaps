@@ -46,7 +46,9 @@ import {
   usableSkylineM,
   validateCableRule,
   type CableCoverageRule,
+  type CablePosition,
 } from './cableCoverageRule'
+import { pointsAlong } from './extractionLandings'
 import { parabolicLoadSagM, riggingForces, STANDARD_GRAVITY } from './cableMechanics'
 import type { CableCoverInput, CoverLineResult, LayoutReason } from './cableLayout/cableLayout'
 import { LAYOUT_LOAD_POSITIONS } from './cableLayout/settings'
@@ -66,8 +68,12 @@ export interface CableLanding {
   cell: number
   xy: XY
   roadIndex: number
-  /** On a designed road: counted only in the "after" run of a comparison. */
+  /** On a designed road, or a proposed landing: counted only in the "after" run of a comparison. */
   designed: boolean
+  /** The user's landing this start belongs to (index into `ExtractionGrid.landings`), when landings are set. */
+  group?: number
+  /** Where the yarder may stand on lines from here; the rule's choice when absent. */
+  position?: CablePosition
 }
 
 /** Why a candidate's walk ended. */
@@ -104,7 +110,12 @@ export function* cableGroundSteps(eg: ExtractionGrid, terrain: TerrainSource): G
   return out
 }
 
-/** Landings: truck-road cells within the travel band on known ground, `spacingM` apart along each road. */
+/**
+ * Landings: truck-road cells within the travel band on known ground, `spacingM` apart along each
+ * road. With the user's landings set, only those: a point landing's cell, and a road stretch's cells
+ * `spacingM` apart along it, on known ground, each with its yarder side; a proposed landing counts
+ * only in the "after" run.
+ */
 export function cableLandings(
   eg: ExtractionGrid,
   ground: Float64Array,
@@ -115,6 +126,26 @@ export function cableLandings(
   const { origin, cellM, width } = sg.grid
   const taken = new Set<number>()
   const out: CableLanding[] = []
+  if (eg.landings?.length) {
+    eg.landings.forEach((landing, group) => {
+      for (const [x, y] of pointsAlong(landing.xy, spacingM)) {
+        const cell = cellAt(eg, x, y)
+        if (cell < 0 || taken.has(cell) || !Number.isFinite(ground[cell])) continue
+        taken.add(cell)
+        const row = Math.floor(cell / width),
+          col = cell - row * width
+        out.push({
+          cell,
+          xy: [origin[0] + col * cellM, origin[1] - row * cellM],
+          roadIndex: sg.sourceRoad[cell],
+          designed: landing.status === 'proposed',
+          group,
+          position: landing.yarder,
+        })
+      }
+    })
+    return out
+  }
   sg.roads.forEach((road, k) => {
     if (!include(road.road) || road.road.use === 'track') return
     let along = 0
@@ -320,6 +351,8 @@ export function cableCoverBatches(
   rule: CableCoverageRule,
   cellM: number,
   candidates: readonly CableCandidate[],
+  /** The landings the candidates leave from: a landing's own yarder side replaces the rule's. */
+  landings?: readonly CableLanding[],
 ): { batches: CableCoverInput[]; index: number[] } {
   const r = rule.rigging
   const forces = riggingForces(r)
@@ -381,12 +414,13 @@ export function cableCoverBatches(
   }
   candidates.forEach((c, i) => {
     if (!(c.maxTailM * Math.SQRT2 >= rule.minLineM)) return
-    if (rule.system === 'two-cable' || rule.position !== 'either') {
+    const position = landings?.[c.landing]?.position ?? rule.position
+    if (rule.system === 'two-cable' || position !== 'either') {
       // Level lines count as machine below; a gravity carriage needs the yarder no lower than the tail.
       const drop = c.z[0] - c.z[Math.round(c.maxTailM / c.dx)]
       if (rule.system === 'two-cable' && drop < 0) return
-      if (rule.position === 'above' && !(drop > 1e-6)) return
-      if (rule.position === 'below' && drop > 1e-6) return
+      if (position === 'above' && !(drop > 1e-6)) return
+      if (position === 'below' && drop > 1e-6) return
     }
     index.push(i)
     lines.push({ dx: c.dx, z: c.z, maxTailM: c.maxTailM })
@@ -636,7 +670,12 @@ export const CABLE_LINE_COLOR = '#0e7490'
 const SUPPORT_COLOR = '#155e75'
 
 /** Plan features for the given lines: each line from its yarder to its tail, and its supports. */
-export function cableLineFeatures(eg: ExtractionGrid, lines: readonly CableLineRecord[]): GeoJSON.Feature[] {
+export function cableLineFeatures(
+  eg: ExtractionGrid,
+  lines: readonly CableLineRecord[],
+  /** A line opened as a profile is drawn selected. */
+  selectedId?: number | null,
+): GeoJSON.Feature[] {
   const out: GeoJSON.Feature[] = []
   for (const line of lines) {
     const supports = line.points.length - 2
@@ -649,6 +688,7 @@ export function cableLineFeatures(eg: ExtractionGrid, lines: readonly CableLineR
       properties: {
         kind: 'cable-line',
         color: CABLE_LINE_COLOR,
+        ...(line.id === selectedId ? { selected: true } : {}),
         label: `Line ${line.id} · ${Math.round(line.skylineM)} m · ${supports} support${supports === 1 ? '' : 's'} · ${line.areaHa.toFixed(1)} ha`,
       },
     })

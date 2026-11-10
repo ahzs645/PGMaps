@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -11,11 +11,20 @@ import {
   comparisonSummary,
   compareRoutes,
   DEFAULT_CROSS_DRAIN_COST,
+  probeSteeperGrades,
   ROUTE_GOALS,
   type RouteComparison,
+  type RouteComparisonInput,
   type RouteGoal,
   type RouteRow,
 } from './routeComparison'
+import { routeStopParts } from './routeSearchStop'
+import { applySearchPreset } from './searchPresets'
+import { STEEPER_GRADE_STEPS_PERCENT } from './steeperGrades'
+import { RouteSearchPresets } from './RouteSearchPresets'
+import { RouteFailureRow } from './RouteFailureRow'
+import { FoundRoadSearchNote } from './FoundRoadSearchNote'
+import type { RoutePreviewLine } from './routePreviewFeatures'
 import { corridorSearchResolution, MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
@@ -24,16 +33,9 @@ import { localMetricGrid } from './terrain'
 import { SwitchbackSettings } from './SwitchbackSettings'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { RoadDrawing } from './DesignSidebarBody'
-import type { Coordinate } from './types'
+export type { RoutePreviewLine } from './routePreviewFeatures'
 
 const MAX_ROADS = 20
-export interface RoutePreviewLine {
-  id: string
-  label: string
-  color: string
-  selected: boolean
-  coordinates: Coordinate[]
-}
 const money = (n: number) =>
   n >= 1_000_000
     ? `$${(n / 1_000_000).toFixed(2)}M`
@@ -69,10 +71,27 @@ export function RouteFinder({
     roadKey: string
     inputs: string
     source: typeof source
+    /** What the run searched: Try steeper searches the same ends and corridor, whichever road is open now. */
+    searched: ReturnType<typeof searchInput>
   } | null>(null)
   const [hovered, setHovered] = useState<string | null>(null)
+  /** The failure row whose stop is marked on the plan, chosen from the row or from its mark. */
+  const [focused, setFocused] = useState<string | null>(null)
+  const [trySteeper, setTrySteeper] = useState(false)
+  const failureRefs = useRef(new Map<string, HTMLButtonElement>())
   const abort = useRef<AbortController | null>(null)
-  useEffect(() => () => abort.current?.abort(), [])
+  // Leaving mid-run stops the search and hands the workspace back: a remounted panel has its own
+  // controller ref, so nothing else would ever clear this run's busy toast.
+  const setBusy = w.setBusy
+  useEffect(
+    () => () => {
+      if (!abort.current) return
+      abort.current.abort()
+      abort.current = null
+      setBusy('')
+    },
+    [setBusy],
+  )
   const route = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
   const groundWindowM = resolvedGroundWindow(route, project.terrain.resolutionM)
   const roadKey = JSON.stringify([alignment.id, alignment.points.map((p) => p.coordinate), alignment.vertical.length])
@@ -93,23 +112,115 @@ export function RouteFinder({
       run.source !== source ||
       (roadKey !== run.roadKey && !run.comparison.rows.some((row) => row.alignment?.id === alignment.id)))
   const showLines = !!run && !stale
-  const lines = useMemo(
+  // Goals that failed for one reason read as one line, not one row each.
+  const failures = useMemo(() => failureGroups(run?.comparison.rows ?? []), [run])
+  /** From the plan: select the row, and bring it into view in the sidebar. */
+  const selectFromPlan = useCallback((key: string) => {
+    setFocused(key)
+    failureRefs.current.get(key)?.scrollIntoView?.({ block: 'nearest' })
+  }, [])
+  const lines = useMemo<RoutePreviewLine[] | null>(
     () =>
       showLines
-        ? run!.comparison.rows
-            .filter((row) => row.goal !== 'current' && row.alignment && !inProject.has(row.alignment.id))
-            .map((row) => ({
-              id: row.id,
-              label: row.label,
-              color: row.color,
-              selected: row.id === hovered,
-              coordinates: row.coordinates,
-            }))
+        ? [
+            ...run!.comparison.rows
+              .filter((row) => row.goal !== 'current' && row.alignment && !inProject.has(row.alignment.id))
+              .map((row) => ({
+                id: row.id,
+                label: row.label,
+                color: row.color,
+                selected: row.id === hovered,
+                coordinates: row.coordinates,
+              })),
+            // Where each failed search stopped, tied to its row.
+            ...failures.flatMap((group) =>
+              group.stop
+                ? routeStopParts(group.key, group.label, group.color, group.stop).map((part) => ({
+                    id: part.id,
+                    label: part.label,
+                    color: part.color,
+                    selected: focused === group.key || hovered === group.key,
+                    coordinates: part.coordinates,
+                    stop: part.role,
+                    onSelect: () => selectFromPlan(group.key),
+                  }))
+                : [],
+            ),
+          ]
         : null,
-    [showLines, run, hovered, inProject],
+    [showLines, run, hovered, focused, inProject, failures, selectFromPlan],
   )
   useEffect(() => onPreview?.(lines), [lines, onPreview])
   useEffect(() => () => onPreview?.(null), [onPreview])
+
+  /** What a search reads, shared by Compare and Try steeper so both search the same corridor. */
+  const searchInput = () =>
+    ({
+      base: alignment,
+      terrain: source,
+      settings: project.settings,
+      context: project.context,
+      routeOptions: route,
+      options: {
+        goals,
+        corridorHalfWidthM: halfWidth,
+        groundWindowM,
+        crossingCost: route.crossingCost,
+        crossDrainCost,
+        drainage: project.drainage?.settings ?? DEFAULT_DRAINAGE_SETTINGS,
+        ...(trySteeper ? { steeperGrades: true } : {}),
+      },
+    }) satisfies Partial<RouteComparisonInput>
+
+  /**
+   * Searches a failed goal's corridor again over the grade limit and writes what it found on the
+   * goal's rows. Information only: the project, its roads and its grade limit are not touched.
+   */
+  const steeper = async (rows: RouteRow[]) => {
+    if (abort.current || w.busy || !run) return
+    const controller = new AbortController()
+    abort.current = controller
+    const stop = () => {
+      controller.abort()
+      if (abort.current === controller) abort.current = null
+      w.setBusy('')
+      w.setNotice('Steeper-grade search cancelled. Nothing was changed.')
+    }
+    const started = run
+    w.setError('')
+    w.setBusy('Trying steeper grades…')
+    w.setBusyCancel({ label: 'Cancel steeper-grade search', title: 'Trying steeper grades', onCancel: stop })
+    try {
+      const result = await probeSteeperGrades(started.searched, {
+        signal: controller.signal,
+        onDetail: (text, share) => {
+          if (abort.current !== controller) return
+          w.setBusy(`Trying steeper grades · ${text}${share === undefined ? '' : ` · ${Math.floor(share * 100)}%`}`)
+        },
+      })
+      if (abort.current !== controller) return
+      const ids = new Set(rows.map((row) => row.id))
+      setRun((now) =>
+        now === started
+          ? {
+              ...now,
+              comparison: {
+                ...now.comparison,
+                rows: now.comparison.rows.map((row) => (ids.has(row.id) ? { ...row, steeper: result } : row)),
+              },
+            }
+          : now,
+      )
+    } catch (cause) {
+      if (abort.current !== controller) return
+      w.setError(cause instanceof Error ? cause.message : 'Could not try steeper grades.')
+    } finally {
+      if (abort.current === controller) {
+        abort.current = null
+        w.setBusy('')
+      }
+    }
+  }
 
   const toggleGoal = (goal: RouteGoal) =>
     setGoals((now) => (now.includes(goal) ? now.filter((g) => g !== goal) : [...now, goal]))
@@ -122,38 +233,28 @@ export function RouteFinder({
     // Cancel hands the workspace back at once; the search stops at its next slice, a few milliseconds on.
     const stop = () => {
       controller.abort()
-      if (abort.current !== controller) return
-      abort.current = null
+      // Cancel always hands the workspace back, even if this panel no longer owns the run.
+      if (abort.current === controller) abort.current = null
       w.setBusy('')
       w.setNotice('Route comparison cancelled. No road was changed.')
     }
     setRun(null)
+    setFocused(null)
     w.setError('')
     w.setBusy('Starting…')
     w.setBusyCancel({ label: 'Cancel route comparison', title: 'Comparing routes', onCancel: stop })
+    const searched = searchInput()
     try {
       const comparison = await compareRoutes(
         {
-          base: alignment,
+          ...searched,
           baseAnalysis: analysis,
-          terrain: source,
           resolutionM: project.terrain.resolutionM,
-          settings: project.settings,
-          context: project.context,
-          routeOptions: route,
           gridAt: localMetricGrid,
           analysisOptions: {
             referenceSurfaces: w.referenceSurfaces,
             verticalReference: project.terrain.verticalReference,
             sharedCrossingCosts: project.sharedCrossingCosts,
-          },
-          options: {
-            goals,
-            corridorHalfWidthM: halfWidth,
-            groundWindowM,
-            crossingCost: route.crossingCost,
-            crossDrainCost,
-            drainage: project.drainage?.settings ?? DEFAULT_DRAINAGE_SETTINGS,
           },
         },
         {
@@ -166,7 +267,7 @@ export function RouteFinder({
         },
       )
       if (abort.current !== controller) return
-      setRun({ comparison, roadKey, inputs, source })
+      setRun({ comparison, roadKey, inputs, source, searched })
       // A run that found nothing is a failure, whatever else it finished.
       const summary = comparisonSummary(comparison)
       if (summary.found) w.setNotice(summary.message)
@@ -209,12 +310,6 @@ export function RouteFinder({
   const rows = run?.comparison.rows ?? []
   const current = rows.find((row) => row.goal === 'current')
   const designed = rows.filter((row) => row.goal !== 'current' && row.alignment)
-  // Goals that failed for one reason read as one line, not one row each.
-  const failures = new Map<string, RouteRow[]>()
-  for (const row of rows.filter((row) => !row.alignment)) {
-    const message = row.blockers[0] ?? 'No route found.'
-    failures.set(message, [...(failures.get(message) ?? []), row])
-  }
   // What a search of this corridor works at, so the numbers are known before a run rather than after.
   const resolution = corridorSearchResolution(
     alignment.points.map((p) => p.coordinate),
@@ -248,6 +343,7 @@ export function RouteFinder({
             New ends on map
           </Button>
         </div>
+        <FoundRoadSearchNote alignment={alignment} />
         <div className="flex flex-wrap gap-1" role="group" aria-label="Route goals">
           {ROUTE_GOALS.map((goal) => (
             <Button
@@ -263,6 +359,15 @@ export function RouteFinder({
             </Button>
           ))}
         </div>
+        <RouteSearchPresets
+          settings={project.settings}
+          disabled={full}
+          onApply={(preset) =>
+            w.update((x) => ({ ...x, settings: applySearchPreset(x.settings, preset) }), `${preset.label} preset`, {
+              ownStep: true,
+            })
+          }
+        />
         <div className="grid grid-cols-2 gap-2">
           <NumberField
             label="Grade limit %"
@@ -366,6 +471,23 @@ export function RouteFinder({
               </InfoTip>
             </p>
           )}
+          <label className="mt-2 flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={trySteeper}
+              onChange={(event) => setTrySteeper(event.target.checked)}
+              data-testid="road-route-steeper-option"
+            />
+            <span className="min-w-0 flex-1">
+              When a goal finds no line, try {STEEPER_GRADE_STEPS_PERCENT.map((step) => `+${step}%`).join(' and ')}
+            </span>
+            <InfoTip label="About trying steeper grades">
+              A goal that finds no line is searched again at the grade limit plus{' '}
+              {STEEPER_GRADE_STEPS_PERCENT.map((step) => `${step}%`).join(', then ')}, and its row says whether the ends
+              connect. Information only: no road over the limit is added, and the grade limit is not changed. Each try
+              is one more search, so a failed run takes longer with this on. A failed row also has its own button.
+            </InfoTip>
+          </label>
           <SwitchbackSettings
             route={route}
             minRadiusM={project.settings.minRadius}
@@ -396,17 +518,26 @@ export function RouteFinder({
                   onHover={(on) => setHovered(on ? row.id : null)}
                 />
               ))}
-            {[...failures].map(([message, goals]) => (
-              <div
-                key={message}
-                className="rounded-md border border-dashed px-2 py-1.5 text-xs"
-                data-route-row={goals[0].goal}
-              >
-                <p className="font-medium">{goals.map((row) => row.label).join(' · ')}</p>
-                <p className="text-2xs leading-4 text-muted-foreground">{message}</p>
-              </div>
+            {failures.map((group) => (
+              <RouteFailureRow
+                key={group.key}
+                ref={(element) => {
+                  if (element) failureRefs.current.set(group.key, element)
+                  else failureRefs.current.delete(group.key)
+                }}
+                goals={group.rows}
+                message={group.message}
+                stop={group.stop}
+                steeper={group.steeper}
+                limitPercent={project.settings.maxGradePercent}
+                selected={focused === group.key}
+                busy={!!w.busy}
+                onToggle={() => setFocused((now) => (now === group.key ? null : group.key))}
+                onHover={(on) => setHovered(on ? group.key : null)}
+                onTrySteeper={() => void steeper(group.rows)}
+              />
             ))}
-            {!designed.length && !failures.size && (
+            {!designed.length && !failures.length && (
               <p className="text-2xs leading-4 text-muted-foreground">No new road beat yours on these goals.</p>
             )}
             <div className="flex items-center gap-2 pt-1">
@@ -522,4 +653,31 @@ function RouteResult({
       {viewing && <span className="mt-0.5 block text-2xs font-medium text-primary">Viewing</span>}
     </button>
   )
+}
+
+interface FailureGroup {
+  key: string
+  message: string
+  label: string
+  color: string
+  rows: RouteRow[]
+  stop?: RouteRow['stop']
+  steeper?: RouteRow['steeper']
+}
+/** Goals that failed for one reason, as one row: they share the search that stopped, and its mark. */
+function failureGroups(rows: RouteRow[]): FailureGroup[] {
+  const groups = new Map<string, RouteRow[]>()
+  for (const row of rows.filter((row) => !row.alignment)) {
+    const message = row.blockers[0] ?? 'No route found.'
+    groups.set(message, [...(groups.get(message) ?? []), row])
+  }
+  return [...groups].map(([message, members]) => ({
+    key: `failure:${members.map((row) => row.goal).join('+')}`,
+    message,
+    label: members.map((row) => row.label).join(' · '),
+    color: members[0].color,
+    rows: members,
+    stop: members.find((row) => row.stop)?.stop,
+    steeper: members.find((row) => row.steeper)?.steeper,
+  }))
 }

@@ -1,0 +1,4 @@
+/* A plan tool in hand (PlanTools.tsx) aims with a crosshair, whatever cursor the plan last set. */
+.road-plan-tool-active .maplibregl-canvas {
+  cursor: crosshair !important;
+}

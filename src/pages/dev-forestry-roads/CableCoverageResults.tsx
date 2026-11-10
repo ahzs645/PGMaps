@@ -2,6 +2,7 @@
  * Cable coverage results below the shared extraction tables: the lines found, why the rest were
  * not kept, and the suggested lines with their selection settings (`cableLineSelection.ts`).
  */
+import type { ReactNode } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { NumberField } from './Controls'
@@ -37,6 +38,10 @@ export function CableCoverageResults({
   rule,
   onRule,
   roadName,
+  selectedId,
+  onSelect,
+  detail,
+  volumeControl,
 }: {
   coverage: CableCoverageResult
   selection: CableSelection | null
@@ -44,7 +49,15 @@ export function CableCoverageResults({
   onRule: (rule: CableSelectionRule) => void
   /** The road a landing lies on, by landing index. */
   roadName: (landing: number) => string
+  /** The suggested line opened as a profile, and how to open one. */
+  selectedId?: number | null
+  onSelect?: (id: number) => void
+  /** Shown under the table: the opened line's profile. */
+  detail?: ReactNode
+  /** The volume-weighting choice (`CableVolumeSource`), shown with the selection settings. */
+  volumeControl?: ReactNode
 }) {
+  const volume = selection?.volume ?? null
   const { stats, lines } = coverage
   const allRejected = Object.entries(stats.rejected)
     .filter(([, n]) => n && n > 0)
@@ -105,6 +118,7 @@ export function CableCoverageResults({
           {field('minNewShare', 'New share (%)', 100, 5, 'Of its own band a line must add.')}
           {field('supportPenalty', 'Support penalty', 1, 0.05, 'Extra cost per support, as a share of a line.')}
         </div>
+        {volumeControl}
         {selection && (
           <p className="tabular-nums" data-testid="cable-selection-summary">
             {chosen.length} line{chosen.length === 1 ? '' : 's'} yard {selection.coveredHa.toFixed(1)} ha:{' '}
@@ -114,6 +128,8 @@ export function CableCoverageResults({
               : selection.stopped === 'target'
                 ? ' Meets the target.'
                 : ' No other line adds its new share.'}
+            {volume &&
+              ` Known volume ${Math.round(volume.knownM3).toLocaleString('en-CA')} m³ (${volume.source})${volume.unknownHa > 0 ? `, and ${volume.unknownHa.toFixed(1)} ha with no figure` : ''}.`}
           </p>
         )}
         {chosen.length > 0 && (
@@ -126,28 +142,50 @@ export function CableCoverageResults({
                   <ColumnHeader label="Supp." title="Intermediate supports" />
                   <ColumnHeader label="Area" unit="ha" />
                   <ColumnHeader label="Carr." unit="m" title="Mean carriage distance" />
+                  {volume && <ColumnHeader label="Vol." unit="m³" title="Known volume in the line's band" />}
                 </tr>
               </thead>
               <tbody>
                 {chosen.map((line) => (
-                  <tr key={line.id}>
+                  <tr key={line.id} aria-selected={onSelect ? line.id === selectedId : undefined}>
                     <th scope="row">
-                      <span className="block font-medium">{line.id}</span>
+                      {onSelect ? (
+                        <button
+                          type="button"
+                          className="block font-medium underline decoration-dotted"
+                          aria-label={`Open suggested line ${line.id} as a profile`}
+                          aria-pressed={line.id === selectedId}
+                          onClick={() => onSelect(line.id)}
+                        >
+                          {line.id}
+                        </button>
+                      ) : (
+                        <span className="block font-medium">{line.id}</span>
+                      )}
                       <span className="block text-3xs text-muted-foreground">
                         {Math.round(line.bearingDeg)}° · {roadName(line.landing)}
-                        {line.designedLanding ? ' (designed)' : ''}
+                        {line.designedLanding
+                          ? coverage.landings[line.landing]?.group === undefined
+                            ? ' (designed)'
+                            : ' (proposed)'
+                          : ''}
                       </span>
                     </th>
                     <td>{Math.round(line.skylineM)}</td>
                     <td>{line.points.length - 2}</td>
                     <td>{line.areaHa.toFixed(1)}</td>
                     <td>{Math.round(line.meanCarriageM)}</td>
+                    {volume && <td>{Math.round(volume.lines[line.id]?.knownM3 ?? 0).toLocaleString('en-CA')}</td>}
                   </tr>
                 ))}
               </tbody>
             </EngineeringTable>
           </div>
         )}
+        {chosen.length > 0 && onSelect && !detail && (
+          <p className="text-2xs text-muted-foreground">Click a line&apos;s number to open it as a profile.</p>
+        )}
+        {detail}
       </div>
     </div>
   )

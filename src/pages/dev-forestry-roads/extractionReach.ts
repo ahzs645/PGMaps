@@ -88,6 +88,7 @@ import {
 } from './forwarderReach'
 import type { Coordinate } from './types'
 import { DEFAULT_CABLE_RULE, validateCableRule, type CableCoverageRule } from './cableCoverageRule'
+import { resolveLandings, type LandingInput, type ResolvedLanding } from './extractionLandings'
 
 type XY = [number, number]
 
@@ -143,6 +144,12 @@ export interface ExtractionArea {
 export interface ExtractionInput extends Omit<SkidReachInput, 'rule'> {
   settings: ExtractionSettings
   areas?: readonly ExtractionArea[]
+  /**
+   * Landings the user chose (`extractionLandings.ts`). When any is set, logs go only to them: the
+   * counted roads carry machines to a landing as skid trails do, and the cable yarder's lines start
+   * only from them. None keeps the usual behaviour.
+   */
+  landings?: readonly LandingInput[]
 }
 
 /** In-stand distance counts this much against trail distance when choosing a trail to leave by. */
@@ -240,6 +247,10 @@ export interface ExtractionGrid {
   /** Ground gradient east and north, fractions; NaN where unknown. */
   gradX: Float32Array
   gradY: Float32Array
+  /** The user's landings on the grid; empty or absent when the run takes every road cell. */
+  landings?: ResolvedLanding[]
+  /** Names of landings with no cell on the grid, left out. */
+  landingsOffGrid?: string[]
 }
 
 /** Gradient components from central differences, one-sided at a missing neighbour; NaN where unknown. */
@@ -307,6 +318,9 @@ export function* prepareExtractionGrid(input: ExtractionInput): Generator<SkidPr
     for (let i = 0; i < cells; i++) if (mask[i]) target[i] = 1
   }
   const { gx, gy } = gradients(sg)
+  const placed = input.landings?.length ? resolveLandings(sg, input.landings) : null
+  if (placed && !placed.landings.length)
+    throw Error(`No landing lies on the grid around the block: ${placed.offGrid.join(', ')}.`)
   return {
     sg,
     settings,
@@ -316,8 +330,25 @@ export function* prepareExtractionGrid(input: ExtractionInput): Generator<SkidPr
     unfellable: unfellableCells(sg, settings.fellableSlopePercent),
     gradX: gx,
     gradY: gy,
+    landings: placed?.landings ?? [],
+    landingsOffGrid: placed?.offGrid ?? [],
   }
 }
+
+/**
+ * The same prepared grid for another machine's settings: the ground, roads, areas and landings are
+ * shared, so results on both compare cell for cell (`harvestSystems.ts`). The hand-falling limit
+ * and distance classes must match the grid's.
+ */
+export function extractionGridFor(eg: ExtractionGrid, settings: ExtractionSettings): ExtractionGrid {
+  const checked = validateExtractionSettings({ ...settings })
+  if (checked.fellableSlopePercent !== eg.settings.fellableSlopePercent)
+    throw Error('Use the same hand-falling limit for every machine on one grid.')
+  return { ...eg, settings: checked, sg: { ...eg.sg, rule: gridRule(checked) } }
+}
+
+/** Which landings a run takes; all of them by default. */
+export type LandingFilter = (landing: ResolvedLanding) => boolean
 
 /** Along-ground travel from roads: reach used, its choice key, distances and the cell left by. */
 export interface GroundField {
@@ -529,14 +560,26 @@ function masksFor(eg: ExtractionGrid, roadUse: Uint8Array): Masks {
   return { drive, viaRoadPassable, viaTrailPassable, winchCrossable, forwarderDrivable, loadable }
 }
 
-/** The roads a run counts, as truck (2) and trail (1) cells; a truck road wins a shared cell. */
-function roadUseFor(eg: ExtractionGrid, include: (road: SkidRoad) => boolean): Uint8Array {
+/**
+ * The roads a run counts, as truck (2) and trail (1) cells; a truck road wins a shared cell. With
+ * landings set, only the landings `takeLanding` takes are destinations (2): every counted road
+ * carries machines to them as a skid trail does (1).
+ */
+function roadUseFor(
+  eg: ExtractionGrid,
+  include: (road: SkidRoad) => boolean,
+  takeLanding: LandingFilter = () => true,
+): Uint8Array {
   const use = new Uint8Array(eg.sg.grid.width * eg.sg.grid.height)
   eg.sg.roads.forEach((road, k) => {
     if (!include(road.road)) return
     const value = road.road.use === 'track' ? 1 : 2
     for (const i of eg.roadCells[k]) if (value > use[i]) use[i] = value
   })
+  if (eg.landings?.length) {
+    for (let i = 0; i < use.length; i++) if (use[i] === 2) use[i] = 1
+    for (const landing of eg.landings) if (takeLanding(landing)) for (const i of landing.cells) use[i] = 2
+  }
   return use
 }
 
@@ -1075,8 +1118,9 @@ function resultOf(eg: ExtractionGrid, state: ExtractionRunState): ExtractionResu
 export function* extractionOnGrid(
   eg: ExtractionGrid,
   include: (road: SkidRoad) => boolean = () => true,
+  takeLanding?: LandingFilter,
 ): Generator<SkidProgress, ExtractionResult> {
-  const roadUse = roadUseFor(eg, include)
+  const roadUse = roadUseFor(eg, include, takeLanding)
   const masks = masksFor(eg, roadUse)
   const strict = yield* buildLayers(eg, roadUse, masks, false)
   const optimistic = yield* buildLayers(eg, roadUse, masks, true)
@@ -1099,9 +1143,10 @@ export function cableExtractionResult(
   eg: ExtractionGrid,
   include: (road: SkidRoad) => boolean,
   coverage: readonly [ExtractionCells, ExtractionCells],
+  takeLanding?: LandingFilter,
 ): ExtractionResult {
   if (eg.settings.machine !== 'cable') throw Error('Prepare the grid for the cable yarder.')
-  const roadUse = roadUseFor(eg, (road) => include(road) && road.use !== 'track')
+  const roadUse = roadUseFor(eg, (road) => include(road) && road.use !== 'track', takeLanding)
   const masks = masksFor(eg, roadUse)
   const n = roadUse.length
   const truck = new Uint8Array(n)
@@ -1387,7 +1432,8 @@ export function extractionMapFeatures(result: ExtractionResult): GeoJSON.Feature
   return keepWithinBudget(features)
 }
 
-function keepWithinBudget(features: { vertices: number; feature: GeoJSON.Feature }[]): GeoJSON.Feature[] {
+/** The features that fit the plan's vertex budget (`MAX_SKID_OUTLINE_VERTICES`), largest first. */
+export function keepWithinBudget(features: { vertices: number; feature: GeoJSON.Feature }[]): GeoJSON.Feature[] {
   const order = [...features].sort((a, b) => b.vertices - a.vertices)
   let vertices = 0
   const kept = new Set(order.filter((entry) => (vertices += entry.vertices) <= MAX_SKID_OUTLINE_VERTICES))

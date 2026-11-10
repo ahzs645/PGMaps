@@ -66,7 +66,12 @@ generic and other tools can adopt it; see [Adopting it in another tool](#adoptin
 | General Block Access 1:50,000 | Landscape, bottom panels (`ACCESS_BOTTOM_PANEL`) | 1:50,000      | White                 | None        | `#ffaa00` 2.5 on white 3 | Block Access Comments box        |
 | Field Ops Imagery             | Portrait, bottom panels (`IMAGERY_PORTRAIT`)     | 1:10,000      | Satellite imagery     | 10 m, white | `#ffaa00` 2.5 on white 3 | Ruled notes area, imagery credit |
 
-Letter, A3 and A4 use the same fractional layout. Type and line widths scale by
+Letter, ANSI D (22 × 34 in), A3 and A4 use the same fractional layout. ANSI D is exactly twice
+tabloid, so it prints the tabloid sheet at `k` = 2 with four times the ground at a given scale; its
+terrain raster then meets the 4,000,000-cell budget at about 90 dpi rather than 150, and imagery
+the 4,096 px side at about 150 dpi instead of 200. Saved sheet setups keep the sheet, paper, scale
+and typed fields in the road tool (`docs/forestry-road-design/exports-and-project-files.md`, Saved
+sheet setups). Type and line widths scale by
 `k = min(width / 1224, height / 792)` (portrait swaps the sides), never below 4.5 pt
 (`MIN_SHEET_FONT_PT`). The dialog offers 1:5,000, 1:10,000, 1:20,000, 1:50,000 (`SHEET_SCALES`) or
 **Fit the block**, which picks the smallest scale in `FIT_SCALES` whose frame holds the block's box

@@ -58,6 +58,7 @@ import {
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
+import { UndoHistoryButton } from './dev-forestry-roads/UndoHistoryMenu'
 import { isoDate, issueLine, issueStamp, PLANNING_CAVEAT } from './dev-forestry-roads/projectIssue'
 import {
   csvPreview,
@@ -89,7 +90,13 @@ import {
   MassHaulChart,
   ProfileChart,
 } from './dev-forestry-roads/Charts'
-import { useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
+import { shownLayoutResult, useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
+import { useCableLayoutChartEdit, useLayoutFocusFollower } from './dev-forestry-roads/cableLayout/useLayoutEdit'
+import { cableGroundSource } from './dev-forestry-roads/dline/fieldProfile'
+import { dLineFrame } from './dev-forestry-roads/dline/frame'
+import { dLineExtras } from './dev-forestry-roads/dline/outputs'
+import { dLineSheetUnavailable } from './dev-forestry-roads/dline/sheetExport'
+import { dLineSupportPlanFeatures, supportStakeoutCsv } from './dev-forestry-roads/dline/supports'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
@@ -110,6 +117,7 @@ import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialo
 import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
+import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
@@ -117,7 +125,8 @@ import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPane
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
-import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
+import { gradeRule, isGradeBreachFlag } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
   startingJobStandards,
@@ -147,6 +156,8 @@ import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
 import { StationBox } from './dev-forestry-roads/StationBox'
+import { StationJumpMenu } from './dev-forestry-roads/StationJumpMenu'
+import { SectionPaneTools, useSectionTools } from './dev-forestry-roads/SectionPaneTools'
 import {
   engineeringCsv,
   parseProject,
@@ -157,6 +168,7 @@ import {
   terrainProfileCsv,
   terrainProfileReportHtml,
 } from './dev-forestry-roads/project'
+import { shareUnchanged } from './dev-forestry-roads/shareUnchanged'
 import {
   createDemoProject,
   DEFAULT_ROAD_SETTINGS,
@@ -181,6 +193,7 @@ import { replaceableRouteAlternatives, terrainCostAlternatives } from './dev-for
 import { ProfileSwitcher } from './dev-forestry-roads/ProfileSwitcher'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
+import { routePreviewFeature } from './dev-forestry-roads/routePreviewFeatures'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
 import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/horizontalTools'
@@ -587,13 +600,11 @@ export default function DevForestryRoads() {
               },
             ]
           : []),
-        ...(routeLines ?? []).map((line) => ({
-          type: 'Feature' as const,
-          geometry: { type: 'LineString' as const, coordinates: line.coordinates },
-          properties: { kind: 'route-comparison', color: line.color, selected: line.selected, label: line.label },
-        })),
+        ...(routeLines ?? []).map(routePreviewFeature),
         // Skid reach: beyond-reach outlines, spur candidates and landing footprints.
         ...(skidReachFeatures ?? []),
+        // Every D-line's saved intermediate supports: dots, labelled on hover.
+        ...(investigation ? [] : dLineSupportPlanFeatures(project.cables)),
         ...(routePreview?.route
           ? [
               {
@@ -622,6 +633,8 @@ export default function DevForestryRoads() {
       terrainRoadOverlay,
       terrainRoadsOverlay,
       skidReachFeatures,
+      investigation,
+      project.cables,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -869,10 +882,17 @@ export default function DevForestryRoads() {
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
     [completeCostRecord, alignment, project],
   )
+  // Drawn while the Sight distance section is open (`planSightlines.ts`).
+  const planSightlines = usePlanSightlines()
   // The profile's sight distance band reads the project's design speed and station spacing.
   const sightBand = useMemo(
     () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
     [project.standards, project.settings.stationInterval],
+  )
+  // The profile draws tangents over the project's grade rule red.
+  const profileGradeLimits = useMemo(
+    () => ({ rule: gradeRule(project.settings, project.standards) }),
+    [project.settings, project.standards],
   )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
@@ -1053,14 +1073,18 @@ export default function DevForestryRoads() {
     [displayedAlignment, w.featureSelection],
   )
   const sharedProfileRange = profileRange?.alignmentId === displayedAlignment.id ? profileRange.range : undefined
+  // Hold scale, the pinned section and Use this section for… (`SectionPaneTools.tsx`).
+  const sectionTools = useSectionTools({ alignment, displayedAlignment, analysis: displayedAnalysis })
   const onProfileRange = useCallback(
     (range: [number, number]) => setProfileRange({ alignmentId: displayedAlignment.id, range }),
     [displayedAlignment.id],
   )
   const cableLine = project.cables.find((c) => c.id === activeCable) ?? project.cables[0]
+  // A D-line with field shots in use reads them in place of the terrain along it.
+  const cableGround = cableLine ? cableGroundSource(cableLine, source) : source
   const cableResult = useMemo(() => {
     try {
-      const analysis = cableLine ? analyzeCable(cableLine, source) : null
+      const analysis = cableLine ? analyzeCable(cableLine, cableGround) : null
       return { analysis, summary: cableLine && analysis ? cableSummary(cableLine, analysis) : null, error: '' }
     } catch (error) {
       return {
@@ -1069,16 +1093,41 @@ export default function DevForestryRoads() {
         error: error instanceof Error ? error.message : 'Invalid D-line geometry.',
       }
     }
-  }, [cableLine, source])
+  }, [cableLine, cableGround])
   const cableAnalysis = cableResult.analysis
-  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, source)
-  const saveCableProfile = (kind: 'csv' | 'report') => {
+  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, cableGround)
+  type CableLineOf = (typeof project.cables)[number]
+  const editCable = useCallback(
+    (change: (line: CableLineOf) => CableLineOf) => update((p) => ({ ...p, cables: p.cables.map(change) })),
+    [update],
+  )
+  const cableLayoutEdit = useCableLayoutChartEdit(cableLine, cableGround, editCable)
+  const saveCableProfile = (kind: 'csv' | 'report' | 'stakeout') => {
     if (!cableLine || !cableAnalysis) return
     try {
+      // Supports, their stake-out, a field profile and the rigging set ride after the existing columns.
+      const frame = dLineFrame(cableLine)
+      const extras = dLineExtras({
+        line: cableLine,
+        analysis: cableAnalysis,
+        terrain: source,
+        ground: cableGround,
+        layout: shownLayoutResult(cableLine, cableGround),
+        grid: frame ? exportGrid(project.terrain, frame.yarder) : undefined,
+        riggingSets: project.riggingSets,
+      })
+      if (kind === 'stakeout') {
+        if (!extras.supports || !extras.stakeout) throw Error('This D-line has no supports to stake out.')
+        return downloadText(
+          supportStakeoutCsv(cableLine.name, extras.supports, extras.stakeout.rows, extras.stakeout.epsg),
+          'd-line-supports-stakeout.csv',
+          'text/csv;charset=utf-8',
+        )
+      }
       downloadText(
         kind === 'csv'
-          ? cableProfileCsv(cableLine, cableAnalysis, project.terrain)
-          : cableProfileHtml(cableLine, cableAnalysis, project.terrain),
+          ? cableProfileCsv(cableLine, cableAnalysis, project.terrain, extras)
+          : cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras),
         kind === 'csv' ? 'd-line-profile.csv' : 'd-line-profile.html',
         kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/html;charset=utf-8',
       )
@@ -1117,6 +1166,11 @@ export default function DevForestryRoads() {
     setDetail('cable')
     setOverlay({ type: 'FeatureCollection', features: [] })
   }
+  // A limit or span picked under Intermediate supports shows its D-line and moves both cursors there.
+  useLayoutFocusFollower((cableId, x) => {
+    if (cableId !== cableLine?.id || detail !== 'cable') selectCable(cableId)
+    if (x !== null) setCableDistance(x)
+  })
   const groundValues = displayedAnalysis.stations.map((s) => s.groundElevation).filter((x): x is number => x !== null)
   const grades = displayedAnalysis.stations.map((s) => s.gradePercent).filter((x): x is number => x !== null)
   const selectProfile = (id: string) => {
@@ -1202,7 +1256,8 @@ export default function DevForestryRoads() {
   const commitValidated = (next: RoadProject) => {
     if (busy) return false
     try {
-      w.commit(parseProject(next))
+      // Keep unchanged parts as they were, so the undo history names only what this edit changed.
+      w.commit(shareUnchanged(project, parseProject(next)))
       w.setError('')
       return true
     } catch (cause) {
@@ -1210,6 +1265,24 @@ export default function DevForestryRoads() {
       return false
     }
   }
+  /** Pegs from the plan's grade-held peg tool, added to the active road's end in one edit. */
+  const pegOnPlan =
+    busy || costPreview || displayedAlignment !== alignment || isMappedRoad(alignment) || awaitingFirstRoad(project)
+      ? undefined
+      : (coordinates: Coordinate[]) => {
+          const pegs = coordinates.map((coordinate) => ({ id: uid(), coordinate, radiusM: 0 }))
+          const added = commitValidated({
+            ...project,
+            alignments: project.alignments.map((a) =>
+              a.id === alignment.id ? { ...a, points: [...a.points, ...pegs] } : a,
+            ),
+          })
+          if (added) {
+            const edit = `${pegs.length} ${pegs.length === 1 ? 'peg' : 'pegs'} added`
+            w.setNotice(profileKeptNotice(alignment.vertical.length, edit) ?? `${edit}. Undo removes them.`)
+          }
+          return added
+        }
   const showLoadedRoads = () => {
     setMode('inspect')
     setDraft([])
@@ -2089,7 +2162,7 @@ export default function DevForestryRoads() {
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf'>,
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf' | 'dline-sheet-pdf'>,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2182,6 +2255,7 @@ export default function DevForestryRoads() {
             terrain: project.terrain,
             contours,
             ...exportGrid(project.terrain, alignment.points[0].coordinate),
+            gradeLimits: { rule: gradeRule(project.settings, project.standards) },
           }),
           `${basename}-plot-book.html`,
           'text/html;charset=utf-8',
@@ -2278,9 +2352,38 @@ export default function DevForestryRoads() {
       caveat: PLANNING_CAVEAT,
     }
   }
+  /** The active D-line's sheet, with the project's issue stamp. */
+  const dLineSheetRequest = (safe: RoadProject) => {
+    // The live D-line, so a support layout found or checked on screen is the one printed.
+    const line = cableLine
+    if (!line) throw Error('Draw a D-line in Review first.')
+    const stamp = issueStamp(safe.issue)
+    return {
+      project: safe,
+      line,
+      terrain: source,
+      issue: {
+        date: stamp.date,
+        preparedBy: stamp.preparedBy,
+        organisation: stamp.organisation,
+        revision: stamp.revision,
+      },
+      caveat: PLANNING_CAVEAT,
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
       const { safe, basename } = exportBasis(kind)
+      if (kind === 'dline-sheet-pdf') {
+        void run('Building the D-line sheet…', async (signal) => {
+          const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
+          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal })
+          const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
+          downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
+          w.setNotice('D-line sheet downloaded.')
+        })
+        return
+      }
       if (kind === 'block-sheet-pdf') {
         void run('Building block map sheet…', async (signal) => {
           const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
@@ -2364,6 +2467,11 @@ export default function DevForestryRoads() {
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'dline-sheet-pdf') {
+      const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
+      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal })
+      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+    }
     if (kind === 'block-sheet-pdf') {
       const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
       const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
@@ -2598,6 +2706,14 @@ export default function DevForestryRoads() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [applePlatform])
+  // Other project roads meeting this one, marked on its profile with their level there.
+  const profileJunctions = useMemo(
+    () =>
+      terrainProfile
+        ? []
+        : projectProfileJunctions(displayedAlignment, displayedAnalysis, project.alignments, w.analyses).junctions,
+    [terrainProfile, displayedAlignment, displayedAnalysis, project.alignments, w.analyses],
+  )
   const profileAnalysis = terrainProfile
     ? { ...displayedAnalysis, stations: displayedAnalysis.stations.map((s) => ({ ...s, designElevation: null })) }
     : displayedAnalysis
@@ -2872,6 +2988,15 @@ export default function DevForestryRoads() {
           >
             <Redo2 className="size-4" />
           </Button>
+          <UndoHistoryButton
+            rows={w.historyRows}
+            onGo={w.goToHistory}
+            checkpoints={w.checkpoints}
+            onSaveCheckpoint={w.saveCheckpoint}
+            onRestoreCheckpoint={w.restoreCheckpoint}
+            onDeleteCheckpoint={w.deleteCheckpoint}
+            disabled={!!busy}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -3042,10 +3167,12 @@ export default function DevForestryRoads() {
           hasTerrainGrid: !!project.terrain.raster,
           hasProvincialEvidence: !!project.provincialStreamData,
           hasNotes: !!project.notes?.length,
+          dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
         }}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
         setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
+        blockSheetSettings={{ value: blockSheet.settings, onApply: blockSheet.apply }}
       />
       <CostBreakdown
         open={!investigation && costOpen && !!displayedAnalysis.stations.length}
@@ -3716,7 +3843,7 @@ export default function DevForestryRoads() {
                                   ? 'Drainage out of date · re-run it to show flow'
                                   : isMappedRoad(alignment)
                                     ? 'Mapped road in its own colour · red over the grade limit'
-                                    : 'Orange road · red grade flag'}
+                                    : 'Active road · red over the grade limit'}
                           </span>
                           {!investigation && closePanel('plan')}
                         </>
@@ -3786,6 +3913,8 @@ export default function DevForestryRoads() {
                               w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
                             }}
                             onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
+                            onPeg={pegOnPlan}
+                            onTypeStation={terrainProfile ? undefined : selectTypedStation}
                             onHover={setHover}
                             onSelectPoint={setSelectedPoint}
                             selectedPoint={selectedPoint}
@@ -3798,6 +3927,7 @@ export default function DevForestryRoads() {
                             overlay={investigation ? undefined : planOverlay}
                             drainage={investigation ? undefined : drainageOnPlan}
                             swept={!investigation && showSwept ? sweptOnPlan : undefined}
+                            sightlines={investigation ? undefined : planSightlines}
                             // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                             pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={
@@ -3816,6 +3946,13 @@ export default function DevForestryRoads() {
                             }
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
+                              // A failed route search's mark selects the row that explains it.
+                              if (properties?.routeLineId)
+                                routeLines?.find((line) => line.id === properties.routeLineId)?.onSelect?.()
+                              if (properties?.kind === 'dline-support' && properties.cableId) {
+                                selectCable(String(properties.cableId))
+                                setCableDistance(Number(properties.chartDistance) || 0)
+                              }
                             }}
                           />
                         </div>
@@ -3850,11 +3987,13 @@ export default function DevForestryRoads() {
                                 onSelectCulvert={selectCulvert}
                                 terrainOnly={!!terrainProfile}
                                 sight={sightBand}
+                                gradeLimits={profileGradeLimits}
                                 analysis={profileAnalysis}
                                 alignment={displayedAlignment}
                                 station={station}
                                 selectedStation={terrainProfile ? undefined : at}
                                 onStation={w.setStation}
+                                rangePick={terrainProfile ? undefined : sectionTools.rangePick}
                                 onVerticalChange={
                                   busy ||
                                   terrainProfile ||
@@ -3864,6 +4003,14 @@ export default function DevForestryRoads() {
                                   costPreview
                                     ? undefined
                                     : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
+                                }
+                                onEditGesture={w.editGesture}
+                                junctions={profileJunctions}
+                                onAddControl={(control) =>
+                                  w.updateAlignment((a) => {
+                                    const verticalControls = withVerticalControl(a.verticalControls, control)
+                                    return verticalControls ? { ...a, verticalControls } : a
+                                  })
                                 }
                               />
                             </div>
@@ -3956,9 +4103,12 @@ export default function DevForestryRoads() {
                         >
                           {() => (
                             <div className="flex min-h-0 flex-1 flex-col gap-2">
-                              <div className="min-h-0 flex-1">
+                              {/* The section keeps 7 rem under the section tools, which scroll past it. */}
+                              <div className={`${detail === 'section' ? 'min-h-28' : 'min-h-0'} flex-1`}>
                                 {detail === 'section' && (
                                   <CrossSectionChart
+                                    holdScale={sectionTools.holdScale}
+                                    pinnedStation={sectionTools.pinnedStation}
                                     selectedCulvertId={currentCulvertId}
                                     onSelectCulvert={selectCulvert}
                                     alignment={displayedAlignment}
@@ -4241,6 +4391,15 @@ export default function DevForestryRoads() {
                                         <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
                                           D-line report
                                         </Button>
+                                        {(cableLine.supportLayout?.saved || cableLine.supportLayout?.edited) && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => saveCableProfile('stakeout')}
+                                          >
+                                            Stake-out CSV
+                                          </Button>
+                                        )}
                                       </div>
                                       <div className="min-h-0 flex-1">
                                         <CableChart
@@ -4248,6 +4407,7 @@ export default function DevForestryRoads() {
                                           distance={cableDistance}
                                           onDistance={setCableDistance}
                                           layout={cableLayoutOverlay}
+                                          edit={cableLayoutEdit}
                                         />
                                       </div>
                                     </div>
@@ -4257,6 +4417,24 @@ export default function DevForestryRoads() {
                                     </div>
                                   ))}
                               </div>
+                              {detail === 'section' && (
+                                <SectionPaneTools
+                                  tools={sectionTools}
+                                  station={at}
+                                  terrainOnly={!!terrainProfile}
+                                  editable={
+                                    !busy &&
+                                    !terrainProfile &&
+                                    !draftAlignment &&
+                                    !numericPegAlignment &&
+                                    !templatePreview &&
+                                    !costPreview
+                                  }
+                                  updateAlignment={w.updateAlignment}
+                                  onStation={w.setStation}
+                                  onNotice={w.setNotice}
+                                />
+                              )}
                             </div>
                           )}
                         </FullscreenPanel>
@@ -4358,6 +4536,16 @@ export default function DevForestryRoads() {
                     >
                       ›
                     </button>
+                    <StationJumpMenu
+                      project={project}
+                      alignment={displayedAlignment}
+                      analysis={displayedAnalysis}
+                      station={w.station}
+                      onJump={(target) =>
+                        target.culvertId ? selectCulvert(target.culvertId) : w.setStation(target.chainage)
+                      }
+                      onNotice={w.setNotice}
+                    />
                     <input
                       aria-label="Linked road station"
                       type="range"

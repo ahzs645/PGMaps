@@ -4,12 +4,14 @@ import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { createEngineeringDesign } from './engineeringTypes'
 import {
   assignGoals,
+  mergeSameLines,
   compareRoutes,
   comparisonSummary,
   crossDrainSites,
   DEFAULT_CROSS_DRAIN_COST,
   describeCorridorFailure,
   flowPenalty,
+  probeSteeperGrades,
   simplifyGuide,
   type RouteRow,
 } from './routeComparison'
@@ -177,6 +179,31 @@ describe('assignGoals', () => {
     )
     expect(alone.find((item) => item.id === 'short')!.best).toEqual([])
   })
+
+  it('keeps a row for every goal whose search returned the same blocked line', () => {
+    // Training road at a 7 % limit: Lowest cost and Shortest found one line with sharp corners, and
+    // dropping the duplicate left Shortest with no row and no reason.
+    const line = [at(0, 0), at(50, 20), at(100, 0)]
+    const blocked = ['3 sharp corners']
+    const rows = [
+      row('current', 'current', { blockers: ['Grade 9% over limit'] }),
+      row('cost', 'cost', { label: 'Lowest cost', coordinates: line, blockers: blocked }),
+      row('shortest', 'shortest', { label: 'Shortest', coordinates: line, blockers: blocked }),
+    ]
+    const shown = assignGoals(mergeSameLines(rows), ['cost', 'shortest'])
+    const goalRows = shown.filter((item) => item.goal !== 'current')
+    expect(goalRows).toHaveLength(1)
+    expect(goalRows[0].label).toBe('Lowest cost · Shortest')
+    expect(goalRows[0].foundBy).toEqual(['cost', 'shortest'])
+    expect(goalRows[0].blockers).toEqual(blocked)
+    // A usable road elsewhere still holds both goals, and the blocked twin goes.
+    const usable = row('gentle', 'gentle', { coordinates: [at(0, 0), at(100, 0)] })
+    const withRoad = assignGoals(mergeSameLines([...rows.map((r) => ({ ...r, best: [] })), usable]), [
+      'cost',
+      'shortest',
+    ])
+    expect(withRoad.map((item) => item.id)).toEqual(['current', 'gentle'])
+  })
 })
 
 describe('compareRoutes', () => {
@@ -281,11 +308,27 @@ describe('compareRoutes', () => {
 
   it('reports progress that only moves forward and ends full', async () => {
     const seen: { step: number; total: number }[] = []
-    await compareRoutes(input(road([at(0, 0), at(600, 40)]), ['shortest', 'gentle']), {
-      onStep: ({ step, total }) => seen.push({ step, total }),
-    })
+    const { rows } = await compareRoutes(
+      { ...input(road([at(0, 0), at(600, 40)]), ['shortest', 'gentle']), now: () => new Date(2026, 10, 10) },
+      { onStep: ({ step, total }) => seen.push({ step, total }) },
+    )
     expect(seen.map((item) => item.step)).toEqual([...seen.map((item) => item.step)].sort((a, b) => a - b))
     expect(seen.at(-1)!.step).toBe(seen.at(-1)!.total)
+    // Each found road keeps the settings it was found with; the road you have does not get any.
+    expect(rows[0].alignment!.searchSettings).toBeUndefined()
+    const found = rows.filter((row) => row.goal !== 'current' && row.alignment)
+    expect(found.length).toBeGreaterThan(0)
+    for (const row of found)
+      expect(row.alignment!.searchSettings).toMatchObject({
+        goals: row.best.length ? row.best : [row.goal],
+        label: row.label,
+        foundOn: '2026-11-10',
+        maxGradePercent: 12,
+        corridorHalfWidthM: 80,
+        groundWindowM: 0,
+        crossingCost: 8000,
+        crossDrainCost: DEFAULT_CROSS_DRAIN_COST,
+      })
   }, 30_000)
 
   // Four designed roads with drainage screens: about 18 s here and three to four times that on CI runners.
@@ -421,7 +464,48 @@ describe('compareRoutes', () => {
     const summary = comparisonSummary(comparison)
     expect(summary.found).toBe(false)
     expect(summary.message).toMatch(/^No route found\. No line within 12%/)
+    // The plan can show where: the corridor search its reason describes, which made no headway.
+    for (const row of failed) {
+      expect(row.stop).toMatchObject({ search: 'corridor', end: base.points[1].coordinate, named: null })
+      expect(row.stop!.reached[0]).toEqual(base.points[0].coordinate)
+      expect(row.stop!.remainingM).toBeGreaterThan(195)
+      // Try steeper grades is off unless asked for.
+      expect(row.steeper).toBeUndefined()
+    }
   }, 60_000)
+
+  it('tries steeper grades only when asked, as information, and never adopts the road or the limit', async () => {
+    const steep: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.6 * (lat - origin[1]) * M }
+    const base = road([at(0, 0), at(0, 200)], 'Cliff')
+    const original = input(base, ['shortest', 'gentle'])
+    const settings = structuredClone(original.settings)
+    const comparison = await compareRoutes({
+      ...original,
+      terrain: steep,
+      baseAnalysis: safeAnalyzeRoad(base, steep, DEFAULT_ROAD_SETTINGS),
+      options: { ...original.options, steeperGrades: true },
+    })
+    const failed = comparison.rows.filter((row) => row.goal !== 'current')
+    expect(failed.map((row) => row.alignment)).toEqual([null, null])
+    for (const row of failed)
+      expect(row.steeper).toMatchObject({ limitPercent: 12, tried: [14, 16], connectsAt: null, line: null })
+    expect(original.settings).toEqual(settings)
+    // A 13.5 % fall line does not fit 12 %, and connects at the first step over it: 14 %.
+    const plane: TerrainSource = { elevationAt: (_lng, lat) => 700 + 0.135 * (lat - origin[1]) * M }
+    const ramp = road([at(0, 0), at(0, 300)], 'Ramp')
+    const probe = await probeSteeperGrades({
+      ...input(ramp, ['shortest']),
+      terrain: plane,
+      options: { ...input(ramp, ['shortest']).options, corridorHalfWidthM: 25 },
+    })
+    expect(probe).toMatchObject({
+      limitPercent: 12,
+      tried: [14],
+      connectsAt: 14,
+      line: { search: 'the corridor search' },
+    })
+    expect(probe.line!.lengthM).toBeGreaterThan(299)
+  }, 120_000)
 
   it('climbs a 30 % face through switchbacks once they are allowed, and says so when they are not', async () => {
     // Straight up the fall line: no line that follows the ground can turn back, so the corridor and grid

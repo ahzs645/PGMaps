@@ -277,3 +277,74 @@ describe('local project library', () => {
     expect(workspace.project.name).toBe('First road project')
   })
 })
+
+describe('road workspace undo steps', () => {
+  it('gives each quick button press its own step, while quick typing merges', async () => {
+    await openWorkspace()
+    const grade = () => workspace.project.settings.maxGradePercent
+    const setGrade = (maxGradePercent: number, ownStep?: boolean) =>
+      workspace.update((p) => ({ ...p, settings: { ...p.settings, maxGradePercent } }), undefined, { ownStep })
+    const start = grade()
+    // Two presets clicked 0.4 s apart: one undo steps back one preset, not both.
+    await act(async () => setGrade(16, true))
+    await act(async () => setGrade(10, true))
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(16)
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(start)
+    // Typed digits within the merge window stay one step.
+    await act(async () => setGrade(1))
+    await act(async () => setGrade(14))
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(start)
+  }, 30_000)
+})
+
+describe('a drag in the undo history', () => {
+  /** One edit of the active road's first PVI, `ms` after the last. */
+  async function dragTo(clock: { now: number }, elevation: number, ms = 600) {
+    clock.now += ms
+    await act(async () => {
+      workspace.updateAlignment((road) => ({
+        ...road,
+        vertical: road.vertical.map((v, i) => (i === 1 ? { ...v, elevation } : v)),
+      }))
+    })
+  }
+
+  it('is one step however long it pauses, and Escape leaves no step and the project as it was', async () => {
+    await openWorkspace()
+    const clock = { now: 1_000_000 }
+    vi.spyOn(Date, 'now').mockImplementation(() => clock.now)
+    const steps = () => workspace.historyRows().length
+    const start = workspace.project
+    const rows = steps()
+
+    // A drag that pauses longer than the merge window between moves, then is kept.
+    await act(async () => workspace.editGesture('start'))
+    await dragTo(clock, 801)
+    await dragTo(clock, 802)
+    await act(async () => workspace.editGesture('end'))
+    expect(steps()).toBe(rows + 1)
+    const kept = workspace.project
+
+    // A drag cancelled with Escape after pauses: back where it started, no step, Undo still undoes the kept drag.
+    await act(async () => workspace.editGesture('start'))
+    await dragTo(clock, 810)
+    await dragTo(clock, 820)
+    await act(async () => workspace.editGesture('cancel'))
+    expect(workspace.project).toEqual(kept)
+    expect(steps()).toBe(rows + 1)
+    await act(async () => workspace.undo())
+    expect(workspace.project.alignments).toEqual(start.alignments)
+    expect(workspace.canRedo).toBe(true)
+
+    // Cancelling a drag keeps the redo list it found.
+    await act(async () => workspace.editGesture('start'))
+    await dragTo(clock, 830)
+    await act(async () => workspace.editGesture('cancel'))
+    expect(workspace.canRedo).toBe(true)
+    await act(async () => workspace.redo())
+    expect(workspace.project).toEqual(kept)
+  }, 30_000)
+})

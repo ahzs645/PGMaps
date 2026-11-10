@@ -13,6 +13,8 @@ import { nearestStation, verticalCurveSummary } from './engine'
 import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
 import { SweptPathPanel, type VehicleToolsProps } from './SweptPathPanel'
+import { GradeCell, GradeHoldPicker } from './GradeScheduleFields'
+import type { GradeHold } from './gradeEdit'
 import type { SweptManeuver, SweptPathResult } from './sweptPath'
 import type { JunctionTurnProps } from './JunctionTurnPanel'
 import type { Alignment, RoadAnalysis, TerrainMetadata, VehicleCheck, VerticalPoint } from './types'
@@ -58,6 +60,7 @@ export function DesignSchedules({
   swept?: SweptPathProps
 }) {
   const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'swept'>('sampled')
+  const [gradeHold, setGradeHold] = useState<GradeHold>('back')
   const failingTurns = new Set(swept?.result?.maneuvers.filter((t) => !t.fits).map((t) => t.id)).size
   let vertical: ReturnType<typeof verticalCurveSummary> = []
   try {
@@ -131,7 +134,7 @@ export function DesignSchedules({
         )}
         {tab === 'vertical' && !terrainOnly && (
           <div className="flex h-full min-h-0 flex-col gap-2">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -155,6 +158,7 @@ export function DesignSchedules({
                 <Plus aria-hidden="true" />
                 Add control at selected station
               </Button>
+              <GradeHoldPicker value={gradeHold} onChange={setGradeHold} disabled={!onVerticalChange} />
               <span className="shrink-0 text-2xs text-muted-foreground">
                 {alignment.vertical.length} control{alignment.vertical.length === 1 ? '' : 's'}
               </span>
@@ -208,7 +212,7 @@ export function DesignSchedules({
                         {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
                           <td key={key} className="min-w-20 !p-0.5">
                             <NumberField
-                              label={`Schedule PVI ${index + 1} ${key}`}
+                              label={`Schedule PVI ${index + 1} ${key === 'curveLength' ? 'curve length' : key}`}
                               hideLabel
                               value={v[key]}
                               min={key === 'elevation' ? -12000 : 0}
@@ -221,8 +225,24 @@ export function DesignSchedules({
                             />
                           </td>
                         ))}
-                        <td>{fmt(incoming)}</td>
-                        <td>{fmt(outgoing)}</td>
+                        {(
+                          [
+                            ['in', incoming, previous?.id ?? null],
+                            ['out', outgoing, next ? v.id : null],
+                          ] as const
+                        ).map(([side, grade, backId]) => (
+                          <td key={side} className="min-w-20 !p-0.5">
+                            <GradeCell
+                              label={`Schedule PVI ${index + 1} grade ${side}`}
+                              value={grade}
+                              points={alignment.vertical}
+                              backId={backId}
+                              hold={gradeHold}
+                              controls={alignment.verticalControls}
+                              onVerticalChange={onVerticalChange}
+                            />
+                          </td>
+                        ))}
                         <td>{fmt(curve?.k)}</td>
                         <td
                           className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}

@@ -1,14 +1,21 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { horizontalCurveSummary } from './engine'
 import { RoadSection } from './SidebarParts'
+import { setPlanSightlines } from './planSightlines'
+import { SightStationLooks } from './SightStationLooks'
+import { sightPlanFeatures, stationRowProps } from './sightPresentation'
+import { TurnoutSightTable } from './TurnoutSightTable'
+import { reviewTurnoutSight } from './turnoutSight'
 import {
   curveSightClearings,
   DEFAULT_SIGHT_SETTINGS,
   reviewRoadSight,
+  sightAtStation,
   sightBasis,
   SIGHT_LIMITS,
   TRUCK_EYE_HEIGHT_M,
@@ -24,6 +31,7 @@ const m = (value: number | null, digits = 0) =>
  * speed, the stations that see less, and the clearing each curve needs on its inside. The Review
  * list carries the same check (`readiness.ts`).
  */
+
 export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) {
   const { project, alignment, analysis, updateAlignment, setStation } = workspace
   const [open, setOpen] = useState(false)
@@ -41,6 +49,22 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
         : null,
     [open, analysis, alignment, project.standards, project.settings.stationInterval],
   )
+  // The selected station's two looks and the turnout pairs, drawn on the plan while open.
+  const [showOnPlan, setShowOnPlan] = useState(true)
+  const stationView = useMemo(
+    () =>
+      open ? sightAtStation({ analysis, alignment, standards: project.standards, chainage: workspace.station }) : null,
+    [open, analysis, alignment, project.standards, workspace.station],
+  )
+  const turnouts = useMemo(
+    () => (open ? reviewTurnoutSight({ analysis, alignment }) : null),
+    [open, analysis, alignment],
+  )
+  useEffect(() => {
+    if (!open || !showOnPlan) return
+    setPlanSightlines(sightPlanFeatures(stationView, turnouts))
+    return () => setPlanSightlines(null)
+  }, [open, showOnPlan, stationView, turnouts])
   const clearings = useMemo(() => {
     if (!review) return []
     try {
@@ -77,7 +101,9 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
       data-testid="road-sight-distance-section"
     >
       {basis.speedKmh === null && (
-        <InlineAlert tone="info">Enter a design speed under Curve design or Design standards.</InlineAlert>
+        <InlineAlert tone="info">
+          Enter a design speed under Section → Superelevation &amp; widening, or Review → Design standards.
+        </InlineAlert>
       )}
       <div className="grid grid-cols-2 items-end gap-2">
         <NumberField
@@ -172,6 +198,24 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
           {review.nearEnd.length ? `, ${review.nearEnd.length} near a road end not judged` : ''}.
         </p>
       )}
+      {review?.status === 'checked' && (
+        <label className="flex items-center gap-2 text-xs">
+          <input
+            type="checkbox"
+            checked={showOnPlan}
+            onChange={(event) => setShowOnPlan(event.target.checked)}
+            data-testid="road-sight-on-plan"
+          />
+          Draw sightlines on the plan
+          <InfoTip label="About sightlines on the plan">
+            From the selected station, both ways: green to the farthest point seen, red dashed to the distance needed
+            where it is blocked, a red dot where the ground or trees stand highest above that line, and an orange strip
+            across the road to where the clearing must reach. Turnout pairs are joined by a dotted line, green when they
+            see each other. Select a station in the table below, the profile or the plan to move the eye.
+          </InfoTip>
+        </label>
+      )}
+      {stationView && <SightStationLooks view={stationView} />}
       {worst.length > 0 && (
         <div className="max-h-40 overflow-auto">
           <EngineeringTable>
@@ -189,8 +233,9 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
                 <tr
                   key={`${eye.chainage}-${eye.direction}`}
                   className="cursor-pointer"
-                  onClick={() => setStation(eye.chainage)}
+                  {...stationRowProps(() => setStation(eye.chainage))}
                   aria-selected={Math.abs(workspace.station - eye.chainage) < 1e-6}
+                  data-testid="road-sight-short-row"
                 >
                   <td>{formatRoadStation(eye.chainage)}</td>
                   <td>{eye.direction}</td>
@@ -216,7 +261,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
             </thead>
             <tbody>
               {clearings.map((curve) => (
-                <tr key={curve.curve} className="cursor-pointer" onClick={() => setStation(curve.start)}>
+                <tr key={curve.curve} className="cursor-pointer" {...stationRowProps(() => setStation(curve.start))}>
                   <td>
                     H{curve.curve + 1} {curve.inside === 'left' ? 'L' : 'R'}
                   </td>
@@ -231,6 +276,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
           </EngineeringTable>
         </div>
       )}
+      {turnouts && <TurnoutSightTable review={turnouts} station={workspace.station} onStation={setStation} />}
     </RoadSection>
   )
 }

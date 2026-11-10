@@ -1,5 +1,6 @@
 /**
  * The support layout as CSV: one row per support or anchor, one per span and one for the line.
+ * An edited layout's names and categories are appended as two last columns, only when given.
  * Pure.
  */
 import type { CableLayoutResult } from './cableLayout'
@@ -46,9 +47,23 @@ const text = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
 const yes = (v: boolean) => (v ? 'yes' : 'no')
 const row = (values: Partial<Record<Column, string>>) => COLUMNS.map((c) => values[c] ?? '').join(',')
 
-export function cableLayoutCsv(lineName: string, result: CableLayoutResult): string {
+/**
+ * `labels`, when given, names each support other than the anchors, in order (an edited layout's
+ * names and categories); it adds `support_name` and `support_category` after the other columns.
+ */
+export function cableLayoutCsv(
+  lineName: string,
+  result: CableLayoutResult,
+  labels?: readonly { name?: string; category?: string }[],
+): string {
   const name = text(lineName)
-  const rows = [COLUMNS.join(',')]
+  const rows = [labels ? [...COLUMNS, 'support_name', 'support_category'].join(',') : COLUMNS.join(',')]
+  let labelled = 0
+  const extra = (s: CableLayoutResult['supports'][number] | null) => {
+    if (!labels) return ''
+    const l = s && s.kind !== 'anchor' ? labels[labelled++] : undefined
+    return `,${text(l?.name ?? '')},${l?.category ?? ''}`
+  }
   for (const s of result.supports)
     rows.push(
       row({
@@ -70,7 +85,7 @@ export function cableLayoutCsv(lineName: string, result: CableLayoutResult): str
         saddle_carriage_after_kN: num(s.saddleAfterKN),
         max_force_kN: num(s.maxForceKN),
         anchor_pull_angle_deg: num(s.pullAngleDeg),
-      }),
+      }) + extra(s),
     )
   for (const s of result.spans)
     rows.push(
@@ -92,7 +107,7 @@ export function cableLayoutCsv(lineName: string, result: CableLayoutResult): str
         gravity_ok: yes(s.gravityOk),
         tension_ok: yes(s.tensionOk),
         unknown_ground_at_m: num(s.unknownGroundAtM),
-      }),
+      }) + extra(null),
     )
   rows.push(
     row({
@@ -111,7 +126,7 @@ export function cableLayoutCsv(lineName: string, result: CableLayoutResult): str
       tension_ok: yes(result.tensionOk),
       rope_length_m: num(result.ropeLengthM),
       unstrained_length_m: num(result.unstrainedLengthM),
-    }),
+    }) + extra(null),
   )
   return rows.join('\n') + '\n'
 }

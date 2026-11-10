@@ -4,6 +4,9 @@
  * are Sylvaccess 3.6's machine types (Dupire et al. 2015; INRAE user notice, 2024). Written from a
  * functional specification; no code from Sylvaccess (GPL-3.0-or-later) was used.
  */
+import { useState } from 'react'
+import { Undo2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Field, NumberField, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -23,6 +26,8 @@ import {
   type CablePresetId,
 } from './cableCoverageRule'
 import { RIGGING_LABELS, RIGGING_LIMITS, type CableRigging } from './cableMechanics'
+import { applyRiggingSetWithUndo, undoRiggingSet, type RiggingSet, type YarderSetUndo } from './dline/riggingSets'
+import { RiggingSetPicker } from './RiggingSetPicker'
 
 const POSITIONS: { value: CablePosition; label: string }[] = [
   { value: 'either', label: 'Above or below' },
@@ -77,11 +82,17 @@ const RIGGING: (keyof typeof RIGGING_LIMITS)[] = [
 export function CableCoverageFields({
   rule,
   onRule,
+  riggingSets,
 }: {
   rule: CableCoverageRule
   onRule: (update: (r: CableCoverageRule) => CableCoverageRule) => void
+  /** The project's named rigging sets, shared with the D-lines. */
+  riggingSets?: { sets: readonly RiggingSet[]; onSetsChange: (sets: RiggingSet[]) => void }
 }) {
   const set = (patch: Partial<CableCoverageRule>) => onRule((r) => ({ ...r, ...patch }))
+  // Applying a set is not a project edit (the yarder is this panel's state), so it has its own undo.
+  const [applied, setApplied] = useState<YarderSetUndo | null>(null)
+  const restored = applied ? undoRiggingSet(rule, applied) : null
   const rigging = (patch: Partial<CableRigging>) => onRule((r) => ({ ...r, rigging: { ...r.rigging, ...patch } }))
   const errors = cableRuleErrors(rule)
   const number = (key: RuleNumber) => (
@@ -163,6 +174,40 @@ export function CableCoverageFields({
         summary={`${rule.rigging.ropeDiameterMm} mm · ${rule.rigging.payloadKg.toLocaleString('en-CA')} kg`}
         help="Each line is tensioned to the rope's allowable working tension (breaking force ÷ safety factor) and checked as an elastic catenary with the loaded carriage moved along every span."
       >
+        {riggingSets && (
+          <RiggingSetPicker
+            sets={riggingSets.sets}
+            rigging={rule.rigging}
+            ignoreTensionMode
+            onApply={(set) => {
+              const next = applyRiggingSetWithUndo(rule, set)
+              setApplied(next.undo)
+              onRule((r) => ({ ...r, ...next.undo.after }))
+            }}
+            onSetsChange={riggingSets.onSetsChange}
+          />
+        )}
+        {applied && restored && (
+          <div className="flex items-center gap-1 text-2xs text-muted-foreground" data-testid="yarder-set-undo">
+            <span className="min-w-0 flex-1">{applied.setName} applied to the yarder</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-1.5 text-2xs"
+              onClick={() => {
+                onRule((r) => ({ ...r, ...applied.before }))
+                setApplied(null)
+              }}
+            >
+              <Undo2 className="size-3" /> Restore previous rigging
+            </Button>
+            <InfoTip label="About restoring the rigging">
+              The yarder&apos;s settings belong to this panel, not to the project file, so the header Undo does not
+              reverse a rigging set applied here. Restore puts back the rope, load and break limit it replaced, until
+              one of them is changed.
+            </InfoTip>
+          </div>
+        )}
         <div className="grid grid-cols-2 gap-2">
           {RIGGING.map((key) => (
             <NumberField

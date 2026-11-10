@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
 import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
 import {
@@ -30,19 +31,38 @@ function LineSwatch({ entry }: { entry: PlanLegendEntry }) {
   )
 }
 
+/**
+ * Whether the legend is folded. It starts folded, and folds again whenever a plan tool is picked:
+ * the tool's panel shares the plan's lower edge, and an open legend covered its fields and Finish.
+ * The reader can still open it while the tool is up.
+ */
+export function useLegendFold(toolOpen: boolean) {
+  const [collapsed, setCollapsed] = useState(true)
+  const [seenToolOpen, setSeenToolOpen] = useState(toolOpen)
+  if (seenToolOpen !== toolOpen) {
+    setSeenToolOpen(toolOpen)
+    if (toolOpen) setCollapsed(true)
+  }
+  return [collapsed, setCollapsed] as const
+}
+
 export function PlanLegend({
   sections,
   display,
   terrainLayer,
   showContours,
   terrainName,
+  toolOpen = false,
 }: {
   sections: PlanLegendSection[]
   display: TerrainDisplay | null
   terrainLayer: 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
   showContours: boolean
   terrainName: string
+  /** A plan tool's panel is up (`PlanTools.tsx`); picking one folds the legend. */
+  toolOpen?: boolean
 }) {
+  const [collapsed, setCollapsed] = useLegendFold(toolOpen)
   const contours = !!display && showContours && display.contours.features.length > 0
   const terrain = !!display && (terrainLayer !== 'none' || contours)
   if (!sections.length && !terrain) return null
@@ -51,11 +71,13 @@ export function PlanLegend({
       <MapLegendPanel
         title="Legend"
         collapsible
-        defaultCollapsed
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
         width="sm"
         className={
-          // Corners, shadow and the folded height match the plan's other 32 px controls.
-          'road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] max-w-[calc(100%-1rem)] flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0'
+          // Corners, shadow and the folded height match the plan's other 32 px controls. While a plan
+          // tool's panel (20 rem, bottom left) is up, the legend stops short of it rather than cover it.
+          `road-map-legend bottom-2 right-2 flex max-h-[calc(100%-1rem)] ${toolOpen ? 'max-w-[max(2.5rem,calc(100%-21.5rem))]' : 'max-w-[calc(100%-1rem)]'} flex-col rounded-md p-2 shadow-sm workspace-desktop:bottom-2 workspace-desktop:right-2 workspace-desktop:rounded-md workspace-desktop:p-2 data-[collapsed]:h-8 data-[collapsed]:justify-center data-[collapsed]:py-0 workspace-desktop:data-[collapsed]:py-0 [&>div:first-child]:shrink-0`
         }
         contentClassName="min-h-0 max-h-64 overflow-y-auto overscroll-contain text-2xs"
       >

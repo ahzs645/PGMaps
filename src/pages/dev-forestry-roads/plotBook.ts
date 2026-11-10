@@ -1,7 +1,8 @@
 /**
  * A printable plot book in the RoadEng multi-plot shape: chapter 1 is plan-and-profile sheets
  * with a mass-haul strip, one sheet per window of road; chapter 2 is cross-section sheets at a
- * fixed interval. Every sheet is an A3 landscape SVG with a title block. Pure: strings only.
+ * fixed interval. Every sheet is a landscape SVG on the chosen paper (`REPORT_PAPERS`) with a title
+ * block. Pure: strings only.
  */
 import { sectionStations, type ToGrid } from './designExports'
 import { horizontalCurveSummary } from './engine'
@@ -12,19 +13,25 @@ import {
   formatDrawingLabel,
   MAX_REPORT_SHEETS,
   parseRoadReportSettings,
+  REPORT_PAPERS,
   type ReportChapter,
   type ReportColumn,
   type RoadReportSettings,
 } from './reportSettings'
 import type { Alignment, MaterialQuantity, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
 import { issueStamp, PLANNING_CAVEAT, type IssueStamp, type ProjectIssue } from './projectIssue'
+import type { ProfileGradeLimits } from './profileAnnotations'
+import { SHEET_BANDS_HEIGHT, sheetBandsSvg, sheetProfileLabelsSvg } from './plotBookProfile'
 
 const formatRoadStation = (value: number) => {
   const rounded = Math.round(Math.max(0, value) * 10) / 10
   return `${Math.floor(rounded / 1000)}+${(rounded % 1000).toFixed(1).padStart(5, '0')}`
 }
-const W = 1587,
-  H = 1123
+/** Sheet height in drawing units; the width follows the paper (`REPORT_PAPERS`, `viewWidth`). */
+const H = 1123
+/** Drawing units per paper millimetre across the sheet, for a fixed print scale. */
+const unitsPerMm = (settings: RoadReportSettings) =>
+  REPORT_PAPERS[settings.paper].viewWidth / REPORT_PAPERS[settings.paper].widthMm
 const html = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 const fmt = (n: number | null | undefined, d = 1) =>
@@ -37,7 +44,8 @@ const niceStep = (span: number, target: number) => {
   return ([1, 2, 2.5, 5, 10].find((s) => s * power >= raw) ?? 10) * power
 }
 
-type Sheet = { title: string; body: string; scale?: string }
+/** `chapter` is the id of the chapter that made the sheet, so a click on the preview can open its settings. */
+type Sheet = { title: string; body: string; scale?: string; chapter?: string }
 type Contours = GeoJSON.FeatureCollection<GeoJSON.MultiLineString>
 
 /**
@@ -74,6 +82,7 @@ function titleBlock(
   total: number,
   scale: string,
   stamp: IssueStamp,
+  W: number,
 ) {
   const clip = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
   const x = W - 640,
@@ -95,7 +104,11 @@ function planProfileSheet(
   chapter: ReportChapter,
   projectName: string,
   alignment: Alignment,
+  gradeLimits?: ProfileGradeLimits,
 ) {
+  // Value bands take room from the plan and the profile; without them the sheet is laid out as before.
+  const bandsOn = !!settings.subviews.bands && settings.subviews.profile
+  const W = REPORT_PAPERS[settings.paper].viewWidth
   const inWindow = analysis.stations.filter((s) => s.chainage >= start - 1e-6 && s.chainage <= end + 1e-6)
   if (inWindow.length < 2) return ''
   // Plan: projected metres, rotated so the window runs left to right.
@@ -129,11 +142,9 @@ function planProfileSheet(
     maxX = Math.max(...local.map((p) => p[0]))
   const minY = Math.min(...local.map((p) => p[1])) - reach,
     maxY = Math.max(...local.map((p) => p[1])) + reach
-  const plan = { left: 60, top: 40, width: W - 120, height: 380 }
+  const plan = { left: 60, top: 40, width: W - 120, height: bandsOn ? 320 : 380 }
   const physicalScale =
-    chapter.horizontalScale === null
-      ? null
-      : (1000 / chapter.horizontalScale) * (W / (settings.paper === 'A3' ? 420 : 297))
+    chapter.horizontalScale === null ? null : (1000 / chapter.horizontalScale) * unitsPerMm(settings)
   const scale = physicalScale ?? Math.min(plan.width / Math.max(1, maxX - minX), plan.height / Math.max(1, maxY - minY))
   const px = ([x, y]: [number, number]) =>
     [
@@ -199,7 +210,9 @@ function planProfileSheet(
   const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}</text>${noteSvg}`
 
   // Profile with a mass-haul strip, sharing the station scale.
-  const profile = { left: 90, top: 470, width: W - 150, height: 330 }
+  const profile = bandsOn
+    ? { left: 90, top: 410, width: W - 150, height: 798 - 410 - 24 - SHEET_BANDS_HEIGHT }
+    : { left: 90, top: 470, width: W - 150, height: 330 }
   const mass = { left: 90, top: 830, width: W - 150, height: 130 }
   const prepared = inWindow.map((s) => s.section.find((p) => Math.abs(p.offset) < 1e-7)?.preparedGround ?? null)
   const zs = inWindow
@@ -278,15 +291,30 @@ function planProfileSheet(
     sy,
   )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 70}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 70} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)${unknownEarthwork.length ? ' · shaded: earthwork unknown, balance carried across' : ''}</text>${unknownBands}<rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
   const massStart = profileSvg.indexOf(`<text x="${mass.left}" y="${mass.top - 8}"`)
-  const profileOnly = profileSvg.slice(0, massStart)
+  const labelsSvg = settings.subviews.profileLabels
+    ? sheetProfileLabelsSvg({ analysis, alignment, start, end, sx, sy, top: profile.top, limits: gradeLimits })
+    : ''
+  const profileOnly = profileSvg.slice(0, massStart) + labelsSvg
+  const bandsSvg = bandsOn
+    ? sheetBandsSvg({
+        analysis,
+        alignment,
+        start,
+        end,
+        sx,
+        left: profile.left,
+        width: profile.width,
+        top: profile.top + profile.height + 24,
+      })
+    : ''
   const massOnly = profileSvg.slice(massStart)
   const curves =
-    settings.curveTablePosition === 'plan-sheet' && settings.subviews.plan ? curveInset(alignment, start, end) : ''
+    settings.curveTablePosition === 'plan-sheet' && settings.subviews.plan ? curveInset(alignment, start, end, W) : ''
   const legend = settings.subviews.legend
     ? '<text x="60" y="982" font-size="11" fill="#4b5563">Legend: centreline magenta · formation grey · catch lines dashed brown · ground brown · design teal · mass purple</text>'
     : ''
   const scaleNote = chapter.horizontalScale === null ? 'Auto-fit' : `Horizontal 1:${chapter.horizontalScale}`
-  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${chapter.verticalExaggeration}×${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
+  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${chapter.verticalExaggeration}×${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
 }
 
 function sectionSheet(
@@ -296,6 +324,7 @@ function sectionSheet(
   projectName: string,
   roadName: string,
 ) {
+  const W = REPORT_PAPERS[settings.paper].viewWidth
   const columns = 4,
     rows = 3,
     cellW = (W - 120) / columns,
@@ -315,7 +344,7 @@ function sectionSheet(
       const scale =
         chapter.horizontalScale === null
           ? Math.min((cellW - 30) / (2 * half), (cellH - 60) / Math.max(1, high - low))
-          : (1000 / chapter.horizontalScale) * (W / (settings.paper === 'A3' ? 420 : 297))
+          : (1000 / chapter.horizontalScale) * unitsPerMm(settings)
       const x = (o: number) => ox + cellW / 2 + o * scale,
         y = (z: number) => oy + cellH - 30 - (z - low) * scale
       const pathOf = (key: 'ground' | 'design' | 'preparedGround') => {
@@ -349,7 +378,7 @@ function curveRows(alignment: Alignment, start = 0, end = Infinity): string[][] 
       fmt(c.length, 2),
     ])
 }
-function curveInset(alignment: Alignment, start: number, end: number) {
+function curveInset(alignment: Alignment, start: number, end: number, W: number) {
   const rows = curveRows(alignment, start, end)
   if (!rows.length) return ''
   const x = W - 530,
@@ -359,7 +388,7 @@ function curveInset(alignment: Alignment, start: number, end: number) {
   const headers = ['Curve', 'BC', 'EC', 'R (m)', 'L (m)']
   return `<g><rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#fff" fill-opacity="0.95" stroke="#9ca3af"/><text x="${x + 8}" y="${y + 18}" font-size="12" font-weight="600">Horizontal curves${rows.length > 8 ? ' · first 8 in this window' : ''}</text>${[headers, ...rows.slice(0, 8)].map((row, i) => row.map((cell, j) => `<text x="${x + 8 + j * 88}" y="${y + 38 + i * 22}" font-size="10">${html(cell)}</text>`).join('')).join('')}</g>`
 }
-function tableSheets(title: string, headers: string[], rows: string[][], note: string): Sheet[] {
+function tableSheets(title: string, headers: string[], rows: string[][], note: string, W: number): Sheet[] {
   const result: Sheet[] = []
   const width = (W - 120) / headers.length
   const fontSize = headers.length > 8 ? 9 : 11
@@ -473,6 +502,7 @@ export function plotBookHtml({
   settings: rawSettings,
   issue,
   today,
+  gradeLimits,
 }: {
   projectName: string
   alignment: Alignment
@@ -488,6 +518,8 @@ export function plotBookHtml({
   issue?: ProjectIssue
   /** The day of printing, used when the stamp has no date of issue. */
   today?: Date
+  /** The project's grade limits, for the over-limit tangents the curve-labels subview draws. */
+  gradeLimits?: ProfileGradeLimits
 }): string {
   // Drawing sheets go to the people who build the road: they are not printed from results that
   // leave an input out. The report is, with a stamp (`INVALID_INPUT_RULES`, `exportCatalog.ts`).
@@ -501,11 +533,13 @@ export function plotBookHtml({
       chapter.sectionIntervalM = sectionIntervalM
     }
   parseRoadReportSettings(settings)
+  const W = REPORT_PAPERS[settings.paper].viewWidth
   const sheets: Sheet[] = []
+  let chapterId = ''
   const add = (...next: Sheet[]) => {
     if (sheets.length + next.length > MAX_REPORT_SHEETS)
       throw Error(`The report exceeds ${MAX_REPORT_SHEETS} sheets; shorten ranges or increase intervals.`)
-    sheets.push(...next)
+    sheets.push(...next.map((sheet) => ({ ...sheet, chapter: chapterId })))
   }
   const chapters = [...settings.chapters]
   if (settings.curveTablePosition === 'chapter' && !chapters.some((c) => c.kind === 'curves'))
@@ -516,6 +550,7 @@ export function plotBookHtml({
       kind: 'curves',
     })
   for (const chapter of chapters) {
+    chapterId = chapter.id
     const rangeStart = Math.min(analysis.length, chapter.startM ?? 0)
     const rangeEnd = Math.min(analysis.length, chapter.endM ?? analysis.length)
     if (rangeEnd < rangeStart) throw Error(`Chapter ${chapter.title} starts after the road end.`)
@@ -524,13 +559,24 @@ export function plotBookHtml({
       const physicalWindow =
         chapter.horizontalScale === null
           ? Infinity
-          : (((W - 150) / W) * (settings.paper === 'A3' ? 420 : 297) * chapter.horizontalScale) / 1000
+          : (((W - 150) / W) * REPORT_PAPERS[settings.paper].widthMm * chapter.horizontalScale) / 1000
       const window = Math.min(chapter.sheetLengthM, physicalWindow)
       if (Math.ceil((rangeEnd - rangeStart) / window) > MAX_REPORT_SHEETS - sheets.length)
         throw Error(`The report exceeds ${MAX_REPORT_SHEETS} sheets; shorten ranges or increase intervals.`)
       for (let start = rangeStart; start < rangeEnd - 1e-6; start += window) {
         const end = Math.min(rangeEnd, start + window)
-        const body = planProfileSheet(analysis, start, end, toGrid, contours, settings, chapter, projectName, alignment)
+        const body = planProfileSheet(
+          analysis,
+          start,
+          end,
+          toGrid,
+          contours,
+          settings,
+          chapter,
+          projectName,
+          alignment,
+          gradeLimits,
+        )
         if (body)
           add({
             title: `${chapter.title} ${formatRoadStation(start)}–${formatRoadStation(end)}`,
@@ -559,6 +605,7 @@ export function plotBookHtml({
             chapter.columns.map((c) => SCHEDULE_COLUMNS[c].title),
             sections.map((s) => chapter.columns.map((c) => SCHEDULE_COLUMNS[c].value(s))),
             'Reporting interval selects existing analytical stations; interval volumes retain their calculation interval. Unknown values remain —.',
+            W,
           ),
         )
     } else if (chapter.kind === 'curves') {
@@ -568,6 +615,7 @@ export function plotBookHtml({
           ['Curve', 'BC', 'EC', 'Radius (m)', 'Arc (m)'],
           curveRows(alignment, rangeStart, rangeEnd),
           'Fitted horizontal arcs intersecting the selected range. BC/EC refer to the circular portion of spiralled curves.',
+          W,
         ),
       )
     } else if (chapter.kind === 'structures') {
@@ -588,6 +636,7 @@ export function plotBookHtml({
           ['Structure', 'Station', 'Length (m)', 'Cover (m)', 'Grade (%)', 'Cost (CAD)', 'Review'],
           rows,
           'Entered structures; geometric cover and grade are not hydraulic or structural approval.',
+          W,
         ),
       )
     } else if (chapter.kind === 'materials') {
@@ -604,6 +653,7 @@ export function plotBookHtml({
             fmt(m.excavationCost, 2),
           ]),
           `Material quantities ${formatRoadStation(rangeStart)}–${formatRoadStation(rangeEnd)} over supported sections; includes separately removed site preparation.`,
+          W,
         ),
       )
     }
@@ -611,9 +661,9 @@ export function plotBookHtml({
   const pages = sheets
     .map(
       (sheet, i) =>
-        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp)}</svg></section>`,
+        `<section class="sheet"><svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif" role="img" aria-label="${html(sheet.title)}"${sheet.chapter ? ` data-chapter="${html(sheet.chapter)}"` : ''}><rect width="${W}" height="${H}" fill="#fff"/><rect x="20" y="16" width="${W - 40}" height="${H - 32}" fill="none" stroke="#111827" stroke-width="1.5"/>${sheet.body}${titleBlock(projectName, alignment.name, terrain, sheet.title, i + 1, sheets.length, sheet.scale ?? 'Tabulated values', stamp, W)}</svg></section>`,
     )
     .join('')
-  const paper = settings.paper === 'A3' ? { width: 420, height: 297 } : { width: 297, height: 210 }
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(projectName)} · plot book</title><style>@page{size:${settings.paper} landscape;margin:0}body{margin:0;background:#e5e7eb}.sheet{width:${paper.width}mm;height:${paper.height}mm;margin:12px auto;background:#fff;break-after:page}.sheet svg{width:100%;height:100%;display:block}@media print{body{background:none}.sheet{margin:0}}</style></head><body>${pages}</body></html>`
+  const paper = REPORT_PAPERS[settings.paper]
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${html(projectName)} · plot book</title><style>@page{size:${paper.cssSize};margin:0}body{margin:0;background:#e5e7eb}.sheet{width:${paper.widthMm}mm;height:${paper.heightMm}mm;margin:12px auto;background:#fff;break-after:page}.sheet svg{width:100%;height:100%;display:block}@media print{body{background:none}.sheet{margin:0}}</style></head><body>${pages}</body></html>`
 }

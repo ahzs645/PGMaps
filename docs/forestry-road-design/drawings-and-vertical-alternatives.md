@@ -57,7 +57,11 @@ blocked until its live references are explicitly reassigned or removed.
 Open **Save**, select **Plot book** and switch its pane to **Sheet setup**; **Preview** redraws the book as you edit. Drawing settings travel in project JSON as
 `reportSettings`, schema `pgmaps-road-report-v1`. They do not change calculation station spacing.
 
-You can choose A3 or A4 landscape paper and add, reorder, rename or remove chapters:
+You can choose A3, A4, tabloid (11 × 17 in, ANSI B) or ANSI D (22 × 34 in) landscape paper and add,
+reorder, rename or remove chapters. **Saved setups** at the top of the pane keep the whole setup
+under a name in this browser, to apply in another project or share as a file; see
+[Saved sheet setups](exports-and-project-files.md#saved-sheet-setups). A click on a sheet in the
+preview opens its chapter here.
 
 | Chapter             | Controls and contents                                                                                                                                                                                          |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -67,6 +71,10 @@ You can choose A3 or A4 landscape paper and add, reorder, rename or remove chapt
 | Horizontal curves   | Fitted circular portions intersecting the chapter's range. BC/EC on a spiralled curve refer to its circular arc.                                                                                               |
 | Culvert inventory   | Entered structures in the range, geometric length/cover/grade, installed cost and review warnings.                                                                                                             |
 | Material quantities | Cut/stripping, reusable material, unsuitable bank volume and excavation cost over the selected range. Range boundaries clip the engine's linear average-end-area integration; missing intervals stay excluded. |
+
+Plan & profile sheets can also carry numeric value bands under the profile and BVC/EVC, high and
+low point labels on it; both are off until ticked (see
+[profile labels and bands](profile-labels-and-bands.md)).
 
 Curve tables can also be added as a chapter automatically, or inset at the top right of each
 plan. An inset shows the first eight curves in that window with an explicit count note; use the

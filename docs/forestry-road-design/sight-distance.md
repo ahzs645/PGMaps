@@ -4,7 +4,7 @@
 looks ahead and back along its lane, over the surface the road leaves, and the distance it sees is
 compared with the stopping sight distance its grade needs. The same check is a row in the Review
 list ("Stopping sight distance along the road"), and the profile's band row **Sight** shows it by
-station once the bands are open. The curve table in the same section gives the clearing each
+station once the **Grade, curve, template & material bands** are open (not the Value bands). The curve table in the same section gives the clearing each
 horizontal curve needs on its inside.
 
 The calculation is `sightDistance.ts`. It has no DOM, terrain or network access: it reads the
@@ -12,8 +12,8 @@ calculated stations of a road, so it can be checked outside a browser.
 
 ## Before you rely on it
 
-- **Enter a design speed.** It is taken from the road's **Curve design**, else from **Design
-  standards**. Without one the Review row is not assessed.
+- **Enter a design speed.** It is taken from the road's design speed (Section → **Superelevation &
+  widening**), else from Review → **Design standards**. Without one the Review row is not assessed.
 - **Friction is a wet-pavement figure.** Left blank, braking friction comes from TAC's
   wet-pavement table for the design speed (0.40 at 30 km/h down to 0.28 at 110 km/h, taking the next
   higher tabulated speed between rows). Gravel, snow and ice can be lower. Enter your own value when
@@ -72,6 +72,63 @@ longer than the curve length L. It is compared with the narrowest clearing on th
 curve, and shown red when short. It needs no terrain: it is a check of the clearing width, not of
 what stands in it. The 3D check covers cut banks and trees.
 
+## Sightlines on the plan
+
+While the section is open, **Draw sightlines on the plan** (on by default) draws the selected
+station's two looks. Select a station in the shortfall table (click a row, or Tab to it and press
+Enter), on the profile or on the plan to move the eye; the section states each look in words under the toggle.
+
+- **Green:** the line from the eye to the farthest target seen.
+- **Red dashed:** the line to the distance needed, where it is blocked; grey where it crosses
+  missing terrain.
+- **White dot, red ring:** the first target hidden.
+- **Red dot:** where the surface or the trees stand highest above the line to the distance needed,
+  with its height above the line and its offset from the centreline.
+- **Orange strip:** across the road at that point, from the clearing edge now (the catch point
+  where no clearing is calculated, else the formation edge) out to where the line swings
+  (`clearToM`). Over a cut bank the ground there must also come down below the line; trees only
+  need clearing.
+
+A block on the running surface itself is a **crest**: no clearing helps, and the vertical curve or
+the speed must change. The words and the drawing come from `sightAtStation` (`sightDistance.ts`),
+which looks exactly as the review does at its eye stations, from any chainage, and
+`sightPresentation.ts`. Each look traces the whole line to the distance needed (`traceSightline`)
+rather than stopping at its first obstruction.
+
+## Seen against needed under the profile
+
+Under the profile's bands, the row **Sight m** puts a bar to the distance seen and a tick at the
+distance needed at each eye station, for the worse of its two looks (`sightBandSeries`). Bars are
+green when the look sees what it needs, red when short, grey when unknown and pale near a road end.
+Click or drag to select a station; the left and right arrows step between eye stations. It reads
+the same cached review as the **Sight** band row, so it costs nothing more, and it is absent without
+a design speed.
+
+## Turnout intervisibility
+
+On a single-lane road, consecutive turnouts must see each other and stand no more than 300 m apart:
+the BC Ministry of Forests _Engineering Manual_ (25 May 2026), §3.5.2.6 Turnouts, "Turnouts should
+be intervisible to function as intended and should be spaced no more than 300 m apart". The Review
+list carries it as "Turnouts intervisible and within 300 m", and the section lists each pair, both
+ways, with its spacing. Calculation: `turnoutSight.ts`.
+
+- **Single lane** is the Lanes setting above, else a running surface under 8 m, from the manual's
+  §3.5.2.2 ("Roads less than 8 m width are single lane"; "8 m or more … do not require
+  turnouts"). This differs on purpose from the 6 m the stopping check uses to choose its rule; a
+  road between 6 and 8 m is one the manual says should not be built.
+- **Turnouts** are the road's widenings of kind _turnout_. Landings are not counted, though a
+  landing can serve as one. The road ends are not counted either: the road a spur joins is not
+  modelled.
+- **Positions:** each turnout stands at the middle of its full-width part (inside its tapers).
+  Spacing is centre to centre, along the road.
+- **The look:** from a driver's eye (the eye height above) on the centreline at one turnout to an
+  oncoming vehicle (the oncoming height above) at the next, then back, over the same surface as the
+  stopping check, trees included when a height is entered. A pair is intervisible when both looks
+  are clear, blocked when either is, and unknown when either crosses missing terrain.
+- The row is left out on a two-lane road and on a road with fewer than two turnouts. It needs
+  attention when a pair is blocked or too far apart, is not assessed while a pair is unknown, and
+  is met otherwise. It needs no design speed.
+
 ## Limits and budgets
 
 | Limit                            | Value                                                 | Enforced by                                                         |
@@ -85,6 +142,8 @@ what stands in it. The 3D check covers cut banks and trees.
 | Samples along each sightline     | every 1 m in plan                                     | `SIGHT_LINE_SAMPLE_M`                                               |
 | Eye stations                     | 10 m apart or the station spacing, whichever is wider | `MIN_SIGHT_EYE_SPACING_M`                                           |
 | Work per road                    | 4,000,000 line samples; past it the eyes spread out   | `MAX_SIGHT_LINE_SAMPLES`; the spacing used is printed in the result |
+| Turnout spacing                  | 300 m, centre to centre                               | `TURNOUT_MAX_SPACING_M`, `turnoutSight.ts`                          |
+| Turnouts needed                  | running surface under 8 m, unless Lanes is set        | `TURNOUT_SINGLE_LANE_MAX_WIDTH_M`, `needsTurnouts`                  |
 
 The section computes only while it is open, and the band only while the bands are shown. Results
 are cached per calculated road. A 5 km road with stations every 10 m takes about a tenth of a
@@ -92,7 +151,8 @@ second.
 
 ## Built-in assumptions
 
-- Stopping sight distance only: no passing, decision, intersection or headlight sight distance.
+- Stopping sight distance and turnout intervisibility only: no passing, decision, intersection or
+  headlight sight distance.
   Sag curves at night (headlight distance) are not checked; minimum sag K in Vertical standards is
   the proxy for that.
 - The driver's path is the lane centre. Drivers cutting the inside of a curve see further.
@@ -106,7 +166,8 @@ second.
 
 ## Failure modes
 
-- **Not assessed: no design speed.** Enter one under Curve design or Design standards.
+- **Not assessed: no design speed.** Enter one under Section → Superelevation & widening, or
+  Review → Design standards.
 - **Not assessed: unknown.** A sightline crosses missing terrain, usually at a terrain tile edge or
   a no-data hole. Load terrain over the whole corridor, or accept that the check cannot be made
   there.
@@ -134,6 +195,8 @@ second.
 - AASHTO (2019). _Guidelines for Geometric Design of Low-Volume Roads_, 2nd ed., and BC Ministry of
   Forests (2002), _Forest Road Engineering Guidebook_, 2nd ed. (single-lane roads: both vehicles
   stop).
+- BC Ministry of Forests (2026). _Engineering Manual_, 25 May 2026, §3.5.2.2 (single and double
+  lane by width) and §3.5.2.6 (turnouts intervisible, at most 300 m apart).
 - Checked against the specification's worked numbers (`sightDistance.test.ts`): SSD 29.68, 62.81,
   71.14, 57.59 and 84.57 m; the crest scan at eyes 100–250 m (143.18 … 82.05 m) and its closed form
   82.06 m; S = 49.34, 56.76 and 44.39 m around curves; clearance 8.03 m at R 60 and 4.89 m at R 100

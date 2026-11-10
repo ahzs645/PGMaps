@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { fitGeometry, type ExportPreview } from './exportCatalog'
+import { previewPick, PREVIEW_PICK_SELECTOR, type PickedElement, type PreviewPick } from './previewPick'
 
 const LAYER_COLORS = ['#0d9488', '#d97706', '#2563eb', '#be123c', '#7c3aed', '#4d7c0f']
 const GEOMETRY_WIDTH = 640,
@@ -8,32 +10,107 @@ const GEOMETRY_WIDTH = 640,
 const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
 
-/** One output's preview, from the same content the download writes. */
-export function ExportPreviewView({ preview, title }: { preview: ExportPreview; title: string }) {
+/**
+ * An HTML preview. With `onPick`, a click on a part that has settings (`previewPick.ts`) hands
+ * that part up; the frame runs no script of its own, so the page listens on the frame's document.
+ */
+function HtmlPreview({ html, title, onPick }: { html: string; title: string; onPick?: (pick: PreviewPick) => void }) {
+  const latest = useRef(onPick)
+  useEffect(() => {
+    latest.current = onPick
+  })
+  const picking = !!onPick
+  const attach = (frame: HTMLIFrameElement) => {
+    const doc = frame.contentDocument
+    if (!doc || !picking) return
+    const style = doc.createElement('style')
+    style.textContent = `${PREVIEW_PICK_SELECTOR}{cursor:pointer}h2:hover{text-decoration:underline}`
+    doc.head.append(style)
+    doc.addEventListener('click', (event) => {
+      // Selecting text to copy it is not a pick.
+      if (doc.getSelection()?.toString()) return
+      const chain: PickedElement[] = []
+      for (
+        let element = event.target as Element | null;
+        element && element !== doc.body;
+        element = element.parentElement
+      )
+        chain.push({
+          tag: element.tagName,
+          classes: [...element.classList],
+          role: element.getAttribute('data-role'),
+          chapter: element.getAttribute('data-chapter'),
+          text: element.tagName.toLowerCase() === 'h2' ? element.textContent : null,
+        })
+      const pick = previewPick(chain)
+      if (pick) latest.current?.(pick)
+    })
+  }
+  // Scripts stay off (no `allow-scripts`). Same-origin only lets the frame read its own navigator:
+  // a fully opaque frame throws on `navigator.serviceWorker`, which reaches the page as an error.
+  const frame = (
+    <iframe
+      title={`${title} preview`}
+      sandbox="allow-same-origin"
+      srcDoc={html}
+      className="h-full min-h-80 w-full rounded-md border bg-white"
+      onLoad={(event) => attach(event.currentTarget)}
+    />
+  )
+  return picking ? (
+    <div className="flex h-full min-h-0 flex-col gap-1.5">
+      <div className="min-h-80 flex-1">{frame}</div>
+      <p className="shrink-0 text-2xs text-muted-foreground">
+        Click a sheet, a title block or a heading to open its settings.
+      </p>
+    </div>
+  ) : (
+    frame
+  )
+}
+
+/**
+ * One output's preview, from the same content the download writes. `onPick` makes the parts of a
+ * document preview that have settings open them: a title block, a sheet, a report heading, or the
+ * whole of an image preview.
+ */
+export function ExportPreviewView({
+  preview,
+  title,
+  onPick,
+}: {
+  preview: ExportPreview
+  title: string
+  onPick?: (pick: PreviewPick) => void
+}) {
   switch (preview.type) {
     case 'html':
-      return (
-        // Scripts stay off (no `allow-scripts`). Same-origin only lets the frame read its own navigator:
-        // a fully opaque frame throws on `navigator.serviceWorker`, which reaches the page as an error.
-        <iframe
-          title={`${title} preview`}
-          sandbox="allow-same-origin"
-          srcDoc={preview.html}
-          className="h-full min-h-80 w-full rounded-md border bg-white"
+      return <HtmlPreview html={preview.html} title={title} onPick={onPick} />
+    case 'image': {
+      const image = (
+        <img
+          src={preview.src}
+          alt={`${title} preview`}
+          width={preview.width}
+          height={preview.height}
+          className="max-h-full max-w-full object-contain"
         />
       )
-    case 'image':
-      return (
-        <div className="flex h-full min-h-60 items-center justify-center rounded-md border bg-white p-2">
-          <img
-            src={preview.src}
-            alt={`${title} preview`}
-            width={preview.width}
-            height={preview.height}
-            className="max-h-full max-w-full object-contain"
-          />
-        </div>
+      const frame = 'flex h-full min-h-60 w-full items-center justify-center rounded-md border bg-white p-2'
+      return onPick ? (
+        <button
+          type="button"
+          className={`${frame} cursor-pointer hover:ring-2 hover:ring-primary/40`}
+          title="Open the sheet setup"
+          aria-label={`${title} preview: open the sheet setup`}
+          onClick={() => onPick({ view: 'setup' })}
+        >
+          {image}
+        </button>
+      ) : (
+        <div className={frame}>{image}</div>
       )
+    }
     case 'table':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">

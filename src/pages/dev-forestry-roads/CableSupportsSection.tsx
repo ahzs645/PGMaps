@@ -5,10 +5,12 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { InlineAlert } from '@/components/ui/map-panels'
 import { downloadText } from '@/lib/download'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
+import { CableLayoutEditButtons, CableLayoutEditor, LocateRow, SpanColumns } from './CableLayoutEditor'
 import { RoadSection } from './SidebarParts'
 import { riggingErrors } from './cableMechanics'
 import { intermediateSupports, layoutReasonText, type CableLayoutResult } from './cableLayout/cableLayout'
 import { cableLayoutCsv } from './cableLayout/exports'
+import { useClearStaleSpanFocus } from './cableLayout/editStore'
 import { layoutLimitRows, type LayoutLimitState } from './cableLayout/limits'
 import {
   DEFAULT_SUPPORT_LAYOUT,
@@ -58,6 +60,8 @@ const KIND_TEXT = { yarder: 'Yarder', support: 'Support', 'ground-anchor': 'Grou
 const STATUS_TEXT = { complete: 'Layout found', incomplete: 'Line stops short', 'no-layout': 'No layout' }
 
 function summaryOf(result: CableLayoutResult | undefined, settings: CableSupportLayout) {
+  if (settings.edited)
+    return `edited · ${settings.edited.supports.length} support${settings.edited.supports.length === 1 ? '' : 's'}`
   if (!result) return settings.saved ? `saved · ${settings.saved.supports.length - 2} supports` : 'not run'
   if (result.status === 'no-layout') return 'no layout'
   const supports = intermediateSupports(result).length
@@ -84,6 +88,7 @@ export function CableSupportsSection({
   const entry = useCableLayoutEntry(line.id)
   const current = entry?.key === key ? entry : undefined
   const result = current?.status === 'done' ? current.result : undefined
+  useClearStaleSpanFocus(line.id, result?.spans)
   const running = entry?.status === 'running'
   const frame = lineFrame(line)
   const lengthM = frame?.lengthM ?? 0
@@ -155,7 +160,8 @@ export function CableSupportsSection({
         </>
       }
     >
-      <div className="grid grid-cols-3 gap-1">
+      {/* One column: side by side, "Yarder tower" and "Support + anchor" were cut off at 1280 px. */}
+      <div className="grid grid-cols-1 gap-1">
         <Field label="Start">
           <RoadSelect
             ariaLabel="Start element"
@@ -336,11 +342,12 @@ export function CableSupportsSection({
             Check saved layout
           </Button>
         )}
-        {result && (
+        {result && !settings.edited && (
           <Button size="sm" variant="outline" disabled={inputErrors.length > 0} onClick={download}>
             Supports CSV
           </Button>
         )}
+        {!running && <CableLayoutEditButtons line={line} terrain={terrain} onEdit={onEdit} />}
       </div>
       {!prepError && runError && <InlineAlert tone="error">{runError}</InlineAlert>}
       {!result && entry && entry.key !== key && entry.status === 'done' && (
@@ -348,7 +355,8 @@ export function CableSupportsSection({
           The D-line, rigging, terrain or settings changed. Find supports again, or check the saved layout.
         </p>
       )}
-      {result && (
+      {settings.edited && <CableLayoutEditor line={line} terrain={terrain} onEdit={onEdit} found={result} />}
+      {result && !settings.edited && (
         <div className="space-y-2" data-testid="cable-supports-result">
           <p role="status" className="text-xs">
             <span className="font-medium">{STATUS_TEXT[result.status]}</span>
@@ -374,7 +382,9 @@ export function CableSupportsSection({
                     <span className="mr-1 inline-block align-middle">
                       <LimitIcon state={row.state} />
                     </span>
-                    {row.label}
+                    <LocateRow line={line} rowId={row.id} result={result} settings={settings}>
+                      {row.label}
+                    </LocateRow>
                   </th>
                   <td className="whitespace-normal">{row.limit}</td>
                   <td className="whitespace-normal">{row.value}</td>
@@ -414,20 +424,17 @@ export function CableSupportsSection({
             </EngineeringTable>
           </div>
           <div className="max-h-40 overflow-auto rounded border">
-            <EngineeringTable data-testid="cable-spans-table">
-              <thead className="sticky top-0">
-                <tr>
-                  <ColumnHeader label="Span" unit="m" className="text-left" />
-                  <ColumnHeader label="Loaded sag" unit="m" />
-                  <ColumnHeader label="Min clearance" unit="m" />
-                  <ColumnHeader label="Max tension" unit="kN" />
-                </tr>
-              </thead>
+            <EngineeringTable compact data-testid="cable-spans-table">
+              <SpanColumns />
               <tbody>
                 {result.spans.map((s, i) => (
                   <tr key={i} aria-selected={!(s.clearanceOk && s.tensionOk && s.gravityOk)}>
                     <td className="text-left">
-                      {n0(s.fromM)}–{n0(s.toM)}
+                      <LocateRow line={line} rowId={`span:${i}`} result={result} settings={settings}>
+                        <span className="whitespace-nowrap">
+                          {n0(s.fromM)}–{n0(s.toM)}
+                        </span>
+                      </LocateRow>
                     </td>
                     <td>{n1(s.loadedSagM)}</td>
                     <td>{s.unknownGroundAtM !== null ? 'unknown' : n1(s.minClearanceM)}</td>

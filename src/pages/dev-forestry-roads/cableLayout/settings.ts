@@ -11,6 +11,7 @@ import { MAX_MECHANICS_SPAN_M, STANDARD_GRAVITY, riggingErrors, riggingForces } 
 import { distance, offsetCoordinate } from '../engine'
 import type { CableLine, Coordinate, TerrainSource } from '../types'
 import type { CableLayoutInput, CableSystem, LayoutEndKind, LayoutStartKind, LayoutToAnalyse } from './cableLayout'
+import { parseEditedLayout, type EditedLayout } from './layoutEdit'
 
 /** Ground spacing the search reads, m. */
 export const LAYOUT_PROFILE_SPACING_M = 1
@@ -67,6 +68,8 @@ export interface CableSupportLayout {
   fixedSupports: FixedSupportEntry[]
   noSupportSectors: SectorEntry[]
   saved?: SavedLayout
+  /** The layout as adjusted by hand (`layoutEdit.ts`); absent until the user adjusts one. */
+  edited?: EditedLayout
 }
 
 type NumericKey = {
@@ -222,6 +225,7 @@ export function parseSupportLayout(raw: unknown): CableSupportLayout {
       throw Error('D-line support layout: saved supports must run forwards from the yarder.')
     s.saved = { preTensionKN: v.preTensionKN, complete: v.complete, supports }
   }
+  if (r.edited !== undefined) s.edited = parseEditedLayout(r.edited)
   return s
 }
 

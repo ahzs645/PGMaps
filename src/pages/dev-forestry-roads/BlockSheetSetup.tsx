@@ -170,5 +170,7 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
       </Link>
     </div>
   )
-  return { settings: effective, canopy, logo: logo?.image, setup }
+  /** Replaces the settings, e.g. from a saved sheet setup (`SheetSetupLibrary.tsx`). */
+  const apply = (next: BlockSheetSettings) => setSettings(parseBlockSheetSettings(next))
+  return { settings: effective, canopy, logo: logo?.image, setup, apply }
 }

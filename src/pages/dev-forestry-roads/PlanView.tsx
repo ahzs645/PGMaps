@@ -55,6 +55,7 @@ import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
+import { SightlinePlanLayers } from './SightlinePlanLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
@@ -69,6 +70,8 @@ import {
   sheetProperties,
 } from './planSheetSymbols'
 import { preparationMarginFeatures } from './preparationFootprint'
+import { usePlanTools } from './PlanTools'
+import { gradeClassRoadLines } from './gradeClasses'
 import type {
   Alignment,
   ContextFeature,
@@ -160,6 +163,12 @@ interface PlanProps {
   noteTool?: NoteTool
   /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
   onHighlightRoad?: (road: ContextFeature) => void
+  /** Appends pegs to the active road's end; returns false if refused. Without it the peg tool is off. */
+  onPeg?: (coordinates: Coordinate[]) => boolean
+  /** Selects exactly this station, as the station box does, and returns it held to the road. */
+  onTypeStation?: (station: number) => number
+  /** Sightlines from the Sight distance section (`sightPresentation.ts`); absent draws none. */
+  sightlines?: GeoJSON.FeatureCollection | null
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const PLAN_SHEET_LAYERS = planSheetLayers('road-context')
@@ -219,6 +228,10 @@ function Layers(
     savedAlignment: Alignment
     onPointDragEnd: (id: string, coordinate: Coordinate) => void
     fitRequest: FitRequest
+    /** A plan tool is in hand (`PlanTools.tsx`): the plan's own clicks stand aside. */
+    planToolActive?: boolean
+    /** Colour the active road by grade class. */
+    gradeColours?: boolean
   },
 ) {
   const { map, isLoaded } = useMap()
@@ -261,6 +274,7 @@ function Layers(
     noteTool,
     pourPointPicking,
     onPourPoint,
+    planToolActive,
   } = props
   const projectCables = useMemo(
     () => (investigation ? [] : props.project.cables),
@@ -488,6 +502,13 @@ function Layers(
     props.alignment.id,
     props.terrainOnly,
   ])
+  const roadLines = useMemo(
+    () =>
+      props.gradeColours && !props.terrainOnly
+        ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent)
+        : allLines,
+    [allLines, analysis.stations, props.gradeColours, props.terrainOnly, props.project.settings.maxGradePercent],
+  )
   const corridor = useMemo(() => {
     const reach = props.project.settings.crossSectionHalfWidth
     // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
@@ -811,7 +832,7 @@ function Layers(
   useEffect(() => {
     if (!map || !isLoaded) return
     const inputs: Record<string, GeoJSON.FeatureCollection> = {
-      roads: allLines,
+      roads: roadLines,
       corridor,
       formation,
       edges: roadEdges,
@@ -1268,7 +1289,7 @@ function Layers(
   }, [
     map,
     isLoaded,
-    allLines,
+    roadLines,
     corridor,
     formation,
     roadEdges,
@@ -1318,7 +1339,7 @@ function Layers(
     if (!map || !isLoaded) return
     const click = (e: MapMouseEvent) => {
       // A note tool, or a click on a drawn note, belongs to the notes layer.
-      if (noteTool) return
+      if (noteTool || planToolActive) return
       const noteLayers = NOTE_LAYER_IDS.filter((id) => map.getLayer(id))
       if (noteLayers.length && map.queryRenderedFeatures(e.point, { layers: [...noteLayers] }).length) return
       if (pourPointPicking && onPourPoint) {
@@ -1401,7 +1422,7 @@ function Layers(
       }
     }
     const move = (e: MapMouseEvent) => {
-      if (pourPointPicking || noteTool) return
+      if (pourPointPicking || noteTool || planToolActive) return
       if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
@@ -1415,7 +1436,7 @@ function Layers(
         if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
       }
     }
-    if (!noteTool)
+    if (!noteTool && !planToolActive)
       map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
     map.doubleClickZoom.disable()
     map.on('click', click)
@@ -1446,6 +1467,7 @@ function Layers(
     pourPointPicking,
     onPourPoint,
     noteTool,
+    planToolActive,
   ])
 
   return (
@@ -1459,6 +1481,14 @@ function Layers(
             key={`overlay-${feature.id ?? index}`}
             longitude={feature.geometry.coordinates[0]}
             latitude={feature.geometry.coordinates[1]}
+            offset={
+              feature.properties?.marker === 'dot'
+                ? undefined
+                : // A failed search's stop label goes above its point; below, it met the map attribution.
+                  feature.properties?.kind === 'route-search-stop'
+                  ? LABEL_ABOVE_PX
+                  : LABEL_BELOW_PX
+            }
           >
             <MarkerContent>
               {feature.properties?.marker === 'dot' ? (
@@ -1473,7 +1503,13 @@ function Layers(
                 />
               ) : (
                 <button
-                  className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
+                  className={`rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
+                  data-route-stop={
+                    feature.properties?.kind === 'route-search-stop' ? feature.properties.role : undefined
+                  }
+                  aria-pressed={
+                    feature.properties?.kind === 'route-search-stop' ? feature.properties.selected === true : undefined
+                  }
                   onClick={() => props.onOverlaySelect?.(feature.properties)}
                   title={String(feature.properties?.label ?? 'Planning candidate')}
                 >
@@ -1511,10 +1547,15 @@ function Layers(
             height: activeCable.endHeight,
           },
         ].map((support, index) => (
-          <MapMarker key={`cable-support-${index}`} longitude={support.coordinate[0]} latitude={support.coordinate[1]}>
+          <MapMarker
+            key={`cable-support-${index}`}
+            longitude={support.coordinate[0]}
+            latitude={support.coordinate[1]}
+            offset={LABEL_ABOVE_PX}
+          >
             <MarkerContent>
               <button
-                className="-translate-y-5 rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
+                className="rounded border border-violet-400 bg-violet-50 px-1 py-0.5 text-3xs text-violet-800 shadow-sm"
                 title={`${support.role}: ${support.height.toFixed(1)} m above the selected terrain`}
                 aria-label={`Inspect ${support.role.toLowerCase()} support`}
                 onClick={() => props.onCableDistance?.(support.distance)}
@@ -1532,10 +1573,14 @@ function Layers(
             const text = formatRoadStation(s.chainage).replace(/\.0$/, '')
             const [dx, dy] = labelOffset(s.bearing, view?.bearing ?? 0, text.length)
             return (
-              <MapMarker key={`station-${s.chainage}`} longitude={s.coordinate[0]} latitude={s.coordinate[1]}>
+              <MapMarker
+                key={`station-${s.chainage}`}
+                longitude={s.coordinate[0]}
+                latitude={s.coordinate[1]}
+                offset={[dx, dy]}
+              >
                 <MarkerContent>
                   <button
-                    style={{ transform: `translate(${dx}px, ${dy}px)` }}
                     className="whitespace-nowrap rounded-sm bg-background/80 px-1 text-3xs font-medium leading-4 tabular-nums text-foreground"
                     aria-label={`Inspect plan station ${s.chainage.toFixed(1)} metres`}
                     data-plan-station-label={s.chainage}
@@ -1551,10 +1596,9 @@ function Layers(
         radiusLabels.map(({ id, label, title, at, curve }) => {
           const [dx, dy] = labelOffset(at.bearing, view?.bearing ?? 0, label.length, -1)
           return (
-            <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]}>
+            <MapMarker key={`radius-${id}`} longitude={at.coordinate[0]} latitude={at.coordinate[1]} offset={[dx, dy]}>
               <MarkerContent>
                 <button
-                  style={{ transform: `translate(${dx}px, ${dy}px)` }}
                   className="whitespace-nowrap rounded-sm bg-violet-50/85 px-1 text-3xs font-medium leading-4 text-violet-800"
                   title={title}
                   aria-label={`Inspect horizontal curve radius ${curve.radius.toFixed(1)} metres`}
@@ -1737,6 +1781,7 @@ function Layers(
           )
         })}
       <AccessHistoryLayers data={historicalMap} selection={props.historySelection} />
+      <SightlinePlanLayers data={props.sightlines} />
       <MapLineLayer
         sourceKey="road-access-history-selected-road"
         data={selectedMappedRoad}
@@ -1749,7 +1794,7 @@ function Layers(
         sections={[
           ...buildPlanLegend({
             sources: {
-              roads: allLines,
+              roads: roadLines,
               context,
               corridor,
               formation,
@@ -1811,10 +1856,19 @@ function Layers(
         terrainLayer={props.terrainLayer}
         showContours={props.showContours}
         terrainName={props.project.terrain.name}
+        toolOpen={!!planToolActive}
       />
     </>
   )
 }
+
+/**
+ * Labels set off their point move the marker itself (MapLibre's `offset`), never the content with a
+ * CSS transform: the marker's box stays where it was put, and the plan ignores clicks on a marker,
+ * so a transformed label left a dead box over the line it labels.
+ */
+const LABEL_BELOW_PX: [number, number] = [0, 20]
+const LABEL_ABOVE_PX: [number, number] = [0, -20]
 
 /** On-screen length a segment needs before it offers a bend handle. */
 const MIN_BEND_SEGMENT_PX = 48
@@ -1946,6 +2000,24 @@ export function PlanView(input: PlanProps) {
   // A road drawing tool and a note tool never run together: picking one puts the other down.
   const roadDrawing = !['inspect', 'edit'].includes(props.mode)
   if (roadDrawing && noteTool) setNoteTool(null)
+  const tools = usePlanTools({
+    project: props.project,
+    alignment: props.alignment,
+    analysis: props.analyses.get(props.alignment.id),
+    source: props.source,
+    station: props.station,
+    selectedStation: props.selectedStation,
+    mode: props.mode,
+    onMode: props.onMode,
+    noteTool,
+    onClearNoteTool: () => setNoteTool(null),
+    pourPointPicking: props.pourPointPicking,
+    investigation,
+    terrainOnly: props.terrainOnly,
+    onPeg: props.onPeg,
+    onStation: props.onStation,
+    onTypeStation: props.onTypeStation,
+  })
   const pickNoteTool = (tool: NoteTool) => {
     if (tool && roadDrawing) props.onMode?.('inspect')
     if (tool && !notesVisible) setNotesVisible(true)
@@ -2028,7 +2100,7 @@ export function PlanView(input: PlanProps) {
       window.removeEventListener('keydown', keepTabInPanel, true)
     }
   }, [settingsOpen])
-  const drawing = props.pourPointPicking || roadDrawing || !!noteTool
+  const drawing = props.pourPointPicking || roadDrawing || !!noteTool || !!tools.tool
   const center = (investigation
     ? investigationCoordinates(props.project)[0]
     : props.alignment.points[0]?.coordinate) ?? [-122.82, 53.89]
@@ -2098,7 +2170,10 @@ export function PlanView(input: PlanProps) {
           hiddenContextKinds={hiddenContextKinds}
           referenceVisible={referenceVisible}
           noteTool={noteTool}
+          planToolActive={!!tools.tool}
+          gradeColours={tools.gradeColours}
         />
+        {tools.mapLayer}
         <ReferenceLabels features={reference} visible={referenceVisible} />
         <NotesLayer
           notes={notes}
@@ -2247,6 +2322,7 @@ export function PlanView(input: PlanProps) {
                 ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+                ...tools.settingsRows,
                 ['Block sheet symbols', sheetSymbols, setSheetSymbols],
               ] as const
             ).map(([label, checked, set]) => (
@@ -2295,6 +2371,7 @@ export function PlanView(input: PlanProps) {
         {!investigation && (
           <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
         )}
+        {tools.toolbar}
         <Button
           size="icon"
           variant="outline"
@@ -2330,6 +2407,7 @@ export function PlanView(input: PlanProps) {
           />
         </div>
       )}
+      {tools.panelSlot}
       {props.mode === 'edit' &&
         !notesOpen &&
         (editHelpVisible ? (

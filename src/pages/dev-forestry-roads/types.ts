@@ -246,6 +246,8 @@ export interface Alignment {
   mappedRoad?: MappedRoadOrigin
   /** Set on a road a terrain-cost route search made: the search's own figures for it. */
   routeSearch?: RouteSearchRecord
+  /** Set on a road Find the best route made: the settings it searched with (`foundRoadSearch.ts`). */
+  searchSettings?: import('./foundRoadSearch').FoundRoadSearchSettings
   /** Recorded origin and destination of a generated FSR connector; later edits may change the junction. */
   fsrConnection?: {
     targetFeatureId: string
@@ -424,6 +426,8 @@ export interface CableLine {
   rigging?: CableRigging
   /** Intermediate-support search settings and the last layout found (`cableLayout/settings.ts`). */
   supportLayout?: CableSupportLayout
+  /** Field shots along the line, read in place of the terrain while `use` is on (`dline/fieldProfile.ts`). */
+  fieldProfile?: import('./dline/fieldProfile').CableFieldProfile
 }
 export interface RoadSettings {
   stationInterval: number
@@ -505,6 +509,8 @@ export interface RoadProject {
   sharedCrossingCosts?: CrossingCostItem[]
   context: ContextFeature[]
   cables: CableLine[]
+  /** Named rope, carriage and load sets shared by D-lines and the extraction reach's cable yarder. */
+  riggingSets?: import('./dline/riggingSets').RiggingSet[]
   profiles?: { id: string; name: string; points: Coordinate[] }[]
   surveyBooks?: import('./surveyInterchange').SurveyBookRecord[]
   /** Sketches, pins, lines and areas drawn on the plan. Kept apart from design data; nothing reads them. */

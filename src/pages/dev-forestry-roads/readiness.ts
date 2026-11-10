@@ -26,6 +26,7 @@ import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { reviewRoadSight } from './sightDistance'
 import { STREAM_STATUS_LABELS } from './streamClass'
+import { reviewTurnoutSight, TURNOUT_MAX_SPACING_M } from './turnoutSight'
 import type { SweptPathResult } from './sweptPath'
 import { reviewRoadHaul, type RoadHaulReview } from './haulReview'
 import { DEFAULT_TEMPLATE } from './terrain'
@@ -828,6 +829,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
     })
 
   add(sightDistanceRow(input, calculated))
+  const turnouts = mapped ? null : turnoutSightRow(input, calculated)
+  if (turnouts) add(turnouts)
 
   if (input.haul) add(junctionTurnRow(input.haul))
 
@@ -1696,6 +1699,81 @@ export function sightDistanceRow(
     state: 'met',
     result: 'Every station sees the distance it needs, both ways',
     measured: ends || undefined,
+    judgedOn,
+  }
+}
+
+const TURNOUT_CHECK = 'Turnouts intervisible and within 300 m'
+
+/**
+ * Consecutive turnouts on a single-lane road see each other and stand no more than 300 m apart
+ * (`turnoutSight.ts`; BC Engineering Manual §3.5.2.6). Left out on a two-lane road and on one with
+ * fewer than two turnouts, where there is no pair to check. Unknown looks hold it at not-assessed
+ * unless a pair already fails.
+ */
+export function turnoutSightRow(
+  input: Pick<ReadinessInput, 'alignment' | 'analysis'>,
+  calculated = input.analysis.stations.length > 0,
+): ReadinessRow | null {
+  const id = 'turnout-intervisibility'
+  const check = TURNOUT_CHECK
+  if (!calculated) return null
+  const review = reviewTurnoutSight({ analysis: input.analysis, alignment: input.alignment })
+  if (review.status !== 'checked') return null
+  const judgedOn = `BC Engineering Manual §3.5.2.6: turnouts intervisible and no more than ${TURNOUT_MAX_SPACING_M} m apart, centre to centre · eye ${trim(review.eyeHeightM, 2)} m to a vehicle ${trim(review.targetHeightM, 2)} m high, both ways, on the road's own surface`
+  const pairText = (pair: (typeof review.pairs)[number]) =>
+    `${pair.from.name} ${station(pair.from.chainage)} to ${pair.to.name} ${station(pair.to.chainage)}`
+  const blocked = review.pairs.filter((pair) => pair.intervisible === false)
+  const far = review.pairs.filter((pair) => !pair.spacingMet)
+  const unknown = review.pairs.filter((pair) => pair.intervisible === null)
+  if (blocked.length || far.length) {
+    const first = [...blocked, ...far].sort((a, b) => a.from.chainage - b.from.chainage)[0]
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'attention',
+      severity: 'limit',
+      result: [
+        blocked.length ? `${plural(blocked.length, 'pair')} of turnouts cannot see each other` : '',
+        far.length ? `${plural(far.length, 'pair')} more than ${TURNOUT_MAX_SPACING_M} m apart` : '',
+      ]
+        .filter(Boolean)
+        .join('; '),
+      measured: [
+        blocked[0] &&
+          `${pairText(blocked[0])}: ${blocked[0].blocking ? `${blocked[0].blocking.vegetation ? 'trees' : 'the surface'} stand ${trim(blocked[0].blocking.aboveLineM, 2)} m above the sightline at ${station(blocked[0].blocking.chainage)}` : 'blocked'}`,
+        far[0] && `${pairText(far[0])}: ${trim(far[0].spacingM)} m apart`,
+        unknown.length ? `unknown for ${plural(unknown.length, 'pair')}` : '',
+      ]
+        .filter(Boolean)
+        .join(' · '),
+      judgedOn,
+      action: { label: `Go to ${station(first.from.chainage)}`, target: 'profile', chainage: first.from.chainage },
+    }
+  }
+  if (unknown.length)
+    return {
+      id,
+      group: 'alignment',
+      check,
+      state: 'not-assessed',
+      result: `Intervisibility is unknown for ${plural(unknown.length, 'pair')} of turnouts: a sightline crosses missing terrain`,
+      measured: `First ${pairText(unknown[0])}`,
+      judgedOn,
+      action: {
+        label: `Go to ${station(unknown[0].from.chainage)}`,
+        target: 'profile',
+        chainage: unknown[0].from.chainage,
+      },
+    }
+  return {
+    id,
+    group: 'alignment',
+    check,
+    state: 'met',
+    result: `${every(review.turnouts.length, 'turnout', 'turnouts')} see the next one and are within ${TURNOUT_MAX_SPACING_M} m`,
+    measured: `Widest spacing ${trim(Math.max(...review.pairs.map((pair) => pair.spacingM)))} m`,
     judgedOn,
   }
 }

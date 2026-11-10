@@ -285,6 +285,8 @@ export interface StationSurface {
   ): { chainage: number; offset: number }
   /** Surface elevation at a chainage and offset, with vegetation where asked; null when unknown. */
   elevation(chainage: number, offset: number, vegetation: boolean): { z: number; vegetation: boolean } | null
+  /** Longitude and latitude of a local plan point. */
+  toLngLat(x: number, y: number): [number, number]
 }
 
 /**
@@ -335,6 +337,7 @@ export function stationSurface(
     y,
     chainage,
     segmentAt,
+    toLngLat: (px, py) => [lng0 + px / scaleX, lat0 + py / scaleY],
     position(s, offset) {
       if (n < 2) return [x[0] ?? 0, y[0] ?? 0]
       const i = segmentAt(s)
@@ -606,12 +609,29 @@ function requiredSight(
   return other === null ? null : own + other
 }
 
-function checkRoad(
+type SightPoint = { x: number; y: number; z: number; chainage: number }
+
+/** What one eye's look along the road found, with the means to place its targets again. */
+interface EyeLook {
+  eye: RoadSightEye
+  /** The eye in local metres; null when the surface under it is unknown or no stop is possible. */
+  eyePoint: SightPoint | null
+  /** The target `d` m along the road from the eye, or why there is none. */
+  target(d: number): SightPoint | 'road-end' | 'unknown'
+  /** The distance the search stopped at: the distance needed, rounded up to the target step. */
+  capM: number | null
+}
+
+/**
+ * The road's surface and a look from any chainage along it: the same eye, lane, grade and target
+ * march that `reviewRoadSight` makes at its eye stations.
+ */
+function roadLooker(
   analysis: RoadAnalysis,
-  input: { profileAt?: (chainage: number) => number | null; stationIntervalM?: number },
-  base: RoadSightReview,
+  input: { profileAt?: (chainage: number) => number | null },
+  base: Pick<RoadSightReview, 'settings' | 'targetHeightM' | 'singleLane'>,
   required: (grade: number) => number | null,
-): RoadSightReview {
+) {
   const { settings, targetHeightM } = base
   const stations = analysis.stations
   const length = stations[stations.length - 1].chainage
@@ -619,18 +639,6 @@ function checkRoad(
     vegetationHeightM: settings.vegetationHeightM,
     profileAt: input.profileAt,
   })
-  const levelRequired = base.levelRequiredM ?? 0
-  // Each eye marches about `levelRequired` m of targets, testing on average half that of line.
-  const perEye = 2 * (levelRequired / SIGHT_COARSE_STEP_M) * (levelRequired / 2 / SIGHT_LINE_SAMPLE_M) * 1.5
-  let spacing = Math.max(MIN_SIGHT_EYE_SPACING_M, input.stationIntervalM ?? 0)
-  if (perEye > 0 && (length / spacing) * perEye > MAX_SIGHT_LINE_SAMPLES)
-    spacing = Math.ceil((length * perEye) / MAX_SIGHT_LINE_SAMPLES)
-  // Eyes at calculated stations, at least `spacing` apart, and always the first and last.
-  const eyesAt: number[] = []
-  for (const s of stations)
-    if (!eyesAt.length || s.chainage - eyesAt[eyesAt.length - 1] >= spacing - 1e-6) eyesAt.push(s.chainage)
-  if (eyesAt[eyesAt.length - 1] < length - 1e-6) eyesAt.push(length)
-
   // Elevation of the driver's path, for the mean grade over a stopping distance.
   const pathElevation = (s: number) => {
     const centre = input.profileAt?.(s)
@@ -648,71 +656,102 @@ function checkRoad(
     )
     return direction > 0 ? stations[i].rightWidth / 2 : -stations[i].leftWidth / 2
   }
+  const lookFrom = (s: number, direction: 1 | -1): EyeLook => {
+    const here = pathElevation(s)
+    // Grade at the eye, then the mean over the stopping distance it gives (AASHTO §3.2).
+    const meanGrade = (distance: number) => {
+      const end = Math.max(0, Math.min(length, s + direction * distance))
+      const there = pathElevation(end)
+      const run = Math.abs(end - s)
+      return here !== null && there !== null && run > 1e-6 ? (there - here) / run : null
+    }
+    const g0 = meanGrade(Math.min(10, length))
+    const first = g0 === null ? null : required(g0)
+    const grade = first === null ? g0 : (meanGrade(first) ?? g0)
+    const need = grade === null ? null : required(grade)
+    const eye: RoadSightEye = {
+      chainage: s,
+      direction: direction > 0 ? 'ahead' : 'back',
+      gradePercent: grade === null ? null : grade * 100,
+      requiredM: need,
+      availableM: 0,
+      limitedBy: 'unknown',
+    }
+    const target = (d: number): SightPoint | 'road-end' | 'unknown' => {
+      const at = s + direction * d
+      if (at < -1e-6 || at > length + 1e-6) return 'road-end'
+      const targetOffset = laneOffset(at, direction)
+      const targetGround = surface.elevation(at, targetOffset, false)
+      if (!targetGround) return 'unknown'
+      const [tx, ty] = surface.position(at, targetOffset)
+      return { x: tx, y: ty, z: targetGround.z + targetHeightM, chainage: at }
+    }
+    if (need === null) return { eye, eyePoint: null, target, capM: null }
+    const offset = laneOffset(s, direction)
+    const eyeGround = surface.elevation(s, offset, false)
+    // Only the cap is known when the surface under the eye is unknown.
+    const cap = Math.ceil(need / SIGHT_TARGET_STEP_M - 1e-9) * SIGHT_TARGET_STEP_M
+    if (!eyeGround) return { eye, eyePoint: null, target, capM: cap }
+    const [ex, ey] = surface.position(s, offset)
+    const eyePoint = { x: ex, y: ey, z: eyeGround.z + settings.eyeHeightM, chainage: s }
+    const look = (d: number): Exclude<SightLimiter, 'clear'> | 'clear' => {
+      const point = target(d)
+      return typeof point === 'string' ? point : sightlineState(surface, eyePoint, point)
+    }
+    // Targets every SIGHT_COARSE_STEP_M first; past the first one not seen, every
+    // SIGHT_TARGET_STEP_M back from the last one seen, so the distance keeps the fine resolution.
+    let available = 0
+    let limitedBy: SightLimiter = 'clear'
+    for (let d = Math.min(SIGHT_COARSE_STEP_M, cap); ; d = Math.min(d + SIGHT_COARSE_STEP_M, cap)) {
+      const state = look(d)
+      if (state === 'clear') {
+        available = d
+        if (d >= cap - 1e-9) break
+        continue
+      }
+      for (let fine = available + SIGHT_TARGET_STEP_M; fine <= d + 1e-9; fine += SIGHT_TARGET_STEP_M) {
+        const at = fine >= d - 1e-9 ? state : look(fine)
+        if (at !== 'clear') {
+          limitedBy = at
+          break
+        }
+        available = fine
+      }
+      break
+    }
+    eye.availableM = limitedBy === 'clear' ? Math.max(available, need) : available
+    eye.limitedBy = limitedBy
+    return { eye, eyePoint, target, capM: cap }
+  }
+  return { surface, length, lookFrom }
+}
+
+function checkRoad(
+  analysis: RoadAnalysis,
+  input: { profileAt?: (chainage: number) => number | null; stationIntervalM?: number },
+  base: RoadSightReview,
+  required: (grade: number) => number | null,
+): RoadSightReview {
+  const stations = analysis.stations
+  const { length, lookFrom } = roadLooker(analysis, input, base, required)
+  const levelRequired = base.levelRequiredM ?? 0
+  // Each eye marches about `levelRequired` m of targets, testing on average half that of line.
+  const perEye = 2 * (levelRequired / SIGHT_COARSE_STEP_M) * (levelRequired / 2 / SIGHT_LINE_SAMPLE_M) * 1.5
+  let spacing = Math.max(MIN_SIGHT_EYE_SPACING_M, input.stationIntervalM ?? 0)
+  if (perEye > 0 && (length / spacing) * perEye > MAX_SIGHT_LINE_SAMPLES)
+    spacing = Math.ceil((length * perEye) / MAX_SIGHT_LINE_SAMPLES)
+  // Eyes at calculated stations, at least `spacing` apart, and always the first and last.
+  const eyesAt: number[] = []
+  for (const s of stations)
+    if (!eyesAt.length || s.chainage - eyesAt[eyesAt.length - 1] >= spacing - 1e-6) eyesAt.push(s.chainage)
+  if (eyesAt[eyesAt.length - 1] < length - 1e-6) eyesAt.push(length)
+
   const eyes: RoadSightEye[] = []
   for (const s of eyesAt)
     for (const direction of [1, -1] as const) {
       // No look off either end of the road.
       if ((direction > 0 && s >= length - 1e-6) || (direction < 0 && s <= 1e-6)) continue
-      const here = pathElevation(s)
-      // Grade at the eye, then the mean over the stopping distance it gives (AASHTO §3.2).
-      const meanGrade = (distance: number) => {
-        const end = Math.max(0, Math.min(length, s + direction * distance))
-        const there = pathElevation(end)
-        const run = Math.abs(end - s)
-        return here !== null && there !== null && run > 1e-6 ? (there - here) / run : null
-      }
-      const g0 = meanGrade(Math.min(10, length))
-      const first = g0 === null ? null : required(g0)
-      const grade = first === null ? g0 : (meanGrade(first) ?? g0)
-      const need = grade === null ? null : required(grade)
-      const eye: RoadSightEye = {
-        chainage: s,
-        direction: direction > 0 ? 'ahead' : 'back',
-        gradePercent: grade === null ? null : grade * 100,
-        requiredM: need,
-        availableM: 0,
-        limitedBy: 'unknown',
-      }
-      eyes.push(eye)
-      if (need === null) continue
-      const offset = laneOffset(s, direction)
-      const eyeGround = surface.elevation(s, offset, false)
-      if (!eyeGround) continue
-      const [ex, ey] = surface.position(s, offset)
-      const eyePoint = { x: ex, y: ey, z: eyeGround.z + settings.eyeHeightM, chainage: s }
-      const look = (d: number): Exclude<SightLimiter, 'clear'> | 'clear' => {
-        const at = s + direction * d
-        if (at < -1e-6 || at > length + 1e-6) return 'road-end'
-        const targetOffset = laneOffset(at, direction)
-        const targetGround = surface.elevation(at, targetOffset, false)
-        if (!targetGround) return 'unknown'
-        const [tx, ty] = surface.position(at, targetOffset)
-        return sightlineState(surface, eyePoint, { x: tx, y: ty, z: targetGround.z + targetHeightM, chainage: at })
-      }
-      // Targets every SIGHT_COARSE_STEP_M first; past the first one not seen, every
-      // SIGHT_TARGET_STEP_M back from the last one seen, so the distance keeps the fine resolution.
-      const cap = Math.ceil(need / SIGHT_TARGET_STEP_M - 1e-9) * SIGHT_TARGET_STEP_M
-      let available = 0
-      let limitedBy: SightLimiter = 'clear'
-      for (let d = Math.min(SIGHT_COARSE_STEP_M, cap); ; d = Math.min(d + SIGHT_COARSE_STEP_M, cap)) {
-        const state = look(d)
-        if (state === 'clear') {
-          available = d
-          if (d >= cap - 1e-9) break
-          continue
-        }
-        for (let fine = available + SIGHT_TARGET_STEP_M; fine <= d + 1e-9; fine += SIGHT_TARGET_STEP_M) {
-          const at = fine >= d - 1e-9 ? state : look(fine)
-          if (at !== 'clear') {
-            limitedBy = at
-            break
-          }
-          available = fine
-        }
-        break
-      }
-      eye.availableM = limitedBy === 'clear' ? Math.max(available, need) : available
-      eye.limitedBy = limitedBy
+      eyes.push(lookFrom(s, direction).eye)
     }
   const shortfall = (eye: RoadSightEye) => eye.requiredM !== null && eye.availableM < eye.requiredM - 1e-6
   return {
@@ -723,6 +762,208 @@ function checkRoad(
     unknown: eyes.filter((eye) => eye.limitedBy === 'unknown' || (eye.requiredM === null && eye.gradePercent === null)),
     nearEnd: eyes.filter((eye) => shortfall(eye) && eye.limitedBy === 'road-end'),
   }
+}
+
+// ---- One station's look, for drawing -----------------------------------------------------------
+
+/** What a single sightline crosses, sampled every `sampleM` in plan. */
+export interface SightlineTrace {
+  state: Exclude<SightLimiter, 'road-end'>
+  /** The sample where the surface stands highest above the line; null when nothing does. */
+  worst: {
+    x: number
+    y: number
+    chainage: number
+    /** Negative left of the direction of increasing chainage. */
+    offset: number
+    aboveLineM: number
+    vegetation: boolean
+  } | null
+  /** The line's furthest reach left and right of the centreline, m (both zero or more). */
+  reachLeftM: number
+  reachRightM: number
+}
+
+/**
+ * The whole of one sightline: unlike `sightlineState`, it does not stop at the first sample in the
+ * way, so it can say where the surface stands highest above the line and how far it swings off the
+ * road. A sample with no elevation makes the line unknown unless something else already blocks it.
+ */
+export function traceSightline(
+  surface: StationSurface,
+  eye: SightPoint,
+  target: SightPoint,
+  sampleM = SIGHT_LINE_SAMPLE_M,
+): SightlineTrace {
+  const plan = Math.hypot(target.x - eye.x, target.y - eye.y)
+  const count = Math.max(1, Math.ceil(plan / sampleM))
+  let unknown = false
+  let worst: SightlineTrace['worst'] = null
+  let reachLeftM = 0,
+    reachRightM = 0
+  const hint = { segment: -1 }
+  const from = Math.min(eye.chainage, target.chainage),
+    to = Math.max(eye.chainage, target.chainage)
+  for (let i = 1; i < count; i++) {
+    const t = i / count
+    const px = eye.x + (target.x - eye.x) * t,
+      py = eye.y + (target.y - eye.y) * t
+    const at = surface.locate(px, py, from, to, hint.segment < 0 ? undefined : hint)
+    if (hint.segment < 0) hint.segment = Math.max(0, surface.segmentAt(at.chainage))
+    if (at.offset < 0) reachLeftM = Math.max(reachLeftM, -at.offset)
+    else reachRightM = Math.max(reachRightM, at.offset)
+    const ground = surface.elevation(at.chainage, at.offset, true)
+    if (!ground) {
+      unknown = true
+      continue
+    }
+    const above = ground.z - (eye.z + (target.z - eye.z) * t)
+    if (above > CLEAR_TOLERANCE_M && (!worst || above > worst.aboveLineM))
+      worst = {
+        x: px,
+        y: py,
+        chainage: at.chainage,
+        offset: at.offset,
+        aboveLineM: above,
+        vegetation: ground.vegetation,
+      }
+  }
+  return {
+    state: worst ? (worst.vegetation ? 'vegetation' : 'surface') : unknown ? 'unknown' : 'clear',
+    worst,
+    reachLeftM,
+    reachRightM,
+  }
+}
+
+/** Where the line to the distance needed is blocked, and what clearing it would need there. */
+export interface SightBlocking {
+  /** `crest`: the road's own running surface; `inside`: ground or a cut bank off the road; `trees`: vegetation. */
+  kind: 'crest' | 'inside' | 'trees'
+  chainage: number
+  /** Negative left. */
+  offset: number
+  at: [number, number]
+  aboveLineM: number
+  side: 'left' | 'right'
+  /**
+   * How far from the centreline the clearing (and, for ground, a bench lowered under the line) must
+   * reach on that side for the line to pass: the line's own swing off the road. Null over a crest.
+   */
+  clearToM: number | null
+  /** The narrowest clearing, else catch point, on that side between eye and target; null when unknown. */
+  clearedM: number | null
+  /**
+   * Across the road at the blocking station, from the clearing edge now (the formation edge when it
+   * is unknown) out to `clearToM`: the strip to clear. Null when nothing more is needed or over a crest.
+   */
+  clearLine: [[number, number], [number, number]] | null
+}
+
+export interface SightLookView {
+  eye: RoadSightEye
+  eyeAt: [number, number] | null
+  /** The farthest target seen. */
+  seenTo: { chainage: number; at: [number, number] } | null
+  /** The first target not seen, when the look stopped short. */
+  hiddenFrom: { chainage: number; at: [number, number] } | null
+  /** The target at the distance needed and what the straight line to it crosses; null near a road end. */
+  needed: { chainage: number; at: [number, number]; trace: SightlineTrace; blocking: SightBlocking | null } | null
+}
+
+export interface StationSightView {
+  status: RoadSightReview['status']
+  chainage: number
+  singleLane: boolean
+  looks: SightLookView[]
+}
+
+/**
+ * Sight distance from one station both ways, with the points needed to draw it: the eye, the
+ * farthest target seen, the first one hidden and the line to the distance needed. It looks exactly
+ * as `reviewRoadSight` does at its eye stations, from any chainage. Cheap: two looks.
+ */
+export function sightAtStation(input: Parameters<typeof reviewRoadSight>[0] & { chainage: number }): StationSightView {
+  const { analysis, alignment } = input
+  const basis = sightBasis(alignment, input.standards)
+  const stations = analysis.stations
+  const view: StationSightView = {
+    status: 'checked',
+    chainage: input.chainage,
+    singleLane: basis.singleLane,
+    looks: [],
+  }
+  if (basis.speedKmh === null) return { ...view, status: 'no-speed' }
+  if (stations.length < 2) return { ...view, status: 'no-stations' }
+  const profileAt =
+    input.profileAt ??
+    (alignment.vertical ? designProfileSampler({ vertical: alignment.vertical }, analysis.length) : undefined)
+  const { surface, length, lookFrom } = roadLooker(analysis, { profileAt }, basis, (grade) =>
+    requiredSight(basis, grade),
+  )
+  const s = Math.max(0, Math.min(length, input.chainage))
+  view.chainage = s
+  const lngLat = (p: { x: number; y: number }) => surface.toLngLat(p.x, p.y)
+  const sideReach = (side: 'left' | 'right', from: number, to: number) => {
+    const values = stations
+      .filter((st) => st.chainage >= from - 1e-6 && st.chainage <= to + 1e-6)
+      .map((st) =>
+        side === 'left' ? (st.leftClearingM ?? st.leftDaylightM) : (st.rightClearingM ?? st.rightDaylightM),
+      )
+    return values.length && values.every((v) => finite(v)) ? Math.min(...(values as number[])) : null
+  }
+  for (const direction of [1, -1] as const) {
+    if ((direction > 0 && s >= length - 1e-6) || (direction < 0 && s <= 1e-6)) continue
+    const { eye, eyePoint, target, capM } = lookFrom(s, direction)
+    const look: SightLookView = { eye, eyeAt: null, seenTo: null, hiddenFrom: null, needed: null }
+    view.looks.push(look)
+    if (!eyePoint) continue
+    look.eyeAt = lngLat(eyePoint)
+    const placed = (d: number) => {
+      const point = target(d)
+      return typeof point === 'string' ? null : { chainage: point.chainage, at: lngLat(point) }
+    }
+    if (eye.availableM > 0) look.seenTo = placed(Math.min(eye.availableM, capM ?? eye.availableM))
+    if (eye.limitedBy !== 'clear' && eye.limitedBy !== 'road-end')
+      look.hiddenFrom = placed(eye.availableM + SIGHT_TARGET_STEP_M)
+    if (capM === null) continue
+    const end = target(capM)
+    if (typeof end === 'string') continue
+    const trace = traceSightline(surface, eyePoint, end)
+    let blocking: SightBlocking | null = null
+    if (trace.worst) {
+      const w = trace.worst
+      const side = w.offset < 0 ? 'left' : 'right'
+      const i = surface.segmentAt(w.chainage)
+      const near =
+        w.chainage - stations[i].chainage <= stations[i + 1].chainage - w.chainage ? stations[i] : stations[i + 1]
+      const halfWidth = side === 'left' ? near.leftWidth : near.rightWidth
+      const kind = w.vegetation ? 'trees' : Math.abs(w.offset) <= halfWidth + 1e-6 ? 'crest' : 'inside'
+      const clearToM = kind === 'crest' ? null : side === 'left' ? trace.reachLeftM : trace.reachRightM
+      const clearedM = sideReach(side, Math.min(s, end.chainage), Math.max(s, end.chainage))
+      const fromM = clearedM ?? halfWidth
+      const sign = side === 'left' ? -1 : 1
+      blocking = {
+        kind,
+        chainage: w.chainage,
+        offset: w.offset,
+        at: lngLat(w),
+        aboveLineM: w.aboveLineM,
+        side,
+        clearToM,
+        clearedM,
+        clearLine:
+          clearToM !== null && clearToM > fromM + 0.05
+            ? [
+                surface.toLngLat(...surface.position(w.chainage, sign * fromM)),
+                surface.toLngLat(...surface.position(w.chainage, sign * clearToM)),
+              ]
+            : null,
+      }
+    }
+    look.needed = { chainage: end.chainage, at: lngLat(end), trace, blocking }
+  }
+  return view
 }
 
 // ---- Clearing on the inside of curves ---------------------------------------------------------

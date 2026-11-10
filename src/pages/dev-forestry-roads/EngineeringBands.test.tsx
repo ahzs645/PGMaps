@@ -2,6 +2,7 @@ import { createElement, type ReactNode } from 'react'
 import { act, create, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EngineeringBands, profileGradeSpans, profileHorizontalCurveSpans } from './EngineeringBands'
+import { signedValue } from './profileAnnotations'
 import { analyzeRoad, horizontalCurveSummary, offsetCoordinate } from './engine'
 import { horizontalCurveEvents } from './planAnnotations'
 import { DEFAULT_ROAD_SETTINGS, DEFAULT_TEMPLATE } from './terrain'
@@ -90,7 +91,7 @@ describe('horizontal profile bands', () => {
     const spans = profileGradeSpans(analysis, alignment)
     expect(spans).toHaveLength(1)
     expect(spans[0]).toMatchObject({ start: 0, end: analysis.length })
-    expect(spans[0].label).toMatch(/^0%/)
+    expect(spans[0].label).toMatch(/^0\.00%/)
     expect(spans[0].detail).toContain('Design tangent')
     expect(profileGradeSpans(analysis, alignment, true).every((span) => span.label.startsWith('Unknown'))).toBe(true)
 
@@ -126,5 +127,15 @@ describe('horizontal profile bands', () => {
     expect(
       renderer!.root.findAllByType('title').some((title) => String(title.children).includes('full deflection')),
     ).toBe(false)
+  })
+})
+
+describe('tangent grade labels', () => {
+  it('print a true minus to the hundredth, and a level tangent without a sign', () => {
+    // A tangent of −5.05 % printed "-5%", and one a hair below level "-0%".
+    expect(signedValue(-5.05, 2)).toBe('−5.05%')
+    expect(signedValue(-0.0001, 2)).toBe('0.00%')
+    expect(signedValue(-0.04, 1)).toBe('0.0%')
+    expect(signedValue(0.88, 2, ' m')).toBe('+0.88 m')
   })
 })

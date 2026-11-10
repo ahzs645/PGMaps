@@ -336,6 +336,15 @@ describe('verified sketched-corridor search', () => {
     // It got to the gap, 60 m short of the end, and no further.
     expect(report.closestRemainingM).toBeGreaterThan(59)
     expect(report.closestRemainingM).toBeLessThan(75)
+    // The line it got furthest along, for the plan: from the start to the gap's edge, ending where it stopped.
+    const reached = report.reached!.map(frame.toXY)
+    expect(reached[0][0]).toBeCloseTo(0, 6)
+    expect(reached[0][1]).toBeCloseTo(0, 6)
+    const last = reached[reached.length - 1],
+      closest = frame.toXY(report.closest)
+    expect(Math.hypot(last[0] - closest[0], last[1] - closest[1])).toBeLessThan(1e-6)
+    expect(last[0]).toBeGreaterThan(40)
+    expect(Math.max(...reached.map((p) => p[0]))).toBeLessThanOrEqual(61)
   })
   it('rejects stale/malformed candidate geometry before adoption', () => {
     const result = optimizeRoadCorridor([point(0, 0), point(200, 0)], flat, settings, [], options)

@@ -71,6 +71,7 @@ and `readinessVerdict`, `readiness.ts`):
 | Vertical curve at every grade break         | Every PVI whose grade changes by 0.5 % or more has a curve the engine applied                                                                       | there is no designed profile                                                                                                         |
 | Vertical curves long enough (K)             | No K, curve-length or tangent check fails                                                                                                           | no minimum K or curve length is entered                                                                                              |
 | Stopping sight distance along the road      | Every eye station sees the distance it needs both ways, on the road's own surface, measured along the road                                          | no design speed is entered, no stations were calculated, or a sightline crosses missing terrain and no shortfall is proven elsewhere |
+| Turnouts intervisible and within 300 m      | On a single-lane road, each turnout sees the next both ways and stands no more than 300 m from it (Engineering Manual §3.5.2.6)                     | a pair's sightline crosses missing terrain and no pair already fails. Left out on a two-lane road or with fewer than two turnouts    |
 | Cross-section template set                  | The template differs from the starting one, or matches a confirmed running-surface width                                                            | the road is a mapped road                                                                                                            |
 | Ground materials entered                    | No cut is unclassified                                                                                                                              | no earthwork was calculated: no stations, or no complete section                                                                     |
 | Earthwork balanced or sourced               | Cut and fill balance within tolerance, or haul allocation is on and no borrow or waste is unallocated                                               | no earthwork was calculated, or the material plan was not solved                                                                     |
@@ -108,8 +109,8 @@ entered length of a dropped curve: with a minimum K or a minimum curve length en
 - "Sized" means geometry and the drainage check's full-pipe capacity. It is not a hydraulic design
   or a fish-passage assessment. See [Drainage](drainage.md).
 - Slope stability and geotechnical review are not modelled. Sight distance is checked against
-  stopping sight distance only: no passing, decision or headlight sight distance, and no signs. See
-  [Sight distance](sight-distance.md).
+  stopping sight distance and turnout intervisibility only: no passing, decision or headlight sight
+  distance, and no signs. See [Sight distance](sight-distance.md).
 - The constraint check samples the centreline at each station. A road that clips an area between
   two stations, or whose batter reaches into one, is not caught. The
   [final connector checks](final-connector-checks.md) test the full footprint.
@@ -217,6 +218,8 @@ a pricing allowance and are not expected to equal the register.
 | Drain spacing                                | 5–5,000 m                                                 | `STANDARD_LIMITS.crossDrainSpacingM`                                    |
 | Sight distance: target step along the road   | 4 m, then 1 m past the last target seen                   | `SIGHT_COARSE_STEP_M`, `SIGHT_TARGET_STEP_M`, `sightDistance.ts`        |
 | Sight distance: eye stations                 | 10 m apart or wider, widened past 4,000,000 line samples  | `MIN_SIGHT_EYE_SPACING_M`, `MAX_SIGHT_LINE_SAMPLES`, `sightDistance.ts` |
+| Turnout spacing                              | 300 m, centre to centre                                   | `TURNOUT_MAX_SPACING_M`, `turnoutSight.ts`                              |
+| Turnouts needed                              | running surface under 8 m, unless Lanes is set            | `TURNOUT_SINGLE_LANE_MAX_WIDTH_M`, `turnoutSight.ts`                    |
 
 The 2 % balance tolerance and the 25 m match distance are judgements, not standards. The first is
 loose enough that rounding along a road does not raise a borrow pit, and tight enough that a few
