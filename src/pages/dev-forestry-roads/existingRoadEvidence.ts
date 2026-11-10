@@ -1,4 +1,4 @@
-import type { ContextFeature, ExistingRoadEvidence } from './types'
+import type { ContextFeature, ExistingRoadEvidence, RoadLineOrigin } from './types'
 import { parseRoadNetworkEvidence } from './roadNetwork'
 import { parseRoadConditionObservations, parseRoadConditionPolicy } from './roadCondition'
 import { deactivatedRoadNeedsReview, parseRoadDeactivation } from './roadHistory'
@@ -84,6 +84,7 @@ export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
   if (r.observations !== undefined) result.observations = parseRoadConditionObservations(r.observations)
   if (r.conditionPolicy !== undefined) result.conditionPolicy = parseRoadConditionPolicy(r.conditionPolicy)
   if (r.deactivation !== undefined) result.deactivation = parseRoadDeactivation(r.deactivation)
+  if (r.lineOrigin !== undefined) result.lineOrigin = parseRoadLineOrigin(r.lineOrigin)
   if (r.geometryReviewRequired !== undefined) {
     if (typeof r.geometryReviewRequired !== 'boolean') throw Error('Road geometry scope review must be true or false.')
     result.geometryReviewRequired = r.geometryReviewRequired
@@ -92,6 +93,44 @@ export function parseRoadEvidence(raw: unknown): ExistingRoadEvidence {
   }
   if (result.reuseAllowed && deactivatedRoadNeedsReview(result))
     throw Error('A deactivated road requires an explicit reviewed rehabilitation assumption before enabling reuse.')
+  return result
+}
+
+const LINE_ORIGIN_METHODS = ['terrain-relocation', 'terrain-trace', 'clicks'] as const
+const LINE_ORIGIN_NUMBERS = {
+  terrainCellM: [0, 1000],
+  foundPercent: [0, 100],
+  medianShiftM: [0, 1000],
+  p90ShiftM: [0, 1000],
+  benchWidthM: [0, 100],
+  segments: [0, 100_000],
+  snappedSegments: [0, 100_000],
+} as const
+
+/** How a traced or adopted line was made; every figure optional and bounded. */
+export function parseRoadLineOrigin(raw: unknown): RoadLineOrigin {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw Error('Road line origin must be an object.')
+  const r = raw as Record<string, unknown>
+  if (typeof r.method !== 'string' || !(LINE_ORIGIN_METHODS as readonly string[]).includes(r.method))
+    throw Error('Invalid road line origin method.')
+  if (typeof r.createdAt !== 'string' || r.createdAt.length > 40 || !Number.isFinite(Date.parse(r.createdAt)))
+    throw Error('Invalid road line origin date.')
+  const result: RoadLineOrigin = { method: r.method as RoadLineOrigin['method'], createdAt: r.createdAt }
+  if (r.fromName !== undefined) {
+    if (typeof r.fromName !== 'string' || !r.fromName.trim() || r.fromName.length > 200)
+      throw Error('Invalid road line origin name.')
+    result.fromName = r.fromName
+  }
+  for (const [key, [min, max]] of Object.entries(LINE_ORIGIN_NUMBERS) as [
+    keyof typeof LINE_ORIGIN_NUMBERS,
+    readonly [number, number],
+  ][]) {
+    const value = r[key]
+    if (value === undefined) continue
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
+      throw Error(`Invalid road line origin ${key}.`)
+    result[key] = value
+  }
   return result
 }
 

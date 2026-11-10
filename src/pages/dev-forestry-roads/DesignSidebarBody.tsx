@@ -73,6 +73,8 @@ export interface SidebarProps {
   onLoadMappedRoadsInView?: () => void
   /** Copies the active mapped road as an editable design on the same line. */
   onCopyMappedRoad?: () => void
+  /** Shows a road found on the terrain over the plan; null clears it. */
+  onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
   /** Fits the plan to the active road. */
   onLocateActiveRoad?: () => void
   /** Loads regional terrain over the active road's extent. */

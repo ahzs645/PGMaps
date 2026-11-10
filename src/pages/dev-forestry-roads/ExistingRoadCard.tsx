@@ -4,6 +4,7 @@ import { KeyValueRows } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { pathLengthM } from './mapNotes'
 import { roadDeactivationSummary, roadHistoryStyle } from './roadHistory'
+import { describeLineOrigin } from './terrainRoadLines'
 import type { ContextFeature, Coordinate } from './types'
 
 /** An existing road's record and condition, where it was clicked on the plan. */
@@ -85,6 +86,9 @@ export function ExistingRoadCard({
                   }
                 : null,
               evidence?.status ? { key: 'status', label: 'Tenure status', value: evidence.status } : null,
+              evidence?.lineOrigin
+                ? { key: 'line', label: 'Line', value: describeLineOrigin(evidence.lineOrigin) }
+                : null,
               {
                 key: 'history',
                 label: 'Deactivation',

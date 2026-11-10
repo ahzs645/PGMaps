@@ -71,7 +71,17 @@ import type {
 } from './types'
 
 /** `sketch` takes one freehand stroke; `extend` pegs on from the active road's nearer end. */
-export type DrawMode = 'inspect' | 'edit' | 'road' | 'sketch' | 'extend' | 'profile' | 'cable' | 'stream' | 'avoid'
+export type DrawMode =
+  | 'inspect'
+  | 'edit'
+  | 'road'
+  | 'sketch'
+  | 'extend'
+  | 'profile'
+  | 'cable'
+  | 'stream'
+  | 'avoid'
+  | 'trace'
 /** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
 export const SKETCH_CAPTURE_PX = 1.5
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'

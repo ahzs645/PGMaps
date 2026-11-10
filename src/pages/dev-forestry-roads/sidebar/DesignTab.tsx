@@ -1,6 +1,16 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { useEffect, useMemo, useState } from 'react'
-import { Copy, Layers, PencilLine, Plus, SquareArrowOutUpRight, Trash2, Upload, type LucideIcon } from 'lucide-react'
+import {
+  Copy,
+  Layers,
+  PencilLine,
+  Plus,
+  SquareArrowOutUpRight,
+  Trash2,
+  Upload,
+  Waypoints,
+  type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -173,13 +183,24 @@ export function DesignTab(p: SidebarProps) {
             <Button
               size="sm"
               variant="outline"
-              className="col-span-2 min-w-0 gap-1 px-1"
+              className="min-w-0 gap-1 px-1"
               onClick={() => p.onFile('alignment')}
               disabled={full}
               title="A road line from GeoJSON, a zipped shapefile, KML or KMZ"
             >
               <Upload className="size-3" />
               Import line
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="min-w-0 gap-1 px-1"
+              onClick={() => p.onMode('trace')}
+              aria-pressed={p.mode === 'trace'}
+              title="Click along an existing road seen on imagery; on LiDAR the line follows the road bench. Adds an existing road to connect to."
+            >
+              <Waypoints className="size-3" />
+              Trace road
             </Button>
           </div>
           {hasMappedRoads && p.onLoadMappedRoadsInView && (
@@ -205,6 +226,7 @@ export function DesignTab(p: SidebarProps) {
           onLocate={p.onLocateActiveRoad}
           onStation={(chainage) => p.workspace.setStation(chainage)}
           onLoadTerrain={p.onLoadTerrainAroundRoad}
+          onPreviewTerrainRoad={p.onPreviewTerrainRoad}
         />
       )}
       {mapped && <RouteFinding {...p} full={full} />}
