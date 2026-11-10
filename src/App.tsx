@@ -53,6 +53,7 @@ const DevThlbImpact = lazy(() => import('@/pages/DevThlbImpact'))
 const DevForestry = lazy(() => import('@/pages/DevForestry'))
 const DevForestDrought = lazy(() => import('@/pages/DevForestDrought'))
 const DevForestryCastor = lazy(() => import('@/pages/DevForestryCastor'))
+const DevForestryBlockSheets = lazy(() => import('@/pages/DevForestryBlockSheets'))
 const DevForestryRoads = lazy(() => import('@/pages/DevForestryRoads'))
 const DevTransit = lazy(() => import('@/pages/DevTransit'))
 const DevFlatten = lazy(() => import('@/pages/DevFlatten'))
@@ -166,6 +167,7 @@ function App() {
             <Route path="/dev/forestry/road-restoration" element={<DevLidarRestoration />} />
             <Route path="/dev/forestry/castor" element={<DevForestryCastor />} />
             <Route path="/dev/forestry/road-design" element={<DevForestryRoads />} />
+            <Route path="/dev/forestry/block-sheets" element={<DevForestryBlockSheets />} />
             <Route path="/dev/forestry/roads" element={<LegacyRedirect to="/dev/forestry/road-design" />} />
             <Route path="/dev/forestry/visual-quality" element={<DevForestryVisuals />} />
             <Route path="/dev/forestry/cciss-suitability" element={<DevCcissSuitability />} />

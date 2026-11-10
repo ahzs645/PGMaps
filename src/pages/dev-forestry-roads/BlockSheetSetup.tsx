@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { MapSheetSetup, type MapSheetField } from '@/components/ui/map-sheet-setup'
 import { blockFacts } from '@/lib/forestry/blockSheet/blockFacts'
 import {
@@ -159,6 +160,14 @@ export function useBlockSheet(project: RoadProject, terrain: TerrainSource | nul
           {logoError}
         </p>
       )}
+      <Link
+        to="/dev/forestry/block-sheets"
+        target="_blank"
+        rel="noreferrer"
+        className="justify-self-start text-xs text-muted-foreground underline hover:text-foreground"
+      >
+        Symbol gallery
+      </Link>
     </div>
   )
   return { settings: effective, canopy, logo: logo?.image, setup }

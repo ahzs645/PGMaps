@@ -1,4 +1,5 @@
 import { LegendItem, MapGradientLegendItem, MapLegendPanel, MapLegendSection } from '@/components/ui/map-panels'
+import { SheetSymbolSwatch } from '@/components/ui/sheet-symbol-swatch'
 import {
   TERRAIN_SLOPE_STOPS,
   TERRAIN_ASPECT_STOPS,
@@ -69,7 +70,9 @@ export function PlanLegend({
                   className="[&>div>span:last-child]:whitespace-normal [&>div>span:last-child]:break-words"
                   swatchShape={entry.shape === 'area' ? 'square' : entry.shape}
                   swatch={
-                    entry.shape === 'area' ? (
+                    entry.sheetSymbol ? (
+                      <SheetSymbolSwatch symbol={entry.sheetSymbol} />
+                    ) : entry.shape === 'area' ? (
                       <span
                         className="h-3 w-4 rounded-sm border border-dashed"
                         style={{ borderColor: entry.color, backgroundColor: `${entry.color}2e` }}

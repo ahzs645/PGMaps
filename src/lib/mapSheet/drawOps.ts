@@ -82,6 +82,8 @@ export function hatchLines(
   box: { x: number; y: number; w: number; h: number },
   angleDeg: number,
   spacing: number,
+  /** Shift of every line along the normal, points: a second colour drawn between the first's lines. */
+  phase = 0,
 ): Point[][] {
   if (!(spacing > 0) || !(box.w > 0) || !(box.h > 0)) return []
   // Paper y runs down, so a line rising to the right has a negative y step.
@@ -97,7 +99,8 @@ export function hatchLines(
   const lines: Point[][] = []
   // Anchor offsets to the page origin so neighbouring areas' hatches line up.
   const base = cx * nx + cy * ny
-  const first = Math.ceil((base - reach) / spacing) * spacing
+  const phaseShift = ((phase % spacing) + spacing) % spacing
+  const first = Math.ceil((base - reach - phaseShift) / spacing) * spacing + phaseShift
   for (let offset = first; offset <= base + reach; offset += spacing) {
     const shift = offset - base
     const px = cx + nx * shift,
@@ -165,6 +168,75 @@ export function labelsAlongLine(
     labels.push({ x: middle[0], y: middle[1], angle })
   }
   return labels
+}
+
+/** A marker placed along a line: where, and the line's direction there. */
+export interface LineMarkerPlacement {
+  x: number
+  y: number
+  /** Direction of travel, degrees counter-clockwise from east on paper. Not flipped to read upright. */
+  angle: number
+}
+
+/** Most markers one line carries; past it the spacing is widened so the count fits. */
+export const MAX_LINE_MARKERS = 4000
+
+/**
+ * Markers every `spacing` points along a polyline, the first `start` in (half a spacing by
+ * default), none past the end. Each takes the direction of the segment it lands on.
+ */
+export function markersAlongLine(line: Point[], spacing: number, start = spacing / 2): LineMarkerPlacement[] {
+  if (line.length < 2 || !(spacing > 0)) return []
+  let total = 0
+  for (let i = 1; i < line.length; i++) total += Math.hypot(line[i][0] - line[i - 1][0], line[i][1] - line[i - 1][1])
+  if (!(total > 0)) return []
+  const step = Math.max(spacing, total / MAX_LINE_MARKERS)
+  const out: LineMarkerPlacement[] = []
+  let segment = 1,
+    travelled = 0
+  for (let d = Math.max(0, start); d <= total + 1e-9; d += step) {
+    // Walk forward to the segment holding d; segments are never revisited.
+    while (segment < line.length - 1) {
+      const length = Math.hypot(line[segment][0] - line[segment - 1][0], line[segment][1] - line[segment - 1][1])
+      if (travelled + length >= d) break
+      travelled += length
+      segment++
+    }
+    const [ax, ay] = line[segment - 1],
+      [bx, by] = line[segment]
+    const length = Math.hypot(bx - ax, by - ay)
+    const t = length > 0 ? Math.min(1, (d - travelled) / length) : 0
+    out.push({ x: ax + (bx - ax) * t, y: ay + (by - ay) * t, angle: (Math.atan2(-(by - ay), bx - ax) * 180) / Math.PI })
+  }
+  return out
+}
+
+/**
+ * The polyline moved `offset` points sideways: positive to the right of travel, as MapLibre's
+ * `line-offset`. Corners are mitred, the miter held to four times the offset so a hairpin stays near.
+ */
+export function offsetPolyline(line: Point[], offset: number): Point[] {
+  if (!offset || line.length < 2) return line
+  const normals: Point[] = []
+  for (let i = 1; i < line.length; i++) {
+    const dx = line[i][0] - line[i - 1][0],
+      dy = line[i][1] - line[i - 1][1]
+    const length = Math.hypot(dx, dy) || 1
+    // Right of travel on paper (y down) is (−dy, dx).
+    normals.push([-dy / length, dx / length])
+  }
+  return line.map(([x, y], i) => {
+    const a = normals[Math.max(0, i - 1)],
+      b = normals[Math.min(normals.length - 1, i)]
+    let mx = a[0] + b[0],
+      my = a[1] + b[1]
+    const m = Math.hypot(mx, my)
+    if (m < 1e-9) return [x + b[0] * offset, y + b[1] * offset] as Point
+    mx /= m
+    my /= m
+    const scale = Math.min(4, 1 / Math.max(0.25, mx * b[0] + my * b[1]))
+    return [x + mx * offset * scale, y + my * offset * scale] as Point
+  })
 }
 
 /** Box of a set of point lists; null when there are no points. */

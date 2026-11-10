@@ -31,6 +31,8 @@ export function sheetSvg(
   width: number,
   height: number,
   encodeRgba?: (image: { data: Uint8ClampedArray; width: number; height: number }) => string,
+  /** Page colour behind everything; null leaves it transparent. */
+  background: string | null = '#ffffff',
 ): string {
   const body: string[] = []
   const defs: string[] = []
@@ -99,5 +101,5 @@ export function sheetSvg(
     }
   }
   while (open-- > 0) body.push('</g>')
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n(width)} ${n(height)}" width="${n(width)}" height="${n(height)}"><rect width="100%" height="100%" fill="#ffffff"/><defs>${defs.join('')}</defs>${body.join('')}</svg>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n(width)} ${n(height)}" width="${n(width)}" height="${n(height)}">${background ? `<rect width="100%" height="100%" fill="${background}"/>` : ''}<defs>${defs.join('')}</defs>${body.join('')}</svg>`
 }
