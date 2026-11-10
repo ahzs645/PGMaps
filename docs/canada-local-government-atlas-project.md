@@ -286,8 +286,10 @@ reduced-motion path.
 ## Acquisition status — August 2026
 
 The reproducible national foundation is now downloaded and validated in
-`vendor/bcdatamapper/datascrapers/canada/admin-geographies` and synced as
-generated app data to `public/data/canada-admin`.
+`vendor/bcdatamapper/datascrapers/canada/admin-geographies`. Until 10 November
+2026 its snapshots were committed there and synced to `public/data/canada-admin`.
+Nothing loaded that copy, so bcdatamapper now keeps the snapshots outside the
+repository; the app reads the PMTiles below.
 
 Completed:
 
@@ -311,8 +313,8 @@ archives in the `maps` Cloudflare R2 bucket. Together they occupy 26.62 MB and
 cover the 2025 CSDs, derived 2025 CD parents, 2021 CD comparison, CLSS legal
 lands, and Newfoundland and Labrador supplemental overlays. The versioned
 archives are immutable; the short-cache publication catalog is available at
-`https://data.map.ahmad.sh/canada/admin-geographies/catalog.json` and is copied
-into PGMaps as `public/data/canada-admin/r2/pmtiles-catalog.json`.
+`https://data.map.ahmad.sh/canada/admin-geographies/catalog.json`, which is
+the copy the app reads.
 
 The national CSD/CD hierarchy now supplies the principal geometry for every
 province and territory. Remaining acquisition work is limited to provincial

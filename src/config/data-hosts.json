@@ -3,7 +3,7 @@
     {
       "name": "bcdatamapper",
       "baseUrl": "https://projects.ahmadjalil.com/bcdatamapper/data",
-      "folders": ["canada-admin", "cciss", "census", "citypg", "drought", "forest", "network-availability"]
+      "folders": ["cciss", "census", "citypg", "drought", "forest", "network-availability"]
     }
   ]
 }

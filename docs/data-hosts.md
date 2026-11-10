@@ -6,19 +6,24 @@ from this site.
 
 ## Current hosts
 
-| Host           | Base URL                                            | Folders                                                                                  |
-| -------------- | --------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `canada-admin`, `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
+| Host           | Base URL                                            | Folders                                                                  |
+| -------------- | --------------------------------------------------- | ------------------------------------------------------------------------ |
+| `bcdatamapper` | `https://projects.ahmadjalil.com/bcdatamapper/data` | `cciss`, `census`, `citypg`, `drought`, `forest`, `network-availability` |
 
 bcdatamapper publishes these from its own repository
 (`vendor/bcdatamapper/docs/pages-site.md`). Its `pages/site.json` is the one
 list of how they are laid out: the sync reads it for local runs instead of
-keeping its own copy. The first six took about 400 MB (compressed) out of the
-Pages build; `census` is another 265 MB uncompressed.
+keeping its own copy. Moving the first folders took about 400 MB (compressed)
+out of the Pages build; `census` is another 265 MB uncompressed.
 
-That site is at 819 MB of GitHub Pages' 1 GB limit, which its build enforces.
-`boundaries` (205 MB) does not fit beside it, so the next large folder needs
-another host or room made there first.
+That site is 617 MB of GitHub Pages' 1 GB limit, which its build enforces, and
+it warns above 800 MB. `boundaries` is 205 MB, of which the app loads about 92:
+the full-detail `BCMoH` files (89 MB) and the two province-wide `BCFWA` files
+(23 MB) are sources for the simplified layers it does load.
+
+`canada-admin` was published there until 10 November 2026. Nothing loaded it:
+the Canada administrative divisions story reads PMTiles on R2. bcdatamapper no
+longer commits those snapshots.
 
 ### Versions
 
@@ -54,7 +59,7 @@ host's `baseUrl` with the same layout below it:
     {
       "name": "bcdatamapper",
       "baseUrl": "https://projects.ahmadjalil.com/bcdatamapper/data",
-      "folders": ["canada-admin", "census"]
+      "folders": ["drought", "census"]
     }
   ]
 }

@@ -16,9 +16,9 @@
 ## Data hosts
 
 - `docs/data-hosts.md` is the contract for `src/config/data-hosts.json`, which lists the `public/data` folders served from another host. Moving a folder off Pages is one entry there; the sync script, deploy cache key and service worker follow it.
-- `canada-admin`, `cciss`, `census`, `citypg`, `drought`, `forest` and `network-availability` are served by bcdatamapper's own Pages site, not this build. Their layout lives in `vendor/bcdatamapper/pages/site.json`; do not re-add their mappings to `scripts/sync-bcdatamapper-data.mjs`. A bcdatamapper data push reaches the live app without a deploy, and `scripts/check-data-hosts.mjs` warns in the deploy when the live folders differ from the pinned submodule.
+- `cciss`, `census`, `citypg`, `drought`, `forest` and `network-availability` are served by bcdatamapper's own Pages site, not this build. Their layout lives in `vendor/bcdatamapper/pages/site.json`; do not re-add their mappings to `scripts/sync-bcdatamapper-data.mjs`. A bcdatamapper data push reaches the live app without a deploy, and `scripts/check-data-hosts.mjs` warns in the deploy when the live folders differ from the pinned submodule.
 - Those folders are not in `public/data` during a build or a unit run. A build script that needs one reads it through `createDataSourceResolver` (`scripts/lib/data-source-path.mjs`), and a test reads the submodule's copy. The deploy only copies what bcdatamapper commits, already built: do not add a step that builds scraper output into `public/data`.
-- bcdatamapper's Pages site is at 819 MB of its 1 GB limit. `boundaries` (205 MB) does not fit beside it.
+- bcdatamapper's Pages site is 617 MB of its 1 GB limit. Publish only what the app loads: `canada-admin` (202 MB) sat there unread until it was removed, because the story reads PMTiles on R2. Check for a reference in `src` before adding a folder, and leave full-detail sources (the `BCMoH` originals, province-wide `BCFWA` files) out.
 - Resolve every data URL with `withBase` (`src/lib/dataUrl.ts`), directly or through `fetchJson`/`fetchBytes`. A bare `'/data/...'` handed to MapLibre, deck.gl, a worker or a link, or a URL built from `import.meta.env.BASE_URL`, always loads from this site and breaks once its folder moves.
 
 ## LiDAR point cloud tiles
