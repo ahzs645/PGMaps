@@ -219,6 +219,29 @@ describe('compareAccessRoutes', () => {
     expect(review.attempts[1].error).toBe('Grade 21% exceeds the 15% limit.')
   })
 
+  it('orients the junction toward the haul destination and reports the loaded turn', async () => {
+    const starts = accessStarts({ kind: 'point', coordinate: point(50, 50) }, [road('west', -300)], {
+      kind: 'nearest',
+      count: 1,
+    })
+    // The destination lies north along the FSR, wherever the truck joins it.
+    const orientation = {
+      departureAt: (c: Coordinate) => (Math.abs(xy(c)[0] + 300) < 5 ? 0 : null),
+      rule: { maxTurnDeg: 90, preferredTurnDeg: 45, windowM: 300 },
+    }
+    const review = await compareAccessRoutes({ ...input(starts), context: [road('west', -300)], orientation })
+    expect(review.rows.length).toBeGreaterThan(0)
+    for (const row of review.rows) {
+      expect(row.junction?.oriented).toBe(true)
+      expect(row.junction!.turnDeg!).toBeLessThanOrEqual(90)
+      // Moved north, toward the destination, and the road still starts there.
+      expect(xy(row.start.target.coordinate)[1]).toBeGreaterThan(50)
+      expect(row.coordinates[0]).toEqual(row.start.target.coordinate)
+    }
+    const plain = await compareAccessRoutes({ ...input(starts), context: [road('west', -300)] })
+    expect(plain.rows[0].junction).toBeUndefined()
+  })
+
   it('limits grades by haul direction from the end back to the junction', async () => {
     const starts = accessStarts({ kind: 'point', coordinate: point(50, 50) }, context, { kind: 'nearest', count: 1 })
     const haulGrades = {

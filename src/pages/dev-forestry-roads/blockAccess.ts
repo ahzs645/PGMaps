@@ -1,6 +1,7 @@
 import { nearestExistingRoadPoint, nearestFsrConnections } from './fsrNetwork'
 import type { FsrConnectionTarget } from './fsrConnections'
 import { groundTrendTerrain } from './groundTrend'
+import { junctionCandidates, measureJunction, type JunctionOrientation } from './junctionOrientation'
 import { parseRouteSearchOptions, suggestRoutes, type RouteCandidate, type RouteSearchOptions } from './routing'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -22,6 +23,13 @@ export interface BlockAccessOption extends RouteCandidate {
   /** Steepest sampled ground grades with loaded travel from the landing to the FSR; empty uphill is loaded downhill. */
   steepestLoadedUphillPercent: number
   steepestEmptyUphillPercent: number
+  /**
+   * Set when the search was asked to orient junctions toward a haul destination: the loaded truck's
+   * turn onto the host (null where the way to the destination there is unknown), and whether the
+   * junction was moved and the arrival heading held (false when every oriented try failed and the
+   * nearest point was used instead).
+   */
+  junction?: { turnDeg: number | null; oriented: boolean; movedM: number }
 }
 export interface BlockAccessAttempt extends BlockLanding {
   error?: string
@@ -166,6 +174,7 @@ export function suggestBlockAccess(
   input: Partial<RouteSearchOptions> = {},
   limit = MAX_BLOCK_ACCESS_OPTIONS,
   targets: BlockAccessTargets = 'fsr',
+  orientation?: JunctionOrientation,
 ): BlockAccessResult {
   const parsed = parseRouteSearchOptions(input)
   const options: RouteSearchOptions = {
@@ -189,14 +198,65 @@ export function suggestBlockAccess(
       continue
     }
     try {
-      const route = suggestRoutes(candidate.landing, candidate.target.coordinate, terrain, settings, context, options)
-        .routes[0]
+      // Oriented: try junctions along the host, best first, each holding the arrival heading that
+      // turns loaded trucks out toward the destination; the nearest point is the fallback.
+      const host = orientation && context.find((feature) => feature.id === candidate.target.featureId)
+      const tries =
+        orientation && host?.geometry.type === 'LineString'
+          ? junctionCandidates(
+              candidate.landing,
+              host.geometry.coordinates as Coordinate[],
+              candidate.target,
+              orientation.departureAt,
+              orientation.rule,
+            )
+          : []
+      let routed: { route: RouteCandidate; target: FsrConnectionTarget; oriented: boolean; movedM: number } | null =
+        null
+      for (const at of tries) {
+        try {
+          const route = suggestRoutes(candidate.landing, at.coordinate, terrain, settings, context, {
+            ...options,
+            endHeading: at.arrivalHeading,
+          }).routes[0]
+          const target = {
+            ...candidate.target,
+            ...(host && nearestExistingRoadPoint(at.coordinate, host)),
+            coordinate: at.coordinate,
+            distanceM: at.approachM,
+          }
+          routed = { route, target, oriented: true, movedM: Math.abs(at.offsetM) }
+          break
+        } catch {
+          // This junction cannot be reached at its heading; try the next.
+        }
+      }
+      routed ??= {
+        route: suggestRoutes(candidate.landing, candidate.target.coordinate, terrain, settings, context, options)
+          .routes[0],
+        target: candidate.target,
+        oriented: false,
+        movedM: 0,
+      }
+      const { route, target } = routed
       const grades = steepestGrades(route.coordinates, ground)
+      const departure = orientation?.departureAt(target.coordinate) ?? null
       found.push({
         ...route,
-        ...candidate,
+        landing: candidate.landing,
+        target,
         steepestLoadedUphillPercent: grades.uphill,
         steepestEmptyUphillPercent: grades.downhill,
+        ...(orientation && {
+          junction: {
+            turnDeg:
+              departure === null
+                ? null
+                : (measureJunction(route.coordinates, departure, orientation.rule)?.turnDeg ?? null),
+            oriented: routed.oriented,
+            movedM: routed.movedM,
+          },
+        }),
       })
       attempts.push(candidate)
     } catch (error) {
@@ -207,11 +267,16 @@ export function suggestBlockAccess(
     throw Error(
       `No access route from ${block.name} to the ${landings.length} nearest FSR section${landings.length === 1 ? '' : 's'} passed the terrain and route limits. ${attempts.map((attempt) => `${attempt.target.name}: ${attempt.error}`).join(' ')}`,
     )
-  found.sort((a, b) => a.searchScore - b.searchScore || a.target.distanceM - b.target.distanceM)
+  // Oriented: a junction within the turn limit leads any that is not, whatever it costs to search.
+  const sharp = (option: BlockAccessOption) =>
+    orientation && option.junction
+      ? Number((option.junction.turnDeg ?? Infinity) > orientation.rule.maxTurnDeg + 1e-9)
+      : 0
+  found.sort((a, b) => sharp(a) - sharp(b) || a.searchScore - b.searchScore || a.target.distanceM - b.target.distanceM)
   const cheapest = found[0]
   return {
     options: found,
     attempts,
-    message: `${found.length} access option${found.length === 1 ? '' : 's'} from ${block.name} to ${found.length === 1 ? cheapest.target.name : `${found.length} FSR sections`}; lowest search score to ${cheapest.target.name}, ${Math.round(cheapest.lengthM).toLocaleString('en-CA')} m. Each landing is the block edge closest to its FSR, and loaded travel runs from the landing to the FSR. Junctions, road condition and access rights need review.`,
+    message: `${found.length} access option${found.length === 1 ? '' : 's'} from ${block.name} to ${found.length === 1 ? cheapest.target.name : `${found.length} FSR sections`}; lowest search score to ${cheapest.target.name}, ${Math.round(cheapest.lengthM).toLocaleString('en-CA')} m. Each landing is the block edge closest to its FSR, and loaded travel runs from the landing to the FSR. ${orientation ? ` Junctions were placed along each road within ${orientation.rule.windowM} m of its nearest point so loaded trucks turn out toward the destination through at most ${orientation.rule.maxTurnDeg}°${found.some((option) => option.junction && !option.junction.oriented) ? '; where no such junction could be reached, the nearest point was used and its turn is shown' : ''}.` : ''} Junctions, road condition and access rights need review.`,
   }
 }

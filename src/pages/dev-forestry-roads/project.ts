@@ -61,6 +61,7 @@ import { parseMapNotes } from './mapNotes'
 import { parseReferenceFeatures, referenceGeoJson } from './referenceFeatures'
 import { gradeRule, gradeRuleText, parseDesignStandards } from './designStandards'
 import { issueStamp, parseProjectIssue, PLANNING_CAVEAT } from './projectIssue'
+import { parseHaulSettings } from './haulReview'
 import { projectReadiness, readinessReportHtml, vehicleFit, type VehicleFit } from './readiness'
 import { crossingRegisterReportHtml } from './crossingRegister'
 import { vehiclePreset } from './jobStandards'
@@ -749,6 +750,7 @@ export function parseProject(raw: unknown): RoadProject {
       ? {}
       : { sharedCrossingCosts: parseCrossingCostItems(r.sharedCrossingCosts) }),
     ...(r.routeSearch !== undefined ? { routeSearch: parseRouteSearchOptions(r.routeSearch) } : {}),
+    ...(r.haulDestination === undefined ? {} : { haulDestination: parseHaulSettings(r.haulDestination) }),
     ...(r.networkPlanning === undefined ? {} : { networkPlanning: parseNetworkPlanning(r.networkPlanning) }),
     ...(r.totalCostPlanning !== undefined ? { totalCostPlanning: parseTotalCostPlanning(r.totalCostPlanning) } : {}),
     ...(r.standards === undefined ? {} : { standards: parseDesignStandards(r.standards) }),

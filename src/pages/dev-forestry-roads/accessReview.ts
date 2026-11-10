@@ -9,6 +9,12 @@ import type { FsrConnectionTarget } from './fsrConnections'
 import { nearestExistingRoadPoint, nearestFsrConnections } from './fsrNetwork'
 import { groundTrendTerrain } from './groundTrend'
 import {
+  junctionCandidates,
+  junctionStartHeading,
+  measureJunction,
+  type JunctionOrientation,
+} from './junctionOrientation'
+import {
   compareRoutes,
   ROUTE_GOAL_MEASURES,
   ROUTE_GOALS,
@@ -47,6 +53,11 @@ export interface AccessRow extends RouteRow {
   emptyUphillPercent: number | null
   /** Goals this road leads across every start, not only among its own road's variants. */
   overallBest: RouteGoal[]
+  /**
+   * With an orientation: the loaded truck's turn onto the host toward the destination (null where
+   * the way there is unknown), and whether this start's junction was moved and its heading held.
+   */
+  junction?: { turnDeg: number | null; oriented: boolean; movedM: number }
 }
 export interface AccessAttempt {
   start: AccessStart
@@ -114,6 +125,8 @@ export interface AccessReviewInput extends Omit<RouteComparisonInput, 'base' | '
   /** Names the end in each road's name, e.g. "Block 3" or "Picked end". */
   endName: string
   template: RoadTemplate
+  /** Places each junction along its host so loaded trucks turn out toward the haul destination. */
+  orientation?: JunctionOrientation
 }
 
 /**
@@ -125,7 +138,7 @@ export async function compareAccessRoutes(
   input: AccessReviewInput,
   control: RouteComparisonControl = {},
 ): Promise<AccessReview> {
-  const { starts, endName, template, ...shared } = input
+  const { starts, endName, template, orientation, ...shared } = input
   if (!starts.length)
     throw Error(
       'No active FSR is loaded near this end. Load BC FSRs, import an FSR network, or start from a road you pick.',
@@ -148,17 +161,39 @@ export async function compareAccessRoutes(
       continue
     }
     try {
-      const route = suggestRoutes(
-        start.target.coordinate,
-        start.landing,
-        shared.terrain,
-        shared.settings,
-        shared.context,
-        {
-          ...routeOptions,
-          alternatives: 1,
-        },
-      ).routes[0]
+      // Oriented: junctions along the host, best first, each leaving at the heading that has loaded
+      // trucks arrive turned toward the destination; the start's own junction is the fallback.
+      const host = orientation && shared.context.find((feature) => feature.id === start.target.featureId)
+      const tries =
+        orientation && host?.geometry.type === 'LineString'
+          ? junctionCandidates(
+              start.landing,
+              host.geometry.coordinates as Coordinate[],
+              start.target,
+              orientation.departureAt,
+              orientation.rule,
+            )
+          : []
+      let route: ReturnType<typeof suggestRoutes>['routes'][number] | null = null
+      let junction = { at: start.target.coordinate, oriented: false, movedM: 0 }
+      for (const at of tries) {
+        try {
+          route = suggestRoutes(at.coordinate, start.landing, shared.terrain, shared.settings, shared.context, {
+            ...routeOptions,
+            alternatives: 1,
+            startHeading: junctionStartHeading(at),
+          }).routes[0]
+          junction = { at: at.coordinate, oriented: true, movedM: Math.abs(at.offsetM) }
+          break
+        } catch {
+          // This junction cannot be left at its heading; try the next.
+        }
+      }
+      route ??= suggestRoutes(start.target.coordinate, start.landing, shared.terrain, shared.settings, shared.context, {
+        ...routeOptions,
+        alternatives: 1,
+      }).routes[0]
+      const departure = orientation?.departureAt(junction.at) ?? null
       // Fresh ids each review, so roads added from two reviews never share one.
       const newId = shared.id ?? (() => `access-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`)
       const base: Alignment = {
@@ -216,10 +251,21 @@ export async function compareAccessRoutes(
           id: `${index}:${row.id}`,
           alignment,
           startIndex: index,
-          start,
+          start: junction.oriented ? { ...start, target: { ...start.target, coordinate: junction.at } } : start,
           loadedUphillPercent: grades?.uphill ?? null,
           emptyUphillPercent: grades?.downhill ?? null,
           overallBest: [],
+          ...(orientation && {
+            junction: {
+              // Trucks arrive at the junction along the road's first stretch, driven backwards.
+              turnDeg:
+                departure === null || row.coordinates.length < 2
+                  ? null
+                  : (measureJunction([...row.coordinates].reverse(), departure, orientation.rule)?.turnDeg ?? null),
+              oriented: junction.oriented,
+              movedM: junction.movedM,
+            },
+          }),
         })
       }
       // Every goal failed for this start: say why rather than leave it empty.
