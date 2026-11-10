@@ -5,6 +5,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { formatRoadStation } from './Charts'
 import { BEND_CHORD_M, MAX_JOIN_GAP_M, reviewMappedRoad, SUSTAINED_GRADE_WINDOW_M } from './mappedRoad'
+import { RoadOnTerrainFinder } from './RoadOnTerrainFinder'
 import { RoadSection } from './SidebarParts'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -23,6 +24,7 @@ export function MappedRoadPanel({
   onLocate,
   onStation,
   onLoadTerrain,
+  onPreviewTerrainRoad,
 }: {
   workspace: RoadWorkspace
   full: boolean
@@ -32,6 +34,8 @@ export function MappedRoadPanel({
   onStation: (chainage: number) => void
   /** Reloads regional terrain over the project's roads; offered when the terrain misses part of this one. */
   onLoadTerrain?: () => void
+  /** Shows a road found on the terrain over the plan; null clears it. */
+  onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
 }) {
   const { alignment, analysis, project } = workspace
   const origin = alignment.mappedRoad
@@ -179,6 +183,7 @@ export function MappedRoadPanel({
             )}
           </ul>
         )}
+        <RoadOnTerrainFinder workspace={workspace} onPreview={onPreviewTerrainRoad} onStation={onStation} />
         <div className="grid grid-cols-2 gap-1 pt-1">
           <Button size="sm" variant="outline" className="gap-1 px-1" disabled={full} onClick={onCopyAsDesign}>
             <Copy className="size-3" /> Copy as design

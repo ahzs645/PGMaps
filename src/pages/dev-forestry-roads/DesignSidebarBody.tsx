@@ -73,6 +73,8 @@ export interface SidebarProps {
   onLoadMappedRoadsInView?: () => void
   /** Copies the active mapped road as an editable design on the same line. */
   onCopyMappedRoad?: () => void
+  /** Shows a road found on the terrain over the plan; null clears it. */
+  onPreviewTerrainRoad?: (overlay: GeoJSON.FeatureCollection | null) => void
   /** Fits the plan to the active road. */
   onLocateActiveRoad?: () => void
   /** Loads regional terrain over the active road's extent. */
@@ -92,6 +94,8 @@ export interface SidebarProps {
     at: Coordinate,
     signal: AbortSignal,
   ) => Promise<{ context: ContextFeature[]; scope: string } | undefined>
+  /** Skid reach outlines, spur candidates and landing footprints for the plan; null clears them. */
+  onPreviewSkidReach?: (features: GeoJSON.Feature[] | null) => void
   /** Points the access review shows on the plan: its end and the junctions it would start from. */
   onPreviewAccessMarks?: (marks: import('./AccessReviewPanel').AccessMark[] | null) => void
   onShowCompare?: () => void

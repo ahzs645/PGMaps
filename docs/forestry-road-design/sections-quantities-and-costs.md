@@ -60,6 +60,7 @@ the optional delivered-cost borrow/waste allocation.
 | Assignment transition                | ≤ half its range; ≤ 1,000 m in files                                                                                        | `validateEngineering`; `engineeringProject.ts`                             | Calculation error                                                                |
 | Landing and turnout widening         | 200 ranges, extra width 0–50 m, taper ≤ half the range                                                                      | `engine.ts` `validate`, `widthExtras`                                      | Error; the form holds a typed taper to the room left and says so                 |
 | Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                 | `project.ts` `parseCurveDesign`                                            | File rejected                                                                    |
+| Curvature correction                 | applied while every centroid is inside the centre of curvature (\|k·e\| < 1)                                                | `curvedVolume.ts` `pappusVolume`                                           | Interval left uncorrected and counted in the report sentence                     |
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                       | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                 | Dip stops at 4 m                                                                 |
 | Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                     | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`  | Field clamps; file rejected; calculation error                                   |
 | Reusable cut factor                  | 0.1–2                                                                                                                       | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                      | Field clamps; file rejected                                                      |
@@ -123,10 +124,26 @@ they do not add. Landing extra width is unsurfaced and turnout extra width is su
 are the outer ends, tapers included: a pullout meant to be full width from 682.5 to 697.5 with
 7.5 m tapers is entered as Start 675, End 705. The form states the full-width range it builds.
 
-**Volumes.** Earthwork uses average end areas over the centreline chainage between stations. There
-is no prismoidal correction and no curvature correction for asymmetric sections on curves, so on
-tight curves with a high cut side the volume is approximate. A short final interval uses its real
-length, not the nominal spacing (`engine.test.ts`). Surfacing is horizontal width × vertical depth
+**Volumes.** Earthwork uses average end areas over the centreline chainage between stations.
+There is no prismoidal correction. A short final interval uses its real length, not the nominal
+spacing (`engine.test.ts`).
+
+**Curvature correction (reported, not used).** On a curve the material outside the centreline
+travels farther than the centreline and the material inside less. By Pappus' centroid theorem
+each region's volume over an interval of centreline length s is
+s·[(A₁ + A₂)/2 − k·(M₁ + M₂)/2], where M is the region's first moment about the centreline in the
+sampled section and k the signed plan curvature at the interval's mid-chainage (positive on a
+right-hand curve, with offsets negative left; zero on tangents and at a sharp PI). Cut and fill
+are corrected separately, so a sidehill section's two sides partly cancel. A spiral takes its
+curvature at the mid-chainage. Site-preparation cut is given the section's cut centroid
+(`curvedVolume.ts`). The corrected volumes are **reported only**: the station table's hidden
+_Cut vol (curve)_ and _Fill vol (curve)_ columns, the station CSV's
+`cut_volume_curvature_corrected_bank_m3` and `fill_volume_curvature_corrected_compacted_m3`, and a
+sentence in the planning report's quantity basis. The headline totals, cost estimate, mass curve,
+material allocation and haul keep the uncorrected volumes, so saved projects' results do not move
+and the materials allocation (which forms its own per-material average end areas) stays consistent
+with them. On a 40 m radius with cut centred 3 m outside, the correction is +7.5 % of that cut
+(`curvedVolume.test.ts`); compare the two before trusting a tight-curve total. Surfacing is horizontal width × vertical depth
 integrated with Simpson's rule. Clearing is the horizontal daylight-to-daylight width with no
 buffer, so it understates a right-of-way that is wider than the earthwork footprint.
 

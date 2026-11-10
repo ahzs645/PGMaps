@@ -24,6 +24,9 @@ const INTERVAL_QUANTITIES = {
         : 0,
   borrowVolume: (analysis, index) => analysis.engineering?.stations[index]?.borrowVolumeM3 ?? null,
   wasteVolume: (analysis, index) => analysis.engineering?.stations[index]?.wasteVolumeM3 ?? null,
+  // Reported beside the volumes above, which every cost, mass and haul figure uses.
+  curvedCutVolume: (analysis, index) => analysis.stations[index].curvedCutVolumeM3 ?? null,
+  curvedFillVolume: (analysis, index) => analysis.stations[index].curvedFillVolumeM3 ?? null,
 } satisfies Record<string, (analysis: RoadAnalysis, index: number) => number | null>
 export type IntervalQuantity = keyof typeof INTERVAL_QUANTITIES
 const QUANTITIES = Object.keys(INTERVAL_QUANTITIES) as IntervalQuantity[]
@@ -229,6 +232,30 @@ export const STATION_COLUMNS: StationColumn[] = [
     hidden: true,
     decimals: 6,
     value: (r) => r.station.coordinate[1],
+  },
+  {
+    id: 'curvedCut',
+    label: 'Cut vol (curve)',
+    unit: 'm³',
+    csv: 'cut_volume_curvature_corrected_bank_m3',
+    road: true,
+    hidden: true,
+    decimals: 1,
+    title: `Bank cut ${SINCE}, corrected for plan curvature by its centroid (Pappus). Reported only: cost, mass and haul use Cut vol.`,
+    value: (r) => r.curvedCutVolume,
+    sum: 'curvedCutVolume',
+  },
+  {
+    id: 'curvedFill',
+    label: 'Fill vol (curve)',
+    unit: 'm³',
+    csv: 'fill_volume_curvature_corrected_compacted_m3',
+    road: true,
+    hidden: true,
+    decimals: 1,
+    title: `Compacted fill ${SINCE}, corrected for plan curvature by its centroid (Pappus). Reported only: cost, mass and haul use Fill vol.`,
+    value: (r) => r.curvedFillVolume,
+    sum: 'curvedFillVolume',
   },
 ]
 

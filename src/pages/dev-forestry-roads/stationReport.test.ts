@@ -216,6 +216,8 @@ describe("the manual's volume table: surfacing, stripping, borrow and waste by i
       'formation_width_m',
       'longitude',
       'latitude',
+      'cut_volume_curvature_corrected_bank_m3',
+      'fill_volume_curvature_corrected_compacted_m3',
       'unknown_earthwork_m',
       'flags',
     ])

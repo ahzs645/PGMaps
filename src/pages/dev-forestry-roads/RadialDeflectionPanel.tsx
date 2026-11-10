@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { MaxReachPanel } from './MaxReachPanel'
 import { CableChart } from './Charts'
 import { terrainDisplayName } from './terrainName'
 import { NumberField } from './Controls'
@@ -83,6 +85,7 @@ export function RadialDeflectionPanel({
   const [cursor, setCursor] = useState<{ spokeId: string; distance: number } | null>(null)
   const [settingsOpen, setSettingsOpen] = useState(true)
   const [error, setError] = useState('')
+  const [mode, setMode] = useState<'fixed' | 'reach'>('fixed')
   const previewCallback = useRef(onPreview)
   useEffect(() => {
     previewCallback.current = onPreview
@@ -140,11 +143,8 @@ export function RadialDeflectionPanel({
     })
   }
 
-  return (
-    <section
-      className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
-      data-testid="radial-deflection-panel"
-    >
+  const header = (
+    <>
       <div className="mb-2 flex items-start justify-between gap-2 text-xs">
         <div className="min-w-0">
           <p className="font-medium">{center ? `Landing${centerLabel ? ` at ${centerLabel}` : ''}` : 'No landing'}</p>
@@ -156,11 +156,53 @@ export function RadialDeflectionPanel({
           </p>
         </div>
         <InfoTip label="About the landing screen">
-          Geometric screen using the active terrain and an assumed parabolic sag. Green means sampled clearance meets
-          the entered threshold. It does not establish cable tension, payload, anchors or operating safety. Unknown
-          terrain is never treated as clear. The fan is temporary until a D-line is adopted.
+          Fixed radius tests one tailhold distance per bearing with an assumed parabolic sag. Maximum reach finds each
+          bearing's farthest tailhold that clears, with the assumed sag or with rope and load. Neither establishes
+          anchors, equipment ratings or operating safety. Unknown terrain is never treated as clear. The fan is
+          temporary until a D-line is adopted.
         </InfoTip>
       </div>
+      <SegmentedControl
+        label="Landing screen"
+        size="sm"
+        className="mb-2"
+        value={mode}
+        options={[
+          { value: 'fixed', label: 'Fixed radius' },
+          { value: 'reach', label: 'Maximum reach' },
+        ]}
+        onChange={(next) => {
+          setRecord(null)
+          setLocalSelected(null)
+          setCursor(null)
+          setMode(next)
+        }}
+      />
+    </>
+  )
+  if (mode === 'reach')
+    return (
+      <section
+        className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
+        data-testid="radial-deflection-panel"
+      >
+        {header}
+        <MaxReachPanel
+          source={source}
+          center={center}
+          onPreview={onPreview}
+          onAdopt={onAdopt}
+          selectedSpokeId={selectedSpokeId}
+          onSelectSpoke={onSelectSpoke}
+        />
+      </section>
+    )
+  return (
+    <section
+      className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
+      data-testid="radial-deflection-panel"
+    >
+      {header}
       <CollapsibleSection
         label="Settings"
         summary={`${settings.radiusM} m radius · ${settings.bearingStepDeg}° step · ${settings.deflectionPercent}% sag`}

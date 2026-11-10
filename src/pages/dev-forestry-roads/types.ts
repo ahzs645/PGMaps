@@ -14,6 +14,7 @@ import type { FullCostReviewRecord } from './fullCostRecord'
 import type { DrainageProjectState } from './drainageEvidence'
 import type { RoadReportSettings } from './reportSettings'
 import type { InvalidInput } from './inputErrors'
+import type { CableRigging, SkylineSpanResult } from './cableMechanics'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -145,6 +146,27 @@ export interface DesignVehicle {
   /** Out-to-out width of body and tyres. */
   widthM: number
   units: VehicleUnit[]
+  /** Largest steering angle of the first unit's steer axle, degrees. Absent: the lock is not checked. */
+  steeringLockDeg?: number
+  /** Loads carried on bunks of two different units, such as logs spanning a truck and its trailer. */
+  loads?: LoadSpan[]
+}
+/**
+ * A rigid load lying from a bunk on one unit to a bunk on a later unit. It is drawn along the line
+ * between the two bunks and adds to the body envelope; it does not steer the units.
+ */
+export interface LoadSpan {
+  name: string
+  /** Bunk on the leading unit, measured behind that unit's front pivot. */
+  front: { unit: number; behindPivotM: number }
+  /** Bunk on a later unit, measured behind that unit's front pivot. */
+  rear: { unit: number; behindPivotM: number }
+  /** Load ahead of the front bunk. */
+  aheadOfFrontBunkM: number
+  /** Load behind the rear bunk. */
+  behindRearBunkM: number
+  /** Load width; the vehicle width when absent. */
+  widthM?: number
 }
 /** User-entered swept-path check for one road; never inferred from a road class. */
 export interface VehicleCheck {
@@ -307,6 +329,27 @@ export interface ExistingRoadEvidence {
   network?: RoadNetworkEvidence
   observations?: RoadConditionObservation[]
   conditionPolicy?: RoadConditionPolicy
+  /** A line the user traced or adopted from a terrain search: how it was made. Never a survey. */
+  lineOrigin?: RoadLineOrigin
+}
+/** How a user road line was made: traced by clicks, or adopted from a terrain search. */
+export interface RoadLineOrigin {
+  method: 'terrain-relocation' | 'terrain-trace' | 'clicks'
+  /** The record or road the line was derived from. */
+  fromName?: string
+  createdAt: string
+  /** The terrain's own cell size when the line was made, m. */
+  terrainCellM?: number
+  /** Share of the line where the terrain showed a road bench (relocation) or of segments that followed one (trace), %. */
+  foundPercent?: number
+  /** Relocation: distance from the source line, over the found stretches, m. */
+  medianShiftM?: number
+  p90ShiftM?: number
+  /** Relocation: median bench width between batter breaks, m. Not the drivable width. */
+  benchWidthM?: number
+  /** Trace: segments between clicks, and how many followed the terrain. */
+  segments?: number
+  snappedSegments?: number
 }
 export interface CableLine {
   id: string
@@ -321,6 +364,13 @@ export interface CableLine {
   endOffsetM?: number
   /** startHeight is the yarder height; endHeight is the tailhold height. */
   yarderAt?: 'start' | 'end'
+  /**
+   * Where the profile's sag comes from. Absent or `assumed`: the entered percentage of span
+   * (unchanged behaviour). `mechanics`: also solve the skyline from `rigging` (`cableMechanics.ts`).
+   */
+  sagModel?: 'assumed' | 'mechanics'
+  /** Rope, load and tensioning for the `mechanics` sag model; kept when switching back to `assumed`. */
+  rigging?: CableRigging
 }
 export interface RoadSettings {
   stationInterval: number
@@ -380,6 +430,8 @@ export interface RoadProject {
   reportSettings?: RoadReportSettings
   /** Optional saved route-search assumptions; older projects retain the current defaults. */
   routeSearch?: RouteSearchOptions
+  /** Where the wood goes, the haul speeds and terminal times, and the junction-turn rule. */
+  haulDestination?: import('./haulReview').HaulDestinationSettings
   /** Browser road-network projection inputs; independent of reviewed haul-network evidence. */
   networkPlanning?: import('./roads/planning').NetworkPlanning
   /** Explicit vehicle, network, evidence, supply and final-check inputs for complete route comparisons. */
@@ -435,6 +487,13 @@ export interface RoadStation {
   /** Surfacing since the previous station, on the same terms. The stations' values add up to the road's. */
   surfaceVolumeM3?: number | null
   /**
+   * Cut and fill since the previous station corrected for plan curvature (Pappus); equal to the
+   * average-end-area volumes on tangents, null where those are. Reported only: costs, mass and haul
+   * use `cutVolumeM3`/`fillVolumeM3`.
+   */
+  curvedCutVolumeM3?: number | null
+  curvedFillVolumeM3?: number | null
+  /**
    * Cumulative usable cut minus fill of the known earthwork up to this station. An interval with
    * unknown volumes adds nothing, so the ordinate is carried across it rather than cut off.
    */
@@ -474,6 +533,18 @@ export interface RoadAnalysis {
   /** Failed vertical standard / control checks, each also flagged on its nearest station. */
   verticalChecks?: VerticalCheck[]
   /**
+   * Covered cut and fill corrected for plan curvature (Pappus), beside the uncorrected totals above.
+   * Reported only; `curvedLengthM` is the covered length on curves and spirals, and
+   * `uncorrectedIntervals` counts intervals left uncorrected because a centroid lies past the
+   * centre of curvature.
+   */
+  curvatureCorrection?: {
+    cutVolumeM3: number
+    fillVolumeM3: number
+    curvedLengthM: number
+    uncorrectedIntervals: number
+  }
+  /**
    * Set when the current section or engineering inputs could not be calculated. With stations, the
    * results leave the invalid input out and use its last valid value; without, nothing calculated.
    */
@@ -500,5 +571,25 @@ export interface CableAnalysis {
   length: number
   minClearance: number | null
   complete: boolean
+  /** Present only for a line with `sagModel: 'mechanics'`; the fields above stay the assumed-sag screen. */
+  mechanics?: CableMechanicsProfile
+}
+/** The solved skyline drawn on the D-line's own samples. */
+export interface CableMechanicsProfile {
+  rigging: CableRigging
+  /** Why the skyline could not be solved (unknown support ground, rigging, or a span the rope cannot carry). */
+  error: string | null
+  span: SkylineSpanResult | null
+  /** Aligned with `CableAnalysis.samples`. Elevations in the terrain's vertical reference. */
+  samples: { loadPath: number | null; emptyRope: number | null; loadClearance: number | null }[]
+  /** Smallest load-path clearance and where; null while any sample's ground is unknown. */
+  minLoadClearance: number | null
+  minLoadClearanceAt: number | null
+  /** Every sample's load clearance is known. */
+  complete: boolean
+  /** Load clearance ≥ `rigging.minClearanceM` at every sample; null when unknown. */
+  clearanceOk: boolean | null
+  /** Largest support tension over every load position ≤ allowable; null when unsolved. */
+  tensionOk: boolean | null
 }
 export type TerrainSource = ElevationSource

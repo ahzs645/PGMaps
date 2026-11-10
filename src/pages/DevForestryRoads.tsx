@@ -20,6 +20,9 @@ import {
   nextMappedRoadColor,
 } from './dev-forestry-roads/mappedRoad'
 import { extendAlignment, nearerEnd, sketchPoints, strokeContinuation } from './dev-forestry-roads/sketchRoad'
+import { describeLineOrigin, roadLineFeature } from './dev-forestry-roads/terrainRoadLines'
+import { TraceFeedback } from './dev-forestry-roads/TraceFeedback'
+import { useRoadTrace } from './dev-forestry-roads/useRoadTrace'
 import { pathLengthM } from './dev-forestry-roads/mapNotes'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
@@ -111,6 +114,7 @@ import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
 import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPanel'
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
+import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { isGradeBreachFlag } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
@@ -188,6 +192,7 @@ import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
 import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
+import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type {
   Alignment,
@@ -298,6 +303,7 @@ export default function DevForestryRoads() {
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
+  const blockSheet = useBlockSheet(project, source)
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
   const [collapsed, setCollapsed] = useState(false)
   const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
@@ -456,6 +462,8 @@ export default function DevForestryRoads() {
     [source],
   )
   const [routeLines, setRouteLines] = useState<RoutePreviewLine[] | null>(null)
+  const trace = useRoadTrace({ active: mode === 'trace', clicks: draft, source, terrain: project.terrain })
+  const [terrainRoadOverlay, setTerrainRoadOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   // Drawing an area makes an avoidance area unless "Draw block" asked for a harvest block.
   const [polygonKind, setPolygonKind] = useState<'avoid' | 'harvest'>('avoid')
   useEffect(() => {
@@ -464,6 +472,7 @@ export default function DevForestryRoads() {
   // One plan click asked for by a sidebar tool (the access review's end or start road).
   const [planPick, setPlanPick] = useState<{ prompt: string; onPick: (at: Coordinate) => void } | null>(null)
   const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
+  const [skidReachFeatures, setSkidReachFeatures] = useState<GeoJSON.Feature[] | null>(null)
   const drawnArea = polygonKind === 'harvest' ? 'harvest block' : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
@@ -534,6 +543,8 @@ export default function DevForestryRoads() {
       type: 'FeatureCollection',
       features: [
         ...overlay.features,
+        ...(mode === 'trace' ? trace.overlay : []),
+        ...(terrainRoadOverlay?.features ?? []),
         ...(networkOverlay?.features ?? []),
         ...(costPreview?.overlay.features ?? []),
         ...project.context
@@ -577,6 +588,8 @@ export default function DevForestryRoads() {
           geometry: { type: 'LineString' as const, coordinates: line.coordinates },
           properties: { kind: 'route-comparison', color: line.color, selected: line.selected, label: line.label },
         })),
+        // Skid reach: beyond-reach outlines, spur candidates and landing footprints.
+        ...(skidReachFeatures ?? []),
         ...(routePreview?.route
           ? [
               {
@@ -600,6 +613,10 @@ export default function DevForestryRoads() {
       source,
       focusedConstraintId,
       accessMarks,
+      mode,
+      trace.overlay,
+      terrainRoadOverlay,
+      skidReachFeatures,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -1428,6 +1445,19 @@ export default function DevForestryRoads() {
             : { type: 'Polygon' as const, coordinates: [[...draft, draft[0]]] },
       }
       if (!commitValidated({ ...project, context: [...project.context, feature] })) return
+    } else if (mode === 'trace') {
+      try {
+        const { coordinates, origin } = trace.resolve()
+        const name = `Traced road ${project.context.filter((f) => f.roadEvidence?.lineOrigin && f.roadEvidence.lineOrigin.method !== 'terrain-relocation').length + 1}`
+        const feature = roadLineFeature({ id: uid(), name, coordinates, origin })
+        if (!commitValidated({ ...project, context: [...project.context, feature] })) return
+        w.setNotice(
+          `Added ${name} as an existing road (${describeLineOrigin(origin)}). Its condition is unknown; pick it as the road to connect to under Access from FSR.`,
+        )
+      } catch (cause) {
+        w.setError(cause instanceof Error ? cause.message : 'Could not trace this road.')
+        return
+      }
     }
     setDraft([])
     setHover(null)
@@ -2014,7 +2044,7 @@ export default function DevForestryRoads() {
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf'>,
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf'>,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2169,9 +2199,41 @@ export default function DevForestryRoads() {
         )
     }
   }
+  /** The block sheet's run: the calculated roads, the issue stamp and any invalid-input notice. */
+  const blockSheetRun = (kind: RoadExport, safe: RoadProject) => {
+    const stamp = issueStamp(safe.issue)
+    const invalid = exportInvalidInput(kind)
+    return {
+      settings: blockSheet.settings,
+      project: safe,
+      analyses: w.analyses,
+      terrain: source,
+      terrainName: `${project.terrain.name}, ${project.terrain.resolutionM} m`,
+      terrainResolutionM: project.terrain.resolutionM,
+      canopy: blockSheet.canopy,
+      issue: {
+        date: stamp.date,
+        preparedBy: stamp.preparedBy,
+        organisation: stamp.organisation,
+        revision: stamp.revision,
+      },
+      logo: blockSheet.logo,
+      stamp: invalid ? `NOT CURRENT: ${invalidInputNotice(invalid)}` : undefined,
+      caveat: PLANNING_CAVEAT,
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
       const { safe, basename } = exportBasis(kind)
+      if (kind === 'block-sheet-pdf') {
+        void run('Building block map sheet…', async (signal) => {
+          const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
+          const { blob, built } = await blockSheetPdf({ ...blockSheetRun(kind, safe), signal })
+          downloadBlob(blob, `${basename}-${blockSheet.settings.kind}.pdf`)
+          w.setNotice(['Block map sheet downloaded.', ...built.missing].join(' '))
+        })
+        return
+      }
       if (kind === 'map-pdf' || kind === 'report-pdf') {
         void run(kind === 'map-pdf' ? 'Building map PDF…' : 'Building report PDF…', async (signal) => {
           const { exportMapPdf, exportReportPdf } = await import('./dev-forestry-roads/pdf')
@@ -2219,13 +2281,38 @@ export default function DevForestryRoads() {
   }
   // A preview is rebuilt when anything its file is made from changes.
   const exportPreviewVersion = useMemo(
-    () => ({ project, analyses: w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope }),
-    [project, w.analyses, displayedAnalysis, terrainProfile, source, hiddenPanels, roadScope],
+    () => ({
+      project,
+      analyses: w.analyses,
+      displayedAnalysis,
+      terrainProfile,
+      source,
+      hiddenPanels,
+      roadScope,
+      sheet: blockSheet.settings,
+      logo: blockSheet.logo,
+    }),
+    [
+      project,
+      w.analyses,
+      displayedAnalysis,
+      terrainProfile,
+      source,
+      hiddenPanels,
+      roadScope,
+      blockSheet.settings,
+      blockSheet.logo,
+    ],
   )
   /** What the Save & export dialog shows for one output, from the content its download writes. */
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'block-sheet-pdf') {
+      const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
+      const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
+      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+    }
     if (kind === 'map-pdf') {
       const map = planMap.current
       if (!map || hiddenPanels.includes('plan') || map.getCanvas().clientWidth < 1)
@@ -2461,6 +2548,7 @@ export default function DevForestryRoads() {
   // The vehicle check follows the displayed road; deferring it keeps drags and typing responsive.
   const sweptAlignment = useDeferredValue(displayedAlignment)
   const [showSwept, setShowSwept] = useState(true)
+  const [junctionOverlay, setJunctionOverlay] = useState<GeoJSON.FeatureCollection | null>(null)
   const sweptState = useMemo(() => {
     const check = sweptAlignment.vehicleCheck
     if (!check || terrainProfile) return { result: null, error: '' }
@@ -2470,6 +2558,10 @@ export default function DevForestryRoads() {
       return { result: null, error: cause instanceof Error ? cause.message : 'The swept path could not be calculated.' }
     }
   }, [sweptAlignment, terrainProfile])
+  const sweptOnPlan = useMemo(
+    () => withJunctionOverlay(sweptState.result?.overlay, junctionOverlay),
+    [sweptState.result, junctionOverlay],
+  )
   // Review reads the result only once it is for the road on screen, never a deferred earlier one.
   const vehicleFitOnRoad = useMemo(
     () => (sweptState.result && sweptAlignment === alignment ? vehicleFit(sweptState.result) : null),
@@ -2477,6 +2569,7 @@ export default function DevForestryRoads() {
   )
   const swept: SweptPathProps = {
     ...sweptState,
+    junctions: { alignments: project.alignments, context: project.context, onOverlay: setJunctionOverlay },
     showOnPlan: showSwept,
     onShowOnPlan: setShowSwept,
     onFocus: (turn) => {
@@ -2880,6 +2973,7 @@ export default function DevForestryRoads() {
         }}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
+        setupViews={{ 'block-sheet-pdf': blockSheet.setup }}
       />
       <CostBreakdown
         open={!investigation && costOpen && !!displayedAnalysis.stations.length}
@@ -3271,6 +3365,7 @@ export default function DevForestryRoads() {
                 onLoadMappedRoad={loadMappedRoad}
                 onLoadMappedRoadsInView={loadMappedRoadsInView}
                 onCopyMappedRoad={copyMappedRoad}
+                onPreviewTerrainRoad={setTerrainRoadOverlay}
                 onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
                 onLoadTerrainAroundRoad={() => loadTerrain('regional')}
                 onLocateRoad={locateRoad}
@@ -3294,6 +3389,7 @@ export default function DevForestryRoads() {
                 onPickOnPlan={pickOnPlan}
                 onLoadFsrsNear={loadFsrsNear}
                 onPreviewAccessMarks={setAccessMarks}
+                onPreviewSkidReach={setSkidReachFeatures}
                 onDrawBlock={() => {
                   setPolygonKind('harvest')
                   setMode('avoid')
@@ -3415,16 +3511,19 @@ export default function DevForestryRoads() {
                     <strong>
                       {mode === 'road'
                         ? 'Peg road'
-                        : mode === 'extend'
-                          ? `Extend ${alignment.name}`
-                          : mode === 'avoid'
-                            ? `Draw ${drawnArea}`
-                            : `Draw ${mode}`}
+                        : mode === 'trace'
+                          ? 'Trace road'
+                          : mode === 'extend'
+                            ? `Extend ${alignment.name}`
+                            : mode === 'avoid'
+                              ? `Draw ${drawnArea}`
+                              : `Draw ${mode}`}
                     </strong>
                     <span>
                       {mode === 'extend' ? 'Click plan to peg on from the nearer road end' : 'Click plan to add points'}{' '}
                       · {draft.length} points
                     </span>
+                    {mode === 'trace' && <TraceFeedback trace={trace} />}
                     <span className="font-mono">
                       Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
                       <strong
@@ -3625,7 +3724,7 @@ export default function DevForestryRoads() {
                             onCableDistance={setCableDistance}
                             overlay={investigation ? undefined : planOverlay}
                             drainage={investigation ? undefined : drainageOnPlan}
-                            swept={!investigation && showSwept ? sweptState.result?.overlay : undefined}
+                            swept={!investigation && showSwept ? sweptOnPlan : undefined}
                             // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
                             pourPointPicking={!!drainagePicking || !!planPick}
                             onPourPoint={
@@ -3994,6 +4093,8 @@ export default function DevForestryRoads() {
                                       showOnPlan={showSwept}
                                       onShowOnPlan={setShowSwept}
                                       onFocus={swept.onFocus}
+                                      alignment={displayedAlignment}
+                                      junctions={swept.junctions}
                                     />
                                   </div>
                                 )}
@@ -4032,8 +4133,10 @@ export default function DevForestryRoads() {
                                           data-testid="road-cable-summary"
                                         >
                                           <summary className="cursor-pointer">
-                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m · assumed
-                                            sag {number(cableResult.summary.assumedSagM)} m
+                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m ·{' '}
+                                            {cableAnalysis.mechanics?.span
+                                              ? 'rope and load'
+                                              : `assumed sag ${number(cableResult.summary.assumedSagM)} m`}
                                           </summary>
                                           <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
                                             <span>
@@ -4050,8 +4153,9 @@ export default function DevForestryRoads() {
                                             <span>Known ground {number(cableResult.summary.knownGroundPercent)}%</span>
                                           </div>
                                           <p className="mt-1 text-muted-foreground">
-                                            Geometric lengths describe the entered sag model; equipment, tension and
-                                            operating loads are not calculated.
+                                            {cableAnalysis.mechanics?.span
+                                              ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
+                                              : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'}
                                           </p>
                                         </details>
                                       )}

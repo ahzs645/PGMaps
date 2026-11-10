@@ -26,6 +26,7 @@ import { materialPlanMissing } from './engineeringTypes'
 import { invalidInputMessages, type EngineeringInputList } from './inputErrors'
 import { STREAM_STATUS_LABELS } from './streamClass'
 import type { SweptPathResult } from './sweptPath'
+import { reviewRoadHaul, type RoadHaulReview } from './haulReview'
 import { DEFAULT_TEMPLATE } from './terrain'
 import type {
   Alignment,
@@ -57,6 +58,7 @@ export type ReadinessTarget =
   | 'streams'
   | 'drainage'
   | 'constraints'
+  | 'haul-destination'
 
 export interface ReadinessRow {
   id: string
@@ -104,6 +106,9 @@ export interface VehicleFit {
   /** Largest wheel-path widening any turn needs, 0 when everything fits. */
   worstWideningM: number
   worstChainage: number | null
+  /** Turns that need more steering than the vehicle's lock; 0 when no lock is entered. */
+  beyondLockTurns?: number
+  steeringLockDeg?: number
 }
 
 /** The swept-path result reduced to what the readiness row states. */
@@ -125,6 +130,12 @@ export function vehicleFit(result: SweptPathResult): VehicleFit {
     failingTurns: failing.length,
     worstWideningM: worst ? Math.max(worst.requiredLeftWideningM, worst.requiredRightWideningM) : 0,
     worstChainage: worst?.worstChainage ?? null,
+    ...(result.check.vehicle.steeringLockDeg === undefined
+      ? {}
+      : {
+          beyondLockTurns: new Set(result.maneuvers.filter((turn) => turn.lockExceeded).map((turn) => turn.id)).size,
+          steeringLockDeg: result.check.vehicle.steeringLockDeg,
+        }),
   }
 }
 
@@ -141,6 +152,8 @@ export interface ReadinessInput {
   vehicle?: VehicleFit | null
   /** Built here when omitted; pass the one already on screen so both agree. */
   register?: CrossingRegister
+  /** The haul review of this road (`haulReview.ts`). Absent leaves the junction-turn row out. */
+  haul?: RoadHaulReview
 }
 
 const EPS = 1e-6
@@ -627,6 +640,18 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       judgedOn: `Wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
       action: { label: 'Open check', target: 'vehicle', chainage: vehicle.worstChainage ?? undefined },
     })
+  else if (vehicle.beyondLockTurns)
+    add({
+      id: 'vehicle-fit',
+      group: 'alignment',
+      check: 'Design vehicle stays on the running surface',
+      state: 'attention',
+      severity: 'limit',
+      result: `The vehicle cannot steer ${vehicle.beyondLockTurns} of ${plural(vehicle.turns, 'turn')}`,
+      measured: `${vehicle.vehicleName} · beyond its ${vehicle.steeringLockDeg}° steering lock`,
+      judgedOn: `Steering angle within the vehicle's lock; wheel paths inside the formation with ${vehicle.clearanceM.toFixed(2)} m clearance`,
+      action: { label: 'Open check', target: 'vehicle' },
+    })
   else
     add({
       id: 'vehicle-fit',
@@ -800,6 +825,8 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
       measured: kMeasured,
       judgedOn: kLimit,
     })
+
+  if (input.haul) add(junctionTurnRow(input.haul))
 
   // ---- Section and earthwork -----------------------------------------------------------------
   const template = alignment.template
@@ -1575,12 +1602,73 @@ export function assessReadiness(input: ReadinessInput): ReadinessRow[] {
   return rows
 }
 
+const JUNCTION_CHECK = 'Junction turns loaded trucks toward the destination'
+
+/**
+ * The loaded truck's turn where the road joins the loaded roads, toward the haul destination. Not
+ * assessed without a destination, a junction, or a known way to the destination from it.
+ */
+export function junctionTurnRow(haul: RoadHaulReview): ReadinessRow {
+  const base = { id: 'junction-turn', group: 'alignment' as const, check: JUNCTION_CHECK }
+  const action = { label: 'Haul destination', target: 'haul-destination' as const }
+  if (haul.status === 'no-destination')
+    return {
+      ...base,
+      state: 'not-assessed',
+      result: 'No haul destination is chosen, so the way loaded trucks turn is not known',
+      judgedOn: 'The loaded turn onto the host road, toward the destination',
+      action: { label: 'Choose a destination', target: 'haul-destination' },
+    }
+  if (haul.status === 'no-junction')
+    return {
+      ...base,
+      state: 'not-assessed',
+      result: 'The road has no junction with a loaded road',
+      measured: haul.reason,
+      action,
+    }
+  if (haul.status === 'unavailable')
+    return { ...base, state: 'not-assessed', result: 'The haul could not be traced', measured: haul.reason, action }
+  const { junction, rule, destination } = haul
+  const judgedOn = `Loaded turn at most ${rule.maxTurnDeg}°, preferably ${rule.preferredTurnDeg}° or less (0° is straight on, 90° a right-angle tee)`
+  const where = `${junction.end === 'start' ? 'Start' : 'End'} of the road, on ${junction.route.joinedRoad ?? 'a loaded road'}`
+  if (!junction.measure)
+    return {
+      ...base,
+      state: 'not-assessed',
+      result: `The way to ${destination.name} from the junction is not known`,
+      measured: `${where}. ${junction.route.reason}`,
+      judgedOn,
+      action,
+    }
+  const m = junction.measure
+  const measured = `${where}: arrives on ${Math.round(m.arrivalBearing)}°, leaves toward ${destination.name} on ${Math.round(m.departureBearing)}°; ${Math.round(m.acuteDeg)}° to the host line.${haul.bothEndsJoin ? ' Both ends meet loaded roads; this is the end with the faster haul.' : ''}`
+  if (m.state === 'sharp')
+    return {
+      ...base,
+      state: 'attention',
+      severity: 'limit',
+      result: `Loaded trucks turn ${Math.round(m.turnDeg)}° toward ${destination.name}, over the ${rule.maxTurnDeg}° limit`,
+      measured,
+      judgedOn,
+      action,
+    }
+  return {
+    ...base,
+    state: 'met',
+    result: `Loaded trucks turn ${Math.round(m.turnDeg)}° toward ${destination.name}${m.state === 'preferred' ? '' : `, above the preferred ${rule.preferredTurnDeg}°`}`,
+    measured,
+    judgedOn,
+  }
+}
+
 /**
  * The list and the crossing register for one road of a project, as the Review step shows them and the
  * report prints them. `drainageStale` comes from the caller, which knows whether a live run matches.
  */
 export function projectReadiness(
-  project: Pick<RoadProject, 'settings' | 'standards' | 'terrain' | 'context' | 'drainage'>,
+  project: Pick<RoadProject, 'settings' | 'standards' | 'terrain' | 'context' | 'drainage'> &
+    Partial<Pick<RoadProject, 'alignments' | 'haulDestination'>>,
   alignment: Alignment,
   analysis: RoadAnalysis,
   options: { drainageStale: boolean; vehicle?: VehicleFit | null },
@@ -1605,6 +1693,15 @@ export function projectReadiness(
       drainage,
       vehicle: options.vehicle,
       register,
+      haul: reviewRoadHaul(
+        {
+          context: project.context,
+          alignments: project.alignments ?? [alignment],
+          haulDestination: project.haulDestination,
+        },
+        alignment,
+        analysis.stations.map((s) => s.coordinate),
+      ),
     }),
   }
 }
