@@ -14,6 +14,7 @@ import { sectionStations } from './designExports'
 import { createEngineeringDesign, materialPlanMissing } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
 import { parseRigging, parseSagModel } from './cableMechanics'
+import { parseSupportLayout } from './cableLayout/settings'
 import { curvatureCorrectionText } from './curvedVolume'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
@@ -675,6 +676,7 @@ function parseCable(raw: unknown): CableLine {
         }),
     ...(r.sagModel === undefined ? {} : { sagModel: parseSagModel(r.sagModel, r.rigging !== undefined) }),
     ...(r.rigging === undefined ? {} : { rigging: parseRigging(r.rigging) }),
+    ...(r.supportLayout === undefined ? {} : { supportLayout: parseSupportLayout(r.supportLayout) }),
   }
   resolvedCableLine(result)
   return result

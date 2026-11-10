@@ -88,6 +88,7 @@ import {
   MassHaulChart,
   ProfileChart,
 } from './dev-forestry-roads/Charts'
+import { useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
@@ -1061,6 +1062,7 @@ export default function DevForestryRoads() {
     }
   }, [cableLine, source])
   const cableAnalysis = cableResult.analysis
+  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, source)
   const saveCableProfile = (kind: 'csv' | 'report') => {
     if (!cableLine || !cableAnalysis) return
     try {
@@ -4172,6 +4174,7 @@ export default function DevForestryRoads() {
                                           analysis={cableAnalysis}
                                           distance={cableDistance}
                                           onDistance={setCableDistance}
+                                          layout={cableLayoutOverlay}
                                         />
                                       </div>
                                     </div>

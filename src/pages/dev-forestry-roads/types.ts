@@ -15,6 +15,7 @@ import type { DrainageProjectState } from './drainageEvidence'
 import type { RoadReportSettings } from './reportSettings'
 import type { InvalidInput } from './inputErrors'
 import type { CableRigging, SkylineSpanResult } from './cableMechanics'
+import type { CableSupportLayout } from './cableLayout/settings'
 export type { GradeRange, VerticalCheck, VerticalControl, VerticalStandards } from './verticalStandards'
 export type * from './engineeringTypes'
 
@@ -371,6 +372,8 @@ export interface CableLine {
   sagModel?: 'assumed' | 'mechanics'
   /** Rope, load and tensioning for the `mechanics` sag model; kept when switching back to `assumed`. */
   rigging?: CableRigging
+  /** Intermediate-support search settings and the last layout found (`cableLayout/settings.ts`). */
+  supportLayout?: CableSupportLayout
 }
 export interface RoadSettings {
   stationInterval: number

@@ -138,6 +138,7 @@
     "walkability:build-grid-heatmap": "npm --prefix vendor/bcdatamapper run walkability:build-grid-heatmap --",
     "walkability:build-factor-masks": "node scripts/build-walkability-factor-masks.mjs",
     "lint": "eslint src/ packages/geo-toolkit/src",
+    "wasm:cable": "node scripts/build-cable-wasm.mjs",
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\" \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,css}\" \"packages/geo-toolkit/{src,scripts,tests}/**/*.{ts,tsx,css,mjs}\"",
     "e2e": "playwright test",

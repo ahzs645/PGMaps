@@ -1,0 +1,5 @@
+# Pinned so `npm run wasm:cable` rebuilds the committed cable_layout.wasm byte for byte.
+[toolchain]
+channel = "1.98.0"
+targets = ["wasm32-unknown-unknown"]
+profile = "minimal"
