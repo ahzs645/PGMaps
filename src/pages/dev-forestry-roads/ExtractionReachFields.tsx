@@ -9,6 +9,7 @@ import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, NumberField, RoadSelect, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { CableCoverageFields } from './CableCoverageFields'
+import type { RiggingSet } from './dline/riggingSets'
 import {
   MAX_FELLABLE_SLOPE_PERCENT,
   MIN_FELLABLE_SLOPE_PERCENT,
@@ -55,6 +56,8 @@ export interface ExtractionFieldsProps {
   classText: string
   onClassText: (value: string) => void
   classError: string
+  /** The project's named rigging sets, offered beside the cable yarder's rope and load. */
+  riggingSets?: { sets: readonly RiggingSet[]; onSetsChange: (sets: RiggingSet[]) => void }
 }
 
 /** The machine picker and its limits, for the extraction-reach panel. */
@@ -79,6 +82,7 @@ export function ExtractionReachFields(p: ExtractionFieldsProps) {
         <CableCoverageFields
           rule={s.cable}
           onRule={(update) => onSettings((x) => ({ ...x, cable: update(x.cable) }))}
+          riggingSets={p.riggingSets}
         />
       ) : s.machine === 'skidder' ? (
         <>

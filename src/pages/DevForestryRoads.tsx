@@ -89,8 +89,13 @@ import {
   MassHaulChart,
   ProfileChart,
 } from './dev-forestry-roads/Charts'
-import { useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
+import { currentLayoutResult, useCableLayoutOverlay } from './dev-forestry-roads/cableLayout/useCableLayout'
 import { useCableLayoutChartEdit, useLayoutFocusFollower } from './dev-forestry-roads/cableLayout/useLayoutEdit'
+import { cableGroundSource } from './dev-forestry-roads/dline/fieldProfile'
+import { dLineFrame } from './dev-forestry-roads/dline/frame'
+import { dLineExtras } from './dev-forestry-roads/dline/outputs'
+import { dLineSheetUnavailable } from './dev-forestry-roads/dline/sheetExport'
+import { dLineSupportPlanFeatures, supportStakeoutCsv } from './dev-forestry-roads/dline/supports'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
@@ -595,6 +600,8 @@ export default function DevForestryRoads() {
         ...(routeLines ?? []).map(routePreviewFeature),
         // Skid reach: beyond-reach outlines, spur candidates and landing footprints.
         ...(skidReachFeatures ?? []),
+        // Every D-line's saved intermediate supports: dots, labelled on hover.
+        ...(investigation ? [] : dLineSupportPlanFeatures(project.cables)),
         ...(routePreview?.route
           ? [
               {
@@ -623,6 +630,8 @@ export default function DevForestryRoads() {
       terrainRoadOverlay,
       terrainRoadsOverlay,
       skidReachFeatures,
+      investigation,
+      project.cables,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -1066,9 +1075,11 @@ export default function DevForestryRoads() {
     [displayedAlignment.id],
   )
   const cableLine = project.cables.find((c) => c.id === activeCable) ?? project.cables[0]
+  // A D-line with field shots in use reads them in place of the terrain along it.
+  const cableGround = cableLine ? cableGroundSource(cableLine, source) : source
   const cableResult = useMemo(() => {
     try {
-      const analysis = cableLine ? analyzeCable(cableLine, source) : null
+      const analysis = cableLine ? analyzeCable(cableLine, cableGround) : null
       return { analysis, summary: cableLine && analysis ? cableSummary(cableLine, analysis) : null, error: '' }
     } catch (error) {
       return {
@@ -1077,22 +1088,41 @@ export default function DevForestryRoads() {
         error: error instanceof Error ? error.message : 'Invalid D-line geometry.',
       }
     }
-  }, [cableLine, source])
+  }, [cableLine, cableGround])
   const cableAnalysis = cableResult.analysis
-  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, source)
+  const cableLayoutOverlay = useCableLayoutOverlay(cableLine, cableGround)
   type CableLineOf = (typeof project.cables)[number]
   const editCable = useCallback(
     (change: (line: CableLineOf) => CableLineOf) => update((p) => ({ ...p, cables: p.cables.map(change) })),
     [update],
   )
-  const cableLayoutEdit = useCableLayoutChartEdit(cableLine, source, editCable)
-  const saveCableProfile = (kind: 'csv' | 'report') => {
+  const cableLayoutEdit = useCableLayoutChartEdit(cableLine, cableGround, editCable)
+  const saveCableProfile = (kind: 'csv' | 'report' | 'stakeout') => {
     if (!cableLine || !cableAnalysis) return
     try {
+      // Supports, their stake-out, a field profile and the rigging set ride after the existing columns.
+      const frame = dLineFrame(cableLine)
+      const extras = dLineExtras({
+        line: cableLine,
+        analysis: cableAnalysis,
+        terrain: source,
+        ground: cableGround,
+        layout: currentLayoutResult(cableLine, cableGround),
+        grid: frame ? exportGrid(project.terrain, frame.yarder) : undefined,
+        riggingSets: project.riggingSets,
+      })
+      if (kind === 'stakeout') {
+        if (!extras.supports || !extras.stakeout) throw Error('This D-line has no supports to stake out.')
+        return downloadText(
+          supportStakeoutCsv(cableLine.name, extras.supports, extras.stakeout.rows, extras.stakeout.epsg),
+          'd-line-supports-stakeout.csv',
+          'text/csv;charset=utf-8',
+        )
+      }
       downloadText(
         kind === 'csv'
-          ? cableProfileCsv(cableLine, cableAnalysis, project.terrain)
-          : cableProfileHtml(cableLine, cableAnalysis, project.terrain),
+          ? cableProfileCsv(cableLine, cableAnalysis, project.terrain, extras)
+          : cableProfileHtml(cableLine, cableAnalysis, project.terrain, extras),
         kind === 'csv' ? 'd-line-profile.csv' : 'd-line-profile.html',
         kind === 'csv' ? 'text/csv;charset=utf-8' : 'text/html;charset=utf-8',
       )
@@ -2126,7 +2156,7 @@ export default function DevForestryRoads() {
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf'>,
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf' | 'dline-sheet-pdf'>,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2316,9 +2346,38 @@ export default function DevForestryRoads() {
       caveat: PLANNING_CAVEAT,
     }
   }
+  /** The active D-line's sheet, with the project's issue stamp. */
+  const dLineSheetRequest = (safe: RoadProject) => {
+    // The live D-line, so a support layout found or checked on screen is the one printed.
+    const line = cableLine
+    if (!line) throw Error('Draw a D-line in Review first.')
+    const stamp = issueStamp(safe.issue)
+    return {
+      project: safe,
+      line,
+      terrain: source,
+      issue: {
+        date: stamp.date,
+        preparedBy: stamp.preparedBy,
+        organisation: stamp.organisation,
+        revision: stamp.revision,
+      },
+      caveat: PLANNING_CAVEAT,
+    }
+  }
   const save = (kind: RoadExport) => {
     try {
       const { safe, basename } = exportBasis(kind)
+      if (kind === 'dline-sheet-pdf') {
+        void run('Building the D-line sheet…', async (signal) => {
+          const { dLineSheetPdf } = await import('./dev-forestry-roads/dline/sheetExport')
+          const blob = await dLineSheetPdf({ ...dLineSheetRequest(safe), signal })
+          const name = (cableLine?.name ?? 'd-line').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'd-line'
+          downloadBlob(blob, `${basename}-${name.slice(0, 40)}-sheet.pdf`)
+          w.setNotice('D-line sheet downloaded.')
+        })
+        return
+      }
       if (kind === 'block-sheet-pdf') {
         void run('Building block map sheet…', async (signal) => {
           const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
@@ -2402,6 +2461,11 @@ export default function DevForestryRoads() {
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    if (kind === 'dline-sheet-pdf') {
+      const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
+      const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal })
+      return { type: 'image', src: preview.src, width: preview.width, height: preview.height }
+    }
     if (kind === 'block-sheet-pdf') {
       const { blockSheetPreview } = await import('./dev-forestry-roads/blockSheet')
       const preview = await blockSheetPreview({ ...blockSheetRun(kind, safe), signal })
@@ -3088,6 +3152,7 @@ export default function DevForestryRoads() {
           hasTerrainGrid: !!project.terrain.raster,
           hasProvincialEvidence: !!project.provincialStreamData,
           hasNotes: !!project.notes?.length,
+          dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
         }}
         buildPreview={buildExportPreview}
         previewVersion={exportPreviewVersion}
@@ -3867,6 +3932,10 @@ export default function DevForestryRoads() {
                               // A failed route search's mark selects the row that explains it.
                               if (properties?.routeLineId)
                                 routeLines?.find((line) => line.id === properties.routeLineId)?.onSelect?.()
+                              if (properties?.kind === 'dline-support' && properties.cableId) {
+                                selectCable(String(properties.cableId))
+                                setCableDistance(Number(properties.chartDistance) || 0)
+                              }
                             }}
                           />
                         </div>
@@ -4303,6 +4372,15 @@ export default function DevForestryRoads() {
                                         <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
                                           D-line report
                                         </Button>
+                                        {cableLine.supportLayout?.saved && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => saveCableProfile('stakeout')}
+                                          >
+                                            Stake-out CSV
+                                          </Button>
+                                        )}
                                       </div>
                                       <div className="min-h-0 flex-1">
                                         <CableChart

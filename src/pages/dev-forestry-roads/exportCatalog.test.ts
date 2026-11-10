@@ -21,6 +21,7 @@ const ready: ExportContext = {
   hasTerrainGrid: true,
   hasProvincialEvidence: true,
   hasNotes: true,
+  dLineSheetUnavailable: null,
 }
 
 describe('export catalog', () => {
@@ -41,6 +42,23 @@ describe('export catalog', () => {
     expect(exportUnavailable('notes', { ...ready, designPreview: true, hasResults: false })).toBeNull()
     expect(exportUnavailable('notes', { ...ready, hasNotes: false })).toMatch(/Draw a note/)
     for (const item of EXPORT_ITEMS) expect(exportUnavailable(item.kind, ready)).toBeNull()
+  })
+
+  it('offers the D-line sheet only for a D-line whose own inputs are valid', () => {
+    expect(exportUnavailable('dline-sheet-pdf', { ...ready, dLineSheetUnavailable: undefined })).toMatch(
+      /Draw a D-line/,
+    )
+    expect(exportUnavailable('dline-sheet-pdf', { ...ready, dLineSheetUnavailable: 'Correct the rigging.' })).toBe(
+      'Correct the rigging.',
+    )
+    // A road's invalid input does not reach a D-line.
+    expect(INVALID_INPUT_RULES['dline-sheet-pdf']).toBe('unaffected')
+    expect(
+      exportUnavailable('dline-sheet-pdf', {
+        ...ready,
+        invalidInput: () => ({ message: 'Road section: bad.', leftOut: 'input' }),
+      }),
+    ).toBeNull()
   })
 })
 

@@ -15,6 +15,8 @@ import { createEngineeringDesign, materialPlanMissing } from './engineeringTypes
 import { resolvedCableLine } from './cableGeometry'
 import { parseRigging, parseSagModel } from './cableMechanics'
 import { parseSupportLayout } from './cableLayout/settings'
+import { parseFieldProfile } from './dline/fieldProfile'
+import { parseRiggingSets } from './dline/riggingSets'
 import { curvatureCorrectionText } from './curvedVolume'
 import { parseSightSettings } from './sightDistance'
 import { parseRoadEvidence } from './existingRoadEvidence'
@@ -651,6 +653,7 @@ function parseCable(raw: unknown): CableLine {
     ...(r.sagModel === undefined ? {} : { sagModel: parseSagModel(r.sagModel, r.rigging !== undefined) }),
     ...(r.rigging === undefined ? {} : { rigging: parseRigging(r.rigging) }),
     ...(r.supportLayout === undefined ? {} : { supportLayout: parseSupportLayout(r.supportLayout) }),
+    ...(r.fieldProfile === undefined ? {} : { fieldProfile: parseFieldProfile(r.fieldProfile) }),
   }
   resolvedCableLine(result)
   return result
@@ -771,6 +774,7 @@ export function parseProject(raw: unknown): RoadProject {
       : { provincialStreamData: parseProvincialStreamData(r.provincialStreamData) }),
     context,
     cables,
+    ...(r.riggingSets === undefined ? {} : { riggingSets: parseRiggingSets(r.riggingSets) }),
     ...(profiles ? { profiles } : {}),
   }
   const migrated = legacyAccessInvestigation(project)
