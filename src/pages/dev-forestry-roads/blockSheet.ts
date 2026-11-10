@@ -30,6 +30,8 @@ import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { MAX_SHEET_SCALE } from '@/lib/mapSheet/scale'
 import { runCooperatively } from './cooperative'
 import { arrowHead, type MapNote } from './mapNotes'
+import { contextSheetKey, isDeactivatedRoad, riparianSheetKey } from './planSheetSymbols'
+import { riparianMapFeatures } from './riparian'
 import { distinctRoadColors } from './roadColors'
 import type { RoadAnalysis, RoadProject, TerrainSource } from './types'
 
@@ -113,8 +115,9 @@ function noteMarkup(note: MapNote): SheetNote {
 
 /**
  * What the project draws on a sheet: the chosen block, the other harvest areas, constraint areas,
- * streams, mapped roads, the designed roads in their own colours, and the plan's notes as review
- * markup.
+ * the riparian screen, streams, mapped roads (crossed where deactivated), the designed roads in their
+ * own colours, and the plan's notes as review markup. Context is classed by `contextSheetKey`, as on
+ * the plan with sheet symbols on.
  */
 export function blockSheetLayers(
   project: RoadProject,
@@ -134,15 +137,15 @@ export function blockSheetLayers(
     constraints: project.context.flatMap((feature) =>
       feature.kind === 'avoid' && feature.geometry.type === 'Polygon' ? [{ geometry: feature.geometry }] : [],
     ),
+    riparian: riparianMapFeatures(project.context).flatMap((feature) => {
+      const key = riparianSheetKey(feature.properties?.riparianBand)
+      const geometry = feature.geometry
+      if (!key || (geometry.type !== 'Polygon' && geometry.type !== 'MultiPolygon')) return []
+      return [{ geometry, band: key === 'riparianReserve' ? ('reserve' as const) : ('management' as const) }]
+    }),
     streams: project.context.flatMap((feature) =>
       feature.kind === 'stream' && feature.geometry.type === 'LineString'
-        ? [
-            {
-              line: feature.geometry.coordinates as [number, number][],
-              // Only an imported "NCD" class draws dashed; an unassessed reach is a stream.
-              ncd: feature.streamAssessment?.importedClass?.trim().toUpperCase() === 'NCD',
-            },
-          ]
+        ? [{ line: feature.geometry.coordinates as [number, number][], ncd: contextSheetKey(feature) === 'ncd' }]
         : [],
     ),
     existingRoads: project.context.flatMap((feature) =>
@@ -150,8 +153,9 @@ export function blockSheetLayers(
         ? [
             {
               line: feature.geometry.coordinates as [number, number][],
-              forestService: feature.roadEvidence?.roadClass === 'fsr',
+              forestService: contextSheetKey(feature) === 'fsr',
               name: feature.name,
+              deactivated: isDeactivatedRoad(feature),
             },
           ]
         : [],

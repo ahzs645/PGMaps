@@ -9,22 +9,30 @@ No licensee names or logos come with them; a user can add one logo of their own.
 The road design tool offers it as **Files → Project & exports → Block map sheet**. The engine is
 generic and other tools can adopt it; see [Adopting it in another tool](#adopting-it-in-another-tool).
 
-| Part                     | Where                                                               | DOM / network                               |
-| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------- |
-| Layouts, paper sizes     | `src/lib/mapSheet/layout.ts`                                        | None                                        |
-| Scale, frame, scale bar  | `src/lib/mapSheet/scale.ts`                                         | None                                        |
-| Draw operations, helpers | `src/lib/mapSheet/drawOps.ts`                                       | None                                        |
-| Fixed-interval contours  | `src/lib/mapSheet/contours.ts`                                      | None                                        |
-| Text widths              | `src/lib/mapSheet/textMetrics.ts`                                   | None                                        |
-| PDF and SVG renderers    | `src/lib/mapSheet/renderPdf.ts`, `renderSvg.ts`                     | None (jsPDF is passed in)                   |
-| PNG encoder              | `src/lib/mapSheet/png.ts`                                           | None (`CompressionStream`)                  |
-| Imagery capture          | `src/lib/mapSheet/printCapture.ts`                                  | Browser: hidden MapLibre map, tile requests |
-| Presets and colours      | `src/lib/forestry/blockSheet/sheets.ts`, `styles.ts`                | None                                        |
-| Classed rasters          | `src/lib/forestry/blockSheet/classedRasters.ts`                     | None                                        |
-| Block facts, BCGS        | `src/lib/forestry/blockSheet/blockFacts.ts`, `bcgs.ts`              | None                                        |
-| Sheet composer           | `src/lib/forestry/blockSheet/composeSheet.ts`, `prepareSheet.ts`    | None                                        |
-| Setup form               | `src/components/ui/map-sheet-setup.tsx`                             | React                                       |
-| Road tool adapter        | `src/pages/dev-forestry-roads/blockSheet.ts`, `BlockSheetSetup.tsx` | Loads capture and jsPDF on demand           |
+| Part                     | Where                                                                   | DOM / network                               |
+| ------------------------ | ----------------------------------------------------------------------- | ------------------------------------------- |
+| Layouts, paper sizes     | `src/lib/mapSheet/layout.ts`                                            | None                                        |
+| Scale, frame, scale bar  | `src/lib/mapSheet/scale.ts`                                             | None                                        |
+| Draw operations, helpers | `src/lib/mapSheet/drawOps.ts`                                           | None                                        |
+| Fixed-interval contours  | `src/lib/mapSheet/contours.ts`                                          | None                                        |
+| Text widths              | `src/lib/mapSheet/textMetrics.ts`                                       | None                                        |
+| PDF and SVG renderers    | `src/lib/mapSheet/renderPdf.ts`, `renderSvg.ts`                         | None (jsPDF is passed in)                   |
+| PNG encoder              | `src/lib/mapSheet/png.ts`                                               | None (`CompressionStream`)                  |
+| Imagery capture          | `src/lib/mapSheet/printCapture.ts`                                      | Browser: hidden MapLibre map, tile requests |
+| Symbol model and drawing | `src/lib/mapSheet/symbols.ts`, `icons.ts`                               | None                                        |
+| Map patterns and icons   | `src/lib/mapSheet/symbolRaster.ts`, `mapSymbols.ts`                     | None (the map is passed in)                 |
+| Swatch SVG, sheet PNG    | `src/lib/mapSheet/symbolSvg.ts`; `sheetPng.ts`                          | None; `sheetPng.ts` needs a canvas          |
+| Presets and colours      | `src/lib/forestry/blockSheet/sheets.ts`, `styles.ts`                    | None                                        |
+| Symbol catalogue         | `src/lib/forestry/blockSheet/symbolCatalogue.ts`, `symbolMismatches.ts` | None                                        |
+| Gallery sheets           | `src/lib/forestry/blockSheet/gallerySheets.ts`, `blockSheetFixtures.ts` | None                                        |
+| Classed rasters          | `src/lib/forestry/blockSheet/classedRasters.ts`                         | None                                        |
+| Block facts, BCGS        | `src/lib/forestry/blockSheet/blockFacts.ts`, `bcgs.ts`                  | None                                        |
+| Sheet composer           | `src/lib/forestry/blockSheet/composeSheet.ts`, `prepareSheet.ts`        | None                                        |
+| Setup form               | `src/components/ui/map-sheet-setup.tsx`                                 | React                                       |
+| Road tool adapter        | `src/pages/dev-forestry-roads/blockSheet.ts`, `BlockSheetSetup.tsx`     | Loads capture and jsPDF on demand           |
+| Road plan sheet symbols  | `src/pages/dev-forestry-roads/planSheetSymbols.ts`, `PlanView.tsx`      | Module none; the plan adds the layers       |
+| Legend swatch            | `src/components/ui/sheet-symbol-swatch.tsx`                             | React                                       |
+| Symbol gallery           | `src/pages/DevForestryBlockSheets.tsx`, `dev-forestry-block-sheets/`    | React, `/dev/forestry/block-sheets`         |
 
 ## Before you rely on it
 
@@ -120,17 +128,142 @@ Labels run along the line every 220 pt, staggered by level, at least 34 pt apart
 
 **Features** (detail widths up to 1:25,000, `DETAIL_SCALE_LIMIT`; overview widths beyond):
 
-| Feature                  | Symbol                                                                                    |
-| ------------------------ | ----------------------------------------------------------------------------------------- |
-| Block of interest        | `#ffaa00` 2.5 over white 3.0; on LiDAR sheets `#000000` 2.5 over white 3.0                |
-| Other blocks             | `#000000` 1.0 outline                                                                     |
-| Constraint area          | `#e60000` 0.5 hatch at 45°, 5 pt apart; `#a80000` 0.4 outline                             |
-| Stream                   | `#00a9e6` 1.0 (overview 0.4)                                                              |
-| NCD stream               | `#00a9e6` 1.0 dash 5/2 (overview 0.4 dash 2/2)                                            |
-| Forest service road      | `#000000` 4.0 with a white 1.0 centre dash 5/5 (overview 2.0 / 0.75)                      |
-| Existing road            | `#734c00` 2.5 with a white 1.0 centre dash 5/5 (overview 1.5 / 0.75)                      |
-| Proposed (designed) road | The road's own colour 2.5 with a white 1.0 centre dash 5/5 (overview 1.5 / 0.75)          |
-| Review markup            | Each note's colour: lines 2.0, areas filled at 0.35 with a 1.0 outline, pins 3 pt circles |
+| Feature                  | Symbol                                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------- |
+| Block of interest        | `#ffaa00` 2.5 over white 3.0; on LiDAR sheets `#000000` 2.5 over white 3.0                     |
+| Other blocks             | `#000000` 1.0 outline                                                                          |
+| Constraint area          | `#e60000` 0.5 hatch at 45°, 5 pt apart; `#a80000` 0.4 outline                                  |
+| Riparian reserve zone    | The reserve symbol: `#38a800` 0.5 hatch at 45°, 5 pt apart; `#38a800` 1.2 outline              |
+| Riparian management zone | `#97dbf2` 1.6 hatch with a `#4065eb` 0.4 hatch on it, 45°, 5 pt apart; `#4065eb` 0.4 outline   |
+| Stream                   | `#00a9e6` 1.0 (overview 0.1)                                                                   |
+| NCD stream               | `#00a9e6` 1.0 dash 5/2 (overview 0.1 dash 2/2)                                                 |
+| Forest service road      | `#000000` 4.0 with a white 1.0 centre dash 5/5 (overview 2.0 / 0.75)                           |
+| Existing road            | `#734c00` 2.5 with a white 1.0 centre dash 5/5 (overview 1.5 / 0.75)                           |
+| Road deactivation        | Black × 7 pt every 24 pt along a deactivated mapped road, over its own symbol                  |
+| Proposed (designed) road | The road's own colour 2.5 with a white 1.0 centre dash 5/5 (overview 1.5 / 0.75)               |
+| Review markup            | Each note's colour: lines 2.0, areas filled at 0.35 with a 1.0 outline, pins 6.6 pt dots, halo |
+| Any catalogue symbol     | `SheetLayers.extras`: a geometry with the catalogue symbol it draws with, listed by its label  |
+
+The 1:50,000 sheet draws streams as 0.1 pt hairlines, as the reference map did; its legend showed
+0.4 pt. Every catalogue symbol, and why most have no data yet, is in
+[Symbol library](#symbol-library).
+
+## Symbol library
+
+A symbol is data (`src/lib/mapSheet/symbols.ts`). One function per kind turns it into drawing
+operations, and the sheet's map, its legend swatches, the road plan's legend and the gallery all call
+it, so a symbol cannot be drawn two ways.
+
+| Kind  | Parts                                                                                                                                                                                                                                                                    |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Line  | Strokes stacked bottom first, each with colour, width, dash, cap and a sideways `offset` (positive to the right of travel, as MapLibre's `line-offset`); then `markers`: an icon every `spacing` points along the line                                                   |
+| Area  | Fill and opacity; `hatches` (one for a single hatch, two for a cross-hatch, a grid, a double hatch or alternating stripes, a second set shifted by `phase`); a `markerFill` grid of icons, staggered or not; outline strokes, `inside` for a casing just inside the edge |
+| Point | An icon, its size in points, a primary and secondary colour and a halo drawn round every part first                                                                                                                                                                      |
+| Class | A raster class colour and opacity                                                                                                                                                                                                                                        |
+
+Hatches and marker fills are clipped to their polygon, anchored to the page origin so neighbouring
+areas line up, and drawn as PDF vectors. Markers follow the line's direction; the first sits half a
+spacing in (`start`), none past the end. A legend swatch shorter than one spacing shows one marker
+in its middle.
+
+**Icons are PGMaps' own drawings** (`icons.ts`): simple vector parts in a unit box, made to read like
+the usual map symbols at 5–12 pt (bridge, culvert, pipe arch, gate, fish, fish barrier, point of
+diversion, wellsite, scenic "P", spot height, pits, plot, tree, warning, marsh mark, ticks, crosses,
+dots). The reference sheets drew points with symbol-font glyphs; none were extracted or traced, and
+no symbol font is embedded. The wetland's marsh marks are a generated staggered grid.
+
+**The catalogue** (`symbolCatalogue.ts`) defines every feature on the reference sheets (ArcGIS Pro
+block-map sheets supplied by a BC licensee, November 2026) that PGMaps could draw: 167
+symbols (16 of them raster classes) in the source's groups (classes, contours, blocks and management areas, hydrology, roads and
+linear features, point features, final layout features, GPS and design polygons) and a group of
+PGMaps' own additions. Each entry carries the source's values as text (`spec`) and either where
+PGMaps draws it from (`source`) or what data it lacks (`missing`). Labels are generic; branded
+labels became "Other licensee blocks", "Operating areas" and "Licensee road permit". Where the
+source left a value unrecorded (a marker's spacing, an outline's colour), the entry says which value
+was chosen.
+
+Drawn from PGMaps data today: the block of interest, other blocks, constraint areas, the riparian
+screen (reserve and management zones), streams and NCD streams, forest service roads (gravel main),
+other mapped roads (spur), deactivation crosses, designed roads, contours and review markup.
+Everything else is defined, drawn in the gallery and ready for `SheetLayers.extras`, but has no data
+source in the forestry tools yet:
+
+| Missing data                                       | Symbols waiting for it                                                                                         |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| FWA lakes and wetlands                             | Lake / river, wetland                                                                                          |
+| Land designations (parks, UWR, WHA, OGMA, tenures) | Parks, eco/rec reserve, recreation site, woodlot, community forest, UWR, WHA, caribou, OGMA, range, ecosystems |
+| RESULTS silviculture status                        | Previously harvested, satisfactorily restocked, free growing, other openings                                   |
+| Road surface or use class (FTEN has only status)   | Paved, operational, temporary, other road, barge crossing, licensee road permit                                |
+| Structure and field point inventory                | Bridges, culverts, pipe arches, gates, crossings, pits, plots, CMTs, invasive plants                           |
+| Field traverse or design (GPS) layers              | GPS lines, prework lines, final layout features, design polygons                                               |
+| Other provincial layers                            | Rail, pipeline, transmission line, seismic line, fence, wellsite, private land, archaeology, VRI               |
+
+Nine features (landing, yard tower, high value snag, wildlife point, beetle trap, borrow pit, measure
+plot, count plot, research installation) were listed on the reference legends with nothing to read,
+so they have no symbol (`UNSPECIFIED_FEATURES`).
+
+### Legend and map disagreements
+
+Where a reference legend drew a symbol differently from its map, PGMaps uses the map's value and its
+legend draws from that same symbol (`symbolMismatches.ts`, checked by `symbolCatalogue.test.ts`):
+
+| Feature                             | Reference legend      | Reference map                | PGMaps |
+| ----------------------------------- | --------------------- | ---------------------------- | ------ |
+| Intermediate contour (field layout) | `#828282` 0.1         | `#b2b2b2` 0.25               | Map    |
+| Contour on imagery                  | `#cccccc` 0.5         | `#ffffff` 0.35 / 0.25        | Map    |
+| LiDAR stream                        | `#005ce6` 1.0         | `#005ce6` 0.5                | Map    |
+| Block of interest (field layout)    | `#ffaa00` 1.5         | `#ffaa00` 2.5 over white 3.0 | Map    |
+| Classified and NCD streams          | 0.4                   | 1.0 at 1:10,000              | Map    |
+| Previously harvested                | outline `#9c9c9c` 0.4 | outline `#6e6e6e` 0.1        | Map    |
+
+### On the live map
+
+`mapSymbols.ts` gives MapLibre the same symbols: `lineSymbolPaint` (widths, dashes and offsets),
+`lineMarkerLayers` (`symbol-placement: line` icons at the sheet spacing, rotated with the line),
+`areaSymbolPaint` (a colour fill, or a `fill-pattern` tile for hatched and marker-filled areas, with
+the fill baked into the tile) and `pointSymbolLayout`. `symbolRaster.ts` draws the tiles and icons as
+RGBA pixels at the device pixel ratio, without a canvas, and `keepSymbolImages` adds them and answers
+`styleimagemissing`, so they come back after a style reload or theme change.
+
+A point is 96/72 CSS pixels, as for line widths, so on screen a pattern matches the print at the
+sheet's scale on a 96 dpi display. The road plan offers this as **Map settings → Block sheet
+symbols**: the context (avoid areas, harvest areas, the riparian screen, streams and mapped roads)
+then draws with the sheet symbols, classed by `contextSheetKey` exactly as the sheet classes it, and
+the legend lists those symbols with swatches drawn by `SheetSymbolSwatch`. The plan's own context
+colours come back when it is off.
+
+Where the map cannot match the print:
+
+- **Patterns do not scale with zoom.** A `fill-pattern` tile is fixed in screen pixels, so hatch
+  spacing matches the paper only at the zoom of the sheet's scale. Paper hatches are fixed in points
+  too, so the look is the same; the ground distance between lines is not.
+- **A tile has whole pixels.** `tileSide` picks the smallest tile holding whole periods of every
+  hatch within `PATTERN_TILE_TOLERANCE` (2 %), up to `MAX_PATTERN_TILE_PX`, and draws the nearest
+  exactly repeating family of lines. A hatch at an odd angle (the special harvest area's 55°) is drawn
+  within about a degree; `PatternTile.hatches` reports the angle and spacing drawn, and the gallery
+  prints them under each tile.
+- **MapLibre places line markers itself.** It chooses where the first marker falls and drops markers
+  near tile edges and tight bends, so the count and phase differ from the sheet; spacing and
+  orientation match.
+- **An `inside` casing draws centred on the edge**, because a MapLibre line cannot be clipped to its
+  polygon.
+- **The tile's colours are blended once.** A hatched area with a fill draws as one pattern layer, so
+  the fill's opacity is in the tile and the layer is opaque.
+
+## Symbol gallery
+
+`/dev/forestry/block-sheets` (linked as **Symbol gallery** under the block sheet setup) shows:
+
+- **Sheet presets**: each preset at 1:5,000, 1:10,000, 1:20,000 and 1:50,000 on tabloid, and on
+  letter, A3 and A4 at its default scale, drawn from the synthetic fixtures (`galleryLayers`) through
+  the real composer and SVG renderer. Previews draw when scrolled into view, one at a time; each card
+  downloads its PDF (terrain at 150 dpi) and PNG (100 dpi, 2 px a point). The imagery sheet uses a
+  synthetic stand-in, so the gallery needs no network.
+- **Symbols**: every catalogue symbol in its group, drawn on a sample shape at twice print size, its
+  legend swatch and, for patterned areas, the map's pattern tile, beside the source values and the
+  data it comes from.
+- **Legend vs map**: the disagreements above, with the legend's, the map's and PGMaps' renderings
+  side by side.
 
 Designed roads take the road tool's own colours (`distinctRoadColors`) rather than the reference
 red, so the Road Information table's colour keys tell them apart.
@@ -172,6 +305,12 @@ falls in the cell north or east of it.
 | Legend                      | As many rows as the panel holds                | `composeSheet.ts`, `legendPanel`                                                | "+N more not shown"                                        |
 | Logo                        | 2 MB, PNG or JPEG                              | `BlockSheetSetup.tsx`, `MAX_SHEET_LOGO_BYTES`                                   | Refused with a message                                     |
 | Smallest type               | 4.5 pt                                         | `layout.ts`, `MIN_SHEET_FONT_PT`                                                | Held at 4.5 pt                                             |
+| Markers along one line      | 4,000                                          | `drawOps.ts`, `MAX_LINE_MARKERS`                                                | Spacing widened so the count fits                          |
+| Icons in one marker fill    | 5,000                                          | `symbols.ts`, `MAX_MARKER_FILL`                                                 | Grid widened so the count fits                             |
+| Map pattern tile            | 256 device pixels a side                       | `symbolRaster.ts`, `MAX_PATTERN_TILE_PX`                                        | Closest fit within it; spacing off by more than 2 %        |
+| Map pattern spacing error   | 2 %                                            | `symbolRaster.ts`, `PATTERN_TILE_TOLERANCE`                                     | A larger tile with more periods is tried                   |
+| Points to screen pixels     | 96/72                                          | `symbolRaster.ts`, `PX_PER_PT`                                                  | —                                                          |
+| PNG sheet                   | 8,192 pixels on the longest side               | `sheetPng.ts`, `MAX_SHEET_PNG_SIDE`                                             | Pixels per point lowered to fit                            |
 
 ## Built-in assumptions
 
@@ -184,7 +323,11 @@ falls in the cell north or east of it.
   a stream.
 - A mapped road whose evidence names it an FSR draws as a forest service road; every other mapped
   road draws as an existing road. FTEN has no surface or use class, so paved, gravel main,
-  operational and spur are not told apart.
+  operational and spur are not told apart. A road with a recorded deactivation also carries the
+  deactivation crosses.
+- The riparian screen's reserve band draws with the reserve symbol and its management and
+  unresolved bands with the riparian management zone symbol. The management zone covers the
+  reserve, so the reserve shows both hatches.
 - In the road tool the block is a harvest area or an imported reference area; with none, the sheet
   frames the roads and block facts print "not recorded". Other harvest areas draw as other blocks;
   avoid areas draw as constraint areas.

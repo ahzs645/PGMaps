@@ -3,6 +3,7 @@
  * here is real data: the coordinates sit on an invented hillside near 54°N, 121.5°W.
  */
 import type { SheetLayers } from './composeSheet'
+import { catalogueEntry } from './symbolCatalogue'
 
 const ORIGIN: [number, number] = [-121.53, 54.06]
 const M_PER_DEG_LAT = 111_195
@@ -107,5 +108,59 @@ export const sampleLayers: SheetLayers = {
       color: '#dcaaff',
       text: 'Questionable volume. Recce before layout.',
     },
+  ],
+}
+
+/** A green, textured stand-in for satellite imagery, so imagery sheets can be drawn offline. */
+export function syntheticImagery(width: number, height: number) {
+  const data = new Uint8ClampedArray(width * height * 4)
+  for (let i = 0; i < width * height; i++) {
+    const x = i % width,
+      y = Math.floor(i / width)
+    const v = 40 + 25 * Math.sin(x / 7) * Math.cos(y / 9) + ((x * 13 + y * 7) % 17)
+    data.set([v * 0.6, v * 1.1, v * 0.55, 255], i * 4)
+  }
+  return { kind: 'rgba' as const, data, width, height }
+}
+
+const polygon = (...points: [number, number][]): GeoJSON.Polygon => ({
+  type: 'Polygon',
+  coordinates: [[...points.map(([e, n]) => at(e, n)), at(...points[0])]],
+})
+const pointAt = (e: number, n: number): GeoJSON.Point => ({ type: 'Point', coordinates: at(e, n) })
+
+/**
+ * The sample layers with something for each kind of symbol: a deactivated road, a riparian screen,
+ * a wetland, an old growth area, a rail line and a few point features. For the symbol gallery.
+ */
+export const galleryLayers: SheetLayers = {
+  ...sampleLayers,
+  existingRoads: sampleLayers.existingRoads!.map((road, i) => (i === 1 ? { ...road, deactivated: true } : road)),
+  riparian: [
+    {
+      geometry: polygon([-867, 223], [-367, -477], [-433, -523], [-933, 177]),
+      band: 'management',
+    },
+    {
+      geometry: polygon([-888, 209], [-388, -491], [-412, -509], [-912, 191]),
+      band: 'reserve',
+    },
+  ],
+  extras: [
+    {
+      geometry: polygon([-1500, 600], [-1200, 700], [-1050, 450], [-1250, 300], [-1500, 380]),
+      symbol: catalogueEntry('wetland').symbol,
+    },
+    {
+      geometry: polygon([1300, 1100], [1900, 1300], [2100, 800], [1500, 700]),
+      symbol: catalogueEntry('ogma').symbol,
+    },
+    {
+      geometry: { type: 'LineString', coordinates: [at(-2600, 1000), at(-1600, 1150), at(-800, 1400)] },
+      symbol: catalogueEntry('rail').symbol,
+    },
+    { geometry: pointAt(-192, -916), symbol: catalogueEntry('culvert-existing').symbol },
+    { geometry: pointAt(-650, -150), symbol: catalogueEntry('fish-observation').symbol },
+    { geometry: pointAt(-400, -500), symbol: catalogueEntry('reach-break').symbol },
   ],
 }

@@ -13,7 +13,7 @@ import { sheetSvg } from '@/lib/mapSheet/renderSvg'
 import { blockFacts } from './blockFacts'
 import { composeSheet, sheetFocus, sheetFrame } from './composeSheet'
 import { prepareSheetTerrainNow } from './prepareSheet'
-import { sampleLayers, syntheticCanopy, syntheticTerrain } from './blockSheetFixtures'
+import { sampleLayers, syntheticCanopy, syntheticImagery, syntheticTerrain } from './blockSheetFixtures'
 import { SHEET_KINDS, IMAGERY_BASEMAP } from './sheets'
 
 const issue = { date: '2026-11-10', preparedBy: 'J. Planner', organisation: 'Example Forest Co.', revision: 'A' }
@@ -23,17 +23,6 @@ const fields = {
   blockId: 'BLK-001',
   operatingArea: 'North Slope',
   timbermark: 'XY1234',
-}
-
-function imageryStandIn(width: number, height: number) {
-  const data = new Uint8ClampedArray(width * height * 4)
-  for (let i = 0; i < width * height; i++) {
-    const x = i % width,
-      y = Math.floor(i / width)
-    const v = 40 + 25 * Math.sin(x / 7) * Math.cos(y / 9) + ((x * 13 + y * 7) % 17)
-    data.set([v * 0.6, v * 1.1, v * 0.55, 255], i * 4)
-  }
-  return { kind: 'rgba' as const, data, width, height }
 }
 
 describe('block sheet samples', () => {
@@ -52,7 +41,7 @@ describe('block sheet samples', () => {
       )
       const base =
         frame.preset.base === 'imagery'
-          ? { image: imageryStandIn(300, 330), attribution: IMAGERY_BASEMAP.attribution }
+          ? { image: syntheticImagery(300, 330), attribution: IMAGERY_BASEMAP.attribution }
           : products.base
       const sheet = composeSheet({
         frame,

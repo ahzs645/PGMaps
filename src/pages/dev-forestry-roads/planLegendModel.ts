@@ -1,4 +1,6 @@
 /** Legend entries derived from the same visible GeoJSON collections used by the plan renderer. */
+import { symbolKeyColor, type SheetSymbol } from '@/lib/mapSheet/symbols'
+import { PLAN_SHEET_SYMBOLS, type PlanSheetKey } from './planSheetSymbols'
 import { shortRoadNames } from './roadNames'
 import { RIPARIAN_MAP_COLORS } from './riparian'
 import type { Alignment, ContextFeature } from './types'
@@ -12,6 +14,8 @@ export interface PlanLegendEntry {
   symbol?: string
   /** Dash and gap in line widths, matching the map's `line-dasharray`. */
   dash?: [number, number]
+  /** A block sheet symbol: the legend draws its swatch with the sheet's own renderer. */
+  sheetSymbol?: SheetSymbol
 }
 export interface PlanLegendSection {
   id: string
@@ -106,6 +110,7 @@ export function buildPlanLegend({
   maxGradePercent,
   terrainOnly,
   showEarthwork,
+  sheetSymbols = false,
   selection = false,
   draftPoints = false,
   editing = false,
@@ -120,6 +125,8 @@ export function buildPlanLegend({
   maxGradePercent: number
   terrainOnly: boolean
   showEarthwork: boolean
+  /** The context is drawn with the block sheet's symbols, so the legend lists those. */
+  sheetSymbols?: boolean
   selection?: boolean
   draftPoints?: boolean
   editing?: boolean
@@ -174,7 +181,23 @@ export function buildPlanLegend({
   }
   roads.finish()
   const context = section('context', 'Map context')
+  const sheetEntry = (key: PlanSheetKey) => {
+    const symbol = PLAN_SHEET_SYMBOLS[key]
+    context.add({
+      id: `sheet-${key}`,
+      label: symbol.label,
+      color: symbolKeyColor(symbol),
+      shape: symbol.kind === 'area' ? 'area' : 'line',
+      sheetSymbol: symbol,
+    })
+  }
   for (const feature of sources.context.features) {
+    const sheetKey = feature.properties?.sheetKey as PlanSheetKey | null | undefined
+    if (sheetSymbols && sheetKey && PLAN_SHEET_SYMBOLS[sheetKey]) {
+      sheetEntry(sheetKey)
+      if (feature.properties?.sheetDeactivated === true) sheetEntry('deactivated')
+      continue
+    }
     const band = feature.properties?.riparianBand as keyof typeof RIPARIAN_MAP_COLORS | undefined
     if (band && RIPARIAN_MAP_COLORS[band]) {
       context.add({

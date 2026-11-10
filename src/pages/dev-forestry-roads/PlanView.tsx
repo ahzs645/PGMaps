@@ -60,6 +60,15 @@ import { AccessHistoryLayers } from './AccessHistoryLayers'
 import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
+import { keepSymbolImages, type SymbolImageMap } from '@/lib/mapSheet/mapSymbols'
+import {
+  PLAN_SHEET_LAYER_IDS,
+  PLAN_SHEET_ROAD_HIT_LAYER_IDS,
+  PLAN_SHEET_SYMBOLS,
+  planSheetLayers,
+  riparianSheetKey,
+  sheetProperties,
+} from './planSheetSymbols'
 import { preparationMarginFeatures } from './preparationFootprint'
 import { usePlanTools } from './PlanTools'
 import { gradeClassRoadLines } from './gradeClasses'
@@ -162,6 +171,10 @@ interface PlanProps {
   sightlines?: GeoJSON.FeatureCollection | null
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
+const PLAN_SHEET_LAYERS = planSheetLayers('road-context')
+/** The plan's own context colours, hidden while the block sheet's symbols draw the context. */
+const PLAN_CONTEXT_LINE_LAYER_IDS = ['road-context-line', ...ROAD_HISTORY_LAYER_IDS]
+const CONTEXT_FILL_OPACITY = 0.18
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
 const line = (
   coordinates: Coordinate[],
@@ -204,6 +217,8 @@ function Layers(
     showContours: boolean
     showLabels: boolean
     showEarthwork: boolean
+    /** Draw the context with the block sheet's symbols (`planSheetSymbols.ts`). */
+    sheetSymbols: boolean
     hiddenContextKinds: ContextFeature['kind'][]
     /** Reference layers are shown, so the legend lists them. */
     referenceVisible: boolean
@@ -598,7 +613,10 @@ function Layers(
       fc([
         ...riparianMapFeatures(
           props.project.context.filter((feature) => !props.hiddenContextKinds.includes(feature.kind)),
-        ),
+        ).map((feature) => ({
+          ...feature,
+          properties: { ...feature.properties, sheetKey: riparianSheetKey(feature.properties?.riparianBand) },
+        })),
         ...props.project.context
           .filter((feature) => !props.hiddenContextKinds.includes(feature.kind))
           .map((feature) => ({
@@ -608,6 +626,7 @@ function Layers(
               ...feature,
               geometry: undefined,
               ...contextHistoryProperties(feature, props.project.harvestHistoryYear ?? new Date().getFullYear()),
+              ...sheetProperties(feature),
             },
           })),
       ]),
@@ -799,6 +818,17 @@ function Layers(
     previousManualFit.current = props.fitRequest.revision
   }, [map, isLoaded, bounds, props.alignment, props.project, props.fitRevision, props.fitRequest, investigation])
 
+  // Hatch tiles and marker icons for the sheet symbols. MapLibre drops images on a style reload;
+  // `keepSymbolImages` adds them back when the style asks for them.
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    return keepSymbolImages(
+      map as unknown as SymbolImageMap,
+      Object.values(PLAN_SHEET_SYMBOLS),
+      window.devicePixelRatio || 1,
+    )
+  }, [map, isLoaded])
+
   useEffect(() => {
     if (!map || !isLoaded) return
     const inputs: Record<string, GeoJSON.FeatureCollection> = {
@@ -872,7 +902,7 @@ function Layers(
             ['match', ['get', 'kind'], 'harvest', PLAN_CONTEXT_STYLES.harvest.color, PLAN_CONTEXT_STYLES.avoid.color],
           ],
         ],
-        'fill-opacity': 0.18,
+        'fill-opacity': CONTEXT_FILL_OPACITY,
       },
     })
     add({
@@ -916,6 +946,7 @@ function Layers(
         filter: ['all', ['==', ['get', 'kind'], 'existing-road'], ['==', ['get', 'historyKey'], key]],
         paint: { 'line-color': style.color, 'line-width': 2.5, 'line-dasharray': style.dasharray },
       })
+    for (const layer of PLAN_SHEET_LAYERS) add(layer)
     add({
       id: 'road-corridor',
       type: 'fill',
@@ -1200,6 +1231,13 @@ function Layers(
     })
     if (map.getLayer('road-terrain'))
       map.setLayoutProperty('road-terrain', 'visibility', props.terrainLayer === 'none' ? 'none' : 'visible')
+    // Sheet symbols replace the plan's context colours. The context fill stays, transparent, so a
+    // click on a harvest area still finds it.
+    for (const id of PLAN_SHEET_LAYER_IDS)
+      map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'visible' : 'none')
+    for (const id of PLAN_CONTEXT_LINE_LAYER_IDS)
+      map.setLayoutProperty(id, 'visibility', props.sheetSymbols ? 'none' : 'visible')
+    map.setPaintProperty('road-context-fill', 'fill-opacity', props.sheetSymbols ? 0 : CONTEXT_FILL_OPACITY)
     map.setLayoutProperty('road-contours', 'visibility', props.showContours ? 'visible' : 'none')
     for (const id of ['road-corridor', 'road-corridor-reach', 'road-formation', 'road-edges', 'road-ditches'])
       map.setLayoutProperty(id, 'visibility', props.showEarthwork && !props.terrainOnly ? 'visible' : 'none')
@@ -1211,6 +1249,7 @@ function Layers(
       'road-context-fill',
       'road-context-line',
       ...ROAD_HISTORY_LAYER_IDS,
+      ...PLAN_SHEET_LAYER_IDS,
       'road-corridor',
       'road-corridor-reach',
       'road-formation',
@@ -1268,6 +1307,7 @@ function Layers(
     props.overlay,
     props.drainage,
     props.swept,
+    props.sheetSymbols,
   ])
 
   // The selected station changes on every frame of a scrub. Each setData is a trip through
@@ -1363,7 +1403,7 @@ function Layers(
         if (onContextSelect) {
           const contextHit = map
             .queryRenderedFeatures(e.point, {
-              layers: [...ROAD_HISTORY_LAYER_IDS, 'road-context-fill'],
+              layers: [...ROAD_HISTORY_LAYER_IDS, ...PLAN_SHEET_ROAD_HIT_LAYER_IDS, 'road-context-fill'],
             })
             .find((feature) => ['existing-road', 'harvest'].includes(String(feature.properties?.kind)))
           const feature = props.project.context.find((candidate) => candidate.id === contextHit?.properties?.id)
@@ -1773,6 +1813,7 @@ function Layers(
             maxGradePercent: props.project.settings.maxGradePercent,
             terrainOnly: !!props.terrainOnly,
             showEarthwork: props.showEarthwork,
+            sheetSymbols: props.sheetSymbols,
             selection:
               !!props.selectedRange &&
               !!placeOn(props.alignment, props.selectedRange.start) &&
@@ -1910,6 +1951,7 @@ export function PlanView(input: PlanProps) {
   const [showContours, setShowContours] = useState(true)
   const [showLabels, setShowLabels] = useState(true)
   const [showEarthwork, setShowEarthwork] = useState(true)
+  const [sheetSymbols, setSheetSymbols] = useState(false)
   const [editHelpVisible, setEditHelpVisible] = useState(() => {
     try {
       return localStorage.getItem('pgmaps-road-edit-help') !== 'hidden'
@@ -2124,6 +2166,7 @@ export function PlanView(input: PlanProps) {
           showContours={showContours}
           showLabels={showLabels}
           showEarthwork={showEarthwork}
+          sheetSymbols={sheetSymbols}
           hiddenContextKinds={hiddenContextKinds}
           referenceVisible={referenceVisible}
           noteTool={noteTool}
@@ -2280,6 +2323,7 @@ export function PlanView(input: PlanProps) {
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
                 ...tools.settingsRows,
+                ['Block sheet symbols', sheetSymbols, setSheetSymbols],
               ] as const
             ).map(([label, checked, set]) => (
               <label key={label} className="flex items-center justify-between py-2 text-xs">
