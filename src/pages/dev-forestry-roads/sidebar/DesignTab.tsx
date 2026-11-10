@@ -40,6 +40,7 @@ import { FirstRoadPanel } from '../FirstRoadPanel'
 import { isLoadableMappedRoad } from '../mappedRoad'
 import { MappedRoadPanel } from '../MappedRoadPanel'
 import { SightDistancePanel } from '../SightDistancePanel'
+import { RoadGeometryFitPanel } from '../RoadGeometryFitPanel'
 import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
@@ -230,6 +231,9 @@ export function DesignTab(p: SidebarProps) {
           onLoadTerrain={p.onLoadTerrainAroundRoad}
           onPreviewTerrainRoad={p.onPreviewTerrainRoad}
         />
+      )}
+      {mapped && (
+        <RoadGeometryFitPanel workspace={p.workspace} full={full} onCopy={(points) => p.onCopyMappedRoad?.(points)} />
       )}
       {mapped && <SightDistancePanel workspace={p.workspace} />}
       {mapped && <RouteFinding {...p} full={full} />}

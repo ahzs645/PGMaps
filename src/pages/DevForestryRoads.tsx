@@ -11,6 +11,7 @@ import {
 import {
   derivedRoadName,
   designFromMappedRoad,
+  type DesignPoints,
   isLoadableMappedRoad,
   isMappedRoad,
   loadableMappedRoads,
@@ -1329,14 +1330,14 @@ export default function DevForestryRoads() {
       w.setError(cause instanceof Error ? cause.message : 'Could not load this mapped road.')
     }
   }
-  /** An editable design on the active mapped road's line. */
-  const copyMappedRoad = () => {
+  /** An editable design on the active mapped road's line, or on a fitted alignment of it. */
+  const copyMappedRoad = (points?: DesignPoints) => {
     if (!isMappedRoad(alignment)) return
     if (roadCount(project) >= MAX_PROJECT_ROADS) {
       w.setError(`A project holds at most ${MAX_PROJECT_ROADS} roads. Remove one before copying this road.`)
       return
     }
-    const copy = designFromMappedRoad(alignment, uid(), colors[project.alignments.length % colors.length])
+    const copy = designFromMappedRoad(alignment, uid(), colors[project.alignments.length % colors.length], points)
     if (!commitValidated(withAddedAlignments(project, [copy]))) return
     setActiveProfile(null)
     w.setNotice(`${copy.name} is an editable design on the mapped line. The mapped road is kept for comparison.`)
