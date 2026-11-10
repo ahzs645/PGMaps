@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { EXAMPLE_RIGGING } from './cableMechanics'
 import { DEFAULT_SUPPORT_LAYOUT } from './cableLayout/settings'
 import { layoutOverlay } from './cableLayout/overlay'
+import { layoutKey } from './cableLayout/useCableLayout'
 import { CableSupportsSection } from './CableSupportsSection'
 import { CableChart } from './Charts'
 import { analyzeCable, offsetCoordinate } from './engine'
@@ -51,6 +52,15 @@ describe('intermediate supports section', () => {
     const added = onEdit.mock.calls[0][0](line) as CableLine
     expect(added.supportLayout?.fixedSupports).toEqual([{ stationM: 150 }])
     expect(buttons(root, /^Find supports$/)).toHaveLength(1)
+  })
+
+  it('keeps a layout found on the default settings once it is saved onto the line', () => {
+    // A line never given settings has no `supportLayout`; saving its first result adds the defaults.
+    const saved = {
+      ...line,
+      supportLayout: { ...DEFAULT_SUPPORT_LAYOUT, saved: { preTensionKN: 80, complete: true, supports: [] } },
+    }
+    expect(layoutKey(saved, slope)).toBe(layoutKey(line, slope))
   })
 })
 

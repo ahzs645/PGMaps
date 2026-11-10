@@ -103,11 +103,11 @@ export function CableSupportsSection({
         .map((s) => ({ stationM: s.stationM, heightM: s.heightM }))
       // Save only onto the line the search was run for.
       onEdit((l) =>
-        layoutKey(l, terrain) === key && l.supportLayout
+        layoutKey(l, terrain) === key
           ? {
               ...l,
               supportLayout: {
-                ...l.supportLayout,
+                ...(l.supportLayout ?? DEFAULT_SUPPORT_LAYOUT),
                 saved: { preTensionKN: found.preTensionKN!, complete: found.status === 'complete', supports },
               },
             }

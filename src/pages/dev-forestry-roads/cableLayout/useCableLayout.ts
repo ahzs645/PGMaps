@@ -8,7 +8,7 @@ import type { CableLine, TerrainSource } from '../types'
 import type { CableLayoutResult, LayoutToAnalyse } from './cableLayout'
 import { analyzeCableLayout, searchCableLayout } from './cableLayoutClient'
 import { layoutOverlay, type CableLayoutOverlay } from './overlay'
-import { lineFrame, type LayoutRun } from './settings'
+import { DEFAULT_SUPPORT_LAYOUT, lineFrame, type LayoutRun } from './settings'
 
 export interface CableLayoutEntry {
   key: string
@@ -41,7 +41,9 @@ export function layoutKey(line: CableLine, terrain: TerrainSource): string {
   let id = terrainIds.get(terrain)
   if (id === undefined) terrainIds.set(terrain, (id = nextTerrain++))
   // The name and the assumed sag do not change a layout; a saved layout is its result, not input.
-  const settings = line.supportLayout ? { ...line.supportLayout, saved: undefined } : undefined
+  // A line still on the default settings has no `supportLayout` until its result is saved, so
+  // both read as the defaults: otherwise saving the first result would change the key and hide it.
+  const settings = { ...(line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT), saved: undefined }
   return JSON.stringify([id, { ...line, name: undefined, deflectionPercent: undefined, supportLayout: settings }])
 }
 
@@ -113,7 +115,7 @@ export function cancelLayout(cableId: string) {
   emit()
 }
 
-/** The overlay the D-line profile draws, or undefined for a line without support settings. */
+/** The overlay the D-line profile draws, or undefined for a line with neither support settings nor a result. */
 export function useCableLayoutOverlay(
   line: CableLine | undefined,
   terrain: TerrainSource,
@@ -121,10 +123,11 @@ export function useCableLayoutOverlay(
   const entry = useCableLayoutEntry(line?.id)
   const key = line ? layoutKey(line, terrain) : ''
   return useMemo(() => {
-    if (!line?.supportLayout || line.sagModel !== 'mechanics') return undefined
+    if (!line || line.sagModel !== 'mechanics') return undefined
     const frame = lineFrame(line)
     if (!frame) return undefined
     const current = entry && entry.status === 'done' && entry.key === key ? entry.result! : null
-    return layoutOverlay(frame, line.supportLayout, current)
+    if (!line.supportLayout && !current) return undefined
+    return layoutOverlay(frame, line.supportLayout ?? DEFAULT_SUPPORT_LAYOUT, current)
   }, [line, entry, key])
 }
