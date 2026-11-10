@@ -46,6 +46,18 @@ export function relocationOrigin(
     foundPercent: round(result.foundShare * 100, 0),
     ...(result.shiftM ? { medianShiftM: round(result.shiftM.p50), p90ShiftM: round(result.shiftM.p90) } : {}),
     ...(result.slices?.widthM ? { benchWidthM: round(result.slices.widthM.p50) } : {}),
+    scoredWith: result.mode,
+    corridorM: result.settings.corridorM,
+    confidence: result.settings.confidence,
+    flatToleranceM: result.settings.flatToleranceM,
+    ...(result.state
+      ? {
+          drivableWidthM: round(result.state.input.drivableWidthM),
+          vegetationPercent: round(result.state.input.vegetationPercent),
+          stateScore: round(result.state.score),
+          stateClass: result.state.stateClass,
+        }
+      : {}),
   }
 }
 
@@ -55,7 +67,10 @@ export function describeLineOrigin(origin: RoadLineOrigin): string {
   if (origin.method === 'terrain-relocation')
     return (
       `Found${cell}${origin.fromName ? ` from ${origin.fromName}` : ''}: bench along ${origin.foundPercent ?? '—'}%` +
-      (origin.medianShiftM !== undefined ? `, median ${origin.medianShiftM} m from the record` : '')
+      (origin.medianShiftM !== undefined ? `, median ${origin.medianShiftM} m from the record` : '') +
+      (origin.stateClass !== undefined
+        ? `; LiDAR state class ${origin.stateClass} (score ${origin.stateScore ?? '—'})`
+        : '')
     )
   if (origin.method === 'terrain-trace')
     return `Traced${cell}: ${origin.snappedSegments ?? 0} of ${origin.segments ?? 0} segments followed a road bench`

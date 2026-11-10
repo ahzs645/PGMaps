@@ -351,6 +351,16 @@ export interface RoadLineOrigin {
   /** Trace: segments between clicks, and how many followed the terrain. */
   segments?: number
   snappedSegments?: number
+  /** Relocation: what the ground was scored with, and the settings the search ran with. */
+  scoredWith?: 'terrain' | 'terrain+vegetation'
+  corridorM?: number
+  confidence?: number
+  flatToleranceM?: number
+  /** Relocation with a point cloud: mean drivable width (m), vegetation over the bed (%), state. */
+  drivableWidthM?: number
+  vegetationPercent?: number
+  stateScore?: number
+  stateClass?: number
 }
 export interface CableLine {
   id: string

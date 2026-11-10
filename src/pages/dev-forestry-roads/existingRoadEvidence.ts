@@ -105,6 +105,13 @@ const LINE_ORIGIN_NUMBERS = {
   benchWidthM: [0, 100],
   segments: [0, 100_000],
   snappedSegments: [0, 100_000],
+  corridorM: [0, 1000],
+  confidence: [0, 1],
+  flatToleranceM: [0, 10],
+  drivableWidthM: [0, 100],
+  vegetationPercent: [0, 100],
+  stateScore: [0, 100],
+  stateClass: [1, 4],
 } as const
 
 /** How a traced or adopted line was made; every figure optional and bounded. */
@@ -129,7 +136,13 @@ export function parseRoadLineOrigin(raw: unknown): RoadLineOrigin {
     if (value === undefined) continue
     if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max)
       throw Error(`Invalid road line origin ${key}.`)
+    if (key === 'stateClass' && !Number.isInteger(value)) throw Error('Invalid road line origin stateClass.')
     result[key] = value
+  }
+  if (r.scoredWith !== undefined) {
+    if (r.scoredWith !== 'terrain' && r.scoredWith !== 'terrain+vegetation')
+      throw Error('Invalid road line origin scoredWith.')
+    result.scoredWith = r.scoredWith
   }
   return result
 }

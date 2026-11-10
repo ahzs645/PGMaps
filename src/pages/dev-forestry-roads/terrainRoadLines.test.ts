@@ -58,6 +58,23 @@ describe('traced and terrain-found road lines', () => {
     expect(() =>
       parseRoadEvidence({ ...evidence, lineOrigin: { method: 'clicks', createdAt: '2026-11-10', foundPercent: 140 } }),
     ).toThrow(/foundPercent/)
+    const searched = {
+      method: 'terrain-relocation',
+      createdAt: '2026-11-10',
+      scoredWith: 'terrain+vegetation',
+      corridorM: 40,
+      confidence: 0.1,
+      flatToleranceM: 0.15,
+      drivableWidthM: 4.2,
+      vegetationPercent: 12,
+      stateScore: 70.8,
+      stateClass: 2,
+    }
+    expect(parseRoadEvidence({ ...evidence, lineOrigin: searched }).lineOrigin).toEqual(searched)
+    expect(() => parseRoadEvidence({ ...evidence, lineOrigin: { ...searched, stateClass: 2.5 } })).toThrow(/stateClass/)
+    expect(() => parseRoadEvidence({ ...evidence, lineOrigin: { ...searched, scoredWith: 'guess' } })).toThrow(
+      /scoredWith/,
+    )
     expect(() => parseRoadEvidence({ ...evidence, lineOrigin: { method: 'clicks', createdAt: 'yesterday' } })).toThrow(
       /date/,
     )
@@ -74,6 +91,16 @@ describe('traced and terrain-found road lines', () => {
         medianShiftM: 7.4,
       }),
     ).toBe('Found on 1 m terrain from R01234: bench along 92%, median 7.4 m from the record')
+    expect(
+      describeLineOrigin({
+        method: 'terrain-relocation',
+        createdAt: '2026-11-10',
+        terrainCellM: 1,
+        foundPercent: 92,
+        stateClass: 2,
+        stateScore: 60.4,
+      }),
+    ).toBe('Found on 1 m terrain: bench along 92%; LiDAR state class 2 (score 60.4)')
     expect(describeLineOrigin({ method: 'clicks', createdAt: '2026-11-10', segments: 4 })).toMatch(
       /not checked against terrain/,
     )

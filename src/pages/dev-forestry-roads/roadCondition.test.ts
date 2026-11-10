@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   assessRoadCondition,
   createRoadConditionPolicy,
+  lidarStateFinding,
   MAX_ROAD_CONDITION_OBSERVATIONS,
   parseRoadConditionObservations,
   parseRoadConditionPolicy,
@@ -344,5 +345,67 @@ describe('dated evidence validation', () => {
     for (const days of [-1, 0.5, '30', 36_501])
       expect(() => parseRoadConditionPolicy({ maxInspectionAgeDays: days, maxImageryAgeDays: null })).toThrow('integer')
     expect(parseRoadConditionPolicy({ maxInspectionAgeDays: 0, maxImageryAgeDays: null }).maxInspectionAgeDays).toBe(0)
+  })
+})
+
+describe('LiDAR state observations', () => {
+  const lidar = (patch: Partial<RoadConditionObservation> = {}): RoadConditionObservation => ({
+    id: 'lidar-1',
+    source: 'lidar',
+    component: 'surface',
+    finding: lidarStateFinding(4),
+    observedAt: '2026-08-14',
+    sourceUrl: '',
+    notes: 'Find on terrain, scored with terrain + vegetation: state class 4.',
+    lidar: {
+      stateClass: 4,
+      score: 19.6,
+      vegetationPercent: 30,
+      drivableWidthM: 2,
+      conductivity: 0.3,
+      shoulderPercent: 50,
+      foundPercent: 92,
+      terrainName: 'Tile_1.laz · ground mean 1.00 m',
+    },
+    ...patch,
+  })
+
+  it('maps classes to a surface finding: 1–2 usable, 3 undecided, 4 needs rehabilitation', () => {
+    expect([1, 2, 3, 4].map((c) => lidarStateFinding(c as 1 | 2 | 3 | 4))).toEqual([
+      'serviceable',
+      'serviceable',
+      'unknown',
+      'rehabilitation',
+    ])
+  })
+
+  it('needs no link, keeps its measured state, and loads in a project without a LiDAR age window', () => {
+    const [parsed] = parseRoadConditionObservations([lidar()])
+    expect(parsed.sourceUrl).toBe('')
+    expect(parsed.lidar?.stateClass).toBe(4)
+    expect(parseRoadConditionPolicy({ maxInspectionAgeDays: 30, maxImageryAgeDays: 7 })).not.toHaveProperty(
+      'maxLidarAgeDays',
+    )
+  })
+
+  it('refuses a LiDAR record without its state, a state on another source, or another component', () => {
+    expect(() => parseRoadConditionObservations([lidar({ lidar: undefined })])).toThrow(/measured road state/)
+    expect(() => parseRoadConditionObservations([observation({ lidar: lidar().lidar })])).toThrow(/measured road state/)
+    expect(() => parseRoadConditionObservations([lidar({ component: 'bridge' })])).toThrow(/road surface only/)
+    expect(() => parseRoadConditionObservations([lidar({ lidar: { ...lidar().lidar!, stateClass: 5 as 4 } })])).toThrow(
+      /class must be 1 to 4/,
+    )
+  })
+
+  it('never sets the condition by itself: unreviewed, or without a LiDAR window, it does not count', () => {
+    expect(assess([lidar()], '2026-10-28').records[0].status).toBe('unreviewed')
+    expect(assess([lidar()], '2026-10-28').condition).toBe('unknown')
+    const reviewed = lidar({ review: { reviewer: 'Recorded reviewer', reviewedAt: '2026-10-01' } })
+    expect(assess([reviewed], '2026-10-28').records[0].status).toBe('policy-unset')
+    const counted = assess([reviewed], '2026-10-28', { ...policy, maxLidarAgeDays: 365 })
+    expect(counted.records[0].status).toBe('current')
+    expect(counted.basis).toBe('lidar')
+    expect(counted.condition).toBe('rehabilitation')
+    expect(assess([reviewed], '2028-10-28', { ...policy, maxLidarAgeDays: 365 }).records[0].status).toBe('stale')
   })
 })
