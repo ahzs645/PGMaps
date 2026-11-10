@@ -478,6 +478,8 @@ export interface JunctionRoad {
   chainages?: number[]
   /** Formation half-widths at a chainage, left and right looking up-station; absent when unknown. */
   widthsAt?: (chainage: number) => { leftWidth: number; rightWidth: number }
+  /** True for a design road in the project, false or absent for a mapped road. */
+  design?: boolean
 }
 
 /** A design road as a junction road: its fitted centreline every 2 m and its formation widths. */
@@ -489,6 +491,7 @@ export function alignmentJunctionRoad(alignment: Alignment): JunctionRoad {
     coordinates: centre.samples.map((p) => centre.toCoordinate(p.x, p.y)),
     chainages: centre.samples.map((p) => p.s),
     widthsAt: (chainage) => effectiveWidths(alignment, chainage),
+    design: true,
   }
 }
 
@@ -624,20 +627,29 @@ function armsOf(
  * Junctions of `road` with the other roads: where one of its ends lies within `JUNCTION_SNAP_M` of
  * another road, or another road's end lies on it. Crossings with no road ending there are not
  * junctions here. Roads of unknown width take `assumedHalfWidthM` each side.
+ *
+ * Two design roads that both start at the same point are alternatives drawn from one start (a
+ * route comparison or a contour variant), not a junction a truck turns through, so they are counted
+ * in `alternatives` and left out. A mapped road meeting the start is still a junction.
  */
 export function findRoadJunctions(
   road: JunctionRoad,
   others: JunctionRoad[],
   assumedHalfWidthM: number,
-): { junctions: RoadJunction[]; leftOut: number } {
+): { junctions: RoadJunction[]; leftOut: number; alternatives: number } {
   const active = measure(road)
-  if (active.coordinates.length < 2 || active.length < 2) return { junctions: [], leftOut: 0 }
+  if (active.coordinates.length < 2 || active.length < 2) return { junctions: [], leftOut: 0, alternatives: 0 }
   const found: RoadJunction[] = []
+  let alternatives = 0
   const ends = (r: MeasuredRoad) => [r.coordinates[0], r.coordinates.at(-1)!]
   for (const raw of others) {
     if (raw.id === road.id || raw.coordinates.length < 2) continue
     const other = measure(raw)
     if (other.length < 2) continue
+    if (road.design && raw.design && distance(active.coordinates[0], other.coordinates[0]) <= JUNCTION_SNAP_M) {
+      alternatives++
+      continue
+    }
     const candidates: { coordinate: Coordinate; activeAlong: number; otherAlong: number; branch: string }[] = []
     for (const end of ends(active)) {
       const hit = nearestOn(other, end)
@@ -688,7 +700,11 @@ export function findRoadJunctions(
     }
   }
   found.sort((a, b) => a.chainage - b.chainage || a.otherRoadId.localeCompare(b.otherRoadId))
-  return { junctions: found.slice(0, MAX_JUNCTIONS), leftOut: Math.max(0, found.length - MAX_JUNCTIONS) }
+  return {
+    junctions: found.slice(0, MAX_JUNCTIONS),
+    leftOut: Math.max(0, found.length - MAX_JUNCTIONS),
+    alternatives,
+  }
 }
 
 /** Plan lines for one junction turn, in the swept-path roles the plan already draws. */

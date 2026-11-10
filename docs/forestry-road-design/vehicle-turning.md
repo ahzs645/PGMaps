@@ -119,7 +119,10 @@ road with every turn through it.
 **Finding junctions.** A junction is where one of the active road's ends lies within
 `JUNCTION_SNAP_M` of another road in the project (another design road or a mapped road), or another
 road's end lies within that distance of the active road. The road that ends there is the
-**branch**. Roads that cross with no end at the crossing are not junctions here. Each road leaving
+**branch**. Roads that cross with no end at the crossing are not junctions here. Two design roads
+that both start within `JUNCTION_SNAP_M` of the same point are read as alternatives drawn from one
+start, such as a route comparison or a contour variant, and the panel counts them instead of listing
+a turn between them; a mapped road meeting that start is still a junction. Each road leaving
 the junction point is an **arm**, with its direction taken over `JUNCTION_TANGENT_REACH_M` and its
 own left and right formation half-widths; a road passing through the junction has two arms.
 

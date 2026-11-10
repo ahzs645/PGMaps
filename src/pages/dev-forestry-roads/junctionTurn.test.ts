@@ -144,6 +144,18 @@ describe('junctions of a road', () => {
   const branchStart = offsetCoordinate(offsetCoordinate(origin, 90, 150), 0, 1)
   const spur = road('spur', [branchStart, offsetCoordinate(branchStart, 45, 200)], 2)
 
+  it('reads two design roads drawn from one start as alternatives, not a junction', () => {
+    const variant = road('variant', [origin, offsetCoordinate(origin, 160, 250)], 3)
+    const found = findRoadJunctions(alignmentJunctionRoad(variant), [alignmentJunctionRoad(main)], 3)
+    expect(found.junctions).toHaveLength(0)
+    expect(found.alternatives).toBe(1)
+    // A mapped road meeting the same start is still a junction.
+    const mapped = { ...alignmentJunctionRoad(main), design: false }
+    const withMapped = findRoadJunctions(alignmentJunctionRoad(variant), [mapped], 3)
+    expect(withMapped.junctions).toHaveLength(1)
+    expect(withMapped.alternatives).toBe(0)
+  })
+
   it('finds a branch leaving the road and lists turns into and out of it', () => {
     const { junctions, leftOut } = findRoadJunctions(alignmentJunctionRoad(spur), [alignmentJunctionRoad(main)], 3)
     expect(leftOut).toBe(0)

@@ -125,7 +125,12 @@ export function JunctionTurnPanel({
       ]
       return { ...findRoadJunctions(alignmentJunctionRoad(road), others, assumedHalfWidthM), error: '' }
     } catch (cause) {
-      return { junctions: [], leftOut: 0, error: cause instanceof Error ? cause.message : 'Junctions not found.' }
+      return {
+        junctions: [],
+        leftOut: 0,
+        alternatives: 0,
+        error: cause instanceof Error ? cause.message : 'Junctions not found.',
+      }
     }
   }, [roads, features, road, assumedHalfWidthM])
   const rows = useMemo(() => {
@@ -255,6 +260,12 @@ export function JunctionTurnPanel({
             </ul>
           </section>
         ))}
+        {found.alternatives > 0 && (
+          <p className="text-2xs text-muted-foreground">
+            {found.alternatives === 1 ? 'One road starts' : `${found.alternatives} roads start`} where this road starts.
+            Roads drawn from one start are read as alternatives, not as a junction.
+          </p>
+        )}
         {found.leftOut > 0 && (
           <p className="text-2xs text-muted-foreground">{found.leftOut} more junctions are not listed.</p>
         )}
