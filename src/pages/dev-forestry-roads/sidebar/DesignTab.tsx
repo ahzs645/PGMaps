@@ -18,6 +18,7 @@ import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { HaulGradeFields } from '../HaulGradeFields'
 import { AccessReviewPanel } from '../AccessReviewPanel'
+import { SkidReachPanel } from '../SkidReachPanel'
 import { formatRoadStation } from '../Charts'
 import { CurveTools } from '../CurveTools'
 import { SwitchbackTools } from '../SwitchbackTools'
@@ -251,6 +252,7 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
         onSelectRoad={p.onSelectRoad}
       />
       <AccessReviewPanel {...p} full={full} />
+      <SkidReachPanel {...p} />
       <RouteFinding {...p} full={full} />
       <HorizontalPoints {...p} />
       <VerticalAlignment {...p} />

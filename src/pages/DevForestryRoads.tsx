@@ -469,6 +469,7 @@ export default function DevForestryRoads() {
   // One plan click asked for by a sidebar tool (the access review's end or start road).
   const [planPick, setPlanPick] = useState<{ prompt: string; onPick: (at: Coordinate) => void } | null>(null)
   const [accessMarks, setAccessMarks] = useState<AccessMark[] | null>(null)
+  const [skidReachFeatures, setSkidReachFeatures] = useState<GeoJSON.Feature[] | null>(null)
   const drawnArea = polygonKind === 'harvest' ? 'harvest block' : 'avoidance area'
   const [routePreviewState, setRoutePreviewState] = useState<{
     guide: Alignment
@@ -584,6 +585,8 @@ export default function DevForestryRoads() {
           geometry: { type: 'LineString' as const, coordinates: line.coordinates },
           properties: { kind: 'route-comparison', color: line.color, selected: line.selected, label: line.label },
         })),
+        // Skid reach: beyond-reach outlines, spur candidates and landing footprints.
+        ...(skidReachFeatures ?? []),
         ...(routePreview?.route
           ? [
               {
@@ -610,6 +613,7 @@ export default function DevForestryRoads() {
       mode,
       trace.overlay,
       terrainRoadOverlay,
+      skidReachFeatures,
     ],
   )
   const [selectedSpokeId, setSelectedSpokeId] = useState<string | null>(null)
@@ -3318,6 +3322,7 @@ export default function DevForestryRoads() {
                 onPickOnPlan={pickOnPlan}
                 onLoadFsrsNear={loadFsrsNear}
                 onPreviewAccessMarks={setAccessMarks}
+                onPreviewSkidReach={setSkidReachFeatures}
                 onDrawBlock={() => {
                   setPolygonKind('harvest')
                   setMode('avoid')
