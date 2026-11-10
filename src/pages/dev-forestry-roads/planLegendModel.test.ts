@@ -214,3 +214,22 @@ describe('plan legend follows rendered data', () => {
     expect(entries(build(sources())).map((entry) => entry.label)).not.toContain('Drawing preview')
   })
 })
+
+describe('plan legend with the road coloured by grade class', () => {
+  it('names each class colour shown by its own label', () => {
+    const result = build(
+      sources({
+        roads: fc(
+          line({ selected: true, color: '#16a34a', legendLabel: 'Grade 0–6 %' }),
+          line({ selected: true, color: '#dc2626', legendLabel: 'Over the 12 % limit' }),
+          line({ selected: true, color: '#9ca3af' }),
+        ),
+      }),
+    )
+    expect(entries(result).map((entry) => entry.label)).toEqual([
+      'Grade 0–6 %',
+      'Over the 12 % limit',
+      'No terrain under it',
+    ])
+  })
+})

@@ -150,13 +150,16 @@ export function buildPlanLegend({
         id: `active-${color}`,
         color,
         shape: 'line',
-        label: terrainOnly
-          ? 'Terrain transect'
-          : color === '#dc2626'
-            ? `Over ${maxGradePercent}% grade`
-            : color === '#9ca3af'
-              ? 'No terrain under it'
-              : 'Active road, within grade',
+        // A segment that names its own class (the plan coloured by grade) keeps that label.
+        label: p.legendLabel
+          ? String(p.legendLabel)
+          : terrainOnly
+            ? 'Terrain transect'
+            : color === '#dc2626'
+              ? `Over ${maxGradePercent}% grade`
+              : color === '#9ca3af'
+                ? 'No terrain under it'
+                : 'Active road, within grade',
       })
     } else {
       const alignment = alignments.find((road) => road.id === p.id)

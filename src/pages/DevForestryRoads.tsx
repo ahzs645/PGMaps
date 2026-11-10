@@ -1217,6 +1217,24 @@ export default function DevForestryRoads() {
       return false
     }
   }
+  /** Pegs from the plan's grade-held peg tool, added to the active road's end in one edit. */
+  const pegOnPlan =
+    busy || costPreview || displayedAlignment !== alignment || isMappedRoad(alignment) || awaitingFirstRoad(project)
+      ? undefined
+      : (coordinates: Coordinate[]) => {
+          const pegs = coordinates.map((coordinate) => ({ id: uid(), coordinate, radiusM: 0 }))
+          const added = commitValidated({
+            ...project,
+            alignments: project.alignments.map((a) =>
+              a.id === alignment.id ? { ...a, points: [...a.points, ...pegs] } : a,
+            ),
+          })
+          if (added) {
+            const edit = `${pegs.length} ${pegs.length === 1 ? 'peg' : 'pegs'} added`
+            w.setNotice(profileKeptNotice(alignment.vertical.length, edit) ?? `${edit}. Undo removes them.`)
+          }
+          return added
+        }
   const showLoadedRoads = () => {
     setMode('inspect')
     setDraft([])
@@ -3802,6 +3820,8 @@ export default function DevForestryRoads() {
                               w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
                             }}
                             onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
+                            onPeg={pegOnPlan}
+                            onTypeStation={terrainProfile ? undefined : selectTypedStation}
                             onHover={setHover}
                             onSelectPoint={setSelectedPoint}
                             selectedPoint={selectedPoint}
