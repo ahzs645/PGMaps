@@ -31,6 +31,8 @@ import { ProfileValueBands, useStoredFlag } from './ProfileValueBands'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
+import { useProfileEditing } from './ProfileEditing'
+import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
@@ -41,6 +43,7 @@ import type {
   RoadAnalysis,
   RoadStation,
   SectionLayer,
+  VerticalControl,
   VerticalPoint,
 } from './types'
 
@@ -121,6 +124,16 @@ function eventValue(event: { clientX: number; clientY: number }, svg: SVGSVGElem
     domain[0] + clamp((event.clientX - bounds.left - frame.left) / frame.plotWidth, 0, 1) * (domain[1] - domain[0]),
     domain[3] - clamp((event.clientY - bounds.top - frame.top) / frame.plotHeight, 0, 1) * (domain[3] - domain[2]),
   ] as const
+}
+
+/** Chart units per screen pixel along each axis. */
+function metresPerPixel(svg: SVGSVGElement, domain: Domain, top = 24) {
+  const bounds = svg.getBoundingClientRect()
+  const frame = chartFrame(bounds.width, bounds.height, domain, top)
+  return {
+    chainageM: (domain[1] - domain[0]) / frame.plotWidth,
+    elevationM: (domain[3] - domain[2]) / frame.plotHeight,
+  }
 }
 
 function linePath(points: Point[], key: 'ground' | 'design', x: (n: number) => number, y: (n: number) => number) {
@@ -618,6 +631,8 @@ export function ProfileChart({
   terrainOnly = false,
   sight,
   gradeLimits,
+  junctions,
+  onAddControl,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -635,10 +650,13 @@ export function ProfileChart({
   sight?: SightBandInput
   /** The project's grade rule: tangents over it are drawn red. Absent judges only the road's vertical standards. */
   gradeLimits?: ProfileGradeLimits
+  /** Where other project roads meet or cross this one (`profileJunctions.ts`). */
+  junctions?: ProfileJunction[]
+  /** Add a vertical control, from a junction's **Add control here**. */
+  onAddControl?: (control: VerticalControl) => void
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
-  const drag = useRef<{ id: string; points: VerticalPoint[] } | null>(null)
   const [fixedDomain, setFixedDomain] = useState<Domain | null>(null)
   const [navigation, setNavigation] = useState<{
     alignmentId: string
@@ -770,6 +788,17 @@ export function ProfileChart({
       undefined,
     )
   const sorted = terrainOnly ? [] : [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
+  const editing = useProfileEditing({
+    sorted,
+    editable,
+    roadLength: analysis.length,
+    controls: alignment.verticalControls,
+    onVerticalChange,
+    onStation,
+    freezeDomain: setFixedDomain,
+    junctions: terrainOnly ? undefined : junctions,
+    onAddControl: editable ? onAddControl : undefined,
+  })
   const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
     ? []
@@ -864,6 +893,7 @@ export function ProfileChart({
             {formatRoadStation(visibleStart)}–{formatRoadStation(visibleEnd)}
           </span>
         )}
+        {editing.snapToggle(control)}
         <Button className={control} size="sm" variant="ghost" aria-label="Zoom profile in" onClick={() => zoom(0.5)}>
           +
         </Button>
@@ -956,8 +986,9 @@ export function ProfileChart({
   }
   const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
     const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
-    if (drag.current) edit(drag.current.id, chainage, elevation, drag.current.points)
-    else if (event.buttons === 1) onStation(chainage)
+    const scale = metresPerPixel(event.currentTarget, displayedDomain, profileTop)
+    if (editing.move(event, chainage, elevation, scale)) return
+    if (event.buttons === 1) onStation(chainage)
   }
   return (
     <ChartSlot
@@ -1090,7 +1121,7 @@ export function ProfileChart({
               data-vertical-exaggeration={actualExaggeration}
               role="group"
               tabIndex={0}
-              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit.' : ''}`}
+              aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit, Shift-drag to hold a grade; drag a tangent grip to raise or lower it.' : ''}`}
               onKeyDown={(event) => {
                 if (event.target === event.currentTarget) selectWithKeyboard(event, station, analysis.length, onStation)
               }}
@@ -1098,17 +1129,18 @@ export function ProfileChart({
                 event.preventDefault()
                 if (event.button !== 0) return
                 event.currentTarget.setPointerCapture(event.pointerId)
+                editing.deselect()
                 onStation(eventValue(event, event.currentTarget, displayedDomain, profileTop)[0])
               }}
               onPointerMove={(event) => handleMove(event, displayedDomain)}
               onPointerUp={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId)
-                drag.current = null
+                editing.end()
                 setFixedDomain(null)
               }}
               onPointerCancel={() => {
-                drag.current = null
+                editing.end()
                 setFixedDomain(null)
               }}
               onDoubleClick={(event) => {
@@ -1518,6 +1550,7 @@ export function ProfileChart({
                       </g>
                     )
                   })}
+              {editing.layers(f, height, f.bottom, displayedDomain)}
               {sorted
                 .map((p, index) => ({ p, index }))
                 .filter(
@@ -1557,9 +1590,10 @@ export function ProfileChart({
                       cx={f.x(p.chainage)}
                       cy={f.y(p.elevation)}
                       r={handleRadius}
-                      fill="hsl(var(--background))"
+                      fill={editing.selectedId === p.id ? ROAD_CHART_COLORS.design : 'hsl(var(--background))'}
                       stroke={ROAD_CHART_COLORS.design}
                       strokeWidth={2}
+                      aria-keyshortcuts={editable ? 'Delete Backspace Alt+ArrowLeft Alt+ArrowRight' : undefined}
                       className={
                         editable ? 'cursor-ns-resize outline-none focus-visible:stroke-[4]' : 'pointer-events-none'
                       }
@@ -1573,12 +1607,14 @@ export function ProfileChart({
                       onPointerDown={(event) => {
                         if (!editable) return
                         event.stopPropagation()
-                        drag.current = { id: p.id, points: sorted }
-                        setFixedDomain(displayedDomain)
+                        editing.startPvi(event, p.id, displayedDomain)
                         event.currentTarget.ownerSVGElement?.setPointerCapture(event.pointerId)
                       }}
+                      onBlur={() => {
+                        if (!editing.dragging) editing.deselect()
+                      }}
                       onKeyDown={(event) => {
-                        if (!editable) return
+                        if (!editable || editing.pviKeyDown(event, p.id)) return
                         const step = event.shiftKey ? 1 : 0.1
                         if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
                           event.preventDefault()
@@ -1593,7 +1629,9 @@ export function ProfileChart({
                     >
                       <title>
                         Control {index + 1}: {formatRoadStation(p.chainage)} / {format(p.elevation, 2)} m.
-                        {editable ? ' Drag or use arrow keys.' : ' Preview only.'}
+                        {editable
+                          ? ' Drag or use arrow keys; Shift-drag (Alt+arrows) holds a grade; Delete removes it.'
+                          : ' Preview only.'}
                       </title>
                     </circle>
                   </g>
@@ -1617,8 +1655,10 @@ export function ProfileChart({
                   No terrain samples on this alignment
                 </text>
               )}
+              {editing.cursor(f, width)}
             </svg>
             {toolbar(actualExaggeration, width, f)}
+            {editing.html(f)}
           </>
         )
       }}

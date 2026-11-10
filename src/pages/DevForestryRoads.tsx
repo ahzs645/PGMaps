@@ -117,6 +117,7 @@ import { RadialDeflectionPanel } from './dev-forestry-roads/RadialDeflectionPane
 import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/DesignSchedules'
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
+import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
 import { gradeRule, isGradeBreachFlag } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
@@ -2601,6 +2602,14 @@ export default function DevForestryRoads() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [applePlatform])
+  // Other project roads meeting this one, marked on its profile with their level there.
+  const profileJunctions = useMemo(
+    () =>
+      terrainProfile
+        ? []
+        : projectProfileJunctions(displayedAlignment, displayedAnalysis, project.alignments, w.analyses).junctions,
+    [terrainProfile, displayedAlignment, displayedAnalysis, project.alignments, w.analyses],
+  )
   const profileAnalysis = terrainProfile
     ? { ...displayedAnalysis, stations: displayedAnalysis.stations.map((s) => ({ ...s, designElevation: null })) }
     : displayedAnalysis
@@ -3871,6 +3880,13 @@ export default function DevForestryRoads() {
                                   costPreview
                                     ? undefined
                                     : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
+                                }
+                                junctions={profileJunctions}
+                                onAddControl={(control) =>
+                                  w.updateAlignment((a) => {
+                                    const verticalControls = withVerticalControl(a.verticalControls, control)
+                                    return verticalControls ? { ...a, verticalControls } : a
+                                  })
                                 }
                               />
                             </div>
