@@ -98,6 +98,11 @@ export const ROAD_FIND_SHIFT_STEP_M = 5
 export const ROAD_FIND_EVIDENCE_MIN_COVER = 0.8
 /** Where the record crosses water, a structure is presumed within this distance of the crossing, m. */
 export const ROAD_FIND_BRIDGE_M = 5
+/**
+ * A line whose ends are this close is a loop: its end caps would overlap and the search would
+ * join them at once, so it is searched as two halves, each with its own caps, m.
+ */
+export const ROAD_FIND_LOOP_M = 2
 /** The record is checked for water crossings every this many metres. */
 const WATER_STEP_M = 0.5
 
@@ -639,7 +644,8 @@ export function* findRoadOnTerrainSteps(input: RoadFindInput): Generator<RoadFin
     100,
     Math.min(ROAD_FIND_CHUNK_M, Math.sqrt(ROAD_FIND_MAX_CELLS) * cellM - 2 * reach - 2 * cellM),
   )
-  const pieces = Math.max(1, Math.ceil(lengthM / pieceM))
+  const loop = Math.hypot(line[0][0] - line.at(-1)![0], line[0][1] - line.at(-1)![1]) <= ROAD_FIND_LOOP_M
+  const pieces = Math.max(loop ? 2 : 1, Math.ceil(lengthM / pieceM))
   const cum = cumulativeLength(line)
   const results: PieceResult[] = []
   let explored = 0
