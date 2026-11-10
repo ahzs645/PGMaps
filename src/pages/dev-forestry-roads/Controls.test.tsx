@@ -52,7 +52,7 @@ describe('a road number field says when it changes what was typed', () => {
     expect(text(renderer)).toContain('Enter 0.1 to 10.')
     blur(renderer)
     expect(renderer.root.findByType('input').props.value).toBe('0.1')
-    expect(text(renderer)).toContain('-1 is outside 0.1 to 10, so it was changed to 0.1.')
+    expect(text(renderer)).toContain('−1 is outside 0.1 to 10, so it was changed to 0.1.')
     // Clearing an optional field is not an adjustment.
     type(renderer, '')
     blur(renderer)

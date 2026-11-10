@@ -130,7 +130,9 @@ export function Field({
   )
 }
 
-const limitText = (value: number) => Number(value.toFixed(6)).toLocaleString('en-CA', { maximumFractionDigits: 6 })
+// A minus sign, not a hyphen: "−1,000 to 1,000", as the tool writes signed values everywhere.
+const limitText = (value: number) =>
+  Number(value.toFixed(6)).toLocaleString('en-CA', { maximumFractionDigits: 6 }).replace('-', '−')
 
 /**
  * What a number field says about a typed value outside its range: the allowed range while it is
@@ -171,6 +173,7 @@ export function NumberField({
   fixedDecimals,
   inputClassName = roadFieldClass,
   error,
+  clampOn,
 }: {
   label: string
   ariaLabel?: string
@@ -189,6 +192,11 @@ export function NumberField({
   /** Show all `precision` decimals (`283.00`), for a column that lines up. */
   fixedDecimals?: boolean
   inputClassName?: string
+  /**
+   * `never` keeps a typed value outside min–max instead of changing it to the nearer limit; the
+   * caller then refuses to use it and says why through `error`.
+   */
+  clampOn?: 'commit' | 'never'
 }) {
   const note = useRangeNote(value, min, max)
   return (
@@ -204,6 +212,7 @@ export function NumberField({
       precision={precision}
       fixedDecimals={fixedDecimals}
       stepMode="increment"
+      clampOn={clampOn}
       disabled={disabled}
       hideLabel={hideLabel}
       inputClassName={inputClassName}

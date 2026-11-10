@@ -14,6 +14,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { formatRoadStation } from './Charts'
 import { NumberField } from './Controls'
+import { CURSOR_LABEL_GAP_PX, cursorLabelSide } from './pegCursor'
 import { isPlanToolKey, usePlanToolOverlay } from './PlanTools'
 import {
   DESIGN_UNKNOWN_TEXT,
@@ -138,11 +139,19 @@ export function PointQueryTool({
     [result],
   )
   usePlanToolOverlay(features)
+  // Near the plan's right edge the label turns to the left of the point, as the peg cursor's does.
+  const labelSide =
+    map && result ? cursorLabelSide(map.project(result.coordinate).x, map.getContainer().clientWidth) : 'right'
 
   return (
     <>
       {result && (
-        <MapMarker longitude={result.coordinate[0]} latitude={result.coordinate[1]} anchor="left" offset={[10, 0]}>
+        <MapMarker
+          longitude={result.coordinate[0]}
+          latitude={result.coordinate[1]}
+          anchor={labelSide === 'right' ? 'left' : 'right'}
+          offset={[labelSide === 'right' ? CURSOR_LABEL_GAP_PX : -CURSOR_LABEL_GAP_PX, 0]}
+        >
           <MarkerContent>
             <div
               className="pointer-events-none whitespace-nowrap rounded border border-violet-300 bg-background/95 px-1.5 py-0.5 text-3xs font-medium tabular-nums shadow"
@@ -247,7 +256,13 @@ export function PointQueryPanel({
           {[note, ...notes].filter(Boolean).join(' ')}
         </p>
       )}
-      <form className="grid grid-cols-[1fr_1fr_auto] items-end gap-2" onSubmit={submit} aria-label="Go to station">
+      {/* noValidate: the fields' step is for the arrow keys; a typed station or offset is used as typed. */}
+      <form
+        className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+        onSubmit={submit}
+        aria-label="Go to station"
+        noValidate
+      >
         <NumberField label="Station (m)" value={station} max={100000} step={1} precision={3} onChange={setStation} />
         <NumberField
           label="Offset (m)"

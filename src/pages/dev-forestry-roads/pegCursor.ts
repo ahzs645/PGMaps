@@ -27,6 +27,23 @@ export const PEG_DOUBLE_CLICK_PX = 6
 export const PEG_AIM_STEP_DEG = 5
 export const PEG_AIM_FINE_STEP_DEG = 1
 
+/** The cursor label's widest (Tailwind `max-w-56`) and its gap from the point it labels. */
+export const CURSOR_LABEL_MAX_WIDTH_PX = 224
+export const CURSOR_LABEL_GAP_PX = 12
+
+/**
+ * Which side of its point a cursor label sits: right of it, unless a label that wide would run past
+ * the plan's right edge and there is more room to the left.
+ */
+export function cursorLabelSide(
+  pointX: number,
+  viewWidth: number,
+  labelWidthPx = CURSOR_LABEL_MAX_WIDTH_PX + CURSOR_LABEL_GAP_PX,
+): 'right' | 'left' {
+  if (!Number.isFinite(pointX) || !Number.isFinite(viewWidth)) return 'right'
+  return pointX + labelWidthPx > viewWidth && pointX > viewWidth - pointX ? 'left' : 'right'
+}
+
 export const PEG_LEG_COLORS = {
   up: '#c2410c',
   down: '#2563eb',
@@ -48,17 +65,20 @@ export const DEFAULT_PEG_TOOL: PegToolSettings = { gradePercent: 8, direction: '
 export const signedTargetGrade = (settings: PegToolSettings) =>
   settings.direction === 'down' ? -Math.abs(settings.gradePercent) : Math.abs(settings.gradePercent)
 
+/** Why this target grade cannot be held, or null. The field keeps the typed value and shows this. */
+export const pegGradeError = (gradePercent: number): string | null =>
+  !Number.isFinite(gradePercent) || gradePercent < 0 || gradePercent > MAX_PEG_TARGET_GRADE
+    ? `Enter a target grade of 0–${MAX_PEG_TARGET_GRADE} %.`
+    : null
+/** Why this step cannot be pegged, or null. The field keeps the typed value and shows this. */
+export const pegStepError = (stepM: number): string | null =>
+  !Number.isFinite(stepM) || stepM < MIN_PEG_STEP_M || stepM > MAX_PEG_STEP_M
+    ? `Enter a step of ${MIN_PEG_STEP_M}–${MAX_PEG_STEP_M} m.`
+    : null
+
 /** Why these settings cannot peg, or null when they can. */
 export function pegToolSettingsError(settings: PegToolSettings): string | null {
-  if (
-    !Number.isFinite(settings.gradePercent) ||
-    settings.gradePercent < 0 ||
-    settings.gradePercent > MAX_PEG_TARGET_GRADE
-  )
-    return `Enter a target grade of 0–${MAX_PEG_TARGET_GRADE} %.`
-  if (!Number.isFinite(settings.stepM) || settings.stepM < MIN_PEG_STEP_M || settings.stepM > MAX_PEG_STEP_M)
-    return `Enter a step of ${MIN_PEG_STEP_M}–${MAX_PEG_STEP_M} m.`
-  return null
+  return pegGradeError(settings.gradePercent) ?? pegStepError(settings.stepM)
 }
 
 /** Up, down, over the limit either way, or unknown where the ground is missing at an end. */
@@ -97,6 +117,21 @@ export type PegCursorResult =
 
 const fixed = (value: number, decimals = 1) => value.toFixed(decimals)
 const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${fixed(Math.abs(value))}`
+/**
+ * A ground grade beside the target it failed to reach, with decimals enough not to read as the
+ * target: −2.96 against −3 prints "−2.96", not "−3.0".
+ */
+export function signedApart(value: number, target: number): string {
+  // No sign on a value that prints as zero: "0.0", not "−0.0".
+  const text = (n: number, decimals: number) => {
+    const size = fixed(Math.abs(n), decimals)
+    return Number(size) === 0 ? size : `${n > 0 ? '+' : '−'}${size}`
+  }
+  let shown = text(value, 1)
+  for (let decimals = 2; decimals <= 3 && shown === text(target, decimals - 1); decimals++)
+    shown = text(value, decimals)
+  return shown
+}
 const finite = (value: number) => (Number.isFinite(value) ? value : null)
 const turn = (from: number, to: number) => ((to - from + 540) % 360) - 180
 
@@ -179,7 +214,7 @@ export function solvePegCursor(
       reason: 'no-ground',
       message: `No ground ${fixed(step, 0)} m out this way: off the terrain or a gap.`,
     }
-  const range = `${signed(Math.min(...known))} to ${signed(Math.max(...known))} %`
+  const range = `${signedApart(Math.min(...known), target)} to ${signedApart(Math.max(...known), target)} %`
   if (known.length < grades.length)
     return {
       ok: false,

@@ -36,7 +36,11 @@ They have no DOM, terrain fetches or network access, and carry the unit tests. T
 1. Select a design road you can edit. Mapped roads and the first-road placeholder cannot be
    pegged; the button says so.
 2. Pick **Peg at grade**. The panel at the plan's lower left holds the **Grade (%)**, **Up** or
-   **Down**, the **Step (m)**, **Straight legs** and the **Aim (°)**.
+   **Down**, the **Step (m)**, **Straight legs** and the **Aim (°)**. The Aim stays blank, and
+   **Add leg** off, until the cursor or a typed aim gives one. A grade or step outside its limits
+   stays as typed, with the limits under the field, and no leg is placed until it is corrected.
+   Picking a tool folds the plan's legend, which shares the lower edge; open it again from its
+   header.
 3. Move the cursor. A dashed leg runs from the last peg (the yellow dot) one step long, at the
    target grade, on the heading nearest the cursor. Its colour says up (orange), down (blue) or
    over the road's grade limit (red). The label beside it gives its grade and length.
@@ -57,7 +61,9 @@ tool starts again from the new end.
 
 ### Where no leg can be placed
 
-The label at the cursor turns amber, says why, and a click adds nothing:
+The label at the cursor turns amber, says why, and a click adds nothing. Near the plan's right edge
+the label sits to the left of the cursor, so it is not cut off. A grade in the message that rounds to
+the target is printed with more decimals ("the ground runs −2.96 to …" against −3.0 %).
 
 | Message                                                     | Cause                                                                 | What to do                                                    |
 | ----------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------- |
@@ -81,8 +87,9 @@ Pick **Query a point** and click the plan. The panel reads:
 
 A dashed violet line joins the point to the centreline, and the station is selected in the
 profile and section when the road is the active one. **Go to** locates a typed station and offset
-on the active road. The station is evaluated where it was typed (`roadStationAt`), not snapped to
-a calculated station, and the station box shows it.
+on the active road. The station is evaluated where it was typed (`roadStationAt`), decimals
+included, not snapped to a calculated station, and the station box shows it. The fields' arrow
+steps (1 m, 0.5 m) do not limit what can be typed.
 
 Unknown stays unknown:
 
@@ -108,22 +115,23 @@ hover there moves the station, and for 1.5 s after you pan or zoom it yourself.
 
 ## Limits and budgets
 
-| Limit                                  | Value                                  | Enforced in                                                          | When exceeded                          |
-| -------------------------------------- | -------------------------------------- | -------------------------------------------------------------------- | -------------------------------------- |
-| Peg step                               | 1–500 m                                | `pegCursor.ts` `MIN_PEG_STEP_M`, `MAX_PEG_STEP_M`                    | Field rejects it; no leg is placed     |
-| Target grade                           | 0–30 % either way                      | `pegCursor.ts` `MAX_PEG_TARGET_GRADE`                                | Field rejects it; no leg is placed     |
-| Headings searched                      | ±90° of the aim, 2° brackets           | `pegCursor.ts` `PEG_SEARCH_HALF_ANGLE`, `findGradePeg`               | "No leg at …"                          |
-| Legs held before finishing             | 200                                    | `pegCursor.ts` `MAX_PEG_TOOL_LEGS`                                   | Leg refused; finish and peg on         |
-| Straight leg                           | 2,000 m                                | `pegCursor.ts` `MAX_STRAIGHT_LEG_M`                                  | "A straight leg is at most 2,000 m"    |
-| Double-click                           | second click within 400 ms and 6 px    | `pegCursor.ts` `PEG_DOUBLE_CLICK_MS`, `_PX`                          | Read as two clicks: two legs           |
-| Aim keys                               | 5°, 1° with Shift                      | `pegCursor.ts` `PEG_AIM_STEP_DEG`, `_FINE_STEP_DEG`                  | —                                      |
-| Road points                            | 2,000 per road, and across the project | `project.ts` `MAX_POINTS`                                            | Finish refused with the parser's error |
-| Centreline read for a query            | every 1 m, at most 20,000 pieces       | `pointQuery.ts` `POINT_QUERY_STEP_M`, `MAX_POINT_QUERY_SAMPLES`      | Longer roads read more coarsely        |
-| Typed offset                           | ±1,000 m                               | `pointQuery.ts` `MAX_QUERY_OFFSET_M`                                 | "Enter an offset of at most …"         |
-| On grade                               | within 5 mm                            | `pointQuery.ts` `ON_GRADE_M`                                         | —                                      |
-| Grade class breaks                     | ½, ¾ and 1 × the grade limit           | `gradeClasses.ts` `GRADE_CLASS_BREAKS`                               | —                                      |
-| Follow margin                          | 15 % of the view, at least 40 px       | `followStation.ts` `FOLLOW_MARGIN_FRACTION`, `FOLLOW_MIN_MARGIN_PX`  | —                                      |
-| Follow throttle; hold after a user pan | 250 ms; 1.5 s                          | `followStation.ts` `FOLLOW_THROTTLE_MS`, `FOLLOW_HOLD_AFTER_USER_MS` | —                                      |
+| Limit                                  | Value                                  | Enforced in                                                          | When exceeded                            |
+| -------------------------------------- | -------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| Peg step                               | 1–500 m                                | `pegCursor.ts` `MIN_PEG_STEP_M`, `MAX_PEG_STEP_M`, `pegStepError`    | Field keeps it, shows the limits; no leg |
+| Target grade                           | 0–30 % either way                      | `pegCursor.ts` `MAX_PEG_TARGET_GRADE`, `pegGradeError`               | Field keeps it, shows the limits; no leg |
+| Headings searched                      | ±90° of the aim, 2° brackets           | `pegCursor.ts` `PEG_SEARCH_HALF_ANGLE`, `findGradePeg`               | "No leg at …"                            |
+| Legs held before finishing             | 200                                    | `pegCursor.ts` `MAX_PEG_TOOL_LEGS`                                   | Leg refused; finish and peg on           |
+| Straight leg                           | 2,000 m                                | `pegCursor.ts` `MAX_STRAIGHT_LEG_M`                                  | "A straight leg is at most 2,000 m"      |
+| Double-click                           | second click within 400 ms and 6 px    | `pegCursor.ts` `PEG_DOUBLE_CLICK_MS`, `_PX`                          | Read as two clicks: two legs             |
+| Aim keys                               | 5°, 1° with Shift                      | `pegCursor.ts` `PEG_AIM_STEP_DEG`, `_FINE_STEP_DEG`                  | —                                        |
+| Road points                            | 2,000 per road, and across the project | `project.ts` `MAX_POINTS`                                            | Finish refused with the parser's error   |
+| Centreline read for a query            | every 1 m, at most 20,000 pieces       | `pointQuery.ts` `POINT_QUERY_STEP_M`, `MAX_POINT_QUERY_SAMPLES`      | Longer roads read more coarsely          |
+| Typed offset                           | ±1,000 m                               | `pointQuery.ts` `MAX_QUERY_OFFSET_M`                                 | Field changes it to ±1,000 and says so   |
+| Cursor label                           | 224 px wide, 12 px from its point      | `pegCursor.ts` `CURSOR_LABEL_MAX_WIDTH_PX`, `cursorLabelSide`        | Drawn left of the point instead          |
+| On grade                               | within 5 mm                            | `pointQuery.ts` `ON_GRADE_M`                                         | —                                        |
+| Grade class breaks                     | ½, ¾ and 1 × the grade limit           | `gradeClasses.ts` `GRADE_CLASS_BREAKS`                               | —                                        |
+| Follow margin                          | 15 % of the view, at least 40 px       | `followStation.ts` `FOLLOW_MARGIN_FRACTION`, `FOLLOW_MIN_MARGIN_PX`  | —                                        |
+| Follow throttle; hold after a user pan | 250 ms; 1.5 s                          | `followStation.ts` `FOLLOW_THROTTLE_MS`, `FOLLOW_HOLD_AFTER_USER_MS` | —                                        |
 
 ## Built-in assumptions
 
