@@ -18,6 +18,8 @@ import {
 } from './reportSettings'
 import type { Alignment, MaterialQuantity, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
 import { issueStamp, PLANNING_CAVEAT, type IssueStamp, type ProjectIssue } from './projectIssue'
+import type { ProfileGradeLimits } from './profileAnnotations'
+import { SHEET_BANDS_HEIGHT, sheetBandsSvg, sheetProfileLabelsSvg } from './plotBookProfile'
 
 const formatRoadStation = (value: number) => {
   const rounded = Math.round(Math.max(0, value) * 10) / 10
@@ -95,7 +97,10 @@ function planProfileSheet(
   chapter: ReportChapter,
   projectName: string,
   alignment: Alignment,
+  gradeLimits?: ProfileGradeLimits,
 ) {
+  // Value bands take room from the plan and the profile; without them the sheet is laid out as before.
+  const bandsOn = !!settings.subviews.bands && settings.subviews.profile
   const inWindow = analysis.stations.filter((s) => s.chainage >= start - 1e-6 && s.chainage <= end + 1e-6)
   if (inWindow.length < 2) return ''
   // Plan: projected metres, rotated so the window runs left to right.
@@ -129,7 +134,7 @@ function planProfileSheet(
     maxX = Math.max(...local.map((p) => p[0]))
   const minY = Math.min(...local.map((p) => p[1])) - reach,
     maxY = Math.max(...local.map((p) => p[1])) + reach
-  const plan = { left: 60, top: 40, width: W - 120, height: 380 }
+  const plan = { left: 60, top: 40, width: W - 120, height: bandsOn ? 320 : 380 }
   const physicalScale =
     chapter.horizontalScale === null
       ? null
@@ -199,7 +204,9 @@ function planProfileSheet(
   const planSvg = `<clipPath id="${clipId}"><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}"/></clipPath><rect x="${plan.left}" y="${plan.top}" width="${plan.width}" height="${plan.height}" fill="none" stroke="#111827"/><g clip-path="url(#${clipId})">${contourPaths}<path d="${side('daylight', -1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('daylight', 1)}" fill="none" stroke="#a16207" stroke-dasharray="6 4"/><path d="${side('width', -1)}" fill="none" stroke="#4b5563"/><path d="${side('width', 1)}" fill="none" stroke="#4b5563"/><path d="${line(grid)}" fill="none" stroke="#c026d3" stroke-width="2"/>${ticks}</g><g transform="translate(${plan.left + 40} ${plan.top + 50}) rotate(${north.toFixed(1)})"><path d="M0,-22 L7,8 L0,3 L-7,8 Z" fill="#111827"/><text y="-26" font-size="12" text-anchor="middle">N</text></g><g transform="translate(${plan.left + 20} ${plan.top + plan.height - 20})"><rect width="${(bar * scale).toFixed(1)}" height="6" fill="#111827"/><text y="-4" font-size="11">${bar} m</text></g><text x="${plan.left}" y="${plan.top - 10}" font-size="14" font-weight="600">Plan · ${formatRoadStation(start)} to ${formatRoadStation(end)}</text>${noteSvg}`
 
   // Profile with a mass-haul strip, sharing the station scale.
-  const profile = { left: 90, top: 470, width: W - 150, height: 330 }
+  const profile = bandsOn
+    ? { left: 90, top: 410, width: W - 150, height: 798 - 410 - 24 - SHEET_BANDS_HEIGHT }
+    : { left: 90, top: 470, width: W - 150, height: 330 }
   const mass = { left: 90, top: 830, width: W - 150, height: 130 }
   const prepared = inWindow.map((s) => s.section.find((p) => Math.abs(p.offset) < 1e-7)?.preparedGround ?? null)
   const zs = inWindow
@@ -278,7 +285,22 @@ function planProfileSheet(
     sy,
   )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 70}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 70} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)${unknownEarthwork.length ? ' · shaded: earthwork unknown, balance carried across' : ''}</text>${unknownBands}<rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
   const massStart = profileSvg.indexOf(`<text x="${mass.left}" y="${mass.top - 8}"`)
-  const profileOnly = profileSvg.slice(0, massStart)
+  const labelsSvg = settings.subviews.profileLabels
+    ? sheetProfileLabelsSvg({ analysis, alignment, start, end, sx, sy, top: profile.top, limits: gradeLimits })
+    : ''
+  const profileOnly = profileSvg.slice(0, massStart) + labelsSvg
+  const bandsSvg = bandsOn
+    ? sheetBandsSvg({
+        analysis,
+        alignment,
+        start,
+        end,
+        sx,
+        left: profile.left,
+        width: profile.width,
+        top: profile.top + profile.height + 24,
+      })
+    : ''
   const massOnly = profileSvg.slice(massStart)
   const curves =
     settings.curveTablePosition === 'plan-sheet' && settings.subviews.plan ? curveInset(alignment, start, end) : ''
@@ -286,7 +308,7 @@ function planProfileSheet(
     ? '<text x="60" y="982" font-size="11" fill="#4b5563">Legend: centreline magenta · formation grey · catch lines dashed brown · ground brown · design teal · mass purple</text>'
     : ''
   const scaleNote = chapter.horizontalScale === null ? 'Auto-fit' : `Horizontal 1:${chapter.horizontalScale}`
-  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${chapter.verticalExaggeration}×${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
+  return `${settings.subviews.plan ? planSvg + curves : ''}<clipPath id="profile-${clipId}"><rect x="0" y="${profile.top - 32}" width="${W}" height="${profile.height + 58}"/></clipPath>${settings.subviews.profile ? `<g clip-path="url(#profile-${clipId})">${profileOnly}</g>${bandsSvg}` : ''}${settings.subviews.mass ? massOnly : ''}${legend}<text x="60" y="1000" font-size="10">${html(scaleNote)} · profile vertical exaggeration ${chapter.verticalExaggeration}×${chapter.horizontalScale !== null || chapter.verticalExaggeration !== 1 ? ' · plots clipped to their frames' : ''}</text>`
 }
 
 function sectionSheet(
@@ -473,6 +495,7 @@ export function plotBookHtml({
   settings: rawSettings,
   issue,
   today,
+  gradeLimits,
 }: {
   projectName: string
   alignment: Alignment
@@ -488,6 +511,8 @@ export function plotBookHtml({
   issue?: ProjectIssue
   /** The day of printing, used when the stamp has no date of issue. */
   today?: Date
+  /** The project's grade limits, for the over-limit tangents the curve-labels subview draws. */
+  gradeLimits?: ProfileGradeLimits
 }): string {
   // Drawing sheets go to the people who build the road: they are not printed from results that
   // leave an input out. The report is, with a stamp (`INVALID_INPUT_RULES`, `exportCatalog.ts`).
@@ -530,7 +555,18 @@ export function plotBookHtml({
         throw Error(`The report exceeds ${MAX_REPORT_SHEETS} sheets; shorten ranges or increase intervals.`)
       for (let start = rangeStart; start < rangeEnd - 1e-6; start += window) {
         const end = Math.min(rangeEnd, start + window)
-        const body = planProfileSheet(analysis, start, end, toGrid, contours, settings, chapter, projectName, alignment)
+        const body = planProfileSheet(
+          analysis,
+          start,
+          end,
+          toGrid,
+          contours,
+          settings,
+          chapter,
+          projectName,
+          alignment,
+          gradeLimits,
+        )
         if (body)
           add({
             title: `${chapter.title} ${formatRoadStation(start)}–${formatRoadStation(end)}`,

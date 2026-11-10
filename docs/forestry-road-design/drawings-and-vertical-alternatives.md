@@ -68,6 +68,10 @@ You can choose A3 or A4 landscape paper and add, reorder, rename or remove chapt
 | Culvert inventory   | Entered structures in the range, geometric length/cover/grade, installed cost and review warnings.                                                                                                             |
 | Material quantities | Cut/stripping, reusable material, unsuitable bank volume and excavation cost over the selected range. Range boundaries clip the engine's linear average-end-area integration; missing intervals stay excluded. |
 
+Plan & profile sheets can also carry numeric value bands under the profile and BVC/EVC, high and
+low point labels on it; both are off until ticked (see
+[profile labels and bands](profile-labels-and-bands.md)).
+
 Curve tables can also be added as a chapter automatically, or inset at the top right of each
 plan. An inset shows the first eight curves in that window with an explicit count note; use the
 full curve-table chapter for the complete schedule.

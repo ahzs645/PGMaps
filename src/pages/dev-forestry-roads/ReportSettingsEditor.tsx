@@ -36,7 +36,15 @@ const COLUMN_LABELS = {
   mass: 'Mass balance',
   flags: 'Review flags',
 }
-const SUBVIEW_LABELS = { plan: 'Plan', profile: 'Profile', mass: 'Mass haul', contours: 'Contours', legend: 'Legend' }
+const SUBVIEW_LABELS: Record<keyof RoadReportSettings['subviews'], string> = {
+  plan: 'Plan',
+  profile: 'Profile',
+  mass: 'Mass haul',
+  contours: 'Contours',
+  legend: 'Legend',
+  bands: 'Value bands',
+  profileLabels: 'Curve labels',
+}
 
 export function ReportSettingsEditor({
   value,
@@ -332,10 +340,10 @@ function ChapterFields({
         <CheckboxGrid
           legend="Show on plan & profile sheets"
           note="Shared by every plan & profile chapter."
-          items={(Object.keys(settings.subviews) as (keyof RoadReportSettings['subviews'])[]).map((key) => ({
+          items={(Object.keys(SUBVIEW_LABELS) as (keyof RoadReportSettings['subviews'])[]).map((key) => ({
             key,
             label: SUBVIEW_LABELS[key],
-            checked: settings.subviews[key],
+            checked: settings.subviews[key] ?? false,
             onChange: (checked: boolean) => onSubviews({ ...settings.subviews, [key]: checked }),
           }))}
         />
