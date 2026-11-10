@@ -50,9 +50,10 @@ describe('terrain-cost alternatives', () => {
     expect(roads).toEqual([source, ...created])
     expect(replaced).toBe(0)
     expect(notes).toEqual([])
-    // The record survives a save and reopen.
+    // The record survives a save and reopen, and the road still reads as the search made it.
     const project = parseProject({ ...createDemoProject(), alignments: roads, activeAlignmentId: source.id })
     expect(project.alignments[1].routeSearch).toEqual(created[0].routeSearch)
+    expect(isUntouchedRouteAlternative(project.alignments[1])).toBe(true)
   })
 
   it('fits curves of at least the minimum radius and keeps every road on the terrain', () => {
@@ -144,6 +145,37 @@ describe('terrain-cost alternatives', () => {
     // A name from before records were kept, with a rank and a dollar figure, is not stacked on either.
     const legacy = { ...source, id: 'legacy', name: 'Road 2 · terrain-cost #1 ($198,702)' }
     expect(search([legacy], [route(0, 1)], legacy).created[0].name).toBe('Road 2 · terrain-cost route 1')
+  })
+
+  it('keeps a found road the designer has edited without moving a point', () => {
+    const first = search([source], [route(0, 1), route(40, 2), route(80, 3), route(120, 4)])
+    const [spiralled, widened, ruled, plain] = first.created
+    const edited = [
+      // Spirals on its curves, a wider section, and curve rules: none of them moves a point.
+      { ...spiralled, points: spiralled.points.map((p) => (p.radiusM > 0 ? { ...p, spiralM: 20 } : p)) },
+      { ...widened, template: { ...widened.template, leftWidth: 4.5, rightWidth: 4.5 } },
+      {
+        ...ruled,
+        curveDesign: {
+          designSpeedKmh: 40,
+          maxSuperelevationPercent: 8,
+          sideFrictionFactor: 0.15,
+          runoffLengthM: 30,
+          wideningVehicleLengthM: null,
+        },
+      },
+    ]
+    expect(edited.map(isUntouchedRouteAlternative)).toEqual([false, false, false])
+    expect(isUntouchedRouteAlternative(plain)).toBe(true)
+    // The same template with its fields in another order is still the template the search gave.
+    const reordered = { ...plain, template: Object.fromEntries(Object.entries(plain.template).reverse()) }
+    expect(isUntouchedRouteAlternative(reordered as Alignment)).toBe(true)
+    const second = search([source, ...edited, plain], [route(20, 5)])
+    expect(second.replaced).toBe(1)
+    expect(second.roads.slice(0, 4).map((road) => road.id)).toEqual([source.id, ...edited.map((road) => road.id)])
+    // A record from before the template was fingerprinted is judged on the rest, as it always was.
+    const legacy = { ...plain, routeSearch: { ...plain.routeSearch!, templateKey: undefined } }
+    expect(isUntouchedRouteAlternative(legacy)).toBe(true)
   })
 
   it('tells an edited line from the one the search made', () => {

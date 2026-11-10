@@ -10,7 +10,8 @@
  * the same way are then merged into one intersection point where their tangents meet, when a single
  * curve there still follows the line: that is how a bend drawn as a run of short chords becomes one
  * curve. A corner that cannot take the minimum radius either way stays sharp and is counted, never
- * given a smaller curve.
+ * given a smaller curve. A corner is any point the road engine would flag without a curve, however
+ * slight its turn, so the count is the number of sharp PIs the engine reports on the result.
  *
  * The reported deviation is measured on the fitted centreline, both ways, not assumed from the
  * tolerances. Pure: no DOM, network or terrain access.
@@ -53,8 +54,13 @@ export const SMALLEST_CURVE_M = MIN_SEARCH_RADIUS_M
 export const fittedMinimumRadius = (minRadiusM: number) => (minRadiusM > 0 ? minRadiusM : SMALLEST_CURVE_M)
 /** Tangents may use this share of a leg, as in `horizontalTools.ts`, so the engine's own fit accepts them. */
 const FIT = 0.98
-/** Below this a point does not turn the line by anything a plan could show. */
-const STRAIGHT = (0.5 * Math.PI) / 180
+/**
+ * The turn at which the road engine reads a point as a corner, and flags it sharp when it has no
+ * curve: `compile` in `engine.ts` compares the legs' unit vectors, cos Δ < 1 − 1e-8, about 0.008°.
+ * A larger figure here left slight bends without a curve and uncounted, and the engine then flagged
+ * each one as a sharp PI on a road reported to have none.
+ */
+const STRAIGHT = Math.acos(1 - 1e-8)
 /** Shares of the deviation spent on dropping points, fewest points first; the rest goes to the curves. */
 const REDUCTIONS = [1, 0.8, 0.6, 0.45, 0.3, 0.2, 0.1, 0.04, 0]
 const SAMPLE_M = 1
@@ -231,10 +237,11 @@ export function fitPolylineAlignment(coordinates: Coordinate[], options: Polylin
         trims[i] = a + (trims[i] - a) * spare
         trims[i + 1] = b + (trims[i + 1] - b) * spare
       }
+    // Radii are whole tenths of a metre, rounded down, but never below a minimum that is not one.
     const radii = trims.map((trim, i) => {
       if (!corner[i]) return 0
-      const radius = Math.floor((trim / half[i]) * 10 + 1e-6) / 10
-      return radius >= minRadiusM - 1e-6 ? radius : 0
+      const radius = trim / half[i]
+      return radius >= minRadiusM - 1e-6 ? Math.max(minRadiusM, Math.floor(radius * 10 + 1e-6) / 10) : 0
     })
     // Each point stands for a stretch of the source line; a merged point stands for two.
     return { ips, radii, spans: kept.map((i): [number, number] => [i, i]) }
@@ -270,8 +277,10 @@ export function fitPolylineAlignment(coordinates: Coordinate[], options: Polylin
         to = spans[i + 1][1]
       let gap = Infinity
       for (let k = from; k < to; k++) gap = Math.min(gap, toSegment(meet, source[k], source[k + 1]))
-      const radius =
-        Math.floor(Math.min(maxRadiusM, Math.max(minRadiusM, gap / (1 / Math.cos(turn / 2) - 1))) * 10) / 10
+      const radius = Math.max(
+        minRadiusM,
+        Math.floor(Math.min(maxRadiusM, gap / (1 / Math.cos(turn / 2) - 1)) * 10) / 10,
+      )
       const tangent = radius * Math.tan(turn / 2)
       const piece = centreline([a, meet, d], [0, radius, 0])
       const around = source.slice(spans[i - 1][1], spans[i + 2][0] + 1)

@@ -217,6 +217,8 @@ export interface RouteSearchRecord {
   crossings: number
   name: string
   pointsKey: string
+  /** Fingerprint of the section template the search gave the road. Absent on older records. */
+  templateKey?: string
 }
 /** Where a loaded mapped road came from and how its line was prepared. */
 export interface MappedRoadOrigin {

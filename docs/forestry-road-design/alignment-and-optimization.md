@@ -239,6 +239,10 @@ value, **Max deviation**, and the road-wide minimum radius.
 - Every fitted curve is at least the minimum radius and as large as the deviation and its tangents
   allow, up to 1,000 m. A corner that cannot take the minimum radius inside the deviation stays
   sharp and is counted; **Fit sharp corners** then gives it the largest curve its tangents hold.
+- A corner is any point the road engine would flag without a curve, about 0.008° of turn
+  (`STRAIGHT`, the test `compile` in `engine.ts` applies), so the sharp corners counted are the
+  sharp PIs the engine reports on the result. Slight bends therefore get a curve too, usually the
+  1,000 m maximum. Radii are rounded down to 0.1 m, never below the minimum.
 - A minimum radius of 0 means none is set. Curves are then fitted from 5 m up (`SMALLEST_CURVE_M`,
   `fittedMinimumRadius`): a tighter one is a sharp corner in all but name. The same holds wherever
   a search or fit reads the minimum radius: found routes, **Find the best route** and the corridor
@@ -352,9 +356,12 @@ in `routeFit.ts`):
   and ground steeper than the limit while the road has no profile. That last figure is raw ground
   between stations, which reads steeper than the trend the search held to the limit; fit a profile
   to see the designed grade.
-- **Replacement.** The next search removes the found roads nobody has changed: same points and name,
-  no profile, widenings, standards, controls or engineering. A road you rename, edit or design is
-  kept, and so is the road the search runs from. One Undo brings the replaced roads back. Replaced
+- **Replacement.** The next search removes the found roads nobody has changed
+  (`isUntouchedRouteAlternative`): same points, radii, spirals, section template and name, and no
+  profile, widenings, standards, controls, curve rules, vehicle check or engineering. A road you
+  rename, edit or design is kept, and so is the road the search runs from. The template is compared
+  by a fingerprint kept in the road's record (`templateKey`); a record saved before that was kept is
+  judged on the rest. One Undo brings the replaced roads back. Replaced
   roads leave room for new ones against the 20-road limit.
   Edge cost is road
   $/m × (1 + 3(g/gmax)²), plus crossings and zone costs. The defaults, $100/m and $8,000 per

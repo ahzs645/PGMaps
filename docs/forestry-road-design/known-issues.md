@@ -29,6 +29,38 @@ that fixes it, and add one, with the file and function, when you find a new defe
   has not tried every line: a second search leaning toward the end found a road in a tube where
   the even search had reported none. **Find the best route** therefore still tries the next step.
 
+## Open: route search, Reduce points and the profile optimizer (found 2026-11-09, second round)
+
+Found while fixing the second set of walkthrough defects; **confirmed** by a reviewer's probe
+unless marked.
+
+- **Reduce points reports less movement than it made.** `fitPolylineAlignment` (`polylineFit.ts`)
+  measures the fitted line at its vertices and arc samples only, not along its tangents: one line
+  read "moved at most 31.8 m" where the two-way distance was 34.8 m. The limit itself held in 400
+  random runs. Densifying the fitted line makes the check about ten times slower on long lines.
+- **Reduce points runs in one go.** 2,000 points over 40 km took 13 s on one thread, and 100 km
+  took 76 s, with no progress or Cancel (`farthest` in `polylineFit.ts`, called from `reduce` in
+  `CurveTools.tsx`).
+- **Reduce points refits every curve and drops spirals without saying so** (read). The line is read
+  along the centreline and fitted afresh, so an 80 m curve came back as 35.9 m at 5 m deviation and
+  a 30 m spiral was gone; the notice gives only counts and the tightest radius (`reduce`,
+  `CurveTools.tsx`).
+- **The terrain-cost search notice lists costs as search scores.** With an avoid-where-practical
+  area the message reads "ranked by search score ($221,284, …)" while the roads' records hold
+  229,782: the list prints `cost`, which leaves the avoidance penalty out (`suggestRoutes`,
+  `routing.ts`).
+- **"Curves fitted within 8 m" can be exceeded by the tightened curves.** `roadFromRoute`
+  (`routeFit.ts`) reports the deviation limit of the polyline fit; the larger curves it then gives
+  sharp corners moved one road 8.47 m from its route (`roadFromGridRoute`, `routeComparison.ts`).
+- **A control added at a typed station lands on the nearest analysis station.** "Control at selected
+  station" at 0+437.3 made a control at 0+440.0 (`nearestStation` in `VerticalDesignControls.tsx`).
+- **The header shows the figures of a line being pegged beside the saved road's name.** While a
+  road is being pegged or extended the tiles, plan and profile read the unfinished line
+  (`displayedAlignment` in `DevForestryRoads.tsx`) and the road switcher still names the saved
+  road. The searches now wait for **Finish road**; the header itself is unchanged.
+- **Access from FSR is not held while a road is being pegged** (read). `AccessReviewPanel.tsx`
+  starts its searches from the saved road, as the three route searches did.
+
 ## Open
 
 - The gallery's example report (`docs/assets/forestry-roads/native-example-report.html` and

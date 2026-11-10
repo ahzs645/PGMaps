@@ -153,6 +153,53 @@ describe('polyline to alignment', () => {
     )
   })
 
+  it('counts as sharp every point the engine flags, however slight its turn', () => {
+    // Long tangents with bends of 0.4°, 0.3° and 0.45° on 2,000 m curves, and one 30° curve of 80 m.
+    const xy: [number, number][] = [[0, 0]]
+    let heading = 0
+    for (const [leg, turn] of [
+      [900, 0.4],
+      [900, -0.3],
+      [700, 30],
+      [800, 0.45],
+      [900, 0],
+    ]) {
+      const last = xy[xy.length - 1]
+      xy.push([last[0] + Math.cos(heading) * leg, last[1] + Math.sin(heading) * leg])
+      heading += (turn * Math.PI) / 180
+    }
+    const radii = [0, 2000, 2000, 80, 2000, 0]
+    const curved = road(xy.map((point, i) => ({ coordinate: at(...point), radiusM: radii[i] })))
+    const settings = { ...DEFAULT_ROAD_SETTINGS, minRadius: 35 }
+    const flagged = (alignment: Alignment) =>
+      new Set(
+        analyzeRoad(alignment, { elevationAt: () => 700 }, settings, []).stations.flatMap((station) =>
+          station.flags.some((flag) => /Sharp horizontal PI/.test(flag)) ? [station.chainage] : [],
+        ),
+      ).size
+    expect(flagged(curved)).toBe(0)
+    // As "Reduce points, fit curves" reads a road with curves: along its centreline, every 2 m.
+    const centre = centrelineSamples(curved, 2)
+    const line = centre.samples.map((sample) => centre.toCoordinate(sample.x, sample.y))
+    for (const maxDeviationM of [5, 2, 1, 0.5]) {
+      const fit = fitPolylineAlignment(line, { maxDeviationM, minRadiusM: settings.minRadius })
+      // At 2 m and under, a bend of under 0.5° used to be kept with no curve and reported as 0 sharp.
+      expect(fit.sharpCorners).toBe(flagged(road(fit.points)))
+      expect(fit.sharpCorners).toBe(0)
+      expect(fit.maxDeviationM).toBeLessThanOrEqual(maxDeviationM + 0.05)
+    }
+  })
+
+  it('never rounds a fitted radius below a minimum that is not a whole tenth', () => {
+    // A right angle with room for more than the minimum on one corner, and exactly the minimum on a merged one.
+    const source = [at(0, 0), at(200, 0), at(200, 200)]
+    for (const minRadiusM of [41.25, 37.77]) {
+      const fit = fitPolylineAlignment(source, { maxDeviationM: 20, minRadiusM, maxRadiusM: minRadiusM })
+      expect(fit.curves).toBe(1)
+      expect(fit.smallestRadiusM).toBe(minRadiusM)
+    }
+  })
+
   it('drops points that do not turn the line', () => {
     const source = Array.from({ length: 41 }, (_, i) => at(i * 10, i * 2.5))
     const fit = fitPolylineAlignment(source, { maxDeviationM: 0.5, minRadiusM: 25 })

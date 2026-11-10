@@ -134,6 +134,9 @@ function parseRouteSearch(raw: unknown): NonNullable<Alignment['routeSearch']> {
     crossings: number(r.crossings, 'Searched route crossings', 0, 100000),
     name: text(r.name, 'Route search name'),
     pointsKey: text(r.pointsKey, 'Route search fingerprint', 100),
+    ...(r.templateKey === undefined
+      ? {}
+      : { templateKey: text(r.templateKey, 'Route search template fingerprint', 100) }),
   }
 }
 function parseTemplate(raw: unknown): RoadTemplate {
