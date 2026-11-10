@@ -993,12 +993,18 @@ function sectionAt(
     return value
   }
   const rockMaterials = new Set(alignment.engineering?.materials.filter((m) => m.rock).map((m) => m.id))
+  // Rock horizons entered at this station. Without one, marking a material rock changes nothing here.
+  const rockPieces = rockMaterials.size
+    ? resolveHorizons(
+        alignment.engineering!.strata.filter((h) => assignmentStation >= h.start && assignmentStation < h.end - 1e-7),
+      ).filter((piece) => rockMaterials.has(piece.materialId))
+    : []
   const enhanced = !!(
     t.components?.length ||
     alignment.engineering?.sitePreparation?.some((p) => assignmentStation >= p.start && assignmentStation < p.end) ||
     alignment.engineering?.materials.some((m) => m.cutSlope !== undefined || m.fillSlope !== undefined) ||
     // A rock ledge or rock batter is cut where the batter search meets the top of rock.
-    (rockMaterials.size &&
+    (rockPieces.length &&
       (['left', 'right'] as const).some((side) => {
         const rock = rockCutAt(t, side)
         return !!rock && ((rock.ledgeWidthM ?? 0) > 0 || rock.cutSlope !== undefined)
@@ -1025,32 +1031,27 @@ function sectionAt(
         },
       })
     : legacySectionAt(coordinate, heading, z, alignment, s, halfWidth, terrain)
-  if (rockMaterials.size) {
+  if (rockPieces.length) {
     // Rock horizons here: the top of rock, the blasting level and the rock quantities.
-    const pieces = resolveHorizons(
-      alignment.engineering!.strata.filter((h) => assignmentStation >= h.start && assignmentStation < h.end - 1e-7),
-    ).filter((piece) => rockMaterials.has(piece.materialId))
-    if (pieces.length) {
-      const rock = rockSection({
-        section: section.section,
-        pieces,
-        template: t,
-        ...widths,
-        ditch: {
-          left: { widthM: sideValue(t, 'left', 'DitchWidth'), bottomWidthM: sideValue(t, 'left', 'DitchBottomWidth') },
-          right: {
-            widthM: sideValue(t, 'right', 'DitchWidth'),
-            bottomWidthM: sideValue(t, 'right', 'DitchBottomWidth'),
-          },
+    const rock = rockSection({
+      section: section.section,
+      pieces: rockPieces,
+      template: t,
+      ...widths,
+      ditch: {
+        left: { widthM: sideValue(t, 'left', 'DitchWidth'), bottomWidthM: sideValue(t, 'left', 'DitchBottomWidth') },
+        right: {
+          widthM: sideValue(t, 'right', 'DitchWidth'),
+          bottomWidthM: sideValue(t, 'right', 'DitchBottomWidth'),
         },
-        complete: section.complete,
-      })
-      return {
-        ...section,
-        section: rock.section,
-        ...(rock.rock ? { rock: rock.rock } : {}),
-        layerAreas: surfaceLayersAt(alignment, s),
-      }
+      },
+      complete: section.complete,
+    })
+    return {
+      ...section,
+      section: rock.section,
+      ...(rock.rock ? { rock: rock.rock } : {}),
+      layerAreas: surfaceLayersAt(alignment, s),
     }
   }
   return { ...section, layerAreas: surfaceLayersAt(alignment, s) }

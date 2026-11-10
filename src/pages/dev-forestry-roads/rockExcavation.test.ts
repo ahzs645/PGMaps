@@ -335,6 +335,25 @@ describe('rock cut through the engine', () => {
     expect(marked.stations[0].cutAreaM2).toBeCloseTo(before.stations[0].cutAreaM2!, 9)
     expect(marked.engineering!.rock!.deepM3).toBe(0)
   })
+  it('changes nothing at stations with no rock horizon, even with a rock material and a rock cut', () => {
+    // Regression: marking a material rock switched every station to the assembled section, which
+    // moved cut areas slightly on roads with no rock entered at all.
+    const soilOnly = (a: Alignment) => {
+      a.engineering!.strata = a.engineering!.strata.filter((h) => h.materialId !== 'granite')
+      return a
+    }
+    const plain = soilOnly(road(100))
+    plain.engineering!.materials[1] = { ...granite, rock: undefined }
+    const before = analyzeRoad(plain, ground110, settings)
+    const after = analyzeRoad(
+      soilOnly(road(100, { rockCut: { cutSlope: 0.25, ledgeWidthM: 0.5, blastDepthM: 0.75 } })),
+      ground110,
+      settings,
+    )
+    expect(after.cutVolumeM3).toBe(before.cutVolumeM3)
+    expect(after.stations.map((s) => s.section)).toEqual(before.stations.map((s) => s.section))
+    expect(after.stations.map((s) => s.cutAreaM2)).toEqual(before.stations.map((s) => s.cutAreaM2))
+  })
   it('appends rock columns to the station CSV after the existing ones', () => {
     const analysis = analyzeRoad(
       road(100, { rockCut: { cutSlope: 0.25, blastDepthM: 0.75, shallowDepthM: 1 } }),
