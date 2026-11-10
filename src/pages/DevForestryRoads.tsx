@@ -181,6 +181,7 @@ import { replaceableRouteAlternatives, terrainCostAlternatives } from './dev-for
 import { ProfileSwitcher } from './dev-forestry-roads/ProfileSwitcher'
 import { resolvedGroundWindow } from './dev-forestry-roads/groundTrend'
 import type { RoutePreviewLine } from './dev-forestry-roads/RouteFinder'
+import { routePreviewFeature } from './dev-forestry-roads/routePreviewFeatures'
 import { RoadSwitcher } from './dev-forestry-roads/RoadSwitcher'
 import { reachedBlockCoordinates } from './dev-forestry-roads/planFit'
 import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/horizontalTools'
@@ -587,11 +588,7 @@ export default function DevForestryRoads() {
               },
             ]
           : []),
-        ...(routeLines ?? []).map((line) => ({
-          type: 'Feature' as const,
-          geometry: { type: 'LineString' as const, coordinates: line.coordinates },
-          properties: { kind: 'route-comparison', color: line.color, selected: line.selected, label: line.label },
-        })),
+        ...(routeLines ?? []).map(routePreviewFeature),
         // Skid reach: beyond-reach outlines, spur candidates and landing footprints.
         ...(skidReachFeatures ?? []),
         ...(routePreview?.route
@@ -3816,6 +3813,9 @@ export default function DevForestryRoads() {
                             }
                             onOverlaySelect={(properties) => {
                               if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
+                              // A failed route search's mark selects the row that explains it.
+                              if (properties?.routeLineId)
+                                routeLines?.find((line) => line.id === properties.routeLineId)?.onSelect?.()
                             }}
                           />
                         </div>

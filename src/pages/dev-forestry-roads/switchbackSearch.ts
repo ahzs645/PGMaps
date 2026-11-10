@@ -147,6 +147,8 @@ export interface SwitchbackFailure {
   riseM: number
   closestRemainingM: number
   closest: Coordinate
+  /** The labelled line that got nearest the end, from the start to `closest`, for drawing. */
+  reached?: Coordinate[]
   /** Trials stopped by each rule. */
   stopped: Record<SwitchbackStop, number>
   /** Trials stopped by each rule from the positions nearest the end, within one neighbourhood of the closest. */
@@ -668,13 +670,15 @@ function* search(
   const places: SwitchbackFailure['places'] = {}
   let hairpinsAccepted = 0
   let closestRemaining = direct,
-    closestAt: XY = [0, 0]
-  const failure = (reason: SwitchbackFailure['reason']): SwitchbackFailure => ({
+    closestAt: XY = [0, 0],
+    closestId = -1
+  const failure = (reason: SwitchbackFailure['reason'], reached?: XY[]): SwitchbackFailure => ({
     reason,
     directM: direct,
     riseM: endZ - startZ,
     closestRemainingM: closestRemaining,
     closest: frame.fromXY(closestAt),
+    ...(reached ? { reached: reached.map(frame.fromXY) } : {}),
     stopped: { ...stopped },
     frontier: Object.fromEntries(
       STOPS.map((stop) => {
@@ -1074,6 +1078,7 @@ function* search(
       if (remaining < closestRemaining) {
         closestRemaining = remaining
         closestAt = [x, y]
+        closestId = id
       }
       if (leg < legs && Math.hypot(waypoints[leg][0] - x, waypoints[leg][1] - y) <= tolerance) {
         const nextKey = labels.parent[id] < 0 ? keyOf(startCell, leg + 1, 0) + 0.5 : keyOf(c, leg + 1, n[HEAD][id])
@@ -1111,13 +1116,21 @@ function* search(
         tryPiece(id, c + offset.delta, offset)
       }
     }
+    /** The start, then each labelled position to `id`: where the search stood when it got nearest the end. */
+    const reachedChain = (id: number): XY[] => {
+      const chain: XY[] = []
+      for (let at = id, count = 0; at >= 0 && count < 100_000; at = labels.parent[at], count++)
+        chain.push([n[X][at], n[Y][at]])
+      chain.push([0, 0])
+      return chain.reverse()
+    }
     if (found < 0) {
       const reason = budgetOut ? 'budget' : 'no-candidate'
       throw new SwitchbackSearchError(
         budgetOut
           ? 'The switchback search reached its budget without a route; narrow the corridor or shorten the road.'
           : 'No route with these switchback and grade rules reaches the end in this corridor. This is not proof that a field-designed road is impossible.',
-        failure(reason),
+        failure(reason, reachedChain(closestId)),
       )
     }
 
@@ -1403,6 +1416,36 @@ export function switchbackRefusal(failure: SwitchbackFailure, limits: Switchback
   return `every switchback it tried was refused, ${stopped[rule].toLocaleString('en-CA')} of them because ${text[rule]()}.`
 }
 
+/** The general rule that stopped most pieces where the search got furthest, and how many pieces were stopped there. */
+function frontierStop(failure: SwitchbackFailure) {
+  // Judged where the search got furthest: refusals far behind it say little about what stopped it.
+  const { frontier, stopped } = failure
+  const general = STOPS.filter((stop) => stop !== 'hairpinOff' && !HAIRPIN_STOPS.has(stop))
+  const total = general.reduce((sum, stop) => sum + frontier[stop], 0)
+  const main = general.sort((a, b) => frontier[b] - frontier[a] || stopped[b] - stopped[a])[0]
+  return { total, main }
+}
+
+/**
+ * The rule `describeSwitchbackFailure` names and the place it names it at, for marking that place on
+ * the plan. Null when the description names no place. Follows the description's own order.
+ */
+export function switchbackFailureFocus(
+  failure: SwitchbackFailure,
+  limits: SwitchbackFailureLimits,
+): { stop: SwitchbackStop; place: SwitchbackPlace } | null {
+  const { stopped, places } = failure
+  if (!limits.rules.allow && stopped.hairpinOff > 0 && failure.hairpinsAccepted === 0 && places.hairpinOff)
+    return { stop: 'hairpinOff', place: places.hairpinOff }
+  if (switchbackRefusal(failure, limits)) {
+    const refusals = HAIRPIN_ORDER.filter((stop) => stopped[stop] > 0 && places[stop])
+    const stop = refusals[refusals.length - 1]
+    return { stop, place: places[stop]! }
+  }
+  const { total, main } = frontierStop(failure)
+  return total && places[main] ? { stop: main, place: places[main]! } : null
+}
+
 /**
  * Why a switchback search ended with no road, where, and what to change. A rule that refused every
  * switchback the search tried is named first, at the try nearest the end; otherwise the rule that
@@ -1435,11 +1478,8 @@ export function describeSwitchbackFailure(failure: SwitchbackFailure, limits: Sw
       `No line within ${g}% reaches the end: the search ${reached}${ended}. ${refusal[0].toUpperCase()}${refusal.slice(1)}`,
     )
   else {
-    // Judged where the search got furthest: refusals far behind it say little about what stopped it.
     const { frontier } = failure
-    const general = STOPS.filter((stop) => stop !== 'hairpinOff' && !HAIRPIN_STOPS.has(stop))
-    const total = general.reduce((sum, stop) => sum + frontier[stop], 0)
-    const main = general.sort((a, b) => frontier[b] - frontier[a] || stopped[b] - stopped[a])[0]
+    const { total, main } = frontierStop(failure)
     const cause: Partial<Record<SwitchbackStop, string>> = {
       grade: `ground steeper than the ${g}% grade limit`,
       minGrade: `the ${rules.minGradePercent}% minimum grade`,

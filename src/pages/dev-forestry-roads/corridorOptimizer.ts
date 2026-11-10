@@ -6,6 +6,7 @@
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
+import { PointCache } from './pointCache'
 import { blockedRouteEndMessage, routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -80,6 +81,11 @@ export interface CorridorFailure {
   /** Straight-line distance from the nearest point the search reached to the end. */
   closestRemainingM: number
   closest: Coordinate
+  /**
+   * The trial line that got nearest the end, from the start to `closest`, for drawing where the search
+   * stopped. Just the start when no line left it. Absent on failures raised before the search began.
+   */
+  reached?: Coordinate[]
   /** Trial lines stopped by each check. One line can only be stopped once, by the first check it fails. */
   stopped: { grade: number; terrain: number; exclusion: number; corridor: number }
 }
@@ -388,13 +394,28 @@ function* search(
   // Kept for the failure report: how near the end the search got, and what stopped the lines it tried.
   const stopped = { grade: 0, terrain: 0, exclusion: 0, corridor: 0 }
   let closestRemaining = direct,
-    closestAt: XY = [0, 0]
+    closestAt: XY = [0, 0],
+    closestId = -1
+  /** The line to the record nearest the end; only built for a failure, so it costs a run nothing. */
+  const reachedLine = (): Coordinate[] => {
+    if (closestId < 0) return [frame.fromXY([0, 0])]
+    try {
+      const pieces = reconstruct(closestId)
+      const points: XY[] = [[0, 0]]
+      for (const piece of pieces)
+        for (const t of piece.curvature ? [0.25, 0.5, 0.75, 1] : [1]) points.push(piecePoint(piece, t))
+      return points.map(frame.fromXY)
+    } catch {
+      return [frame.fromXY([0, 0]), frame.fromXY(closestAt)]
+    }
+  }
   const failed = (message: string, reason: CorridorFailure['reason']) =>
     new CorridorSearchError(message, {
       reason,
       directM: direct,
       closestRemainingM: closestRemaining,
       closest: frame.fromXY(closestAt),
+      reached: reachedLine(),
       stopped: { ...stopped },
     })
   const geometryBudget = (n = 1) => {
@@ -470,15 +491,14 @@ function* search(
       buckets.set(key, ids)
     }
   })
-  const guideDistances = new Map<string, number>()
+  const guideDistances = new PointCache()
   const guideOffset = (p: XY) => {
-    const key = p[0] + ',' + p[1]
-    const cached = guideDistances.get(key)
+    const cached = guideDistances.get(p[0], p[1])
     if (cached !== undefined) return cached
     geometryBudget(sketch.length)
     let min = Infinity
     for (let i = 1; i < sketch.length; i++) min = Math.min(min, segmentDistance(p, sketch[i - 1], sketch[i]))
-    if (guideDistances.size < 200000) guideDistances.set(key, min)
+    if (guideDistances.size < 200000) guideDistances.set(p[0], p[1], min)
     return min
   }
   /** What keeps a point out of the search: the corridor's edge, an exclusion, or nothing. */
@@ -520,15 +540,17 @@ function* search(
     }
     return true
   }
-  const cache = new Map<string, number>()
+  const cache = new PointCache()
   const read = (p: XY, fresh = false) => {
     // No coordinate rounding: narrow missing cells must not be replaced by a nearby height.
-    const key = p[0] + ',' + p[1]
-    if (!fresh && cache.has(key)) return cache.get(key)!
+    if (!fresh) {
+      const known = cache.get(p[0], p[1])
+      if (known !== undefined) return known
+    }
     if (++calls > maxSamples)
       throw failed('Terrain sampling budget reached; narrow the corridor or shorten the road.', 'budget')
     const z = terrain.elevationAt(...frame.fromXY(p))
-    if (cache.size < 200000) cache.set(key, z)
+    if (cache.size < 200000) cache.set(p[0], p[1], z)
     return z
   }
   const endpointsZ = [read([0, 0]), read(end)]
@@ -731,6 +753,7 @@ function* search(
     if (remaining < closestRemaining) {
       closestRemaining = remaining
       closestAt = p.at
+      closestId = top.id
     }
     // Direct initial alignment and local, tangent goal connections are checked
     // with exactly the same grade, obstacle and terrain rules as all other edges.

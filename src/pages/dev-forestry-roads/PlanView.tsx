@@ -1433,7 +1433,13 @@ function Layers(
                 />
               ) : (
                 <button
-                  className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
+                  className={`translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm ${feature.properties?.selected === true ? 'font-semibold ring-2 ring-red-600' : ''}`}
+                  data-route-stop={
+                    feature.properties?.kind === 'route-search-stop' ? feature.properties.role : undefined
+                  }
+                  aria-pressed={
+                    feature.properties?.kind === 'route-search-stop' ? feature.properties.selected === true : undefined
+                  }
                   onClick={() => props.onOverlaySelect?.(feature.properties)}
                   title={String(feature.properties?.label ?? 'Planning candidate')}
                 >

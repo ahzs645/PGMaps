@@ -28,12 +28,14 @@ export function groundTrendTerrain(terrain: TerrainSource, windowM: number): Ter
   if (!(windowM > 0)) return terrain
   const spacing = windowM / 2,
     step = windowM / 4
-  const nodes = new Map<string, number>()
+  // Keyed by the numbers rather than `${col},${row}`: building that string was a tenth of a search.
+  const nodes = new Map<number, Map<number, number>>()
   let origin: [number, number] | null = null,
     cosLat = 1
   const node = (col: number, row: number) => {
-    const key = `${col},${row}`
-    const cached = nodes.get(key)
+    let column = nodes.get(col)
+    if (!column) nodes.set(col, (column = new Map()))
+    const cached = column.get(row)
     if (cached !== undefined) return cached
     let sum = 0,
       count = 0
@@ -49,7 +51,7 @@ export function groundTrendTerrain(terrain: TerrainSource, windowM: number): Ter
         }
       }
     const mean = count ? sum / count : NaN
-    nodes.set(key, mean)
+    column.set(row, mean)
     return mean
   }
   return {
@@ -68,18 +70,17 @@ export function groundTrendTerrain(terrain: TerrainSource, windowM: number): Ter
         fy = y - row
       let sum = 0,
         weight = 0
-      for (const [c, r, w] of [
-        [col, row, (1 - fx) * (1 - fy)],
-        [col + 1, row, fx * (1 - fy)],
-        [col, row + 1, (1 - fx) * fy],
-        [col + 1, row + 1, fx * fy],
-      ] as const) {
-        const z = node(c, r)
+      // The four corners in a fixed order, unrolled: the same sums as a loop, with no array per read.
+      const add = (z: number, w: number) => {
         if (Number.isFinite(z) && w > 0) {
           sum += z * w
           weight += w
         }
       }
+      add(node(col, row), (1 - fx) * (1 - fy))
+      add(node(col + 1, row), fx * (1 - fy))
+      add(node(col, row + 1), (1 - fx) * fy)
+      add(node(col + 1, row + 1), fx * fy)
       return weight > 0 ? sum / weight : source
     },
   }
