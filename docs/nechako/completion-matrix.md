@@ -78,7 +78,7 @@ October 11 local results: **33 focused unit tests**, **11 browser tests** (nativ
 The completed local gates are recorded with their final results in the assessment evidence under `/workspace/nechako-assessment`. Commands:
 
 ```sh
-npm run projects:echoscreen-data -- --watersheds-only
+node scripts/sync-bcdatamapper-data.mjs
 npx tsc -b
 npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/types/nechako-turf.d.ts
 npx vitest run src/lib/nechakoPortal.test.ts src/maps/nechako/data/nechakoData.test.ts src/maps/nechako/data/boundary.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts

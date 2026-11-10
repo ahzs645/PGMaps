@@ -29,7 +29,6 @@ jobs:
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
       - run: node scripts/sync-bcdatamapper-data.mjs
-      - run: npm run projects:echoscreen-data -- --watersheds-only
       - run: npx tsc -b
       - run: npx eslint src/maps/nechako src/pages/DevNechako.tsx src/pages/DevNechakoPortal.tsx src/components/projects/ProjectBackButton.tsx src/maps/project-explorer/ProjectMapExplorer.tsx src/maps/project-explorer/ProjectExplorerSidebar.tsx src/lib/nechakoPortal.ts src/lib/nechakoPortal.test.ts src/lib/nechakoConnection.ts src/lib/nechakoConnection.test.ts src/lib/mapImageCapture.ts src/lib/mapImageCapture.test.ts src/types/nechako-turf.d.ts
       - run: npx vitest run src/maps/nechako src/lib/nechakoPortal.test.ts src/lib/nechakoConnection.test.ts src/lib/mapImageCapture.test.ts src/maps/project-explorer/adapters/filterResearchRecords.test.ts
@@ -67,7 +66,6 @@ jobs:
       - run: npm run toolkit:build
       - run: npm --prefix vendor/json-url run build
       - run: node scripts/sync-bcdatamapper-data.mjs
-      - run: npm run projects:echoscreen-data -- --watersheds-only
       - if: matrix.shard != 'hosted-admin'
         run: sudo apt-get update && sudo apt-get install -y gdal-bin
       - run: npx playwright install --with-deps chromium

@@ -104,13 +104,28 @@ so resolving an already-resolved URL is harmless.
 
 ## What a remote folder changes
 
-- Prebuild scripts write derived files into some synced folders:
-  `build-ui-data.mjs` (`ui`, `census/variables`, `bc-assessment`, `geocoding`),
-  `build-census-north-south-dissolved.mjs` (`census/canada-csd`),
-  `build-echoscreen-project-data.mjs` (`boundaries/BCFWA`, `health`),
-  `build-aqmap-forecast-zones.mjs` (`aqmap`) and
-  `generate-boundary-search-index.mjs`. Those files must be published with the
-  folder, or the folder listed more narrowly.
+- No PGMaps script adds its own files to a synced folder: bcdatamapper builds
+  the North/South dissolve in `census/canada-csd` and the EchoScreen context
+  layers in `boundaries/BCFWA` and `health`. Some folders are still read or
+  rebuilt during a PGMaps build, and each needs this settled before it moves:
+  - `build-ui-data.mjs` reads `geocoding`, `restaurants.json`, `bc-assessment`
+    and `census/variables`; `generate-boundary-search-index.mjs` reads
+    `boundaries`, `census` and `walkability`. Both write only the app-owned
+    `ui` and `boundary-search`. Point them at the submodule first, because a
+    remote folder is not in `public/data` during a build.
+  - On a data-cache miss the deploy runs bcdatamapper's
+    `census:canada-csd-simplified`, `census:variables` and `bc-assessment:build`,
+    which write into `census` and `bc-assessment`. bcdatamapper must commit
+    those results before it can publish either folder. Checked on 10 November
+    2026: its committed `census/variables` matches a rebuild, its
+    `canada-csd-simplified.geojson` is git-ignored, and its `parcels.geojson`
+    differs from a rebuild in the `chsa` and `assessmentWatershed` of 1,564
+    parcels.
+  - `build-aqmap-forecast-zones.mjs` copies bcdatamapper's forecast zones into
+    `aqmap`.
+  - Unit tests read synced folders from `public/data`, `boundaries` among
+    them. When one of those folders moves, run the sync in `checks.yml` with
+    `VITE_DATA_HOSTS_LOCAL=1`, as the Playwright server does.
 - Browsers ignore the `download` attribute on a cross-origin link, so a dataset
   download link to a remote folder opens the file instead of saving it.
 - The Vite dev server's own `/data/smoke`, `/data/recent`, `/data/meta`,
