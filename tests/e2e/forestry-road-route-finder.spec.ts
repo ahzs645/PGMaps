@@ -96,6 +96,7 @@ test('the review checklist reports the road and links to the next step', async (
   await expect(checks.locator('[data-check="grade"]')).toContainText('Steepest')
   // A check that was never run reads as not assessed, never as met.
   await expect(checks.locator('[data-check="drainage"]')).toHaveAttribute('data-state', 'not-assessed')
+  await page.getByTestId('road-readiness-not-assessed-toggle').click()
   await checks.locator('[data-check="drainage"]').getByRole('button', { name: 'Run check', exact: true }).click()
   await expect(page.getByRole('heading', { name: /Drainage/ })).toBeVisible()
   await openRoadPanel(page, 'Sampling')

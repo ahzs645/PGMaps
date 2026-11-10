@@ -124,9 +124,6 @@ Found on 2026-11-09 while fixing Review, the grade rule and invalid inputs; **re
   a time (`withoutInvalidInputs`, `analysisResult.ts`). An edit to another field of the invalid
   entry itself is applied too, so a stripping range with an impossible station range and a new
   depth is calculated at its last valid range and the new depth.
-- The selected-section readout on a typed station is built from the road's current inputs
-  (`stationSampler`, `DevForestryRoads.tsx`), so it has no sampler while an input is invalid and
-  snaps to the nearest calculated station. Build it from `calculatedAlignment` instead.
 
 Found on 2026-11-09 while fixing the station box, imports and the hand-run specs.
 
@@ -136,10 +133,6 @@ Found on 2026-11-09 while fixing the station box, imports and the hand-run specs
   bottom above dialogs, so the card sits over **Save project JSON** in Save & export
   (`forestry-road-new-area-mobile.spec.ts` now dismisses it). It needs a rule for when it goes:
   on the first edit or import, or when a dialog opens.
-- **The restored-session notice keeps its own timer (read).** `SessionRestoredNotice`
-  (`ProjectHeader.tsx`) dismisses itself with `window.setTimeout`, so it can go while the pointer
-  is on it. The shared `Notification` takes `duration` and holds the clock; `RoadRemovedNotice`
-  (`LifecycleNotices.tsx`) already does.
 - **Map notes add their own layers (read).** `NotesLayer` (`PlanNotes.tsx`) calls `map.addSource`
   and `map.addLayer` outside the plan's ordered group, and is not one of the exceptions in
   `docs/forestry-tool-standard.md`. Its layers sit under the whole group, contours included,

@@ -1,6 +1,11 @@
 import type { RoadFeatureSelection } from './roadSelection'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { designInputsOf, safeAnalyzeRoad, type DesignInputs } from './analysisResult'
+import {
+  calculatedAlignment as calculatedRoad,
+  designInputsOf,
+  safeAnalyzeRoad,
+  type DesignInputs,
+} from './analysisResult'
 import { createDemoProject, demoTerrain, terrainFromMetadata } from './terrain'
 import { loadRoadScenario } from './scenarios'
 import { parseProject } from './project'
@@ -357,10 +362,7 @@ export function useRoadWorkspace() {
   const alignment = project.alignments.find((a) => a.id === project.activeAlignmentId) ?? project.alignments[0]
   const analysis = analyses.get(alignment.id)!
   // While an edit is invalid the analysis is of the last inputs that calculated, not of `alignment`.
-  const calculatedAlignment = useMemo(() => {
-    const kept = analysis.invalidInput && analysis.stations.length ? lastValidInputs.get(alignment.id) : undefined
-    return kept ? { ...alignment, ...kept } : alignment
-  }, [alignment, analysis, lastValidInputs])
+  const calculatedAlignment = useMemo(() => calculatedRoad(alignment, analysis), [alignment, analysis])
   const undo = () => {
     const previous = history.current.past.pop()
     if (!previous) return

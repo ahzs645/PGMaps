@@ -150,15 +150,6 @@ export function SessionRestoredNotice({
   restored: { name: string; savedAt: number | null; restoredAt: number } | null
   onDismiss: () => void
 }) {
-  const dismiss = useRef(onDismiss)
-  useEffect(() => {
-    dismiss.current = onDismiss
-  })
-  useEffect(() => {
-    if (!restored) return
-    const timer = window.setTimeout(() => dismiss.current(), RESTORED_NOTICE_MS)
-    return () => window.clearTimeout(timer)
-  }, [restored])
   if (!restored) return null
   return (
     <Notification
@@ -167,6 +158,7 @@ export function SessionRestoredNotice({
       tone="info"
       title="Previous session restored"
       message={`${restored.name}${restored.savedAt === null ? '' : `, saved in this browser ${clockText(restored.savedAt, restored.restoredAt)}`}. Your other projects are under Projects.`}
+      duration={RESTORED_NOTICE_MS}
       onDismiss={onDismiss}
       dismissLabel="Dismiss the restored-session notice"
     />
