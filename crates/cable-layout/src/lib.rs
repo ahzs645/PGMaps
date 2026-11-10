@@ -13,12 +13,15 @@
 //! The WebAssembly interface is a small C ABI over `f64` buffers in linear memory, so the build
 //! needs no binding generator: `cl_alloc` a buffer, write the encoded input (`codec.rs`), call
 //! `cl_begin`, then `cl_step` until it returns 1, then `cl_finish` and read `cl_result_ptr`.
-//! `cl_analyze` analyses a given layout without searching.
+//! `cl_analyze` analyses a given layout without searching. `cl_cover` screens a batch of
+//! candidate lines for block coverage (`coverage.rs`): the longest line along each with at most N
+//! supports.
 
 pub mod analysis;
 pub mod catenary;
 pub mod codec;
 pub mod context;
+pub mod coverage;
 pub mod params;
 pub mod search;
 pub mod span;
@@ -115,6 +118,17 @@ pub extern "C" fn cl_finish() -> usize {
 pub extern "C" fn cl_analyze(ptr: *const f64, len: usize) -> usize {
     let mut s = state();
     s.result = match codec::analyze(input(ptr, len)) {
+        Ok(v) => v,
+        Err(e) => codec::encode_error(e),
+    };
+    s.result.len()
+}
+
+/// Screens a batch of coverage lines (`codec::cover`); returns the result's length in f64s.
+#[no_mangle]
+pub extern "C" fn cl_cover(ptr: *const f64, len: usize) -> usize {
+    let mut s = state();
+    s.result = match codec::cover(input(ptr, len)) {
         Ok(v) => v,
         Err(e) => codec::encode_error(e),
     };

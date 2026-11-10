@@ -613,17 +613,13 @@ impl Job {
         let n = path.len();
         for i in 0..n {
             let s = &analysis.supports[offset + i];
-            let lift = !s.lift_off_limit.is_nan() && !(s.empty_break >= s.lift_off_limit - 1e-9);
-            let loaded = !s.loaded_limit.is_nan() && !s.loaded_break.is_nan() && s.loaded_break > s.loaded_limit + 1e-9;
-            if !(lift || loaded) {
+            let Some((reason, value)) = analysis::support_failure(s) else {
                 continue;
-            }
+            };
             // The frontier of an incomplete line has no next span to judge it by.
             if !b.complete && i == n - 1 {
                 continue;
             }
-            let (reason, value) =
-                if lift { (Reason::LiftOff, s.empty_break) } else { (Reason::LoadedAngle, s.loaded_break) };
             let at = s.point.station;
             if i == 0 {
                 bans.push(Ban::Arc(b.arcs[0], reason, at, value));
@@ -875,8 +871,9 @@ impl Key {
     }
 }
 
-/// Finds the pre-tensions span `a → e` works at.
-fn evaluate(ctx: &Ctx, a: &Node, e: &Node, mut arc: Arc, tensions: &[f64]) -> Arc {
+/// Finds the pre-tensions span `a → e` works at. The support search and the coverage screen
+/// (`coverage.rs`) both judge spans here.
+pub(crate) fn evaluate(ctx: &Ctx, a: &Node, e: &Node, mut arc: Arc, tensions: &[f64]) -> Arc {
     arc.evaluated = true;
     // Below the chord a cable hangs by M(x)/H, M the simply supported moment of its loads, and
     // H never exceeds the allowable tension on a span that passes. With the load at x and the

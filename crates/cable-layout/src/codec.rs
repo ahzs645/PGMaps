@@ -9,16 +9,26 @@
 
 use crate::analysis::{self, Analysis, Layout};
 use crate::context::{Ctx, Point, Reason};
+use crate::coverage::{self, CoverParams, MAX_COVER_SUPPORTS};
 use crate::params::{CableSystem, EndKind, FixedSupport, InputError, Model, Params, Profile, Sector, StartKind};
 use crate::search::{Job, Outcome, Status};
 
-pub const VERSION: f64 = 1.0;
+pub const VERSION: f64 = 2.0;
 pub const HEADER: usize = 41;
 pub const OUT_HEADER: usize = 34;
 pub const SUPPORT_FIELDS: usize = 18;
 pub const SPAN_FIELDS: usize = 17;
 pub const SAMPLE_FIELDS: usize = 4;
 pub const ARC_FIELDS: usize = 11;
+/// Coverage batch input: `HEADER`'s first 36 values (the profile counts unused), then the tail
+/// height, most supports, tail step, shortest line, span budget per line and the number of lines;
+/// then per line `LINE_HEAD` values (x0, dx, sample count, farthest tail) and its heights.
+pub const COVER_HEADER: usize = 42;
+pub const LINE_HEAD: usize = 4;
+/// Coverage result per line: status, length, supports between the ends, pre-tension, reason,
+/// where, spans evaluated, final analyses, then (station, height) of the yarder, every support and
+/// the tail, padded with NaN to `MAX_COVER_SUPPORTS + 2` pairs.
+pub const COVER_FIELDS: usize = 8 + 2 * (MAX_COVER_SUPPORTS + 2);
 /// Spans listed in the result's span table at most (the rest are counted only).
 pub const MAX_REPORTED_ARCS: usize = 40_000;
 
@@ -37,10 +47,8 @@ fn count(v: f64, max: usize) -> Result<usize, InputError> {
     Ok(v as usize)
 }
 
-pub fn decode(b: &[f64]) -> Result<Decoded, InputError> {
-    if b.len() < HEADER || b[0] != VERSION {
-        return Err(InputError::Format);
-    }
+/// The shared settings at `b[1..36]`, as laid out in `HEADER` (also the start of `COVER_HEADER`).
+fn decode_params(b: &[f64]) -> Result<Params, InputError> {
     let model = match b[1] as i64 {
         0 => Model::Catenary,
         1 => Model::Parity,
@@ -62,7 +70,7 @@ pub fn decode(b: &[f64]) -> Result<Decoded, InputError> {
         1 => CableSystem::MultiCable,
         _ => return Err(InputError::Format),
     };
-    let params = Params {
+    Ok(Params {
         model,
         start_kind,
         end_kind,
@@ -98,7 +106,14 @@ pub fn decode(b: &[f64]) -> Result<Decoded, InputError> {
         line_end: b[33],
         max_arcs: count(b[34], 10_000_000)?,
         load_positions: count(b[35], 400)?.max(4),
-    };
+    })
+}
+
+pub fn decode(b: &[f64]) -> Result<Decoded, InputError> {
+    if b.len() < HEADER || b[0] != VERSION {
+        return Err(InputError::Format);
+    }
+    let params = decode_params(b)?;
     let n = count(b[38], 200_000)?;
     let nf = count(b[39], 200)?;
     let ns = count(b[40], 200)?;
@@ -342,4 +357,54 @@ pub fn analyze(b: &[f64]) -> Result<Vec<f64>, InputError> {
         verifications: 0,
     };
     Ok(encode(&head, &a, d.params.allowable, &[], &[], &[]))
+}
+
+/// Screens a batch of coverage lines (`COVER_HEADER`, then the lines).
+pub fn cover(b: &[f64]) -> Result<Vec<f64>, InputError> {
+    if b.len() < COVER_HEADER || b[0] != VERSION {
+        return Err(InputError::Format);
+    }
+    let base = decode_params(b)?;
+    let cp = CoverParams {
+        base,
+        tail_height: b[36],
+        max_supports: count(b[37], MAX_COVER_SUPPORTS)?,
+        tail_step: b[38],
+        min_length: b[39],
+        max_arcs: count(b[40], 10_000_000)?,
+    };
+    coverage::validate_cover(&cp)?;
+    let lines = count(b[41], 100_000)?;
+    let mut out = Vec::with_capacity(3 + lines * COVER_FIELDS);
+    out.extend_from_slice(&[VERSION, 0.0, lines as f64]);
+    let mut at = COVER_HEADER;
+    for _ in 0..lines {
+        if b.len() < at + LINE_HEAD {
+            return Err(InputError::Format);
+        }
+        let (x0, dx, t_max) = (b[at], b[at + 1], b[at + 3]);
+        let n = count(b[at + 2], 200_000)?;
+        at += LINE_HEAD;
+        if b.len() < at + n || !(dx > 0.0) || !x0.is_finite() || x0 > 1e-9 || !t_max.is_finite() {
+            return Err(InputError::Profile);
+        }
+        let prof = Profile { x0, dx, z: b[at..at + n].to_vec() };
+        at += n;
+        let line = coverage::screen_line(&cp, &prof, t_max);
+        let mut row = [f64::NAN; COVER_FIELDS];
+        row[0] = line.status as u8 as f64;
+        row[1] = line.length;
+        row[2] = line.points.len().saturating_sub(2) as f64;
+        row[3] = line.tension;
+        row[4] = line.reason as u8 as f64;
+        row[5] = line.reason_at;
+        row[6] = line.arcs as f64;
+        row[7] = line.verifications as f64;
+        for (k, pt) in line.points.iter().take(MAX_COVER_SUPPORTS + 2).enumerate() {
+            row[8 + 2 * k] = pt.station;
+            row[9 + 2 * k] = pt.height;
+        }
+        out.extend_from_slice(&row);
+    }
+    Ok(out)
 }

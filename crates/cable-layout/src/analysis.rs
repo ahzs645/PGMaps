@@ -11,7 +11,7 @@
 //! no code from SEILAPLAN (GPL-2.0-or-later) was used.
 
 use crate::catenary::{self, RopeCase};
-use crate::context::{Ctx, Point, Verdict};
+use crate::context::{Ctx, Point, Reason, Verdict};
 use crate::params::{EndKind, Model, StartKind};
 use crate::span::{self, Field, ZweifelInput};
 
@@ -205,6 +205,20 @@ fn geometry(ctx: &Ctx, layout: &Layout) -> Geometry {
         end_anchor = None;
     }
     Geometry { spans, start_anchor, end_anchor, rest }
+}
+
+/// Whether a support breaks an angle limit: the empty rope lifting off it, or the loaded break
+/// over its limit. The support search's re-check and the coverage screen both use this.
+pub fn support_failure(s: &SupportOut) -> Option<(Reason, f64)> {
+    let lift = !s.lift_off_limit.is_nan() && !(s.empty_break >= s.lift_off_limit - 1e-9);
+    let loaded = !s.loaded_limit.is_nan() && !s.loaded_break.is_nan() && s.loaded_break > s.loaded_limit + 1e-9;
+    if lift {
+        Some((Reason::LiftOff, s.empty_break))
+    } else if loaded {
+        Some((Reason::LoadedAngle, s.loaded_break))
+    } else {
+        None
+    }
 }
 
 /// Analyses a layout at pre-tension `t0` with the context's model.
