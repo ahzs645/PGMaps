@@ -60,6 +60,8 @@ import { historicalMapFeatures } from './accessHistoryMap'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import { riparianMapFeatures, RIPARIAN_MAP_COLORS } from './riparian'
 import { preparationMarginFeatures } from './preparationFootprint'
+import { usePlanTools } from './PlanTools'
+import { gradeClassRoadLines } from './gradeClasses'
 import type {
   Alignment,
   ContextFeature,
@@ -151,6 +153,10 @@ interface PlanProps {
   noteTool?: NoteTool
   /** Highlights an existing road clicked on the plan, as picking it in the sidebar does. */
   onHighlightRoad?: (road: ContextFeature) => void
+  /** Appends pegs to the active road's end; returns false if refused. Without it the peg tool is off. */
+  onPeg?: (coordinates: Coordinate[]) => boolean
+  /** Selects exactly this station, as the station box does, and returns it held to the road. */
+  onTypeStation?: (station: number) => number
 }
 const ROAD_HISTORY_LAYER_IDS = Object.keys(ROAD_HISTORY_STYLES).map((key) => `road-history-${key}`)
 const fc = (features: GeoJSON.Feature[]): GeoJSON.FeatureCollection => ({ type: 'FeatureCollection', features })
@@ -204,6 +210,10 @@ function Layers(
     savedAlignment: Alignment
     onPointDragEnd: (id: string, coordinate: Coordinate) => void
     fitRequest: FitRequest
+    /** A plan tool is in hand (`PlanTools.tsx`): the plan's own clicks stand aside. */
+    planToolActive?: boolean
+    /** Colour the active road by grade class. */
+    gradeColours?: boolean
   },
 ) {
   const { map, isLoaded } = useMap()
@@ -246,6 +256,7 @@ function Layers(
     noteTool,
     pourPointPicking,
     onPourPoint,
+    planToolActive,
   } = props
   const projectCables = useMemo(
     () => (investigation ? [] : props.project.cables),
@@ -473,6 +484,13 @@ function Layers(
     props.alignment.id,
     props.terrainOnly,
   ])
+  const roadLines = useMemo(
+    () =>
+      props.gradeColours && !props.terrainOnly
+        ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent)
+        : allLines,
+    [allLines, analysis.stations, props.gradeColours, props.terrainOnly, props.project.settings.maxGradePercent],
+  )
   const corridor = useMemo(() => {
     const reach = props.project.settings.crossSectionHalfWidth
     // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
@@ -781,7 +799,7 @@ function Layers(
   useEffect(() => {
     if (!map || !isLoaded) return
     const inputs: Record<string, GeoJSON.FeatureCollection> = {
-      roads: allLines,
+      roads: roadLines,
       corridor,
       formation,
       edges: roadEdges,
@@ -1229,7 +1247,7 @@ function Layers(
   }, [
     map,
     isLoaded,
-    allLines,
+    roadLines,
     corridor,
     formation,
     roadEdges,
@@ -1278,7 +1296,7 @@ function Layers(
     if (!map || !isLoaded) return
     const click = (e: MapMouseEvent) => {
       // A note tool, or a click on a drawn note, belongs to the notes layer.
-      if (noteTool) return
+      if (noteTool || planToolActive) return
       const noteLayers = NOTE_LAYER_IDS.filter((id) => map.getLayer(id))
       if (noteLayers.length && map.queryRenderedFeatures(e.point, { layers: [...noteLayers] }).length) return
       if (pourPointPicking && onPourPoint) {
@@ -1361,7 +1379,7 @@ function Layers(
       }
     }
     const move = (e: MapMouseEvent) => {
-      if (pourPointPicking || noteTool) return
+      if (pourPointPicking || noteTool || planToolActive) return
       if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
@@ -1375,7 +1393,7 @@ function Layers(
         if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
       }
     }
-    if (!noteTool)
+    if (!noteTool && !planToolActive)
       map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
     map.doubleClickZoom.disable()
     map.on('click', click)
@@ -1406,6 +1424,7 @@ function Layers(
     pourPointPicking,
     onPourPoint,
     noteTool,
+    planToolActive,
   ])
 
   return (
@@ -1709,7 +1728,7 @@ function Layers(
         sections={[
           ...buildPlanLegend({
             sources: {
-              roads: allLines,
+              roads: roadLines,
               context,
               corridor,
               formation,
@@ -1904,6 +1923,24 @@ export function PlanView(input: PlanProps) {
   // A road drawing tool and a note tool never run together: picking one puts the other down.
   const roadDrawing = !['inspect', 'edit'].includes(props.mode)
   if (roadDrawing && noteTool) setNoteTool(null)
+  const tools = usePlanTools({
+    project: props.project,
+    alignment: props.alignment,
+    analysis: props.analyses.get(props.alignment.id),
+    source: props.source,
+    station: props.station,
+    selectedStation: props.selectedStation,
+    mode: props.mode,
+    onMode: props.onMode,
+    noteTool,
+    onClearNoteTool: () => setNoteTool(null),
+    pourPointPicking: props.pourPointPicking,
+    investigation,
+    terrainOnly: props.terrainOnly,
+    onPeg: props.onPeg,
+    onStation: props.onStation,
+    onTypeStation: props.onTypeStation,
+  })
   const pickNoteTool = (tool: NoteTool) => {
     if (tool && roadDrawing) props.onMode?.('inspect')
     if (tool && !notesVisible) setNotesVisible(true)
@@ -1986,7 +2023,7 @@ export function PlanView(input: PlanProps) {
       window.removeEventListener('keydown', keepTabInPanel, true)
     }
   }, [settingsOpen])
-  const drawing = props.pourPointPicking || roadDrawing || !!noteTool
+  const drawing = props.pourPointPicking || roadDrawing || !!noteTool || !!tools.tool
   const center = (investigation
     ? investigationCoordinates(props.project)[0]
     : props.alignment.points[0]?.coordinate) ?? [-122.82, 53.89]
@@ -2055,7 +2092,10 @@ export function PlanView(input: PlanProps) {
           hiddenContextKinds={hiddenContextKinds}
           referenceVisible={referenceVisible}
           noteTool={noteTool}
+          planToolActive={!!tools.tool}
+          gradeColours={tools.gradeColours}
         />
+        {tools.mapLayer}
         <ReferenceLabels features={reference} visible={referenceVisible} />
         <NotesLayer
           notes={notes}
@@ -2204,6 +2244,7 @@ export function PlanView(input: PlanProps) {
                 ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
+                ...tools.settingsRows,
               ] as const
             ).map(([label, checked, set]) => (
               <label key={label} className="flex items-center justify-between py-2 text-xs">
@@ -2251,6 +2292,7 @@ export function PlanView(input: PlanProps) {
         {!investigation && (
           <RoadMapTools mode={props.mode} disabled={!props.onMode} onMode={(mode) => props.onMode?.(mode)} />
         )}
+        {tools.toolbar}
         <Button
           size="icon"
           variant="outline"
@@ -2286,6 +2328,7 @@ export function PlanView(input: PlanProps) {
           />
         </div>
       )}
+      {tools.panelSlot}
       {props.mode === 'edit' &&
         !notesOpen &&
         (editHelpVisible ? (
