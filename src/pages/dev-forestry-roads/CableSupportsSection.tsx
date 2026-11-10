@@ -376,8 +376,8 @@ export function CableSupportsSection({
                     </span>
                     {row.label}
                   </th>
-                  <td>{row.limit}</td>
-                  <td>{row.value}</td>
+                  <td className="whitespace-normal">{row.limit}</td>
+                  <td className="whitespace-normal">{row.value}</td>
                 </tr>
               ))}
             </tbody>

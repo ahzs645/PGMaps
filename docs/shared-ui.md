@@ -332,7 +332,8 @@ track grows to the longest cell in any column.
   give ruled columns, banded rows, a tinted `aria-selected` row and two-line
   quantity / unit headers. Format numbers with fixed decimals so columns align.
   In a narrow sidebar pass `compact`: it halves the cells' side padding and lets
-  row headers wrap, so three or four numeric columns fit without scrolling sideways.
+  row headers wrap at word boundaries, so three or four numeric columns fit without
+  scrolling sideways. A text-valued cell that should wrap too takes `whitespace-normal`.
   `variant="text"` keeps the rules, banding and headers but left-aligns and wraps,
   for tables of text, chips, actions or checkboxes. `rowHeaders` styles a `tbody th`.
   Editable numbers inside one use `engineeringCellInputClass` (borderless, right-aligned,
