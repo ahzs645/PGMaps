@@ -46,9 +46,11 @@ These remain on purpose:
 - `dev-forestry/treeLayer.ts` is a MapLibre custom layer that needs the renderer's own
   matrix; `ForestOverlay.tsx` mounts it. See the Forestry visual quality notes in
   `AGENTS.md`.
-- `dev-forestry-roads/PlanView.tsx` builds its alignment, terrain and selection layers
-  as one ordered group with shared visibility rules. Moving them needs its own pass
-  against the road e2e suite.
+- `dev-forestry-roads/PlanView.tsx` builds its alignment, terrain, context, reference and
+  selection layers as one ordered group with shared visibility rules. Moving them needs
+  its own pass against the road e2e suite. A layer that has to sit at a fixed place under
+  the road joins this group (the reference layers are specified in `ReferenceLayer.tsx`
+  and added and ordered here); it does not add itself from its own component.
 - `cciss/NativeSuitabilityLayer.tsx` registers a tile protocol, which the toolkit does
   not wrap. Its layer is a `MapRasterLayer`.
 - `dev-lidar` uses the toolkit `Map` through `LidarMap.tsx` and keeps its own layers, added

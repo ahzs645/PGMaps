@@ -11,8 +11,15 @@ import { MapIconButton } from '@/components/ui/map-icon-button'
 import { PlanLegend } from './PlanLegend'
 import { RoadMapTools } from './RoadMapTools'
 import { NOTE_LAYER_IDS, NotesLayer, NotesToolbar, type NoteTool } from './PlanNotes'
-import { ReferenceLayer, referenceLegend } from './ReferenceLayer'
-import type { ReferenceFeature } from './referenceFeatures'
+import {
+  REFERENCE_LAYERS,
+  REFERENCE_LINEWORK_LAYER_IDS,
+  REFERENCE_POINT_LAYER_ID,
+  REFERENCE_SOURCE,
+  ReferenceLabels,
+  referenceLegend,
+} from './ReferenceLayer'
+import { referenceGeoJson, type ReferenceFeature } from './referenceFeatures'
 import { CutblockCard } from './CutblockCard'
 import { ExistingRoadCard } from './ExistingRoadCard'
 import { MAP_NOTE_COLORS, type MapNote } from './mapNotes'
@@ -643,6 +650,14 @@ function Layers(
   useLayoutEffect(() => {
     latestSection.current = section
   }, [section])
+  // Reference features change rarely. Their source is created with the plan's other sources, where
+  // its layers take their place in the ordered group, and updated by its own effect below, so a
+  // road edit does not send up to 50,000 reference vertices through MapLibre's worker again.
+  const reference = useMemo(() => referenceGeoJson(props.project.reference ?? NO_REFERENCE), [props.project.reference])
+  const latestReference = useRef(reference)
+  useLayoutEffect(() => {
+    latestReference.current = reference
+  }, [reference])
   // The stroke being sketched has its own source: it changes on every pointer move, and sending it
   // with the other sources would queue all of them behind each move.
   const [stroke, setStroke] = useState<Coordinate[]>([])
@@ -776,6 +791,8 @@ function Layers(
       if (existing) existing.setData(data)
       else map.addSource(id, { type: 'geojson', data })
     }
+    if (!map.getSource(REFERENCE_SOURCE))
+      map.addSource(REFERENCE_SOURCE, { type: 'geojson', data: latestReference.current })
     if (display && props.terrainLayer !== 'none') {
       const url = display[props.terrainLayer]
       const existing = map.getSource('road-terrain') as ImageSource | undefined
@@ -799,6 +816,7 @@ function Layers(
       source: 'road-contours',
       paint: { 'line-color': '#57534e', 'line-width': 0.65, 'line-opacity': 0.45 },
     })
+    for (const layer of REFERENCE_LAYERS) add(layer)
     add({
       id: 'road-context-fill',
       type: 'fill',
@@ -1103,6 +1121,8 @@ function Layers(
     // Keep all analytical overlays above a replaced terrain image/style.
     for (const id of [
       'road-contours',
+      // Reference linework is background: under streams, constraints and every road.
+      ...REFERENCE_LINEWORK_LAYER_IDS,
       'road-context-fill',
       'road-context-line',
       ...ROAD_HISTORY_LAYER_IDS,
@@ -1111,6 +1131,8 @@ function Layers(
       'road-formation',
       'road-edges',
       'road-ditches',
+      // A named point shows through the earthwork footprint and sits under the road that ends on it.
+      REFERENCE_POINT_LAYER_ID,
       'road-alignments-halo',
       'road-alignments',
       'road-ticks',
@@ -1163,6 +1185,23 @@ function Layers(
     if (!map || !isLoaded) return
     ;(map.getSource('road-section') as GeoJSONSource | undefined)?.setData(section)
   }, [map, isLoaded, section])
+
+  // Reference features: their data, whether they show, and the one the sidebar last located, which
+  // is drawn heavier. The layers themselves are added and ordered with the group above.
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    ;(map.getSource(REFERENCE_SOURCE) as GeoJSONSource | undefined)?.setData(reference)
+  }, [map, isLoaded, reference])
+  useEffect(() => {
+    if (!map || !isLoaded) return
+    const located = ['==', ['get', 'id'], props.focusedReferenceId ?? '']
+    for (const { id } of REFERENCE_LAYERS)
+      if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', props.referenceVisible ? 'visible' : 'none')
+    if (map.getLayer('road-reference-line'))
+      map.setPaintProperty('road-reference-line', 'line-width', ['case', located, 3.5, 1.75])
+    if (map.getLayer(REFERENCE_POINT_LAYER_ID))
+      map.setPaintProperty(REFERENCE_POINT_LAYER_ID, 'circle-radius', ['case', located, 9, 6])
+  }, [map, isLoaded, props.referenceVisible, props.focusedReferenceId])
 
   useEffect(() => {
     if (!map || !isLoaded) return
@@ -1934,7 +1973,7 @@ export function PlanView(input: PlanProps) {
           referenceVisible={referenceVisible}
           noteTool={noteTool}
         />
-        <ReferenceLayer features={reference} visible={referenceVisible} selectedId={props.focusedReferenceId} />
+        <ReferenceLabels features={reference} visible={referenceVisible} />
         <NotesLayer
           notes={notes}
           visible={notesVisible}

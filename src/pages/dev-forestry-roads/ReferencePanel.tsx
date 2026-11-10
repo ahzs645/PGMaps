@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LocateFixed, Trash2, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { VirtualResultList } from '@/components/ui/virtual-result-list'
 import { roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { referenceShape, type ReferenceFeature, type ReferenceShape } from './referenceFeatures'
@@ -29,6 +30,8 @@ function ReferenceName({ name, label, onRename }: { name: string; label: string;
       onBlur={save}
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur()
+        // The list moves between rows on these keys; in a name they move the caret.
+        if (['Home', 'End', 'ArrowUp', 'ArrowDown'].includes(event.key)) event.stopPropagation()
       }}
     />
   )
@@ -79,93 +82,101 @@ export function ReferencePanel({
           Import reference layer
         </Button>
         {features.length > 0 && (
-          <ul className="max-h-80 space-y-1.5 overflow-y-auto" aria-label="Reference features">
-            {features.map((feature) => {
-              const shape = referenceShape(feature)
-              const at = shape === 'point' ? ((feature.geometry as GeoJSON.Point).coordinates as Coordinate) : null
-              return (
-                <li
-                  key={feature.id}
-                  className={`space-y-1.5 rounded border p-2 ${feature.id === focusedId ? 'border-primary bg-primary/5' : ''}`}
-                  data-reference-row={feature.id}
-                >
-                  <div className="flex items-center gap-1">
-                    <ReferenceName
-                      key={feature.name}
-                      name={feature.name}
-                      label={`Name of reference ${SHAPE_LABELS[shape].toLowerCase()} ${feature.name}`}
-                      onRename={(name) => change(features.map((f) => (f.id === feature.id ? { ...f, name } : f)))}
-                    />
-                    {onLocate && (
+          // An import can hold 500 features: only the rows in view are mounted, in a list of bounded height.
+          <div className="max-h-80 overflow-y-auto rounded border" data-map-sidebar-scroll="true">
+            <VirtualResultList
+              items={features}
+              getKey={(feature) => feature.id}
+              estimateSize={72}
+              label="Reference features"
+              revealKey={focusedId}
+            >
+              {(feature) => {
+                const shape = referenceShape(feature)
+                const at = shape === 'point' ? ((feature.geometry as GeoJSON.Point).coordinates as Coordinate) : null
+                return (
+                  <div
+                    className={`space-y-1.5 p-2 ${feature.id === focusedId ? 'bg-primary/5' : ''}`}
+                    data-reference-row={feature.id}
+                  >
+                    <div className="flex items-center gap-1">
+                      <ReferenceName
+                        key={feature.name}
+                        name={feature.name}
+                        label={`Name of reference ${SHAPE_LABELS[shape].toLowerCase()} ${feature.name}`}
+                        onRename={(name) => change(features.map((f) => (f.id === feature.id ? { ...f, name } : f)))}
+                      />
+                      {onLocate && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 shrink-0"
+                          aria-label={`Show ${feature.name} on the plan`}
+                          title="Show on plan"
+                          onClick={() => onLocate(feature)}
+                        >
+                          <LocateFixed className="size-3.5" />
+                        </Button>
+                      )}
                       <Button
                         size="icon"
                         variant="ghost"
                         className="size-7 shrink-0"
-                        aria-label={`Show ${feature.name} on the plan`}
-                        title="Show on plan"
-                        onClick={() => onLocate(feature)}
+                        aria-label={`Remove reference ${feature.name}`}
+                        title="Remove"
+                        onClick={() => change(features.filter((f) => f.id !== feature.id))}
                       >
-                        <LocateFixed className="size-3.5" />
+                        <Trash2 className="size-3" />
                       </Button>
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="size-7 shrink-0"
-                      aria-label={`Remove reference ${feature.name}`}
-                      title="Remove"
-                      onClick={() => change(features.filter((f) => f.id !== feature.id))}
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                  <p className="truncate text-2xs text-muted-foreground" title={feature.source}>
-                    {SHAPE_LABELS[shape]}
-                    {feature.source ? ` · ${feature.source}` : ''}
-                  </p>
-                  {at && (onPegAt || onRoadEndAt) && (
-                    <div className="grid grid-cols-3 gap-1">
-                      {onPegAt && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 min-w-0 px-1 text-xs"
-                          title={
-                            pegging
-                              ? 'Add this point to the road being pegged'
-                              : 'Start pegging a new road at this point'
-                          }
-                          aria-label={pegging ? `Peg ${feature.name}` : `Peg a road from ${feature.name}`}
-                          onClick={() => onPegAt(at, feature.name)}
-                        >
-                          {pegging ? 'Peg here' : 'Peg from'}
-                        </Button>
-                      )}
-                      {onRoadEndAt &&
-                        (['start', 'end'] as const).map((end) => (
+                    </div>
+                    <p className="truncate text-2xs text-muted-foreground" title={feature.source}>
+                      {SHAPE_LABELS[shape]}
+                      {feature.source ? ` · ${feature.source}` : ''}
+                    </p>
+                    {at && (onPegAt || onRoadEndAt) && (
+                      <div className="grid grid-cols-3 gap-1">
+                        {onPegAt && (
                           <Button
-                            key={end}
                             size="sm"
                             variant="outline"
                             className="h-7 min-w-0 px-1 text-xs"
-                            disabled={fixedRoad || pegging}
                             title={
-                              fixedRoad
-                                ? 'A mapped road is held as recorded. Copy it as a design first.'
-                                : `Move the ${end} of ${w.alignment.name} onto this point`
+                              pegging
+                                ? 'Add this point to the road being pegged'
+                                : 'Start pegging a new road at this point'
                             }
-                            aria-label={`Move the ${end} of the active road to ${feature.name}`}
-                            onClick={() => onRoadEndAt(at, feature.name, end)}
+                            aria-label={pegging ? `Peg ${feature.name}` : `Peg a road from ${feature.name}`}
+                            onClick={() => onPegAt(at, feature.name)}
                           >
-                            Road {end}
+                            {pegging ? 'Peg here' : 'Peg from'}
                           </Button>
-                        ))}
-                    </div>
-                  )}
-                </li>
-              )
-            })}
-          </ul>
+                        )}
+                        {onRoadEndAt &&
+                          (['start', 'end'] as const).map((end) => (
+                            <Button
+                              key={end}
+                              size="sm"
+                              variant="outline"
+                              className="h-7 min-w-0 px-1 text-xs"
+                              disabled={fixedRoad || pegging}
+                              title={
+                                fixedRoad
+                                  ? 'A mapped road is held as recorded. Copy it as a design first.'
+                                  : `Move the ${end} of ${w.alignment.name} onto this point`
+                              }
+                              aria-label={`Move the ${end} of the active road to ${feature.name}`}
+                              onClick={() => onRoadEndAt(at, feature.name, end)}
+                            >
+                              Road {end}
+                            </Button>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              }}
+            </VirtualResultList>
+          </div>
         )}
       </div>
     </RoadSection>
