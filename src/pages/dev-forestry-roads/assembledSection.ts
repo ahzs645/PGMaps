@@ -3,7 +3,8 @@ import { sectionCrossfall, sideValue } from './templates'
 import type { Alignment, RoadStation, RoadTemplate, SectionSample } from './types'
 import { featureSectionAnchor, type SectionReferenceSources } from './sectionReferences'
 import { acceptsFill } from './allocationPolicy'
-import { resolveHorizons } from './groundHorizons'
+import { horizonTopDepth, resolveHorizons, rockIntervals } from './groundHorizons'
+import { rockCutAt } from './rockExcavation'
 
 type XY = { x: number; z: number; code?: string }
 type Region = {
@@ -78,14 +79,33 @@ export function assembledSection({
 }): AssembledSection {
   const e = alignment.engineering,
     step = Math.min(0.25, Math.max(0.05, halfWidth / 400))
-  const preparation = (e?.sitePreparation ?? []).filter(
-    (p) => p.depthM > 0 && assignmentStation >= p.start && assignmentStation < p.end - EPS,
-  )
   const components = t.components ?? []
   // One non-overlapping material column for this station: a later horizon replaces an earlier one.
   const horizons = resolveHorizons(
     (e?.strata ?? []).filter((h) => assignmentStation >= h.start && assignmentStation < h.end - EPS),
   )
+  // A range that removes ground "to" a material takes the depth of that material's top here. Without
+  // that horizon at this station the depth is unknown, never zero: the section stays incomplete.
+  const unknownPreparation: string[] = []
+  const preparation = (e?.sitePreparation ?? [])
+    .filter((p) => assignmentStation >= p.start && assignmentStation < p.end - EPS)
+    .flatMap((p) => {
+      if (p.removeToMaterialId === undefined) return [p]
+      const depthM = horizonTopDepth(horizons, p.removeToMaterialId)
+      if (depthM === null) {
+        const name = e?.materials.find((m) => m.id === p.removeToMaterialId)?.name ?? 'the chosen material'
+        unknownPreparation.push(
+          `Stripping to ${name}: no ${name} horizon at this station, so the removal depth is unknown`,
+        )
+        return []
+      }
+      return [{ ...p, depthM }]
+    })
+    .filter((p) => p.depthM > 0)
+  // Where a cut batter climbs out of rock into the ground above it, a rock ledge may be cut.
+  const rockTops = rockIntervals(horizons, (id) => !!e?.materials.find((m) => m.id === id)?.rock)
+    .map((r) => r.topDepthM)
+    .filter((depth) => depth > EPS)
   const referenceWarnings = new Set<string>()
   const anchors = new Map<string, ReturnType<typeof featureSectionAnchor>>()
   const componentRanges = new Map<
@@ -118,7 +138,9 @@ export function assembledSection({
       const horizon = horizons.find(
         (h) => depth >= h.topDepthM - EPS && (h.bottomDepthM === null || depth < h.bottomDepthM - EPS),
       )
-      const slope = e?.materials.find((m) => m.id === horizon?.materialId)?.cutSlope
+      const material = e?.materials.find((m) => m.id === horizon?.materialId)
+      // A rock material without a batter of its own takes the template's rock batter.
+      const slope = material?.cutSlope ?? (material?.rock ? rockCutAt(t, side)?.cutSlope : undefined)
       return slope ?? sideValue(t, side, 'CutSlope')
     }
     const requirement = e?.fillRequirements?.find(
@@ -235,6 +257,7 @@ export function assembledSection({
     if (a.x > halfWidth || ga === null) return { sign, width, daylight: null, points, reached: a.x > halfWidth }
     if (Math.abs(ga - a.z) < EPS) return { sign, width, daylight: a.x, points, reached: false }
     const cut = ga > a.z
+    const ledge = cut ? (rockCutAt(t, name)?.ledgeWidthM ?? 0) : 0
     while (a.x < halfWidth - EPS) {
       let x = Math.min(halfWidth, a.x + step)
       const firstSlope = (cut ? 1 : -1) / materialSlope(sign * a.x, a.z, cut, name)
@@ -267,6 +290,15 @@ export function assembledSection({
       const level = a.z + slope * (x - a.x),
         gb = constructionGround(sign * x)
       if (gb === null) return { sign, width, daylight: null, points, reached: false }
+      // The batter rises out of rock here: the step ended on the top of rock, coming up from below it.
+      const leaving =
+        ledge > EPS && gb > level + EPS
+          ? rockTops.find((depth) => {
+              const g0 = ground(sign * a.x),
+                g1 = ground(sign * x)
+              return g0 !== null && g1 !== null && g0 - a.z > depth + 1e-6 && Math.abs(g1 - level - depth) < 1e-5
+            })
+          : undefined
       if ((ga - a.z) * (gb - level) <= 0) {
         let lo = a.x,
           hi = x,
@@ -289,6 +321,49 @@ export function assembledSection({
       a = { x, z: level }
       ga = gb
       points.push(a)
+      if (leaving === undefined) continue
+      // A ledge of the template's horizontal width along the rock surface, then the soil batter.
+      a.code = `${name}-rock-cut-top`
+      const end = x + ledge
+      let u = x,
+        lastGap = ga - a.z
+      while (u < end - EPS) {
+        const next = Math.min(end, u + step)
+        if (next > halfWidth + EPS) return { sign, width, daylight: null, points, reached: true }
+        const g = ground(sign * next),
+          cg = constructionGround(sign * next)
+        if (g === null || cg === null) return { sign, width, daylight: null, points, reached: false }
+        const z = g - leaving,
+          gap = cg - z
+        if (gap <= EPS) {
+          // Prepared ground drops to the ledge (stripping down to rock): that is where it daylights.
+          let lo = u,
+            hi = next,
+            dlo = lastGap
+          for (let n = 0; n < 25; n++) {
+            const mid = (lo + hi) / 2,
+              gm = ground(sign * mid),
+              cm = constructionGround(sign * mid)
+            if (gm === null || cm === null) return { sign, width, daylight: null, points, reached: false }
+            const d = cm - (gm - leaving)
+            if (dlo * d <= 0 || d <= EPS) hi = mid
+            else {
+              lo = mid
+              dlo = d
+            }
+          }
+          const daylight = (lo + hi) / 2,
+            gd = ground(sign * daylight)!
+          points.push({ x: daylight, z: gd - leaving, code: `${name}-daylight` })
+          return { sign, width, daylight, points, reached: false }
+        }
+        u = next
+        lastGap = gap
+        points.push({ x: u, z })
+      }
+      points[points.length - 1].code = `${name}-rock-ledge`
+      a = points[points.length - 1]
+      ga = constructionGround(sign * a.x)!
     }
     return { sign, width, daylight: null, points, reached: true }
   }
@@ -364,7 +439,7 @@ export function assembledSection({
     )
     if (converged) break
   }
-  const flags: string[] = [...referenceWarnings, ...keyWarnings]
+  const flags: string[] = [...referenceWarnings, ...keyWarnings, ...unknownPreparation]
   if (z === null) flags.push('Formation elevation unavailable')
   for (const [name, side] of [
     ['Left', left],
@@ -390,7 +465,13 @@ export function assembledSection({
     design: z === null ? null : interpolate(offset < 0 ? left.points : right.points, Math.abs(offset)),
     ...(hasPreparation ? { preparedGround: prepared(offset) } : {}),
   }))
-  let complete = z !== null && left.daylight !== null && right.daylight !== null && converged && keyWarnings.size === 0
+  let complete =
+    z !== null &&
+    left.daylight !== null &&
+    right.daylight !== null &&
+    converged &&
+    keyWarnings.size === 0 &&
+    !unknownPreparation.length
   if (regions.some((r) => r.start < -halfWidth - EPS || r.end > halfWidth + EPS)) {
     complete = false
     flags.push(`Site preparation extends beyond the ${Number(halfWidth.toFixed(1))} m section reach`)
