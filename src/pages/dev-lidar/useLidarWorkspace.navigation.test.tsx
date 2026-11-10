@@ -230,11 +230,12 @@ it('keeps browser-history navigation, transect width, raster actions and mobile 
   expect(current.tool?.id).toBe('transects')
   expect(current.transectControl).toMatchObject({ active: true, width: 6 })
   await act(async () => {
-    current.setPanelOpen(true)
     current.selectRaster('terrain' as RasterKey)
   })
   expect(current.raster).toBe('terrain')
   expect(current.surfaceVisible).toBe(true)
   expect(current.cloud).toBe(false)
-  expect(current.panelOpen).toBe(false)
+  // On phones a choice folds the bottom sheet so the result shows on the map.
+  expect(current.sheetCollapse).toBeGreaterThan(0)
+  expect(current.showPanel).toBe(true)
 })

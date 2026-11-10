@@ -4,6 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { VolumeWorkspace } from './VolumeWorkspace'
 import type { VolumeExample } from './example'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 const download = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
 vi.mock('@/lib/download', () => ({ downloadText: download }))
@@ -26,6 +27,8 @@ vi.mock('../comparisons/ComparisonMap', () => ({
   ),
 }))
 const data: VolumeExample = JSON.parse(readFileSync(new URL('./example.generated.json', import.meta.url), 'utf8'))
+const tab = (root: ReactTestInstance, name: string) =>
+  root.findAll((n) => n.type === 'button' && n.props.role === 'tab' && n.props['aria-label'] === name)[0]
 const hiddenAncestor = (node: ReactTestInstance): boolean | undefined => {
   for (let current: ReactTestInstance | null = node; current; current = current.parent)
     if (current.type === 'div' && typeof current.props.hidden === 'boolean') return current.props.hidden
@@ -46,12 +49,7 @@ describe('completed example first', () => {
         )
       })
       expect(hiddenAncestor(renderer!.root.findByProps({ 'aria-label': 'BC VRI volume workspace' }))).toBe(false)
-      await act(async () =>
-        renderer!.root
-          .findAllByType('button')
-          .find((b) => b.children.join('') === 'Completed example')!
-          .props.onClick(),
-      )
+      await act(async () => tab(renderer!.root, 'Completed example').props.onClick())
       const example = renderer!.root.findByProps({ 'aria-label': 'Completed forest volume example' })
       expect(hiddenAncestor(example)).toBe(false)
       const map = () => renderer!.root.findByProps({ 'aria-label': 'Completed merchantable volume map' })
@@ -85,14 +83,14 @@ describe('completed example first', () => {
         ),
       ).toBe(true)
       await act(async () => button('LiDAR height').props.onClick())
-      await act(async () => button('How volume is measured').props.onClick())
+      await act(async () => tab(renderer!.root, 'How volume is measured').props.onClick())
       expect(hiddenAncestor(renderer!.root.findByProps({ 'aria-label': 'Forest volume measurement practices' }))).toBe(
         false,
       )
-      await act(async () => button('Calibrate BC tile').props.onClick())
+      await act(async () => tab(renderer!.root, 'Calibrate BC tile').props.onClick())
       expect(hiddenAncestor(renderer!.root.findByProps({ 'aria-label': 'Forest volume workspace' }))).toBe(false)
       expect(button('Fit volume model').props.disabled).toBe(true)
-      await act(async () => button('Completed example').props.onClick())
+      await act(async () => tab(renderer!.root, 'Completed example').props.onClick())
       expect(renderer!.root.findByProps({ 'aria-label': 'Example volume retained' }).props.value).toBe(50)
       await act(async () => renderer!.unmount())
     } finally {

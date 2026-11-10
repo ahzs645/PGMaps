@@ -97,7 +97,8 @@ export async function buildUiData(root, { force = false } = {}) {
     restaurants: 'public/data/restaurants.json',
     parks: 'vendor/bcdatamapper/datascrapers/citypg/source/public_gis/parks.json',
     properties: 'public/data/bc-assessment/parcels.geojson',
-    census: 'public/data/census/variables/catalog.json',
+    // census is served from bcdatamapper's own site, so it is not in public/data.
+    census: 'vendor/bcdatamapper/datascrapers/census/output/variables/catalog.json',
   }
   for (const [kind, path] of Object.entries(sources)) {
     const outputPath = kind === 'locations' ? 'restaurant-locations.json' : `search/${kind}.json.gz`

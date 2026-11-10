@@ -45,6 +45,9 @@ export const ROAD_CHART_COLORS = {
   ditch: '#0369a1',
 }
 
+/** The section's top-of-rock and blasting-level lines. */
+const ROCK_COLOR = '#57534e'
+const BLAST_COLOR = '#be123c'
 type Domain = [number, number, number, number]
 type Point = { x: number; ground: number | null; design: number | null }
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n))
@@ -1605,6 +1608,14 @@ export function CrossSectionChart({
       design: terrainOnly ? null : p.design,
     })) ?? []
   const hasPreparation = !terrainOnly && station?.section.some((p) => p.preparedGround !== undefined)
+  // Top of rock and the blasting level, drawn where a rock horizon is entered (`rockExcavation.ts`).
+  const rockPoints = terrainOnly
+    ? []
+    : (station?.section
+        .filter((p) => p.rockTop !== undefined || p.blastLevel !== undefined)
+        .map((p) => ({ x: p.offset, ground: p.rockTop ?? null, design: p.blastLevel ?? null })) ?? [])
+  const hasRockTop = rockPoints.some((p) => finite(p.ground))
+  const hasBlastLevel = rockPoints.some((p) => finite(p.design))
   const codePoints = !terrainOnly && station && template ? sectionCodePoints(station, template) : []
   const hoverSample = hoverOffset === null || !station ? null : sectionSampleAt(station, hoverOffset)
   const hovered = hoverSample
@@ -1624,11 +1635,15 @@ export function CrossSectionChart({
       : hoveredCode === 'unknown-design'
         ? 'no design here'
         : hoveredCode.replace(/-/g, ' ')
+  const designFloor = Math.min(Infinity, ...points.flatMap((p) => (finite(p.design) ? [p.design] : [])))
   const [low, high] = extent([
     ...points.flatMap((p) => [p.ground, p.design]),
     ...preparedPoints.map((p) => p.ground),
     ...points.flatMap((p) => (finite(p.design) ? [p.design + courseStackM] : [])),
     ...pipeSections.flatMap((pipe) => pipe.points.flatMap((p) => [p.ground, p.design])),
+    // The blasting level, and the top of rock where it is within 3 m below the lowest design point.
+    ...rockPoints.map((p) => p.design),
+    ...rockPoints.map((p) => p.ground).filter((z) => finite(z) && z >= designFloor - 3),
   ])
   const halfWidth = Math.max(
     15,
@@ -1747,6 +1762,8 @@ export function CrossSectionChart({
                       { label: 'Template', color: ROAD_CHART_COLORS.design },
                       ...(courses.length ? [{ label: 'Surfacing', color: '#d6a84b' }] : []),
                       ...(hasPreparation ? [{ label: 'Prepared ground', color: '#a16207' }] : []),
+                      ...(hasRockTop ? [{ label: 'Top of rock', color: ROCK_COLOR }] : []),
+                      ...(hasBlastLevel ? [{ label: 'Blasting level', color: BLAST_COLOR }] : []),
                       { label: 'Cut', color: ROAD_CHART_COLORS.cut },
                       { label: 'Fill', color: ROAD_CHART_COLORS.fill },
                     ]
@@ -1981,6 +1998,30 @@ export function CrossSectionChart({
                   data-testid="road-prepared-ground"
                 >
                   <title>Ground after stripping and key excavation</title>
+                </path>
+              )}
+              {hasRockTop && (
+                <path
+                  d={linePath(rockPoints, 'ground', f.x, f.y)}
+                  fill="none"
+                  stroke={ROCK_COLOR}
+                  strokeDasharray="2 3"
+                  strokeWidth={1.6}
+                  data-testid="road-rock-top"
+                >
+                  <title>Top of rock: ground less the depth of the shallowest rock horizon</title>
+                </path>
+              )}
+              {hasBlastLevel && (
+                <path
+                  d={linePath(rockPoints, 'design', f.x, f.y)}
+                  fill="none"
+                  stroke={BLAST_COLOR}
+                  strokeDasharray="6 2 1 2"
+                  strokeWidth={1.4}
+                  data-testid="road-blast-level"
+                >
+                  <title>Blasting level: rock above it and below the template is blasted and refilled</title>
                 </path>
               )}
               {!terrainOnly &&

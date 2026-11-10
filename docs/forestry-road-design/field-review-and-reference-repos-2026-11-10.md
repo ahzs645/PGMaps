@@ -143,9 +143,8 @@ Ranked by value to the layout person, with the reviewers' effort estimates:
 6. **Wood flux and road-class suggestion** on network-planner results, with the loaded direction fed to the
    haul-grade checks. About 2–3 days.
 7. ~~3D available sight distance~~ — done in the second pass ([sight distance](sight-distance.md)).
-8. **Cable coverage of a block.** Intermediate supports ([cable supports](cable-supports.md)), winching and
-   the forwarder ([extraction reach](extraction-reach.md)) were done in the second pass; coverage plugs into
-   the reserved `cable` method of `extractionReach.ts` and the cable-layout crate. About 1 week.
+8. ~~Cable coverage of a block~~ — done in the third pass ([extraction reach](extraction-reach.md),
+   cable yarder).
 9. **Small follow-ups from the browser run:**
    - Station-table column choices are saved as a hidden-column list, so anyone who customised columns
      before this change sees the two curvature columns switched on.

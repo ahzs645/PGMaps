@@ -78,6 +78,23 @@ describe('traced and terrain-found road lines', () => {
     expect(() => parseRoadEvidence({ ...evidence, lineOrigin: { method: 'clicks', createdAt: 'yesterday' } })).toThrow(
       /date/,
     )
+    // A road adopted from a multi-road run: how many of its ends were moved to rebuild a junction.
+    expect(parseRoadEvidence({ ...evidence, lineOrigin: { ...searched, reconnectedEnds: 2 } }).lineOrigin).toEqual({
+      ...searched,
+      reconnectedEnds: 2,
+    })
+    for (const reconnectedEnds of [3, 1.5, -1])
+      expect(() => parseRoadEvidence({ ...evidence, lineOrigin: { ...searched, reconnectedEnds } })).toThrow(
+        /reconnectedEnds/,
+      )
+    expect(
+      describeLineOrigin({
+        method: 'terrain-relocation',
+        createdAt: '2026-11-10',
+        foundPercent: 100,
+        reconnectedEnds: 1,
+      }),
+    ).toBe("Found: bench along 100%; one end reconnected to the record's junctions")
   })
 
   it('describes a relocation and a plain click trace', () => {

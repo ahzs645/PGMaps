@@ -2,8 +2,14 @@
  * Promise wrapper around `cableLayout.worker.ts`: one fresh worker per call, terminated when the
  * call settles or its signal aborts, so Cancel stops a search at once.
  */
-import { CableLayoutInputError, decodeLayoutResult } from './cableLayout'
-import type { CableLayoutInput, CableLayoutResult, LayoutToAnalyse } from './cableLayout'
+import { CableLayoutInputError, decodeCoverResult, decodeLayoutResult } from './cableLayout'
+import type {
+  CableCoverInput,
+  CableLayoutInput,
+  CableLayoutResult,
+  CoverLineResult,
+  LayoutToAnalyse,
+} from './cableLayout'
 import type { CableLayoutRequest, CableLayoutResponse } from './cableLayout.worker'
 
 export interface RunCableLayoutOptions {
@@ -12,10 +18,13 @@ export interface RunCableLayoutOptions {
   onProgress?: (done: number, spans: number) => void
 }
 
-function call(request: CableLayoutRequest, { signal, onProgress }: RunCableLayoutOptions): Promise<CableLayoutResult> {
+function call<T = CableLayoutResult>(
+  request: CableLayoutRequest,
+  { signal, onProgress }: RunCableLayoutOptions,
+): Promise<T> {
   signal?.throwIfAborted()
   const worker = new Worker(new URL('./cableLayout.worker.ts', import.meta.url), { type: 'module' })
-  return new Promise<CableLayoutResult>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     const finish = () => {
       worker.terminate()
       signal?.removeEventListener('abort', abort)
@@ -32,7 +41,8 @@ function call(request: CableLayoutRequest, { signal, onProgress }: RunCableLayou
       if (message.type === 'error')
         return reject(message.code ? new CableLayoutInputError(message.code) : new Error(message.message))
       try {
-        resolve(decodeLayoutResult(message.buffer))
+        if (message.type === 'cover-result') resolve(message.buffers.flatMap(decodeCoverResult) as T)
+        else resolve(decodeLayoutResult(message.buffer) as T)
       } catch (error) {
         reject(error)
       }
@@ -55,3 +65,10 @@ export const analyzeCableLayout = (
   layout: LayoutToAnalyse,
   options: RunCableLayoutOptions = {},
 ) => call({ type: 'analyze', input, layout }, options)
+
+/**
+ * Screens coverage lines in batches off the page's thread; one result per line, in order.
+ * `onProgress` gets the share of lines done and the number of lines.
+ */
+export const screenCoverLines = (batches: CableCoverInput[], options: RunCableLayoutOptions = {}) =>
+  call<CoverLineResult[]>({ type: 'cover', batches }, options)

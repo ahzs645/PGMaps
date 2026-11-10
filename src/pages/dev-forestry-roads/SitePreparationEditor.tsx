@@ -27,8 +27,9 @@ export function SitePreparationEditor({
     <div className="space-y-2 p-3" data-testid="road-site-preparation">
       <p className="text-xs font-semibold">Stripping before construction</p>
       <p className="text-2xs text-muted-foreground">
-        Remove ground beneath cut and fill before building the section. Inside offsets leave an unstripped centre;
-        outside offsets extend past the final catch line. Removed material is never reused.
+        Remove ground beneath cut and fill before building the section, to a fixed depth or to the top of a ground
+        material (a fill founded on subsoil or rock). Inside offsets leave an unstripped centre; outside offsets extend
+        past the final catch line. Removed material is never reused.
       </p>
       <Button
         size="sm"
@@ -95,12 +96,35 @@ export function SitePreparationEditor({
                 ))}
             </RoadSelect>
           </Field>
+          <Field label={`Stripping ${i + 1} remove to`}>
+            <RoadSelect
+              ariaLabel={`Stripping ${i + 1} remove to`}
+              className={roadFieldClass}
+              value={r.removeToMaterialId ?? ''}
+              onValueChange={(value) => update(r.id, { removeToMaterialId: value || undefined })}
+            >
+              <option value="">Fixed depth</option>
+              {design.materials
+                .filter((m) => m.purpose !== 'stripping')
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    Top of {m.name}
+                  </option>
+                ))}
+            </RoadSelect>
+          </Field>
+          {r.removeToMaterialId && (
+            <p className="text-2xs text-muted-foreground">
+              Removes ground down to that material's shallowest horizon at each station; a station without it is left
+              incomplete, never stripped to zero.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {(
               [
                 ['start', 'Start station', 100000],
                 ['end', 'End station', 100000],
-                ['depthM', 'Removal depth', 20],
+                ...(r.removeToMaterialId ? [] : [['depthM', 'Removal depth', 20] as const]),
                 ['leftInsideM', 'Left inside offset', 100],
                 ['rightInsideM', 'Right inside offset', 100],
                 ['leftOutsideM', 'Left outside offset', 50],

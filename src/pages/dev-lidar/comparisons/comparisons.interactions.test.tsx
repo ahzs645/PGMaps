@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { readFileSync } from 'node:fs'
 import { act, create } from 'react-test-renderer'
 import { MemoryRouter } from 'react-router-dom'
@@ -5,6 +6,11 @@ import { describe, expect, it, vi } from 'vitest'
 import type { ComparisonData } from './data'
 import { ModelComparisonWorkspace } from './ModelComparisonWorkspace'
 import { ComparisonPreference } from './ComparisonPreference'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
+// The InfoTip popover needs a browser window.
+vi.mock('@/components/ui/info-tip', () => ({
+  InfoTip: ({ children, label }: { children: ReactNode; label: string }) => <span aria-label={label}>{children}</span>,
+}))
 const state = vi.hoisted(() => ({ data: null as ComparisonData | null }))
 vi.mock('./useComparisonData', () => ({ useComparisonData: () => ({ data: state.data, error: '', retry: vi.fn() }) }))
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))

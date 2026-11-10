@@ -3,6 +3,7 @@ import { KeyValueRows } from '@/components/ui/map-panels'
 import { NumberField } from './Controls'
 import { formatRoadStation } from './Charts'
 import {
+  clearanceStretches,
   DEFAULT_CROSSFALL,
   existingCrossfall,
   LOWBED_EXAMPLE,
@@ -75,7 +76,7 @@ export function ProfileGeometryPanel({ workspace }: { workspace: RoadWorkspace }
     return { crest: tightest('crest'), sag: tightest('sag'), left: range('leftPercent'), right: range('rightPercent') }
   }, [open, mapped, analysis.stations])
   const set = (patch: Partial<LowVehicle>) => setVehicle((v) => ({ ...v, ...patch, name: 'Entered vehicle' }))
-  const conflicts = clearance?.result?.conflicts ?? []
+  const stretches = useMemo(() => clearanceStretches(clearance?.result?.conflicts ?? []), [clearance])
   return (
     <RoadSection
       title="Vertical clearance"
@@ -145,26 +146,27 @@ export function ProfileGeometryPanel({ workspace }: { workspace: RoadWorkspace }
       {clearance?.error && <p className="text-2xs text-destructive">{clearance.error}</p>}
       {clearance?.result && (
         <p className="text-2xs text-muted-foreground" data-testid="road-vertical-clearance-result">
-          {conflicts.length
-            ? `Touches the road at ${conflicts.length} positions; the worst is ${n(Math.max(...conflicts.map((c) => c.depthM)), 2)} m deep.`
+          {stretches.length
+            ? `Touches the road in ${stretches.length} ${stretches.length === 1 ? 'place' : 'places'}; the worst is ${n(stretches[0].depthM, 2)} m deep.`
             : 'Clears the road everywhere it was checked.'}
           {clearance.result.unknownM > 0 ? ` ${n(clearance.result.unknownM, 0)} m not checked: missing elevation.` : ''}
         </p>
       )}
-      {conflicts.length > 0 && (
+      {stretches.length > 0 && (
         <ul className="space-y-0.5 text-xs">
-          {conflicts.slice(0, 6).map((conflict) => (
-            <li key={`${conflict.chainage}-${conflict.kind}`}>
+          {stretches.slice(0, 6).map((stretch) => (
+            <li key={`${stretch.fromM}-${stretch.kind}`}>
               <button
                 type="button"
                 className="tabular-nums text-red-700 underline decoration-dotted underline-offset-2 dark:text-red-400"
-                onClick={() => setStation(conflict.chainage)}
+                onClick={() => setStation(stretch.worstChainage)}
               >
-                {formatRoadStation(conflict.chainage)} · {conflict.kind.replace('-', ' ')} {n(conflict.depthM, 2)} m
+                {formatRoadStation(stretch.worstChainage)} · {stretch.kind.replace('-', ' ')} {n(stretch.depthM, 2)} m
+                {stretch.toM > stretch.fromM ? ` over ${n(stretch.toM - stretch.fromM, 1)} m` : ''}
               </button>
             </li>
           ))}
-          {conflicts.length > 6 && <li className="text-muted-foreground">and {conflicts.length - 6} more</li>}
+          {stretches.length > 6 && <li className="text-muted-foreground">and {stretches.length - 6} more</li>}
         </ul>
       )}
       {existing && (

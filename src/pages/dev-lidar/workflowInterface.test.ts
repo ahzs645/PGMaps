@@ -15,6 +15,7 @@ import {
   type ModelData,
   type WorkflowData,
 } from './analysisWorkflows'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 
 // SSR does not have a scroll viewport; render a bounded set of real result rows.
 vi.mock('@/components/ui/virtual-result-list', () => ({
@@ -104,7 +105,7 @@ describe('workflow interface rendering', () => {
         expect(html).toContain('Canopy heatmap opacity')
         expect(html).toContain('Canopy heatmap colour legend')
         expect(html).toContain('Download coloured PNG')
-        expect(html).toContain(mode.id === 'canopy-height' ? '40 m' : 'Canopy density threshold')
+        expect(html).toContain(mode.id === 'canopy-height' ? '40+ m' : 'Canopy density threshold')
         expect(html.replace(/<[^>]*>/g, '')).not.toContain('NaN')
       } else if (isForestMode(mode.id)) {
         expect(html).toContain('Vertical return fingerprint')

@@ -122,3 +122,42 @@ describe('roadFromRoute', () => {
     expect(road.sharpCorners).toBe(4)
   })
 })
+
+describe('roadFromRoute on a slope', () => {
+  // Ground rising 15 % to the north, and a route that holds about 12 % by zig-zagging across it
+  // within 12 m of the fall line: the shape a grade-limited grid search gives a narrow spur.
+  const slope: TerrainSource = {
+    elevationAt: (lon, lat) => 500 + 0.15 * frame.toXY([lon, lat])[1],
+  }
+  const zigzag: Coordinate[] = []
+  for (let k = 0; k <= 12; k++) zigzag.push(at(k % 2 ? 12 : -12, k * 16))
+
+  it('measures the steepest ground grade over the grade window', () => {
+    const up = checkCentreline(
+      [at(0, 0), at(0, 200)].map((coordinate) => ({ coordinate, radiusM: 0 })),
+      slope,
+      [],
+    )
+    expect(up.steepestGrade).toBeCloseTo(0.15, 3)
+    const across = checkCentreline(
+      [at(0, 0), at(200, 0)].map((coordinate) => ({ coordinate, radiusM: 0 })),
+      slope,
+      [],
+    )
+    expect(across.steepestGrade).toBeCloseTo(0, 6)
+  })
+
+  it('never fits a route straight up a slope it crossed to hold the grade', () => {
+    const asFound = checkCentreline(
+      zigzag.map((coordinate) => ({ coordinate, radiusM: 0 })),
+      slope,
+      [],
+    )
+    const road = roadFromRoute(zigzag, slope, [], 25)
+    const fitted = checkCentreline(road.points, slope, [])
+    expect(fitted.steepestGrade!).toBeLessThanOrEqual(asFound.steepestGrade! + 0.01 + 1e-9)
+    // A straight line up the fall line would be 192 m at 15 %; the road keeps the route's length.
+    expect(road.lengthM).toBeGreaterThan(0.9 * asFound.lengthM)
+    expect(road.lengthM).toBeCloseTo(fitted.lengthM, 6)
+  })
+})

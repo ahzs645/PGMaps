@@ -13,6 +13,7 @@ import { validatePreparation, validateSectionAssembly } from './sectionAssembly'
 import { validateAllocationPolicy } from './allocationPolicy'
 import { parseMaterialVolumeFactorProvenance } from './materialFactors'
 import { MAX_HORIZON_DEPTH_M } from './groundHorizons'
+import { blendRockCut, rockCutAt, validateRockCut } from './rockExcavation'
 
 const EPS = 1e-7
 const clamp = (x: number) => Math.max(0, Math.min(1, x))
@@ -157,6 +158,9 @@ export function copyTemplateSide(template: RoadTemplate, from: Side, newId: () =
     if (own === undefined) delete next[`${to}${attribute}`]
     else next[`${to}${attribute}`] = own
   }
+  // A side's own rock cut is copied across; an inherited one stays inherited on both sides.
+  if (template[`${from}RockCut`]) next[`${to}RockCut`] = { ...template[`${from}RockCut`] }
+  else delete next[`${to}RockCut`]
   if (template.components)
     next.components = template.components.flatMap((component) =>
       component.side === to ? [] : [component, { ...component, id: newId(), side: to }],
@@ -319,6 +323,7 @@ export function validateTemplate(
   base('ditchWidth', 'ditch width (m)', 0, 10)
   base('ditchDepth', 'ditch depth (m)', 0, 5)
   base('surfaceDepth', 'surfacing depth (m)', 0, 2)
+  validateRockCut(t, owner, target)
   for (const side of ['left', 'right'] as const) {
     const value = (attribute: Attribute, label: string, low: number, high: number) =>
       requireInRange(sideValue(t, side, attribute), low, high, owner, `${side} ${label}`, {
@@ -418,6 +423,23 @@ export function validateEngineering(e: AlignmentEngineering): void {
       })
     if (m.volumeFactorProvenance !== undefined)
       parseMaterialVolumeFactorProvenance(m.volumeFactorProvenance, m.compactionFactor)
+    if (m.rock !== undefined && typeof m.rock !== 'boolean')
+      throw new EngineeringInputError(`${owner}: rock must be on or off.`, { ...target, field: 'rock' })
+    if (m.rock && m.purpose === 'stripping')
+      throw new EngineeringInputError(`${owner}: a stripping material cannot also be rock.`, {
+        ...target,
+        field: 'rock',
+      })
+    if (m.shallowCutRate !== undefined)
+      requireInRange(m.shallowCutRate, 0, 10000, owner, 'shallow rock rate ($/bank m³)', {
+        ...target,
+        field: 'shallowCutRate',
+      })
+    if (m.overbreakRate !== undefined)
+      requireInRange(m.overbreakRate, 0, 10000, owner, 'overbreak rate ($/bank m³)', {
+        ...target,
+        field: 'overbreakRate',
+      })
   }
   for (let i = 0; i < e.strata.length; i++) {
     const a = e.strata[i],
@@ -549,6 +571,17 @@ export function templateAt(alignment: Alignment, chainage: number): ResolvedTemp
     for (const attribute of attributes) {
       const base = sideValue(alignment.template, side, attribute)
       template[`${side}${attribute}`] = base + (sideValue(named.template, side, attribute) - base) * ratio
+    }
+    if (rockCutAt(alignment.template, side) || rockCutAt(named.template, side)) {
+      const rock = blendRockCut(rockCutAt(alignment.template, side), rockCutAt(named.template, side), ratio)
+      // Each side resolves to a block of its own, so a one-sided assignment leaves the other alone.
+      const other = side === 'left' ? 'right' : 'left'
+      if (template[`${other}RockCut`] === undefined && template.rockCut)
+        template[`${other}RockCut`] = { ...template.rockCut }
+      delete template.rockCut
+      if (rock) template[`${side}RockCut`] = rock
+      else delete template[`${side}RockCut`]
+      if (!template[`${other}RockCut`]) delete template[`${other}RockCut`]
     }
     if (alignment.template.components || named.template.components) {
       const others = (template.components ?? []).filter((c) => c.side !== side)

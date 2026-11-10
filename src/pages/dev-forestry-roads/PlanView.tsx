@@ -1461,13 +1461,25 @@ function Layers(
             latitude={feature.geometry.coordinates[1]}
           >
             <MarkerContent>
-              <button
-                className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
-                onClick={() => props.onOverlaySelect?.(feature.properties)}
-                title={String(feature.properties?.label ?? 'Planning candidate')}
-              >
-                {String(feature.properties?.label ?? 'Candidate')}
-              </button>
+              {feature.properties?.marker === 'dot' ? (
+                // Many points close together (cable supports): a dot, its label on hover.
+                <button
+                  type="button"
+                  className="block size-2.5 rounded-full border border-white shadow-sm"
+                  style={{ background: String(feature.properties?.color ?? '#475569') }}
+                  onClick={() => props.onOverlaySelect?.(feature.properties)}
+                  title={String(feature.properties?.label ?? 'Planning candidate')}
+                  aria-label={String(feature.properties?.label ?? 'Planning candidate')}
+                />
+              ) : (
+                <button
+                  className="translate-y-5 rounded border bg-background/95 px-1 py-0.5 text-3xs shadow-sm"
+                  onClick={() => props.onOverlaySelect?.(feature.properties)}
+                  title={String(feature.properties?.label ?? 'Planning candidate')}
+                >
+                  {String(feature.properties?.label ?? 'Candidate')}
+                </button>
+              )}
             </MarkerContent>
           </MapMarker>
         ))}

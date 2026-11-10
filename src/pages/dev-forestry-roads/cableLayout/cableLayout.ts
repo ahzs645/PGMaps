@@ -13,7 +13,7 @@
  */
 
 /** Layout of the f64 buffers; keep in step with `crates/cable-layout/src/codec.rs`. */
-export const LAYOUT_FORMAT_VERSION = 1
+export const LAYOUT_FORMAT_VERSION = 2
 const HEADER = 41
 const OUT_HEADER = 34
 const SUPPORT_FIELDS = 18
@@ -223,9 +223,9 @@ const enumIndex = <T extends string>(values: readonly T[], value: T, label: stri
   return i
 }
 
-export function encodeLayoutInput(input: CableLayoutInput, layout?: LayoutToAnalyse): Float64Array {
-  const z = Array.from(input.profile.z, (v) => (Number.isFinite(v) ? v : NaN))
-  const head = [
+/** The first 36 header values: the settings shared by a layout run and a coverage batch. */
+function settingsHead(input: Omit<CableLayoutInput, 'profile' | 'fixedSupports' | 'noSupportSectors'>): number[] {
+  return [
     LAYOUT_FORMAT_VERSION,
     enumIndex(['catenary', 'parity'] as const, input.model, 'model'),
     enumIndex(['yarder', 'support', 'anchor'] as const, input.startKind, 'start'),
@@ -262,6 +262,13 @@ export function encodeLayoutInput(input: CableLayoutInput, layout?: LayoutToAnal
     input.lineEndM,
     input.maxSpans,
     input.loadPositions,
+  ]
+}
+
+export function encodeLayoutInput(input: CableLayoutInput, layout?: LayoutToAnalyse): Float64Array {
+  const z = Array.from(input.profile.z, (v) => (Number.isFinite(v) ? v : NaN))
+  const head = [
+    ...settingsHead(input),
     input.profile.x0,
     input.profile.dx,
     z.length,
@@ -407,6 +414,100 @@ export interface LayoutToAnalyse {
   supports: readonly { stationM: number; heightM: number }[]
 }
 
+// --- Coverage screen (`crates/cable-layout/src/coverage.rs`) -----------------------------------
+
+const COVER_HEADER = 42
+const LINE_HEAD = 4
+/** Most intermediate supports per coverage line; keep in step with the crate's `MAX_COVER_SUPPORTS`. */
+export const COVER_MAX_SUPPORTS = 10
+const COVER_FIELDS = 8 + 2 * (COVER_MAX_SUPPORTS + 2)
+
+/**
+ * A batch of candidate lines for the coverage screen: the shared settings (a yarder start, one
+ * support height as `minHeightM` = `maxHeightM`, a tension grid of at most 64 levels) and, per
+ * line, its ground from the yarder every `dx` m and the farthest tail to try.
+ */
+export interface CableCoverInput {
+  settings: Omit<CableLayoutInput, 'profile' | 'fixedSupports' | 'noSupportSectors' | 'lineEndM'>
+  tailHeightM: number
+  maxSupports: number
+  /** Distance between tails tried, m. */
+  tailStepM: number
+  /** Shortest line kept, m (horizontal). */
+  minLengthM: number
+  /** Spans one line may evaluate before it is reported at its budget. */
+  maxSpansPerLine: number
+  lines: readonly { dx: number; z: ArrayLike<number>; maxTailM: number }[]
+}
+
+export type CoverLineStatus = 'feasible' | 'none' | 'budget'
+export interface CoverLineResult {
+  status: CoverLineStatus
+  /** Horizontal length of the line found, m (0 when none). */
+  lengthM: number
+  /** Intermediate supports. */
+  supportCount: number
+  preTensionKN: number | null
+  /** Why the farthest tail tried did not work, and where. */
+  reason: LayoutReason
+  reasonAtM: number | null
+  spansEvaluated: number
+  analyses: number
+  /** Yarder, supports and tail: station from the yarder and skyline height above the ground. */
+  points: { stationM: number; heightM: number }[]
+}
+
+export function encodeCoverInput(input: CableCoverInput): Float64Array {
+  const head = [
+    ...settingsHead({ ...input.settings, lineEndM: 0 }),
+    input.tailHeightM,
+    input.maxSupports,
+    input.tailStepM,
+    input.minLengthM,
+    input.maxSpansPerLine,
+    input.lines.length,
+  ]
+  if (head.length !== COVER_HEADER) throw new Error('Coverage header out of step with the crate.')
+  let size = head.length
+  for (const line of input.lines) size += LINE_HEAD + line.z.length
+  const out = new Float64Array(size)
+  out.set(head)
+  let at = head.length
+  for (const line of input.lines) {
+    out[at++] = 0
+    out[at++] = line.dx
+    out[at++] = line.z.length
+    out[at++] = line.maxTailM
+    for (let i = 0; i < line.z.length; i++) out[at++] = Number.isFinite(line.z[i]) ? line.z[i] : NaN
+  }
+  return out
+}
+
+export function decodeCoverResult(b: Float64Array): CoverLineResult[] {
+  if (b[0] !== LAYOUT_FORMAT_VERSION) throw new Error('The cable-layout module answered in an unknown format.')
+  if (b[1] === 1) throw new CableLayoutInputError(b[2])
+  const n = b[2] | 0
+  const out: CoverLineResult[] = []
+  for (let k = 0, at = 3; k < n; k++, at += COVER_FIELDS) {
+    const r = b.subarray(at, at + COVER_FIELDS)
+    const points: CoverLineResult['points'] = []
+    for (let j = 0; j < COVER_MAX_SUPPORTS + 2; j++)
+      if (Number.isFinite(r[8 + 2 * j])) points.push({ stationM: r[8 + 2 * j], heightM: r[9 + 2 * j] })
+    out.push({
+      status: (['feasible', 'none', 'budget'] as const)[r[0]] ?? 'none',
+      lengthM: r[1],
+      supportCount: r[2] | 0,
+      preTensionKN: opt(r[3]),
+      reason: REASONS[r[4]] ?? 'none',
+      reasonAtM: opt(r[5]),
+      spansEvaluated: r[6] | 0,
+      analyses: r[7] | 0,
+      points,
+    })
+  }
+  return out
+}
+
 interface Exports {
   memory: WebAssembly.Memory
   cl_alloc(len: number): number
@@ -415,6 +516,7 @@ interface Exports {
   cl_step(budget: number): number
   cl_finish(): number
   cl_analyze(ptr: number, len: number): number
+  cl_cover(ptr: number, len: number): number
   cl_result_ptr(): number
   cl_result_len(): number
 }
@@ -471,6 +573,16 @@ export class CableLayoutEngine {
 
   analyze(input: CableLayoutInput, layout: LayoutToAnalyse): CableLayoutResult {
     return decodeLayoutResult(this.analyzeRaw(input, layout))
+  }
+
+  /** Screens a batch of coverage lines; the raw result buffer. */
+  coverRaw(input: CableCoverInput): Float64Array {
+    this.withInput(encodeCoverInput(input), (ptr, len) => this.x.cl_cover(ptr, len))
+    return this.result()
+  }
+
+  cover(input: CableCoverInput): CoverLineResult[] {
+    return decodeCoverResult(this.coverRaw(input))
   }
 }
 

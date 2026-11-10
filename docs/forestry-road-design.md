@@ -877,6 +877,16 @@ offsets bound that preparation footprint. Original and prepared ground remain se
 in views and exports; ordinary unclassified cut is never relabelled as stripping.
 See [section assemblies and site preparation](forestry-road-design/section-assemblies.md).
 
+A material can be marked **rock** (`GroundMaterial.rock`). The top of its shallowest horizon is the
+top of rock, drawn on the section. A template's optional `rockCut` (and `leftRockCut` /
+`rightRockCut`) gives the batter in rock, a ledge where the cut batter rises out of rock, a blasting
+level below the subgrade that falls to the ditch and rises at a drainage fall to the rock face, and a
+shallow-rock depth (`rockExcavation.ts`). Quantities then split common excavation, rock cut, shallow
+rock and overbreak, priced at the material's excavation, shallow-rock and overbreak rates; the
+overbreak is refilled in place, so only its swell reaches the mass. A stripping range can remove
+ground to the top of a named material instead of a fixed depth. Every one of these is optional and
+off by default. See [rock excavation](forestry-road-design/rock-excavation.md).
+
 Material-aware cumulative mass is usable compacted cut minus compacted fill.
 The reported covered balance applies the same expression to supported subtotals.
 When no engineering definitions are present, this reduces to the original

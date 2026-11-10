@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { runCooperatively } from './cooperative'
 import { BENCH_X0, BENCH_Y0, benchCentreline, benchEvidence, benchMappedLine, benchTerrain } from './roadBenchFixture'
 import { cumulativeLength, nearestOnLine, resampleLine, spreadOf, type TerrainSampler, type XY } from './roadGrid'
-import { findRoadOnTerrain, findRoadOnTerrainSteps, ROAD_FIND_CHUNK_M } from './roadRelocation'
+import { circle, mappedRecord, NET_X0, NET_Y0, networkTerrain } from './roadNetworkFixture'
+import { findRoadOnTerrain, findRoadOnTerrainSteps, ROAD_FIND_CHUNK_M, ROAD_FIND_LOOP_M } from './roadRelocation'
 import type { SurfaceGrid } from './surfaceGrid'
 
 const truth = benchCentreline()
@@ -149,6 +150,23 @@ describe('finding a mapped road on the terrain', () => {
       terrainCellM: 1,
     })
     expect(result.status).toBe('refused')
+  })
+
+  it('searches a closed loop as two halves, so its end caps cannot meet at once', () => {
+    const centre: XY = [NET_X0 + 350, NET_Y0 - 350]
+    const loop = circle(centre, 110, -Math.PI / 2)
+    loop[loop.length - 1] = loop[0]
+    const record = mappedRecord(loop, [8, -6])
+    expect(Math.hypot(record[0][0] - record.at(-1)![0], record[0][1] - record.at(-1)![1])).toBeLessThan(
+      ROAD_FIND_LOOP_M,
+    )
+    const result = findRoadOnTerrain({ line: record, ground: networkTerrain([loop]), terrainCellM: 1 })
+    expect(result.status).toBe('found')
+    expect(result.foundShare).toBeGreaterThan(0.95)
+    const loopCum = cumulativeLength(loop)
+    expect(
+      spreadOf(resampleLine(result.candidate, 1).map((p) => nearestOnLine(loop, loopCum, p).distance))!.p90,
+    ).toBeLessThanOrEqual(1)
   })
 })
 

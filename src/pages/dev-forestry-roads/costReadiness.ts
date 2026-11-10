@@ -110,6 +110,24 @@ export function unpricedQuantities(
           material.bankCutM3,
           'bank m³',
         )
+      // A rock material's shallow cut and overbreak can carry rates of their own (`rockExcavation.ts`).
+      const entered = engineering?.materials.find((m) => m.id === material.materialId)
+      if (material.rock && entered) {
+        if (rate !== 0 && (entered.shallowCutRate ?? rate) === 0)
+          add(
+            `material-${material.materialId}-shallow`,
+            `shallow rock (${material.name})`,
+            material.rock.shallowBankM3,
+            'bank m³',
+          )
+        if ((entered.overbreakRate ?? rate) === 0)
+          add(
+            `material-${material.materialId}-overbreak`,
+            `overbreak (${material.name})`,
+            material.rock.overbreakBankM3,
+            'bank m³',
+          )
+      }
     }
   else if (settings.cutRate === 0) add('cut', 'excavation', analysis.cutVolumeM3, 'bank m³')
   if (settings.fillRate === 0) add('fill', 'fill placement', analysis.fillVolumeM3, 'm³')

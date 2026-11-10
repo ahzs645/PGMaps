@@ -70,6 +70,9 @@ export function describeLineOrigin(origin: RoadLineOrigin): string {
       (origin.medianShiftM !== undefined ? `, median ${origin.medianShiftM} m from the record` : '') +
       (origin.stateClass !== undefined
         ? `; LiDAR state class ${origin.stateClass} (score ${origin.stateScore ?? '—'})`
+        : '') +
+      (origin.reconnectedEnds
+        ? `; ${origin.reconnectedEnds === 1 ? 'one end' : 'both ends'} reconnected to the record's junctions`
         : '')
     )
   if (origin.method === 'terrain-trace')

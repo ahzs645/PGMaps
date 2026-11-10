@@ -206,6 +206,21 @@ export function EngineeringSummary({
                 },
                 { label: 'Unusable bank cut', value: `${fmt(result?.unusableCutM3 ?? 0)} m³` },
                 { label: 'Excavated stripping', value: `${fmt(result?.strippingCutM3 ?? 0)} m³` },
+                // Rock quantities appear once a ground material is marked rock.
+                ...(result?.rock
+                  ? [
+                      { label: 'Rock cut', value: `${fmt(result.rock.cutM3)} m³` },
+                      {
+                        label: 'Shallow rock',
+                        value: `${fmt(result.rock.shallowM3)} m³ · ${fmt(result.rock.shallowAreaM2)} m²`,
+                      },
+                      {
+                        label: 'Overbreak',
+                        value: `${fmt(result.rock.deepM3)} m³ · swell ${fmt(result.rock.swellM3)} m³`,
+                      },
+                      { label: 'Common excavation', value: `${fmt(result.rock.commonM3)} m³` },
+                    ]
+                  : []),
               ]}
             />
             <EngineeringTable className="mt-2">

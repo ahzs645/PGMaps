@@ -5,6 +5,7 @@ import type { AnalysisSummary } from '../types'
 import type { ForestData } from '../forestry'
 import { ForestVolumeWorkspace } from './ForestVolumeWorkspace'
 import { volumeEligible } from './model'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 const download = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
 vi.mock('@/lib/download', () => ({ downloadText: download }))

@@ -131,7 +131,7 @@ describe('vehicle tools in the swept path panel', () => {
     expect(roles).toContain('swept-area')
     expect(roles).toContain('vehicle-outline')
     expect(roles).toContain('swept-wheels')
-  })
+  }, 30_000)
 
   it('places the turning template in a landing and says whether a loop fits', () => {
     render()

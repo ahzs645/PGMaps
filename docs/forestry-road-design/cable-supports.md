@@ -53,19 +53,21 @@ soon as they are entered; the layout is drawn once found.
 
 ## Limits and budgets
 
-| Limit                    | Value                                                                | Enforced in                                                                                    | When exceeded                                                |
-| ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Setting ranges           | see `SUPPORT_LAYOUT_LIMITS` (e.g. supports 1–50 m, angles 0–90°)     | `cableLayout/settings.ts` `SUPPORT_LAYOUT_LIMITS`, `supportLayoutErrors`, `parseSupportLayout` | Field clamps; project file refused                           |
-| Line length              | 20–3,000 m                                                           | `cableLayout/settings.ts` `MAX_LAYOUT_LINE_M` (= `cableMechanics.ts` `MAX_MECHANICS_SPAN_M`)   | Find supports says why it cannot run                         |
-| Ground spacing           | 1 m, out to the anchors                                              | `cableLayout/settings.ts` `LAYOUT_PROFILE_SPACING_M`                                           | Fixed                                                        |
-| Load positions per span  | 33, cosine-spaced; path between them interpolated (≤ 1 cm on 400 m)  | `cableLayout/settings.ts` `LAYOUT_LOAD_POSITIONS`                                              | Fixed                                                        |
-| Spans checked per run    | 400,000                                                              | `cableLayout/settings.ts` `MAX_LAYOUT_SPANS`; crate `InputError::TooManySpans`                 | Refused: widen the candidate spacing or the height step      |
-| Pre-tensions searched    | lowest pre-tension to the allowable, 1 kN steps, at most 2,000 steps | `cableLayout/settings.ts` `MAX_TENSION_STEPS`                                                  | The step widens                                              |
-| Re-checks of a best line | 60 per pre-tension, 4,000 per run                                    | `crates/cable-layout/src/search.rs` `MAX_REPAIRS`, `MAX_VERIFICATIONS`                         | That pre-tension is dropped; "stopped at its repair budget"  |
-| Fixed supports, sectors  | 50 each; a fixed support may not sit inside a sector                 | `cableLayout/settings.ts` `MAX_FIXED_SUPPORTS`, `MAX_SECTORS`, `supportLayoutErrors`           | Project file refused; Find supports disabled with the reason |
-| Saved layout             | 200 supports, stations forwards from the yarder                      | `cableLayout/settings.ts` `MAX_SAVED_SUPPORTS`, `parseSupportLayout`                           | Project file refused                                         |
-| Span windows reported    | 40,000                                                               | `crates/cable-layout/src/codec.rs` `MAX_REPORTED_ARCS`                                         | The rest are counted, not listed                             |
-| Tension                  | the allowable exactly (no tolerance)                                 | `crates/cable-layout/src/context.rs` `check_catenary`                                          | Span rejected                                                |
+| Limit                    | Value                                                                                               | Enforced in                                                                                                                        | When exceeded                                                |
+| ------------------------ | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| Setting ranges           | see `SUPPORT_LAYOUT_LIMITS` (e.g. supports 1–50 m, angles 0–90°)                                    | `cableLayout/settings.ts` `SUPPORT_LAYOUT_LIMITS`, `supportLayoutErrors`, `parseSupportLayout`                                     | Field clamps; project file refused                           |
+| Line length              | 20–3,000 m                                                                                          | `cableLayout/settings.ts` `MAX_LAYOUT_LINE_M` (= `cableMechanics.ts` `MAX_MECHANICS_SPAN_M`)                                       | Find supports says why it cannot run                         |
+| Ground spacing           | 1 m, out to the anchors                                                                             | `cableLayout/settings.ts` `LAYOUT_PROFILE_SPACING_M`                                                                               | Fixed                                                        |
+| Load positions per span  | 33, cosine-spaced; path between them interpolated (≤ 1 cm on 400 m)                                 | `cableLayout/settings.ts` `LAYOUT_LOAD_POSITIONS`                                                                                  | Fixed                                                        |
+| Spans checked per run    | 400,000                                                                                             | `cableLayout/settings.ts` `MAX_LAYOUT_SPANS`; crate `InputError::TooManySpans`                                                     | Refused: widen the candidate spacing or the height step      |
+| Pre-tensions searched    | lowest pre-tension to the allowable, 1 kN steps, at most 2,000 steps                                | `cableLayout/settings.ts` `MAX_TENSION_STEPS`                                                                                      | The step widens                                              |
+| Re-checks of a best line | 60 per pre-tension, 4,000 per run                                                                   | `crates/cable-layout/src/search.rs` `MAX_REPAIRS`, `MAX_VERIFICATIONS`                                                             | That pre-tension is dropped; "stopped at its repair budget"  |
+| Fixed supports, sectors  | 50 each; a fixed support may not sit inside a sector                                                | `cableLayout/settings.ts` `MAX_FIXED_SUPPORTS`, `MAX_SECTORS`, `supportLayoutErrors`                                               | Project file refused; Find supports disabled with the reason |
+| Saved layout             | 200 supports, stations forwards from the yarder                                                     | `cableLayout/settings.ts` `MAX_SAVED_SUPPORTS`, `parseSupportLayout`                                                               | Project file refused                                         |
+| Span windows reported    | 40,000                                                                                              | `crates/cable-layout/src/codec.rs` `MAX_REPORTED_ARCS`                                                                             | The rest are counted, not listed                             |
+| Tension                  | the allowable exactly (no tolerance)                                                                | `crates/cable-layout/src/context.rs` `check_catenary`                                                                              | Span rejected                                                |
+| Coverage screen          | ≤ 10 supports, ≤ 64 pre-tensions, 5 candidates kept per level, 3 targets each, 3 analyses per chain | `crates/cable-layout/src/coverage.rs` `MAX_COVER_SUPPORTS`, `MAX_COVER_TENSIONS`, `COVER_BEAM`, `COVER_TARGETS`, `VERIFY_TENSIONS` | Batch refused (codes as above); a line stops growing         |
+| Coverage spans per line  | the batch's `max_arcs` (PGMaps sends 3,000)                                                         | `coverage.rs` `CoverParams::max_arcs`; `cableCoverageRule.ts` `MAX_COVER_SPANS_PER_LINE`                                           | That line is reported at its budget                          |
 
 **Runtime.** Measured in Node on the committed WebAssembly: a 400 m line with a knoll, 8,292 spans,
 0.6 s; a 600 m line on uneven ground, 41,604 spans, 2.6 s; a 1,000 m line, 100,580 spans, 5.0 s.
@@ -226,12 +228,34 @@ The catenary model on the same profiles, with its fixes:
 Every catenary layout above passes its own final analysis on every span and support (clearance,
 tension, gravity, lift-off, loaded break), which the tests assert.
 
+## The coverage screen
+
+Design → Extraction reach → **Cable yarder** ([Extraction reach](extraction-reach.md)) asks the
+module a different question of thousands of lines: along a line from a landing, how long a skyline
+works with at most N supports of one height. `cl_cover` takes a batch (`codec.rs` `COVER_HEADER`:
+the layout run's first 36 settings, then the tail height, most supports, tail step, shortest line,
+span budget per line and the lines, each its ground from the yarder and the farthest tail to try)
+and returns per line its status, length, supports, pre-tension and why the farthest tail failed.
+
+`coverage.rs` judges every span with `search::evaluate`, the support search's own span check, and
+analyses every line it returns as a complete line with `analysis::analyze` and
+`analysis::support_failure` (the break-angle and lift-off test the search's re-check uses too).
+Tails are tried from the farthest inward; chains of spans are grown by number of supports, each
+candidate carrying a bit mask of the pre-tensions at which a chain reaches it, so one pre-tension
+still serves the whole rope; from each kept candidate the 3 farthest working targets, and at each
+level the 5 farthest candidates, go on. The first chain to reach the tail is analysed at the lowest,
+highest and middle of its shared pre-tensions, fewest supports first. On the reference profiles of
+the extraction guide it agrees with Sylvaccess 3.6's line lengths and supports except where the
+loaded break angle limit applies (`tests/coverage.rs`). Measured natively: 180 bearings of a 276 m
+line in 0.5 s, about 40 spans each.
+
 ## The build
 
 - `crates/cable-layout` is a plain `cdylib` with a small C ABI (`cl_alloc`, `cl_begin`, `cl_step`,
-  `cl_finish`, `cl_analyze`, `cl_result_ptr`) over `f64` buffers, and no dependencies, so the build
-  needs no binding generator. `cableLayout/cableLayout.ts` encodes the input and decodes the result
-  (`codec.rs` documents the format; change both together and bump the version).
+  `cl_finish`, `cl_analyze`, `cl_cover`, `cl_result_ptr`) over `f64` buffers, and no dependencies,
+  so the build needs no binding generator. `cableLayout/cableLayout.ts` encodes the input and
+  decodes the result (`codec.rs` documents the format; change both together and bump the version,
+  now 2). The worker takes a `cover` request of several batches and reports progress after each.
 - `rust-toolchain.toml` pins Rust 1.98.0 with the `wasm32-unknown-unknown` target.
 - `npm run wasm:cable` rebuilds `src/pages/dev-forestry-roads/cableLayout/cable_layout.wasm`:
   release, one codegen unit, `panic=abort`, LTO, no debug information, stripped, with every local
@@ -258,6 +282,12 @@ tension, gravity, lift-off, loaded break), which the tests assert.
   SEILAPLAN 3.8.2 unmodified on the profiles above (reference run, 10 November 2026); only the
   numbers are kept, in the tests. See
   [Converting the reference projects](reference-repo-licensing-and-conversion.md).
+- **Coverage screen.** `coverage.rs` answers the line question of Sylvaccess 3.6's cable module
+  (INRAE, GPL-3.0-or-later; Dupire et al. 2015, _Revue forestière française_ 67(2): 111–126; Dupire,
+  Bourrier & Berger 2016, _Journal of Forest Research_ 21(1): 1–14), written from a functional
+  specification of it; no code from Sylvaccess was used. Its search is this crate's own and its
+  checks are the support search's. Reference run of Sylvaccess 3.6, 10 November 2026: see
+  [Extraction reach](extraction-reach.md), Provenance.
 - **Defects of the reference fixed in the catenary model:** support placed inside a no-support
   sector; only the lowest start height charged; an incomplete line dropping its farthest support
   while counting its cost; the truncated line's tension not re-checked; break-angle limits reported

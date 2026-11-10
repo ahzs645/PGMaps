@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Download, Layers, Maximize, PenLine, Undo2, Upload, X } from 'lucide-react'
@@ -28,6 +29,8 @@ interface Props {
   polygon: InventoryPolygon | null
   reviews: Record<string, TreeReview>
   totals: ReturnType<typeof summarizeInventory>
+  /** Map-pane tools that share the row, such as the points pane and the table. */
+  children?: ReactNode
 }
 /** Area, import and export actions above the crown map, in groups split by a rule. */
 export function InventoryActions({
@@ -49,9 +52,10 @@ export function InventoryActions({
   polygon,
   reviews,
   totals,
+  children,
 }: Props) {
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2 text-xs">
+    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-background p-2 text-xs">
       <Button
         size="sm"
         variant={drawing ? 'default' : 'outline'}
@@ -165,6 +169,7 @@ export function InventoryActions({
         <Upload aria-hidden="true" />
         Import reviews
       </FileButton>
+      {children}
     </div>
   )
 }

@@ -87,7 +87,8 @@ function SaveMapImage({ overlays }: { overlays?: () => Promise<CanvasImageSource
       type="button"
       size="icon"
       variant="outline"
-      className="absolute right-2 top-[11.5rem] z-10 size-8 bg-background"
+      // Under the zoom, compass and fullscreen buttons, which are 44 px on phones and 32 px from md up.
+      className="absolute right-2 top-[calc(var(--map-mobile-toolbar-height,0px)_+_13.125rem)] z-10 size-11 bg-background md:top-[10rem] md:size-8"
       aria-label="Save map image"
       title="Save map image"
       disabled={saving}

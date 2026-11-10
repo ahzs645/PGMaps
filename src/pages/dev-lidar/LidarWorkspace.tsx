@@ -1,25 +1,28 @@
 import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
-import { FullscreenPanel } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { ResizableSplit } from '@/components/ui/resizable-split'
 import { NativeLidarMap } from './NativeLidarMap'
 import { NativeTransect } from './NativeTransect'
 import { TreeBenchmarks } from './TreeBenchmarks'
 import { pointKey } from './treeInspection'
 import { TreeInspector } from './TreeInspector'
 
-import { LidarHeader } from './LidarHeader'
 import { LidarLegend } from './LidarLegend'
 import { LidarMapToolbar } from './LidarMapToolbar'
-import { LidarSidebar } from './LidarSidebar'
+import { LidarSidebar, LidarSidebarTabs } from './LidarSidebar'
 import { LidarToolLibrary } from './LidarToolLibrary'
+import { LidarFrameProvider, LidarToolLayout, type LidarFrame } from './LidarToolLayout'
 import { lidarTableSources } from './lidarTable'
-import { useLidarWorkspace, type LidarController } from './useLidarWorkspace'
+import { useLidarWorkspace } from './useLidarWorkspace'
 import { ModelComparisonWorkspace } from './comparisons/ModelComparisonWorkspace'
 import { InventoryWorkspace } from './inventory/InventoryWorkspace'
-import { lazy, Suspense, useMemo, type ReactNode } from 'react'
+import { lazy, Suspense, useMemo, type CSSProperties } from 'react'
 import { VolumeWorkspace } from './volume/VolumeWorkspace'
 
+const CoverageWorkspace = lazy(() =>
+  import('./lidarbc/CoverageWorkspace').then((m) => ({ default: m.CoverageWorkspace })),
+)
 const ImportWorkspace = lazy(() => import('./imports/ImportWorkspace').then((m) => ({ default: m.ImportWorkspace })))
 
 export function LidarWorkspace(props: { analysisBase: string; cloudBase: string }) {
@@ -43,6 +46,12 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     toolsOpen,
     setToolsOpen,
     basemap,
+    setBasemap,
+    openTool,
+    panelOpen,
+    setPanelOpen,
+    sheetCollapse,
+    sidebar,
     labels,
     hillshade,
     surfaceVisible,
@@ -57,7 +66,6 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     setTransectProfile,
     benchmarkPreview,
     setBenchmarkPreview,
-    inspectorWidth,
     treeView,
     focusBenchmark,
     workflowProducts,
@@ -76,7 +84,6 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     analysisBase,
     cloudBase,
     navigation,
-    isLibrary,
   } = controller
   // The map draws no crowns during a benchmark preview, so the table offers none either.
   const mappedRows = useMemo(
@@ -88,6 +95,11 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     () => lidarTableSources(analysisOptions.mode, mappedRows, models ?? []),
     [analysisOptions.mode, mappedRows, models],
   )
+  const toolId = tool?.id
+  const frame = useMemo<LidarFrame | null>(
+    () => (toolId ? { toolId, basemap, setBasemap, openTool } : null),
+    [toolId, basemap, setBasemap, openTool],
+  )
   const table = useMapTable({
     sources: tableSources,
     selectedRowId:
@@ -98,44 +110,117 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
     flyOnSelect: false,
     inlineButton: true,
   })
-  if (tool?.id === 'data')
+  if (!tool || !frame)
     return (
-      <WorkspaceFrame controller={controller}>
-        <Suspense
-          fallback={
-            <InlineAlert loading className="m-4">
-              Opening import workspace…
-            </InlineAlert>
-          }
-        >
-          <ImportWorkspace basemap={basemap} cloudBase={cloudBase} />
-        </Suspense>
-      </WorkspaceFrame>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground">
+        <LidarToolLibrary valid={navigation.valid} />
+      </div>
     )
-  if (tool?.id === 'inventory')
-    return (
-      <WorkspaceFrame controller={controller}>
-        <InventoryWorkspace basemap={basemap} sourceSha={summary?.source_sha256} />
-      </WorkspaceFrame>
+  const inspectorPane = tool.id === 'transects' || (tool.id === 'trees' && analysisOptions.mode === 'trees')
+  const mapPane = summary && (
+    <div
+      className="relative h-full min-h-0 flex-1 overflow-hidden"
+      // Stacked over an inspector on a phone, the map pane no longer reaches the bottom sheet, so
+      // its legend, scale and status must not lift themselves clear of it.
+      style={
+        inspectorPane
+          ? ({ '--map-mobile-sheet-visible-height': '0px', '--map-safe-bottom-offset': '0px' } as CSSProperties)
+          : undefined
+      }
+    >
+      <NativeLidarMap
+        treeCrop={
+          analysisOptions.mode === 'trees' && !transectControl.active && !cloud && analysisOptions.treeShowPoints
+            ? (benchmarkPreview?.crop ?? visibleTreeCrop)
+            : null
+        }
+        inspectionView={tool?.id === 'transects' ? 'top' : analysisOptions.mode === 'trees' ? treeView : undefined}
+        pointStatus={
+          benchmarkPreview ? 'Deterministic benchmark display sample · method A · grey points unassigned' : undefined
+        }
+        pointAppearance={{
+          picked: pickedReturn ? pointKey(pickedReturn) : null,
+          assignments: benchmarkPreview?.assignments ?? inspection.state.assignments,
+          colour: benchmarkPreview ? 'segment' : inspection.state.settings.colour,
+          pointSize: inspection.state.settings.pointSize,
+        }}
+        inspectionOverlay={
+          analysisOptions.mode === 'trees' && !transectControl.active
+            ? (benchmarkPreview?.features ?? cutOverlay)
+            : null
+        }
+        pickedReturn={analysisOptions.mode === 'trees' ? pickedReturn : null}
+        transectControl={tool?.id === 'transects' ? transectControl : undefined}
+        onTransectProfile={setTransectProfile}
+        heatmaps={workflowProducts.data?.heatmaps ?? null}
+        workflowOptions={analysisOptions}
+        workflowFeatures={mappedRows}
+        selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
+        onWorkflowSelect={selectWorkflow}
+        buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
+        modelActive={analysisOptions.mode === 'models'}
+        summary={summary}
+        analysisBase={analysisBase}
+        cloudUrl={new URL('ept.json', cloudBase).href}
+        raster={raster}
+        trees={trees}
+        buildings={buildings}
+        reference={reference}
+        cloud={cloud}
+        minTreeHeight={minTreeHeight}
+        focus={focus}
+        color={color}
+        toolsOpen={toolsOpen}
+        onToolsOpenChange={setToolsOpen}
+        basemap={basemap}
+        surfaceVisible={surfaceVisible}
+        surfaceOpacity={surfaceOpacity}
+        labels={labels}
+        hillshade={hillshade}
+        sceneGround={sceneGround}
+      >
+        <MapTableBridge table={table} />
+      </NativeLidarMap>
+      <LidarMapToolbar controller={controller}>{table.button}</LidarMapToolbar>
+      <LidarLegend controller={controller} className={inspectorPane ? 'max-lg:hidden' : undefined} />
+    </div>
+  )
+  let workspace
+  if (tool.id === 'data')
+    workspace = (
+      <Suspense
+        fallback={
+          <InlineAlert loading className="m-4">
+            Opening import workspace…
+          </InlineAlert>
+        }
+      >
+        <ImportWorkspace basemap={basemap} cloudBase={cloudBase} />
+      </Suspense>
     )
-  if (tool?.id === 'volume')
-    return (
-      <WorkspaceFrame controller={controller}>
-        <VolumeWorkspace summary={summary} error={error} basemap={basemap} />
-      </WorkspaceFrame>
+  else if (tool.id === 'coverage')
+    workspace = (
+      <Suspense
+        fallback={
+          <InlineAlert loading className="m-4">
+            Opening BC coverage…
+          </InlineAlert>
+        }
+      >
+        <CoverageWorkspace basemap={basemap} />
+      </Suspense>
     )
-  if (tool?.id === 'compare')
-    return (
-      <WorkspaceFrame controller={controller}>
-        <ModelComparisonWorkspace summary={summary} error={error} basemap={basemap} onRetry={retrySummary} />
-      </WorkspaceFrame>
-    )
-  return (
-    <WorkspaceFrame controller={controller}>
-      {isLibrary && <LidarToolLibrary valid={navigation.valid} />}
-      {isLibrary ? null : !summary ? (
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto p-6">
-          <div className="w-full max-w-sm space-y-3">
+  else if (tool.id === 'inventory')
+    workspace = <InventoryWorkspace basemap={basemap} sourceSha={summary?.source_sha256} />
+  else if (tool.id === 'volume') workspace = <VolumeWorkspace summary={summary} error={error} basemap={basemap} />
+  else if (tool.id === 'compare')
+    workspace = <ModelComparisonWorkspace summary={summary} error={error} basemap={basemap} onRetry={retrySummary} />
+  else if (!summary)
+    workspace = (
+      <LidarToolLayout
+        toolId={tool.id}
+        sidebar={
+          <div className="space-y-3 p-4">
             {error ? (
               <>
                 <InlineAlert tone="error" title="Could not load the LiDAR analysis">
@@ -149,104 +234,70 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
               <InlineAlert loading>Loading the completed LiDAR analysis…</InlineAlert>
             )}
           </div>
-        </div>
-      ) : (
-        <div
-          className={isLibrary ? 'hidden' : 'flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row'}
-          aria-hidden={isLibrary}
-        >
-          <LidarSidebar controller={controller} />
-          <FullscreenPanel
-            title={
-              analysisOptions.mode === 'trees'
-                ? 'Linked tree workspace'
-                : analysisOptions.mode === 'models'
-                  ? 'Experimental 3D model'
-                  : cloud
-                    ? '3D LiDAR'
-                    : 'Processed map'
-            }
-            compact
-            dialogOptions={{ onOpenEffect: () => undefined }}
-            className="order-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 p-0 md:order-2 [&>div:first-child]:mb-0 [&>div:first-child]:shrink-0 [&>div:first-child]:border-b [&>div:first-child]:px-2 [&>div:first-child]:py-1 max-sm:[&>div:first-child>h2]:sr-only [&[data-fullscreen]]:overflow-hidden [&[data-fullscreen]]:p-0"
-            actions={
-              <>
-                <LidarMapToolbar controller={controller} />
-                {table.button}
-              </>
-            }
-          >
-            {() => (
-              <>
-                <div
-                  className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row"
-                  style={{ '--tree-pane': `${inspectorWidth}%` } as React.CSSProperties}
-                >
-                  <div className="relative min-h-[25dvh] flex-1 overflow-hidden lg:min-w-[200px]">
-                    <NativeLidarMap
-                      treeCrop={
-                        analysisOptions.mode === 'trees' &&
-                        !transectControl.active &&
-                        !cloud &&
-                        analysisOptions.treeShowPoints
-                          ? (benchmarkPreview?.crop ?? visibleTreeCrop)
-                          : null
-                      }
-                      inspectionView={
-                        tool?.id === 'transects' ? 'top' : analysisOptions.mode === 'trees' ? treeView : undefined
-                      }
-                      pointStatus={
-                        benchmarkPreview
-                          ? 'Deterministic benchmark display sample · method A · grey points unassigned'
-                          : undefined
-                      }
-                      pointAppearance={{
-                        picked: pickedReturn ? pointKey(pickedReturn) : null,
-                        assignments: benchmarkPreview?.assignments ?? inspection.state.assignments,
-                        colour: benchmarkPreview ? 'segment' : inspection.state.settings.colour,
-                        pointSize: inspection.state.settings.pointSize,
-                      }}
-                      inspectionOverlay={
-                        analysisOptions.mode === 'trees' && !transectControl.active
-                          ? (benchmarkPreview?.features ?? cutOverlay)
-                          : null
-                      }
-                      pickedReturn={analysisOptions.mode === 'trees' ? pickedReturn : null}
-                      transectControl={tool?.id === 'transects' ? transectControl : undefined}
-                      onTransectProfile={setTransectProfile}
-                      heatmaps={workflowProducts.data?.heatmaps ?? null}
-                      workflowOptions={analysisOptions}
-                      workflowFeatures={mappedRows}
-                      selectedWorkflowId={selectedWorkflow?.properties.id ?? null}
-                      onWorkflowSelect={selectWorkflow}
-                      buildingModel={analysisOptions.mode === 'models' && meshVisible ? model : null}
-                      modelActive={analysisOptions.mode === 'models'}
-                      summary={summary}
-                      analysisBase={analysisBase}
-                      cloudUrl={new URL('ept.json', cloudBase).href}
-                      raster={raster}
-                      trees={trees}
-                      buildings={buildings}
-                      reference={reference}
-                      cloud={cloud}
-                      minTreeHeight={minTreeHeight}
-                      focus={focus}
-                      color={color}
-                      toolsOpen={toolsOpen}
-                      onToolsOpenChange={setToolsOpen}
-                      basemap={basemap}
-                      surfaceVisible={surfaceVisible}
-                      surfaceOpacity={surfaceOpacity}
-                      labels={labels}
-                      hillshade={hillshade}
-                      sceneGround={sceneGround}
+        }
+      >
+        <div className="flex flex-1 items-center justify-center bg-muted/30 p-6" />
+      </LidarToolLayout>
+    )
+  else
+    workspace = (
+      <LidarToolLayout
+        toolId={tool.id}
+        label={
+          analysisOptions.mode === 'trees'
+            ? 'Linked tree workspace'
+            : analysisOptions.mode === 'models'
+              ? 'Experimental 3D model'
+              : cloud
+                ? '3D LiDAR'
+                : 'Processed map'
+        }
+        metadata={<LidarSidebarTabs controller={controller} />}
+        sidebar={<LidarSidebar controller={controller} />}
+        sidebarRef={sidebar}
+        sidebarOpen={panelOpen}
+        onSidebarOpenChange={setPanelOpen}
+        collapseSheetKey={sheetCollapse}
+        table={table}
+        reserveMobileSheet={tool.id === 'trees' || tool.id === 'transects'}
+      >
+        {inspectorPane ? (
+          <ResizableSplit
+            direction="row"
+            splitQuery="(min-width: 1024px)"
+            storageKey="lidar:inspector"
+            className="min-h-0 flex-1 overflow-y-auto lg:overflow-hidden"
+            panes={[
+              {
+                id: 'lidar-map',
+                label: 'map',
+                size: 56,
+                min: 240,
+                stackedHeight: 340,
+                content: mapPane,
+              },
+              {
+                id: 'lidar-inspector',
+                label: tool.id === 'transects' ? 'transect' : 'tree inspector',
+                size: 44,
+                min: 300,
+                stackedHeight: 480,
+                content:
+                  tool.id === 'transects' ? (
+                    <div
+                      className="h-full min-h-0 overflow-y-auto overscroll-contain border-l bg-background"
+                      aria-label="Transect workspace"
                     >
-                      <MapTableBridge table={table} />
-                    </NativeLidarMap>
-                    {table.layout.bottomPane}
-                  </div>
-                  {tool?.id === 'trees' && analysisOptions.mode === 'trees' && (
-                    <div className="h-[52%] min-h-0 shrink-0 lg:h-full lg:w-[var(--tree-pane)]">
+                      <NativeTransect
+                        profile={transectProfile}
+                        data={treeProduct.data}
+                        base={analysisBase}
+                        control={transectControl}
+                        onControl={setTransectControl}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-full min-h-0">
                       <TreeInspector
                         showTransect={false}
                         isMobile={isMobile}
@@ -289,38 +340,14 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
                         }
                       />
                     </div>
-                  )}
-                  {tool?.id === 'transects' && (
-                    <div
-                      className="h-[52%] min-h-0 shrink-0 overflow-y-auto overscroll-contain border-l bg-background lg:h-full lg:w-[var(--tree-pane)]"
-                      aria-label="Transect workspace"
-                    >
-                      <NativeTransect
-                        profile={transectProfile}
-                        data={treeProduct.data}
-                        base={analysisBase}
-                        control={transectControl}
-                        onControl={setTransectControl}
-                      />
-                    </div>
-                  )}
-                </div>
-                <LidarLegend controller={controller} />
-              </>
-            )}
-          </FullscreenPanel>
-        </div>
-      )}
-    </WorkspaceFrame>
-  )
-}
-
-/** Every LiDAR tool shares the header above its own workspace. */
-function WorkspaceFrame({ controller, children }: { controller: LidarController; children: ReactNode }) {
-  return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground" data-lidar-workspace>
-      <LidarHeader controller={controller} />
-      {children}
-    </div>
-  )
+                  ),
+              },
+            ]}
+          />
+        ) : (
+          mapPane
+        )}
+      </LidarToolLayout>
+    )
+  return <LidarFrameProvider value={frame}>{workspace}</LidarFrameProvider>
 }

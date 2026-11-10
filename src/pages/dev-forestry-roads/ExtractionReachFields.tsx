@@ -8,6 +8,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, NumberField, RoadSelect, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
+import { CableCoverageFields } from './CableCoverageFields'
 import {
   MAX_FELLABLE_SLOPE_PERCENT,
   MIN_FELLABLE_SLOPE_PERCENT,
@@ -36,6 +37,7 @@ import {
 const MACHINES = [
   { value: 'skidder', label: 'Skidder' },
   { value: 'forwarder', label: 'Forwarder' },
+  { value: 'cable', label: 'Cable yarder' },
 ] as const
 const WINCH_FROM: { value: WinchFrom; label: string }[] = [
   { value: 'edge', label: 'Edge of driven ground' },
@@ -73,7 +75,12 @@ export function ExtractionReachFields(p: ExtractionFieldsProps) {
         options={MACHINES}
         onChange={(machine: ExtractionMachine) => onSettings((x) => ({ ...x, machine }))}
       />
-      {s.machine === 'skidder' ? (
+      {s.machine === 'cable' ? (
+        <CableCoverageFields
+          rule={s.cable}
+          onRule={(update) => onSettings((x) => ({ ...x, cable: update(x.cable) }))}
+        />
+      ) : s.machine === 'skidder' ? (
         <>
           <div className="grid grid-cols-2 gap-2">
             <NumberField
@@ -250,7 +257,11 @@ export function ExtractionReachFields(p: ExtractionFieldsProps) {
           min={0}
           max={MAX_OFF_BLOCK_M}
           step={10}
-          hint="How far the machine or a winch line may go outside the block to reach a road."
+          hint={
+            s.machine === 'cable'
+              ? 'How far outside the block a landing may be.'
+              : 'How far the machine or a winch line may go outside the block to reach a road.'
+          }
           onChange={p.onOffBlockM}
         />
         <NumberField
@@ -278,7 +289,9 @@ export function ExtractionReachFields(p: ExtractionFieldsProps) {
       <p className="flex items-center gap-1 text-2xs text-muted-foreground">
         {s.machine === 'skidder'
           ? 'Default reach: the field rule, 350 m level, 200 m at 30 % uphill.'
-          : 'Defaults: Sylvaccess 3.6, with a 500 m forwarding reach.'}
+          : s.machine === 'cable'
+            ? 'Distances are carriage distances along the line from its landing.'
+            : 'Defaults: Sylvaccess 3.6, with a 500 m forwarding reach.'}
         <InfoTip label="About the defaults">
           The skidder keeps the field layout rule of thumb (350 m level and downhill, 200 m at 30 % uphill, 40 % ground
           skid limit). Sylvaccess has no reach limit and a 30 % drivable limit; enter 2000 m and 30 % to match it. Winch

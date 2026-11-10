@@ -72,6 +72,15 @@ const contentMappings = [
 
 const pathMappings = [
   ['datascrapers/climate/echoscreen/output', 'echoscreen-climate'],
+  // The project's two context layers, published beside the data they are cut from.
+  [
+    'datascrapers/climate/echoscreen/project-layers/echoscreen_fraser_nechako.geojson',
+    'boundaries/BCFWA/echoscreen_fraser_nechako.geojson',
+  ],
+  [
+    'datascrapers/climate/echoscreen/project-layers/echoscreen-northern-health-hospitals.geojson',
+    'health/echoscreen-northern-health-hospitals.geojson',
+  ],
   ['datascrapers/bc/laep/output', 'bc/laep'],
   ['datascrapers/bc/mhcca-cvi/output', 'climate-vulnerability'],
   ['datascrapers/manual/output/acknowledgement', 'acknowledgement'],
@@ -109,7 +118,6 @@ const pathMappings = [
   ],
   ['datascrapers/bc/snow-survey/output', 'snow-survey'],
   ['datascrapers/bc/assessment/output', 'bc-assessment'],
-  ['datascrapers/census/output', 'census'],
   ['datascrapers/bc/outdoors/output', 'bc/outdoors'],
   ['datascrapers/transit/output', 'transit'],
   ['datascrapers/icbc/output', 'icbc'],

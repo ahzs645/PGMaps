@@ -3,6 +3,7 @@ import { ANALYSIS_MODES, type AnalysisMode } from './analysisWorkflows'
 
 export const LIDAR_BASE = '/dev/lidar/'
 export type LidarToolId =
+  | 'coverage'
   | 'canopy'
   | 'trees'
   | 'forestry'
@@ -22,6 +23,14 @@ export interface LidarTool {
   defaultMode: AnalysisMode | null
 }
 export const LIDAR_TOOLS: LidarTool[] = [
+  {
+    id: 'coverage',
+    title: 'BC coverage',
+    description: "Where BC has LiDAR, which products and grids cover a place, and each tile's download.",
+    outputs: 'LidarBC index · point clouds · DEM · DSM · 1:2,500–1:20,000 grids',
+    modes: [],
+    defaultMode: null,
+  },
   {
     id: 'data',
     title: 'Import & data',

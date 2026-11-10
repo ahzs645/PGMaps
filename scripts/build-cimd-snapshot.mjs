@@ -18,7 +18,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 
 const OUTPUT = 'public/data/cimd/prince_george_cimd_2021.json'
-const [source, daPath = 'public/data/census/prince_george_da.geo.json'] = process.argv.slice(2)
+const [source, daPath = 'vendor/bcdatamapper/datascrapers/census/output/prince_george_da.geo.json'] = process.argv.slice(2)
 if (!source) throw new Error('Pass the path to bc_scores_quintiles_EN.csv.')
 
 const DIMENSIONS = {

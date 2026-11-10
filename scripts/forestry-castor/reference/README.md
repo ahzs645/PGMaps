@@ -2,7 +2,10 @@
 
 These fixtures check the numerical and selection logic independently of the
 TypeScript implementation. They do **not** establish equivalence to a complete
-R/SpaDES run or to a provincial forestry analysis.
+R/SpaDES run or to a provincial forestry analysis. The separate
+[native suite](../native-reference/README.md) now executes the unchanged modules
+through SpaDES for 13 shared synthetic, three-period cases. Its explicit numerical
+differences and scope limits remain separate from these SQL checks.
 
 Run from the PGMaps root:
 

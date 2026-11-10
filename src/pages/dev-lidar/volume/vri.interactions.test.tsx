@@ -6,6 +6,7 @@ import { StatGroup } from '@/components/ui/stat-group'
 import { VriVolumeWorkspace } from './VriVolumeWorkspace'
 import type { VriVolumeData } from './vri'
 import type { AnalysisSummary } from '../types'
+vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 const download = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))
 vi.mock('@/lib/download', () => ({ downloadText: download }))

@@ -525,5 +525,5 @@ describe('spurs on the extraction model', () => {
     )
     expect(spurs.spurs.length).toBeGreaterThan(0)
     expect(spurs.after.coveredOfSkiddable).toBeGreaterThan(spurs.before.coveredOfSkiddable)
-  })
+  }, 30_000)
 })

@@ -3,6 +3,7 @@ import { gunzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 import { normalizeProjectPackage } from '@/lib/projectPackages'
 import { getProjectCollection } from '@/lib/projectCollections'
+import { readStoryData } from './testing/readStoryData'
 
 const examples = readdirSync('public/data/projects/example')
   .filter((f) => f.endsWith('.json'))
@@ -19,8 +20,7 @@ describe('story interaction examples', () => {
           expect(pkg.scenes.filter((s) => s.label === item.sceneLabel)).toHaveLength(1)
         for (const highlight of scene.highlights ?? []) {
           const layer = raw.workspace.layers.find((l: { id: string }) => l.id === highlight.layerId)
-          const bytes = readFileSync(`public${layer.data}`)
-          const data = JSON.parse((layer.data.endsWith('.gz') ? gunzipSync(bytes) : bytes).toString())
+          const data = readStoryData(layer.data)
           for (const value of highlight.values)
             expect(
               data.features.some(

@@ -43,6 +43,15 @@ export interface GroundMaterial {
   fillSlope?: number
   /** Entered suitability class: 0 (lowest)–100 (highest); omitted is unknown. */
   quality?: number
+  /**
+   * Solid rock (`rockExcavation.ts`): the top of its shallowest horizon is the top of rock, where a
+   * template's rock ledge, blasting level and shallow-rock split apply. Never inferred from terrain.
+   */
+  rock?: boolean
+  /** CAD per bank m³ of shallow rock cut, often ripped rather than drilled. Omitted: `cutRate`. */
+  shallowCutRate?: number
+  /** CAD per bank m³ blasted below the subgrade to the blasting level. Omitted: `cutRate`. */
+  overbreakRate?: number
 }
 /** Material demand on subgrade or a named surface/component layer, by station range. */
 export interface FillRequirement {
@@ -82,6 +91,11 @@ export interface SitePreparationRange {
   leftOutsideM: number
   rightOutsideM: number
   materialId: string
+  /**
+   * Remove ground down to the top of this material's shallowest horizon at each station instead of
+   * `depthM` ("fill termination" on subsoil or rock). A station without that horizon is incomplete.
+   */
+  removeToMaterialId?: string
 }
 export interface StratumAssignment {
   id: string
@@ -225,6 +239,17 @@ export interface EngineeringStation {
   wasteVolumeM3?: number | null
   /** Known earthwork so far; carried across an interval whose volumes are unknown. */
   massM3: number | null
+  /**
+   * With a rock material: bank cut since the previous station of rock, of its shallow part, of
+   * earthwork materials that are neither rock nor stripping (unclassified excavation is left out:
+   * its class is unknown), the shallow rock's horizontal area (m²) and the rock blasted below the
+   * subgrade. Null where the interval is unknown.
+   */
+  rockCutVolumeM3?: number | null
+  shallowRockVolumeM3?: number | null
+  shallowRockAreaM2?: number | null
+  commonCutVolumeM3?: number | null
+  deepRockVolumeM3?: number | null
 }
 export interface MaterialQuantity {
   materialId: string
@@ -234,7 +259,20 @@ export interface MaterialQuantity {
   bankCutM3: number
   usableCompactedM3: number
   unusableBankM3: number
+  /** Includes `rock.shallowCost` and `rock.overbreakCost` for a rock material. */
   excavationCost: number
+  /**
+   * A rock material's shallow cut (part of `bankCutM3`) and its overbreak below the subgrade (not
+   * part of it), each with its cost, and the overbreak's swell: what the blasted rock adds beyond
+   * refilling its own void, compacted m³, already in the usable or unusable volume above.
+   */
+  rock?: {
+    shallowBankM3: number
+    shallowCost: number
+    overbreakBankM3: number
+    overbreakCost: number
+    swellCompactedM3: number
+  }
 }
 export interface CulvertProfilePoint {
   distanceM: number
@@ -357,6 +395,21 @@ export interface EngineeringAnalysis {
   /** Material-allocated surface course volume: material/haul is separate from placement. */
   materialLayerVolumeM3?: number
   materialLayerPlacementCost?: number
+  /** Present when a ground material is marked rock: the road's rock quantities, bank m³ unless stated. */
+  rock?: RockQuantities
+}
+export interface RockQuantities {
+  /** Rock cut above the subgrade, shallow included. */
+  cutM3: number
+  shallowM3: number
+  /** Horizontal area of the shallow rock cut, m². */
+  shallowAreaM2: number
+  /** Rock blasted below the subgrade down to the blasting level and refilled in place. */
+  deepM3: number
+  /** Surplus of the refilled overbreak, compacted m³: (compacted/bank factor − 1) × deep. */
+  swellM3: number
+  /** Earthwork materials that are neither rock nor stripping; unclassified excavation is not counted. */
+  commonM3: number
 }
 
 export const DEFAULT_HAUL_SETTINGS: HaulSettings = {

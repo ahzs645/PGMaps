@@ -2,7 +2,8 @@
 
 **Design → Vertical clearance** drives a long low vehicle (a lowbed, or a rigid long load) along
 the road's profile and lists where its underside hangs up on a crest or an overhang scrapes in a
-sag: switchbacks, culvert dips and short vertical curves. On a mapped road the same section reads
+sag: switchbacks, culvert dips and short vertical curves. Touching positions next to each other are one place
+(`clearanceStretches`): the list shows each place once, at its deepest point, deepest first. On a mapped road the same section reads
 the existing road's crossfall from the ground and its tightest crest and sag K.
 
 The calculation is `profileGeometry.ts`, free of DOM, terrain and network access.

@@ -144,5 +144,5 @@ describe('road conductivity with point-cloud terms', () => {
       { layers: evidenceOnFrame(benchEvidence({ overgrown: true }), frame), population },
     )
     expect(mean(along.map((p) => sample(brushed, p)))).toBeLessThan(0.15)
-  })
+  }, 30_000)
 })

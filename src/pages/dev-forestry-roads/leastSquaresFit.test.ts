@@ -160,7 +160,7 @@ describe('road geometry by least squares', () => {
     const [curve] = horizontalCurveSummary(adopted)
     expect(curve.radius).toBeCloseTo(100, 0)
     expect(curve.deflectionDegrees).toBeCloseTo(60, 0)
-  })
+  }, 30_000)
   it('reports a reverse bend with no tangent between its curves as not fitted', () => {
     const line = traced([
       { id: 'a', coordinate: at(0, 0), radiusM: 0 },

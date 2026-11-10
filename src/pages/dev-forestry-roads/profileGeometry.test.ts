@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { existingCrossfall, fitVerticalCurve, profileK, vehicleClearance, type LowVehicle } from './profileGeometry'
+import {
+  clearanceStretches,
+  existingCrossfall,
+  fitVerticalCurve,
+  profileK,
+  vehicleClearance,
+  type LowVehicle,
+} from './profileGeometry'
 import type { RoadStation } from './types'
 
 // Reference numbers: RFLTools functional specification §13.5 and §10 (textbook formulas).
@@ -92,5 +99,27 @@ describe('low vehicle clearance', () => {
     const result = vehicleClearance(holed, 200, vehicle)
     expect(result.unknownM).toBeGreaterThan(0)
     expect(result.conflicts).toEqual([])
+  })
+})
+
+describe('clearanceStretches', () => {
+  it('joins consecutive touches into one stretch per place and leads with the deepest', () => {
+    const conflicts = [
+      { chainage: 100, kind: 'hang-up' as const, depthM: 0.01 },
+      { chainage: 100.5, kind: 'hang-up' as const, depthM: 0.05 },
+      { chainage: 101, kind: 'hang-up' as const, depthM: 0.02 },
+      { chainage: 101, kind: 'rear-overhang' as const, depthM: 0.03 },
+      { chainage: 250, kind: 'hang-up' as const, depthM: 0.12 },
+    ]
+    const stretches = clearanceStretches(conflicts, 0.5)
+    expect(stretches.map((s) => [s.kind, s.fromM, s.toM, s.worstChainage, s.depthM])).toEqual([
+      ['hang-up', 250, 250, 250, 0.12],
+      ['hang-up', 100, 101, 100.5, 0.05],
+      ['rear-overhang', 101, 101, 101, 0.03],
+    ])
+  })
+
+  it('returns nothing when nothing touches', () => {
+    expect(clearanceStretches([])).toEqual([])
   })
 })
