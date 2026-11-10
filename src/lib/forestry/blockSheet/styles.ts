@@ -5,6 +5,7 @@
  * scale. Labels are generic: no licensee names. No DOM or network access.
  */
 import type { StrokeStyle } from '@/lib/mapSheet/drawOps'
+import type { AreaSymbol, ClassSymbol, LineSymbol, PointSymbol } from '@/lib/mapSheet/symbols'
 
 /** Class bounds: a value belongs to a class when `min < value <= max` (ArcGIS's "≤ upper"). */
 export interface RasterClass {
@@ -81,36 +82,8 @@ export const CONTOUR_STYLES: Record<'default' | 'onImagery', ContourStyle> = {
   },
 }
 
-/** A line drawn as stacked strokes, bottom first: a casing, the line, a centre dash. */
-export interface LineSymbol {
-  kind: 'line'
-  label: string
-  layers: StrokeStyle[]
-}
-export interface AreaSymbol {
-  kind: 'area'
-  label: string
-  fill?: string
-  fillOpacity?: number
-  /** Parallel lines clipped to the area; `cross` adds a second set at right angles. */
-  hatch?: { angleDeg: number; spacing: number; stroke: StrokeStyle; cross?: boolean }
-  /** Outline strokes, bottom first. */
-  outline: StrokeStyle[]
-}
-export interface ClassSymbol {
-  kind: 'class'
-  label: string
-  color: string
-  opacity: number
-}
-export interface PointSymbol {
-  kind: 'point'
-  label: string
-  color: string
-  radius: number
-  outline: StrokeStyle
-}
-export type SheetSymbol = LineSymbol | AreaSymbol | ClassSymbol | PointSymbol
+export type { AreaSymbol, ClassSymbol, LineSymbol, PointSymbol, SheetSymbol } from '@/lib/mapSheet/symbols'
+export { areaSymbolPaint, lineMarkerLayers, lineSymbolLayout, lineSymbolPaint } from '@/lib/mapSheet/mapSymbols'
 
 /** Sheet scales finer than this use the detailed (1:10,000) widths; coarser ones the 1:50,000 widths. */
 export const DETAIL_SCALE_LIMIT = 25000
@@ -147,17 +120,47 @@ export const OTHER_BLOCK: AreaSymbol = {
 export const CONSTRAINT_AREA: AreaSymbol = {
   kind: 'area',
   label: 'Constraint area',
-  hatch: { angleDeg: 45, spacing: 5, stroke: { color: '#e60000', width: 0.5 } },
+  hatches: [{ angleDeg: 45, spacing: 5, stroke: { color: '#e60000', width: 0.5 } }],
   outline: [{ color: '#a80000', width: 0.4 }],
+}
+/** Reserves as the hillshade and imagery sheets draw them: a green 45° hatch, so the base shows through. */
+export const RESERVE_HATCHED: AreaSymbol = {
+  kind: 'area',
+  label: 'Reserves',
+  hatches: [{ angleDeg: 45, spacing: 5, stroke: { color: '#38a800', width: 0.5 } }],
+  outline: [{ color: '#38a800', width: 1.2, join: 'round' }],
+}
+/** A riparian management zone: a wide pale hatch with a thin dark one on it. */
+export const RIPARIAN_MANAGEMENT_ZONE: AreaSymbol = {
+  kind: 'area',
+  label: 'Riparian management zone',
+  hatches: [
+    { angleDeg: 45, spacing: 5, stroke: { color: '#97dbf2', width: 1.6 } },
+    { angleDeg: 45, spacing: 5, stroke: { color: '#4065eb', width: 0.4 } },
+  ],
+  outline: [{ color: '#4065eb', width: 0.4, join: 'round' }],
+}
+/** The road tool's preliminary riparian screen, drawn with the reserve and management zone symbols. */
+export const RIPARIAN_SCREEN: Record<'reserve' | 'management', AreaSymbol> = {
+  reserve: { ...RESERVE_HATCHED, label: 'Riparian reserve zone (screen)' },
+  management: { ...RIPARIAN_MANAGEMENT_ZONE, label: 'Riparian management zone (screen)' },
+}
+/** Crosses along a deactivated road, drawn over the road's own symbol. */
+export const ROAD_DEACTIVATION: LineSymbol = {
+  kind: 'line',
+  label: 'Road deactivation',
+  layers: [],
+  markers: [{ icon: 'cross', spacing: 24, size: 7, color: '#000000' }],
 }
 export const STREAM: Record<ScaleBand, LineSymbol> = {
   detail: { kind: 'line', label: 'Stream', layers: [{ color: '#00a9e6', width: 1, cap: 'round', join: 'round' }] },
-  overview: { kind: 'line', label: 'Stream', layers: [{ color: '#00a9e6', width: 0.4, cap: 'round', join: 'round' }] },
+  // The 1:50,000 sheet draws streams as hairlines; its legend shows 0.4.
+  overview: { kind: 'line', label: 'Stream', layers: [{ color: '#00a9e6', width: 0.1, cap: 'round', join: 'round' }] },
 }
 /** A reach assessed as a non-classified drainage. */
 export const NCD_STREAM: Record<ScaleBand, LineSymbol> = {
   detail: { kind: 'line', label: 'NCD stream', layers: [{ color: '#00a9e6', width: 1, dash: [5, 2] }] },
-  overview: { kind: 'line', label: 'NCD stream', layers: [{ color: '#00a9e6', width: 0.4, dash: [2, 2] }] },
+  overview: { kind: 'line', label: 'NCD stream', layers: [{ color: '#00a9e6', width: 0.1, dash: [2, 2] }] },
 }
 /** Forest service roads, drawn with the sheets' "gravel main" symbol. */
 export const FOREST_SERVICE_ROAD: Record<ScaleBand, LineSymbol> = {
@@ -230,7 +233,7 @@ export function reviewArea(color: string): AreaSymbol {
   }
 }
 export function reviewPin(color: string): PointSymbol {
-  return { kind: 'point', label: 'Review pin', color, radius: 3, outline: { color: WHITE, width: 1 } }
+  return { kind: 'point', label: 'Review pin', icon: 'dot', size: 6.6, color, halo: { color: WHITE, width: 1 } }
 }
 
 /** Every in-map label (block, road, contour) carries this white outline. */
@@ -277,28 +280,4 @@ export function classLegend(
       ? [{ kind: 'class' as const, label: overlay.label, color: overlay.color, opacity: overlay.opacity }]
       : []),
   ]
-}
-
-/** Points to CSS pixels: MapLibre widths are pixels at 96 per inch. */
-const PX_PER_PT = 96 / 72
-
-/**
- * MapLibre line paints for a line symbol, bottom first. MapLibre dashes are in line widths, so the
- * point dashes are divided by the stroke width.
- */
-export function lineSymbolPaint(symbol: LineSymbol) {
-  return symbol.layers.map((stroke) => ({
-    'line-color': stroke.color,
-    'line-width': stroke.width * PX_PER_PT,
-    ...(stroke.opacity !== undefined ? { 'line-opacity': stroke.opacity } : {}),
-    ...(stroke.dash ? { 'line-dasharray': stroke.dash.map((value) => value / stroke.width) } : {}),
-  }))
-}
-
-/** MapLibre fill and outline paints for an area symbol. Hatches have no MapLibre equivalent and are left out. */
-export function areaSymbolPaint(symbol: AreaSymbol) {
-  return {
-    fill: symbol.fill ? { 'fill-color': symbol.fill, 'fill-opacity': symbol.fillOpacity ?? 1 } : null,
-    outline: symbol.outline.map((stroke) => ({ 'line-color': stroke.color, 'line-width': stroke.width * PX_PER_PT })),
-  }
 }

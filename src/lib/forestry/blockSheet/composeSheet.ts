@@ -8,7 +8,6 @@ import type { ContourResult } from '@/lib/mapSheet/contours'
 import {
   boundsOf,
   boxesMeet,
-  hatchLines,
   labelsAlongLine,
   labelSpacer,
   rectRing,
@@ -28,6 +27,7 @@ import {
   scaleBar,
   type FrameProjection,
 } from '@/lib/mapSheet/scale'
+import { areaSymbolOps, lineSymbolOps, pointSymbolOps, scaleStroke, swatchOps } from '@/lib/mapSheet/symbols'
 import { fitText, textWidth, wrapText } from '@/lib/mapSheet/textMetrics'
 import { blockBounds, type BlockFacts, type BlockGeometry } from './blockFacts'
 import {
@@ -53,6 +53,8 @@ import {
   reviewArea,
   reviewLine,
   reviewPin,
+  RIPARIAN_SCREEN,
+  ROAD_DEACTIVATION,
   ROAD_LABEL,
   scaleBand,
   SHEET_CHROME,
@@ -60,6 +62,7 @@ import {
   type AreaSymbol,
   type ClassSymbol,
   type LineSymbol,
+  type PointSymbol,
   type SheetSymbol,
 } from './styles'
 
@@ -79,14 +82,23 @@ export interface SheetNote {
   /** Arrowhead barbs for a line that ends in one. */
   head?: LngLat[]
 }
+/** Any other feature, drawn with a catalogue symbol of its own and listed under that symbol's label. */
+export interface SheetExtra {
+  geometry: GeoJSON.Point | GeoJSON.LineString | GeoJSON.MultiLineString | GeoJSON.Polygon | GeoJSON.MultiPolygon
+  symbol: SheetSymbol
+}
 export interface SheetLayers {
   block?: { geometry: BlockGeometry; name: string }
   otherBlocks?: { geometry: BlockGeometry; name?: string }[]
   constraints?: { geometry: GeoJSON.Polygon }[]
+  /** The road tool's preliminary riparian screen: reserve and management zones. */
+  riparian?: { geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon; band: 'reserve' | 'management' }[]
   streams?: { line: LngLat[]; ncd?: boolean }[]
-  existingRoads?: { line: LngLat[]; forestService: boolean; name?: string }[]
+  /** `deactivated` adds the deactivation crosses over the road's own symbol. */
+  existingRoads?: { line: LngLat[]; forestService: boolean; name?: string; deactivated?: boolean }[]
   roads?: SheetRoad[]
   notes?: SheetNote[]
+  extras?: SheetExtra[]
 }
 
 export interface SheetIssue {
@@ -177,11 +189,6 @@ export interface ComposedSheet {
 }
 
 const NOT_RECORDED = 'not recorded'
-const scaleStroke = (stroke: StrokeStyle, k: number): StrokeStyle => ({
-  ...stroke,
-  width: stroke.width * k,
-  ...(stroke.dash ? { dash: stroke.dash.map((d) => d * k) } : {}),
-})
 
 function formatNumber(value: number, digits: number) {
   return value.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits })
@@ -222,11 +229,14 @@ const LEGEND_ORDER = [
   'block',
   'otherBlocks',
   'constraints',
+  'riparian',
   'roads',
   'forestService',
   'existingRoads',
+  'deactivated',
   'streams',
   'ncd',
+  'extras',
   'contourIndex',
   'contourIntermediate',
   'reviewLine',
@@ -252,28 +262,36 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
     const box = boundsOf(parts)
     return !!box && boxesMeet(box, frame)
   }
-  const strokeLine = (parts: Point[][], symbol: LineSymbol) => {
-    for (const layer of symbol.layers) ops.push({ op: 'path', parts, closed: false, stroke: scaleStroke(layer, k) })
-  }
-  const fillArea = (parts: Point[][], symbol: AreaSymbol) => {
-    if (symbol.fill) ops.push({ op: 'path', parts, closed: true, fill: symbol.fill, fillOpacity: symbol.fillOpacity })
-    if (symbol.hatch) {
-      const box = boundsOf(parts)
-      if (box) {
-        ops.push({ op: 'clip', parts })
-        const lines = hatchLines(box, symbol.hatch.angleDeg, symbol.hatch.spacing * k)
-        if (symbol.hatch.cross) lines.push(...hatchLines(box, symbol.hatch.angleDeg + 90, symbol.hatch.spacing * k))
-        ops.push({ op: 'path', parts: lines, closed: false, stroke: scaleStroke(symbol.hatch.stroke, k) })
-        ops.push({ op: 'restore' })
-      }
-    }
-    for (const layer of symbol.outline) ops.push({ op: 'path', parts, closed: true, stroke: scaleStroke(layer, k) })
-  }
+  const strokeLine = (parts: Point[][], symbol: LineSymbol) => ops.push(...lineSymbolOps(parts, symbol, k))
+  const fillArea = (parts: Point[][], symbol: AreaSymbol) => ops.push(...areaSymbolOps(parts, symbol, k))
+  const placePoint = (at: Point, symbol: PointSymbol) => ops.push(...pointSymbolOps(symbol, at[0], at[1], k))
   const halo = { color: LABEL_HALO.color, width: LABEL_HALO.width * k }
   const polygonParts = (geometry: BlockGeometry | GeoJSON.Polygon): Point[][] =>
     (geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates).flatMap((polygon) =>
       polygon.map((ring) => project(ring as LngLat[])),
     )
+  const extras = input.layers.extras ?? []
+  const extraParts = (extra: SheetExtra): Point[][] =>
+    extra.geometry.type === 'Point'
+      ? [project([extra.geometry.coordinates as LngLat])]
+      : extra.geometry.type === 'LineString'
+        ? [project(extra.geometry.coordinates as LngLat[])]
+        : extra.geometry.type === 'MultiLineString'
+          ? extra.geometry.coordinates.map((part) => project(part as LngLat[]))
+          : polygonParts(extra.geometry)
+  /** Extras of one symbol kind, in input order; each drawn one marks its symbol for the legend. */
+  const drawExtras = (kind: SheetSymbol['kind']) => {
+    for (const extra of extras) {
+      if (extra.symbol.kind !== kind) continue
+      const parts = extraParts(extra)
+      if (!visible(parts)) continue
+      if (extra.symbol.kind === 'area') fillArea(parts, extra.symbol)
+      else if (extra.symbol.kind === 'line') strokeLine(parts, extra.symbol)
+      else if (extra.symbol.kind === 'point') placePoint(parts[0][0], extra.symbol)
+      else continue
+      mark('extras', extra.symbol)
+    }
+  }
 
   // ---- Map frame ----
   ops.push({ op: 'clip', parts: [rectRing(frame.x, frame.y, frame.w, frame.h)] })
@@ -338,6 +356,13 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
     fillArea(parts, CONSTRAINT_AREA)
     mark('constraints', CONSTRAINT_AREA)
   }
+  for (const zone of input.layers.riparian ?? []) {
+    const parts = polygonParts(zone.geometry)
+    if (!visible(parts)) continue
+    fillArea(parts, RIPARIAN_SCREEN[zone.band])
+    mark('riparian', RIPARIAN_SCREEN[zone.band])
+  }
+  drawExtras('area')
   for (const block of input.layers.otherBlocks ?? []) {
     const parts = polygonParts(block.geometry)
     if (!visible(parts)) continue
@@ -379,8 +404,13 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
     const symbol = (road.forestService ? FOREST_SERVICE_ROAD : EXISTING_ROAD)[band]
     strokeLine(parts, symbol)
     mark(road.forestService ? 'forestService' : 'existingRoads', symbol)
+    if (road.deactivated) {
+      strokeLine(parts, ROAD_DEACTIVATION)
+      mark('deactivated', ROAD_DEACTIVATION)
+    }
     if (road.name && road.forestService) labelLine(parts[0], road.name)
   }
+  drawExtras('line')
   const roads = input.layers.roads ?? []
   for (const road of roads) {
     const parts = [project(road.line)]
@@ -420,22 +450,16 @@ export function composeSheet(input: ComposeInput): ComposedSheet {
     }
   }
 
+  drawExtras('point')
+
   // Review markup from the plan's notes, on top of everything it comments on.
   for (const note of input.layers.notes ?? []) {
     const parts = [project(note.points)]
     if (!visible(parts)) continue
     let anchor: Point
     if (note.kind === 'pin') {
-      const symbol = reviewPin(note.color)
       anchor = parts[0][0]
-      ops.push({
-        op: 'circle',
-        x: anchor[0],
-        y: anchor[1],
-        r: symbol.radius * k,
-        fill: symbol.color,
-        stroke: scaleStroke(symbol.outline, k),
-      })
+      placePoint(anchor, reviewPin(note.color))
       mark('reviewPin', reviewPin('#e11d48'))
     } else if (note.kind === 'area') {
       fillArea(parts, reviewArea(note.color))
@@ -893,63 +917,9 @@ function sourceBar(ops: DrawOp[], sheet: ResolvedSheet, body: Rect, input: Compo
   })
 }
 
-/** Draws a legend swatch for `symbol` in `box`. */
+/** Draws a legend swatch for `symbol` in `box`, with the same functions that draw the map. */
 export function drawSwatch(ops: DrawOp[], symbol: SheetSymbol, box: Rect, k: number) {
-  if (symbol.kind === 'class') {
-    ops.push({
-      op: 'rect',
-      ...box,
-      fill: symbol.color,
-      fillOpacity: symbol.opacity < 1 ? symbol.opacity : undefined,
-      stroke: { color: SHEET_CHROME.swatchOutline, width: 0.75 * k },
-    })
-    return
-  }
-  if (symbol.kind === 'point') {
-    ops.push({
-      op: 'circle',
-      x: box.x + box.w / 2,
-      y: box.y + box.h / 2,
-      r: symbol.radius * k,
-      fill: symbol.color,
-      stroke: { ...symbol.outline, color: '#000000', width: 0.4 * k },
-    })
-    return
-  }
-  if (symbol.kind === 'line') {
-    const y = box.y + box.h / 2
-    const parts: Point[][] = [
-      [
-        [box.x + 1 * k, y],
-        [box.x + box.w - 1 * k, y],
-      ],
-    ]
-    for (const layer of symbol.layers) ops.push({ op: 'path', parts, closed: false, stroke: scaleStroke(layer, k) })
-    return
-  }
-  const ring = [rectRing(box.x, box.y, box.w, box.h)]
-  if (symbol.fill)
-    ops.push({ op: 'path', parts: ring, closed: true, fill: symbol.fill, fillOpacity: symbol.fillOpacity })
-  if (symbol.hatch) {
-    ops.push({ op: 'clip', parts: ring })
-    ops.push({
-      op: 'path',
-      parts: hatchLines(box, symbol.hatch.angleDeg, symbol.hatch.spacing * k),
-      closed: false,
-      stroke: scaleStroke(symbol.hatch.stroke, k),
-    })
-    ops.push({ op: 'restore' })
-  }
-  for (const layer of symbol.outline) {
-    // Thick outlines are drawn inset so the swatch keeps its size.
-    const inset = Math.min(layer.width * k, box.h / 3) / 2
-    ops.push({
-      op: 'path',
-      parts: [rectRing(box.x + inset, box.y + inset, box.w - inset * 2, box.h - inset * 2)],
-      closed: true,
-      stroke: scaleStroke({ ...layer, width: Math.min(layer.width, box.h / 3 / k) }, k),
-    })
-  }
+  ops.push(...swatchOps(symbol, box, k))
 }
 
 function legendPanel(
