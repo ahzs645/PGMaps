@@ -864,6 +864,11 @@ export default function DevForestryRoads() {
     () => !!completeCostRecord && isFullCostRecordCurrent(alignment, project),
     [completeCostRecord, alignment, project],
   )
+  // The profile's sight distance band reads the project's design speed and station spacing.
+  const sightBand = useMemo(
+    () => ({ standards: project.standards, stationIntervalM: project.settings.stationInterval }),
+    [project.standards, project.settings.stationInterval],
+  )
   const displayedAnalysis = useMemo(() => {
     if (displayedAlignment === alignment) return analysis
     const result = safeAnalyzeRoad(displayedAlignment, source, project.settings, project.context, {
@@ -3776,6 +3781,7 @@ export default function DevForestryRoads() {
                                 selectedCulvertId={currentCulvertId}
                                 onSelectCulvert={selectCulvert}
                                 terrainOnly={!!terrainProfile}
+                                sight={sightBand}
                                 analysis={profileAnalysis}
                                 alignment={displayedAlignment}
                                 station={station}

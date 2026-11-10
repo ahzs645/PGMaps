@@ -196,6 +196,8 @@ export interface Alignment {
   verticalStandards?: VerticalStandards
   verticalControls?: VerticalControl[]
   curveDesign?: CurveDesign
+  /** Stopping sight distance inputs (`sightDistance.ts`); omitted values take the defaults there. */
+  sightDistance?: Partial<import('./sightDistance').SightDistanceSettings>
   vehicleCheck?: VehicleCheck
   fullCostRecord?: FullCostReviewRecord
   /** Reviewed road section at the connector's end, including permit/user roads and ambiguous levels. */

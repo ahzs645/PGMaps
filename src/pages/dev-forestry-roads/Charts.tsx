@@ -18,7 +18,7 @@ import { ChartViewport, SizedChart } from '@pgmaps/geo-toolkit/visualizations/re
 import { Button } from '@/components/ui/button'
 import { ReadoutGrid, type ReadoutItem } from '@/components/ui/readout-grid'
 import { axisTicks } from './chartScale'
-import { EngineeringBands, profileGradeSpans } from './EngineeringBands'
+import { EngineeringBands, profileGradeSpans, type SightBandInput } from './EngineeringBands'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
@@ -582,6 +582,7 @@ export function ProfileChart({
   selectedCulvertId,
   onSelectCulvert,
   terrainOnly = false,
+  sight,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -595,6 +596,8 @@ export function ProfileChart({
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
   terrainOnly?: boolean
+  /** The project's design speed and station spacing, for the sight distance band. */
+  sight?: SightBandInput
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
@@ -917,6 +920,7 @@ export function ProfileChart({
             onStation={onStation}
             terrainOnly={terrainOnly}
             range={[domain[0], domain[1]]}
+            sight={terrainOnly ? undefined : sight}
           />
         ),
       }}

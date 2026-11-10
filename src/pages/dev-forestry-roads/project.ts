@@ -15,6 +15,7 @@ import { createEngineeringDesign, materialPlanMissing } from './engineeringTypes
 import { resolvedCableLine } from './cableGeometry'
 import { parseRigging, parseSagModel } from './cableMechanics'
 import { curvatureCorrectionText } from './curvedVolume'
+import { parseSightSettings } from './sightDistance'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseAccessHistoryState } from './accessHistory'
@@ -468,6 +469,7 @@ function parseAlignment(raw: unknown): Alignment {
     ...(r.verticalStandards === undefined ? {} : { verticalStandards: parseVerticalStandards(r.verticalStandards) }),
     ...(r.curveDesign === undefined ? {} : { curveDesign: parseCurveDesign(r.curveDesign) }),
     ...(r.vehicleCheck === undefined ? {} : { vehicleCheck: parseVehicleCheck(r.vehicleCheck) }),
+    ...(r.sightDistance === undefined ? {} : { sightDistance: parseSightSettings(r.sightDistance) }),
     ...(r.fsrConnection === undefined ? {} : { fsrConnection: parseFsrConnection(r.fsrConnection) }),
     ...(r.routeSearch === undefined ? {} : { routeSearch: parseRouteSearch(r.routeSearch) }),
     ...(r.fullCostRecord === undefined ? {} : { fullCostRecord: parseFullCostRecord(r.fullCostRecord) }),
