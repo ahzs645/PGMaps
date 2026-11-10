@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { StyleSpecification } from 'maplibre-gl'
 import type { Feature, FeatureCollection, Geometry, Position } from 'geojson'
 import { Download, FileText } from 'lucide-react'
@@ -24,6 +25,7 @@ import { ToggleRow } from '@/components/ui/toggle-row'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import type { Basemap } from '../basemaps'
 import { LidarToolLayout } from '../LidarToolLayout'
+import { LIDAR_BASE } from '../workspaceTools'
 import {
   estimatedBytes,
   formatBytes,
@@ -208,6 +210,16 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
                     Download {file.format} from LidarBC
                   </a>
                 </Button>
+              )}
+              {file.url && file.format === 'LAZ' && (
+                <p className="mt-2 text-2xs text-muted-foreground">
+                  Then open it in{' '}
+                  <Link className="underline underline-offset-2" to={`${LIDAR_BASE}data/`}>
+                    Import &amp; data
+                  </Link>
+                  : a tile this size is read in chunks into a whole-tile overview, with full detail for an area you zoom
+                  to.
+                </p>
               )}
               {selected.properties.s3RptUrl && (
                 <ExternalLink className="mt-2 flex w-fit" href={selected.properties.s3RptUrl}>
