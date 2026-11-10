@@ -27,6 +27,12 @@ const INTERVAL_QUANTITIES = {
   // Reported beside the volumes above, which every cost, mass and haul figure uses.
   curvedCutVolume: (analysis, index) => analysis.stations[index].curvedCutVolumeM3 ?? null,
   curvedFillVolume: (analysis, index) => analysis.stations[index].curvedFillVolumeM3 ?? null,
+  // Rock quantities (`rockExcavation.ts`), present once a ground material is marked rock.
+  commonVolume: (analysis, index) => analysis.engineering?.stations[index]?.commonCutVolumeM3 ?? null,
+  rockVolume: (analysis, index) => analysis.engineering?.stations[index]?.rockCutVolumeM3 ?? null,
+  shallowRockVolume: (analysis, index) => analysis.engineering?.stations[index]?.shallowRockVolumeM3 ?? null,
+  shallowRockArea: (analysis, index) => analysis.engineering?.stations[index]?.shallowRockAreaM2 ?? null,
+  deepRockVolume: (analysis, index) => analysis.engineering?.stations[index]?.deepRockVolumeM3 ?? null,
 } satisfies Record<string, (analysis: RoadAnalysis, index: number) => number | null>
 export type IntervalQuantity = keyof typeof INTERVAL_QUANTITIES
 const QUANTITIES = Object.keys(INTERVAL_QUANTITIES) as IntervalQuantity[]
@@ -57,6 +63,8 @@ export interface StationColumn {
   haul?: boolean
   /** Hidden until chosen in the Columns menu. */
   hidden?: boolean
+  /** Needs a ground material marked rock: left out of the table and CSV until there is one. */
+  rock?: boolean
   value: (row: StationRow) => number | null
   /** A quantity summed down the table into the totals row. */
   sum?: IntervalQuantity
@@ -257,6 +265,68 @@ export const STATION_COLUMNS: StationColumn[] = [
     value: (r) => r.curvedFillVolume,
     sum: 'curvedFillVolume',
   },
+  {
+    id: 'common',
+    label: 'Common',
+    unit: 'bank m³',
+    csv: 'common_excavation_bank_m3',
+    road: true,
+    rock: true,
+    hidden: true,
+    decimals: 1,
+    title: `Cut of earthwork materials that are neither rock nor stripping ${SINCE}. Unclassified excavation is not in it.`,
+    value: (r) => r.commonVolume,
+    sum: 'commonVolume',
+  },
+  {
+    id: 'rock',
+    label: 'Rock',
+    unit: 'bank m³',
+    csv: 'rock_cut_bank_m3',
+    road: true,
+    rock: true,
+    decimals: 1,
+    title: `Rock cut above the subgrade ${SINCE}, shallow rock included. It is part of the cut volume.`,
+    value: (r) => r.rockVolume,
+    sum: 'rockVolume',
+  },
+  {
+    id: 'shallowRock',
+    label: 'Shallow rock',
+    unit: 'bank m³',
+    csv: 'shallow_rock_bank_m3',
+    road: true,
+    rock: true,
+    decimals: 1,
+    title: `The part of the rock cut no thicker than the template's shallow depth down to the blasting level ${SINCE}`,
+    value: (r) => r.shallowRockVolume,
+    sum: 'shallowRockVolume',
+  },
+  {
+    id: 'shallowRockArea',
+    label: 'Shallow rock A',
+    unit: 'm²',
+    csv: 'shallow_rock_area_m2',
+    road: true,
+    rock: true,
+    hidden: true,
+    decimals: 1,
+    title: `Horizontal area of the shallow rock cut ${SINCE}`,
+    value: (r) => r.shallowRockArea,
+    sum: 'shallowRockArea',
+  },
+  {
+    id: 'deepRock',
+    label: 'Overbreak',
+    unit: 'bank m³',
+    csv: 'overbreak_rock_bank_m3',
+    road: true,
+    rock: true,
+    decimals: 1,
+    title: `Rock blasted below the subgrade to the blasting level and refilled in place ${SINCE}. Not part of the cut volume.`,
+    value: (r) => r.deepRockVolume,
+    sum: 'deepRockVolume',
+  },
 ]
 
 /** With the curvature correction applied, the volume columns say they are corrected. */
@@ -273,14 +343,19 @@ const CORRECTED: Record<string, Pick<StationColumn, 'label' | 'title' | 'csv'>> 
   },
 }
 
-/** The columns this road's table offers: borrow and waste only once haul is allocated. */
+/**
+ * The columns this road's table offers: borrow and waste only once haul is allocated, rock only once
+ * a ground material is marked rock.
+ */
 export function availableStationColumns(analysis: RoadAnalysis, terrainOnly = false): StationColumn[] {
   const haul = !!analysis.engineering?.haul.enabled
+  const rock = !!analysis.engineering?.rock
   const corrected = !!analysis.curvatureCorrection?.applied
   return STATION_COLUMNS.filter(
     (c) =>
       (terrainOnly ? c.terrain : c.road) &&
       (!c.haul || haul) &&
+      (!c.rock || rock) &&
       // The separate corrected columns repeat the main ones once the correction is applied.
       !(corrected && (c.id === 'curvedCut' || c.id === 'curvedFill')),
   ).map((c) => (corrected && CORRECTED[c.id] ? { ...c, ...CORRECTED[c.id] } : c))

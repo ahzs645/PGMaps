@@ -31,7 +31,8 @@ the optional delivered-cost borrow/waste allocation.
   end of its range; it does not blend into the next named template.
 - **Material horizons entered.** Without horizons all cut is _unclassified excavation_ at the base
   cut rate, fully reusable at the reusable cut factor. The terrain says nothing about rock, soil
-  or organics.
+  or organics. Rock is a horizon whose material you mark **Rock**; see
+  [Rock excavation](rock-excavation.md).
 - **Rates replaced and dated by you.** The only direct unit-price preset is placeholder numbers (see
   [What the cost estimate covers](#what-the-cost-estimate-covers)). Material, structure, haul,
   borrow, waste and mobilization rates start at zero, which means unpriced, not free.
@@ -62,7 +63,8 @@ the optional delivered-cost borrow/waste allocation.
 | Design-speed rules                   | 1–150 km/h, e max 0–20 %, f 0–1, runoff 0–1,000 m, L 0–50 m                                                                               | `project.ts` `parseCurveDesign`                                               | File rejected                                                                    |
 | Curvature correction                 | applied while every centroid is inside the centre of curvature (\|k·e\| < 1); used in quantities only with `curvatureCorrection: 'apply'` | `curvedVolume.ts` `pappusVolume`; `engine.ts` `analyzeRoad`, `engineering.ts` | Interval left uncorrected and counted in the report sentence                     |
 | Culvert ditch dip                    | ditch at most 4 m below the hinge; dip grade 0.1–50 %                                                                                     | `engine.ts` `MAX_DITCH_DIP_DEPTH`; `engineeringProject.ts`                    | Dip stops at 4 m                                                                 |
-| Material inputs                      | rate 0–10,000 $/bank m³, reusable 0–1, compaction 0.1–2                                                                                   | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Material inputs                      | rate 0–10,000 $/bank m³ (shallow-rock and overbreak rates too), reusable 0–1, compaction 0.1–2                                            | `EngineeringControls.tsx`, `engineeringProject.ts`, `validateEngineering`     | Field clamps; file rejected; calculation error                                   |
+| Template rock cut                    | batter 0.1–10 H:V, ledge 0–10 m, blasting depth 0–5 m, blasting fall −20–50 %, drainage fall −100–0 %, shallow depth 0–20 m               | `rockExcavation.ts` `ROCK_CUT_LIMITS` ([rock excavation](rock-excavation.md)) | Invalid input left out; file rejected                                            |
 | Reusable cut factor                  | 0.1–2                                                                                                                                     | `sidebar/ReviewTab.tsx`, `project.ts` `parseSettings`                         | Field clamps; file rejected                                                      |
 | Horizon depths                       | 0–1,000 m below ground, bottom below top; where two overlap in station and depth the later one replaces the earlier                       | `groundHorizons.ts` `MAX_HORIZON_DEPTH_M`, `resolveHorizons`                  | Error for a depth out of range; overlaps are resolved and saved as entered       |
 | Material section work                | 15,000,000 section-sample × layer pairs                                                                                                   | `engineering.ts` `calculateEngineering`                                       | Calculation error                                                                |
@@ -169,6 +171,12 @@ Surfacing is horizontal width × vertical depth
 integrated with Simpson's rule. Clearing is the horizontal daylight-to-daylight width with no
 buffer, so it understates a right-of-way that is wider than the earthwork footprint.
 
+**Rock.** With a ground material marked rock, the station table, its CSV, the Materials tab and the
+report add common excavation, rock cut, shallow rock (volume and area) and overbreak below the
+subgrade. Overbreak is refilled in place, so it is not in the cut volume and only its swell enters
+the mass. The CSV appends their columns after the existing ones, and only for such a road. See
+[Rock excavation and stripping to a ground layer](rock-excavation.md).
+
 **Mass.** Without materials, mass is cut × reusable cut factor (default 0.9) − fill. With
 materials, it is usable compacted cut − fill. The mass curve and the mass column give the known
 earthwork so far. An incomplete interval adds nothing, so the ordinate is carried across it and
@@ -265,7 +273,8 @@ on top. Excavation is charged on all bank cut, including the part that goes to w
 
 **What the estimate has no line for.** Bridges and structures other than culverts, cross-drains
 you have not entered as culverts, grubbing separate from clearing, stripping or undercut beneath
-fill, drilling and blasting except through a material's own rate, erosion control and
+fill, drilling and blasting except through a material's own rates (excavation, shallow rock and
+overbreak), erosion control and
 revegetation, layout, survey and engineering, deactivation, maintenance, overhead and profit,
 taxes, and escalation to a construction date. Haul, borrow and waste for an unbalanced road are
 missing entirely while haul allocation is off.
@@ -372,7 +381,8 @@ A section or engineering input the engine refuses does not blank the road (`safe
 ## What it does not do
 
 - Classify soil, rock or organics from terrain, or test material suitability.
-- Strip or undercut beneath embankments, or model layer-specific fill.
+- Undercut beneath embankments beyond an entered stripping range (to a fixed depth or to the top
+  of a ground layer), or model layer-specific fill.
 - Price fill placement by material. An embankment rate per ground type would need the fill of
   every interval attributed to a material, which exists only once haul is allocated, and the
   economic allocation would have to carry placement in its objective.

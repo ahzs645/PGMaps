@@ -105,6 +105,9 @@ export function parseSitePreparation(input: unknown): SitePreparationRange[] {
       rightInsideM: number(r.rightInsideM, 0, 100, 'Right inside offset'),
       leftOutsideM: number(r.leftOutsideM, 0, 50, 'Left outside offset'),
       rightOutsideM: number(r.rightOutsideM, 0, 50, 'Right outside offset'),
+      ...(r.removeToMaterialId === undefined
+        ? {}
+        : { removeToMaterialId: text(r.removeToMaterialId, 'Stripping removal material', 100) }),
     }
   })
   unique(rows, 'Site preparation')
@@ -155,11 +158,17 @@ export function validatePreparation(e: AlignmentEngineering) {
       }
     })
     parseSitePreparation(e.sitePreparation)
-    for (const r of e.sitePreparation) {
+    e.sitePreparation.forEach((r, i) => {
       const material = e.materials.find((m) => m.id === r.materialId)
       if (!material || material.purpose !== 'stripping' || material.reusableFraction !== 0)
         throw Error('Site preparation requires an existing stripping material with zero reusable fraction.')
-    }
+      if (r.removeToMaterialId !== undefined && !e.materials.some((m) => m.id === r.removeToMaterialId))
+        throw new EngineeringInputError(`Stripping ${i + 1}: choose a ground material to remove ground down to.`, {
+          list: 'sitePreparation',
+          id: r.id,
+          field: 'removeToMaterialId',
+        })
+    })
   }
   for (const m of e.materials)
     for (const field of ['cutSlope', 'fillSlope'] as const)

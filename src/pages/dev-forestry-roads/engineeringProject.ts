@@ -79,6 +79,19 @@ export function parseEngineering(raw: unknown, parseTemplate: (raw: unknown) => 
       ...(v.purpose === undefined
         ? {}
         : { purpose: oneOf(v.purpose, ['earthwork', 'stripping'] as const, 'Material purpose') }),
+      ...(v.rock === undefined
+        ? {}
+        : typeof v.rock === 'boolean'
+          ? v.rock
+            ? { rock: true }
+            : {}
+          : (() => {
+              throw Error('Material rock must be true or false.')
+            })()),
+      ...(v.shallowCutRate === undefined
+        ? {}
+        : { shallowCutRate: numeric(v.shallowCutRate, 'Shallow rock rate', 0, 10000) }),
+      ...(v.overbreakRate === undefined ? {} : { overbreakRate: numeric(v.overbreakRate, 'Overbreak rate', 0, 10000) }),
     }
   })
   const strata = items(r.strata, 'Material horizons', 200).map((raw) => {

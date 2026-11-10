@@ -8,7 +8,7 @@ import { hasCompleteCoverage } from './analysisResult'
 import { haulCostLines, haulUnitCost } from './engineering'
 import { surfacingSupplyCost } from './gravel'
 import { materialPlanMissing, type HaulSettings } from './engineeringTypes'
-import type { Alignment, RoadAnalysis, RoadSettings } from './types'
+import type { Alignment, GroundMaterial, MaterialQuantity, RoadAnalysis, RoadSettings } from './types'
 import { BCCostReferences } from './BCCostReferencesPanel'
 import { unpricedQuantities } from './costReadiness'
 import { invalidInputNotice } from './inputErrors'
@@ -63,6 +63,44 @@ type Row = {
   /** Shown in place of the amount where a zero would read as a price: a cost that was not calculated. */
   amountText?: string
   note?: string
+}
+
+/**
+ * A rock material's shallow cut and overbreak as rows of their own, at their own rates (or the
+ * excavation rate where none is entered). Their amounts and the material's main row add up to its
+ * excavation cost. Rates are edited with the material, in Engineering → Ground.
+ */
+function rockRows(m: MaterialQuantity, entered: GroundMaterial | undefined): Row[] {
+  const rock = m.rock!
+  const rate = (value: number | undefined) => value ?? entered?.cutRate ?? 0
+  return [
+    ...(rock.shallowBankM3 > 0
+      ? [
+          {
+            id: `material-${m.materialId}-shallow`,
+            item: `Shallow rock · ${m.name}`,
+            quantity: rock.shallowBankM3,
+            unit: 'bank m³',
+            rate: { value: rate(entered?.shallowCutRate), unit: '$/m³', label: `${m.name} shallow rock rate` },
+            amount: rock.shallowCost,
+            note: 'Rock cut no thicker than the template’s shallow depth; its rate is set with the material in Engineering → Ground.',
+          },
+        ]
+      : []),
+    ...(rock.overbreakBankM3 > 0
+      ? [
+          {
+            id: `material-${m.materialId}-overbreak`,
+            item: `Overbreak · ${m.name}`,
+            quantity: rock.overbreakBankM3,
+            unit: 'bank m³',
+            rate: { value: rate(entered?.overbreakRate), unit: '$/m³', label: `${m.name} overbreak rate` },
+            amount: rock.overbreakCost,
+            note: 'Rock blasted below the subgrade to the blasting level and refilled in place; its rate is set with the material in Engineering → Ground.',
+          },
+        ]
+      : []),
+  ]
 }
 
 function RateCell({ rate }: { rate?: Rate }) {
@@ -223,25 +261,34 @@ export function CostBreakdown({
       ]
   const rows: Row[] = costs
     ? [
-        ...result.materials.map((m) => ({
-          id: `material-${m.materialId}`,
-          item: m.purpose === 'stripping' ? `Stripping · ${m.name}` : `Excavation · ${m.name}`,
-          quantity: m.bankCutM3,
-          unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
-          rate:
-            m.materialId === '__unclassified'
-              ? setting('cutRate', 'Unclassified excavation rate', '$/m³')
-              : onMaterialRate
-                ? {
-                    value: alignment.engineering?.materials.find((x) => x.id === m.materialId)?.cutRate ?? 0,
-                    unit: '$/m³',
-                    label: `${m.name} excavation rate`,
-                    max: 10000,
-                    onChange: (value: number) => onMaterialRate(m.materialId, value),
-                  }
-                : undefined,
-          amount: m.excavationCost,
-        })),
+        ...result.materials.flatMap((m) => [
+          {
+            id: `material-${m.materialId}`,
+            item: m.purpose === 'stripping' ? `Stripping · ${m.name}` : `Excavation · ${m.name}`,
+            // A rock material's shallow cut and overbreak are rows of their own, below.
+            quantity: m.bankCutM3 - (m.rock?.shallowBankM3 ?? 0),
+            unit: analysis.curvatureCorrection?.applied ? 'bank m³ (curve-corrected)' : 'bank m³',
+            rate:
+              m.materialId === '__unclassified'
+                ? setting('cutRate', 'Unclassified excavation rate', '$/m³')
+                : onMaterialRate
+                  ? {
+                      value: alignment.engineering?.materials.find((x) => x.id === m.materialId)?.cutRate ?? 0,
+                      unit: '$/m³',
+                      label: `${m.name} excavation rate`,
+                      max: 10000,
+                      onChange: (value: number) => onMaterialRate(m.materialId, value),
+                    }
+                  : undefined,
+            amount: m.excavationCost - (m.rock ? m.rock.shallowCost + m.rock.overbreakCost : 0),
+          },
+          ...(m.rock
+            ? rockRows(
+                m,
+                alignment.engineering?.materials.find((x) => x.id === m.materialId),
+              )
+            : []),
+        ]),
         {
           id: 'fill',
           item: 'Fill placement',
