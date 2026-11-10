@@ -29,8 +29,8 @@ import {
   emptyHistory,
   historyRows,
   recordStep,
+  startsUndoStep,
   travel,
-  UNDO_MERGE_MS,
   type Checkpoint,
   type History,
 } from './undoHistory'
@@ -96,10 +96,13 @@ export function useRoadWorkspace() {
   const lastEdit = useRef(0)
   const abort = useRef<AbortController | null>(null)
 
-  /** `label` names the step in the undo history; without one it is named from what changed. */
-  const commit = useCallback((next: RoadProject, remember = true, label?: string) => {
+  /**
+   * `label` names the step in the undo history; without one it is named from what changed. Edits
+   * within `UNDO_MERGE_MS` merge into one step unless `ownStep` is set (a button, not typing or a drag).
+   */
+  const commit = useCallback((next: RoadProject, remember = true, label?: string, ownStep = false) => {
     next = { ...next, alignments: next.alignments.map(snapshotActiveVerticalAlternative) }
-    if (remember && Date.now() - lastEdit.current > UNDO_MERGE_MS)
+    if (remember && startsUndoStep(lastEdit.current, Date.now(), ownStep))
       history.current = recordStep(history.current, current.current, label, Date.now())
     if (remember) {
       history.current.future = []
@@ -113,7 +116,8 @@ export function useRoadWorkspace() {
   /** Records that a project file now holds exactly what is open. */
   const markFileSaved = useCallback(() => setFileSaved({ at: Date.now(), revision: revisionRef.current }), [])
   const update = useCallback(
-    (change: (previous: RoadProject) => RoadProject, label?: string) => commit(change(current.current), true, label),
+    (change: (previous: RoadProject) => RoadProject, label?: string, options?: { ownStep?: boolean }) =>
+      commit(change(current.current), true, label, options?.ownStep),
     [commit],
   )
   const updateAlignment = useCallback(

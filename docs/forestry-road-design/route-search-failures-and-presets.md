@@ -46,17 +46,18 @@ The route search itself is described in
 ## Using it
 
 1. Open **Design → Find the best route**, choose the goals and press **Compare**.
-2. **A goal with no road** shows a dashed row with its reason and a red line reading **Show on the
-   plan: where it stopped, 812 m short of the end; platform too steep.** Click the row, or focus it
-   and press Enter or Space, to mark it on the plan:
+2. **A goal with no road** shows a dashed row with its reason and a red line reading **Highlight on
+   the plan: where it stopped, 812 m short of the end; platform too steep.** The plan marks every
+   failed goal as soon as the comparison ends:
    - the line the search reached, in the goal's colour;
    - a red dashed gap from its end to the road's end;
    - a **Search stopped · Shortest** label;
    - for a switchback-search reason, a label at the place the reason names, such as "Platform too
      steep".
 
-   The row reads **Marked on the plan** while it is selected. Click it again to clear the mark.
-   Hovering or focusing the row also highlights its marks.
+   Click the row, or focus it and press Enter or Space, to highlight its marks (a wider line and a
+   red ring on the label). The row then reads **Highlighted on the plan**; click it again to clear
+   the highlight. Hovering or focusing the row also highlights its marks.
 
 3. **From the plan**, click the **Search stopped** label, the named-place label or the reached
    line. The matching row is selected and scrolled into view. Both labels are buttons, so the
@@ -73,9 +74,11 @@ The route search itself is described in
    project.
 6. **Preset: Spur · Block road · Mainline** sits above the grade limit. A click sets **Grade limit
    %** and **Tightest curve (m)**. The matching preset stays pressed until either value changes,
-   and Undo reverses it. The (i) beside the presets lists what each one sets, the adverse and
-   switchback grades it only shows, and the source.
-7. **A found road's settings.** Open a road the comparison found. A line under the goal buttons
+   and Undo reverses it. Each click is an undo step of its own, however quickly the next follows
+   (`startsUndoStep`); typed values within 450 ms still merge (`UNDO_MERGE_MS`). The (i) beside
+   the presets lists what each one sets, the adverse and switchback grades it only shows, and the
+   source.
+7. **A found road's settings.** Open a road the comparison found. A line above the goal buttons
    reads "Found 2026-11-10 · Lowest cost · 12% · ±180 m". Its (i) lists:
    - the goals it led;
    - the grade limit and tightest curve, and the preset they matched;
@@ -137,6 +140,9 @@ None of these is applied automatically.
     off, a rule that refused every switchback, then the rule that stopped most pieces near the
     furthest point.
 - **Goals that failed for one reason share a row and a mark.** They read the same failure record.
+- **Goals whose searches returned the same line share its row** (`mergeSameLines`), named after
+  each of them ("Lowest cost · Shortest"). When that line breaks a limit and no other road meets
+  them, the row and its flags are the reason for every one of those goals.
 - **The steeper retry searches the corridor you set,** around the same guide and with the same
   ground trend and budgets. It does not widen the corridor or try the grid route the comparison
   falls back on. A goal the comparison only solved through those fallbacks could still read "does

@@ -7,9 +7,9 @@ import { steeperGradeText, steeperGrades, type SteeperGradeResult } from './stee
 const whole = (n: number) => Math.round(n).toLocaleString('en-CA')
 
 /**
- * Goals that found no road for one reason. Clicking the row marks on the plan where the search
- * stopped (and the place the reason names); clicking that mark selects the row. **Try steeper**
- * runs the search a little over the limit and reports what it finds, without making a road.
+ * Goals that found no road for one reason. The plan marks where the search stopped (and the place
+ * the reason names); clicking the row highlights those marks, and clicking a mark selects the row.
+ * **Try steeper** runs the search a little over the limit and reports what it finds, without making a road.
  */
 export const RouteFailureRow = forwardRef<
   HTMLButtonElement,
@@ -57,7 +57,7 @@ export const RouteFailureRow = forwardRef<
         >
           {text}
           <span className="block text-2xs leading-4 text-red-700 dark:text-red-400" data-testid="road-route-stop">
-            {selected ? 'Marked on the plan' : 'Show on the plan'}: where it stopped
+            {selected ? 'Highlighted on the plan' : 'Highlight on the plan'}: where it stopped
             {stop.remainingM >= 1 ? `, ${whole(stop.remainingM)} m short of the end` : ''}
             {stop.named ? `; ${stop.named.label.toLowerCase()}` : ''}.
           </span>

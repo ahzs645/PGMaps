@@ -62,14 +62,16 @@ describe('a failed goal row', () => {
     const [toggle] = byTestId('road-route-failure')
     expect(toggle.type).toBe('button')
     expect(toggle.props['aria-pressed']).toBe(false)
-    expect(text(renderer!)).toContain('Show on the plan: where it stopped, 140 m short of the end; platform too steep.')
+    expect(text(renderer!)).toContain(
+      'Highlight on the plan: where it stopped, 140 m short of the end; platform too steep.',
+    )
     act(() => toggle.props.onClick())
     act(() => toggle.props.onFocus())
     expect(calls.toggle).toBe(1)
     expect(calls.hover).toEqual([true])
     render({ selected: true })
     expect(byTestId('road-route-failure')[0].props['aria-pressed']).toBe(true)
-    expect(text(renderer!)).toContain('Marked on the plan')
+    expect(text(renderer!)).toContain('Highlighted on the plan')
   })
 
   it('offers +2 % and +4 % over the limit, then shows what it found instead of the button', () => {

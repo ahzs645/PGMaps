@@ -277,3 +277,25 @@ describe('local project library', () => {
     expect(workspace.project.name).toBe('First road project')
   })
 })
+
+describe('road workspace undo steps', () => {
+  it('gives each quick button press its own step, while quick typing merges', async () => {
+    await openWorkspace()
+    const grade = () => workspace.project.settings.maxGradePercent
+    const setGrade = (maxGradePercent: number, ownStep?: boolean) =>
+      workspace.update((p) => ({ ...p, settings: { ...p.settings, maxGradePercent } }), undefined, { ownStep })
+    const start = grade()
+    // Two presets clicked 0.4 s apart: one undo steps back one preset, not both.
+    await act(async () => setGrade(16, true))
+    await act(async () => setGrade(10, true))
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(16)
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(start)
+    // Typed digits within the merge window stay one step.
+    await act(async () => setGrade(1))
+    await act(async () => setGrade(14))
+    await act(async () => workspace.undo())
+    expect(grade()).toBe(start)
+  }, 30_000)
+})

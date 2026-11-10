@@ -352,7 +352,11 @@ export function RouteFinder({
         <RouteSearchPresets
           settings={project.settings}
           disabled={full}
-          onApply={(preset) => w.update((x) => ({ ...x, settings: applySearchPreset(x.settings, preset) }))}
+          onApply={(preset) =>
+            w.update((x) => ({ ...x, settings: applySearchPreset(x.settings, preset) }), `${preset.label} preset`, {
+              ownStep: true,
+            })
+          }
         />
         <div className="grid grid-cols-2 gap-2">
           <NumberField
