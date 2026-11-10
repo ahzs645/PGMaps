@@ -13,6 +13,7 @@ import {
   Building2,
   Cylinder,
   GitCompareArrows,
+  Grid3x3,
   Layers3,
   Leaf,
   ListTree,
@@ -33,6 +34,7 @@ import type { Basemap } from './basemaps'
 import { LIDAR_BASE, LIDAR_TOOLS, type LidarToolId } from './workspaceTools'
 
 export const LIDAR_TOOL_ICONS: Record<LidarToolId, ElementType> = {
+  coverage: Grid3x3,
   data: Upload,
   inventory: ListTree,
   volume: Cylinder,

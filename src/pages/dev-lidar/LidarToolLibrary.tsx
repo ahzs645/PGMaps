@@ -43,6 +43,7 @@ export function LidarToolLibrary({ valid = true }: { valid?: boolean }) {
           <div className="mt-3 flex flex-wrap gap-2">
             {(
               [
+                [toolPath('coverage'), 'Where BC has LiDAR'],
                 [toolPath('inventory'), 'Tree inventory & polygon summaries'],
                 [toolPath('canopy'), 'BC canopy map'],
                 [toolPath('compare'), 'Tree model results & 3D'],

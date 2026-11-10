@@ -20,6 +20,9 @@ import { InventoryWorkspace } from './inventory/InventoryWorkspace'
 import { lazy, Suspense, useMemo, type CSSProperties } from 'react'
 import { VolumeWorkspace } from './volume/VolumeWorkspace'
 
+const CoverageWorkspace = lazy(() =>
+  import('./lidarbc/CoverageWorkspace').then((m) => ({ default: m.CoverageWorkspace })),
+)
 const ImportWorkspace = lazy(() => import('./imports/ImportWorkspace').then((m) => ({ default: m.ImportWorkspace })))
 
 export function LidarWorkspace(props: { analysisBase: string; cloudBase: string }) {
@@ -193,6 +196,18 @@ export function LidarWorkspace(props: { analysisBase: string; cloudBase: string 
         }
       >
         <ImportWorkspace basemap={basemap} cloudBase={cloudBase} />
+      </Suspense>
+    )
+  else if (tool.id === 'coverage')
+    workspace = (
+      <Suspense
+        fallback={
+          <InlineAlert loading className="m-4">
+            Opening BC coverage…
+          </InlineAlert>
+        }
+      >
+        <CoverageWorkspace basemap={basemap} />
       </Suspense>
     )
   else if (tool.id === 'inventory')
