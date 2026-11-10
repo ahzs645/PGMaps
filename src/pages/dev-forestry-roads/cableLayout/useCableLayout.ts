@@ -47,6 +47,18 @@ export function layoutKey(line: CableLine, terrain: TerrainSource): string {
   return JSON.stringify([id, { ...line, name: undefined, deflectionPercent: undefined, supportLayout: settings }])
 }
 
+/** The layout result current for the line on this terrain, outside React (an export reads it on click). */
+export function currentLayoutResult(line: CableLine, terrain: TerrainSource): CableLayoutResult | null {
+  const entry = entries.get(line.id)
+  return entry?.status === 'done' && entry.key === layoutKey(line, terrain) ? (entry.result ?? null) : null
+}
+
+/** Whether a check or search for this key is running or done (so a caller need not start another). */
+export function layoutEntryFor(cableId: string, key: string): CableLayoutEntry | undefined {
+  const entry = entries.get(cableId)
+  return entry?.key === key ? entry : undefined
+}
+
 export function useCableLayoutEntry(cableId: string | undefined): CableLayoutEntry | undefined {
   useSyncExternalStore(subscribe, () => version)
   return cableId ? entries.get(cableId) : undefined

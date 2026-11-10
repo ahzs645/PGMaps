@@ -23,6 +23,8 @@ import {
   type CablePresetId,
 } from './cableCoverageRule'
 import { RIGGING_LABELS, RIGGING_LIMITS, type CableRigging } from './cableMechanics'
+import { applyRiggingSetToRule, type RiggingSet } from './dline/riggingSets'
+import { RiggingSetPicker } from './RiggingSetPicker'
 
 const POSITIONS: { value: CablePosition; label: string }[] = [
   { value: 'either', label: 'Above or below' },
@@ -77,9 +79,12 @@ const RIGGING: (keyof typeof RIGGING_LIMITS)[] = [
 export function CableCoverageFields({
   rule,
   onRule,
+  riggingSets,
 }: {
   rule: CableCoverageRule
   onRule: (update: (r: CableCoverageRule) => CableCoverageRule) => void
+  /** The project's named rigging sets, shared with the D-lines. */
+  riggingSets?: { sets: readonly RiggingSet[]; onSetsChange: (sets: RiggingSet[]) => void }
 }) {
   const set = (patch: Partial<CableCoverageRule>) => onRule((r) => ({ ...r, ...patch }))
   const rigging = (patch: Partial<CableRigging>) => onRule((r) => ({ ...r, rigging: { ...r.rigging, ...patch } }))
@@ -163,6 +168,15 @@ export function CableCoverageFields({
         summary={`${rule.rigging.ropeDiameterMm} mm · ${rule.rigging.payloadKg.toLocaleString('en-CA')} kg`}
         help="Each line is tensioned to the rope's allowable working tension (breaking force ÷ safety factor) and checked as an elastic catenary with the loaded carriage moved along every span."
       >
+        {riggingSets && (
+          <RiggingSetPicker
+            sets={riggingSets.sets}
+            rigging={rule.rigging}
+            ignoreTensionMode
+            onApply={(set) => onRule((r) => applyRiggingSetToRule(r, set))}
+            onSetsChange={riggingSets.onSetsChange}
+          />
+        )}
         <div className="grid grid-cols-2 gap-2">
           {RIGGING.map((key) => (
             <NumberField

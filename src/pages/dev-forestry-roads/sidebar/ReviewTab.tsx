@@ -11,6 +11,10 @@ import { gradeRule, gradeRuleText } from '../designStandards'
 import { DesignStandardsFields } from '../DesignStandardsFields'
 import { CableRiggingFields } from '../CableRiggingFields'
 import { CableSupportsSection } from '../CableSupportsSection'
+import { CableFieldProfileSection } from '../CableFieldProfileSection'
+import { RiggingSetPicker } from '../RiggingSetPicker'
+import { cableGroundSource } from '../dline/fieldProfile'
+import { applyRiggingSetToLine, lineLimits } from '../dline/riggingSets'
 import { jobStandardsOf, standardVehicleCheck, withJobStandards } from '../jobStandards'
 import { isoDate } from '../projectIssue'
 import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
@@ -338,8 +342,22 @@ function CableLines(p: SidebarProps) {
           </Field>
           <CableRiggingFields line={c} onChange={(next) => edit(c.id, () => next)} />
           {c.sagModel === 'mechanics' && c.rigging && (
-            <CableSupportsSection line={c} terrain={p.workspace.source} onEdit={(change) => edit(c.id, change)} />
+            <RiggingSetPicker
+              sets={project.riggingSets ?? []}
+              rigging={c.rigging}
+              limits={lineLimits(c)}
+              onApply={(set) => edit(c.id, (a) => applyRiggingSetToLine(a, set))}
+              onSetsChange={(sets) => update((x) => ({ ...x, riggingSets: sets.length ? sets : undefined }))}
+            />
           )}
+          {c.sagModel === 'mechanics' && c.rigging && (
+            <CableSupportsSection
+              line={c}
+              terrain={cableGroundSource(c, p.workspace.source)}
+              onEdit={(change) => edit(c.id, change)}
+            />
+          )}
+          <CableFieldProfileSection line={c} terrain={p.workspace.source} onEdit={(change) => edit(c.id, change)} />
           <div className="grid grid-cols-3 gap-1">
             {(['startHeight', 'endHeight', 'deflectionPercent'] as const).map((key) => (
               <NumberField

@@ -7,7 +7,7 @@ import { offsetCoordinate } from './engine'
 import { createDemoProject } from './terrain'
 import type { Coordinate, RoadProject } from './types'
 import type { SidebarProps } from './DesignSidebarBody'
-import type { CableCoverInput } from './cableLayout/cableLayout'
+import type { CableCoverInput, CableLayoutInput, LayoutToAnalyse } from './cableLayout/cableLayout'
 
 vi.mock('./Controls', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./Controls')>()),
@@ -33,6 +33,7 @@ vi.mock('./cableLayout/cableLayoutClient', async () => {
       options.onProgress?.(1, out.length)
       return out
     },
+    analyzeCableLayout: async (input: CableLayoutInput, layout: LayoutToAnalyse) => engine.analyze(input, layout),
   }
 })
 
@@ -69,13 +70,15 @@ it('runs the cable yarder: coverage in the shared tables, suggested lines on the
   }
   const preview = vi.fn()
   const notices = vi.fn()
+  const commit = vi.fn()
   const workspace = () => ({
     project,
     source,
     analyses: new Map(),
     alignment: project.alignments[0],
     busy: '',
-    commit: vi.fn(),
+    commit,
+    update: vi.fn(),
     setBusy: vi.fn(),
     setBusyCancel: vi.fn(),
     setBusyProgress: vi.fn(),
@@ -126,5 +129,25 @@ it('runs the cable yarder: coverage in the shared tables, suggested lines on the
   )
   // Spur suggestions read ground-based reach and are not offered for cable.
   expect(renderer.root.findAllByProps({ 'data-testid': 'skid-reach-suggest' })).toHaveLength(0)
+  // A suggested line opens as a profile with its supports checked, and becomes a D-line.
+  const [open] = results.findAll(
+    (node) => node.type === 'button' && /^Open suggested line \d+ as a profile$/.test(node.props['aria-label']),
+  )
+  await act(async () => open.props.onClick())
+  const detail = await eventually(() => byTestId('suggested-cable-profile'))
+  expect(detail).toBeTruthy()
+  const selected = preview.mock.calls.at(-1)![0] as GeoJSON.Feature[]
+  expect(selected.some((feature) => feature.properties?.kind === 'cable-line' && feature.properties.selected)).toBe(
+    true,
+  )
+  const use = byTestId('suggested-cable-line').find(
+    (node) => node.type === 'button' && [node.props.children].flat().includes('Use as D-line'),
+  )
+  await act(async () => use.props.onClick())
+  const added = (commit.mock.calls.at(-1)![0] as RoadProject).cables
+  expect(added).toHaveLength(project.cables.length + 1)
+  expect(added.at(-1)).toMatchObject({ sagModel: 'mechanics', yarderAt: 'start' })
+  expect(added.at(-1)!.supportLayout?.saved?.supports.length).toBeGreaterThanOrEqual(2)
+  expect(String(notices.mock.calls.at(-1)![0])).toMatch(/^Added Block C line \d+ as a D-line/)
   await act(async () => renderer.unmount())
 }, 120_000)

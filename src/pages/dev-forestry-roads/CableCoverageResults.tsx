@@ -2,6 +2,7 @@
  * Cable coverage results below the shared extraction tables: the lines found, why the rest were
  * not kept, and the suggested lines with their selection settings (`cableLineSelection.ts`).
  */
+import type { ReactNode } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
 import { NumberField } from './Controls'
@@ -37,6 +38,9 @@ export function CableCoverageResults({
   rule,
   onRule,
   roadName,
+  selectedId,
+  onSelect,
+  detail,
 }: {
   coverage: CableCoverageResult
   selection: CableSelection | null
@@ -44,6 +48,11 @@ export function CableCoverageResults({
   onRule: (rule: CableSelectionRule) => void
   /** The road a landing lies on, by landing index. */
   roadName: (landing: number) => string
+  /** The suggested line opened as a profile, and how to open one. */
+  selectedId?: number | null
+  onSelect?: (id: number) => void
+  /** Shown under the table: the opened line's profile. */
+  detail?: ReactNode
 }) {
   const { stats, lines } = coverage
   const allRejected = Object.entries(stats.rejected)
@@ -130,9 +139,21 @@ export function CableCoverageResults({
               </thead>
               <tbody>
                 {chosen.map((line) => (
-                  <tr key={line.id}>
+                  <tr key={line.id} aria-selected={onSelect ? line.id === selectedId : undefined}>
                     <th scope="row">
-                      <span className="block font-medium">{line.id}</span>
+                      {onSelect ? (
+                        <button
+                          type="button"
+                          className="block font-medium underline decoration-dotted"
+                          aria-label={`Open suggested line ${line.id} as a profile`}
+                          aria-pressed={line.id === selectedId}
+                          onClick={() => onSelect(line.id)}
+                        >
+                          {line.id}
+                        </button>
+                      ) : (
+                        <span className="block font-medium">{line.id}</span>
+                      )}
                       <span className="block text-3xs text-muted-foreground">
                         {Math.round(line.bearingDeg)}° · {roadName(line.landing)}
                         {line.designedLanding ? ' (designed)' : ''}
@@ -148,6 +169,10 @@ export function CableCoverageResults({
             </EngineeringTable>
           </div>
         )}
+        {chosen.length > 0 && onSelect && !detail && (
+          <p className="text-2xs text-muted-foreground">Click a line&apos;s number to open it as a profile.</p>
+        )}
+        {detail}
       </div>
     </div>
   )

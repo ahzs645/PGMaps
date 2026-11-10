@@ -636,7 +636,12 @@ export const CABLE_LINE_COLOR = '#0e7490'
 const SUPPORT_COLOR = '#155e75'
 
 /** Plan features for the given lines: each line from its yarder to its tail, and its supports. */
-export function cableLineFeatures(eg: ExtractionGrid, lines: readonly CableLineRecord[]): GeoJSON.Feature[] {
+export function cableLineFeatures(
+  eg: ExtractionGrid,
+  lines: readonly CableLineRecord[],
+  /** A line opened as a profile is drawn selected. */
+  selectedId?: number | null,
+): GeoJSON.Feature[] {
   const out: GeoJSON.Feature[] = []
   for (const line of lines) {
     const supports = line.points.length - 2
@@ -649,6 +654,7 @@ export function cableLineFeatures(eg: ExtractionGrid, lines: readonly CableLineR
       properties: {
         kind: 'cable-line',
         color: CABLE_LINE_COLOR,
+        ...(line.id === selectedId ? { selected: true } : {}),
         label: `Line ${line.id} · ${Math.round(line.skylineM)} m · ${supports} support${supports === 1 ? '' : 's'} · ${line.areaHa.toFixed(1)} ha`,
       },
     })

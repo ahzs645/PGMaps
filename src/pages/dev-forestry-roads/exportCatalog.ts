@@ -15,6 +15,7 @@ export type RoadExport =
   | 'report-pdf'
   | 'map-pdf'
   | 'block-sheet-pdf'
+  | 'dline-sheet-pdf'
   | 'landxml'
   | 'dxf'
   | 'stakeout'
@@ -38,7 +39,14 @@ export interface ExportItem {
 }
 
 /** Outputs that print the issue stamp: who prepared them, the revision and the date of issue. */
-export const STAMPED_EXPORTS: readonly RoadExport[] = ['report', 'report-pdf', 'plotbook', 'map-pdf', 'block-sheet-pdf']
+export const STAMPED_EXPORTS: readonly RoadExport[] = [
+  'report',
+  'report-pdf',
+  'plotbook',
+  'map-pdf',
+  'block-sheet-pdf',
+  'dline-sheet-pdf',
+]
 /** Outputs that can hold one road or every road of the project. */
 export const MULTI_ROAD_EXPORTS: readonly RoadExport[] = ['geojson', 'shapefile']
 export type RoadScope = 'active' | 'all'
@@ -77,6 +85,8 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   'report-pdf': 'stamp',
   'map-pdf': 'stamp',
   'block-sheet-pdf': 'stamp',
+  // No road input reaches a D-line; the D-line's own invalid inputs refuse it (`dLineSheetUnavailable`).
+  'dline-sheet-pdf': 'unaffected',
   plotbook: 'refuse',
   landxml: 'refuse',
   dxf: 'refuse',
@@ -138,6 +148,14 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
     extension: '.pdf',
     description:
       'A printed block map: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or imagery, with block information, legend and roads.',
+  },
+  {
+    kind: 'dline-sheet-pdf',
+    group: 'documents',
+    label: 'D-line sheet',
+    extension: '.pdf',
+    description:
+      'The D-line on screen on one page: profile with supports and load path, a plan strip, the support and stake-out table, limits, rigging and assumptions.',
   },
   {
     kind: 'plotbook',
@@ -230,6 +248,8 @@ export interface ExportContext {
   hasTerrainGrid: boolean
   hasProvincialEvidence: boolean
   hasNotes: boolean
+  /** Why the D-line sheet cannot be made (no D-line, or its own inputs are invalid); null when it can. */
+  dLineSheetUnavailable?: string | null
   /** The invalid input the roads an output would write leave out, if any. */
   invalidInput?: (kind: RoadExport) => InvalidInput | undefined
 }
@@ -245,6 +265,8 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (kind === 'notes') return context.hasNotes ? null : 'Draw a note on the plan first.'
   if (context.designPreview) return 'Finish or close the design preview first.'
   if (!context.hasResults) return 'No calculated results yet.'
+  if (kind === 'dline-sheet-pdf' && context.dLineSheetUnavailable !== null)
+    return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
   if (context.terrainProfile && ['plotbook', 'landxml', 'dxf', 'stakeout'].includes(kind))
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)

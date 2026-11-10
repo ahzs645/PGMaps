@@ -10,6 +10,7 @@ import { runCooperatively } from './cooperative'
 import { ExtractionReachFields } from './ExtractionReachFields'
 import { ExtractionReachResults } from './ExtractionReachResults'
 import { CableCoverageResults } from './CableCoverageResults'
+import { SuggestedCableLine } from './SuggestedCableLine'
 import { cableLineFeatures, type CableCoverageResult } from './cableCoverage'
 import { runCableCoverage } from './cableCoverageRun'
 import { screenCoverLines } from './cableLayout/cableLayoutClient'
@@ -53,7 +54,7 @@ import {
 } from './skidReach'
 import { DEFAULT_SPUR_OPTIONS, MAX_SKID_SPURS, suggestSpursSteps, type SpurSuggestion } from './skidSpurs'
 import { localMetricGrid } from './terrain'
-import type { Alignment, ContextFeature, Coordinate } from './types'
+import type { Alignment, CableLine, ContextFeature, Coordinate } from './types'
 
 const MAX_ROADS = 20
 const SPUR_COLOR = '#ea580c'
@@ -115,6 +116,7 @@ export function SkidReachPanel(p: SidebarProps) {
   const [picking, setPicking] = useState(false)
   const [showOnPlan, setShowOnPlan] = useState(true)
   const [lineRule, setLineRule] = useState<CableSelectionRule>(DEFAULT_CABLE_SELECTION)
+  const [openLineId, setOpenLineId] = useState<number | null>(null)
   const [run, setRun] = useState<SkidRun | null>(null)
   const abort = useRef<AbortController | null>(null)
   useEffect(() => () => abort.current?.abort(), [])
@@ -206,6 +208,23 @@ export function SkidReachPanel(p: SidebarProps) {
     }
   }, [current, lineRule])
 
+  // A suggested line opened as a profile, while it is still one of the suggestions.
+  const openLine =
+    openLineId !== null && cableSelection?.ids.includes(openLineId)
+      ? (current?.cable?.lines.find((line) => line.id === openLineId) ?? null)
+      : null
+  const adoptCableLine = (line: CableLine) => {
+    try {
+      w.commit(parseProject({ ...project, cables: [...project.cables, line] }))
+      const supports = (line.supportLayout?.saved?.supports.length ?? 2) - 2
+      w.setNotice(
+        `Added ${line.name} as a D-line with its ${supports} support${supports === 1 ? '' : 's'} as the saved layout. Open Review → D-line / cable geometry → Intermediate supports to check or refine it.`,
+      )
+    } catch (cause) {
+      w.setError(cause instanceof Error ? cause.message : 'Could not add the D-line.')
+    }
+  }
+
   // The landing screen is cheap, so it follows its inputs without a new run.
   const landings = useMemo((): LandingScreen | null => {
     if (!current) return null
@@ -261,6 +280,7 @@ export function SkidReachPanel(p: SidebarProps) {
         ? cableLineFeatures(
             current.result.grid,
             current.cable.lines.filter((line) => chosen.has(line.id)),
+            openLineId,
           )
         : []),
       ...(landings ? landingMapFeatures(landings) : []),
@@ -278,7 +298,7 @@ export function SkidReachPanel(p: SidebarProps) {
           }),
         ),
     ]
-  }, [current, landings, showOnPlan, cableSelection])
+  }, [current, landings, showOnPlan, cableSelection, openLineId])
   useEffect(() => onPreviewSkidReach?.(features), [features, onPreviewSkidReach])
   useEffect(() => () => onPreviewSkidReach?.(null), [onPreviewSkidReach])
   useEffect(() => () => onPickOnPlan?.(null), [onPickOnPlan])
@@ -515,6 +535,10 @@ export function SkidReachPanel(p: SidebarProps) {
             classText={classText}
             onClassText={setClassText}
             classError={classParse.error}
+            riggingSets={{
+              sets: project.riggingSets ?? [],
+              onSetsChange: (sets) => w.update((x) => ({ ...x, riggingSets: sets.length ? sets : undefined })),
+            }}
           />
           <div className="space-y-1">
             <label className="flex items-center gap-2">
@@ -641,6 +665,20 @@ export function SkidReachPanel(p: SidebarProps) {
                     const sg = current.result.grid.sg
                     return sg.roads[current.cable!.landings[landing].roadIndex]?.road.name ?? ''
                   }}
+                  selectedId={openLine?.id ?? null}
+                  onSelect={(id) => setOpenLineId((open) => (open === id ? null : id))}
+                  detail={
+                    openLine && (
+                      <SuggestedCableLine
+                        record={openLine}
+                        rule={current.result.grid.settings.cable}
+                        toLonLat={current.result.grid.sg.toLonLat}
+                        source={source}
+                        name={`${block?.name ?? 'Block'} line ${openLine.id}`.slice(0, 200)}
+                        onAdopt={adoptCableLine}
+                      />
+                    )
+                  }
                 />
               )}
               <label className="flex items-center gap-2">
