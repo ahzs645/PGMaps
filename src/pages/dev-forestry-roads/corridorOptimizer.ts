@@ -6,7 +6,7 @@
  */
 import { runCooperatively, runToCompletion, type CooperativeControl } from './cooperative'
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
-import { routingContext } from './riparian'
+import { blockedRouteEndMessage, routingContext } from './riparian'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
 export type RoadOptimizationObjective = 'shortest' | 'balanced' | 'contour'
@@ -94,6 +94,10 @@ export class CorridorSearchError extends Error {
 }
 export const MIN_SEARCH_WEIGHT = 1
 export const MAX_SEARCH_WEIGHT = 5
+/** The tightest curve the search draws. A road with no minimum radius, or a smaller one, is searched at this. */
+export const MIN_SEARCH_RADIUS_M = 5
+/** The largest minimum radius a search takes. */
+export const MAX_SEARCH_RADIUS_M = 1000
 type XY = [number, number]
 type Piece = { a: XY; heading: number; length: number; curvature: number }
 type RecordNode = {
@@ -331,9 +335,13 @@ function* search(
   if (!Number.isFinite(clearance) || clearance < 0 || clearance >= width)
     throw Error('Exclusion clearance must be non-negative and smaller than the corridor half-width.')
   if (![uphill, downhill].every((x) => Number.isFinite(x) && x >= 1 && x <= 30))
-    throw Error('Ground-grade screening limits must be between 1% and 30%.')
-  if (!Number.isFinite(settings.minRadius) || settings.minRadius < 5 || settings.minRadius > 1000)
-    throw Error('Minimum radius must be 5–1,000 m.')
+    throw Error('The corridor search takes a grade limit of 1–30%. Set the grade limit in that range to search.')
+  if (!Number.isFinite(settings.minRadius) || settings.minRadius < 0 || settings.minRadius > MAX_SEARCH_RADIUS_M)
+    throw Error(
+      `The corridor search takes a minimum radius of up to ${MAX_SEARCH_RADIUS_M.toLocaleString('en-CA')} m. Lower the minimum radius, or leave it at 0 for none.`,
+    )
+  // A minimum of 0 means none was entered, and one under 5 m is met by any curve the search draws.
+  const minRadius = Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M)
   const maxStates = options.maxStates ?? 50000,
     maxSamples = options.maxTerrainSamples ?? 3500000
   if (
@@ -369,7 +377,7 @@ function* search(
   const { cellM: cell, stepM: step } = searchResolution(box[2] - box[0], box[3] - box[1])
   const columns = Math.ceil((box[2] - box[0]) / cell) + 1,
     rows = Math.ceil((box[3] - box[1]) / cell) + 1
-  const turn = Math.min(TURN * 2, step / settings.minRadius)
+  const turn = Math.min(TURN * 2, step / minRadius)
   const turnRadius = step / turn
   const segments: Segment[] = [],
     polygons: Array<{ rings: XY[][]; box: number[]; costPerM: number | null }> = []
@@ -525,13 +533,23 @@ function* search(
   }
   const endpointsZ = [read([0, 0]), read(end)]
   if (!endpointsZ.every(Number.isFinite)) throw Error('Both road endpoints need valid terrain elevations.')
-  if (
-    !pointAllowed([0, 0]) ||
-    !pointAllowed(end) ||
-    !segmentAllowed([0, 0], [0, 0], 0, new Set()) ||
-    !segmentAllowed(end, end, 0, new Set())
-  )
-    throw Error('An endpoint is inside or too close to an exclusion.')
+  const ends: [string, XY][] = [
+    ['start', [0, 0]],
+    ['end', end],
+  ]
+  const closed = ends.filter(([, at]) => !pointAllowed(at) || !segmentAllowed(at, at, 0, new Set()))
+  if (closed.length) {
+    const one = closed.length === 1
+    throw Error(
+      blockedRouteEndMessage(
+        guide[0],
+        guide[guide.length - 1],
+        context,
+        { excludedM: clearance },
+        `The road's ${closed.map(([name]) => name).join(' and ')} ${one ? 'is' : 'are'} inside or too close to a blocked area. Move ${one ? 'that end' : 'the ends'}, or change the treatment of the area beside ${one ? 'it' : 'them'}.`,
+      ),
+    )
+  }
   const weights = profiles[options.objective]
   type Evaluation = {
     cost: number
@@ -610,7 +628,7 @@ function* search(
         zBefore = z
         lastZ = z
       }
-      cost += piece.length * weights.turn * Math.abs(piece.curvature) * settings.minRadius
+      cost += piece.length * weights.turn * Math.abs(piece.curvature) * minRadius
     }
     cost += contacts.size * streamContactCostM
     return {
@@ -716,8 +734,8 @@ function* search(
     }
     // Direct initial alignment and local, tangent goal connections are checked
     // with exactly the same grade, obstacle and terrain rules as all other edges.
-    if (p.parent === -1 || remaining < step * 4 + settings.minRadius * 2) {
-      for (const connection of goalConnections(p.at, p.heading, end, settings.minRadius)) {
+    if (p.parent === -1 || remaining < step * 4 + minRadius * 2) {
+      for (const connection of goalConnections(p.at, p.heading, end, minRadius)) {
         const addedLength = connection.reduce((s, x) => s + x.length, 0)
         if (p.cost + addedLength >= goalCost) continue
         const checked = evaluate(connection, true)

@@ -4,46 +4,88 @@
  * Each found route becomes a road with curves fitted where they stay on the terrain, a name that is
  * only an identifier, and a record of the search's own figures. A road still exactly as the search
  * made it is an alternative nobody has taken up, and the next search replaces it; one that has been
- * renamed, moved or given a profile is the designer's and stays.
+ * renamed, moved, given spirals, a different section, curve rules or a profile is the designer's and
+ * stays.
  *
  * Pure: takes terrain and constraints as arguments and touches neither the DOM nor the network.
  */
 import { derivedRoadName } from './roadNames'
 import { roadFromRoute, SMALLEST_CURVE_M } from './routeFit'
 import type { RouteCandidate } from './routing'
-import type { Alignment, ContextFeature, Coordinate, RoadPoint, RouteSearchRecord, TerrainSource } from './types'
+import type {
+  Alignment,
+  ContextFeature,
+  Coordinate,
+  RoadPoint,
+  RoadTemplate,
+  RouteSearchRecord,
+  TerrainSource,
+} from './types'
 
 export const ROUTE_ALTERNATIVE_SUFFIX = 'terrain-cost route'
 
-/** A short fingerprint of a road's horizontal points, to tell whether they have been edited. */
-export function routePointsKey(points: readonly Pick<RoadPoint, 'coordinate' | 'radiusM'>[]) {
+const fingerprint = (texts: Iterable<string>) => {
   let a = 0xdeadbeef,
     b = 0x41c6ce57
-  for (const point of points)
-    for (const value of [...point.coordinate, point.radiusM]) {
-      const text = value.toFixed(7)
-      for (let i = 0; i < text.length; i++) {
-        const code = text.charCodeAt(i)
-        a = Math.imul(a ^ code, 2654435761)
-        b = Math.imul(b ^ code, 1597334677)
-      }
+  for (const text of texts)
+    for (let i = 0; i < text.length; i++) {
+      const code = text.charCodeAt(i)
+      a = Math.imul(a ^ code, 2654435761)
+      b = Math.imul(b ^ code, 1597334677)
     }
-  return `${points.length}-${(a >>> 0).toString(36)}${(b >>> 0).toString(36)}`
+  return `${(a >>> 0).toString(36)}${(b >>> 0).toString(36)}`
 }
 
-/** Still as the search made it: same points and name, and nothing designed on it. */
+/**
+ * A short fingerprint of a road's horizontal points, to tell whether they have been edited. A spiral
+ * counts only where one is set, so a road with none keeps the fingerprint it was saved with.
+ */
+export function routePointsKey(points: readonly Pick<RoadPoint, 'coordinate' | 'radiusM' | 'spiralM'>[]) {
+  const values = points.flatMap((point) => [
+    ...point.coordinate,
+    point.radiusM,
+    ...(point.spiralM ? [point.spiralM] : []),
+  ])
+  return `${points.length}-${fingerprint(values.map((value) => value.toFixed(7)))}`
+}
+
+/** A fingerprint of a road's section template, whatever order its fields are held in. */
+export function routeTemplateKey(template: RoadTemplate) {
+  const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(canonical)
+      : value && typeof value === 'object'
+        ? Object.fromEntries(
+            Object.entries(value)
+              .filter(([, entry]) => entry !== undefined)
+              .sort(([x], [y]) => x.localeCompare(y))
+              .map(([key, entry]) => [key, canonical(entry)]),
+          )
+        : value
+  return fingerprint([JSON.stringify(canonical(template))])
+}
+
+/**
+ * Still as the search made it: same points, spirals, template and name, and nothing designed on it.
+ * A road the designer has given spirals, a different section or curve rules is theirs, and the next
+ * search must not replace it.
+ */
 export function isUntouchedRouteAlternative(road: Alignment) {
   const record = road.routeSearch
   return (
     !!record &&
     record.name === road.name &&
     record.pointsKey === routePointsKey(road.points) &&
+    // Records made before the template was fingerprinted cannot be compared on it.
+    (record.templateKey === undefined || record.templateKey === routeTemplateKey(road.template)) &&
     !road.vertical.length &&
     !road.overrides.length &&
     !road.verticalAlternatives?.length &&
     !road.verticalControls?.length &&
     !road.verticalStandards &&
     !road.engineering &&
+    !road.curveDesign &&
+    !road.vehicleCheck &&
     !road.crossingRecords?.length &&
     !road.fullCostRecord
   )
@@ -108,6 +150,7 @@ export function terrainCostAlternatives(input: RouteAlternativesInput): RouteAlt
       crossings: route.crossings,
       name,
       pointsKey: routePointsKey(points),
+      templateKey: routeTemplateKey(made.template),
     }
     return { ...made, points, routeSearch: record }
   })

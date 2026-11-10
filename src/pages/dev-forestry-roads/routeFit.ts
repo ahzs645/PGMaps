@@ -7,7 +7,7 @@
  */
 import { centrelineSamples } from './engine'
 import { fitHorizontalRadii } from './horizontalTools'
-import { fitPolylineAlignment, type PolylineFitResult } from './polylineFit'
+import { fitPolylineAlignment, fittedMinimumRadius, SMALLEST_CURVE_M, type PolylineFitResult } from './polylineFit'
 import { constraintRouteIssues } from './riparian'
 import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource } from './types'
 
@@ -20,8 +20,7 @@ import type { Alignment, ContextFeature, Coordinate, RoadTemplate, TerrainSource
 export const ROUTE_FIT_DEVIATIONS_M = [2, 4, 8, 16]
 /** Curves are fitted between the minimum radius and this many times it: wider ones wander from the route. */
 const ROUTE_FIT_RADIUS_FACTOR = 2
-/** A curve tighter than this is not worth having over a sharp corner; 5 m is the least the corridor search takes. */
-export const SMALLEST_CURVE_M = 5
+export { SMALLEST_CURVE_M }
 const CHECK_STEP_M = 1
 
 export type RoutePoint = { coordinate: Coordinate; radiusM: number }
@@ -79,6 +78,9 @@ export interface RouteRoad {
  * A corner the minimum radius does not fit then gets the largest curve its tangents hold, of at
  * least `SMALLEST_CURVE_M`, if the road still stays clear with it: a tight curve is flagged against
  * the minimum radius and can be driven round, where a sharp corner is no road at all.
+ *
+ * A minimum radius of 0 means none was entered. Curves are then fitted from `SMALLEST_CURVE_M` up,
+ * and none is counted as tight.
  */
 export function roadFromRoute(
   route: Coordinate[],
@@ -87,12 +89,13 @@ export function roadFromRoute(
   minRadiusM: number,
   deviationsM: readonly number[] = ROUTE_FIT_DEVIATIONS_M,
 ): RouteRoad {
+  const fitted = fittedMinimumRadius(minRadiusM)
   let best: { points: RoutePoint[]; fit: PolylineFitResult; maxDeviationM: number } | null = null
   for (const maxDeviationM of deviationsM) {
     const fit = fitPolylineAlignment(route, {
       maxDeviationM,
       minRadiusM,
-      maxRadiusM: minRadiusM * ROUTE_FIT_RADIUS_FACTOR,
+      maxRadiusM: fitted * ROUTE_FIT_RADIUS_FACTOR,
     })
     if (best && fit.sharpCorners >= best.fit.sharpCorners) continue
     const check = checkCentreline(fit.points, terrain, context)
@@ -103,7 +106,7 @@ export function roadFromRoute(
   const kept = best?.points ?? route.map((coordinate) => ({ coordinate: [...coordinate] as Coordinate, radiusM: 0 }))
   const tightened = fitHorizontalRadii(
     kept.map((point, i) => ({ id: `route-fit-${i}`, ...point })),
-    { kind: 'radius', radiusM: minRadiusM },
+    { kind: 'radius', radiusM: fitted },
     { minRadiusM, onlySharp: true },
   )
   const tight = new Set(

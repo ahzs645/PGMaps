@@ -121,7 +121,10 @@ describe('proposed connections to mapped FSRs', () => {
     const result = suggestFsrConnections(origin, flat, settings, context, { exclusionBufferM: 5 })
     expect(result.selected.target.featureId).toBe('reachable')
     expect(result.attempts).toHaveLength(2)
-    expect(result.attempts[0].error).toMatch(/endpoint.*exclusion/)
+    // The attempt says which end, which area and what to change, not "an endpoint" and "an exclusion".
+    expect(result.attempts[0].error).toMatch(
+      /^The road's end is inside .+, an area excluded\. Move that end outside it/,
+    )
     expect(result.message).toContain('loaded FSR network')
     expect(result.message).toContain('up to 3')
   })

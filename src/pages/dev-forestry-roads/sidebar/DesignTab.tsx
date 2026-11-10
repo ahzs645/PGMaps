@@ -16,7 +16,7 @@ import { horizontalFitNote, limitedRadius, verticalFitNote } from '../curveFit'
 import { distance, horizontalCurveFits, verticalCurveSummary } from '../engine'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import { MAX_GROUND_WINDOW_M, resolvedGroundWindow } from '../groundTrend'
-import type { RoadOptimizationObjective } from '../corridorOptimizer'
+import { MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M, type RoadOptimizationObjective } from '../corridorOptimizer'
 import { FullCostRecordSummary } from '../FullCostRecordSummary'
 import { CrossingCostControls } from '../CrossingCostControls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
@@ -32,6 +32,8 @@ import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
 const MAX_ALIGNMENTS = 20
+/** Why a search waits while a road is being pegged: it would run on the saved road, not the line on the plan. */
+const DRAWING_REASON = 'Finish the road being drawn on the plan first'
 
 export function DesignTab(p: SidebarProps) {
   const { project, alignment, updateAlignment } = p.workspace
@@ -220,6 +222,7 @@ function DesignRoadSections(p: SidebarProps & { full: boolean }) {
       <RouteFinder
         workspace={p.workspace}
         full={full}
+        drawing={p.drawing}
         onPegRoad={() => p.onMode('road')}
         onPreview={p.onPreviewRoutes}
         onShowCompare={p.onShowCompare}
@@ -339,8 +342,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
   const validCorridorSettings =
     project.settings.maxGradePercent >= 1 &&
     project.settings.maxGradePercent <= 30 &&
-    project.settings.minRadius >= 5 &&
-    project.settings.minRadius <= 1000
+    project.settings.minRadius >= 0 &&
+    project.settings.minRadius <= MAX_SEARCH_RADIUS_M
   const validWidth = Number.isFinite(halfWidth) && halfWidth >= 25 && halfWidth <= 1000
   return (
     <CollapsibleSection
@@ -380,7 +383,7 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
             min={0}
             max={10000}
             step={5}
-            hint="Curves fitted to a found route are at least this radius; a corner too tight for one stays sharp and is flagged. The corridor optimizer and the curve checks use it too."
+            hint={`Curves fitted to a found route are at least this radius; a corner too tight for one stays sharp and is flagged. The corridor optimizer and the curve checks use it too. 0 sets no minimum: curves are then fitted from ${MIN_SEARCH_RADIUS_M} m up and none is flagged as tight.`}
             onChange={(minRadius) =>
               p.workspace.update((current) => ({ ...current, settings: { ...current.settings, minRadius } }))
             }
@@ -534,7 +537,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
           variant="outline"
           size="sm"
           className="w-full"
-          disabled={p.full && !replaceableRouteAlternatives(project.alignments, alignment.id).length}
+          disabled={!!p.drawing || (p.full && !replaceableRouteAlternatives(project.alignments, alignment.id).length)}
+          title={p.drawing ? DRAWING_REASON : undefined}
           onClick={() => p.onSuggest(route)}
         >
           Suggest terrain-cost {route.alternatives > 1 ? 'alternatives' : 'alternative'}
@@ -556,7 +560,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         </div>
         {!validCorridorSettings && (
           <InlineAlert tone="warning">
-            Corridor search requires grade 1–30% and radius 5–1,000 m. Adjust the shared fields above to enable it.
+            Corridor search requires a grade limit of 1–30% and a minimum radius of at most{' '}
+            {MAX_SEARCH_RADIUS_M.toLocaleString('en-CA')} m. Adjust the shared fields above to enable it.
           </InlineAlert>
         )}
         <div className="grid grid-cols-2 gap-2">
@@ -588,7 +593,8 @@ function RouteFinding(p: SidebarProps & { full: boolean }) {
         <Button
           size="sm"
           className="w-full"
-          disabled={p.full || !validWidth || !validCorridorSettings}
+          disabled={!!p.drawing || p.full || !validWidth || !validCorridorSettings}
+          title={p.drawing ? DRAWING_REASON : undefined}
           onClick={() => p.onOptimize(objective, halfWidth)}
         >
           Optimize sketched corridor

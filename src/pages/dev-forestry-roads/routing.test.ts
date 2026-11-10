@@ -85,7 +85,7 @@ describe('bounded terrain-cost route suggestion', () => {
     const samples = sampleReturned(route.coordinates, source)
     expect(samples.some((p) => p.x >= 60 && p.x <= 140 && p.y >= -35 && p.y <= 35)).toBe(false)
     expect(() => suggestRoute(point(100, 0), point(200, 0), source, settings, [box(60, -35, 140, 35)])).toThrow(
-      /endpoint.*exclusion/i,
+      /^The road's start is inside .+, an area excluded\. Move that end outside it/,
     )
   })
 
@@ -182,7 +182,7 @@ describe('forester-entered route constraints', () => {
     }
     expect(() =>
       suggestRoutes(point(140, 0), end, flat, settings, [box(150, -20, 250, 20)], { exclusionBufferM: 25 }),
-    ).toThrow(/endpoint.*clearance/i)
+    ).toThrow(/^The road's start is 10 m from .+, inside the 25 m clearance this search keeps from excluded areas\./)
   })
 
   it('can forbid streams and retain the entered setback around their ends', () => {

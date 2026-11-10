@@ -5,7 +5,7 @@
  * feasibility model nor a continuous/global road-optimization algorithm.
  */
 import { groundTrendTerrain, MAX_GROUND_WINDOW_M } from './groundTrend'
-import { routingContext } from './riparian'
+import { blockedRouteEndMessage, routingContext } from './riparian'
 import { deactivatedRoadNeedsReview } from './roadHistory'
 import type { ContextFeature, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -519,10 +519,27 @@ export function suggestRoutes(
     }
     return false
   }
-  if (excluded([0, 0]) || excluded(target))
-    throw Error('A route endpoint is inside an exclusion polygon. Move the endpoint outside the excluded area.')
-  if (nearBlockedFeature([0, 0]) || nearBlockedFeature(target))
-    throw Error('A route endpoint violates an exclusion or stream clearance. Move it outside the blocked corridor.')
+  const closedEnds = (
+    [
+      ['start', [0, 0]],
+      ['end', target],
+    ] as [string, XY][]
+  ).filter(([, at]) => excluded(at) || nearBlockedFeature(at))
+  if (closedEnds.length) {
+    const one = closedEnds.length === 1
+    throw Error(
+      blockedRouteEndMessage(
+        start,
+        end,
+        context,
+        {
+          excludedM: options.exclusionBufferM,
+          ...(options.allowStreamCrossings ? {} : { streamM: options.streamBufferM }),
+        },
+        `The road's ${closedEnds.map(([name]) => name).join(' and ')} ${one ? 'is' : 'are'} inside or too close to a blocked area. Move ${one ? 'that end' : 'the ends'}, or change the treatment of the area beside ${one ? 'it' : 'them'}.`,
+      ),
+    )
+  }
   const startElevation = read([0, 0]),
     endElevation = read(target)
   if (!Number.isFinite(startElevation) || !Number.isFinite(endElevation))

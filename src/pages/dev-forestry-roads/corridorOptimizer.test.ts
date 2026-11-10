@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   corridorFrame,
   CorridorSearchError,
+  MIN_SEARCH_RADIUS_M,
   optimizeRoadCorridor,
   optimizeRoadCorridorAsync,
 } from './corridorOptimizer'
@@ -132,14 +133,20 @@ describe('verified sketched-corridor search', () => {
   }, 30000)
   it('rejects endpoint contact and collinear overlap with an exclusion', () => {
     const guide = [point(0, 0), point(200, 0)]
-    expect(() => optimizeRoadCorridor(guide, flat, settings, [box(0, -10, 20, 10)], options)).toThrow(/endpoint/)
-    expect(() => optimizeRoadCorridor(guide, flat, settings, [barrier('avoid', guide)], options)).toThrow(/endpoint/)
+    expect(() => optimizeRoadCorridor(guide, flat, settings, [box(0, -10, 20, 10)], options)).toThrow(
+      "The road's start is inside Excluded, an area excluded. Move that end outside it, or change its treatment under Terrain → Constraints.",
+    )
+    expect(() => optimizeRoadCorridor(guide, flat, settings, [barrier('avoid', guide)], options)).toThrow(
+      /^The road's start is on avoid, a line excluded\. .* The road's end is on avoid, a line excluded\./,
+    )
   })
   it('honours an explicit exclusion clearance', () => {
     const guide = [point(0, 0), point(200, 0)]
     expect(() =>
       optimizeRoadCorridor(guide, flat, settings, [box(-10, 4, 10, 8)], { ...options, avoidanceClearanceM: 5 }),
-    ).toThrow(/endpoint/)
+    ).toThrow(
+      "The road's start is 4 m from Excluded, inside the 5 m clearance this search keeps from excluded areas. Move that end at least 1 m further away, or lower the exclusion clearance.",
+    )
   })
   it('refuses missing endpoint elevations and a continuous no-data barrier', () => {
     const guide = [point(0, 0), point(250, 0)]
@@ -237,12 +244,24 @@ describe('verified sketched-corridor search', () => {
     expect(contour.lengthM).toBeGreaterThan(shortest.lengthM)
     expect(contour.maxSampledGroundPitchPercent).toBeLessThanOrEqual(20.00001)
   }, 60000)
+  it('searches a road with no minimum radius at the tightest curve it draws', () => {
+    // A box across the direct line, so the road has to turn.
+    const guide = [point(0, 0), point(200, 0)]
+    for (const minRadius of [0, 3]) {
+      const found = optimizeRoadCorridor(guide, flat, { ...settings, minRadius }, [box(90, -40, 110, 40)], options)
+      expect(found.controlPoints.length).toBeGreaterThan(2)
+      expect(found.minimumRadiusM).toBeGreaterThanOrEqual(MIN_SEARCH_RADIUS_M - 1e-6)
+    }
+  }, 60000)
   it('enforces budgets and invalid dimensions', () => {
     const guide = [point(0, 0), point(200, 0)]
     expect(() => optimizeRoadCorridor(guide, flat, settings, [], { ...options, corridorHalfWidthM: NaN })).toThrow(
       /half-width/,
     )
-    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: 0 }, [], options)).toThrow(/radius/)
+    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: 1001 }, [], options)).toThrow(
+      /minimum radius of up to 1,000 m/,
+    )
+    expect(() => optimizeRoadCorridor(guide, flat, { ...settings, minRadius: -1 }, [], options)).toThrow(/radius/)
     expect(() =>
       optimizeRoadCorridor([point(0, 0), point(9000, 0), point(200, 0)], flat, settings, [], options),
     ).toThrow(/entire sketch/)

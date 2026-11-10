@@ -72,17 +72,22 @@ The final-connector adoption gate is documented in [Final connector checks](fina
 | Tangent steeper than 100 %    | allowed when typed, with a warning naming the two PVIs            | `engine.ts` `verticalProfile`                        | Warning                                                      |
 | Vertical curve                | half its length must fit each adjoining tangent                   | `engine.ts` `verticalProfile`                        | Curve dropped, warning, note under the PVI                   |
 | PVI spacing                   | at least 10 m (UI 10–1,000 m)                                     | `verticalOptimizer.ts`, `VerticalDesignControls.tsx` | Error                                                        |
+| Ground under the road         | at least 50 % of its length (`MIN_GROUND_SHARE`), read every 1 m  | `verticalOptimizer.ts` `GROUND_SAMPLE_M`             | Error before any search, naming the widest gap               |
+| Spacing PVI beside a control  | gives way within a fifth of the spacing, at least 5 m             | `verticalOptimizer.ts` `REQUIRED_CLEARANCE`          | That PVI is left out                                         |
+| Exact levels beside a control | 80 more than the ladder at one PVI (`MAX_EXACT_LEVELS`)           | `verticalOptimizer.ts`                               | Further levels are not added                                 |
 | Search ±, level step, K       | UI 0.5–30 m, 0.1–5 m, 0.1–1,000; K 0 or more in the search        | `VerticalDesignControls.tsx`, `verticalOptimizer.ts` | Field rejects the value; a negative or missing K is an error |
 | Level transitions             | 5,000,000 across all price runs (`maxTransitions`)                | `verticalOptimizer.ts`                               | Error: coarsen the level step, reduce depth or widen spacing |
 | Section solves                | 60,000 (`maxSectionSolves`)                                       | `verticalOptimizer.ts`                               | Error: widen spacing or coarsen the step                     |
 | Depth band between PVIs       | ± (search ± plus about four level steps); ±7 m at defaults        | `verticalOptimizer.ts` `rows`                        | Station priced as incomplete                                 |
 | Incomplete-section penalty    | $5,000 per m (`incompletePenaltyPerM`)                            | `verticalOptimizer.ts`                               | Added to the search cost only                                |
-| Simplification                | 0.3 m; kept if cost rises at most 1 % + $1                        | `verticalOptimizer.ts` `finish`                      | Unsimplified line kept                                       |
+| Simplification                | 0.3 m, then 0.15 and 0.075 m; kept if cost rises at most 1 % + $1 | `verticalOptimizer.ts` `finish`, `SIMPLIFY_SHARES`   | Unsimplified line kept                                       |
 | Imbalance prices (total cost) | 0, 0.25, 0.5, 1, 2 × max(1, fill, borrow, waste rate)             | `verticalOptimizer.ts` `prices`                      | —                                                            |
 
 The dynamic programme runs on the page's main thread in slices of about 12 ms
 (`COOPERATIVE_SLICE_MS` in `cooperative.ts`), so the page keeps answering, the progress line
-shows a percentage and **Cancel** stops the run at the next slice. It also stops at its
+shows a percentage and **Cancel** stops the run at the next slice. Reading the ground along the
+road is sliced too, every 250 readings (`GROUND_SLICE`): finding the ground beside each PVI by
+walking the road again held the page for 17 s on a 5 km road mostly off the terrain. It also stops at its
 level-transition budget. Its work grows rapidly with levels per PVI (2 × search ÷ step + 1), up
 to five times over for **Total cost**. For each last-level pair and proposed next level, a sorted prefix query
 selects the cheapest predecessor that leaves enough tangent; it does not repeat the same
@@ -112,7 +117,7 @@ The search refuses non-finite inputs and more than 500 proposed PVIs before allo
 | Endpoints; sketch extent; sketch length | 10 m–5 km apart; within 7 km of the start; 15 km                       | `corridorOptimizer.ts`                          | Error                                         |
 | Corridor half-width                     | 25–1,000 m (default 180 m)                                             | `corridorOptimizer.ts`, `sidebar/DesignTab.tsx` | Error or button disabled                      |
 | Ground-grade limit                      | 1–30 %, taken from the road's grade limit                              | `corridorOptimizer.ts`                          | Error                                         |
-| Minimum radius                          | 5–1,000 m, taken from the road settings                                | `corridorOptimizer.ts`                          | Error                                         |
+| Minimum radius                          | 0–1,000 m, from the road settings; searched at no less than 5 m        | `corridorOptimizer.ts` `MIN_SEARCH_RADIUS_M`    | Error above 1,000 m                           |
 | Search states                           | 50,000 (`maxStates`)                                                   | `corridorOptimizer.ts`                          | Budget-limited result, or error if none found |
 | Search weight                           | 1–5 (`searchWeight`); 1, or 2 with a ground penalty                    | `corridorOptimizer.ts`                          | Error                                         |
 | Terrain samples; geometry operations    | 3,500,000 (`maxTerrainSamples`); 200,000,000 (`maxGeometryOperations`) | `corridorOptimizer.ts`                          | Error                                         |
@@ -234,6 +239,14 @@ value, **Max deviation**, and the road-wide minimum radius.
 - Every fitted curve is at least the minimum radius and as large as the deviation and its tangents
   allow, up to 1,000 m. A corner that cannot take the minimum radius inside the deviation stays
   sharp and is counted; **Fit sharp corners** then gives it the largest curve its tangents hold.
+- A corner is any point the road engine would flag without a curve, about 0.008° of turn
+  (`STRAIGHT`, the test `compile` in `engine.ts` applies), so the sharp corners counted are the
+  sharp PIs the engine reports on the result. Slight bends therefore get a curve too, usually the
+  1,000 m maximum. Radii are rounded down to 0.1 m, never below the minimum.
+- A minimum radius of 0 means none is set. Curves are then fitted from 5 m up (`SMALLEST_CURVE_M`,
+  `fittedMinimumRadius`): a tighter one is a sharp corner in all but name. The same holds wherever
+  a search or fit reads the minimum radius: found routes, **Find the best route** and the corridor
+  optimizer, which draws no curve under 5 m (`MIN_SEARCH_RADIUS_M`).
 - The notice gives points before and after, the number of curves and the tightest, the largest
   distance between the old line and the new centreline, and both lengths. That distance is measured
   on the result at 1 m samples, both ways; it is not assumed from the tolerances.
@@ -262,27 +275,64 @@ and last tangents are exempt from the minimum tangent length.
   sag/crest K values combine with **Curve K** by taking the strictest value. Linear-only ranges
   exclude curves and grade breaks. The DP retains the preceding occupied half-curve and a Pareto
   frontier of cost/tangent occupancy, enforcing curve fit and interior tangent lengths during search.
-- A control's own elevation is a search level exactly as entered, to any number of decimals, and a
-  free PVI beside a grade control also gets the levels that run at exactly that grade from it.
-  Levels a control depends on are not rounded; all others are whole millimetres. A control at the
-  ground or profile value the workspace filled in, held to ±0, is therefore always inside the search.
-- **Gaps in the terrain.** A PVI that the spacing puts on a gap slides to the nearest station with
-  ground, up to half a spacing away, and the log counts it. If nothing that near has ground, the PVI
-  stays and its levels are centred on ground read across the gap from the stations either side.
-  Stations on the gap have no section, so they are priced as incomplete and left out of the
-  quantities. An end tied to ground must have ground under it: otherwise the run stops and names
-  the end.
+- **Where the PVIs go.** The ends, every control and every range boundary, then the regular
+  spacing. A spacing PVI nearer a control or range boundary than a fifth of the spacing (at least
+  5 m) gives way to it: a metre from a control it left an interval no level ladder could cross
+  inside the grade limit, and the run reported grades of hundreds of percent. A control that sets a
+  grade needs a PVI free to move on each side, so one goes in halfway to a tied end or an elevation
+  control beside it.
+- **Levels a control needs.** A control's own elevation is a search level exactly as entered, to
+  any number of decimals, with the two edges of its tolerance. A free PVI beside a grade control
+  gets the levels that run at exactly that grade from it, and a grade control beside a tied end or
+  an elevation control gets the level that runs at its grade from there. A free PVI beside an
+  elevation control gets the levels that carry each line from the other side straight through it.
+  Levels a control depends on are not rounded and those PVIs stay in the result; all other levels
+  are whole millimetres.
+- **A control is held on its curve, inside the search.** A vertical curve moves the line at its PVI
+  by L × grade change ÷ 800. The search applies that to every line through an elevation control
+  (`CONTROL_FIT`), so a control held to ±0 is met where the grade does not change, and one with a
+  tolerance where the curve stays inside it. If that leaves no line, the search runs once more
+  holding controls on the tangents only, and each control's PVI is then set where its curve passes
+  through the control: with the curve length held that is one linear equation, solved exactly
+  (`shaped`). Either way the result is read back through the engine before it is returned.
+- **Gaps in the terrain.** Ground under the centreline is read once, every 1 m. A PVI that the
+  spacing puts on a gap slides to the nearest station with ground, up to half a spacing away, and
+  the log counts it. If nothing that near has ground, the PVI stays and its levels are centred on
+  ground read across the gap: the straight line between the ground at the gap's two edges, or the
+  level of the one edge when the gap runs to a road end. Stations on the gap have no section, so
+  they are priced as incomplete and left out of the quantities, and every level there would cost
+  the same. The line is therefore also charged for its distance from that straight line, at the
+  formation's width times the dearer of the cut and fill rates per metre off it, so it crosses a
+  gap on the line between the edges unless a limit forces it off. A line 5 m below the far side with
+  a −16.9 % pitch into the gap was the result of taking the lowest of equal costs.
+- **Too little ground.** A road with ground under less than half its length is refused before any
+  search, with the share, the lengths and the widest gap. A gap whose edges are too far apart in
+  level for the grade limit ends the run with the gap's stations, the two levels and the grade
+  straight across. An end tied to ground must have ground under it: otherwise the run stops and
+  names the end.
 - Curves keep their required lengths rather than being silently shortened below K. The complete
   fitted result is rechecked against every standard and control before returning.
-- Elevation controls are corrected against the actual parabolic profile in at most 24 bounded
-  iterations, then rechecked. This handles the middle-ordinate shift at a control on a grade break.
-  An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
+- **Every curve of a returned profile is built.** The engine drops a vertical curve that does not
+  fit its tangents or overlaps its neighbour and keeps the tangent grades, so a result is read back
+  through the engine's own curve fit (`curveFault`). A line with a dropped or short curve is
+  repaired by taking out the free PVI nearest the line through its neighbours, which lengthens the
+  tangents (`withFittedCurves`); the log counts the PVIs removed. If only controls and the road
+  ends are left to remove, that trial line fails and the message names the grade break, the curve
+  it needs and the tangent it has.
+- An unsatisfied or infeasible control rejects the candidate; no missed control is accepted.
 - Between PVIs, a station more than about the search ± plus four level steps from the selected band reference is
   priced as incomplete at $5,000 per m. Deep fills over a gully between PVIs are discouraged,
   not costed.
 - **Cut and fill** minimizes cut × cut rate + fill × fill rate only. Surfacing and clearing are
   left out. **Total cost** picks, from five imbalance prices, the line that the full analysis
   prices lowest, haul, borrow and waste included.
+- **The material plan never refuses a profile.** A profile is a geometry result. When its haul plan
+  is not solved or cannot be met, the profile is still returned, and the log says what the
+  earthwork needs: the borrow or waste volume and the site that is missing (`materialPlanNote`).
+  Its estimate then leaves out haul, borrow and waste, so of the five **Total cost** lines one with
+  a solved plan is preferred. A line fails its final check only on geometry (a curve that does not
+  fit, a vertical standard, a control, the grade limit) or, for **Total cost**, on crossings with
+  no price, and each failure carries the remedy for its own cause (`CHECK_REMEDY`).
 
 **Route search** (`routing.ts`) uses only the first and last points of the active road. It
 moves in eight directions on the grid, so every bend of the route it finds is a multiple of 45°.
@@ -296,7 +346,8 @@ in `routeFit.ts`):
   between one and two times the minimum, kept only if every metre of its centreline has ground under
   it and it enters no blocked area. A corner with no room for the minimum radius takes the largest
   curve its tangents hold, of 5 m or more, and is flagged below the minimum radius. A corner where
-  no curve stays on the terrain stays sharp. The notice counts both.
+  no curve stays on the terrain stays sharp. The notice counts both. With no minimum radius set (0),
+  radii run from 5 to 10 m and none is flagged as tight.
 - **Name.** `<road> · terrain-cost route <n>`: the lowest number free, an identifier only. A search
   run from a found route names its roads after the original road, not after the route.
 - **Record.** The road keeps the search's rank, score, length and crossing count (`routeSearch`,
@@ -305,9 +356,12 @@ in `routeFit.ts`):
   and ground steeper than the limit while the road has no profile. That last figure is raw ground
   between stations, which reads steeper than the trend the search held to the limit; fit a profile
   to see the designed grade.
-- **Replacement.** The next search removes the found roads nobody has changed: same points and name,
-  no profile, widenings, standards, controls or engineering. A road you rename, edit or design is
-  kept, and so is the road the search runs from. One Undo brings the replaced roads back. Replaced
+- **Replacement.** The next search removes the found roads nobody has changed
+  (`isUntouchedRouteAlternative`): same points, radii, spirals, section template and name, and no
+  profile, widenings, standards, controls, curve rules, vehicle check or engineering. A road you
+  rename, edit or design is kept, and so is the road the search runs from. The template is compared
+  by a fingerprint kept in the road's record (`templateKey`); a record saved before that was kept is
+  judged on the rest. One Undo brings the replaced roads back. Replaced
   roads leave room for new ones against the 20-road limit.
   Edge cost is road
   $/m × (1 + 3(g/gmax)²), plus crossings and zone costs. The defaults, $100/m and $8,000 per
@@ -319,7 +373,7 @@ in `routeFit.ts`):
 **Corridor optimizer** (`corridorOptimizer.ts`) checks ground grade between 1 m samples
 against the road grade limit, uphill and downhill alike in the UI. Its turns are arcs with
 2 m tangents between them, so one bend can become several PIs. Radii are a few discrete values
-at or above the minimum radius (`nominalTurnRadiusM` in the report). Exclusions apply to the
+at or above the minimum radius, and never under 5 m (`nominalTurnRadiusM` in the report). Exclusions apply to the
 centreline only, with no clearance in the UI. There are no spirals and no vertical design.
 
 ## Ground trend
@@ -348,6 +402,13 @@ goal. Your road is never edited. Clicking a row adds that road and makes it acti
 and table shows it; **Compare all** adds the rest and opens Compare. The switcher above the summary
 tiles then flips between roads from any tab or view.
 
+**New ends on map** starts pegging a new road, which exists only once **Finish road** is pressed.
+Until then the plan, profile and header show the line being pegged while the project still holds the
+saved road, so the searches wait: **Compare routes**, **Compare access routes**, **Suggest
+terrain-cost alternative** and **Optimize sketched corridor** are disabled, and the route finder
+says why beside its own **Finish road** button (`RoadDrawing` in `DesignSidebarBody.tsx`). The same
+holds while extending a road.
+
 | Goal                   | Horizontal line                                                                                                    | Profile                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------ | ----------------------------- |
 | Lowest cost            | Prices the shortest, balanced and contour lines, drainage allowance included; keeps the cheapest within the limits | Cheaper of cut/fill and total |
@@ -362,8 +423,10 @@ drainage allowance included, comes down.
 **Rows are named by what was measured, not by the search that made them** (`assignGoals`). Each goal
 goes to the road leading it among those that meet every limit, your road included, with ties to the
 cheaper. One road can hold several goals, and a road leading nothing is left out. A road that breaks
-a limit or found no line shows only when no other road holds its goal. Goals that failed for the
-same reason share one line. Your road shows the goals it already leads.
+a limit or found no line shows only when no other road holds its goal. When no search produced a
+road at all, every failed goal stays: your road then holds each goal only because nothing was set
+against it. Goals that failed for the same reason share one line. Your road shows the goals it
+already leads.
 
 **How a line is found** (`horizontal` in `routeComparison.ts`). Each step is tried only when the
 one before found nothing, and the row's note says which one produced the road:
@@ -390,12 +453,25 @@ line and says so. A goal with no route at all does not stop the others.
 **A goal with no road says why** (`describeCorridorFailure`). The row names the limits, how near
 the end the search got, whether it ran out of budget or of lines to try, the check that stopped the
 most lines (grade, gaps in the terrain, blocked areas or the corridor's edge) with its share, and
-what to change. It is the report of the search that got nearest the end. Goals that failed for the
-same reason share one row.
+what to change. It is the report of the search that got nearest the end, and it is used only for a
+goal that found no line (`failureText`). A goal that found a line and could not fit a profile to it
+says so and gives the profile's reason; one whose search could not start, such as a grade limit over
+30 %, gives that. Lowest cost tries three lines and reports a lost line before a line never found.
+Goals that failed for the same reason share one row.
+
+**An end inside a closed area is named** (`blockedRouteEnds` in `riparian.ts`). The corridor and
+terrain-cost searches stop before they start when an end sits inside an excluded area, an area or
+stream whose conditional review is not recorded, or a clearance the search keeps from either. The
+message gives the end, the feature by name, the distance and what to change: "The road's start is
+49 m from Stream 1, inside its 100 m riparian screening area, which is closed to routes until its
+review is recorded. Move that end at least 52 m further from the stream, or record the review or
+change the stream's route treatment under Terrain → Streams." A stream's screening area is not
+listed under **Constraints**, which is why the stream has to be named.
 
 **The notice counts what came back** (`comparisonSummary`): how many routes, how many of them
 carry a flag, and the goals left without one. With no route at all it is an error that repeats the
-reason, never "ready".
+reason, never "ready". "No new road beat yours on these goals" means roads were designed and yours
+leads every goal; it is not shown when every search failed.
 
 **Progress and Cancel.** Every search and profile fit runs in slices of about 12 ms
 (`cooperative.ts`), so the page keeps answering. The progress line names the step, what it is doing
@@ -422,6 +498,10 @@ does not enter the road's estimate, because no culvert has been sized or placed.
 **A row with a blocker cannot lead.** Grades over the limit, incomplete sections and sharp corners
 keep a road out of the Cheapest, Shortest, Gentlest and Best drainage tags, however low its price. A
 road with no designed profile follows the ground, so it can look cheap while breaking the limit.
+So does a road whose material plan is not solved or cannot be met (`materialPlanGap`): no movement
+is adopted, so its estimate has no haul, borrow, waste or site preparation. One road read $38,873
+with its plan unsolved and $41,215 solved. Its row says the cost leaves those out, and of two
+profiles fitted to one line the one with a solved plan is kept.
 
 **Comparing like with like.** New roads carry the active road's template only. If the current road
 has culverts, materials or haul inputs, its estimate includes them and theirs does not.
@@ -451,11 +531,15 @@ segment drops about 25 %. Before you accept an untied result, pin each end with 
 point at the elevation it must meet and run again.
 
 **Simplification.** The search places a PVI every spacing step. Douglas–Peucker at 0.3 m then
-drops PVIs, and the simpler line is kept only if it has no vertical check failures, no grade
-over the limit, no less coverage and no more than 1 % + $1 extra objective cost.
+drops PVIs, and the simpler line is kept only if every one of its curves still fits, it has no
+vertical check failures, no grade over the limit, no less coverage and no more than 1 % + $1 extra
+objective cost. Fewer PVIs mean larger grade changes and longer curves, and two of them can meet on
+a short tangent: on rolling 400 m roads that happened on 2 of 25 terrains at K 10 and 6 of 25 at
+K 20. Half and a quarter of the tolerance are then tried, and the message gives the one used.
 Both simplified and unsimplified candidates must pass the final vertical standards,
 controls and road-wide grade checks before a result is returned. If no tested candidate
-passes, optimization reports an error and creates no road.
+passes, optimization reports an error that names the failed check and its remedy, and creates no
+road.
 
 **Infeasible.** "No profile meets the limits between _a_ and _b_" names the first PVI interval
 where no line survives, then the check that removed the last of them, in the order the search
@@ -480,7 +564,8 @@ holds there, the objective, then steepest grade, cut and fill, waste or borrow a
 full analysis of the returned line. Waste is usable cut left after filling, as bank volume; borrow
 is fill still needed. Notes underneath say what the run could not do: length with no complete
 section, PVIs moved off gaps, earthwork out of balance by more than a tenth of cut plus fill (and
-50 m³), an untied end left above or below ground, and trial lines dropped after curve fitting. The
+50 m³), an untied end left above or below ground, PVIs taken out so every curve fits, and trial lines
+dropped after curve fitting. The
 log belongs to the road or named profile the run produced and goes when you open another.
 
 **Budget-limited.** The corridor optimizer can return a verified candidate after reaching its
@@ -525,8 +610,11 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Reverse-curve runoff shorter than entered                                 | Limited by each spiral plus half the intervening tangent                                                     | Inspect the crossfall rotation rate and lengthen the tangent if needed |
 | Design speed requires more e than the maximum                             | Radius below V²/(127(e + f)); geometry is capped and flagged                                                 | Increase radius, reduce speed or review the sourced criteria           |
 | "Vertical curve at _x_ m does not fit its tangents"                       | Curve half-length longer than a tangent                                                                      | Use the length the note gives, or **Set every curve from K**           |
-| Optimized profile fails a standard                                        | No fitted candidate passed the discrete band, range and control constraints                                  | Widen the band, change spacing or review the conflicting constraints   |
-| Control point fails after optimizing                                      | Curve moved the formation at a grade break                                                                   | Widen the tolerance or move the control off the break                  |
+| "No profile passed its final check once curves were fitted"               | No fitted candidate passed the discrete band, range and control constraints                                  | Change what the message names: it gives the check and its remedy       |
+| Log: "The material plan for this profile cannot be met as entered"        | Haul allocation is on and the profile's borrow or waste has no site                                          | Add the site under Engineering → Haul; the profile itself is valid     |
+| "A vertical curve there moves the line off it by more than that"          | A control held tighter than its curve's middle ordinate, with no line straight through it inside the band    | Widen the tolerance or the search, or lower Curve K                    |
+| "Only _n_% of this road has ground under it"                              | Less than half the road is on the terrain                                                                    | Load terrain for the widest gap, or shorten the road                   |
+| "The gap in the terrain from _a_ to _b_ cannot be bridged"                | The ground at the gap's edges is too far apart in level for the grade limit and search band                  | Load terrain for the gap, widen the search or relax the grade limit    |
 | Optimized road ends far above or below ground                             | Ends untied                                                                                                  | Add end controls and rerun                                             |
 | "The search needs too many section solves"                                | Long road, fine step, wide search or short station interval                                                  | Widen spacing, coarsen the step or shorten the road                    |
 | "Use a K of 0 or more; 0 fits no vertical curves."                        | A K below 0 or not a number reached the search                                                               | Enter a K of 0 or more                                                 |
@@ -537,8 +625,9 @@ engineering assumptions and sampling, and review the geometric and material flag
 | Route is a zigzag of 45° legs                                             | Eight-direction grid                                                                                         | **Reduce points, fit curves** with more deviation, then recheck grade  |
 | A found route has sharp corners or curves under the minimum radius        | Grid legs too short for the minimum radius, or the curve would leave the terrain                             | Move the points apart, or reduce points with more deviation            |
 | Route or corridor alternative looks far cheaper in Compare                | No vertical design or engineering inputs                                                                     | Design a profile and copy the engineering inputs first                 |
-| "Ground-grade screening limits must be between 1% and 30%."               | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
-| "Minimum radius must be 5–1,000 m."                                       | Road minimum radius 0 or above 1,000 m                                                                       | Set a minimum radius in that range                                     |
+| "The corridor search takes a grade limit of 1–30%."                       | Road grade limit above 30 %                                                                                  | Lower the grade limit before using the corridor optimizer              |
+| "The corridor search takes a minimum radius of up to 1,000 m."            | Road minimum radius above 1,000 m                                                                            | Lower the minimum radius, or leave it at 0 for none                    |
+| "The road's start is _n_ m from _stream_, inside its riparian screening…" | An end is inside an area closed to routes; an unclassified stream screens 100 m either side                  | Move the end, record the stream's review or change its route treatment |
 | "No covered ground-grade solution within ±90° of this bearing"            | Grade unreachable at that distance, or terrain gaps                                                          | Change the grade, bearing or distance                                  |
 
 ## What it does not do

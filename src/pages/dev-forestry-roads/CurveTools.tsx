@@ -6,7 +6,13 @@ import { NumberField, OptionalNumberField, roadFieldClass } from './Controls'
 import { evaluateCurveCriteria, parseWideningTableCsv } from './roadCriteria'
 import { centrelineSamples, curveDesignAt, horizontalCurveSummary } from './engine'
 import { fitHorizontalRadii, type RadiusFitMode } from './horizontalTools'
-import { describePolylineFit, fitPolylineAlignment, MAX_FIT_DEVIATION_M, MIN_FIT_DEVIATION_M } from './polylineFit'
+import {
+  describePolylineFit,
+  fitPolylineAlignment,
+  fittedMinimumRadius,
+  MAX_FIT_DEVIATION_M,
+  MIN_FIT_DEVIATION_M,
+} from './polylineFit'
 import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
 
@@ -87,7 +93,11 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
           className={bulkButtonClass}
           disabled={!corners}
           data-testid="road-reduce-points"
-          title={`Polyline to alignment: keeps as few points as will hold the line within this distance, with a curve of at least the ${project.settings.minRadius} m minimum radius at each`}
+          title={`Polyline to alignment: keeps as few points as will hold the line within this distance, with a curve of at least ${
+            project.settings.minRadius > 0
+              ? `the ${project.settings.minRadius} m minimum radius`
+              : `${fittedMinimumRadius(0)} m (no minimum radius is set)`
+          } at each`}
           onClick={reduce}
         >
           Reduce points, fit curves

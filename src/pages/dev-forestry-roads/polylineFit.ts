@@ -10,18 +10,19 @@
  * the same way are then merged into one intersection point where their tangents meet, when a single
  * curve there still follows the line: that is how a bend drawn as a run of short chords becomes one
  * curve. A corner that cannot take the minimum radius either way stays sharp and is counted, never
- * given a smaller curve.
+ * given a smaller curve. A corner is any point the road engine would flag without a curve, however
+ * slight its turn, so the count is the number of sharp PIs the engine reports on the result.
  *
  * The reported deviation is measured on the fitted centreline, both ways, not assumed from the
  * tolerances. Pure: no DOM, network or terrain access.
  */
-import { corridorFrame } from './corridorOptimizer'
+import { corridorFrame, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import type { Coordinate } from './types'
 
 export interface PolylineFitOptions {
   /** Farthest the fitted centreline may sit from the source line, and the source from it, m. */
   maxDeviationM: number
-  /** Smallest radius a fitted curve may take, m. */
+  /** Smallest radius a fitted curve may take, m. 0 means no minimum was entered: see `fittedMinimumRadius`. */
   minRadiusM: number
   /** Largest radius fitted; beyond it a curve changes nothing a plan shows. */
   maxRadiusM?: number
@@ -44,10 +45,22 @@ type XY = [number, number]
 export const MIN_FIT_DEVIATION_M = 0.1
 export const MAX_FIT_DEVIATION_M = 500
 export const MAX_FIT_SOURCE_POINTS = 5000
+/** A curve tighter than this is not worth having over a sharp corner; it is the least the corridor search takes. */
+export const SMALLEST_CURVE_M = MIN_SEARCH_RADIUS_M
+/**
+ * The radius curves are fitted down to. A minimum radius of 0 means none was entered, and a fit then
+ * goes no tighter than `SMALLEST_CURVE_M`: a smaller curve is a sharp corner in all but name.
+ */
+export const fittedMinimumRadius = (minRadiusM: number) => (minRadiusM > 0 ? minRadiusM : SMALLEST_CURVE_M)
 /** Tangents may use this share of a leg, as in `horizontalTools.ts`, so the engine's own fit accepts them. */
 const FIT = 0.98
-/** Below this a point does not turn the line by anything a plan could show. */
-const STRAIGHT = (0.5 * Math.PI) / 180
+/**
+ * The turn at which the road engine reads a point as a corner, and flags it sharp when it has no
+ * curve: `compile` in `engine.ts` compares the legs' unit vectors, cos Δ < 1 − 1e-8, about 0.008°.
+ * A larger figure here left slight bends without a curve and uncounted, and the engine then flagged
+ * each one as a sharp PI on a road reported to have none.
+ */
+const STRAIGHT = Math.acos(1 - 1e-8)
 /** Shares of the deviation spent on dropping points, fewest points first; the rest goes to the curves. */
 const REDUCTIONS = [1, 0.8, 0.6, 0.45, 0.3, 0.2, 0.1, 0.04, 0]
 const SAMPLE_M = 1
@@ -155,19 +168,16 @@ function centreline(ips: XY[], radii: number[]) {
 }
 
 export function fitPolylineAlignment(coordinates: Coordinate[], options: PolylineFitOptions): PolylineFitResult {
-  const { maxDeviationM, minRadiusM, maxRadiusM = 1000 } = options
-  if (
-    !Number.isFinite(maxDeviationM) ||
-    maxDeviationM < MIN_FIT_DEVIATION_M ||
-    maxDeviationM > MAX_FIT_DEVIATION_M ||
-    !Number.isFinite(minRadiusM) ||
-    minRadiusM <= 0 ||
-    !Number.isFinite(maxRadiusM) ||
-    maxRadiusM < minRadiusM
-  )
-    throw Error(
-      `Use a maximum deviation of ${MIN_FIT_DEVIATION_M}–${MAX_FIT_DEVIATION_M} m and a minimum radius above 0 m.`,
-    )
+  const { maxDeviationM } = options
+  if (!Number.isFinite(maxDeviationM) || maxDeviationM < MIN_FIT_DEVIATION_M || maxDeviationM > MAX_FIT_DEVIATION_M)
+    throw Error(`Use a maximum deviation of ${MIN_FIT_DEVIATION_M}–${MAX_FIT_DEVIATION_M} m.`)
+  if (!Number.isFinite(options.minRadiusM) || options.minRadiusM < 0)
+    throw Error('Use a minimum radius of 0 m or more; 0 sets no minimum.')
+  const minRadiusM = fittedMinimumRadius(options.minRadiusM)
+  // A minimum above the usual ceiling is still a minimum: fit at it rather than refuse the line.
+  const maxRadiusM = options.maxRadiusM ?? Math.max(1000, minRadiusM)
+  if (!Number.isFinite(maxRadiusM) || maxRadiusM < minRadiusM)
+    throw Error('The largest radius to fit must be at least the minimum radius.')
   if (coordinates.length < 2) throw Error('A line needs at least two points.')
   if (coordinates.length > MAX_FIT_SOURCE_POINTS)
     throw Error(
@@ -227,10 +237,11 @@ export function fitPolylineAlignment(coordinates: Coordinate[], options: Polylin
         trims[i] = a + (trims[i] - a) * spare
         trims[i + 1] = b + (trims[i + 1] - b) * spare
       }
+    // Radii are whole tenths of a metre, rounded down, but never below a minimum that is not one.
     const radii = trims.map((trim, i) => {
       if (!corner[i]) return 0
-      const radius = Math.floor((trim / half[i]) * 10 + 1e-6) / 10
-      return radius >= minRadiusM - 1e-6 ? radius : 0
+      const radius = trim / half[i]
+      return radius >= minRadiusM - 1e-6 ? Math.max(minRadiusM, Math.floor(radius * 10 + 1e-6) / 10) : 0
     })
     // Each point stands for a stretch of the source line; a merged point stands for two.
     return { ips, radii, spans: kept.map((i): [number, number] => [i, i]) }
@@ -266,8 +277,10 @@ export function fitPolylineAlignment(coordinates: Coordinate[], options: Polylin
         to = spans[i + 1][1]
       let gap = Infinity
       for (let k = from; k < to; k++) gap = Math.min(gap, toSegment(meet, source[k], source[k + 1]))
-      const radius =
-        Math.floor(Math.min(maxRadiusM, Math.max(minRadiusM, gap / (1 / Math.cos(turn / 2) - 1))) * 10) / 10
+      const radius = Math.max(
+        minRadiusM,
+        Math.floor(Math.min(maxRadiusM, gap / (1 / Math.cos(turn / 2) - 1)) * 10) / 10,
+      )
       const tangent = radius * Math.tan(turn / 2)
       const piece = centreline([a, meet, d], [0, radius, 0])
       const around = source.slice(spans[i - 1][1], spans[i + 2][0] + 1)
@@ -343,8 +356,9 @@ export function describePolylineFit(fit: PolylineFitResult, limits: PolylineFitO
   const curves = fit.curves
     ? `${plural(fit.curves, 'curve')}, the tightest ${fit.smallestRadiusM!.toFixed(1)} m`
     : 'no curves'
+  // With no minimum entered there is no radius to lower: the fit already went to the smallest curve it draws.
   const sharp = fit.sharpCorners
-    ? ` ${plural(fit.sharpCorners, 'corner')} could not take a ${limits.minRadiusM} m curve within ${limits.maxDeviationM} m and ${fit.sharpCorners === 1 ? 'stays' : 'stay'} sharp: allow more deviation or a smaller radius.`
+    ? ` ${plural(fit.sharpCorners, 'corner')} could not take a ${fittedMinimumRadius(limits.minRadiusM)} m curve within ${limits.maxDeviationM} m and ${fit.sharpCorners === 1 ? 'stays' : 'stay'} sharp: allow more deviation${limits.minRadiusM > 0 ? ' or a smaller radius' : ''}.`
     : ''
   return (
     `${plural(fit.sourcePoints, 'point')} reduced to ${fit.fittedPoints} with ${curves}. ` +

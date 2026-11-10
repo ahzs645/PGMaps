@@ -3166,6 +3166,16 @@ export default function DevForestryRoads() {
                   beginMode(next)
                   if (focusMode) setControlsOpen(false)
                 }}
+                drawing={
+                  mode === 'road' || mode === 'extend'
+                    ? {
+                        kind: mode,
+                        points: draft.length,
+                        canFinish: draft.length >= minimumDraftPoints(mode),
+                        onFinish: finishDraw,
+                      }
+                    : null
+                }
                 onFile={requestFile}
                 onTerrain={loadTerrain}
                 verticalReference={verticalReference}

@@ -16,12 +16,13 @@ import {
   type RouteGoal,
   type RouteRow,
 } from './routeComparison'
-import { corridorSearchResolution } from './corridorOptimizer'
+import { corridorSearchResolution, MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M } from './corridorOptimizer'
 import { DEFAULT_GROUND_WINDOW_M, resolvedGroundWindow } from './groundTrend'
 import { DEFAULT_ROUTE_OPTIONS } from './routing'
 import { DEFAULT_DRAINAGE_SETTINGS } from './drainageRun'
 import { localMetricGrid } from './terrain'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import type { RoadDrawing } from './DesignSidebarBody'
 import type { Coordinate } from './types'
 
 const MAX_ROADS = 20
@@ -43,6 +44,7 @@ const GOAL_LABEL = Object.fromEntries(ROUTE_GOALS.map((goal) => [goal.id, goal.l
 export function RouteFinder({
   workspace: w,
   full,
+  drawing,
   onPegRoad,
   onPreview,
   onShowCompare,
@@ -50,6 +52,8 @@ export function RouteFinder({
 }: {
   workspace: RoadWorkspace
   full: boolean
+  /** A road line still being pegged on the plan: a search waits until it is finished. */
+  drawing?: RoadDrawing | null
   onPegRoad: () => void
   onPreview?: (lines: RoutePreviewLine[] | null) => void
   onShowCompare?: () => void
@@ -102,7 +106,8 @@ export function RouteFinder({
     setGoals((now) => (now.includes(goal) ? now.filter((g) => g !== goal) : [...now, goal]))
 
   const compare = async () => {
-    if (abort.current || w.busy) return
+    // The plan shows the line being pegged, but the project still holds the saved road.
+    if (abort.current || w.busy || drawing) return
     const controller = new AbortController()
     abort.current = controller
     // Cancel hands the workspace back at once; the search stops at its next slice, a few milliseconds on.
@@ -261,16 +266,40 @@ export function RouteFinder({
           <NumberField
             label="Tightest curve (m)"
             value={project.settings.minRadius}
-            min={5}
-            max={1000}
+            min={0}
+            max={MAX_SEARCH_RADIUS_M}
             step={5}
+            hint={
+              project.settings.minRadius < MIN_SEARCH_RADIUS_M
+                ? `The search draws no curve tighter than ${MIN_SEARCH_RADIUS_M} m.`
+                : undefined
+            }
             onChange={(minRadius) => w.update((x) => ({ ...x, settings: { ...x.settings, minRadius } }))}
           />
         </div>
+        {drawing && (
+          <InlineAlert tone="warning" className="flex items-center gap-2">
+            <span className="min-w-0 flex-1" data-testid="road-route-drawing">
+              {drawing.kind === 'extend'
+                ? `You are extending this road (${plural(drawing.points, 'new point')}). Finish the extension to search between its ends.`
+                : `You are pegging a new road (${plural(drawing.points, 'point')}). Finish it to search between its ends.`}
+            </span>
+            <Button
+              size="sm"
+              className="h-7 shrink-0 px-2 text-xs"
+              disabled={!drawing.canFinish}
+              title={drawing.canFinish ? undefined : 'Click the plan to add points first'}
+              onClick={drawing.onFinish}
+            >
+              {drawing.kind === 'extend' ? 'Finish extension' : 'Finish road'}
+            </Button>
+          </InlineAlert>
+        )}
         <Button
           size="sm"
           className="w-full"
-          disabled={!goals.length || full}
+          disabled={!goals.length || full || !!drawing}
+          title={drawing ? 'Finish the road being drawn on the plan first' : undefined}
           onClick={() => void compare()}
           data-testid="road-compare-routes"
         >
@@ -326,7 +355,7 @@ export function RouteFinder({
             </p>
           )}
         </details>
-        {stale && (
+        {stale && !drawing && (
           <InlineAlert tone="warning">
             The road, limits or terrain changed.{' '}
             <button className="underline" onClick={() => void compare()}>

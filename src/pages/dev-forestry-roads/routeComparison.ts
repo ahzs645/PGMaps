@@ -12,6 +12,7 @@ import { crossingScreeningOverlapCount } from './crossingPlan'
 import {
   corridorFrame,
   CorridorSearchError,
+  MIN_SEARCH_RADIUS_M,
   optimizeRoadCorridorAsync,
   type CorridorFailure,
   type RoadOptimizationObjective,
@@ -273,6 +274,17 @@ export function flowPenalty(
   }
 }
 
+/**
+ * Why a road's estimate is not a complete price: its material plan was not solved, or cannot be met
+ * as entered, so no movement was adopted and haul, borrow, waste and site preparation are all zero.
+ * Such a road reads cheaper than the same road with its plan solved. '' when the plan stands.
+ */
+export function materialPlanGap(analysis: RoadAnalysis) {
+  const status = analysis.engineering?.haul.optimizationStatus
+  if (status !== 'unsolved' && status !== 'infeasible') return ''
+  return `${status === 'unsolved' ? 'Material plan not solved' : 'Material plan cannot be met as entered'}: this cost leaves out haul, borrow and waste. Fix the plan under Engineering before comparing costs.`
+}
+
 function metrics(
   analysis: RoadAnalysis,
   limit: number,
@@ -281,6 +293,8 @@ function metrics(
   const blockers = constraintRouteIssues(analysis.centerline, context)
   if (analysis.crossingEstimate?.complete === false)
     blockers.push('Crossing estimates are incomplete or need review; the known subtotal is not a complete road price.')
+  const plan = materialPlanGap(analysis)
+  if (plan) blockers.push(plan)
   if (analysis.maxGradePercent > limit + 1e-6) blockers.push(`Grade ${analysis.maxGradePercent.toFixed(1)}% over limit`)
   if (analysis.coveragePercent < 99.95) blockers.push(`${analysis.coveragePercent.toFixed(0)}% of sections complete`)
   const sharp = new Set(
@@ -320,9 +334,13 @@ export const ROUTE_GOAL_MEASURES: Record<RouteGoal, (row: RouteRow) => number | 
  * line can return the cheapest road, and a goal's own search can lose to another's. Each asked-for goal
  * goes to the road leading it among those that meet every limit, ties to the cheaper. A road leading
  * nothing is dropped, and so is one that breaks a limit or failed once another road holds its goal.
+ *
+ * When no search produced a road at all, every failed goal stays: the current road then holds each
+ * goal only because nothing was found to set against it, and the rows say why.
  */
 export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   const usable = rows.filter((row) => row.alignment && !row.blockers.length && row.totalCost !== null)
+  const noneDesigned = !rows.some((row) => row.goal !== 'current' && row.alignment)
   for (const goal of goals) {
     const measure = ROUTE_GOAL_MEASURES[goal]
     const leader = usable
@@ -333,7 +351,9 @@ export function assignGoals(rows: RouteRow[], goals: readonly RouteGoal[]) {
   const held = new Set(rows.flatMap((row) => row.best))
   const kept = rows.filter(
     (row) =>
-      row.goal === 'current' || row.best.length > 0 || (!usable.includes(row) && !held.has(row.goal as RouteGoal)),
+      row.goal === 'current' ||
+      row.best.length > 0 ||
+      (!usable.includes(row) && (noneDesigned || !held.has(row.goal as RouteGoal))),
   )
   for (const row of kept) {
     if (row.goal === 'current' || !row.best.length) continue
@@ -406,6 +426,9 @@ export function comparisonSummary(comparison: RouteComparison): { found: boolean
       ` Click one to open it.${without}`,
   }
 }
+
+/** A goal's search ended with no line between the ends, as opposed to a line that later failed a check. */
+class NoLineError extends Error {}
 
 const LINE_NAME: Record<'shortest' | 'balanced' | 'contour', string> = {
   shortest: 'shortest',
@@ -636,7 +659,7 @@ export async function compareRoutes(
       detail('searching a wider area on a grid')
       await breathe()
       const route = routed()
-      if (!route) throw Error('No line found.')
+      if (!route) throw new NoLineError('No line found between these ends.')
       const tube = Math.min(halfWidth, ROUTED_HALF_WIDTH_M)
       const along = await searchCorridor(
         'routed',
@@ -666,20 +689,27 @@ export async function compareRoutes(
       throw error
     }
   }
-  /** Why a goal ended with no road, in the designer's terms: which limit, and where the search got to. */
+  /**
+   * Why a goal ended with no road, in the designer's terms. Only a goal that found no line is
+   * explained by how far the searches got: one that found a line and could not fit a profile to it,
+   * or whose search could not start, has its own reason, and the nearest search's would be wrong.
+   */
   const failureText = (cause: unknown) => {
-    const grid =
-      gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : ''
-    if (nearest)
+    const noLine = cause instanceof NoLineError
+    if (noLine && nearest)
       return (
         describeCorridorFailure(nearest.failure, {
           maxGradePercent: settings.maxGradePercent,
-          minRadiusM: settings.minRadius,
+          minRadiusM: Math.max(settings.minRadius, MIN_SEARCH_RADIUS_M),
           halfWidthM: nearest.halfWidthM,
-        }) + grid
+        }) +
+        (gridRoute && 'error' in gridRoute ? ' A coarser search of a wider area on a grid found no line either.' : '')
       )
-    const reason = other ?? cause
-    return reason instanceof Error ? reason.message : 'No route found.'
+    const reason = noLine ? (other ?? cause) : cause
+    // The searches state their limits in plain sentences; anything else is an internal fault.
+    return reason instanceof Error && [Error, NoLineError, CorridorSearchError].includes(reason.constructor as never)
+      ? reason.message
+      : 'The search stopped on an internal error. No road was changed.'
   }
 
   const profileOptions = { context, ...(input.analysisOptions ?? {}) }
@@ -703,7 +733,7 @@ export async function compareRoutes(
         }
     candidate.color = goal.color
     const length = alignmentLength(candidate)
-    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean }[] = []
+    const fitted: { vertical: Alignment['vertical']; cost: number; withinGrade: boolean; priced: boolean }[] = []
     let failure: unknown
     const fit = async (objective: 'earthwork' | 'total') => {
       try {
@@ -723,6 +753,7 @@ export async function compareRoutes(
           vertical,
           cost: analysis.estimatedCost,
           withinGrade: analysis.maxGradePercent <= settings.maxGradePercent,
+          priced: !materialPlanGap(analysis),
         })
       } catch (cause) {
         aborted()
@@ -736,7 +767,10 @@ export async function compareRoutes(
       throw Error(
         `A line was found, but no profile fits it. ${failure instanceof Error ? failure.message : 'The profile search failed.'}`,
       )
-    const best = fitted.sort((a, b) => Number(b.withinGrade) - Number(a.withinGrade) || a.cost - b.cost)[0]
+    // A profile whose material plan is not solved is priced without haul: it must not win on that.
+    const best = fitted.sort(
+      (a, b) => Number(b.withinGrade) - Number(a.withinGrade) || Number(b.priced) - Number(a.priced) || a.cost - b.cost,
+    )[0]
     return { candidate: { ...candidate, vertical: best.vertical }, cost: best.cost, withinGrade: best.withinGrade }
   }
 
@@ -774,7 +808,9 @@ export async function compareRoutes(
         priced.push({ fit, total: totalOf(fit.candidate), note: found.note })
       } catch (cause) {
         aborted()
-        failure = cause
+        // A line that was found and then lost says more than a search that found none.
+        if (failure === undefined || (failure instanceof NoLineError && !(cause instanceof NoLineError)))
+          failure = cause
       }
     }
     if (!priced.length) throw failure
@@ -809,7 +845,11 @@ export async function compareRoutes(
   /** Build plus drainage allowance: the same total a row shows. */
   const totalOf = (alignment: Alignment) => {
     const analysis = analyse(alignment)
-    if (analysis.crossingEstimate?.complete === false || constraintRouteIssues(analysis.centerline, context).length)
+    if (
+      analysis.crossingEstimate?.complete === false ||
+      materialPlanGap(analysis) ||
+      constraintRouteIssues(analysis.centerline, context).length
+    )
       return Infinity
     try {
       const drainage = screen(alignment, analysis)
