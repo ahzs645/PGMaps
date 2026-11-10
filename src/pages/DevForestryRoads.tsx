@@ -148,6 +148,8 @@ import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
 import { StationBox } from './dev-forestry-roads/StationBox'
+import { StationJumpMenu } from './dev-forestry-roads/StationJumpMenu'
+import { SectionPaneTools, useSectionTools } from './dev-forestry-roads/SectionPaneTools'
 import {
   engineeringCsv,
   parseProject,
@@ -1056,6 +1058,8 @@ export default function DevForestryRoads() {
     [displayedAlignment, w.featureSelection],
   )
   const sharedProfileRange = profileRange?.alignmentId === displayedAlignment.id ? profileRange.range : undefined
+  // Hold scale, the pinned section and Use this section for… (`SectionPaneTools.tsx`).
+  const sectionTools = useSectionTools({ alignment, displayedAlignment, analysis: displayedAnalysis })
   const onProfileRange = useCallback(
     (range: [number, number]) => setProfileRange({ alignmentId: displayedAlignment.id, range }),
     [displayedAlignment.id],
@@ -3871,6 +3875,7 @@ export default function DevForestryRoads() {
                                 station={station}
                                 selectedStation={terrainProfile ? undefined : at}
                                 onStation={w.setStation}
+                                rangePick={terrainProfile ? undefined : sectionTools.rangePick}
                                 onVerticalChange={
                                   busy ||
                                   terrainProfile ||
@@ -3982,6 +3987,8 @@ export default function DevForestryRoads() {
                               <div className="min-h-0 flex-1">
                                 {detail === 'section' && (
                                   <CrossSectionChart
+                                    holdScale={sectionTools.holdScale}
+                                    pinnedStation={sectionTools.pinnedStation}
                                     selectedCulvertId={currentCulvertId}
                                     onSelectCulvert={selectCulvert}
                                     alignment={displayedAlignment}
@@ -4280,6 +4287,24 @@ export default function DevForestryRoads() {
                                     </div>
                                   ))}
                               </div>
+                              {detail === 'section' && (
+                                <SectionPaneTools
+                                  tools={sectionTools}
+                                  station={at}
+                                  terrainOnly={!!terrainProfile}
+                                  editable={
+                                    !busy &&
+                                    !terrainProfile &&
+                                    !draftAlignment &&
+                                    !numericPegAlignment &&
+                                    !templatePreview &&
+                                    !costPreview
+                                  }
+                                  updateAlignment={w.updateAlignment}
+                                  onStation={w.setStation}
+                                  onNotice={w.setNotice}
+                                />
+                              )}
                             </div>
                           )}
                         </FullscreenPanel>
@@ -4381,6 +4406,16 @@ export default function DevForestryRoads() {
                     >
                       ›
                     </button>
+                    <StationJumpMenu
+                      project={project}
+                      alignment={displayedAlignment}
+                      analysis={displayedAnalysis}
+                      station={w.station}
+                      onJump={(target) =>
+                        target.culvertId ? selectCulvert(target.culvertId) : w.setStation(target.chainage)
+                      }
+                      onNotice={w.setNotice}
+                    />
                     <input
                       aria-label="Linked road station"
                       type="range"

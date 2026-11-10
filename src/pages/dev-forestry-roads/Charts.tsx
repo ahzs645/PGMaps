@@ -35,6 +35,13 @@ import { useProfileEditing } from './ProfileEditing'
 import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
+import {
+  heldSectionDomain,
+  holdSectionFrame,
+  pinnedSectionOutline,
+  sectionExceedsFrame,
+  type HeldSectionFrame,
+} from './sectionFrame'
 import type { CableLayoutOverlay } from './cableLayout/overlay'
 import type {
   Alignment,
@@ -633,6 +640,7 @@ export function ProfileChart({
   gradeLimits,
   junctions,
   onAddControl,
+  rangePick,
 }: {
   selectedRange?: RoadSelectionRange
   analysis: RoadAnalysis
@@ -654,9 +662,12 @@ export function ProfileChart({
   junctions?: ProfileJunction[]
   /** Add a vertical control, from a junction's **Add control here**. */
   onAddControl?: (control: VerticalControl) => void
+  /** While set, a drag on the plot marks a station range (`SectionPaneTools`) instead of moving the station. */
+  rangePick?: { range: [number, number] | null; onRange: (range: [number, number]) => void }
 }) {
   const id = useId().replace(/:/g, '')
   const editable = !terrainOnly && !!onVerticalChange
+  const rangeDrag = useRef<number | null>(null)
   const [fixedDomain, setFixedDomain] = useState<Domain | null>(null)
   const [navigation, setNavigation] = useState<{
     alignmentId: string
@@ -986,6 +997,11 @@ export function ProfileChart({
   }
   const handleMove = (event: PointerEvent<SVGSVGElement>, displayedDomain: Domain) => {
     const [chainage, elevation] = eventValue(event, event.currentTarget, displayedDomain, profileTop)
+    if (rangeDrag.current !== null) {
+      if (Math.abs(chainage - rangeDrag.current) > 1e-6)
+        rangePick?.onRange([Math.min(rangeDrag.current, chainage), Math.max(rangeDrag.current, chainage)])
+      return
+    }
     const scale = metresPerPixel(event.currentTarget, displayedDomain, profileTop)
     if (editing.move(event, chainage, elevation, scale)) return
     if (event.buttons === 1) onStation(chainage)
@@ -1119,6 +1135,7 @@ export function ProfileChart({
               data-range-start={displayedDomain[0]}
               data-range-end={displayedDomain[1]}
               data-vertical-exaggeration={actualExaggeration}
+              data-range-pick={!!rangePick}
               role="group"
               tabIndex={0}
               aria-label={`${terrainOnly ? 'Terrain' : 'Road'} longitudinal profile. Click or drag to inspect; left and right arrows select station; scroll to zoom, scroll sideways to pan.${editable ? ' Double-click adds a vertical control; drag a control to edit, Shift-drag to hold a grade; drag a tangent grip to raise or lower it.' : ''}`}
@@ -1130,22 +1147,27 @@ export function ProfileChart({
                 if (event.button !== 0) return
                 event.currentTarget.setPointerCapture(event.pointerId)
                 editing.deselect()
-                onStation(eventValue(event, event.currentTarget, displayedDomain, profileTop)[0])
+                const chainage = eventValue(event, event.currentTarget, displayedDomain, profileTop)[0]
+                if (rangePick) rangeDrag.current = chainage
+                else onStation(chainage)
               }}
               onPointerMove={(event) => handleMove(event, displayedDomain)}
               onPointerUp={(event) => {
                 if (event.currentTarget.hasPointerCapture(event.pointerId))
                   event.currentTarget.releasePointerCapture(event.pointerId)
                 editing.end()
+                rangeDrag.current = null
                 setFixedDomain(null)
               }}
               onPointerCancel={() => {
                 editing.end()
+                rangeDrag.current = null
                 setFixedDomain(null)
               }}
               onDoubleClick={(event) => {
                 if (
                   !onVerticalChange ||
+                  rangePick ||
                   terrainOnly ||
                   analysis.length < 1 ||
                   (event.target as Element).getAttribute('data-pvi') === 'true'
@@ -1194,6 +1216,20 @@ export function ProfileChart({
               <g clipPath={`url(#profile-${id})`}>
                 <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
                 <SelectionBand range={selectedRange} frame={f} />
+                {rangePick?.range && (
+                  <rect
+                    data-testid="road-profile-range-pick"
+                    pointerEvents="none"
+                    x={f.x(rangePick.range[0])}
+                    y={f.top}
+                    width={Math.max(2, f.x(rangePick.range[1]) - f.x(rangePick.range[0]))}
+                    height={f.plotHeight}
+                    fill={ROAD_CHART_COLORS.design}
+                    fillOpacity={0.14}
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeDasharray="4 3"
+                  />
+                )}
                 {curves
                   .filter((curve) => curve.valid && !dense && f.x(curve.end) - f.x(curve.start) >= 6)
                   .map((curve) => (
@@ -1675,6 +1711,8 @@ export function CrossSectionChart({
   terrainOnly = false,
   selectedCulvertId,
   onSelectCulvert,
+  holdScale = false,
+  pinnedStation,
 }: {
   station: RoadStation | undefined
   onShift?: (meters: number) => void
@@ -1684,6 +1722,10 @@ export function CrossSectionChart({
   terrainOnly?: boolean
   selectedCulvertId?: string
   onSelectCulvert?: (id: string) => void
+  /** Keep the frame's spans from when this turned on, following the formation (`sectionFrame.ts`). */
+  holdScale?: boolean
+  /** One station's section drawn faintly behind this one, at this one's formation level. */
+  pinnedStation?: RoadStation
 }) {
   const id = useId().replace(/:/g, '')
   const drag = useRef<number | null>(null)
@@ -1782,7 +1824,16 @@ export function CrossSectionChart({
     ...points.map((p) => Math.abs(p.x)),
     ...pipeSections.flatMap((pipe) => pipe.points.map((p) => Math.abs(p.x))),
   )
-  const domain: Domain = [-halfWidth, halfWidth, low, high]
+  const autoDomain: Domain = [-halfWidth, halfWidth, low, high]
+  // Hold scale: the spans shown when it was turned on, placed on each station's formation.
+  const [held, setHeld] = useState<HeldSectionFrame | null>(null)
+  if (holdScale && !held && station) {
+    const frame = holdSectionFrame(autoDomain, station)
+    if (frame) setHeld(frame)
+  } else if (!holdScale && held) setHeld(null)
+  const domain: Domain = (holdScale && held && heldSectionDomain(held, station)) || autoDomain
+  const clipped = holdScale && !!held && sectionExceedsFrame(points, domain)
+  const pinned = pinnedStation && station ? pinnedSectionOutline(pinnedStation, station, terrainOnly) : null
   const side = (left: number | undefined, right: number | undefined, digits = 1) =>
     `${fixed(left, digits)} / ${fixed(right, digits)}`
   const centreDepth =
@@ -1901,6 +1952,23 @@ export function CrossSectionChart({
                     ]
               }
             />
+            {pinned && (
+              <span
+                className="text-3xs text-muted-foreground"
+                data-testid="road-section-pinned-label"
+                title={
+                  pinned.alignedOn === 'none'
+                    ? 'Drawn at its own elevations: one of the two sections has no level at the centreline.'
+                    : `Moved ${format(pinned.shiftM, 2)} m to share this station's ${pinned.alignedOn === 'formation' ? 'formation' : 'ground'} level at the centreline; offsets unchanged.`
+                }
+              >
+                <span
+                  aria-hidden
+                  className="mr-1 inline-block w-3 border-t border-dashed border-current align-middle"
+                />
+                Pinned {formatRoadStation(pinned.chainage)}
+              </span>
+            )}
             {/* Values under the pointer; nothing while it is off the section. */}
             {hovered && (
               <p
@@ -1921,6 +1989,11 @@ export function CrossSectionChart({
             )}
           </div>
           <ReadoutGrid data-testid="road-section-readout" items={sectionReadout} />
+          {clipped && (
+            <p role="status" data-testid="road-section-clipped" className="text-3xs leading-4 text-muted-foreground">
+              Held scale: part of this section lies outside the frame. Turn Hold scale off to fit it.
+            </p>
+          )}
           {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
           {incompleteLabel && (
             <p
@@ -2025,6 +2098,8 @@ export function CrossSectionChart({
             data-station={station?.chainage ?? 0}
             data-left-width={station?.leftWidth}
             data-right-width={station?.rightWidth}
+            data-held-scale={holdScale && !!held}
+            data-domain={domain.map((n) => Number(n.toFixed(3))).join(',')}
             role="group"
             aria-label={`${terrainOnly ? 'Terrain' : 'Road'} cross-section at ${formatRoadStation(station?.chainage ?? 0)}. Negative offsets are left looking forward.`}
             onPointerDown={
@@ -2075,14 +2150,34 @@ export function CrossSectionChart({
             />
             <g clipPath={`url(#section-${id})`}>
               <TerrainGapBands points={points} x={f.x} top={f.top} height={f.plotHeight} />
+              {pinned && (
+                <g data-testid="road-section-pinned" pointerEvents="none" opacity={0.45}>
+                  <path
+                    d={linePath(pinned.points, 'ground', f.x, f.y)}
+                    fill="none"
+                    stroke="currentColor"
+                    className="text-muted-foreground"
+                    strokeWidth={1.4}
+                    strokeDasharray="4 3"
+                  />
+                  <path
+                    d={linePath(pinned.points, 'design', f.x, f.y)}
+                    fill="none"
+                    stroke={ROAD_CHART_COLORS.design}
+                    strokeWidth={1.6}
+                    strokeDasharray="4 3"
+                  />
+                  <title>Pinned section at {formatRoadStation(pinned.chainage)}</title>
+                </g>
+              )}
               {engineering?.layers.flatMap((layer) =>
                 points.slice(1).flatMap((b, index) => {
                   const a = points[index]
                   if (!finite(a.ground) || !finite(b.ground)) return []
                   const az = a.ground - layer.topDepthM,
                     bz = b.ground - layer.topDepthM
-                  const bottomA = layer.bottomDepthM === null ? low : a.ground - layer.bottomDepthM
-                  const bottomB = layer.bottomDepthM === null ? low : b.ground - layer.bottomDepthM
+                  const bottomA = layer.bottomDepthM === null ? domain[2] : a.ground - layer.bottomDepthM
+                  const bottomB = layer.bottomDepthM === null ? domain[2] : b.ground - layer.bottomDepthM
                   return [
                     <polygon
                       key={`${layer.id}-${index}`}
