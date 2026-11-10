@@ -68,6 +68,16 @@ beforeEach(() => {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => void storage.set(key, value),
   })
+  // The chart's popovers animate through the toolkit's motion helpers.
+  vi.stubGlobal('window', {
+    matchMedia: () => ({ matches: false, addEventListener: () => {}, removeEventListener: () => {} }),
+    setTimeout,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    clearTimeout,
+  })
+  vi.stubGlobal('requestAnimationFrame', () => 0)
+  vi.stubGlobal('cancelAnimationFrame', () => {})
   vi.stubGlobal(
     'ResizeObserver',
     class {
@@ -220,7 +230,11 @@ describe('profile chart', () => {
     expect(readout()).toHaveLength(0)
     const handle = root.find((n) => n.type === 'circle' && n.props['aria-label'] === 'Vertical control 2 elevation')
     await act(async () =>
-      handle.props.onPointerDown({ stopPropagation() {}, pointerId: 1, currentTarget: { ownerSVGElement: null } }),
+      handle.props.onPointerDown({
+        stopPropagation() {},
+        pointerId: 1,
+        currentTarget: { ownerSVGElement: null, focus() {} },
+      }),
     )
     expect(readout()).toHaveLength(1)
     expect(texts(readout()[0])).toContain('PVI 0+200.0 · 820.00 m')

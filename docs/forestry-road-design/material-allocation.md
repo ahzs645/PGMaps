@@ -173,16 +173,16 @@ where the curve balances at a chosen level, not to replace the reported haul.
 
 ## Limits and verification
 
-| Limit | Enforcing constant / behavior |
-| --- | --- |
-| 200 fill requirements | `MAX_FILL_REQUIREMENTS`, `allocationPolicy.ts` |
-| 100 direction and 100 sidecast ranges | `MAX_HAUL_DIRECTION_RANGES`, `MAX_SIDECAST_RANGES` |
-| 20,000 material-flow variables | `MAX_ALLOCATION_VARIABLES`, `materialAllocation.ts`; the tableau memory budget can bind first |
-| 1,200 constraints; 3,000,000 conservative tableau cells | `MAX_ALLOCATION_CONSTRAINTS`, `MAX_ALLOCATION_TABLEAU_CELLS` |
-| 12 positive-price site openings | `MAX_ALLOCATION_OPENINGS` |
-| 2,048 branch iterations; 3-second integer-search timeout | `MAX_ALLOCATION_BRANCHES`, solver options |
-| Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000 | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS` |
-| What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts` |
+| Limit                                                                                                         | Enforcing constant / behavior                                                                 |
+| ------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 200 fill requirements                                                                                         | `MAX_FILL_REQUIREMENTS`, `allocationPolicy.ts`                                                |
+| 100 direction and 100 sidecast ranges                                                                         | `MAX_HAUL_DIRECTION_RANGES`, `MAX_SIDECAST_RANGES`                                            |
+| 20,000 material-flow variables                                                                                | `MAX_ALLOCATION_VARIABLES`, `materialAllocation.ts`; the tableau memory budget can bind first |
+| 1,200 constraints; 3,000,000 conservative tableau cells                                                       | `MAX_ALLOCATION_CONSTRAINTS`, `MAX_ALLOCATION_TABLEAU_CELLS`                                  |
+| 12 positive-price site openings                                                                               | `MAX_ALLOCATION_OPENINGS`                                                                     |
+| 2,048 branch iterations; 3-second integer-search timeout                                                      | `MAX_ALLOCATION_BRANCHES`, solver options                                                     |
+| Simplex pivots per phase: 4 per tableau row, at least 256 and at most 10,000                                  | `allocationPivotLimit`, `ALLOCATION_PIVOTS_PER_ROW`, `MAX_ALLOCATION_PIVOTS`                  |
+| What-if balance line: 400 layers per loop plus one break at every vertex height; within the curve's own range | `BALANCE_LINE_LAYERS`, `balanceLevelRange`, `balanceLine.ts`                                  |
 
 The sparse formulation has the same 20,000-variable / 1,200-constraint / 3,000,000-cell ceilings,
 enforced by `MAX_SPARSE_ALLOCATION_*` in `sparseMaterialAllocation.ts`.

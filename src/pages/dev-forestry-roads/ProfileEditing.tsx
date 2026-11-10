@@ -110,6 +110,8 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const { sorted, editable, onVerticalChange, onStation, freezeDomain } = options
   const drag = useRef<Drag | null>(null)
   const [dragging, setDragging] = useState(false)
+  // The PVI being dragged, for the chart's grade and cut/fill readout (`pviDragReadout`).
+  const [draggedPviId, setDraggedPviId] = useState<string | null>(null)
   const [readout, setReadout] = useState<Readout | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [snap, setSnapState] = useState(readSnap)
@@ -145,6 +147,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   const finish = useCallback(() => {
     drag.current = null
     setDragging(false)
+    setDraggedPviId(null)
     setReadout(null)
     latest.current.freezeDomain(null)
   }, [])
@@ -169,6 +172,7 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     event.currentTarget.focus({ preventScroll: true })
     drag.current = { kind: 'pvi', id, points: sorted }
     setDragging(true)
+    setDraggedPviId(id)
     freezeDomain(domain)
     return true
   }
@@ -673,5 +677,6 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     html,
     snapToggle,
     dragging,
+    draggedPviId,
   }
 }

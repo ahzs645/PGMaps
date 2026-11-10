@@ -851,10 +851,8 @@ export function ProfileChart({
     () => (terrainOnly ? [] : curvePoints(alignment, analysis.length, analysis.engineering?.culverts)),
     [terrainOnly, alignment, analysis.length, analysis.engineering?.culverts],
   )
-  // A PVI drag holds the domain (`fixedDomain`) and moves the selected station onto the PVI each move
-  // (unrounded; the PVI is stored to the centimetre).
-  const draggedPviId =
-    fixedDomain && !terrainOnly ? sorted.find((p) => Math.abs(p.chainage - station) < 0.02)?.id : undefined
+  // The PVI the editing hook is dragging, from the press, so the readout shows before the first move.
+  const draggedPviId = !terrainOnly ? (editing.draggedPviId ?? undefined) : undefined
   const dragReadout = draggedPviId ? pviDragReadout(analysis, alignment, draggedPviId) : null
   const profileGrades = analysis.stations.map((s) => s.gradePercent).filter(finite)
   const first = analysis.stations.find((s) => finite(terrainOnly ? s.groundElevation : s.designElevation))
