@@ -4,6 +4,7 @@ import { classifySectionOffset } from './sectionGeometry'
 import type {
   CableAnalysis,
   CableLine,
+  CableMechanicsProfile,
   Coordinate,
   ResolvedTemplate,
   RoadStation,
@@ -37,6 +38,34 @@ export const CABLE_GEOMETRY_ASSUMPTIONS =
   'Sag is the entered percentage of horizontal span. Sampled cable length sums straight segments in the profile plane; ' +
   'it is not a purchase length or a catenary, tension, load, anchor, equipment or operating-safety calculation. ' +
   'Interior terrain gaps leave clearance unknown even when the assumed cable geometry is calculable.'
+
+export const CABLE_MECHANICS_ASSUMPTIONS =
+  'Rope and load: one static span between the two support tops, solved as an elastic catenary with a point load ' +
+  '(Irvine 1981). The skyline length is set either so the larger support tension equals breaking force ÷ safety factor ' +
+  'with the load at mid-span, or from the entered empty-skyline tension at the lower support; the load is then moved ' +
+  'along the span at that length. Half the running lines’ weight is added to the skyline’s. Load clearance is from the ' +
+  'carriage’s point on the skyline to the ground directly below; the hanging turn, lateral yarding, intermediate supports, ' +
+  'saddle friction, anchor and guyline loads, dynamic and braking loads, carriage and yarder ratings are not modelled. ' +
+  'Rigging values are user inputs; the starting values are an example. Not a rigging, anchor or WorkSafeBC compliance check.'
+
+const sameRigging = (a: CableMechanicsProfile['rigging'], b: CableMechanicsProfile['rigging']) =>
+  (Object.keys(a) as (keyof typeof a)[]).every((key) => a[key] === b[key]) &&
+  Object.keys(a).length === Object.keys(b).length
+
+/** The analysis's solved skyline when the line asks for one; refuses one calculated from other rigging. */
+export function cableMechanicsOf(line: CableLine, analysis: CableAnalysis): CableMechanicsProfile | null {
+  const wanted = line.sagModel === 'mechanics' && line.rigging ? line.rigging : null
+  const mechanics = analysis.mechanics ?? null
+  if (!wanted && !mechanics) return null
+  if (
+    !wanted ||
+    !mechanics ||
+    !sameRigging(wanted, mechanics.rigging) ||
+    mechanics.samples.length !== analysis.samples.length
+  )
+    throw Error('The D-line rope mechanics do not match the current rigging. Recalculate before exporting.')
+  return mechanics
+}
 
 /**
  * Uses the existing native-terrain profile. No rendered map elevations or new
@@ -152,10 +181,79 @@ const sourceValues = (metadata: TerrainMetadata): CsvValue[] => [
   metadata.sha256,
 ]
 
+const MECHANICS_HEADERS = [
+  'sag_model',
+  'load_path_elevation_m',
+  'empty_skyline_elevation_m',
+  'load_clearance_m',
+  'minimum_load_clearance_m',
+  'required_load_clearance_m',
+  'load_clearance_complete',
+  'max_tension_kn',
+  'max_tension_support',
+  'max_tension_load_distance_m',
+  'allowable_tension_kn',
+  'tension_within_allowable',
+  'mid_span_sag_m',
+  'unstrained_skyline_length_m',
+  'tension_mode',
+  'base_tension_kn',
+  'rope_beyond_span_m',
+  'skyline_mass_kg_per_m',
+  'skyline_diameter_mm',
+  'metallic_fill_factor',
+  'elastic_modulus_kn_per_mm2',
+  'breaking_force_kn',
+  'safety_factor',
+  'payload_kg',
+  'carriage_kg',
+  'running_lines_kg_per_m',
+  'mechanics_error',
+  'mechanics_assumptions',
+]
+function mechanicsValues(m: CableMechanicsProfile, index: number): CsvValue[] {
+  const r = m.rigging,
+    span = m.span,
+    sample = m.samples[index]
+  const yes = (value: boolean | null) => (value === null ? null : value ? 'yes' : 'no')
+  return [
+    'mechanics',
+    sample.loadPath,
+    sample.emptyRope,
+    sample.loadClearance,
+    m.minLoadClearance,
+    r.minClearanceM,
+    m.complete ? 'yes' : 'no',
+    span ? span.maxTension.tensionN / 1000 : null,
+    span ? (span.maxTension.atSupport === 'near' ? 'start' : 'end') : null,
+    span?.maxTension.loadX,
+    span ? span.allowableN / 1000 : null,
+    yes(m.tensionOk),
+    span?.midSpan.sagBelowChordM,
+    span?.unstrainedLengthM,
+    r.tensionMode,
+    r.tensionMode === 'base' ? r.baseTensionKN : null,
+    r.tensionMode === 'base' ? r.extraRopeM : null,
+    r.ropeMassKgPerM,
+    r.ropeDiameterMm,
+    r.metallicFillFactor,
+    r.elasticModulusKNPerMm2,
+    r.breakingForceKN,
+    r.safetyFactor,
+    r.payloadKg,
+    r.carriageKg,
+    r.runningLinesKgPerM,
+    m.error,
+    CABLE_MECHANICS_ASSUMPTIONS,
+  ]
+}
+
+/** A line using rope mechanics appends its columns after `assumptions`; an assumed-sag export is unchanged. */
 export function cableProfileCsv(line: CableLine, analysis: CableAnalysis, metadata: TerrainMetadata): string {
   const summary = cableSummary(line, analysis)
   if (!analysis.samples.length) throw Error('The D-line profile is unavailable. Recalculate before exporting.')
   const resolved = resolvedCableLine(line)
+  const mechanics = cableMechanicsOf(line, analysis)
   return csv(
     [
       'line_id',
@@ -185,8 +283,9 @@ export function cableProfileCsv(line: CableLine, analysis: CableAnalysis, metada
       'assumed_sag_percent',
       ...sourceHeaders,
       'assumptions',
+      ...(mechanics ? MECHANICS_HEADERS : []),
     ],
-    analysis.samples.map((sample) => [
+    analysis.samples.map((sample, index) => [
       line.id,
       line.name,
       sample.distance,
@@ -213,6 +312,7 @@ export function cableProfileCsv(line: CableLine, analysis: CableAnalysis, metada
       line.deflectionPercent,
       ...sourceValues(metadata),
       CABLE_GEOMETRY_ASSUMPTIONS,
+      ...(mechanics ? mechanicsValues(mechanics, index) : []),
     ]),
   )
 }
@@ -282,9 +382,10 @@ const html = (value: string) =>
 const fmt = (value: number | null, digits = 2) =>
   value === null || !Number.isFinite(value) ? 'Unknown' : value.toFixed(digits)
 
-function profileSvg(analysis: CableAnalysis): string {
+function profileSvg(analysis: CableAnalysis, mechanics: CableMechanicsProfile | null = null): string {
+  const loadPath = mechanics?.span ? mechanics.samples.map((sample) => sample.loadPath) : null
   const values = analysis.samples
-    .flatMap((sample) => [finite(sample.ground), finite(sample.cable)])
+    .flatMap((sample, i) => [finite(sample.ground), finite(sample.cable), finite(loadPath?.[i])])
     .filter((v): v is number => v !== null)
   if (!values.length) return '<p>No known elevations are available for the profile plot.</p>'
   const low = Math.min(...values),
@@ -296,11 +397,11 @@ function profileSvg(analysis: CableAnalysis): string {
     bottom = 280
   const x = (distanceM: number) => left + (distanceM / Math.max(analysis.length, 0.01)) * (right - left)
   const y = (elevation: number) => bottom - ((elevation - low + range * 0.08) / (range * 1.16)) * (bottom - top)
-  const path = (key: 'ground' | 'cable') => {
+  const path = (key: 'ground' | 'cable' | 'load') => {
     let open = false
     return analysis.samples
-      .map((sample) => {
-        const value = finite(sample[key])
+      .map((sample, i) => {
+        const value = key === 'load' ? finite(loadPath?.[i]) : finite(sample[key])
         if (value === null) {
           open = false
           return ''
@@ -316,7 +417,52 @@ function profileSvg(analysis: CableAnalysis): string {
     const distanceM = (analysis.length * i) / 4
     return `<line x1="${left}" y1="${y(elevation)}" x2="${right}" y2="${y(elevation)}" stroke="#d8e0db"/><text x="${left - 8}" y="${y(elevation) + 4}" text-anchor="end">${fmt(elevation, 1)}</text><text x="${x(distanceM)}" y="${bottom + 22}" text-anchor="middle">${fmt(distanceM, 0)}</text>`
   }).join('')
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 336" role="img" aria-label="D-line profile of sampled ground and assumed cable elevation"><g font-size="12" font-family="sans-serif" fill="#34483f">${grid}<text x="${left}" y="14">Elevation (m)</text><text x="512" y="329" text-anchor="middle">Horizontal distance from effective start (m)</text></g><path d="${path('ground')}" fill="none" stroke="#536e48" stroke-width="2"/><path d="${path('cable')}" fill="none" stroke="#bd4d19" stroke-width="2.5"/></svg><p class="muted">Green: source ground. Orange: assumed cable. Gaps remain blank. Horizontal and vertical plot scales differ.</p>`
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 336" role="img" aria-label="D-line profile of sampled ground and assumed cable elevation"><g font-size="12" font-family="sans-serif" fill="#34483f">${grid}<text x="${left}" y="14">Elevation (m)</text><text x="512" y="329" text-anchor="middle">Horizontal distance from effective start (m)</text></g><path d="${path('ground')}" fill="none" stroke="#536e48" stroke-width="2"/><path d="${path('cable')}" fill="none" stroke="#bd4d19" stroke-width="2.5"/>${loadPath ? `<path d="${path('load')}" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-dasharray="7 4"/>` : ''}</svg><p class="muted">Green: source ground. Orange: assumed cable.${loadPath ? ' Blue dashed: loaded carriage path from rope mechanics.' : ''} Gaps remain blank. Horizontal and vertical plot scales differ.</p>`
+}
+
+function mechanicsHtml(m: CableMechanicsProfile): string {
+  const r = m.rigging,
+    span = m.span
+  const kN = (n: number | null | undefined) => fmt(n === null || n === undefined ? null : n / 1000, 1)
+  const status = m.error
+    ? `Not solved: ${html(m.error)}`
+    : !m.complete
+      ? 'Incomplete: some load clearances are unknown'
+      : `${m.clearanceOk ? 'Load clearance meets' : 'Load clearance is below'} the entered ${fmt(r.minClearanceM, 1)} m; maximum tension ${m.tensionOk ? 'within' : 'exceeds'} the allowable`
+  const rows: [string, string][] = [
+    ['Status', status],
+    [
+      'Minimum load clearance (m)',
+      `${fmt(m.minLoadClearance)}${m.minLoadClearanceAt === null ? '' : ` at ${fmt(m.minLoadClearanceAt, 1)} m`}`,
+    ],
+    [
+      'Maximum tension (kN)',
+      span
+        ? `${kN(span.maxTension.tensionN)} at the ${span.maxTension.atSupport === 'near' ? 'start' : 'end'} support, load at ${fmt(span.maxTension.loadX, 1)} m`
+        : 'Unknown',
+    ],
+    [
+      'Allowable tension (kN)',
+      `${kN(span?.allowableN ?? (r.breakingForceKN * 1000) / r.safetyFactor)} = ${fmt(r.breakingForceKN, 1)} ÷ ${fmt(r.safetyFactor, 2)}`,
+    ],
+    ['Mid-span sag below chord (m)', fmt(span?.midSpan.sagBelowChordM ?? null)],
+    ['Unstrained skyline in the span (m)', fmt(span?.unstrainedLengthM ?? null, 3)],
+    [
+      'Tension set by',
+      r.tensionMode === 'allowable'
+        ? 'Allowable tension with the load at mid-span'
+        : `Base tension ${fmt(r.baseTensionKN, 1)} kN in the empty skyline at the lower support; ${fmt(r.extraRopeM, 1)} m of rope beyond the span`,
+    ],
+    [
+      'Skyline',
+      `${fmt(r.ropeDiameterMm, 1)} mm, ${fmt(r.ropeMassKgPerM, 2)} kg/m, fill ${fmt(r.metallicFillFactor, 2)}, E ${fmt(r.elasticModulusKNPerMm2, 0)} kN/mm²`,
+    ],
+    [
+      'Load',
+      `${fmt(r.payloadKg, 0)} kg payload + ${fmt(r.carriageKg, 0)} kg carriage; running lines ${fmt(r.runningLinesKgPerM, 2)} kg/m`,
+    ],
+  ]
+  return `<h2>Rope mechanics</h2><dl>${rows.map(([label, value]) => `<dt>${label}</dt><dd>${value}</dd>`).join('')}</dl><p>${CABLE_MECHANICS_ASSUMPTIONS}</p>`
 }
 
 /** Standalone, escaped, script-free report suitable for browser Print / Save PDF. */
@@ -324,10 +470,11 @@ export function cableProfileHtml(line: CableLine, analysis: CableAnalysis, metad
   const summary = cableSummary(line, analysis)
   if (!analysis.samples.length) throw Error('The D-line profile is unavailable. Recalculate before exporting.')
   const resolved = resolvedCableLine(line)
+  const mechanics = cableMechanicsOf(line, analysis)
   const rows = analysis.samples
     .map(
-      (sample) =>
-        `<tr><td>${fmt(sample.distance)}</td><td>${fmt(finite(sample.ground))}</td><td>${fmt(finite(sample.cable))}</td><td>${fmt(finite(sample.clearance))}</td></tr>`,
+      (sample, i) =>
+        `<tr><td>${fmt(sample.distance)}</td><td>${fmt(finite(sample.ground))}</td><td>${fmt(finite(sample.cable))}</td><td>${fmt(finite(sample.clearance))}</td>${mechanics ? `<td>${fmt(finite(mechanics.samples[i].loadPath))}</td><td>${fmt(finite(mechanics.samples[i].loadClearance))}</td>` : ''}</tr>`,
     )
     .join('')
   const sourceNote =
@@ -346,5 +493,5 @@ export function cableProfileHtml(line: CableLine, analysis: CableAnalysis, metad
     ['Sampled geometric cable length (m)', summary.sampledGeometricCableLengthM],
     ['Minimum sampled clearance (m)', summary.minClearanceM],
   ]
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(line.name)} · D-line profile</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1000px;margin:36px auto;padding:0 24px}h1{font-size:28px}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.muted{color:#53665e}dl{display:grid;grid-template-columns:minmax(190px,1fr) 2fr;gap:6px}dd{margin:0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}tr{break-inside:avoid}svg{width:100%;height:auto;break-inside:avoid}@media print{body{margin:0;max-width:none;font-size:10pt}h2{break-after:avoid}thead{display:table-header-group}}</style></head><body><div class="eyebrow">PGMAPS · D-LINE GEOMETRIC SCREENING</div><h1>${html(line.name)}</h1><p class="status"><strong>${summary.complete ? 'Complete sampled clearance profile' : 'Incomplete clearance profile · unknown samples remain unresolved'}</strong><br>${fmt(summary.knownGroundPercent, 1)}% known ground across ${summary.sampleCount} samples. ${sourceNote}</p><h2>Profile measurements</h2><dl>${measurements.map(([label, value]) => `<dt>${label}</dt><dd>${fmt(value)}</dd>`).join('')}</dl><h2>Ground and assumed cable</h2>${profileSvg(analysis)}<h2>Support inputs and assumptions</h2><dl><dt>Effective start (longitude, latitude)</dt><dd>${resolved.start.map((v) => fmt(v, 8)).join(', ')}</dd><dt>Effective end (longitude, latitude)</dt><dd>${resolved.end.map((v) => fmt(v, 8)).join(', ')}</dd><dt>Yarder position</dt><dd>${line.yarderAt ?? 'start'}</dd><dt>Yarder / tailhold height above ground</dt><dd>${fmt(line.startHeight)} / ${fmt(line.endHeight)} m</dd><dt>Start / end endpoint offset</dt><dd>${fmt(line.startOffsetM ?? 0)} / ${fmt(line.endOffsetM ?? 0)} m; positive inward, negative outward</dd><dt>Assumed sag</dt><dd>${fmt(line.deflectionPercent)}% of horizontal span</dd><dt>Geometry available</dt><dd>${summary.geometryComplete ? 'Yes' : 'No — required support or cable elevations are missing'}</dd></dl><p>${CABLE_GEOMETRY_ASSUMPTIONS}</p><p>Distances are horizontal along the resolved physical start-to-end direction. The support elevation difference is signed end minus start. Negative clearance means the assumed cable passes below sampled ground. A complete geometric profile does not establish a safe cable operation.</p><h2>Terrain provenance</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Source kind</dt><dd>${html(metadata.kind)}</dd><dt>Native terrain spacing</dt><dd>${fmt(metadata.resolutionM)} m; resolution is not vertical accuracy</dd><dt>Source horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Unspecified'}</dd><dt>Export coordinate CRS</dt><dd>WGS84 longitude / latitude</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not recorded')}</dd></dl><h2>Sample schedule</h2><p class="muted">Unknown values are not zero. Cable geometry can remain known over an interior terrain gap while clearance remains unknown.</p><table><thead><tr><th>Distance (m)</th><th>Ground (m)</th><th>Assumed cable (m)</th><th>Clearance (m)</th></tr></thead><tbody>${rows}</tbody></table></body></html>`
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; img-src data:;"><title>${html(line.name)} · D-line profile</title><style>body{font:14px/1.5 system-ui,sans-serif;color:#172b25;max-width:1000px;margin:36px auto;padding:0 24px}h1{font-size:28px}h2{font-size:19px;margin-top:28px;border-bottom:1px solid #d1d5db;padding-bottom:6px}.eyebrow{font-size:11px;letter-spacing:2px;color:#527465}.status{padding:12px 16px;background:#fff7ed;border-left:4px solid #d97706}.muted{color:#53665e}dl{display:grid;grid-template-columns:minmax(190px,1fr) 2fr;gap:6px}dd{margin:0;overflow-wrap:anywhere}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:right;padding:6px;border-bottom:1px solid #d8e0db}th{background:#eaf0ec}tr{break-inside:avoid}svg{width:100%;height:auto;break-inside:avoid}@media print{body{margin:0;max-width:none;font-size:10pt}h2{break-after:avoid}thead{display:table-header-group}}</style></head><body><div class="eyebrow">PGMAPS · D-LINE GEOMETRIC SCREENING</div><h1>${html(line.name)}</h1><p class="status"><strong>${summary.complete ? 'Complete sampled clearance profile' : 'Incomplete clearance profile · unknown samples remain unresolved'}</strong><br>${fmt(summary.knownGroundPercent, 1)}% known ground across ${summary.sampleCount} samples. ${sourceNote}</p><h2>Profile measurements</h2><dl>${measurements.map(([label, value]) => `<dt>${label}</dt><dd>${fmt(value)}</dd>`).join('')}</dl><h2>Ground and assumed cable</h2>${profileSvg(analysis, mechanics)}${mechanics ? mechanicsHtml(mechanics) : ''}<h2>Support inputs and assumptions</h2><dl><dt>Effective start (longitude, latitude)</dt><dd>${resolved.start.map((v) => fmt(v, 8)).join(', ')}</dd><dt>Effective end (longitude, latitude)</dt><dd>${resolved.end.map((v) => fmt(v, 8)).join(', ')}</dd><dt>Yarder position</dt><dd>${line.yarderAt ?? 'start'}</dd><dt>Yarder / tailhold height above ground</dt><dd>${fmt(line.startHeight)} / ${fmt(line.endHeight)} m</dd><dt>Start / end endpoint offset</dt><dd>${fmt(line.startOffsetM ?? 0)} / ${fmt(line.endOffsetM ?? 0)} m; positive inward, negative outward</dd><dt>Assumed sag</dt><dd>${fmt(line.deflectionPercent)}% of horizontal span</dd><dt>Geometry available</dt><dd>${summary.geometryComplete ? 'Yes' : 'No — required support or cable elevations are missing'}</dd></dl><p>${CABLE_GEOMETRY_ASSUMPTIONS}</p><p>Distances are horizontal along the resolved physical start-to-end direction. The support elevation difference is signed end minus start. Negative clearance means the assumed cable passes below sampled ground. A complete geometric profile does not establish a safe cable operation.</p><h2>Terrain provenance</h2><dl><dt>Source</dt><dd>${html(metadata.name)}</dd><dt>Source kind</dt><dd>${html(metadata.kind)}</dd><dt>Native terrain spacing</dt><dd>${fmt(metadata.resolutionM)} m; resolution is not vertical accuracy</dd><dt>Source horizontal CRS</dt><dd>${metadata.epsg ? `EPSG:${metadata.epsg}` : 'Unspecified'}</dd><dt>Export coordinate CRS</dt><dd>WGS84 longitude / latitude</dd><dt>Vertical reference</dt><dd>${html(metadata.verticalReference)}</dd><dt>Source URL</dt><dd>${html(metadata.sourceUrl ?? 'Local or synthetic source')}</dd><dt>SHA-256</dt><dd>${html(metadata.sha256 ?? 'Not recorded')}</dd></dl><h2>Sample schedule</h2><p class="muted">Unknown values are not zero. Cable geometry can remain known over an interior terrain gap while clearance remains unknown.</p><table><thead><tr><th>Distance (m)</th><th>Ground (m)</th><th>Assumed cable (m)</th><th>Clearance (m)</th>${mechanics ? '<th>Loaded carriage (m)</th><th>Load clearance (m)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></body></html>`
 }

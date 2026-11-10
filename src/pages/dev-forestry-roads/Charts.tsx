@@ -2672,36 +2672,79 @@ export function CableChart({
   distance?: number
   onDistance?: (distance: number) => void
 }) {
-  const points = analysis.samples.map((s) => ({ x: s.distance, ground: s.ground, design: s.cable }))
-  const [low, high] = extent(points.flatMap((p) => [p.ground, p.design]))
+  // A solved skyline replaces the assumed line: the load path is what clears (or hits) the ground.
+  const mechanics = analysis.mechanics?.span ? analysis.mechanics : null
+  const points = analysis.samples.map((s, i) => ({
+    x: s.distance,
+    ground: s.ground,
+    design: mechanics ? mechanics.samples[i].loadPath : s.cable,
+  }))
+  const emptyRope = mechanics
+    ? analysis.samples.map((s, i) => ({ x: s.distance, ground: null, design: mechanics.samples[i].emptyRope }))
+    : []
+  const [low, high] = extent([...points.flatMap((p) => [p.ground, p.design]), ...emptyRope.map((p) => p.design)])
   const domain: Domain = [0, Math.max(1, analysis.length), low, high]
-  const active = analysis.samples.reduce<(typeof analysis.samples)[number] | undefined>(
-    (best, sample) =>
-      !best || Math.abs(sample.distance - distance) < Math.abs(best.distance - distance) ? sample : best,
-    undefined,
+  const activeIndex = analysis.samples.reduce(
+    (best, sample, i) =>
+      best < 0 || Math.abs(sample.distance - distance) < Math.abs(analysis.samples[best].distance - distance)
+        ? i
+        : best,
+    -1,
   )
+  const active =
+    activeIndex < 0
+      ? undefined
+      : {
+          ...analysis.samples[activeIndex],
+          cable: points[activeIndex].design,
+          clearance: mechanics ? mechanics.samples[activeIndex].loadClearance : analysis.samples[activeIndex].clearance,
+        }
+  const kN = (n: number) => format(n / 1000, 0)
   return (
     <ChartSlot
       footer={
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Legend
-              items={[
-                { label: 'Ground', color: ROAD_CHART_COLORS.ground },
-                { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
-              ]}
+              items={
+                mechanics
+                  ? [
+                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      { label: 'Loaded carriage path', color: ROAD_CHART_COLORS.design },
+                      { label: 'Empty skyline', color: ROAD_CHART_COLORS.mass },
+                    ]
+                  : [
+                      { label: 'Ground', color: ROAD_CHART_COLORS.ground },
+                      { label: 'Assumed cable geometry', color: ROAD_CHART_COLORS.design },
+                    ]
+              }
             />
-            <span className="text-2xs">
-              Minimum clearance {format(analysis.minClearance)} m{analysis.complete ? '' : ' · incomplete terrain'}
+            <span className="text-2xs" data-testid="road-cable-clearance">
+              {mechanics
+                ? `Minimum load clearance ${format(mechanics.minLoadClearance)} m${mechanics.complete ? (mechanics.clearanceOk ? '' : ` · below ${format(mechanics.rigging.minClearanceM)} m`) : ' · incomplete terrain'}`
+                : `Minimum clearance ${format(analysis.minClearance)} m${analysis.complete ? '' : ' · incomplete terrain'}`}
             </span>
           </div>
-          <p className="text-3xs text-muted-foreground">
-            Geometric deflection screen. Cable tension, payload and equipment capacity require a separate design.
-          </p>
+          {mechanics?.span ? (
+            <p className="text-3xs text-muted-foreground" data-testid="road-cable-mechanics">
+              Max tension {kN(mechanics.span.maxTension.tensionN)} kN at the{' '}
+              {mechanics.span.maxTension.atSupport === 'near' ? 'start' : 'end'} support (allowable{' '}
+              {kN(mechanics.span.allowableN)} kN{mechanics.tensionOk ? '' : ' · exceeded'}) · mid-span sag{' '}
+              {format(mechanics.span.midSpan.sagBelowChordM)} m (
+              {format((100 * mechanics.span.midSpan.sagBelowChordM) / Math.max(1, analysis.length))}% of span). Static
+              single span; no anchors, guylines, carriage or equipment rating.
+            </p>
+          ) : (
+            <p className="text-3xs text-muted-foreground">
+              {analysis.mechanics?.error ? `Rope mechanics: ${analysis.mechanics.error} Showing the assumed sag. ` : ''}
+              Geometric deflection screen. Cable tension, payload and equipment capacity require a separate design.
+            </p>
+          )}
           {onDistance && (
             <p className="text-3xs text-muted-foreground">
-              Cursor {format(active?.distance)} m · ground {format(active?.ground)} m · cable {format(active?.cable)} m
-              · clearance {format(active?.clearance)} m. Click or drag to inspect the same point on the plan.
+              Cursor {format(active?.distance)} m · ground {format(active?.ground)} m ·{' '}
+              {mechanics ? 'carriage' : 'cable'} {format(active?.cable)} m · clearance {format(active?.clearance)} m.
+              Click or drag to inspect the same point on the plan.
             </p>
           )}
         </>
@@ -2754,6 +2797,15 @@ export function CableChart({
               strokeWidth={1.8}
               fill="none"
             />
+            {mechanics && (
+              <path
+                d={linePath(emptyRope, 'design', f.x, f.y)}
+                stroke={ROAD_CHART_COLORS.mass}
+                strokeWidth={1.4}
+                strokeDasharray="5 3"
+                fill="none"
+              />
+            )}
             <path
               d={linePath(points, 'design', f.x, f.y)}
               stroke={ROAD_CHART_COLORS.design}

@@ -13,6 +13,7 @@ import { surfacingSupplyCost } from './gravel'
 import { sectionStations } from './designExports'
 import { createEngineeringDesign, materialPlanMissing } from './engineeringTypes'
 import { resolvedCableLine } from './cableGeometry'
+import { parseRigging, parseSagModel } from './cableMechanics'
 import { parseRoadEvidence } from './existingRoadEvidence'
 import { parseHarvestEvidence, parseHarvestHistoryYear } from './harvestHistory'
 import { parseAccessHistoryState } from './accessHistory'
@@ -645,6 +646,8 @@ function parseCable(raw: unknown): CableLine {
             return r.yarderAt
           })(),
         }),
+    ...(r.sagModel === undefined ? {} : { sagModel: parseSagModel(r.sagModel, r.rigging !== undefined) }),
+    ...(r.rigging === undefined ? {} : { rigging: parseRigging(r.rigging) }),
   }
   resolvedCableLine(result)
   return result

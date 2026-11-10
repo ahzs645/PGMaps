@@ -37,6 +37,7 @@ import { calculateEngineering } from './engineering'
 import { estimateCrossings } from './crossingPlan'
 import type { CrossingCostItem } from './crossingPlanTypes'
 import { resolvedCableLine } from './cableGeometry'
+import { cableMechanicsProfile } from './cableMechanics'
 import { assembledSection } from './assembledSection'
 import { surfaceLayerAreas, validateSectionMaterials } from './sectionAssembly'
 import type { SectionReferenceSources } from './sectionReferences'
@@ -1714,7 +1715,10 @@ export function analyzeRoad(
   return result
 }
 
-/** Assumed parabolic sag: geometric clearance only, not cable tension or payload. */
+/**
+ * Assumed parabolic sag: geometric clearance only, not cable tension or payload. A line with
+ * `sagModel: 'mechanics'` also carries the solved skyline and its load path (`cableMechanics.ts`).
+ */
 export function analyzeCable(input: CableLine, terrain: TerrainSource): CableAnalysis {
   const line = resolvedCableLine(input)
   if (
@@ -1747,5 +1751,20 @@ export function analyzeCable(input: CableLine, terrain: TerrainSource): CableAna
     return { distance: length * t, ground, cable, clearance: ground === null || cable === null ? null : cable - ground }
   })
   const complete = samples.every((p) => p.clearance !== null)
-  return { samples, length, minClearance: complete ? Math.min(...samples.map((p) => p.clearance!)) : null, complete }
+  const result: CableAnalysis = {
+    samples,
+    length,
+    minClearance: complete ? Math.min(...samples.map((p) => p.clearance!)) : null,
+    complete,
+  }
+  // Opt-in: the assumed-sag fields above are unchanged; the solved skyline is reported beside them.
+  if (line.sagModel === 'mechanics' && line.rigging)
+    result.mechanics = cableMechanicsProfile(
+      line.rigging,
+      a === null ? null : a + line.startHeight,
+      b === null ? null : b + line.endHeight,
+      length,
+      samples,
+    )
+  return result
 }
