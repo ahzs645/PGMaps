@@ -87,6 +87,7 @@ describe('LandXML alignment import', () => {
   })
   it('writes 3D feature lines as plan features', () => {
     expect(exported).toMatch(/<PlanFeatures name="[^"]+ feature lines">/)
+    expect(exported).toMatch(/combined scale factor is 0\.999\d{5}/)
     for (const name of ['CL_3D', 'EDGE_L', 'EDGE_R', 'CATCH_L', 'CATCH_R'])
       expect(exported).toContain(`<PlanFeature name="${name}"`)
     const list = /<PlanFeature name="EDGE_L"[^>]*>.*?<PntList3D>([^<]+)<\/PntList3D>/

@@ -5,6 +5,7 @@
  */
 import { horizontalGeometry } from './engine'
 import { refuseInvalidResults } from './inputErrors'
+import { combinedScaleFactor } from './scaleFactor'
 import { sectionCodePoints } from './sectionGeometry'
 import type { ShapeLayer } from './shapefile'
 import type { Alignment, Coordinate, RoadAnalysis, RoadStation, TerrainMetadata } from './types'
@@ -265,6 +266,18 @@ export function landXml({
     .filter(Boolean)
     .join('\n        ')
   const ratio = modelLength > 0 ? num(gridLength / modelLength, 5) : null
+  // The grid's combined scale factor at the road's middle station, for reducing to ground.
+  const middle = analysis.stations[Math.floor(analysis.stations.length / 2)]
+  const scale = middle
+    ? combinedScaleFactor(
+        epsg,
+        { latitudeDeg: middle.coordinate[1], longitudeDeg: middle.coordinate[0] },
+        middle.designElevation ?? middle.groundElevation ?? 0,
+      )
+    : null
+  const scaleNote = scale?.ok
+    ? ` At station ${num(middle.chainage, 1)} the grid's combined scale factor is ${scale.combined.toFixed(8)} (point scale ${scale.pointScale.toFixed(8)} × elevation factor ${scale.elevationFactor.toFixed(8)}, at the road's level with no geoid height): ground distance = grid distance ÷ ${scale.combined.toFixed(8)}.`
+    : ''
   // 3D feature lines (string lines) for machine control and CAD: one PlanFeature per code and part.
   const features = sectionFeatureLines(alignment, analysis, toGrid)
     .flatMap((line) =>
@@ -287,7 +300,7 @@ export function landXml({
   <CoordinateSystem epsgCode="${epsg}" name="EPSG:${epsg}" verticalDatum="${xml(terrain.verticalReference)}"/>
   <Project name="${xml(name)}" desc="Preliminary planning geometry; not a construction design"/>
   <Application name="PG Maps forest road design" manufacturer="PG Maps" version="1"/>
-  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}. -->
+  <!-- Element lengths, radii and centres are grid values in EPSG:${epsg}, consistent with the exported coordinates. Stations (staStart, PVI, ProfSurf and CrossSect sta) are chainage along the road model, measured on a sphere${ratio ? `; grid length ÷ chainage over the alignment is ${ratio}` : ''}.${scaleNote} -->
   <Alignments name="${xml(name)}">
     <Alignment name="${xml(alignment.name)}" length="${num(gridLength)}" staStart="0">
       <CoordGeom>
