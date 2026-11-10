@@ -426,7 +426,7 @@ export interface CableCoverageResult {
     candidates: number
     screened: number
     /** Candidates no line of the shortest length fits, by why the walk or the screen stopped. */
-    rejected: Partial<Record<CableWalkStop | LayoutReason | 'position' | 'budget' | 'short', number>>
+    rejected: Partial<Record<CableWalkStop | LayoutReason | 'position' | 'budget' | 'short' | 'empty', number>>
     machineAbove: number
     machineBelow: number
     meanSupports: number | null
@@ -595,6 +595,7 @@ export function* cableCoverageSteps(
         line.areaHa = line.cells * cellHa
         line.meanCarriageM = line.cells ? sum / line.cells : 0
         if (line.cells) lines.push(line)
+        else reject('empty')
       }
     }
     // A gap: ground the line might reach were it known.
@@ -658,6 +659,7 @@ export function cableLineFeatures(eg: ExtractionGrid, lines: readonly CableLineR
         properties: {
           kind: 'cable-support',
           color: SUPPORT_COLOR,
+          marker: 'dot',
           label: `Line ${line.id} support · ${Math.round(p.stationM)} m · ${p.heightM} m`,
         },
       })
