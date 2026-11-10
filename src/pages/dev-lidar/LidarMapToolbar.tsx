@@ -1,20 +1,21 @@
 import { Button } from '@/components/ui/button'
-import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { Crosshair, Eye, EyeOff, Settings2 } from 'lucide-react'
+import type { ReactNode } from 'react'
+import { Crosshair, Eye, EyeOff } from 'lucide-react'
 import { isHeatmapMode } from './canopyHeatmaps'
 import type { LidarController } from './useLidarWorkspace'
 
-export function LidarMapToolbar({ controller }: { controller: LidarController }) {
+/**
+ * Floats over the map's top-left corner, beside GeoLibre's own control, as other map pages'
+ * toolbars do. GeoLibre's button opens the native point-cloud tools, so this does not repeat it.
+ */
+export function LidarMapToolbar({ controller, children }: { controller: LidarController; children?: ReactNode }) {
   const {
     summary,
     setSurfaceVisible,
-    openTools,
     go,
     cloud,
     setCloud,
-    toolsOpen,
-    setToolsOpen,
     analysisOptions,
     transectControl,
     treeView,
@@ -24,12 +25,14 @@ export function LidarMapToolbar({ controller }: { controller: LidarController })
     setFocus,
     displayedSurface,
     toggleDisplayedSurface,
-    inspectorWidth,
-    setInspectorWidth,
   } = controller
   if (!summary) return null
   return (
-    <>
+    <div
+      role="toolbar"
+      aria-label="LiDAR map toolbar"
+      className="pointer-events-auto absolute left-[3.75rem] top-[calc(var(--map-mobile-toolbar-height,0px)_+_0.625rem)] z-20 flex max-w-[calc(100%-6.5rem)] flex-wrap items-center gap-1 rounded-md border border-border bg-background/95 p-1 shadow-sm backdrop-blur md:left-12"
+    >
       <SegmentedControl
         value={analysisOptions.mode === 'trees' && !transectControl.active ? treeView : cloud ? 'cloud' : 'processed'}
         options={
@@ -61,14 +64,14 @@ export function LidarMapToolbar({ controller }: { controller: LidarController })
           setCloud(value === 'cloud')
           if (value === 'processed' && !isHeatmapMode(analysisOptions.mode)) setSurfaceVisible(true)
         }}
-        label="Map display"
+        label="Map view"
         size="sm"
         fullWidth={false}
       />
       <Button
         variant={displayedSurface ? 'secondary' : 'ghost'}
         size="icon"
-        className="size-8"
+        className="size-8 touch:size-9"
         title={displayedSurface ? 'Hide processed surface' : 'Show processed surface'}
         aria-label={displayedSurface ? 'Hide processed surface' : 'Show processed surface'}
         aria-pressed={displayedSurface}
@@ -77,45 +80,16 @@ export function LidarMapToolbar({ controller }: { controller: LidarController })
         {displayedSurface ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
       </Button>
       <Button
-        variant={toolsOpen && cloud ? 'secondary' : 'ghost'}
-        size="icon"
-        className="size-8"
-        title="Native GeoLibre LiDAR tools"
-        aria-label="Native GeoLibre LiDAR tools"
-        aria-pressed={toolsOpen && cloud}
-        onClick={() => {
-          if (toolsOpen && cloud) setToolsOpen(false)
-          else openTools()
-        }}
-      >
-        <Settings2 className="size-4" />
-      </Button>
-      <Button
         variant="ghost"
         size="icon"
-        className="size-8"
+        className="size-8 touch:size-9"
         title="Fit whole tile"
         aria-label="Fit whole tile"
         onClick={() => go(-1)}
       >
         <Crosshair className="size-4" />
       </Button>
-      {analysisOptions.mode === 'trees' && (
-        <NumericRangeField
-          className="hidden items-center gap-1 space-y-0 text-3xs lg:flex"
-          label="Inspector width"
-          aria-label="Inspector pane width"
-          layout="inline"
-          hideValue
-          inputClassName="w-20"
-          min={32}
-          max={65}
-          step={1}
-          value={inspectorWidth}
-          display={`${inspectorWidth}%`}
-          onChange={setInspectorWidth}
-        />
-      )}
-    </>
+      {children}
+    </div>
   )
 }

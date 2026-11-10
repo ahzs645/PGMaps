@@ -26,6 +26,7 @@ const spaRoutes = [
   'dev/view/edit',
   'dev/lidar',
   ...[
+    'coverage',
     'canopy',
     'trees',
     'forestry',

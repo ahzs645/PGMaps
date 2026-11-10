@@ -1,16 +1,17 @@
+import type { ReactNode } from 'react'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
-import { InlineAlert, MapSidebarShell, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
+import { InlineAlert, SidebarSection, KeyValueRows } from '@/components/ui/map-panels'
 import { ExternalLink } from '@/components/ui/text-button'
 import { cn } from '@/lib/utils'
 import { downloadText } from '@/lib/download'
-import { useIsMobile } from '@/hooks/useIsMobile'
 import type { AnalysisSummary } from '../types'
 import type { ForestData } from '../forestry'
 import type { Basemap } from '../basemaps'
+import { LidarToolLayout } from '../LidarToolLayout'
 import forestUrl from '../forestry.generated.json?url'
 import { ComparisonMap } from '../comparisons/ComparisonMap'
 import {
@@ -34,10 +35,12 @@ export function ForestVolumeWorkspace({
   summary,
   basemap,
   error: summaryError,
+  viewSwitcher,
 }: {
   summary: AnalysisSummary | null
   basemap: Basemap
   error: string
+  viewSwitcher?: ReactNode
 }) {
   const [data, setData] = useState<ForestData | null>(null),
     [loadError, setLoadError] = useState(''),
@@ -51,10 +54,7 @@ export function ForestVolumeWorkspace({
     [reset, setReset] = useState(0),
     [merchantable, setMerchantable] = useState(100),
     [retention, setRetention] = useState(0),
-    [recovery, setRecovery] = useState(100),
-    [showPanel, setShowPanel] = useState<boolean | null>(null)
-  const mobile = useIsMobile(),
-    panel = showPanel ?? !mobile
+    [recovery, setRecovery] = useState(100)
   useEffect(() => {
     if (!summary) return
     let active = true
@@ -159,330 +159,326 @@ export function ForestVolumeWorkspace({
     )
   }
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Forest volume workspace">
-      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b p-2">
-        <h1 className="mr-auto text-sm font-semibold">Forest volume & harvest scenarios</h1>
-        <Badge tone={model ? 'warning' : 'neutral'}>
-          {model ? 'Experimental local estimate' : 'Calibration required'}
-        </Badge>
-        <Button size="sm" variant="outline" onClick={() => setShowPanel(!panel)}>
-          {panel ? 'Hide' : 'Show'} volume inputs
-        </Button>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
-        <aside
-          hidden={!panel}
-          className={`${panel ? 'flex' : 'hidden'} h-[40dvh] min-h-0 shrink-0 flex-col overflow-hidden border-r md:h-full md:w-[340px]`}
-        >
-          <MapSidebarShell title="Estimate volume" subtitle="Gross stem m³/ha from matched ground-reference plots.">
-            <SidebarSection title="1 · Prepare reference data">
-              <p className="text-xs leading-5">
-                The tile has 50 × 50 m height/cover plots, but no measured stem volumes. Supply gross stem volume per
-                hectare for the same complete footprints and a compatible survey period. Canopy height alone is not
-                timber volume.
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                <Button size="sm" variant="outline" disabled={!eligible.length} onClick={template}>
-                  CSV template
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!data}
-                  onClick={() =>
-                    downloadText(
-                      JSON.stringify(
-                        {
-                          type: 'FeatureCollection',
-                          features: eligible.map((f) => ({
-                            ...f,
-                            properties: {
-                              id: f.properties.id,
-                              area_m2: 2500,
-                              surface_p95_m: f.properties.surface_p95_m,
-                              canopy_percent: f.properties.canopy_percent,
-                            },
-                          })),
-                          metadata: {
-                            source_sha256: data?.source_sha256,
-                            scope: 'Field-reference footprints; no volume labels supplied',
-                          },
-                        },
-                        null,
-                        2,
-                      ),
-                      'volume-reference-footprints.geojson',
-                      'application/geo+json',
-                    )
-                  }
-                >
-                  Plot footprints
-                </Button>
-              </div>
-              <p className="mt-2 text-3xs text-muted-foreground">
-                Fill at least 10 template rows and remove unused rows. The 10–200 row limit is a software constraint,
-                not an adequate survey-design guarantee.
-              </p>
-            </SidebarSection>
-            <SidebarSection title="2 · Fit a local model">
-              <FormField label="Reference dataset, year & volume definition">
-                <input
-                  aria-label="Volume reference source"
-                  className={FORM_INPUT_CLASS}
-                  value={referenceSource}
-                  onChange={(e) => {
-                    setReferenceSource(e.target.value)
-                    setModel(null)
-                  }}
-                  placeholder="Field inventory · year · bark/DBH conventions"
-                />
-              </FormField>
-              <FormField label="Reference CSV" className="mt-2">
-                <input
-                  aria-label="Upload volume reference CSV"
-                  type="file"
-                  accept=".csv,text/csv"
-                  className="block w-full text-xs"
-                  onChange={async (e) => {
-                    const file = e.target.files?.[0]
-                    if (!file) return
-                    if (file.size > 2_000_000) {
-                      setFitError('Reference CSV exceeds 2 MB.')
-                      return
-                    }
-                    setModel(null)
-                    setCsv(await file.text())
-                    setFitError('')
-                  }}
-                />
-              </FormField>
-              <textarea
-                aria-label="Volume reference CSV"
-                className={cn(FORM_INPUT_CLASS, 'mt-2 font-mono text-3xs md:text-3xs')}
-                rows={5}
-                value={csv}
-                onChange={(e) => {
-                  setCsv(e.target.value)
-                  setModel(null)
-                }}
-                placeholder={'plot_id,volume_m3_ha\nforest-50-1-1,'}
-              />
-              <Button size="sm" className="mt-2" disabled={!data || !csv} onClick={fit}>
-                Fit volume model
+    <LidarToolLayout
+      toolId="volume"
+      title="Forest volume"
+      subtitle="Calibrate the BC tile · gross stem m³/ha from matched ground-reference plots"
+      label="Forest volume workspace"
+      metadata={viewSwitcher}
+      mobilePeekSubtitle={model ? 'Calibrate · experimental local estimate' : 'Calibrate · calibration required'}
+      sidebar={
+        <>
+          <div className="px-4 pt-3">
+            <Badge tone={model ? 'warning' : 'neutral'}>
+              {model ? 'Experimental local estimate' : 'Calibration required'}
+            </Badge>
+          </div>
+          <SidebarSection title="1 · Prepare reference data">
+            <p className="text-xs leading-5">
+              The tile has 50 × 50 m height/cover plots, but no measured stem volumes. Supply gross stem volume per
+              hectare for the same complete footprints and a compatible survey period. Canopy height alone is not timber
+              volume.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-1">
+              <Button size="sm" variant="outline" disabled={!eligible.length} onClick={template}>
+                CSV template
               </Button>
-              {fitError && (
-                <InlineAlert tone="error" className="mt-2">
-                  {fitError}
-                </InlineAlert>
-              )}
-              <p className="mt-2 text-3xs text-muted-foreground">
-                CSV stays in this browser. OLS uses CHM surface p95 and canopy fraction. Predictions outside the
-                reference predictor hull are withheld.
-              </p>
-            </SidebarSection>
-            {model && (
-              <SidebarSection title="Model diagnostics">
-                <KeyValueRows
-                  size="sm"
-                  rows={[
-                    { label: 'Reference plots', value: String(model.diagnostics.n) },
-                    { label: 'Leave-one-out RMSE', value: model.diagnostics.loo_rmse_m3_ha.toFixed(1) + ' m³/ha' },
-                    { label: 'Leave-one-out bias', value: model.diagnostics.loo_bias_m3_ha.toFixed(1) + ' m³/ha' },
-                    { label: 'Leave-one-out R²', value: model.diagnostics.loo_r2?.toFixed(3) ?? 'Unavailable' },
-                    {
-                      label: 'Supported predictions',
-                      value: String(rows.filter((r) => r.prediction.volume_m3_ha !== null).length),
-                    },
-                  ]}
-                />
-                <p className="mt-2 text-3xs text-muted-foreground">
-                  Leave-one-out diagnostics are not spatially independent field validation or confidence intervals.
-                  Errors may be larger outside the surveyed stand types.
-                </p>
-                <details className="mt-2 text-xs">
-                  <summary>Model and reference values</summary>
-                  <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-3xs">
-                    {JSON.stringify(
-                      {
-                        method: model.method,
-                        coefficients: model.coefficients,
-                        referenceSource,
-                        diagnostics: model.diagnostics,
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
-                </details>
-              </SidebarSection>
-            )}
-            <SidebarSection title="3 · Select a planning area">
-              <p className="text-xs leading-5">
-                Click mapped plots to add/remove them. Only fully supported 0.25 ha plots with in-domain volume
-                predictions contribute to totals.
-              </p>
-              <div className="mt-2 flex gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!model}
-                  onClick={() =>
-                    setSelected(
-                      new Set(
-                        rows.filter((r) => r.prediction.volume_m3_ha !== null).map((r) => r.feature.properties.id),
-                      ),
-                    )
-                  }
-                >
-                  Select supported plots
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>
-                  Clear
-                </Button>
-              </div>
-              {active && (
-                <p className="mt-2 text-xs">
-                  {active.feature.properties.id} · p95 {active.feature.properties.surface_p95_m.toFixed(1)} m · cover{' '}
-                  {active.feature.properties.canopy_percent.toFixed(0)}% ·{' '}
-                  {active.prediction.volume_m3_ha === null
-                    ? active.prediction.status
-                    : active.prediction.volume_m3_ha.toFixed(1) + ' m³/ha'}
-                </p>
-              )}
-            </SidebarSection>
-            <SidebarSection title="4 · Harvest scenario">
-              {[
-                [merchantable, setMerchantable, 'Merchantable share'],
-                [retention, setRetention, 'Volume retained'],
-                [recovery, setRecovery, 'Extraction recovery'],
-              ].map(([value, set, label]) => (
-                <NumericRangeField
-                  key={String(label)}
-                  label={String(label)}
-                  layout="inline"
-                  valueSeparator=" · "
-                  display={`${Number(value)}%`}
-                  className="mt-2 space-y-0 text-xs"
-                  inputClassName="h-auto w-full"
-                  aria-label={`Volume ${String(label).toLowerCase()}`}
-                  min={0}
-                  max={100}
-                  step={5}
-                  value={Number(value)}
-                  onChange={set as (value: number) => void}
-                />
-              ))}
-              <KeyValueRows
-                size="sm"
-                rows={[
-                  { label: 'Selected supported area', value: scenario.area_ha.toFixed(2) + ' ha' },
-                  { label: 'Selected unsupported plots', value: String(scenario.unsupported_plots) },
-                  {
-                    label: 'Modelled gross stem volume',
-                    value: model && scenario.supported_plots ? scenario.gross_stem_m3.toFixed(1) + ' m³' : '—',
-                  },
-                  {
-                    label: 'Scenario delivered volume',
-                    value: model && scenario.supported_plots ? scenario.scenario_delivered_m3.toFixed(1) + ' m³' : '—',
-                  },
-                ]}
-              />
-              <p className="mt-2 text-3xs text-muted-foreground">
-                Delivered scenario = gross × merchantable share × (1 − volume retained) × recovery. These are user
-                assumptions, not estimated log grades, defects, access, or a timber-cruise result.
-              </p>
               <Button
-                className="mt-2"
                 size="sm"
                 variant="outline"
-                disabled={!model}
+                disabled={!data}
                 onClick={() =>
                   downloadText(
                     JSON.stringify(
                       {
                         type: 'FeatureCollection',
-                        features: features.features.filter((f) => selected.has(f.properties.id)),
+                        features: eligible.map((f) => ({
+                          ...f,
+                          properties: {
+                            id: f.properties.id,
+                            area_m2: 2500,
+                            surface_p95_m: f.properties.surface_p95_m,
+                            canopy_percent: f.properties.canopy_percent,
+                          },
+                        })),
                         metadata: {
                           source_sha256: data?.source_sha256,
-                          referenceSource,
-                          model,
-                          scenario,
-                          assumptions: {
-                            merchantable_share: merchantable / 100,
-                            retention_fraction: retention / 100,
-                            recovery_fraction: recovery / 100,
-                          },
-                          status: 'Experimental calibration and harvest scenario; not a validated timber cruise',
+                          scope: 'Field-reference footprints; no volume labels supplied',
                         },
                       },
                       null,
                       2,
                     ),
-                    'forest-volume-scenario.geojson',
+                    'volume-reference-footprints.geojson',
                     'application/geo+json',
                   )
                 }
               >
-                Export selected volume scenario
+                Plot footprints
               </Button>
-            </SidebarSection>
-            <SidebarSection title="Research & methods">
-              <div className="space-y-2">
-                {SOURCES.map(([title, url]) => (
-                  <ExternalLink key={url} href={url} className="flex w-fit">
-                    {title}
-                  </ExternalLink>
-                ))}
-              </div>
-            </SidebarSection>
-          </MapSidebarShell>
-        </aside>
-        <div className="relative min-h-[180px] flex-1 overflow-hidden">
-          {!summary || !data ? (
-            <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
-              {loadError || summaryError ? (
-                <InlineAlert tone="error" title="Could not load the forest plot metrics" className="max-w-md">
-                  {loadError || summaryError}
-                </InlineAlert>
-              ) : (
-                <InlineAlert loading>Loading verified forest plot metrics…</InlineAlert>
-              )}
-              {loadError && (
-                <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>
-                  Retry
-                </Button>
-              )}
             </div>
-          ) : (
-            <ComparisonMap
-              label="Forest volume planning map"
-              centre={centre}
-              focusKey={`volume-${reset}`}
-              zoom={15.5}
-              view="top"
-              basemap={basemap}
-              features={features}
-              onFeaturePick={toggle}
-              overlayOpacity={0.65}
-            />
-          )}
-          <div className="absolute bottom-8 left-3 right-12 rounded border bg-background/95 p-2 text-xs">
-            <strong>
-              {model
-                ? `Experimental gross stem volume · 0–${maximum.toFixed(0)} m³/ha`
-                : 'Height context only · CHM p95 0–50 m'}
-            </strong>
-            <p className="mt-1 text-3xs">
-              {model
-                ? 'Light to dark green: increasing predicted volume. Grey: unsupported or outside calibration domain. Black outline: selected.'
-                : 'No forest volume is inferred until matched reference data are supplied. Green shows canopy height context.'}
+            <p className="mt-2 text-3xs text-muted-foreground">
+              Fill at least 10 template rows and remove unused rows. The 10–200 row limit is a software constraint, not
+              an adequate survey-design guarantee.
             </p>
-            <Button size="sm" variant="ghost" onClick={() => setReset((n) => n + 1)}>
-              Fit tile
+          </SidebarSection>
+          <SidebarSection title="2 · Fit a local model">
+            <FormField label="Reference dataset, year & volume definition">
+              <input
+                aria-label="Volume reference source"
+                className={FORM_INPUT_CLASS}
+                value={referenceSource}
+                onChange={(e) => {
+                  setReferenceSource(e.target.value)
+                  setModel(null)
+                }}
+                placeholder="Field inventory · year · bark/DBH conventions"
+              />
+            </FormField>
+            <FormField label="Reference CSV" className="mt-2">
+              <input
+                aria-label="Upload volume reference CSV"
+                type="file"
+                accept=".csv,text/csv"
+                className="block w-full text-xs"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  if (file.size > 2_000_000) {
+                    setFitError('Reference CSV exceeds 2 MB.')
+                    return
+                  }
+                  setModel(null)
+                  setCsv(await file.text())
+                  setFitError('')
+                }}
+              />
+            </FormField>
+            <textarea
+              aria-label="Volume reference CSV"
+              className={cn(FORM_INPUT_CLASS, 'mt-2 font-mono text-3xs md:text-3xs')}
+              rows={5}
+              value={csv}
+              onChange={(e) => {
+                setCsv(e.target.value)
+                setModel(null)
+              }}
+              placeholder={'plot_id,volume_m3_ha\nforest-50-1-1,'}
+            />
+            <Button size="sm" className="mt-2" disabled={!data || !csv} onClick={fit}>
+              Fit volume model
             </Button>
+            {fitError && (
+              <InlineAlert tone="error" className="mt-2">
+                {fitError}
+              </InlineAlert>
+            )}
+            <p className="mt-2 text-3xs text-muted-foreground">
+              CSV stays in this browser. OLS uses CHM surface p95 and canopy fraction. Predictions outside the reference
+              predictor hull are withheld.
+            </p>
+          </SidebarSection>
+          {model && (
+            <SidebarSection title="Model diagnostics">
+              <KeyValueRows
+                size="sm"
+                rows={[
+                  { label: 'Reference plots', value: String(model.diagnostics.n) },
+                  { label: 'Leave-one-out RMSE', value: model.diagnostics.loo_rmse_m3_ha.toFixed(1) + ' m³/ha' },
+                  { label: 'Leave-one-out bias', value: model.diagnostics.loo_bias_m3_ha.toFixed(1) + ' m³/ha' },
+                  { label: 'Leave-one-out R²', value: model.diagnostics.loo_r2?.toFixed(3) ?? 'Unavailable' },
+                  {
+                    label: 'Supported predictions',
+                    value: String(rows.filter((r) => r.prediction.volume_m3_ha !== null).length),
+                  },
+                ]}
+              />
+              <p className="mt-2 text-3xs text-muted-foreground">
+                Leave-one-out diagnostics are not spatially independent field validation or confidence intervals. Errors
+                may be larger outside the surveyed stand types.
+              </p>
+              <details className="mt-2 text-xs">
+                <summary>Model and reference values</summary>
+                <pre className="max-h-40 overflow-auto whitespace-pre-wrap text-3xs">
+                  {JSON.stringify(
+                    {
+                      method: model.method,
+                      coefficients: model.coefficients,
+                      referenceSource,
+                      diagnostics: model.diagnostics,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
+            </SidebarSection>
+          )}
+          <SidebarSection title="3 · Select a planning area">
+            <p className="text-xs leading-5">
+              Click mapped plots to add/remove them. Only fully supported 0.25 ha plots with in-domain volume
+              predictions contribute to totals.
+            </p>
+            <div className="mt-2 flex gap-1">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!model}
+                onClick={() =>
+                  setSelected(
+                    new Set(rows.filter((r) => r.prediction.volume_m3_ha !== null).map((r) => r.feature.properties.id)),
+                  )
+                }
+              >
+                Select supported plots
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setSelected(new Set())}>
+                Clear
+              </Button>
+            </div>
+            {active && (
+              <p className="mt-2 text-xs">
+                {active.feature.properties.id} · p95 {active.feature.properties.surface_p95_m.toFixed(1)} m · cover{' '}
+                {active.feature.properties.canopy_percent.toFixed(0)}% ·{' '}
+                {active.prediction.volume_m3_ha === null
+                  ? active.prediction.status
+                  : active.prediction.volume_m3_ha.toFixed(1) + ' m³/ha'}
+              </p>
+            )}
+          </SidebarSection>
+          <SidebarSection title="4 · Harvest scenario">
+            {[
+              [merchantable, setMerchantable, 'Merchantable share'],
+              [retention, setRetention, 'Volume retained'],
+              [recovery, setRecovery, 'Extraction recovery'],
+            ].map(([value, set, label]) => (
+              <NumericRangeField
+                key={String(label)}
+                label={String(label)}
+                layout="inline"
+                valueSeparator=" · "
+                display={`${Number(value)}%`}
+                className="mt-2 space-y-0 text-xs"
+                inputClassName="h-auto w-full"
+                aria-label={`Volume ${String(label).toLowerCase()}`}
+                min={0}
+                max={100}
+                step={5}
+                value={Number(value)}
+                onChange={set as (value: number) => void}
+              />
+            ))}
+            <KeyValueRows
+              size="sm"
+              rows={[
+                { label: 'Selected supported area', value: scenario.area_ha.toFixed(2) + ' ha' },
+                { label: 'Selected unsupported plots', value: String(scenario.unsupported_plots) },
+                {
+                  label: 'Modelled gross stem volume',
+                  value: model && scenario.supported_plots ? scenario.gross_stem_m3.toFixed(1) + ' m³' : '—',
+                },
+                {
+                  label: 'Scenario delivered volume',
+                  value: model && scenario.supported_plots ? scenario.scenario_delivered_m3.toFixed(1) + ' m³' : '—',
+                },
+              ]}
+            />
+            <p className="mt-2 text-3xs text-muted-foreground">
+              Delivered scenario = gross × merchantable share × (1 − volume retained) × recovery. These are user
+              assumptions, not estimated log grades, defects, access, or a timber-cruise result.
+            </p>
+            <Button
+              className="mt-2"
+              size="sm"
+              variant="outline"
+              disabled={!model}
+              onClick={() =>
+                downloadText(
+                  JSON.stringify(
+                    {
+                      type: 'FeatureCollection',
+                      features: features.features.filter((f) => selected.has(f.properties.id)),
+                      metadata: {
+                        source_sha256: data?.source_sha256,
+                        referenceSource,
+                        model,
+                        scenario,
+                        assumptions: {
+                          merchantable_share: merchantable / 100,
+                          retention_fraction: retention / 100,
+                          recovery_fraction: recovery / 100,
+                        },
+                        status: 'Experimental calibration and harvest scenario; not a validated timber cruise',
+                      },
+                    },
+                    null,
+                    2,
+                  ),
+                  'forest-volume-scenario.geojson',
+                  'application/geo+json',
+                )
+              }
+            >
+              Export selected volume scenario
+            </Button>
+          </SidebarSection>
+          <SidebarSection title="Research & methods">
+            <div className="space-y-2">
+              {SOURCES.map(([title, url]) => (
+                <ExternalLink key={url} href={url} className="flex w-fit">
+                  {title}
+                </ExternalLink>
+              ))}
+            </div>
+          </SidebarSection>
+        </>
+      }
+    >
+      <div className="relative min-h-[180px] flex-1 overflow-hidden">
+        {!summary || !data ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 p-4">
+            {loadError || summaryError ? (
+              <InlineAlert tone="error" title="Could not load the forest plot metrics" className="max-w-md">
+                {loadError || summaryError}
+              </InlineAlert>
+            ) : (
+              <InlineAlert loading>Loading verified forest plot metrics…</InlineAlert>
+            )}
+            {loadError && (
+              <Button size="sm" onClick={() => setAttempt((n) => n + 1)}>
+                Retry
+              </Button>
+            )}
           </div>
+        ) : (
+          <ComparisonMap
+            label="Forest volume planning map"
+            centre={centre}
+            focusKey={`volume-${reset}`}
+            zoom={15.5}
+            view="top"
+            basemap={basemap}
+            features={features}
+            onFeaturePick={toggle}
+            overlayOpacity={0.65}
+          />
+        )}
+        <div className="absolute bottom-8 left-3 right-12 rounded border bg-background/95 p-2 text-xs">
+          <strong>
+            {model
+              ? `Experimental gross stem volume · 0–${maximum.toFixed(0)} m³/ha`
+              : 'Height context only · CHM p95 0–50 m'}
+          </strong>
+          <p className="mt-1 text-3xs">
+            {model
+              ? 'Light to dark green: increasing predicted volume. Grey: unsupported or outside calibration domain. Black outline: selected.'
+              : 'No forest volume is inferred until matched reference data are supplied. Green shows canopy height context.'}
+          </p>
+          <Button size="sm" variant="ghost" onClick={() => setReset((n) => n + 1)}>
+            Fit tile
+          </Button>
         </div>
       </div>
-    </section>
+    </LidarToolLayout>
   )
 }

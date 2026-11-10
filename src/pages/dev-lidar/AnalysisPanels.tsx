@@ -140,7 +140,7 @@ export function LidarMethods({ summary }: { summary: AnalysisSummary }) {
         </p>
         <ExternalLink
           className="mt-3"
-          href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-forestry-explorer.md"
+          href="https://github.com/ahzs645/PGMaps/blob/main/docs/research/lidar-forestry-explorer.md"
         >
           Forestry findings and methods
         </ExternalLink>

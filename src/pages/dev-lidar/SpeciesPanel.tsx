@@ -507,7 +507,7 @@ export function SpeciesPanel({
               Download plot links & review coordinates
             </a>
           </Button>
-          <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/lidar-species.md">
+          <ExternalLink href="https://github.com/ahzs645/PGMaps/blob/main/docs/research/lidar-species.md">
             Methods, interpretation & rerun
           </ExternalLink>
         </div>

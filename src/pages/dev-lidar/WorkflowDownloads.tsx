@@ -36,7 +36,7 @@ export function WorkflowDownloads({ mode }: { mode: AnalysisMode | null }) {
           </Button>
         ))}
         <ExternalLink
-          href={`https://github.com/ahzs645/PGMaps/blob/codex/lidar-explorer/docs/research/${model ? 'lidar-building-inspection' : isSpeciesMode(mode) ? 'lidar-species' : isHeatmapMode(mode) ? 'lidar-tree-isolation-and-detail' : 'lidar-forestry-explorer'}.md`}
+          href={`https://github.com/ahzs645/PGMaps/blob/main/docs/research/${model ? 'lidar-building-inspection' : isSpeciesMode(mode) ? 'lidar-species' : isHeatmapMode(mode) ? 'lidar-tree-isolation-and-detail' : 'lidar-forestry-explorer'}.md`}
         >
           Methods and rerun instructions
         </ExternalLink>
