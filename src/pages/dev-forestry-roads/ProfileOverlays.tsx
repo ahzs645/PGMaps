@@ -6,11 +6,13 @@ import {
   earthworkText,
   isGradeTrouble,
   placeLabels,
+  signedValue,
   type CurvePoint,
   type PviDragReadout,
   type TangentEarthwork,
   type TangentGrade,
 } from './profileAnnotations'
+import { CURSOR_LINES_BELOW_PX, cursorOnLeft } from './ProfileEditing'
 import { formatStation } from './verticalStandards'
 import type { RoadStation } from './types'
 
@@ -39,8 +41,7 @@ const CHAR_PX = 4.9
 
 const finite = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value)
-const signedPct = (value: number | null) =>
-  value === null ? '—' : `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
+const signedPct = (value: number | null) => (value === null ? '—' : signedValue(value, 1))
 const inView = (chainage: number, domain: readonly [number, number]) =>
   chainage >= domain[0] - 1e-6 && chainage <= domain[1] + 1e-6
 
@@ -247,6 +248,35 @@ function EarthworkMarks({
  * out (red when that tangent breaks a limit), and the deepest centreline cut and fill on the tangent
  * each side, which are also marked on the profile.
  */
+/**
+ * Where the dragged PVI's readout box goes: above the handle; else below the drag cursor's own lines
+ * ("Grade in +7.00 % · snapped", held reasons), which sit under the handle; else beside the handle on
+ * the side away from those lines. Clamped into the plot only when none fits. Before, a PVI near the top
+ * of the plot pushed the box down over the snapped-grade line.
+ */
+export function pviReadoutBoxAt(
+  hx: number,
+  hy: number,
+  width: number,
+  height: number,
+  frame: Pick<ProfilePlotFrame, 'top' | 'bottom' | 'left' | 'right'>,
+): { x: number; y: number } {
+  const fitsX = (x: number) => x >= frame.left + 2 && x + width <= frame.right - 2
+  const fitsY = (y: number) => y >= frame.top + 2 && y + height <= frame.bottom - 2
+  const sideX = fitsX(hx + 12) ? hx + 12 : hx - 12 - width
+  const above = hy - height - 10
+  if (fitsY(above) && fitsX(sideX)) return { x: sideX, y: above }
+  const below = hy + CURSOR_LINES_BELOW_PX
+  if (fitsY(below) && fitsX(sideX)) return { x: sideX, y: below }
+  const away = cursorOnLeft(hx, frame.right) ? hx + 12 : hx - 12 - width
+  const middle = Math.min(Math.max(frame.top + 2, hy - height / 2), frame.bottom - height - 2)
+  if (fitsX(away)) return { x: away, y: middle }
+  return {
+    x: Math.max(frame.left + 2, sideX),
+    y: Math.min(Math.max(frame.top + 2, above), frame.bottom - height - 2),
+  }
+}
+
 export function PviDragReadoutBox({
   readout,
   tangents,
@@ -282,13 +312,7 @@ export function PviDragReadoutBox({
   ]
   const boxWidth = Math.max(...lines.map((line) => line.text.length)) * 5.2 + 12
   const boxHeight = lines.length * 12 + 6
-  const hx = frame.x(readout.chainage),
-    hy = frame.y(readout.elevation)
-  const x = Math.max(
-    frame.left + 2,
-    hx + 12 + boxWidth <= frame.right ? hx + 12 : Math.max(frame.left + 2, hx - 12 - boxWidth),
-  )
-  const y = Math.min(Math.max(frame.top + 2, hy - boxHeight - 10), frame.bottom - boxHeight - 2)
+  const { x, y } = pviReadoutBoxAt(frame.x(readout.chainage), frame.y(readout.elevation), boxWidth, boxHeight, frame)
   return (
     <g pointerEvents="none" data-testid="road-profile-pvi-readout">
       <EarthworkMarks tangent={readout.back} stations={stations} frame={frame} />

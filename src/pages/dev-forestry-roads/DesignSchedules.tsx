@@ -212,7 +212,7 @@ export function DesignSchedules({
                         {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
                           <td key={key} className="min-w-20 !p-0.5">
                             <NumberField
-                              label={`Schedule PVI ${index + 1} ${key}`}
+                              label={`Schedule PVI ${index + 1} ${key === 'curveLength' ? 'curve length' : key}`}
                               hideLabel
                               value={v[key]}
                               min={key === 'elevation' ? -12000 : 0}

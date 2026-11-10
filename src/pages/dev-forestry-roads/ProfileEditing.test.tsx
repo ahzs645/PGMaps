@@ -2,7 +2,13 @@ import { createElement, useEffect, useState } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { GradeCell } from './GradeScheduleFields'
-import { focusAfterRemoval, useProfileEditing, type ChartDomain, type ProfileFrame } from './ProfileEditing'
+import {
+  focusAfterRemoval,
+  junctionDifferenceText,
+  useProfileEditing,
+  type ChartDomain,
+  type ProfileFrame,
+} from './ProfileEditing'
 import type { ProfileJunction } from './profileJunctions'
 import type { VerticalControl, VerticalPoint } from './types'
 
@@ -308,5 +314,14 @@ describe('cancelling a drag and deleting a PVI', () => {
     vi.stubGlobal('document', { activeElement: {}, body })
     focusAfterRemoval(chart, 0)
     expect(focused).toEqual([1, 1])
+  })
+})
+
+describe('a junction in words', () => {
+  it("says which road is higher instead of a sign beside this road's level", () => {
+    // "This formation 759.42 m (+0.88 m)" read as if this road were the higher one.
+    expect(junctionDifferenceText(0.88)).toBe('Its level is 0.88 m above this formation')
+    expect(junctionDifferenceText(-0.88)).toBe('Its level is 0.88 m below this formation')
+    expect(junctionDifferenceText(0.001)).toBe('Level with this formation')
   })
 })

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { horizontalCurveEvents } from './planAnnotations'
+import { signedValue } from './profileAnnotations'
 import { reviewRoadSight } from './sightDistance'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -65,7 +66,9 @@ export function profileGradeSpans(analysis: RoadAnalysis, alignment: Alignment, 
       if (finite(a) && finite(b) && candidates.every((s) => finite(s.groundElevation)))
         grade = (100 * (b - a)) / (end - start)
     }
-    const label = `${grade === null ? 'Unknown' : `${grade > 0 ? '+' : ''}${number(grade)}%`} · ${number(end - start)} m`
+    // Design tangents print to the hundredth, as the grade editor and the schedule type them; a sampled
+    // ground grade to the tenth. A true minus, and no "−0" for a level tangent.
+    const label = `${grade === null ? 'Unknown' : signedValue(grade, designGrades ? 2 : 1)} · ${number(end - start)} m`
     return [
       {
         id: `grade-${i}`,

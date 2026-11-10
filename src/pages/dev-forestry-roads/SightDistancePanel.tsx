@@ -8,7 +8,7 @@ import { horizontalCurveSummary } from './engine'
 import { RoadSection } from './SidebarParts'
 import { setPlanSightlines } from './planSightlines'
 import { SightStationLooks } from './SightStationLooks'
-import { sightPlanFeatures } from './sightPresentation'
+import { sightPlanFeatures, stationRowProps } from './sightPresentation'
 import { TurnoutSightTable } from './TurnoutSightTable'
 import { reviewTurnoutSight } from './turnoutSight'
 import {
@@ -31,6 +31,7 @@ const m = (value: number | null, digits = 0) =>
  * speed, the stations that see less, and the clearing each curve needs on its inside. The Review
  * list carries the same check (`readiness.ts`).
  */
+
 export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) {
   const { project, alignment, analysis, updateAlignment, setStation } = workspace
   const [open, setOpen] = useState(false)
@@ -100,7 +101,9 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
       data-testid="road-sight-distance-section"
     >
       {basis.speedKmh === null && (
-        <InlineAlert tone="info">Enter a design speed under Curve design or Design standards.</InlineAlert>
+        <InlineAlert tone="info">
+          Enter a design speed under Section → Superelevation &amp; widening, or Review → Design standards.
+        </InlineAlert>
       )}
       <div className="grid grid-cols-2 items-end gap-2">
         <NumberField
@@ -230,8 +233,9 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
                 <tr
                   key={`${eye.chainage}-${eye.direction}`}
                   className="cursor-pointer"
-                  onClick={() => setStation(eye.chainage)}
+                  {...stationRowProps(() => setStation(eye.chainage))}
                   aria-selected={Math.abs(workspace.station - eye.chainage) < 1e-6}
+                  data-testid="road-sight-short-row"
                 >
                   <td>{formatRoadStation(eye.chainage)}</td>
                   <td>{eye.direction}</td>
@@ -257,7 +261,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
             </thead>
             <tbody>
               {clearings.map((curve) => (
-                <tr key={curve.curve} className="cursor-pointer" onClick={() => setStation(curve.start)}>
+                <tr key={curve.curve} className="cursor-pointer" {...stationRowProps(() => setStation(curve.start))}>
                   <td>
                     H{curve.curve + 1} {curve.inside === 'left' ? 'L' : 'R'}
                   </td>

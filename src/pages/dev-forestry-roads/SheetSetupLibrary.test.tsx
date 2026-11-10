@@ -77,5 +77,24 @@ describe('saved sheet setups', () => {
     expect(other.status()).toBe('Applied “Office tabloid” to the plot book and report contents and the block sheet.')
     other.click('Delete Office tabloid')
     expect(JSON.parse(other.storage.getItem(SHEET_SETUP_STORAGE_KEY)!).setups).toEqual([])
+    // Delete sits beside Download: one press can be taken back.
+    other.click('Undo')
+    expect(JSON.parse(other.storage.getItem(SHEET_SETUP_STORAGE_KEY)!).setups[0].name).toBe('Office tabloid')
+    expect(other.status()).toBe('Restored “Office tabloid”.')
+  })
+
+  it('names a refused file and says it was not imported', async () => {
+    const library = mount(createRoadReportSettings(), DEFAULT_BLOCK_SHEET)
+    const picker = library.root.find((node) => typeof node.props.onFiles === 'function')
+    const file = {
+      name: 'notes.json',
+      size: 40,
+      text: async () => JSON.stringify({ schema: 'pgmaps-sheet-setup-v1', name: 'Bad', plotBook: { paper: 'B0' } }),
+    }
+    await act(async () => {
+      picker.props.onFiles([file])
+      await Promise.resolve()
+    })
+    expect(library.status()).toMatch(/^“notes\.json” was not imported\. /)
   })
 })

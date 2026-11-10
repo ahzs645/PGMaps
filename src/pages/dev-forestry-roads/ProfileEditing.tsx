@@ -25,6 +25,7 @@ import {
   type GradeHold,
   type SnappedGrade,
 } from './gradeEdit'
+import { signedValue } from './profileAnnotations'
 import { controlForJunction, junctionControl, MAX_VERTICAL_CONTROLS, type ProfileJunction } from './profileJunctions'
 import { formatStation } from './verticalStandards'
 import type { VerticalControl, VerticalPoint } from './types'
@@ -51,15 +52,29 @@ const JUNCTION_COLOR = '#c026d3'
 const HELD_COLOR = '#b45309'
 const SNAP_COLOR = '#0d9488'
 const SNAP_STORAGE_KEY = 'pgmaps-road-profile-grade-snap'
-const pct = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)} %`
+const pct = (value: number) => signedValue(value, 2, ' %')
 const metres = (value: number | null, digits = 2) => (value === null ? 'unknown' : `${value.toFixed(digits)} m`)
-const signedMetres = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(2)} m`
+const signedMetres = (value: number) => signedValue(value, 2, ' m')
 const finite = (n: number | null | undefined): n is number => n != null && Number.isFinite(n)
 
 /** Focus is in a popover or nowhere, so closing it may hand focus back; a press elsewhere keeps its own. */
 function focusIsLoose() {
   const active = document.activeElement
   return !active || active === document.body || !!active.closest('[data-floating-layer]')
+}
+
+/** Room the drag cursor's text needs right of the handle; nearer the plot's right edge it goes left. */
+export const CURSOR_TEXT_PX = 184
+/** Below the handle, the drag cursor's lines (snapped grade, held reasons) take this band of pixels. */
+export const CURSOR_LINES_BELOW_PX = 48
+/** Whether the drag cursor's text sits left of a handle at `x`, given the plot's right edge. */
+export const cursorOnLeft = (x: number, plotRight: number) => x > plotRight - CURSOR_TEXT_PX
+
+/** A junction's `difference` (its level − this formation) in words, so the sign cannot be misread. */
+export function junctionDifferenceText(difference: number) {
+  const size = Math.abs(difference)
+  if (size < 0.005) return 'Level with this formation'
+  return `Its level is ${size.toFixed(2)} m ${difference > 0 ? 'above' : 'below'} this formation`
 }
 
 /** After a PVI is deleted, focus the handle now at `index` (or the last), else the chart itself. */
@@ -487,11 +502,12 @@ export function useProfileEditing(options: ProfileEditingOptions) {
   )
 
   /** The cursor readout: what a drag snapped to and what holds it. Drawn over everything. */
-  const cursor = (f: ProfileFrame, width: number) => {
+  // `_width` is the svg's; the side is judged on the plot's right edge, as the PVI readout box judges it.
+  const cursor = (f: ProfileFrame, _width?: number) => {
     if (!readout || !readout.lines.length) return null
     const x = f.x(readout.chainage),
       y = f.y(readout.elevation)
-    const right = x > width - 200
+    const right = cursorOnLeft(x, f.left + f.plotWidth)
     return (
       <g pointerEvents="none" data-testid="road-profile-drag-readout" aria-live="polite">
         {readout.lines.map((line, i) => (
@@ -623,10 +639,15 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 </dt>
                 <dd>{metres(junction.level)}</dd>
                 <dt className="text-muted-foreground">This formation</dt>
-                <dd>
-                  {metres(junction.designHere)}
-                  {junction.difference !== null ? ` (${signedMetres(junction.difference)})` : ''}
-                </dd>
+                <dd>{metres(junction.designHere)}</dd>
+                {junction.difference !== null && (
+                  <>
+                    <dt className="text-muted-foreground">Difference</dt>
+                    <dd data-testid="road-profile-junction-difference">
+                      {junctionDifferenceText(junction.difference)}
+                    </dd>
+                  </>
+                )}
               </dl>
               {existing ? (
                 <p className="text-muted-foreground">

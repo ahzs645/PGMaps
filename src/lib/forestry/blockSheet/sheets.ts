@@ -137,7 +137,7 @@ export const SHEET_PRESETS: Record<SheetKind, SheetPreset> = {
     kind: 'field-layout',
     label: 'Field Layout',
     title: 'Field Layout',
-    description: 'Tabloid landscape, side panel, contours, road table. Default 1:10,000.',
+    description: 'Side panel, contours, road table. Default 1:10,000.',
     template: FIELD_SIDE_PANEL,
     defaultScale: 10000,
     base: 'white',

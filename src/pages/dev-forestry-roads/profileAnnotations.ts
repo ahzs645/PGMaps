@@ -14,7 +14,15 @@ import type { Alignment, RoadAnalysis, RoadStation } from './types'
 const EPS = 1e-6
 const finite = (value: number | null | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value)
-const pct = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(1)}%`
+/**
+ * A signed value for display with a true minus sign: "+5.05%", "−5.05%". The sign follows the rounded
+ * value, so a grade that rounds to zero prints "0.0%", never "−0.0%".
+ */
+export function signedValue(value: number, digits = 1, unit = '%') {
+  const rounded = Number(value.toFixed(digits))
+  return `${rounded > 0 ? '+' : rounded < 0 ? '−' : ''}${Math.abs(rounded).toFixed(digits)}${unit}`
+}
+const pct = (value: number) => signedValue(value, 1)
 
 /**
  * A culvert this far along the road from a sag low point is taken to drain it. The drainage check's

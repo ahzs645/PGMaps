@@ -4,7 +4,7 @@
 looks ahead and back along its lane, over the surface the road leaves, and the distance it sees is
 compared with the stopping sight distance its grade needs. The same check is a row in the Review
 list ("Stopping sight distance along the road"), and the profile's band row **Sight** shows it by
-station once the bands are open. The curve table in the same section gives the clearing each
+station once the **Grade, curve, template & material bands** are open (not the Value bands). The curve table in the same section gives the clearing each
 horizontal curve needs on its inside.
 
 The calculation is `sightDistance.ts`. It has no DOM, terrain or network access: it reads the
@@ -12,8 +12,8 @@ calculated stations of a road, so it can be checked outside a browser.
 
 ## Before you rely on it
 
-- **Enter a design speed.** It is taken from the road's **Curve design**, else from **Design
-  standards**. Without one the Review row is not assessed.
+- **Enter a design speed.** It is taken from the road's design speed (Section → **Superelevation &
+  widening**), else from Review → **Design standards**. Without one the Review row is not assessed.
 - **Friction is a wet-pavement figure.** Left blank, braking friction comes from TAC's
   wet-pavement table for the design speed (0.40 at 30 km/h down to 0.28 at 110 km/h, taking the next
   higher tabulated speed between rows). Gravel, snow and ice can be lower. Enter your own value when
@@ -75,8 +75,8 @@ what stands in it. The 3D check covers cut banks and trees.
 ## Sightlines on the plan
 
 While the section is open, **Draw sightlines on the plan** (on by default) draws the selected
-station's two looks. Select a station in the shortfall table, on the profile or on the plan to move
-the eye; the section states each look in words under the toggle.
+station's two looks. Select a station in the shortfall table (click a row, or Tab to it and press
+Enter), on the profile or on the plan to move the eye; the section states each look in words under the toggle.
 
 - **Green:** the line from the eye to the farthest target seen.
 - **Red dashed:** the line to the distance needed, where it is blocked; grey where it crosses
@@ -166,7 +166,8 @@ second.
 
 ## Failure modes
 
-- **Not assessed: no design speed.** Enter one under Curve design or Design standards.
+- **Not assessed: no design speed.** Enter one under Section → Superelevation & widening, or
+  Review → Design standards.
 - **Not assessed: unknown.** A sightline crosses missing terrain, usually at a terrain tile edge or
   a no-data hole. Load terrain over the whole corridor, or accept that the check cannot be made
   there.
