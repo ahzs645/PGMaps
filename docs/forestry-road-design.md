@@ -565,8 +565,9 @@ warning someone must see stays an `InlineAlert`.
 - **Review:** **Ready to review**, the checks a designer answers for on the active road, in three
   states: met, needs attention, not assessed. A check the workspace could not make is never shown as
   met. Each row states the result, the measured value and the limit it was judged on, and a row with
-  something outstanding has an action that leads to what clears it. The rules are `readiness.ts`; the
-  report prints the same rows. The **Crossing register** lists mapped and modelled crossings once and
+  something outstanding has an action that leads to what clears it. The rows that need attention
+  lead, under a one-line verdict; **Not assessed** and **Met** fold to a line each that gives their
+  count. The rules are `readiness.ts`; the report prints every row. The **Crossing register** lists mapped and modelled crossings once and
   says which are the same crossing. **Design standards** holds the job's limits, including the
   short-pitch grade allowance. See
   [Review checks, design standards and the crossing register](forestry-road-design/review-and-standards.md).

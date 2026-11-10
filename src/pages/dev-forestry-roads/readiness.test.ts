@@ -11,8 +11,10 @@ import {
   isStartingTemplate,
   projectReadiness,
   readinessCounts,
+  readinessParts,
   readinessReportHtml,
   readinessSummary,
+  readinessVerdict,
   type ReadinessInput,
   type ReadinessRow,
 } from './readiness'
@@ -502,6 +504,41 @@ describe('assessReadiness: limits and states', () => {
     expect(priced.action).toMatchObject({ target: 'culverts' })
     // Nothing entered is nothing to price: not assessed, never a tick.
     expect(assess().row('structure-costs').state).toBe('not-assessed')
+  })
+
+  it('leads with what needs attention and never reads clear over a check that was not made', () => {
+    const { rows } = assess({ settings: { minRadius: 60 } })
+    const parts = readinessParts(rows)
+    // Every row is in exactly one part.
+    expect([...parts.attention, ...parts.notAssessed, ...parts.met].map((row) => row.id).sort()).toEqual(
+      rows.map((row) => row.id).sort(),
+    )
+    // A broken limit comes before an input still to do.
+    const severities = parts.attention.map((row) => row.severity)
+    expect(severities.lastIndexOf('limit')).toBeLessThan(severities.indexOf('todo'))
+    expect(parts.attention[0].id).toBe('curve-radius')
+    const counts = readinessCounts(rows)
+    expect(readinessVerdict(rows)).toEqual({
+      tone: 'danger',
+      text: `Not ready: ${counts.limits} outside a limit, ${counts.attention - counts.limits} to do`,
+    })
+    const row = (state: ReadinessRow['state'], severity?: ReadinessRow['severity']): ReadinessRow => ({
+      id: `${state}-${severity}`,
+      group: 'cost',
+      check: 'A check',
+      state,
+      severity,
+      result: 'A result',
+    })
+    expect(readinessVerdict([row('met'), row('attention', 'todo')])).toEqual({
+      tone: 'warning',
+      text: 'Not ready: 1 to do',
+    })
+    expect(readinessVerdict([row('met'), row('not-assessed')])).toEqual({
+      tone: 'neutral',
+      text: 'Nothing needs attention, but 1 check was not made',
+    })
+    expect(readinessVerdict([row('met'), row('met')]).text).toBe('All 2 checks are met')
   })
 
   it('summarises the list and prints it for the report', () => {

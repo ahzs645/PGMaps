@@ -1604,6 +1604,44 @@ export function readinessCounts(rows: readonly ReadinessRow[]) {
   }
 }
 
+/**
+ * The rows as the Review step lays them out: what needs attention first, a broken limit before an
+ * input still to do, then the checks that were not made, then the ones that are met. Every row is
+ * in exactly one part, and each part keeps the list's own order.
+ */
+export function readinessParts(rows: readonly ReadinessRow[]) {
+  const attention = rows.filter((row) => row.state === 'attention')
+  return {
+    attention: [
+      ...attention.filter((row) => row.severity === 'limit'),
+      ...attention.filter((row) => row.severity !== 'limit'),
+    ],
+    notAssessed: rows.filter((row) => row.state === 'not-assessed'),
+    met: rows.filter((row) => row.state === 'met'),
+  }
+}
+
+/**
+ * What the list says as a whole. It reads clear only when every check was made and met: a broken
+ * limit, an input still to do and a check that was not made each stop it, in that order.
+ */
+export function readinessVerdict(rows: readonly ReadinessRow[]): {
+  tone: 'danger' | 'warning' | 'neutral' | 'success'
+  text: string
+} {
+  const counts = readinessCounts(rows)
+  const todo = counts.attention - counts.limits
+  if (counts.limits)
+    return { tone: 'danger', text: `Not ready: ${counts.limits} outside a limit${todo ? `, ${todo} to do` : ''}` }
+  if (todo) return { tone: 'warning', text: `Not ready: ${todo} to do` }
+  if (counts.notAssessed)
+    return {
+      tone: 'neutral',
+      text: `Nothing needs attention, but ${plural(counts.notAssessed, 'check was', 'checks were')} not made`,
+    }
+  return { tone: 'success', text: rows.length === 1 ? 'The 1 check is met' : `All ${rows.length} checks are met` }
+}
+
 /** "5 need attention · 4 not assessed · 14 met". */
 export function readinessSummary(rows: readonly ReadinessRow[]): string {
   const counts = readinessCounts(rows)

@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AlertTriangle, CheckCircle2, ChevronDown, CircleDashed, OctagonAlert } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ResultRow } from '@/components/ui/result-list'
-import { SegmentedControl } from '@/components/ui/segmented-control'
 import { formatRoadStation } from './Charts'
 import {
   CROSSING_SOURCE_LABELS,
@@ -13,13 +12,20 @@ import {
 } from './crossingRegister'
 import {
   READINESS_GROUP_LABELS,
-  readinessCounts,
+  readinessParts,
+  readinessVerdict,
   type ReadinessGroup,
   type ReadinessRow,
-  type ReadinessState,
 } from './readiness'
+import { RoadSection } from './SidebarParts'
 
 const GROUPS = Object.keys(READINESS_GROUP_LABELS) as ReadinessGroup[]
+const VERDICT_CLASS = {
+  danger: 'text-red-700 dark:text-red-400',
+  warning: 'text-amber-700 dark:text-amber-400',
+  neutral: 'text-foreground',
+  success: 'text-emerald-700 dark:text-emerald-400',
+}
 
 function StateIcon({ row }: { row: ReadinessRow }) {
   if (row.state === 'met')
@@ -40,109 +46,129 @@ function StateIcon({ row }: { row: ReadinessRow }) {
 }
 
 /**
- * The checks a designer signs against, grouped. A row always shows what was found, the measured
- * value and a way to the place it is fixed; opened, it adds the limit it was judged on. Rows that
- * need attention start open, because the sidebar is narrow and the list is long. The check's own
- * wording names the row for assistive technology and is printed in the report.
+ * The checks a designer signs against. What needs attention leads, a broken limit before an input
+ * still to do, because that is what the designer acts on. The checks that were not made and the
+ * ones that are met fold to one line each that states how many there are, so the list fits the
+ * sidebar; every row is still there when its group is opened, and the report prints all of them.
+ * The verdict line and those two summaries carry the four counts between them.
+ *
+ * A row shows what was found, the measured value and a way to the place it is fixed; opened, it
+ * adds the check's own wording and the limit it was judged on. `children` follow the rows that
+ * need attention, inside the leading section.
  */
 export function ReadinessList({
   rows,
   onAction,
+  help,
+  children,
 }: {
   rows: ReadinessRow[]
   onAction: (action: NonNullable<ReadinessRow['action']>) => void
+  help?: ReactNode
+  children?: ReactNode
 }) {
-  const [show, setShow] = useState<'all' | 'open'>('all')
-  // A row's own toggle outranks the default for its state.
-  const [toggled, setToggled] = useState<Record<string, boolean>>({})
-  const counts = readinessCounts(rows)
-  const visible = (row: ReadinessRow) => show === 'all' || row.state !== 'met'
-  const todo = counts.attention - counts.limits
-  const chips: {
-    state: ReadinessState | 'limit'
-    count: number
-    label: string
-    tone: 'danger' | 'warning' | 'neutral' | 'success'
-  }[] = [
-    { state: 'limit', count: counts.limits, label: 'outside a limit', tone: 'danger' },
-    { state: 'attention', count: todo, label: 'to do', tone: 'warning' },
-    { state: 'not-assessed', count: counts.notAssessed, label: 'not assessed', tone: 'neutral' },
-    { state: 'met', count: counts.met, label: 'met', tone: 'success' },
-  ]
+  const [opened, setOpened] = useState<Record<string, boolean>>({})
+  const parts = readinessParts(rows)
+  const verdict = readinessVerdict(rows)
+  const item = (row: ReadinessRow) => {
+    const open = opened[row.id] ?? false
+    return (
+      <li key={row.id} className="text-xs" data-check={row.id} data-state={row.state} data-severity={row.severity}>
+        <button
+          type="button"
+          aria-expanded={open}
+          title={row.check}
+          aria-label={`${row.check}: ${row.result}`}
+          className="flex w-full items-start gap-2 px-2 pt-1.5 text-left hover:bg-muted/50"
+          onClick={() => setOpened((previous) => ({ ...previous, [row.id]: !open }))}
+        >
+          <StateIcon row={row} />
+          <span className="min-w-0 flex-1 font-medium leading-4">{row.result}</span>
+          <ChevronDown
+            aria-hidden
+            className={`mt-0.5 size-3 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+          />
+        </button>
+        <div className="space-y-0.5 pb-1.5 pl-[1.625rem] pr-2 pt-0.5 text-2xs leading-4">
+          {/* The measured value and the way to fix it share a line, so a row is two or three lines tall. */}
+          <div className="flex items-start gap-2">
+            <p className={`min-w-0 flex-1 ${open ? '' : 'line-clamp-2'}`}>{row.measured}</p>
+            {row.action && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 shrink-0 px-1.5 text-2xs"
+                onClick={() => onAction(row.action!)}
+              >
+                {row.action.label}
+              </Button>
+            )}
+          </div>
+          {open && (
+            <p className="text-muted-foreground">
+              Check: {row.check}
+              {row.judgedOn ? `. Judged on: ${row.judgedOn}` : ''}
+            </p>
+          )}
+        </div>
+      </li>
+    )
+  }
+  const list = (label: string, members: ReadinessRow[]) =>
+    members.length > 0 && (
+      <section key={label} aria-label={`${label} checks`}>
+        <h4 className="mb-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</h4>
+        <ul className="divide-y rounded-md border">{members.map(item)}</ul>
+      </section>
+    )
+  /** A folded group: its summary line gives the count, and its rows keep the list's own grouping. */
+  const folded = (title: string, members: ReadinessRow[], testId: string, about: string) =>
+    members.length > 0 && (
+      <RoadSection
+        title={title}
+        summary={`${members.length} ${members.length === 1 ? 'check' : 'checks'}`}
+        help={about}
+        toggleTestId={`${testId}-toggle`}
+        data-testid={testId}
+      >
+        {GROUPS.map((group) =>
+          list(
+            READINESS_GROUP_LABELS[group],
+            members.filter((row) => row.group === group),
+          ),
+        )}
+      </RoadSection>
+    )
   return (
-    <div className="space-y-2" data-testid="road-readiness-checks">
-      <div className="flex flex-wrap items-center gap-1" data-testid="road-readiness-counts">
-        {chips.map((chip) => (
-          <Badge key={chip.state} tone={chip.tone} variant={chip.count ? 'soft' : 'outline'} pill>
-            {chip.count} {chip.label}
-          </Badge>
-        ))}
-      </div>
-      <SegmentedControl
-        size="sm"
-        label="Checks shown"
-        value={show}
-        onChange={setShow}
-        options={[
-          { value: 'all', label: `All ${rows.length}` },
-          { value: 'open', label: `Outstanding ${counts.attention + counts.notAssessed}` },
-        ]}
-      />
-      {GROUPS.map((group) => {
-        const members = rows.filter((row) => row.group === group && visible(row))
-        if (!members.length) return null
-        return (
-          <section key={group} aria-label={`${READINESS_GROUP_LABELS[group]} checks`}>
-            <h4 className="mb-1 text-3xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {READINESS_GROUP_LABELS[group]}
-            </h4>
-            <ul className="divide-y rounded-md border">
-              {members.map((row) => {
-                const open = toggled[row.id] ?? row.state === 'attention'
-                return (
-                  <li
-                    key={row.id}
-                    className="text-xs"
-                    data-check={row.id}
-                    data-state={row.state}
-                    data-severity={row.severity}
-                  >
-                    <button
-                      type="button"
-                      aria-expanded={open}
-                      title={row.check}
-                      aria-label={`${row.check}: ${row.result}`}
-                      className="flex w-full items-start gap-2 px-2 pt-1.5 text-left hover:bg-muted/50"
-                      onClick={() => setToggled((previous) => ({ ...previous, [row.id]: !open }))}
-                    >
-                      <StateIcon row={row} />
-                      <span className="min-w-0 flex-1 font-medium leading-4">{row.result}</span>
-                      <ChevronDown
-                        aria-hidden
-                        className={`mt-0.5 size-3 shrink-0 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                    <div className="space-y-0.5 pb-1.5 pl-[1.625rem] pr-2 pt-0.5 text-2xs leading-4">
-                      {row.measured && <p className={open ? undefined : 'line-clamp-2'}>{row.measured}</p>}
-                      {open && row.judgedOn && <p className="text-muted-foreground">Judged on: {row.judgedOn}</p>}
-                      {row.action && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="mt-0.5 h-6 px-1.5 text-2xs"
-                          onClick={() => onAction(row.action!)}
-                        >
-                          {row.action.label}
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
-          </section>
-        )
-      })}
+    <div data-testid="road-readiness-checks">
+      <RoadSection title="Ready to review" help={help}>
+        <p className={`text-xs font-semibold ${VERDICT_CLASS[verdict.tone]}`} data-testid="road-readiness-verdict">
+          {verdict.text}
+        </p>
+        <div className="space-y-2" data-testid="road-readiness-attention">
+          {list(
+            'Outside a limit',
+            parts.attention.filter((row) => row.severity === 'limit'),
+          )}
+          {list(
+            'To do',
+            parts.attention.filter((row) => row.severity !== 'limit'),
+          )}
+        </div>
+        {children}
+      </RoadSection>
+      {folded(
+        'Not assessed',
+        parts.notAssessed,
+        'road-readiness-not-assessed',
+        'Checks the workspace could not make: no limit is entered, a result is missing or out of date, or the subject is outside what it models. Not assessed is not a pass. Open the group to see each one and what would let it be made.',
+      )}
+      {folded(
+        'Met',
+        parts.met,
+        'road-readiness-met',
+        'Checks that were made with nothing outstanding, each against this project’s own limits.',
+      )}
     </div>
   )
 }

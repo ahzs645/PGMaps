@@ -44,6 +44,20 @@ Each row states the result ("4 of 4 curves are tighter than 60 m"), the measured
 30 m at 0+280.9"), what it was judged on ("Minimum radius 60 m") and, when something is outstanding,
 a button that leads to where it is cleared.
 
+**How the Review step lays the list out** (`ReadinessList`, `ReadinessPanel.tsx`; `readinessParts`
+and `readinessVerdict`, `readiness.ts`):
+
+- A verdict line leads: "Not ready: 1 outside a limit, 6 to do". It reads "All 23 checks are met"
+  only when every check was made and met. With nothing outstanding and some checks not made it
+  reads "Nothing needs attention, but 9 checks were not made".
+- The rows that need attention follow, **Outside a limit** before **To do**. A row shows its result,
+  its measured value and its button; opening it adds the check's own wording and what it was judged
+  on.
+- **Not assessed** and **Met** are folded groups. Each summary line gives its count ("9 checks"),
+  and opening a group lists its rows under the same headings the report uses. A not-assessed row
+  keeps its button there ("Run check", "Set standards").
+- The printed report lists every row in full, in the report's own order.
+
 | Row                                         | Met when                                                                                                                                            | Not assessed when                                                                                                                    |
 | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Terrain fit for site quantities             | Imported terrain at 2 m cells or finer                                                                                                              | the terrain records no cell size. Synthetic or coarse terrain needs attention                                                        |
