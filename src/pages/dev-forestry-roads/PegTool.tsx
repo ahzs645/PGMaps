@@ -76,13 +76,15 @@ export function PegTool({
   const { map, isLoaded } = useMap()
   const limit = project.settings.maxGradePercent
   const [settings, setSettingsState] = useState(lastSettings)
-  const setSettings = (next: PegToolSettings) => {
-    lastSettings = next
-    setSettingsState(next)
-  }
   const end = alignment.points.at(-1)?.coordinate ?? null
   const [chain, setChain] = useState<PegChain | null>(end ? { origin: end, legs: [] } : null)
   const [note, setNote] = useState('')
+  const setSettings = (next: PegToolSettings) => {
+    lastSettings = next
+    setSettingsState(next)
+    // A changed grade, direction or step answers the last refusal, so its note goes.
+    setNote('')
+  }
   // The road's end moved under the chain (an undo, or an edit elsewhere): start again from it.
   if (end && (!chain || distance(chain.origin, end) > 0.001)) {
     setChain({ origin: end, legs: [] })

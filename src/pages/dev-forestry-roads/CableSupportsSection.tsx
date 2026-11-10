@@ -160,8 +160,8 @@ export function CableSupportsSection({
         </>
       }
     >
-      {/* Start and End side by side; System, the third, on its own row so no label breaks at 257 px. */}
-      <div className="grid grid-cols-2 gap-1 [&>*:nth-child(3)]:col-span-2">
+      {/* One column: side by side, "Yarder tower" and "Support + anchor" were cut off at 1280 px. */}
+      <div className="grid grid-cols-1 gap-1">
         <Field label="Start">
           <RoadSelect
             ariaLabel="Start element"

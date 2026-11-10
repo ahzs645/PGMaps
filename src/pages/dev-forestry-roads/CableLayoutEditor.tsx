@@ -127,7 +127,7 @@ export function SpanColumns() {
         <ColumnHeader label="Span" unit="m" className="text-left" title="Span, from–to the yarder" />
         <ColumnHeader label="Sag" unit="m" title="Loaded sag" />
         <ColumnHeader label="Clear." unit="m" title="Smallest load clearance" />
-        <ColumnHeader label="Tension" unit="kN" title="Largest tension" />
+        <ColumnHeader label="T max" unit="kN" title="Largest tension" />
       </tr>
     </thead>
   )

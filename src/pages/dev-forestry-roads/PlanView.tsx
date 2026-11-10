@@ -1441,7 +1441,14 @@ function Layers(
             key={`overlay-${feature.id ?? index}`}
             longitude={feature.geometry.coordinates[0]}
             latitude={feature.geometry.coordinates[1]}
-            offset={feature.properties?.marker === 'dot' ? undefined : LABEL_BELOW_PX}
+            offset={
+              feature.properties?.marker === 'dot'
+                ? undefined
+                : // A failed search's stop label goes above its point; below, it met the map attribution.
+                  feature.properties?.kind === 'route-search-stop'
+                  ? LABEL_ABOVE_PX
+                  : LABEL_BELOW_PX
+            }
           >
             <MarkerContent>
               {feature.properties?.marker === 'dot' ? (

@@ -80,7 +80,18 @@ export function RouteFinder({
   const [trySteeper, setTrySteeper] = useState(false)
   const failureRefs = useRef(new Map<string, HTMLButtonElement>())
   const abort = useRef<AbortController | null>(null)
-  useEffect(() => () => abort.current?.abort(), [])
+  // Leaving mid-run stops the search and hands the workspace back: a remounted panel has its own
+  // controller ref, so nothing else would ever clear this run's busy toast.
+  const setBusy = w.setBusy
+  useEffect(
+    () => () => {
+      if (!abort.current) return
+      abort.current.abort()
+      abort.current = null
+      setBusy('')
+    },
+    [setBusy],
+  )
   const route = project.routeSearch ?? DEFAULT_ROUTE_OPTIONS
   const groundWindowM = resolvedGroundWindow(route, project.terrain.resolutionM)
   const roadKey = JSON.stringify([alignment.id, alignment.points.map((p) => p.coordinate), alignment.vertical.length])
@@ -171,8 +182,7 @@ export function RouteFinder({
     abort.current = controller
     const stop = () => {
       controller.abort()
-      if (abort.current !== controller) return
-      abort.current = null
+      if (abort.current === controller) abort.current = null
       w.setBusy('')
       w.setNotice('Steeper-grade search cancelled. Nothing was changed.')
     }
@@ -223,8 +233,8 @@ export function RouteFinder({
     // Cancel hands the workspace back at once; the search stops at its next slice, a few milliseconds on.
     const stop = () => {
       controller.abort()
-      if (abort.current !== controller) return
-      abort.current = null
+      // Cancel always hands the workspace back, even if this panel no longer owns the run.
+      if (abort.current === controller) abort.current = null
       w.setBusy('')
       w.setNotice('Route comparison cancelled. No road was changed.')
     }
