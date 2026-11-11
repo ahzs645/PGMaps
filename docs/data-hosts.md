@@ -16,7 +16,7 @@ list of how they are laid out: the sync reads it for local runs instead of
 keeping its own copy. Moving the first folders took about 400 MB (compressed)
 out of the Pages build; `census` is another 265 MB uncompressed.
 
-That site is 617 MB of GitHub Pages' 1 GB limit, which its build enforces, and
+That site is 541 MB of GitHub Pages' 1 GB limit, which its build enforces, and
 it warns above 800 MB. `boundaries` is 205 MB, of which the app loads about 92:
 the full-detail `BCMoH` files (89 MB) and the two province-wide `BCFWA` files
 (23 MB) are sources for the simplified layers it does load.
@@ -24,6 +24,10 @@ the full-detail `BCMoH` files (89 MB) and the two province-wide `BCFWA` files
 `canada-admin` was published there until 10 November 2026. Nothing loaded it:
 the Canada administrative divisions story reads PMTiles on R2. bcdatamapper no
 longer commits those snapshots.
+
+`forest/visual-inventory` (75 MB) was removed on 11 November 2026. It was a copy
+of the ArcGIS visual landscape inventory layer, which stops at 10,000 of 60,499
+polygons; the visual quality page reads the inventory live from DataBC's WFS.
 
 ### Versions
 
