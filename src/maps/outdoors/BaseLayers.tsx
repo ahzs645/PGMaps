@@ -21,10 +21,12 @@ import {
   describeDepthChart,
   describeDepthContour,
   describeForestRoad,
+  describeStand,
   DEPTH_BANDS,
   depthChartSet,
   fetchBcLayer,
   huntZoneFilter,
+  OPENNESS_COLORS,
   parseCoastalLaunches,
   parseCutblocks,
   parseDepthCharts,
@@ -32,6 +34,7 @@ import {
   parseForestRoads,
   parseHuntZones,
   parseRecLaunches,
+  parseStands,
   type BcLayerId,
   type CardText,
   type DepthChartSet,
@@ -66,6 +69,7 @@ const HILLSHADE_LAYER_ID = `${TERRAIN_ID}-hillshade`
  * `PLAN_LAYER_ORDER` and up, above all of these.
  */
 const ORDER = {
+  stands: 6,
   huntZones: 8,
   depthCharts: 10,
   depthContours: 11,
@@ -91,6 +95,7 @@ export const BASE_LAYER_KEYS = [
   'forestRoads',
   'rail',
   'cutblocks',
+  'openness',
   'launches',
   'lakeDepth',
 ] as const
@@ -105,6 +110,7 @@ export const DEFAULT_BASE_LAYERS: BaseLayerChoices = {
   forestRoads: false,
   rail: false,
   cutblocks: false,
+  openness: false,
   launches: false,
   lakeDepth: false,
 }
@@ -463,6 +469,28 @@ function CutblockLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }
   )
 }
 
+const loadStands = viewLoader('stands', parseStands)
+const standHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeStand(properties))
+const OPENNESS_COLOR = ['match', ['get', 'openness'], ...Object.entries(OPENNESS_COLORS).flat(), OPENNESS_COLORS.timber]
+
+/** Forest stands coloured by how far a person is likely to see through them. */
+function OpennessLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
+  const { collection, visible } = useViewData(loadStands, BC_LAYER_SOURCES.stands.minZoom ?? 0, onStatus)
+  if (!visible) return null
+  return (
+    <MapFillLayer
+      data={collection}
+      fillColor={OPENNESS_COLOR}
+      fillOpacity={0.45}
+      lineColor={OPENNESS_COLOR}
+      lineWidth={0.6}
+      lineOpacity={0.8}
+      hoverHtml={standHoverHtml}
+      layerOrder={ORDER.stands}
+    />
+  )
+}
+
 const loadRecLaunches = async (signal: AbortSignal) =>
   parseRecLaunches(await fetchBcLayer('recLaunches', undefined, signal))
 const loadCoastalLaunches = async (signal: AbortSignal) =>
@@ -673,6 +701,7 @@ export function OutdoorsBaseLayers({
       forestRoads: (status: LayerStatus) => onStatus('forestRoads', status),
       rail: (status: LayerStatus) => onStatus('rail', status),
       cutblocks: (status: LayerStatus) => onStatus('cutblocks', status),
+      openness: (status: LayerStatus) => onStatus('openness', status),
       launches: (status: LayerStatus) => onStatus('launches', status),
       lakeDepth: (status: LayerStatus) => onStatus('lakeDepth', status),
     }),
@@ -696,6 +725,7 @@ export function OutdoorsBaseLayers({
       <RecentImageryLayer visible={choices.recent} relief={choices.relief} date={recentDate} />
       {choices.huntZones && <HuntZoneLayer key={zoneSpecies} species={zoneSpecies} onStatus={report.huntZones} />}
       {choices.lakeDepth && <LakeDepthLayer onStatus={report.lakeDepth} onOpenChart={onOpenChart} />}
+      {choices.openness && <OpennessLayer onStatus={report.openness} />}
       {choices.cutblocks && <CutblockLayer onStatus={report.cutblocks} />}
       {choices.forestRoads && <ForestRoadLayer onStatus={report.forestRoads} />}
       {choices.rail && <RailwayLayer onStatus={report.rail} />}

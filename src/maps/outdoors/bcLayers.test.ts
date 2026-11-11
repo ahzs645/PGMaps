@@ -10,7 +10,9 @@ import {
   describeForestRoad,
   depthBandColor,
   depthChartSet,
+  describeStand,
   huntZoneFilter,
+  opennessOf,
   parseCoastalLaunches,
   parseCutblocks,
   parseDepthCharts,
@@ -18,6 +20,7 @@ import {
   parseForestRoads,
   parseHuntZones,
   parseRecLaunches,
+  parseStands,
   secureUrl,
   titleCase,
   type Bounds,
@@ -319,5 +322,53 @@ describe('limited entry zones', () => {
       units: '7-25',
       huntAreaId: '725A',
     })
+  })
+})
+
+describe('forest openness', () => {
+  it('reads sightlines from tree cover, height and crown closure', () => {
+    expect(opennessOf({ treed: false, heightM: null, crownClosure: null })).toBe('open')
+    expect(opennessOf({ treed: true, heightM: 1.2, crownClosure: 60 })).toBe('open')
+    expect(opennessOf({ treed: true, heightM: 18, crownClosure: 5 })).toBe('open')
+    expect(opennessOf({ treed: true, heightM: 18, crownClosure: 20 })).toBe('sparse')
+    expect(opennessOf({ treed: true, heightM: 4, crownClosure: 60 })).toBe('brush')
+    expect(opennessOf({ treed: true, heightM: 6, crownClosure: 30 })).toBe('brush')
+    expect(opennessOf({ treed: true, heightM: 22, crownClosure: 40 })).toBe('timber')
+    expect(opennessOf({ treed: true, heightM: 22, crownClosure: 70 })).toBe('dense')
+  })
+
+  it('reads treed ground with no figures as timber, the cautious call', () => {
+    expect(opennessOf({ treed: true, heightM: null, crownClosure: null })).toBe('timber')
+  })
+
+  it('leaves out water and undescribed polygons', () => {
+    const stand = (properties: Record<string, unknown>) => feature(square, properties)
+    const { collection } = parseStands({
+      features: [
+        stand({
+          FEATURE_ID: 1,
+          BCLCS_LEVEL_1: 'V',
+          BCLCS_LEVEL_2: 'T',
+          PROJ_HEIGHT_1: 4.5,
+          CROWN_CLOSURE: 65,
+          PROJ_AGE_1: 14,
+          SPECIES_CD_1: 'PLI',
+        }),
+        stand({ FEATURE_ID: 2, BCLCS_LEVEL_1: 'N', BCLCS_LEVEL_2: 'W' }),
+        stand({ FEATURE_ID: 3, BCLCS_LEVEL_1: 'V', BCLCS_LEVEL_2: 'N' }),
+        stand({ FEATURE_ID: 4 }),
+      ],
+    })
+    expect(collection.features.map((row) => [row.properties.id, row.properties.openness])).toEqual([
+      ['1', 'brush'],
+      ['3', 'open'],
+    ])
+    const card = describeStand(collection.features[0].properties)
+    expect(card.title).toBe('Eye-height regrowth')
+    expect(card.lines).toEqual([
+      'Sight blocked at eye height',
+      'Crown closure 65%, trees about 5 m, 14 years old, leading species PLI',
+    ])
+    expect(card.caution).toMatch(/estimate from the forest inventory/)
   })
 })

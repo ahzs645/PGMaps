@@ -9,6 +9,7 @@ import {
   Copy,
   Crosshair,
   Download,
+  Eye,
   FileJson,
   FileUp,
   Hexagon,
@@ -63,10 +64,13 @@ import {
   CUTBLOCK_AGE_LABELS,
   DEPTH_BANDS,
   HUNT_ZONE_SPECIES,
+  OPENNESS_COLORS,
+  OPENNESS_LABELS,
   titleCase,
   type CutblockAge,
   type DepthChartSet,
   type HuntZoneSpecies,
+  type Openness,
 } from '@/maps/outdoors/bcLayers'
 import { clampImageryDate, recentImageryRange, shiftIsoDate, todayIsoDate } from '@/maps/outdoors/recentImagery'
 import { ChartViewer } from '@/maps/outdoors/ChartViewer'
@@ -124,6 +128,7 @@ const LAYER_NOUNS: Record<DataLayerKey, [singular: string, plural: string]> = {
   forestRoads: ['road section', 'road sections'],
   rail: ['rail segment', 'rail segments'],
   cutblocks: ['cutblock', 'cutblocks'],
+  openness: ['forest stand', 'forest stands'],
   launches: ['launch', 'launches'],
   lakeDepth: ['depth chart', 'depth charts'],
 }
@@ -149,6 +154,14 @@ function layerStatusText(layer: DataLayerKey, status: LayerStatus | undefined, i
       return idle
   }
 }
+
+const OPENNESS_LEGEND = Object.keys(OPENNESS_LABELS) as Openness[]
+
+/** Places to open the map at while the planner is being built and shown. */
+const TEST_AREAS: Array<{ name: string; center: [number, number]; zoom: number }> = [
+  { name: 'Tachie River', center: [-124.72, 54.68], zoom: 10.5 },
+  { name: 'Haida Gwaii', center: [-132.15, 53.45], zoom: 8.2 },
+]
 
 const CUTBLOCK_LEGEND = (Object.keys(CUTBLOCK_AGE_LABELS) as CutblockAge[]).filter((age) => age !== 'unknown')
 
@@ -1345,6 +1358,21 @@ function DevOutdoors() {
       </SidebarSection>
 
       <SidebarSection title="Map layers">
+        <div className="mb-2 flex flex-wrap items-center gap-1.5 text-2xs text-muted-foreground">
+          <span>Go to:</span>
+          {TEST_AREAS.map((area) => (
+            <Button
+              key={area.name}
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-2xs"
+              onClick={() => mapRef.current?.flyTo({ center: area.center, zoom: area.zoom })}
+            >
+              {area.name}
+            </Button>
+          ))}
+        </div>
         <div className="space-y-1.5">
           <ToggleRow
             active={baseLayers.satellite}
@@ -1492,6 +1520,39 @@ function DevOutdoors() {
                 </li>
               ))}
             </ul>
+          )}
+          <ToggleRow
+            active={baseLayers.openness}
+            onClick={() => toggleBaseLayer('openness')}
+            icon={Eye}
+            label="Sightlines (forest openness)"
+            description={
+              baseLayers.openness
+                ? layerStatusText('openness', layerStatuses.openness, 'Loading…')
+                : 'Open ground, regrowth and timber from the forest inventory'
+            }
+            tone="amber"
+          />
+          {baseLayers.openness && (
+            <div className="space-y-1 px-1">
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-muted-foreground">
+                {OPENNESS_LEGEND.map((openness) => (
+                  <li key={openness} className="flex items-center gap-1">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: OPENNESS_COLORS[openness] }}
+                      aria-hidden="true"
+                    />
+                    {OPENNESS_LABELS[openness]}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-2xs leading-4 text-muted-foreground">
+                A guess at how far you can see, from recorded crown closure and tree height. Yellow and pale green are
+                the likeliest ground for long sightlines; orange is regrowth at eye height. Turn on Cutblocks to see how
+                long ago each opening was logged.
+              </p>
+            </div>
           )}
           <ToggleRow
             active={baseLayers.launches}

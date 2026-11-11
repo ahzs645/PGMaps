@@ -20,6 +20,9 @@
  * - **Limited entry hunting zones** (`WAA_LTD_HNT_ZONE_CURR_YEAR_SVW`): the
  *   zones a management unit is split into for a draw, one set per species.
  *   "Zone A of 7-25" for moose is not the same ground as an elk zone there.
+ * - **Forest stands** (`VEG_COMP_LYR_R1_POLY`, the Vegetation Resources
+ *   Inventory): crown closure, projected height, age and leading species per
+ *   stand, read here as a rough guide to how far a person can see.
  *
  * Everything here is pure except `fetchBcLayer`. The bounding box goes in
  * `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0 with EPSG:4326 is
@@ -40,6 +43,7 @@ export type BcLayerId =
   | 'depthCharts'
   | 'depthContours'
   | 'huntZones'
+  | 'stands'
 
 interface BcLayerSource {
   typeName: string
@@ -105,6 +109,23 @@ export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
     ],
     minZoom: 7,
     maxFeatures: 3000,
+  },
+  stands: {
+    typeName: 'WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY',
+    geometryColumn: 'GEOMETRY',
+    // The layer has 189 attributes; these seven are what a sightline guess needs.
+    fields: [
+      'FEATURE_ID',
+      'BCLCS_LEVEL_1',
+      'BCLCS_LEVEL_2',
+      'SPECIES_CD_1',
+      'PROJ_HEIGHT_1',
+      'CROWN_CLOSURE',
+      'PROJ_AGE_1',
+    ],
+    // GeoServer does not generalise geometry: a 13 km by 10 km view is about 2 MB.
+    minZoom: 12,
+    maxFeatures: 5000,
   },
   huntZones: {
     typeName: 'WHSE_WILDLIFE_MANAGEMENT.WAA_LTD_HNT_ZONE_CURR_YEAR_SVW',
@@ -621,6 +642,113 @@ export function parseHuntZones(payload: unknown): LayerAnswer<HuntZoneProperties
       huntAreaId: text(properties.LEH_HUNT_AREA_ID),
     }
   })
+}
+
+// ---------------------------------------------------------------------------
+// Forest openness
+
+/**
+ * How far a person on foot is likely to see through a stand, guessed from the
+ * forest inventory. The classes and their thresholds are a screening rule made
+ * for this planner, not a published standard and not checked on the ground:
+ *
+ * - `open`: no tree cover recorded, trees under 2 m, or crown closure under 10%.
+ * - `sparse`: crown closure 10 to 25%, trees 2 m or taller.
+ * - `brush`: trees 2 to 6 m with crown closure over 25%. Regrowth at eye
+ *   height, which blocks sight more than mature timber does.
+ * - `timber`: trees over 6 m, crown closure 26 to 55%.
+ * - `dense`: trees over 6 m, crown closure over 55%.
+ */
+export type Openness = 'open' | 'sparse' | 'brush' | 'timber' | 'dense'
+
+export const OPENNESS_LABELS: Record<Openness, string> = {
+  open: 'Open ground',
+  sparse: 'Sparse trees',
+  brush: 'Eye-height regrowth',
+  timber: 'Timber',
+  dense: 'Dense timber',
+}
+
+export const OPENNESS_COLORS: Record<Openness, string> = {
+  open: '#fde047',
+  sparse: '#bef264',
+  brush: '#c2410c',
+  timber: '#16a34a',
+  dense: '#14532d',
+}
+
+export const OPENNESS_SIGHT: Record<Openness, string> = {
+  open: 'Long sightlines likely',
+  sparse: 'Good sightlines between trees',
+  brush: 'Sight blocked at eye height',
+  timber: 'Sight under the canopy varies',
+  dense: 'Short sightlines',
+}
+
+export const BRUSH_MAX_HEIGHT_M = 6
+export const LOW_COVER_MAX_HEIGHT_M = 2
+
+export function opennessOf(stand: { treed: boolean; heightM: number | null; crownClosure: number | null }): Openness {
+  const { treed, heightM, crownClosure } = stand
+  if (!treed) return 'open'
+  if (heightM != null && heightM < LOW_COVER_MAX_HEIGHT_M) return 'open'
+  // A treed stand with no closure figure is treated as timber: the cautious reading for a sightline.
+  const closure = crownClosure ?? 40
+  if (closure < 10) return 'open'
+  if (closure <= 25) return 'sparse'
+  if (heightM != null && heightM <= BRUSH_MAX_HEIGHT_M) return 'brush'
+  return closure > 55 ? 'dense' : 'timber'
+}
+
+export interface StandProperties {
+  id: string
+  openness: Openness
+  treed: boolean
+  crownClosure: number | null
+  heightM: number | null
+  ageYears: number | null
+  /** The inventory's leading species code, e.g. "PLI" (lodgepole pine), "SX" (spruce). */
+  species: string | null
+}
+
+/** Water is left out: a lake is open, but it is not ground to hunt across. */
+export function parseStands(payload: unknown): LayerAnswer<StandProperties> {
+  return answer(payload, 'stands', 'polygon', (properties, index) => {
+    const level2 = text(properties.BCLCS_LEVEL_2)?.toUpperCase() ?? null
+    if (level2 === 'W') return null
+    // No land-cover call at all means the inventory did not describe the polygon.
+    if (!text(properties.BCLCS_LEVEL_1) && level2 == null) return null
+    const treed = level2 === 'T'
+    const heightM = number(properties.PROJ_HEIGHT_1)
+    const crownClosure = number(properties.CROWN_CLOSURE)
+    return {
+      id: key(properties.FEATURE_ID, `stand-${index}`),
+      openness: opennessOf({ treed, heightM, crownClosure }),
+      treed,
+      crownClosure,
+      heightM,
+      ageYears: number(properties.PROJ_AGE_1),
+      species: text(properties.SPECIES_CD_1),
+    }
+  })
+}
+
+export function describeStand(properties: Partial<StandProperties>): CardText {
+  const openness = properties.openness ?? 'timber'
+  const facts = [
+    properties.crownClosure != null ? `Crown closure ${properties.crownClosure}%` : null,
+    properties.heightM != null ? `trees about ${Math.round(properties.heightM)} m` : null,
+    properties.ageYears != null ? `${properties.ageYears} years old` : null,
+    properties.species ? `leading species ${properties.species}` : null,
+  ].filter(Boolean)
+  return {
+    title: OPENNESS_LABELS[openness],
+    lines: [
+      OPENNESS_SIGHT[openness],
+      facts.length > 0 ? facts.join(', ') : properties.treed ? 'No stand figures recorded' : 'No tree cover recorded',
+    ],
+    caution: 'An estimate from the forest inventory, which can be years out of date. Check the imagery.',
+  }
 }
 
 // ---------------------------------------------------------------------------
