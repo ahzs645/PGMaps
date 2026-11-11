@@ -9,12 +9,16 @@ import {
   FileJson,
   FileUp,
   Hexagon,
+  Layers,
   Link2,
   MapPin,
+  Mountain,
   Plus,
   RotateCcw,
+  Satellite,
   Route as RouteIcon,
   Sparkles,
+  TrainTrack,
   Trash2,
   X,
 } from 'lucide-react'
@@ -30,9 +34,16 @@ import { MapCircleLayer, MapFillLayer, MapLineLayer, MapPmtilesFillLayer } from 
 import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { BC_CENTER } from '@/components/ui/map-styles'
 import { TabBar } from '@/components/ui/tab-bar'
+import { ToggleRow } from '@/components/ui/toggle-row'
 import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { fetchJson } from '@/lib/fetchJson'
+import {
+  DEFAULT_BASE_LAYERS,
+  OutdoorsBaseLayers,
+  type BaseLayerChoices,
+  type RailLayerStatus,
+} from '@/maps/outdoors/BaseLayers'
 import {
   AREA_KINDS,
   AREA_KIND_LABELS,
@@ -64,6 +75,41 @@ const OUTDOORS_CATALOG_URL = '/data/bc/outdoors/r2/pmtiles-catalog.json'
 const WMU_SOURCE_LAYER = 'wildlife_management_units'
 const WMU_ID_PROPERTY = 'managementUnitId'
 const LOCAL_STORAGE_KEY = 'pgmaps.bc-outdoors-plan.v1'
+/** Which base layers are on is a viewer's preference, not part of the plan they share. */
+const BASE_LAYERS_STORAGE_KEY = 'tropik.outdoors-base-layers.v1'
+
+function readBaseLayerChoices(): BaseLayerChoices {
+  try {
+    const stored: unknown = JSON.parse(window.localStorage.getItem(BASE_LAYERS_STORAGE_KEY) ?? 'null')
+    if (typeof stored !== 'object' || stored == null) return DEFAULT_BASE_LAYERS
+    const record = stored as Record<string, unknown>
+    return {
+      satellite: record.satellite === true,
+      relief: record.relief === true,
+      rail: record.rail === true,
+    }
+  } catch {
+    return DEFAULT_BASE_LAYERS
+  }
+}
+
+function railStatusText(status: RailLayerStatus): string {
+  switch (status.state) {
+    case 'zoom-in':
+      return 'Zoom in to load rail lines'
+    case 'loading':
+      return 'Loading…'
+    case 'error':
+      return `Could not load: ${status.message}`
+    case 'ready':
+      if (status.segments === 0) return 'No rail lines in this view'
+      return status.truncated
+        ? `${status.segments.toLocaleString()} segments shown; zoom in for all`
+        : `${status.segments.toLocaleString()} segments in this view`
+    default:
+      return 'Mapped track, with its recorded status'
+  }
+}
 
 const ACTIVITY_LABELS: Record<PlanActivity, string> = {
   hunt: 'Hunting',
@@ -380,6 +426,19 @@ function DevOutdoors() {
   )
   const [planReady, setPlanReady] = useState(() => !initialShareTokenValue)
   const [activeStage, setActiveStage] = useState<PlanStage>('eligibility')
+  const [baseLayers, setBaseLayers] = useState<BaseLayerChoices>(readBaseLayerChoices)
+  const [railStatus, setRailStatus] = useState<RailLayerStatus>({ state: 'off' })
+  const toggleBaseLayer = useCallback((layer: keyof BaseLayerChoices) => {
+    setBaseLayers((current) => {
+      const next = { ...current, [layer]: !current[layer] }
+      try {
+        window.localStorage.setItem(BASE_LAYERS_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        // Private browsing or a full quota: the choice still holds for this visit.
+      }
+      return next
+    })
+  }, [])
   const [wmuLayer, setWmuLayer] = useState<WmuLayerInfo | null>(null)
   const [wmuLayerError, setWmuLayerError] = useState<string | null>(null)
   const [drawMode, setDrawMode] = useState<DrawMode | null>(null)
@@ -1227,6 +1286,42 @@ function DevOutdoors() {
         )}
       </SidebarSection>
 
+      <SidebarSection title="Map layers">
+        <div className="space-y-1.5">
+          <ToggleRow
+            active={baseLayers.satellite}
+            onClick={() => toggleBaseLayer('satellite')}
+            icon={Satellite}
+            label="Satellite imagery"
+            description="Esri World Imagery; photo dates vary by place"
+            tone="emerald"
+          />
+          <ToggleRow
+            active={baseLayers.relief}
+            onClick={() => toggleBaseLayer('relief')}
+            icon={Mountain}
+            label="Terrain relief"
+            description="Hill shading from open elevation tiles"
+            tone="amber"
+          />
+          <ToggleRow
+            active={baseLayers.rail}
+            onClick={() => toggleBaseLayer('rail')}
+            icon={TrainTrack}
+            label="Rail lines"
+            description={baseLayers.rail ? railStatusText(railStatus) : 'Mapped track, with its recorded status'}
+            tone="violet"
+          />
+        </div>
+        <p className="mt-2 flex gap-1.5 text-2xs leading-4 text-muted-foreground">
+          <Layers className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
+          <span>
+            Rail lines come from the provincial inventory, which lists nearly every line as operational as of 2017.
+            Judge a line's condition from the imagery and relief, not from its recorded status.
+          </span>
+        </p>
+      </SidebarSection>
+
       <SidebarSection title="Save & share">
         {shareFallback && (
           <input
@@ -1317,6 +1412,7 @@ function DevOutdoors() {
       >
         <MapTableBridge table={table} />
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
+        <OutdoorsBaseLayers choices={baseLayers} onRailStatus={setRailStatus} />
         {wmuLayer && (
           <MapPmtilesFillLayer
             url={wmuLayer.pmtilesUrl}
