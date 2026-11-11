@@ -28,3 +28,16 @@ export function unionBounds(bounds: Bounds[]): Bounds | undefined {
     Math.max(...bounds.map((b) => b[3])),
   ]
 }
+
+/** A map view: its centre and the ground width and height it shows when seen from straight above, in metres. */
+export interface MapView {
+  center: [number, number]
+  width: number
+  height: number
+}
+/** The view as a [minX, minY, maxX, maxY] box in a projected CRS. The box is centred and sized in metres. */
+export function projectedViewBox(view: MapView, crs: string): [number, number, number, number] {
+  const [x, y] = proj4('EPSG:4326', definition(crs), view.center)
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw Error('The map view falls outside this CRS')
+  return [x - view.width / 2, y - view.height / 2, x + view.width / 2, y + view.height / 2]
+}

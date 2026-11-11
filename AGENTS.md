@@ -26,6 +26,7 @@
 - `vendor/pgmaps-lidar-data` builds and publishes the EPT tiles. Its Release stores them and its own Pages site serves them to the browser; PGMaps loads them at runtime and does not deploy them. Do not bring them back into `dist`: at 495 MB they put this site over GitHub's 1 GB Pages limit, which `deploy.yml` now warns about at 900 MB compressed.
 - Browsers cannot read a GitHub Release asset, because GitHub sends no CORS headers on those downloads. A Release can store data but cannot serve it to the app.
 - Pages keys a deployment by commit, and a cancelled commit cannot deploy again. Retry a timed-out deploy with a new commit, not a rerun.
+- Import & data reads a LAS/LAZ too large to load whole one chunk at a time (`largeLaz*.ts`): `src/lib/lidar/lazChunkTable.ts` decodes LAZ's chunk table, a port of LASzip (Apache-2.0, `NOTICE-LASZIP.md`), and laz-perf's `ChunkDecoder` decodes each chunk in a worker. Never read such a file with `arrayBuffer()` or laz-perf's whole-file `LASZip`: a LidarBC tile is up to 2.8 GB and 3–5 GB unpacked, past WebAssembly's 4 GB. Keep `lazChunkTable.ts`, `largeLaz.ts` and `largeLazDecode.ts` free of DOM access; their tests run on laz-perf's Node build and a real LidarBC chunk table.
 
 ## Updating submodule data
 

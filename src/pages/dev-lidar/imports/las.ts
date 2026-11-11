@@ -9,6 +9,8 @@ export interface LasHeader {
   format: number
   hasCRS: boolean
   epsg: number | null
+  /** CRS records (GeoKeys or WKT) from the VLRs or LAS 1.4 extended VLRs, for files rewritten from this one. */
+  crsRecords: Vlr[]
 }
 const MAX_METADATA = 16 * 1024 * 1024
 const isCrsRecord = (v: Vlr) => v.user === 'LASF_Projection' && (v.record === 34735 || v.record === 2112)
@@ -68,10 +70,16 @@ export async function inspectLas(file: ImportFile, signal?: AbortSignal): Promis
     format: header.pointFormat,
     compressed: header.compressed,
     epsg: crs.epsg,
+    crsRecords: records.filter(
+      (v) => isCrsRecord(v) || (v.user === 'LASF_Projection' && (v.record === 34736 || v.record === 34737)),
+    ),
   }
 }
+/** Too large to load whole: read it chunk by chunk instead (largeLaz.ts). COPC streams and never needs this. */
+export const needsChunkedRead = (header: LasHeader, size: number) =>
+  !header.copc && (size > LIMITS.plainBytes || header.points > LIMITS.plainPoints)
 export function checkLasBudget(header: LasHeader, size: number) {
-  if (!header.copc && (size > LIMITS.plainBytes || header.points > LIMITS.plainPoints))
+  if (needsChunkedRead(header, size))
     throw Error(
       header.points.toLocaleString(DEFAULT_LOCALE) +
         ' points: this ordinary LAS/LAZ needs COPC/EPT conversion for browser streaming. Plain files are limited to 2 million points and 64 MiB. The BC sample EPT button streams the original sample safely.',
