@@ -82,6 +82,7 @@ import type {
   RoadStation,
   TerrainSource,
 } from './types'
+import { snapToRoads, type DrawSnap, type SnapIndex } from './drawSnap'
 
 /** `sketch` takes one freehand stroke; `extend` pegs on from the active road's nearer end. */
 export type DrawMode =
@@ -121,6 +122,13 @@ interface PlanProps {
   onMode?: (mode: DrawMode) => void
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
+  /**
+   * Roads a pegged point snaps onto while drawing a road (`drawSnap.ts`). A click within
+   * `DRAW_SNAP_PX` of one lands exactly on its line, so the new road starts or ends on it.
+   */
+  snapLines?: SnapIndex
+  /** A pegged point landed on another road; `first` when it is the road's first point. */
+  onSnap?: (snap: DrawSnap, first: boolean) => void
   /** A finished freehand stroke in `sketch` mode, with the ground size of a screen pixel when it ended. */
   onSketch?: (stroke: Coordinate[], metresPerPixel: number) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
@@ -263,6 +271,8 @@ function Layers(
   const {
     mode,
     onDraw,
+    snapLines,
+    onSnap,
     onStation,
     onSelectAlignment,
     onHover,
@@ -277,6 +287,7 @@ function Layers(
     onPourPoint,
     planToolActive,
   } = props
+  const draftLength = props.draft.length
   const projectCables = useMemo(
     () => (investigation ? [] : props.project.cables),
     [investigation, props.project.cables],
@@ -1338,6 +1349,15 @@ function Layers(
 
   useEffect(() => {
     if (!map || !isLoaded) return
+    // Only road pegging snaps; streams, areas and profiles are drawn where they are clicked.
+    const snapAt = (e: MapMouseEvent) =>
+      snapLines && (mode === 'road' || mode === 'extend')
+        ? snapToRoads(
+            [e.lngLat.lng, e.lngLat.lat],
+            snapLines,
+            (40075016.7 * Math.cos((e.lngLat.lat * Math.PI) / 180)) / (512 * 2 ** map.getZoom()),
+          )
+        : null
     const click = (e: MapMouseEvent) => {
       // A note tool, or a click on a drawn note, belongs to the notes layer.
       if (noteTool || planToolActive) return
@@ -1349,7 +1369,9 @@ function Layers(
       }
       if (mode === 'sketch') return
       if (!['inspect', 'edit'].includes(mode)) {
-        onDraw([e.lngLat.lng, e.lngLat.lat])
+        const snap = snapAt(e)
+        onDraw(snap?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
+        if (snap) onSnap?.(snap, draftLength === 0)
         return
       }
       if ((e.originalEvent.target as Element)?.closest('.maplibregl-marker')) return
@@ -1424,7 +1446,7 @@ function Layers(
     }
     const move = (e: MapMouseEvent) => {
       if (pourPointPicking || noteTool || planToolActive) return
-      if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
+      if (!['inspect', 'edit'].includes(mode)) onHover(snapAt(e)?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
         // move the landing station and invalidate the fan before its click.
@@ -1452,6 +1474,9 @@ function Layers(
     isLoaded,
     mode,
     onDraw,
+    snapLines,
+    onSnap,
+    draftLength,
     onStation,
     onSelectAlignment,
     onHover,
