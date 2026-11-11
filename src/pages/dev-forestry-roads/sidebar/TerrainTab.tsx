@@ -1,6 +1,8 @@
+import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
+import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, Upload } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -39,6 +41,17 @@ const terrainSourceName = (name: string) =>
 export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoads: ReactNode }) {
   const { project } = p.workspace
   const busy = !!p.workspace.busy
+  // Terrain sources, terrain import and drawing are the registry's commands (`workspaceCommands.ts`).
+  const run = (id: WorkspaceCommand) => p.onCommand?.(id)
+  const sourceTool = (id: WorkspaceCommand, presentation: CommandPresentation) => (
+    <CommandButton
+      id={id}
+      surface="sidebar"
+      state={p.commandStates?.[id]}
+      presentation={{ hideIcon: true, className: 'h-auto min-h-8 whitespace-normal text-xs', ...presentation }}
+      onRun={run}
+    />
+  )
   const importSummary = pointCloudImportSummary(project.terrain)
   return (
     <>
@@ -106,27 +119,15 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </InlineAlert>
         ))}
         <div className="mt-2 grid grid-cols-3 gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-auto min-h-8 whitespace-normal px-1 text-xs"
-            aria-label="Load BC 1 m LiDAR sample"
-            title="Classified-ground 1 m LiDAR DTM near Prince George"
-            disabled={busy}
-            onClick={() => p.onTerrain('lidar')}
-          >
-            BC LiDAR
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-auto min-h-8 whitespace-normal px-1 text-xs"
-            disabled={busy}
-            title="Coarse reconnaissance terrain, not a 1 m LiDAR source"
-            onClick={() => p.onTerrain('regional')}
-          >
-            Regional DEM
-          </Button>
+          {sourceTool('lidar', {
+            caption: 'BC LiDAR',
+            ariaLabel: 'Load BC 1 m LiDAR sample',
+            title: 'Classified-ground 1 m LiDAR DTM near Prince George',
+          })}
+          {sourceTool('regional', {
+            caption: 'Regional DEM',
+            title: 'Coarse reconnaissance terrain, not a 1 m LiDAR source',
+          })}
           <Button
             variant="outline"
             size="sm"
@@ -138,20 +139,25 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             Training
           </Button>
         </div>
-        <Button variant="outline" size="sm" className="mt-1 w-full" onClick={() => p.onFile('terrain')} disabled={busy}>
-          <Upload className="mr-2 size-3" />
-          Import GeoTIFF, LAS or LAZ
-        </Button>
+        <div className="mt-1 grid">
+          <CommandButton
+            id="import"
+            surface="sidebar"
+            state={p.commandStates?.import}
+            presentation={{ caption: 'Import GeoTIFF, LAS or LAZ' }}
+            onRun={run}
+          />
+        </div>
       </RoadSection>
       <StreamsPanel
         workspace={p.workspace}
-        onDraw={() => p.onMode('stream')}
+        onDraw={() => run('drawStream')}
         onImport={() => p.onFile('context')}
         onProfile={p.onProfile}
       />
       <ConstraintsPanel
         workspace={p.workspace}
-        onDraw={() => p.onMode('avoid')}
+        onDraw={() => run('drawAvoid')}
         onLocate={p.onLocateConstraint}
         focusedId={p.focusedConstraintId}
       />

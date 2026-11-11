@@ -21,6 +21,10 @@ export interface CommandPresentation {
   icon?: ReactNode
   caption?: ReactNode
   expanded?: boolean
+  /** Sidebar only: a caption-only button, e.g. in a tight grid of source choices. */
+  hideIcon?: boolean
+  /** Sidebar only: extra classes for the button's place in its panel. */
+  className?: string
 }
 
 type Surface = 'ribbon' | 'quick' | 'header' | 'sidebar'
@@ -50,7 +54,7 @@ export function CommandButton({
       <Button
         size="sm"
         variant={presentation.emphasis === 'primary' ? 'default' : 'outline'}
-        className="min-w-0 gap-1 px-1"
+        className={cn('min-w-0 gap-1 px-1', presentation.className)}
         data-command={id}
         aria-label={presentation.ariaLabel}
         aria-pressed={command.pressed}
@@ -58,7 +62,7 @@ export function CommandButton({
         disabled={command.disabled}
         onClick={() => onRun(id)}
       >
-        {presentation.icon ?? <Icon className="size-3" aria-hidden="true" />}
+        {!presentation.hideIcon && (presentation.icon ?? <Icon className="size-3" aria-hidden="true" />)}
         {presentation.caption ?? presentation.shortLabel ?? command.label}
       </Button>
     )

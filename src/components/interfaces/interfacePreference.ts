@@ -6,8 +6,8 @@
  * by `?interface=` (a shared link), the one this browser last used, the engineering workbench
  * (the view the designer had before interfaces were configurable), or the first served layout.
  */
-export const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
-export const INTERFACE_PARAM = 'interface'
+const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
+const INTERFACE_PARAM = 'interface'
 const DEFAULT_INTERFACE = 'workbench'
 
 export function initialInterfaceId(
@@ -32,10 +32,20 @@ export function readStoredInterface(): string | null {
   }
 }
 
+/**
+ * Remember a chosen interface. A link that named another one is rewritten to this choice, so a
+ * reload opens what the user switched to rather than what the link said. It builds on the address
+ * bar as it is now (AGENTS.md: router params can lag it).
+ */
 export function storeInterface(id: string) {
   try {
     localStorage.setItem(INTERFACE_STORAGE_KEY, id)
   } catch {
     /* The chosen interface still applies to this session. */
+  }
+  const url = new URL(window.location.href)
+  if (url.searchParams.has(INTERFACE_PARAM) && url.searchParams.get(INTERFACE_PARAM) !== id) {
+    url.searchParams.set(INTERFACE_PARAM, id)
+    window.history.replaceState(window.history.state, '', url)
   }
 }

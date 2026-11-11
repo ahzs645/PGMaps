@@ -1,4 +1,5 @@
 import { useDeferredValue, useMemo, useState } from 'react'
+import { ROAD_LIMIT_MESSAGE } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
@@ -342,9 +343,7 @@ export function SwitchbackTools({
         >
           Create switchback alternative
         </Button>
-        {project.alignments.length >= 20 && (
-          <p className="text-xs text-muted-foreground">The project already has 20 road alternatives.</p>
-        )}
+        {project.alignments.length >= 20 && <p className="text-xs text-muted-foreground">{ROAD_LIMIT_MESSAGE}</p>}
       </div>
     </CollapsibleSection>
   )

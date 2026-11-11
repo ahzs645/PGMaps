@@ -31,7 +31,7 @@ type Preferences = { tab: string; order?: string[]; sections: { label: string; i
 const names = (value: unknown, label: string) => list(value, label).map((name) => text(name, label, 400))
 
 /** A personal ribbon arrangement from browser storage. Anything malformed resets to the served layout. */
-export function parsePreferences(raw: string | null): Preferences {
+function parsePreferences(raw: string | null): Preferences {
   if (!raw) return []
   try {
     return list(JSON.parse(raw), 'Ribbon preferences', 100).map((entry) => {

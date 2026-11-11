@@ -65,7 +65,7 @@ import type { WorkflowEditor } from './workspaceLayoutSchema'
  * - `investigation: true` keeps the command available while the project is an access investigation
  *   (evidence only, no design yet); every other command is hidden there.
  */
-export interface CommandDef {
+interface CommandDef {
   label: string
   icon: LucideIcon
   kind?: 'pane' | 'editor'
@@ -76,7 +76,7 @@ export interface CommandDef {
 export const workspaceCommands = {
   customizeRibbon: { label: 'Customize ribbon', icon: Settings2, kind: 'pane', investigation: true },
   newProject: { label: 'New project', icon: FilePlus2, investigation: true },
-  saveProject: { label: 'Save project file', icon: Save },
+  saveProject: { label: 'Save project file', icon: Save, investigation: true },
   plotbook: { label: 'Plot book', icon: BookOpen },
   stakeout: { label: 'Stakeout CSV', icon: Crosshair },
   reportPdf: { label: 'Report PDF', icon: FileText },
