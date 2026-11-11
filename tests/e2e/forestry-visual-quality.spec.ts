@@ -255,8 +255,10 @@ async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto')
           getBearing?: () => number
           getPitch?: () => number
           getStyle?: () => { layers?: Array<{ id: string }> }
+          getContainer?: () => Element
         }
-        if (map?.queryTerrainElevation) {
+        // The page holds both maps' refs, so match the map by its own container.
+        if (map?.queryTerrainElevation && map.getContainer?.() === container) {
           const tree = map.getLayer?.('forestry-trees') as
             | {
                 implementation?: {
@@ -393,7 +395,8 @@ test.describe('forestry visual quality', () => {
     // Both scales are reported, each against its own thresholds. Collapsing
     // them into one number is the mistake this page previously made.
     await expect(page.getByText('Alteration in perspective view')).toBeVisible()
-    await expect(page.getByText('Planimetric denudation')).toBeVisible()
+    // Exact: the viewpoint summary's row adds its scale to the same words.
+    await expect(page.getByText('Planimetric denudation', { exact: true })).toBeVisible()
     await expect(page.getByText('Bare-earth terrain only', { exact: false })).toBeVisible()
   })
 
