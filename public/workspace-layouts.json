@@ -241,6 +241,7 @@
     "name": "Dashboard",
     "description": "Every road measurement across the top, with plan, profile, section and data panes below.",
     "icon": "dashboard",
+    "preview": "dashboard.webp",
     "preset": "engineering",
     "sidebar": "collapsed",
     "summary": {

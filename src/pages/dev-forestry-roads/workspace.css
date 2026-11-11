@@ -227,3 +227,14 @@
     margin-bottom: 0.25rem;
   }
 }
+
+/* The header line's buttons are budgeted above: the interface switch shows only its icon there
+   until the widest screens, so the page heading keeps its room beside the road switcher. */
+@media (max-width: 1535px) {
+  .road-workspace [data-testid='road-workspace-header'] .lp-interface-switch span {
+    display: none;
+  }
+  .road-workspace [data-testid='road-workspace-header'] .lp-interface-switch {
+    padding: 0 8px;
+  }
+}
