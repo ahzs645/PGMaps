@@ -9,14 +9,14 @@ import type { ForestHistoryData } from './bcForestHistory'
 import type { LoadElevationGridOptions } from './demLoader'
 import type { ElevationSource, Bounds } from './terrain'
 import type { PolygonGeometry } from './visibility'
-import type { loadVisualInventorySnapshot } from './visualInventorySnapshot'
+import type { VisualInventoryResult } from './visualInventoryQuery'
 
 const loaders = vi.hoisted(() => ({ terrain: vi.fn(), history: vi.fn(), inventory: vi.fn() }))
 vi.mock('./previewTerrainCache', () => ({ loadPreviewTerrain: loaders.terrain }))
 vi.mock('./bcForestHistory', () => ({ fetchForestHistory: loaders.history }))
-vi.mock('./visualInventorySnapshot', () => ({
-  loadVisualInventorySnapshot: loaders.inventory,
-  VISUAL_INVENTORY_PATH: '/inventory.json',
+vi.mock('./visualInventoryQuery', () => ({
+  queryVisualInventory: loaders.inventory,
+  VISUAL_INVENTORY_SOURCE: 'Test source',
 }))
 vi.mock('@/components/ui/map', () => ({ useMap: () => ({ map: null, isLoaded: false }) }))
 // The road-view bar's (i) reads `window.matchMedia`; this renderer has no DOM, and the tip is not under test.
@@ -195,7 +195,7 @@ describe('forest history display snapshots', () => {
 
 describe('inventory suggestions and restored drive look', () => {
   it('shows only inventory for the latest search footprint', async () => {
-    type Snapshot = Awaited<ReturnType<typeof loadVisualInventorySnapshot>>
+    type Snapshot = VisualInventoryResult
     const jobs: ReturnType<typeof deferred<Snapshot>>[] = []
     loaders.inventory.mockImplementation(() => {
       const job = deferred<Snapshot>()
@@ -207,18 +207,32 @@ describe('inventory suggestions and restored drive look', () => {
     const view = mount(<LandformSuggestions scene={scene} onShow={vi.fn()} onAdopt={vi.fn()} />)
     const moved: ForestryScene = { ...scene, viewpoint: { ...scene.viewpoint, coordinates: [[-123, 55]] } }
     act(() => view.update(<LandformSuggestions scene={moved} onShow={vi.fn()} onAdopt={vi.fn()} />))
+    // Only the unit count differs between the two reads, so the text shows which one is on screen.
     const snapshot = (count: number): Snapshot => ({
-      units: [],
-      manifest: {
-        schemaVersion: 2,
-        retrievedAt: '2026-01-01',
-        featureCount: count,
-        sourceLatestUpdate: 0,
-        gzipBytes: 0,
-        source: 'Test source',
-        simplification: { toleranceMetres: 0 },
-        shards: [],
-      },
+      units: Array.from({ length: count }, (_, index) => ({
+        id: String(index),
+        polygonNumber: String(index),
+        name: `VLI ${index}`,
+        objectiveId: null,
+        recommendedId: null,
+        vac: null,
+        vsc: null,
+        scenicArea: false,
+        rationale: null,
+        geometry: {
+          type: 'Polygon',
+          coordinates: [
+            [
+              [-140, 80],
+              [-139.9, 80],
+              [-139.9, 80.1],
+              [-140, 80],
+            ],
+          ],
+        },
+      })),
+      truncated: false,
+      retrievedAt: '2026-01-01T00:00:00Z',
     })
     const paragraphs = () =>
       view.root
@@ -226,9 +240,9 @@ describe('inventory suggestions and restored drive look', () => {
         .map((p) => p.children.filter((child) => typeof child === 'string').join(''))
         .join('\n')
     await act(async () => jobs[0].resolve(snapshot(1)))
-    expect(paragraphs()).not.toContain('1 units')
+    expect(paragraphs()).not.toContain('1 units in the search area')
     await act(async () => jobs[1].resolve(snapshot(2)))
-    expect(paragraphs()).toContain('2 units')
+    expect(paragraphs()).toContain('2 units in the search area')
     expect(
       view.root
         .findAllByType('button')

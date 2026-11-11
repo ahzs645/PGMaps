@@ -5,14 +5,13 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
-import { withBase } from '@/lib/dataUrl'
 import { downloadText } from '@/lib/download'
 import type { ForestryScene } from './scene'
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import { metersPerDegree, polygonBounds } from './visibility'
 import { nearestLandformCandidates, nearestLandformsAlongRoad } from './landformCandidates'
-import { loadVisualInventorySnapshot, VISUAL_INVENTORY_PATH } from './visualInventorySnapshot'
-import { DEFAULT_LOCALE } from '@/lib/format'
+import { queryVisualInventory, VISUAL_INVENTORY_SOURCE, type VisualInventoryResult } from './visualInventoryQuery'
+import { formatNumber } from '@/lib/format'
 import { formatKm } from './measureFormat'
 
 export function LandformSuggestions({
@@ -51,24 +50,22 @@ export function LandformSuggestions({
   }, [hasAnchor, tooLarge, west, east, south, north, attempt])
   const [state, setState] = useState<{
     request: typeof request
-    data: Awaited<ReturnType<typeof loadVisualInventorySnapshot>> | null
+    data: VisualInventoryResult | null
     error: string | null
   } | null>(null)
   const data = state?.request === request ? (state?.data ?? null) : null
   const error = state?.request === request ? (state?.error ?? null) : null
   useEffect(() => {
     if (!request) return
-    let cancelled = false
-    loadVisualInventorySnapshot(request.bounds)
+    const abort = new AbortController()
+    queryVisualInventory(request.bounds, abort.signal)
       .then((value) => {
-        if (!cancelled) setState({ request, data: value, error: null })
+        if (!abort.signal.aborted) setState({ request, data: value, error: null })
       })
       .catch((e) => {
-        if (!cancelled) setState({ request, data: null, error: String(e) })
+        if (!abort.signal.aborted) setState({ request, data: null, error: e instanceof Error ? e.message : String(e) })
       })
-    return () => {
-      cancelled = true
-    }
+    return () => abort.abort()
   }, [request])
   const candidates = useMemo(
     () =>
@@ -84,9 +81,9 @@ export function LandformSuggestions({
     const collection = {
       type: 'FeatureCollection',
       metadata: {
-        source: data.manifest.source,
-        retrievedAt: data.manifest.retrievedAt,
-        scope: 'Inventory bounding boxes intersecting the 25 km search envelope; candidate boundaries only',
+        source: VISUAL_INVENTORY_SOURCE,
+        retrievedAt: data.retrievedAt,
+        scope: 'Inventory units intersecting the 25 km search envelope; candidate boundaries only',
       },
       features: data.units.map(({ geometry, ...properties }) => ({ type: 'Feature', geometry, properties })),
     }
@@ -95,9 +92,7 @@ export function LandformSuggestions({
   return (
     <ToolSection
       title="Find a landform in the BC inventory"
-      summary={
-        data ? `${data.manifest.featureCount.toLocaleString(DEFAULT_LOCALE)} units in the snapshot` : 'Nearby units'
-      }
+      summary={data ? `${formatNumber(data.units.length)} units in the search area` : 'Nearby units'}
       help="Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside from the road before using one as the assessment landform."
       toggleProps={{ 'data-forestry-disclosure': 'inventory-landforms' }}
       className="text-xs"
@@ -151,9 +146,11 @@ export function LandformSuggestions({
           Split this road into sections under 1.5° extent and 5,000 vertices for a whole-corridor search.
         </InlineAlert>
       )}
-      {hasAnchor && !tooLarge && !data && !error && <InlineAlert loading>Loading downloaded BC inventory…</InlineAlert>}
+      {hasAnchor && !tooLarge && !data && !error && (
+        <InlineAlert loading>Reading the BC inventory from DataBC…</InlineAlert>
+      )}
       {error && (
-        <InlineAlert tone="error" title="Inventory snapshot unavailable">
+        <InlineAlert tone="error" title="BC inventory unavailable">
           <p>Draw or import a landform, or retry.</p>
           <Button
             variant="outline"
@@ -161,7 +158,7 @@ export function LandformSuggestions({
             className="my-2 text-foreground touch:h-10"
             onClick={() => setAttempt((n) => n + 1)}
           >
-            Retry inventory download
+            Retry
           </Button>
           <p className="break-words">{error}</p>
         </InlineAlert>
@@ -215,23 +212,16 @@ export function LandformSuggestions({
           })}
         </ul>
       )}
-      <div className="flex flex-wrap items-center gap-2">
-        {data && (
-          <Button variant="outline" size="sm" className="touch:h-10" onClick={downloadNearby}>
-            Download nearby inventory (GeoJSON)
-          </Button>
-        )}
-        <Button asChild variant="outline" size="sm" className="touch:h-10">
-          <a href={withBase(VISUAL_INVENTORY_PATH)} download="bc-visual-inventory-manifest.json">
-            BC snapshot manifest
-          </a>
+      {data && (
+        <Button variant="outline" size="sm" className="touch:h-10" onClick={downloadNearby}>
+          Download nearby inventory (GeoJSON)
         </Button>
-      </div>
+      )}
       {data && (
         <p className="text-muted-foreground">
-          {data.manifest.featureCount.toLocaleString(DEFAULT_LOCALE)} units · original boundary coordinates. Downloaded{' '}
-          {data.manifest.retrievedAt.slice(0, 10)}; source records may be older. Static snapshot; inventory gaps and
-          unrated areas remain.
+          {formatNumber(data.units.length)} units in the search area
+          {data.truncated ? ' (more exist than one read returns; narrow the search)' : ''} · recorded boundary
+          coordinates, read live from DataBC. Inventory gaps and unrated areas remain.
         </p>
       )}
     </ToolSection>

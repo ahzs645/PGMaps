@@ -130,34 +130,8 @@ async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') 
           ),
           inventoryFeature({ OBJECTID: 2, VLI_POLYGON_NO: 1672, REC_VSC_FINAL_VALUE_CODE: 'W' }, 0.08),
         ]
-  await page.route('**/data/forest/visual-inventory/manifest.json', (route) =>
-    route.fulfill({
-      json: {
-        schemaVersion: 2,
-        retrievedAt: '2026-09-22T00:00:00Z',
-        featureCount: features.length,
-        simplification: { toleranceMetres: 0 },
-        shards: [{ file: 'units-000.geojson.gz', featureCount: features.length }],
-      },
-    }),
-  )
-  await page.route('**/data/forest/visual-inventory/index.json.gz', (route) =>
-    route.fulfill({
-      json: features.map((f) => ({
-        id: String(f.properties.OBJECTID),
-        bbox: [f.geometry.coordinates[0][0][0], 53.86, f.geometry.coordinates[0][1][0], 53.93],
-        shard: 'units-000.geojson.gz',
-      })),
-    }),
-  )
-  await page.route('**/data/forest/visual-inventory/units-000.geojson.gz', (route) =>
-    route.fulfill({
-      contentType: 'application/gzip',
-      body: zlib.gzipSync(JSON.stringify({ type: 'FeatureCollection', features })),
-    }),
-  )
-  // The page reads the inventory live from DataBC's WFS; answer with the same
-  // units, filtered by the box the request carries, as GeoServer would.
+  // The page reads the inventory live from DataBC's WFS (it keeps no stored
+  // copy); answer with these units, filtered by the request's box as GeoServer would.
   await page.route('**/geo/pub/wfs?**', (route) => {
     const url = new URL(route.request().url())
     if (url.searchParams.get('typeName') !== 'WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY')
@@ -701,7 +675,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByLabel('Active assessment landform')).toHaveText('VLI 1668 · R (established)')
   })
 
-  test('automatically suggests and downloads nearby full-resolution boundaries without a live VLI query', async ({
+  test('suggests and downloads nearby full-resolution boundaries from the WFS, never the capped ArcGIS layer', async ({
     page,
   }) => {
     await stubBasemap(page)
@@ -1525,7 +1499,9 @@ test.describe('forestry assessment workspace tools', () => {
       page.getByRole('img', { name: 'Sightline profile: elevation in metres by distance from the viewing station' }),
     ).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')
-    await choose(page.getByRole('combobox', { name: /^Assessment evidence viewpoint/ }), { label: 'Public road turnout' })
+    await choose(page.getByRole('combobox', { name: /^Assessment evidence viewpoint/ }), {
+      label: 'Public road turnout',
+    })
     await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
     const workspaceDownload = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export assessment workspace', exact: true }).click()
