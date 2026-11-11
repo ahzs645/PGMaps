@@ -244,7 +244,11 @@ export function ForestOverlay(props: ForestOverlayProps) {
     return () => {
       disposed = true
       cancelAnimationFrame(frame)
-      if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID)
+      try {
+        if (map.getLayer(LAYER_ID)) map.removeLayer(LAYER_ID)
+      } catch {
+        // The map was removed first: React runs a removed tree's cleanups parent first.
+      }
       statusRef.current?.({ configuration, treeCount: 0, trianglesPerTree: 0, error: null, ready: false })
       // Keep this configuration's CPU placements for reopening; GPU layers are released.
     }
