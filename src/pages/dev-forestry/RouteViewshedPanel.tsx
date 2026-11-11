@@ -2,8 +2,34 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { NumericRangeField, type NumericRangeControlProps } from '@/components/ui/numeric-range-field'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { formatMeasure } from '@/lib/format'
+import { cn } from '@/lib/utils'
+import { formatKm, formatPct } from './measureFormat'
 import type { RouteViewshed } from './useRouteViewshed'
+
+/**
+ * A road position is continuous: `NumericRangeField` takes a numeric step, and any
+ * fixed step would stop End short of the road's exact end, so these ranges render
+ * their own native input with `step="any"` behind the shared label and readout.
+ */
+function continuousRange(accentClassName: string) {
+  return function ContinuousRange(control: NumericRangeControlProps) {
+    return (
+      <input
+        {...control}
+        type="range"
+        step="any"
+        className={cn('h-2 w-full', accentClassName)}
+        onChange={(event) => control.onChange(Number(event.target.value))}
+      />
+    )
+  }
+}
+
+const kmNumber = (metres: number) =>
+  formatMeasure(metres / 1000, null, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 export function RouteViewshedPanel({
   preview,
@@ -51,43 +77,40 @@ export function RouteViewshedPanel({
           />
           {preview.mode !== 'point' && (
             <>
-              <label className="block">
-                Stretch start · {(preview.selected.from / 1000).toFixed(2)} km
-                <input
-                  type="range"
-                  aria-label="Road stretch start"
-                  min={0}
-                  max={preview.length}
-                  step="any"
-                  value={preview.selected.from}
-                  className="mt-1 w-full accent-blue-600"
-                  onChange={(event) =>
-                    preview.setSelection([
-                      Math.max(0, Math.min(Number(event.target.value), preview.selected.to - 1)) / preview.length,
-                      preview.selection[1],
-                    ])
-                  }
-                />
-              </label>
-              <label className="block">
-                Stretch end · {(preview.selected.to / 1000).toFixed(2)} km
-                <input
-                  type="range"
-                  aria-label="Road stretch end"
-                  min={0}
-                  max={preview.length}
-                  step="any"
-                  value={preview.selected.to}
-                  className="mt-1 w-full accent-blue-600"
-                  onChange={(event) =>
-                    preview.setSelection([
-                      preview.selection[0],
-                      Math.min(preview.length, Math.max(Number(event.target.value), preview.selected.from + 1)) /
-                        preview.length,
-                    ])
-                  }
-                />
-              </label>
+              <NumericRangeField
+                label="Stretch start"
+                aria-label="Road stretch start"
+                layout="inline"
+                valueSeparator=" · "
+                display={formatKm(preview.selected.from)}
+                min={0}
+                max={preview.length}
+                value={preview.selected.from}
+                renderControl={continuousRange('accent-blue-600')}
+                onChange={(value) =>
+                  preview.setSelection([
+                    Math.max(0, Math.min(value, preview.selected.to - 1)) / preview.length,
+                    preview.selection[1],
+                  ])
+                }
+              />
+              <NumericRangeField
+                label="Stretch end"
+                aria-label="Road stretch end"
+                layout="inline"
+                valueSeparator=" · "
+                display={formatKm(preview.selected.to)}
+                min={0}
+                max={preview.length}
+                value={preview.selected.to}
+                renderControl={continuousRange('accent-blue-600')}
+                onChange={(value) =>
+                  preview.setSelection([
+                    preview.selection[0],
+                    Math.min(preview.length, Math.max(value, preview.selected.from + 1)) / preview.length,
+                  ])
+                }
+              />
               <p data-route-viewshed-samples className="text-2xs text-muted-foreground">
                 {preview.sampleCount} {preview.sampleCount === 1 ? 'viewpoint' : 'viewpoints'} · samples up to{' '}
                 {Math.ceil(preview.selected.spacing)} m apart ·{' '}
@@ -104,34 +127,33 @@ export function RouteViewshedPanel({
               )}
             </>
           )}
-          <label className="block">
-            Preview radius · {(preview.radius / 1000).toFixed(1)} km
-            <input
-              type="range"
-              aria-label="Road viewshed radius"
-              min={500}
-              max={5000}
-              step={500}
-              value={preview.radius}
-              onChange={(event) => preview.setRadius(Number(event.target.value))}
-              className="mt-1 w-full accent-rose-600"
-            />
-          </label>
+          <NumericRangeField
+            label="Preview radius"
+            aria-label="Road viewshed radius"
+            layout="inline"
+            valueSeparator=" · "
+            display={formatKm(preview.radius, 1)}
+            min={500}
+            max={5000}
+            step={500}
+            value={preview.radius}
+            inputClassName="accent-rose-600"
+            onChange={preview.setRadius}
+          />
           {!driving && (
             <>
-              <label className="block">
-                Road sample · {(position / 1000).toFixed(2)} / {(preview.length / 1000).toFixed(2)} km
-                <input
-                  type="range"
-                  aria-label="Road viewshed position"
-                  min={0}
-                  max={preview.length}
-                  step="any"
-                  value={Math.min(position, preview.length)}
-                  onChange={(event) => onSeek(Number(event.target.value))}
-                  className="mt-1 w-full accent-rose-600"
-                />
-              </label>
+              <NumericRangeField
+                label="Road sample"
+                aria-label="Road viewshed position"
+                layout="inline"
+                valueSeparator=" · "
+                display={`${kmNumber(position)} / ${formatKm(preview.length)}`}
+                min={0}
+                max={preview.length}
+                value={Math.min(position, preview.length)}
+                renderControl={continuousRange('accent-rose-600')}
+                onChange={onSeek}
+              />
               <Button size="sm" variant="outline" className="w-full touch:h-10" onClick={onDrive}>
                 Open route overview
               </Button>
@@ -145,9 +167,9 @@ export function RouteViewshedPanel({
           </div>
           {analysis.result && (
             <p>
-              {((100 * analysis.result.counts.visibleB) / Math.max(1, analysis.result.counts.total)).toFixed(1)}% of
+              {formatPct((100 * analysis.result.counts.visibleB) / Math.max(1, analysis.result.counts.total))} of
               sampled terrain visible ·{' '}
-              {((100 * analysis.result.counts.unknown) / Math.max(1, analysis.result.counts.total)).toFixed(1)}% unknown
+              {formatPct((100 * analysis.result.counts.unknown) / Math.max(1, analysis.result.counts.total))} unknown
             </p>
           )}
           {(analysis.error || !!analysis.result?.counts.unknown) && (

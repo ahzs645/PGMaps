@@ -685,8 +685,9 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText('2 units · 1 with an established objective · 1 with a VAC rating')).toBeVisible()
 
     // Unrated units are selectable too; missing objectives stay explicit.
-    await expect(page.getByRole('button', { name: /VLI 1672/ })).toBeVisible()
-    await page.getByRole('button', { name: /VLI 1668/ }).click()
+    // Anchored: the inventory suggestions' rows are "Show boundary: VLI …" buttons.
+    await expect(page.getByRole('button', { name: /^VLI 1672/ })).toBeVisible()
+    await page.getByRole('button', { name: /^VLI 1668/ }).click()
 
     // The province's own objective and absorption rating come across, rather
     // than the page's defaults.
@@ -712,9 +713,8 @@ test.describe('forestry visual quality', () => {
       if (request.url().includes('/MapServer/6/query')) liveVliCalls++
     })
     await openPage(page)
-    const suggestions = page
-      .locator('details')
-      .filter({ has: page.locator('summary', { hasText: /^Find a landform in the BC inventory$/ }) })
+    // The inventory section folds; its rows show a boundary and only the shown one offers "Use candidate".
+    const suggestions = page.locator('section:has(> div > [data-forestry-disclosure="inventory-landforms"])')
     await showStep(page, 'identify')
     await expect(suggestions.getByText('VLI 1668 · intersects road')).toBeVisible()
     await suggestions.getByLabel('Landform search area').selectOption('block')
@@ -1520,14 +1520,15 @@ test.describe('forestry assessment workspace tools', () => {
     await page.getByLabel('I checked the camera record and image alignment against field evidence.').check()
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await showStep(page, 'design')
-    await page.getByLabel('Sightline target', { exact: true }).selectOption('tool-block')
+    // By role: a label wrapping a select reads its options as label text, so exact getByLabel misses it.
+    await page.getByRole('combobox', { name: 'Sightline target', exact: true }).selectOption('tool-block')
     await page.getByRole('button', { name: 'Trace selected sightline', exact: true }).click()
     await expect(
       page.getByRole('img', { name: 'Sightline profile: elevation in metres by distance from the viewing station' }),
     ).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')
     await page
-      .getByLabel('Assessment evidence viewpoint', { exact: true })
+      .getByRole('combobox', { name: 'Assessment evidence viewpoint', exact: true })
       .selectOption({ label: 'Public road turnout' })
     await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
     const workspaceDownload = page.waitForEvent('download')
@@ -1600,7 +1601,7 @@ test.describe('forestry assessment workspace tools', () => {
     await page.reload()
     await openAllSteps(page)
     await expect(page.getByText('survey-dem.tif · terrain', { exact: true })).toBeVisible()
-    await page.getByLabel('Assessment mask classification', { exact: true }).selectOption('retained')
+    await page.getByRole('combobox', { name: 'Assessment mask classification', exact: true }).selectOption('retained')
     const mask = {
       type: 'FeatureCollection',
       features: [

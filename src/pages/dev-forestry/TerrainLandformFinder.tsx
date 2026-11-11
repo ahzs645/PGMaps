@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
+import { formatPercentValue } from '@/lib/format'
 
 import { loadElevationGrid } from './demLoader'
 import {
@@ -16,6 +17,7 @@ import { MAX_RIDGE_STATIONS, RIDGE_LAYER_DEFAULTS, ridgeLayerLandform, type Ridg
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
+import { formatHa, formatKm } from './measureFormat'
 import { demTileRange } from './terrain'
 import type { AnalysisResult, TargetPolygon } from './types'
 import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
@@ -258,7 +260,7 @@ export function TerrainLandformFinder({
             variant="divided"
             rows={[
               { label: 'Around', value: candidate.blockName },
-              { label: 'Area', value: `${Math.round(candidate.areaHectares).toLocaleString('en-CA')} ha` },
+              { label: 'Area', value: formatHa(candidate.areaHectares * 10_000, 0) },
               ...(candidate.method === 'ridge-layer'
                 ? [
                     {
@@ -277,7 +279,7 @@ export function TerrainLandformFinder({
                 : []),
               ...bounded.map(([reason, share]) => ({
                 label: BOUNDARY_LABELS[reason],
-                value: `${Math.round(share * 100)}% of the edge`,
+                value: `${formatPercentValue(share * 100, { maximumFractionDigits: 0 })} of the edge`,
               })),
             ]}
           />
@@ -289,9 +291,9 @@ export function TerrainLandformFinder({
           )}
           {candidate.viewerClose && (
             <InlineAlert tone="info">
-              The road is within {TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters / 1000} km of the block, so the face was
-              read as the ground turned toward the road as a whole, not toward each point of it. From a road across the
-              face much of that ground cannot be seen: trim the landform by hand to what reads as one hillside.
+              The road is within {formatKm(TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters, 1)} of the block, so the face
+              was read as the ground turned toward the road as a whole, not toward each point of it. From a road across
+              the face much of that ground cannot be seen: trim the landform by hand to what reads as one hillside.
             </InlineAlert>
           )}
           {candidate.areaHectares > 1500 && (
@@ -302,8 +304,8 @@ export function TerrainLandformFinder({
           )}
           {candidate.reachedLimit && (
             <InlineAlert tone="warning">
-              The face runs past the {TERRAIN_LANDFORM_DEFAULTS.radiusMeters / 1000} km search area, so this outline is
-              cut off there. Draw the landform's far end by hand if it matters.
+              The face runs past the {formatKm(TERRAIN_LANDFORM_DEFAULTS.radiusMeters, 0)} search area, so this outline
+              is cut off there. Draw the landform's far end by hand if it matters.
             </InlineAlert>
           )}
           {status.message && <InlineAlert tone="warning">{status.message}</InlineAlert>}
