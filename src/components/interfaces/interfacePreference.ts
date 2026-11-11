@@ -6,8 +6,8 @@
  * by `?interface=` (a shared link), the one this browser last used, the engineering workbench
  * (the view the designer had before interfaces were configurable), or the first served layout.
  */
-export const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
-export const INTERFACE_PARAM = 'interface'
+const INTERFACE_STORAGE_KEY = 'pgmaps-road-interface'
+const INTERFACE_PARAM = 'interface'
 const DEFAULT_INTERFACE = 'workbench'
 
 export function initialInterfaceId(

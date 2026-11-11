@@ -17,15 +17,15 @@ import {
   type JsonObject,
 } from '@/lib/jsonGuards'
 
-export const WORKFLOW_EDITORS = ['terrain', 'design', 'template', 'engineering', 'review'] as const
+const WORKFLOW_EDITORS = ['terrain', 'design', 'template', 'engineering', 'review'] as const
 export type WorkflowEditor = (typeof WORKFLOW_EDITORS)[number]
 
-export const LAYOUT_PRESETS = ['linked', 'split', 'plan', 'engineering', 'pegging'] as const
-export const SUMMARY_LEVELS = ['hidden', 'value', 'detailed'] as const
+const LAYOUT_PRESETS = ['linked', 'split', 'plan', 'engineering', 'pegging'] as const
+const SUMMARY_LEVELS = ['hidden', 'value', 'detailed'] as const
 export type SummaryLevel = (typeof SUMMARY_LEVELS)[number]
-export const SUMMARY_PLACEMENTS = ['left', 'top'] as const
+const SUMMARY_PLACEMENTS = ['left', 'top'] as const
 /** Wording of the note on curve-corrected volumes. It is never hidden: every volume says how it was measured. */
-export const CURVE_NOTES = ['full', 'short'] as const
+const CURVE_NOTES = ['full', 'short'] as const
 
 /** Per-interface defaults for the measurement stack; browser preferences override them. */
 export interface SummaryOptions {
@@ -41,7 +41,7 @@ export interface LayoutVocabulary<I extends string, C extends string, W extends 
   widgets: readonly W[]
 }
 
-export interface LayoutSection<C extends string = string, W extends string = string> {
+interface LayoutSection<C extends string = string, W extends string = string> {
   label: string
   rows?: 1 | 2 | 3
   primary?: C
@@ -49,7 +49,7 @@ export interface LayoutSection<C extends string = string, W extends string = str
   more?: (C | W)[]
 }
 
-export interface LayoutGroup<I extends string = string, C extends string = string, W extends string = string> {
+interface LayoutGroup<I extends string = string, C extends string = string, W extends string = string> {
   label: string
   icon?: I
   hint?: string
@@ -75,7 +75,7 @@ export interface LayoutToolbar<I extends string = string, C extends string = str
   groups: LayoutGroup<I, C, W>[]
 }
 
-export interface PanelFrame {
+interface PanelFrame {
   background?: 'default' | 'gray' | 'white'
   grayPercent?: number
   inset?: number

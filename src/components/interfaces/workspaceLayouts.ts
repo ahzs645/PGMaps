@@ -20,7 +20,7 @@ export const layoutIcons = {
   route: Route,
   ruler: Ruler,
 }
-export type LayoutIcon = keyof typeof layoutIcons
+type LayoutIcon = keyof typeof layoutIcons
 
 /**
  * Controls a layout can place beside commands. The road workspace renders each one once; a

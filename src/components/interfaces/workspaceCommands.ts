@@ -65,7 +65,7 @@ import type { WorkflowEditor } from './workspaceLayoutSchema'
  * - `investigation: true` keeps the command available while the project is an access investigation
  *   (evidence only, no design yet); every other command is hidden there.
  */
-export interface CommandDef {
+interface CommandDef {
   label: string
   icon: LucideIcon
   kind?: 'pane' | 'editor'

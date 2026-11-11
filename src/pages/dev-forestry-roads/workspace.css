@@ -177,10 +177,11 @@
    title. The project's name and its save state keep a floor there, so neither collapses beside
    the switcher; the page heading gives way first. A wrapping flex line breaks on these floors, not
    on what could still shrink, so they must fit the 768 px header (46.5 rem inside its padding)
-   beside the buttons and the switcher's 8 rem basis (`DevForestryRoads.tsx`). The buttons were
-   19 rem; the interface switch and the summary settings made them about 26 rem, so between 768 px
-   and about 880 px the line now wraps to two at ordinary heights. On a short screen (480 px or
-   less) the terrain warning gives up its extra floor below, so the line stays one. */
+   beside the buttons and the switcher's 8 rem basis (`DevForestryRoads.tsx`). All the buttons take
+   about 26 rem, so from 768 to 1023 px four of them fold into a More menu (`HEADER_OVERFLOW`,
+   `WorkspaceHeader.tsx`), leaving 18 rem: 17.5 + 8 + 18 rem and two gaps fit 768 px. Open and Save
+   always stay on the line. On a
+   short screen (480 px or less) the terrain warning gives up its extra floor below as well. */
 @media (min-width: 768px) {
   /* The floor is also the basis, so the room left over is shared evenly with the switcher. */
   .road-workspace .road-workspace-heading {
