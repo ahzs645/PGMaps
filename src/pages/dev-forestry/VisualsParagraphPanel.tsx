@@ -12,7 +12,7 @@ import type { AnalysisResult, TargetPolygon } from './types'
 import type { ViaReview } from './via'
 import { PULLOUT_METERS, roadsNearBlock, type ViewpointInventory } from './viewpointInventory'
 import { lineLengthMeters, polygonAreaMeters, polygonBounds } from './visibility'
-import { queryVisualInventorySnapshot } from './visualInventorySnapshot'
+import { queryVisualInventory } from './visualInventorySnapshot'
 import {
   EVQO_CODE_FOR_CLASS,
   EVQO_NAMES,
@@ -93,13 +93,13 @@ export function VisualsParagraphPanel({
     blocks[0] ??
     null
 
-  // The EVQO polygons under the block, from the static inventory snapshot.
+  // The EVQO polygons under the block, live from DataBC (the snapshot only if that fails).
   const unitKey = block ? JSON.stringify(polygonBounds(block.geometry)) : ''
   const [unitState, setUnitState] = useState<UnitState | null>(null)
   useEffect(() => {
     if (!block || !unitKey) return
     const abort = new AbortController()
-    queryVisualInventorySnapshot(polygonBounds(block.geometry), abort.signal)
+    queryVisualInventory(polygonBounds(block.geometry), abort.signal)
       .then(({ units }) => {
         if (!abort.signal.aborted) setUnitState({ key: unitKey, status: 'ready', units: unitsToEvqo(units) })
       })

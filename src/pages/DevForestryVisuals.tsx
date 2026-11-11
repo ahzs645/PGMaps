@@ -25,7 +25,7 @@ import {
   unitsToGeoJson,
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
-import { queryVisualInventorySnapshot } from './dev-forestry/visualInventorySnapshot'
+import { queryVisualInventory } from './dev-forestry/visualInventorySnapshot'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'
@@ -36,6 +36,7 @@ import { TerrainLandformFinder, type TerrainCandidate } from './dev-forestry/Ter
 import type { RidgeLayer } from './dev-forestry/ridgeLayers'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
+import { createPurdenLakeScene } from './dev-forestry/purdenLakeScenario'
 import { PreviewWorkflow } from './dev-forestry/PreviewWorkflow'
 import {
   candidateDriveViews,
@@ -568,7 +569,7 @@ function DevForestryVisuals() {
     const abort = new AbortController()
     const timer = window.setTimeout(() => abort.abort(), 30000)
     const results = await Promise.allSettled([
-      queryVisualInventorySnapshot(bounds, abort.signal),
+      queryVisualInventory(bounds, abort.signal),
       fetchHarvestedAreas(bounds, { signal: abort.signal }),
       fetchCanopyStands(bounds, { signal: abort.signal }),
     ])
@@ -1297,8 +1298,14 @@ function DevForestryVisuals() {
   )
 
   const handleLoadSample = useCallback(
-    (roadside = false, preview = false) => {
-      const sample = roadside ? createRoadsideDriveScene() : createSampleScene()
+    (kind: 'tabor' | 'roadside' | 'purden' = 'tabor', preview = false) => {
+      const roadside = kind === 'roadside'
+      const sample =
+        kind === 'roadside'
+          ? createRoadsideDriveScene()
+          : kind === 'purden'
+            ? createPurdenLakeScene()
+            : createSampleScene()
       analysis.reset()
       setTerrainCandidate(null)
       setReplacedLandform(null)
@@ -1345,7 +1352,7 @@ function DevForestryVisuals() {
     return hazeRings({ lng, lat })
   }, [hazeCentre])
   // The established VQO polygons around the scene, coloured by class when the
-  // road view drapes them. Read from the snapshot only once switched on.
+  // road view drapes them. Read from the inventory only once switched on.
   const evqoKey = useMemo(() => {
     if (!drive.showEvqo) return null
     const bounds = sceneBounds(scene)
@@ -1362,7 +1369,7 @@ function DevForestryVisuals() {
     if (!evqoKey || evqoDisplay?.key === evqoKey) return
     const abort = new AbortController()
     const bounds = evqoKey.split(',').map(Number) as [number, number, number, number]
-    queryVisualInventorySnapshot(bounds, abort.signal)
+    queryVisualInventory(bounds, abort.signal)
       .then(({ units }) => {
         if (abort.signal.aborted) return
         setEvqoDisplay({
@@ -2059,7 +2066,7 @@ function DevForestryVisuals() {
     preparing: !!pendingPreview,
     onPreview: () => openPreview(),
     onCancel: cancelPreview,
-    onSample: () => handleLoadSample(true, true),
+    onSample: () => handleLoadSample('roadside', true),
     onNew: handleClearScene,
     onImport: importPreviewGeometry,
     onDraw: handleDrawModeChange,
@@ -2339,7 +2346,8 @@ function DevForestryVisuals() {
       onAdoptUnit={handleAdoptUnit}
       onLoadSample={() => handleLoadSample()}
       // A road-view demo with no landform to assess: straight into the drive.
-      onLoadDriveSample={() => handleLoadSample(true, true)}
+      onLoadDriveSample={() => handleLoadSample('roadside', true)}
+      onLoadHighwaySample={() => handleLoadSample('purden')}
       onImportRoad={(file) => void importPreviewGeometry(file, 'road')}
       onActivateLandform={(id) => setScene((current) => ({ ...current, activeLandformId: id }))}
       roadViewOpening={!!pendingPreview || drive.active}

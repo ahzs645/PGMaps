@@ -440,6 +440,8 @@ type SidebarProps = {
 
   onLoadSample: () => void
   onLoadDriveSample: () => void
+  /** A realistic planner's case: a block across Purden Lake from Hwy 16. */
+  onLoadHighwaySample: () => void
   /** A road from a GeoJSON or zipped shapefile, replacing the current one. */
   onImportRoad: (file: File) => void
   /** Makes a landform the one the run assesses against. */
@@ -520,6 +522,7 @@ export function Sidebar({
   onAdoptUnit,
   onLoadSample,
   onLoadDriveSample,
+  onLoadHighwaySample,
   onImportRoad,
   onActivateLandform,
   roadViewOpening = false,
@@ -818,6 +821,16 @@ export function Sidebar({
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" size="sm" className="touch:h-10" onClick={onLoadSample}>
                 Tabor Mountain sample
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="touch:h-10"
+                onClick={onLoadHighwaySample}
+                title="A hypothetical block on Purden Lake's north face, across the water from Hwy 16, under BC's Retention and Partial Retention EVQO. The road, landform, viewpoints and arrows are real records."
+              >
+                Hwy 16 · Purden Lake
               </Button>
               <Button
                 type="button"

@@ -155,6 +155,31 @@ async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') 
       body: zlib.gzipSync(JSON.stringify({ type: 'FeatureCollection', features })),
     }),
   )
+  // The page reads the inventory live from DataBC's WFS; answer with the same
+  // units, filtered by the box the request carries, as GeoServer would.
+  await page.route('**/geo/pub/wfs?**', (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('typeName') !== 'WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY')
+      return route.fallback()
+    const [west, south, east, north] = /BBOX\(GEOMETRY,([^']+),'/
+      .exec(url.searchParams.get('CQL_FILTER') ?? '')![1]
+      .split(',')
+      .map(Number)
+    const inBox = features.filter((feature) => {
+      const ring = feature.geometry.coordinates[0]
+      const lngs = ring.map(([lng]) => lng)
+      const lats = ring.map(([, lat]) => lat)
+      return (
+        Math.min(...lngs) <= east &&
+        Math.max(...lngs) >= west &&
+        Math.min(...lats) <= north &&
+        Math.max(...lats) >= south
+      )
+    })
+    return route.fulfill({
+      json: { type: 'FeatureCollection', numberMatched: inBox.length, features: inBox },
+    })
+  })
 }
 
 /** The lookup also asks for existing openings; keep the test off the network. */
