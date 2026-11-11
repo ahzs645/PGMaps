@@ -245,6 +245,8 @@ Sample header from LAZ `bc_092b051_1_3_1_…laz`: 982,601,829 bytes, **161,695,7
 
 **Not feasible client-side:** streaming or previewing any LAZ or GeoTIFF from the object store (no CORS, not COPC/COG). In-app point-cloud or DEM previews need conversion and rehosting, the same way `vendor/pgmaps-lidar-data` already does for its EPT tiles. Converting a single 1:2,500 LAZ means downloading 0.5–2.8 GB.
 
+**A downloaded tile does load (added 10 November 2026).** The LAZ files use LASzip's layered chunked compression (`compressor` 3, 50,000 points a chunk) with a chunk table at the end of the file. `src/lib/lidar/lazChunkTable.ts` decodes that table, and Import & data reads a local tile one chunk at a time with laz-perf's `ChunkDecoder`, in a few workers, so memory never holds the whole file. One pass keeps either an even overview of the tile (about 2 million points) or every point inside the map view (up to 3 million, thinned evenly above that). Measured: the 245 MB, 44.5-million-point 2024 Prince George tile (`bc_093g097_1_1_2_xyes_8_utm10_20240713`) reads into an overview in about 5 s in Chrome. The bc_092b051 tile above is 983 MB and 161.7 million points; its chunk table is the unit-test fixture `tests/fixtures/lidarbc-chunk-table.bin`. Converting the whole file to COPC in the browser is still out: unpacked, a tile is 3–5 GB, past WebAssembly's 4 GB limit, which is why GeoLibre's in-browser `lidar_convert` (Whitebox WASM) fails on files this size.
+
 ## Helper scripts used
 
 These are in `/private/tmp/claude-501/-Users-ahmadjalil-github-PGMaps/1855de75-ed3c-400d-8b01-2674179873f6/scratchpad/scripts/`:

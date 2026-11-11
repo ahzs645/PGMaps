@@ -9,7 +9,11 @@ import type { Basemap } from '../basemaps'
 import { LidarToolLayout } from '../LidarToolLayout'
 import { ImportMap } from './ImportMap'
 import { ImportSidebar } from './ImportSidebar'
-import { checkLasBudget, inspectLas, streamingUrl } from './las'
+import { checkLasBudget, inspectLas, needsChunkedRead, streamingUrl, type LasHeader } from './las'
+import { LargeCloudSection, type LargeCloud } from './LargeCloudSection'
+import { DETAIL_POINTS, overviewStride, planLargeLaz, writeLas, type NativeBox } from './largeLaz'
+import { readLargeLaz, thinRecords, type LargeLazProgress } from './largeLazRead'
+import type { MapView } from './coordinates'
 import { fileLayer, restoreProject, exportProject } from './files'
 import { getImportSession, resetImportSession, setImportSession, useImportSession } from './session'
 import { errorText, type PointSource } from './types'
@@ -35,7 +39,9 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
     [sample, setSample] = useState(''),
     [crs, setCrs] = useState('auto'),
     [url, setUrl] = useState(''),
-    [view3d, setView3d] = useState(false)
+    [view3d, setView3d] = useState(false),
+    [large, setLarge] = useState<LargeCloud | null>(null),
+    [mapView, setMapView] = useState<MapView | null>(null)
   useEffect(() => stopPending, [])
   const choose = (id: string) => {
     setSelected(id)
@@ -43,7 +49,8 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
     setSample('')
   }
   const layer = session.layers.find((l) => l.id === selected) ?? session.layers[0]
-  const point = (next: PointSource) => {
+  const point = (next: PointSource, keepLarge = false) => {
+    if (!keepLarge) setLarge(null)
     const old = getImportSession()
     setImportSession({ ...old, point: next, missingPoints: old.missingPoints.filter((n) => n !== next.name) })
     setView3d(true)
@@ -77,6 +84,11 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             )
           } else if (/\.(las|laz)$/i.test(file.name)) {
             const header = await inspectLas(file, signal)
+            if (header.hasCRS && needsChunkedRead(header, file.size)) {
+              const done = await openLarge(file, header, run, signal)
+              if (done) results.push(done)
+              continue
+            }
             checkLasBudget(header, file.size)
             if (run !== epoch.current) return
             point({
@@ -115,6 +127,94 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
         setMessage(results.join(' '))
       }
     }
+  }
+  const progressText = (name: string, p: LargeLazProgress) =>
+    `Reading ${name} in chunks: ${Math.floor((100 * p.read) / p.total)}% · ${p.read.toLocaleString(DEFAULT_LOCALE)} of ${p.total.toLocaleString(DEFAULT_LOCALE)} points · ${p.kept.toLocaleString(DEFAULT_LOCALE)} kept`
+  const stem = (name: string) => name.replace(/\.(las|laz)$/i, '')
+  /** Read a too-large LAS/LAZ once and show an even overview of all of it. */
+  async function openLarge(file: File, header: LasHeader, run: number, signal: AbortSignal) {
+    const plan = await planLargeLaz(file, header, signal)
+    const stride = overviewStride(plan.header.points)
+    const started = performance.now()
+    const { records, count } = await readLargeLaz(
+      file,
+      plan,
+      { kind: 'overview', stride },
+      { signal, onProgress: (p) => run === epoch.current && setMessage(progressText(file.name, p)) },
+    )
+    if (run !== epoch.current) return null
+    const overview = new File([writeLas(plan, records, count) as BlobPart], stem(file.name) + '.overview.las')
+    point({
+      id: crypto.randomUUID(),
+      name: file.name + ' · whole-file overview',
+      kind: 'file',
+      file: overview,
+      pointCount: count,
+    })
+    setLarge({ file, plan, stride, overview, overviewPoints: count, detail: null })
+    return (
+      `${file.name}: read ${plan.header.points.toLocaleString(DEFAULT_LOCALE)} points in ${plan.chunks.length.toLocaleString(DEFAULT_LOCALE)} chunks ` +
+      `(${Math.round((performance.now() - started) / 1000)} s). Showing one point in ${stride}; zoom in and choose Full detail for this view to see every point there.`
+    )
+  }
+  /** Read the large file again, keeping every point inside `box`. */
+  async function loadDetail(box: NativeBox) {
+    if (!large) return
+    stopPending()
+    const run = epoch.current,
+      controller = new AbortController()
+    pending.current = controller
+    setBusy(true)
+    try {
+      const { file, plan } = large
+      const read = await readLargeLaz(
+        file,
+        plan,
+        { kind: 'area', box, limit: DETAIL_POINTS },
+        {
+          signal: controller.signal,
+          onProgress: (p) => run === epoch.current && setMessage(progressText(file.name, p)),
+        },
+      )
+      if (run !== epoch.current) return
+      const { records, count } = thinRecords(read.records, read.count, plan.header.pointLength, DETAIL_POINTS)
+      if (!count) {
+        setMessage('No points fall inside this view. Move the map over the point cloud and try again.')
+        return
+      }
+      const hectares = ((box[2] - box[0]) * (box[3] - box[1])) / 10_000
+      const detail = new File([writeLas(plan, records, count) as BlobPart], stem(file.name) + '.detail.las')
+      point(
+        { id: crypto.randomUUID(), name: file.name + ' · full detail', kind: 'file', file: detail, pointCount: count },
+        true,
+      )
+      setLarge({ ...large, detail: { points: count, hectares, thinned: read.count > count ? read.count : null } })
+      setMessage(
+        `Full detail: ${count.toLocaleString(DEFAULT_LOCALE)} points over ${hectares.toFixed(1)} ha` +
+          (read.count > count
+            ? `, thinned evenly from ${read.count.toLocaleString(DEFAULT_LOCALE)} to fit the ${DETAIL_POINTS.toLocaleString(DEFAULT_LOCALE)}-point limit.`
+            : '.'),
+      )
+    } catch (e) {
+      if (!controller.signal.aborted && run === epoch.current) setMessage(errorText(e))
+    } finally {
+      if (pending.current === controller) pending.current = null
+      if (run === epoch.current) setBusy(false)
+    }
+  }
+  function showOverview() {
+    if (!large) return
+    point(
+      {
+        id: crypto.randomUUID(),
+        name: large.file.name + ' · whole-file overview',
+        kind: 'file',
+        file: large.overview,
+        pointCount: large.overviewPoints,
+      },
+      true,
+    )
+    setLarge({ ...large, detail: null })
   }
   function connect(value: string) {
     try {
@@ -157,9 +257,9 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             actions={
               <InfoTip label="About importing">
                 Files stay in this browser tab. Save project preserves processed layers; reattach point sources after
-                restore. Analysis tools use the bundled BC example. Ordinary LAS/LAZ: up to 2M points or 64 MiB; larger
-                clouds need COPC/EPT streaming. The layer CRS applies only to files without an embedded CRS; an embedded
-                EPSG code always wins.
+                restore. Analysis tools use the bundled BC example. LAS/LAZ up to 2M points or 64 MiB load whole; larger
+                files are read in chunks into an even overview, with full detail for an area you zoom to. COPC streams.
+                The layer CRS applies only to files without an embedded CRS; an embedded EPSG code always wins.
               </InfoTip>
             }
           >
@@ -227,6 +327,15 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
               </NativeSelect>
             </label>
           </SidebarSection>
+          {large && (
+            <LargeCloudSection
+              cloud={large}
+              view={mapView}
+              busy={busy}
+              onDetail={loadDetail}
+              onOverview={showOverview}
+            />
+          )}
           <SidebarSection title="Stream a point cloud" subtitle="COPC or EPT over HTTPS">
             <div className="flex flex-wrap items-center gap-2">
               <input
@@ -262,6 +371,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
                   variant="outline"
                   onClick={() => {
                     setImportSession({ ...getImportSession(), point: null })
+                    setLarge(null)
                     setPointStatus('')
                   }}
                 >
@@ -287,6 +397,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
                   stopPending()
                   setBusy(false)
                   resetImportSession()
+                  setLarge(null)
                   choose('')
                   setSample('')
                   setMessage('Session cleared. Your original disk files are unchanged.')
@@ -349,6 +460,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             }}
             onSample={setSample}
             onPointStatus={setPointStatus}
+            onView={setMapView}
           />
         </div>
         <div

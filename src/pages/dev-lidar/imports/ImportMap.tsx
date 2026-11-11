@@ -16,7 +16,7 @@ import { rasterPreview, rasterValue } from './raster'
 import { featureName } from './vector'
 import { hideNativeLoadSection } from './las'
 import { loadPointSource, POINT_BUDGET } from './pointSource'
-import { unionBounds } from './coordinates'
+import { unionBounds, type MapView } from './coordinates'
 import { errorText, type ImportedLayer, type ImportSession } from './types'
 import { DEFAULT_LOCALE } from '@/lib/format'
 import { Notification } from '@/components/ui/notification'
@@ -36,6 +36,20 @@ interface Props {
   onPick: (layer: string, index: number) => void
   onSample: (text: string) => void
   onPointStatus: (text: string) => void
+  /** The ground the map shows from above, after each move. Pitch does not change it. */
+  onView?: (view: MapView) => void
+}
+/** Metres per pixel at a latitude and zoom, for 512-pixel tiles. */
+const metresPerPixel = (lat: number, zoom: number) => (40075016.686 * Math.cos((lat * Math.PI) / 180)) / 2 ** (zoom + 9)
+function mapView(map: MapLibreMap): MapView {
+  const center = map.getCenter(),
+    canvas = map.getCanvas(),
+    scale = metresPerPixel(center.lat, map.getZoom())
+  return {
+    center: [center.lng, center.lat],
+    width: (canvas.clientWidth || canvas.width) * scale,
+    height: (canvas.clientHeight || canvas.height) * scale,
+  }
 }
 export function ImportMap(props: Props) {
   const map = useRef<MapLibreMap | null>(null),
@@ -59,8 +73,12 @@ export function ImportMap(props: Props) {
     instance.on('error', (e) => {
       if (active) setError(e.error?.message ?? 'Map resource unavailable')
     })
+    instance.on('moveend', () => {
+      if (active) latest.current.onView?.(mapView(instance))
+    })
     instance.on('load', () => {
       if (!active) return
+      latest.current.onView?.(mapView(instance))
       instance.addLayer({ id: 'analysis-height', type: 'background', paint: { 'background-opacity': 0 } })
       instance.addSource('import-selected', { type: 'geojson', data: EMPTY })
       instance.addLayer({
