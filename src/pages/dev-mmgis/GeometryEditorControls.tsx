@@ -9,6 +9,7 @@ import {
   tooManyVerticesMessage,
   vertexCount,
 } from './geometryEditing'
+import { StyledSelect } from '@/components/ui/styled-select'
 export function GeometryEditorControls({
   geometry,
   onChange,
@@ -34,13 +35,16 @@ function VertexControls({ geometry, onChange }: { geometry: Geometry; onChange: 
     <div>
       <label className="mm-field">
         Selected vertex
-        <select value={Math.min(index, handles.vertices.length - 1)} onChange={(e) => setIndex(Number(e.target.value))}>
+        <StyledSelect
+          value={Math.min(index, handles.vertices.length - 1)}
+          onChange={(e) => setIndex(Number(e.target.value))}
+        >
           {handles.vertices.map((v, i) => (
             <option key={i} value={i}>
               {i + 1} · {v.point[1].toFixed(5)}, {v.point[0].toFixed(5)}
             </option>
           ))}
-        </select>
+        </StyledSelect>
       </label>
       <div className="mm-button-row">
         <Button

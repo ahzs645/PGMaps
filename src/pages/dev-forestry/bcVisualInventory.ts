@@ -159,6 +159,47 @@ export function clampQueryBounds(bounds: Bounds, maxSpan = MAX_QUERY_SPAN_DEGREE
   return [centreLng - halfLng, centreLat - halfLat, centreLng + halfLng, centreLat + halfLat]
 }
 
+/**
+ * DataBC's WFS layer of the same inventory. The ArcGIS layer above stops at
+ * 10,000 of its 60,499 polygons (its count reports exactly 10,000, and Purden
+ * Lake returns none), and the bcdatamapper snapshot was built from it, so the
+ * WFS is the one complete source.
+ */
+export const VLI_WFS_LAYER = 'WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY'
+export const VLI_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
+/** Rows asked for at once; a page at the cap is reported as truncated. */
+export const VLI_WFS_MAX_FEATURES = 3000
+
+/**
+ * The WFS request for the units in a bbox, at full resolution. The box goes in
+ * `CQL_FILTER` (longitude first), never `bbox` (latitude first under WFS 2.0),
+ * and `propertyName` stays narrow: the layer has over 60 attributes.
+ */
+export function buildInventoryWfsUrl(bounds: Bounds): string {
+  const [west, south, east, north] = clampQueryBounds(bounds)
+  const parameters = new URLSearchParams({
+    service: 'WFS',
+    version: '2.0.0',
+    request: 'GetFeature',
+    typeName: VLI_WFS_LAYER,
+    outputFormat: 'application/json',
+    srsName: 'EPSG:4326',
+    count: String(VLI_WFS_MAX_FEATURES),
+    propertyName: [
+      'OBJECTID',
+      'VLI_POLYGON_NO',
+      'REC_EVQO_CODE',
+      'REC_RVQC_CODE',
+      'REC_VAC_FINAL_VALUE_CODE',
+      'REC_VSC_FINAL_VALUE_CODE',
+      'RATIONALE',
+      'GEOMETRY',
+    ].join(','),
+    CQL_FILTER: `BBOX(GEOMETRY,${west},${south},${east},${north},'EPSG:4326')`,
+  })
+  return `${VLI_WFS}?${parameters.toString()}`
+}
+
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null
 }

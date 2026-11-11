@@ -1,6 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 import { openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 /** Opens Design → Access from FSR and returns the panel. */
 export async function openAccessReview(page: Page) {

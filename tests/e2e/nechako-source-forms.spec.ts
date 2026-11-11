@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { Buffer } from 'node:buffer'
+import { choose } from './styled-select'
 
 const form = {
   name: 'Fixture source form',
@@ -97,7 +98,7 @@ for (const width of [1440, 390])
       .getByRole('button', { name: 'Reports', exact: true })
       .click()
     await page.getByRole('button', { name: 'Read available report forms', exact: true }).click()
-    await page.getByLabel('Source report form', { exact: true }).selectOption('39')
+    await choose(page.getByLabel('Source report form', { exact: true }), '39')
     await page.getByRole('button', { name: 'Load report fields', exact: true }).click()
     await page.getByLabel('Report label Sub-basin Name').fill('Basin')
     await page.getByLabel('Report label Observation Count').fill('Count')
@@ -128,7 +129,7 @@ for (const width of [1440, 390])
     await hoverValue(1 / 8)
     await expect(graphs.getByText('Submission 1477', { exact: true })).toBeVisible()
     await expect(graphs.getByText('Count: 0', { exact: true })).toBeVisible()
-    await graphs.getByLabel('Report graph dataset', { exact: true }).selectOption('statistics:results')
+    await choose(graphs.getByLabel('Report graph dataset', { exact: true }), 'statistics:results')
     await expect(
       graphs.getByText(
         '1 numeric values plotted from 1 returned entries · 0 missing, nonnumeric or unsafe numeric values excluded.',
@@ -137,7 +138,7 @@ for (const width of [1440, 390])
     await hoverValue(1 / 2)
     // The source says results=7, despite returning 4 rows; the graph must retain 7.
     await expect(graphs.getByText('results: 7', { exact: true })).toBeVisible()
-    await graphs.getByLabel('Report graph dataset', { exact: true }).selectOption('statistics:sum')
+    await choose(graphs.getByLabel('Report graph dataset', { exact: true }), 'statistics:sum')
     await expect(
       graphs.getByText(
         '1 numeric values plotted from 2 returned entries · 1 missing, nonnumeric or unsafe numeric values excluded.',
@@ -165,7 +166,7 @@ for (const width of [1440, 390])
       buffer: Buffer.from('Title,ID\nFirst,A\nSecond,A\nThird,B\n'),
     })
     await page.getByRole('button', { name: 'Use source columns as a local review form', exact: true }).click()
-    await page.getByLabel('Draft duplicate identifier', { exact: true }).selectOption('ID')
+    await choose(page.getByLabel('Draft duplicate identifier', { exact: true }), 'ID')
     await page.getByRole('button', { name: 'Select rows without issues', exact: true }).click()
     await expect(
       page.getByText('2 records have review issues · 1 selected · no records merged or uploaded', { exact: true }),

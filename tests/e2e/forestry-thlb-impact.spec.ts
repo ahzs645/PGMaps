@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { expectSelected } from './styled-select'
 import ExcelJS from 'exceljs'
 import JSZip from 'jszip'
 import { decode } from 'fast-png'
@@ -129,13 +130,15 @@ test('imports real files through GDAL, gives official coverage precedence, and r
 }) => {
   await open(page)
   await page.locator('[data-thlb-files="areas"]').setInputFiles(file('areas.geojson', X, 200, { AREA_ID: 'WHA-1' }))
-  await expect(page.locator('[data-thlb-entry="areas"] select').nth(1)).toHaveValue('AREA_ID', { timeout: 60_000 })
+  await expectSelected(page.locator('[data-thlb-entry="areas"] [data-select-trigger]').nth(1), 'AREA_ID', {
+    timeout: 60_000,
+  })
   await page
     .locator('[data-thlb-files="official"]')
     .setInputFiles(file('official.geojson', X, 100, { thlb_fact: 0.75, tsr_report_year: 2024 }))
-  await expect(page.locator('[data-thlb-entry="official"] select').nth(1)).toHaveValue('thlb_fact')
+  await expectSelected(page.locator('[data-thlb-entry="official"] [data-select-trigger]').nth(1), 'thlb_fact')
   await page.locator('[data-thlb-files="proxy"]').setInputFiles(file('proxy.geojson', X, 200, { pthlb_fact: 0.5 }))
-  await expect(page.locator('[data-thlb-entry="proxy"] select').nth(1)).toHaveValue('pthlb_fact')
+  await expectSelected(page.locator('[data-thlb-entry="proxy"] [data-select-trigger]').nth(1), 'pthlb_fact')
   await page.locator('[data-thlb-tab="results"]').click()
   await page.locator('[data-thlb-run]').click()
   await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible({ timeout: 60_000 })
@@ -157,7 +160,7 @@ test('imports real files through GDAL, gives official coverage precedence, and r
   await page
     .locator('[data-thlb-files="areas"]')
     .setInputFiles(file('uncovered.geojson', X + 5000, 200, { AREA_ID: 'Uncovered' }))
-  await expect(page.locator('[data-thlb-entry="areas"] select').nth(1)).toHaveValue('AREA_ID')
+  await expectSelected(page.locator('[data-thlb-entry="areas"] [data-select-trigger]').nth(1), 'AREA_ID')
   await page.locator('[data-thlb-tab="results"]').click()
   await page.locator('[data-thlb-run]').click()
   await expect(page.getByRole('status').filter({ hasText: 'Analysis complete' })).toBeVisible()

@@ -143,20 +143,6 @@
 .lp-chooser-dialog::backdrop {
   background: hsl(var(--lp-shadow-color) / 0.5);
 }
-.lp-interface-switch {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 9px;
-  border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) - 2px);
-  background: hsl(var(--card));
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.lp-interface-switch:hover,
 .lp-tools .lp-command:hover {
   background: hsl(var(--accent));
 }
@@ -282,12 +268,8 @@
   .lp-card-name > svg {
     display: none;
   }
-  .lp-interface-switch span,
   .lp-hint {
     display: none;
-  }
-  .lp-interface-switch {
-    padding: 0 8px;
   }
   .lp-tools {
     padding: 2px 4px;
@@ -398,7 +380,7 @@
   overflow-x: auto;
   overscroll-behavior: none;
 }
-.lp-ribbon-tabs .lp-interface-switch {
+.lp-ribbon-tabs [data-command='chooseInterface'] {
   flex-shrink: 0;
   margin-bottom: 3px;
 }

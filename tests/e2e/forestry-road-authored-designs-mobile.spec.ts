@@ -3,7 +3,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
 import { openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15000 })

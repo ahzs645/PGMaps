@@ -7,7 +7,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { initTools, runTool } from 'whitebox-wasm/tools'
 import { lasFile } from './road-fixtures'
 import { expandRoadSection } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)

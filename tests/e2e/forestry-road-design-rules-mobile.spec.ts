@@ -2,7 +2,7 @@ import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({
   viewport: { width: 390, height: 844 },

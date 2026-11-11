@@ -1,7 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)

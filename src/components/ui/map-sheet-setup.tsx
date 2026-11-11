@@ -1,5 +1,5 @@
 import { FileButton } from '@/components/ui/file-button'
-import { FORM_INPUT_CLASS, FormField, NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { PAPER_SIZES, type PaperId } from '@/lib/mapSheet/layout'
 import { formatScale, SHEET_SCALES } from '@/lib/mapSheet/scale'
@@ -66,7 +66,7 @@ export function MapSheetSetup({
     <fieldset disabled={disabled} className="grid min-w-0 gap-3 text-xs" data-testid="map-sheet-setup">
       <div className="grid gap-2 sm:grid-cols-3">
         <FormField label="Sheet" htmlFor="map-sheet-kind">
-          <NativeSelect
+          <StyledSelect
             id="map-sheet-kind"
             className={FORM_INPUT_CLASS}
             value={value.kind}
@@ -78,10 +78,10 @@ export function MapSheetSetup({
                 {entry.unavailable ? ' (unavailable)' : ''}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
         <FormField label="Paper" htmlFor="map-sheet-paper">
-          <NativeSelect
+          <StyledSelect
             id="map-sheet-paper"
             className={FORM_INPUT_CLASS}
             value={value.paper}
@@ -92,10 +92,10 @@ export function MapSheetSetup({
                 {PAPER_SIZES[paper].label}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
         <FormField label="Scale" htmlFor="map-sheet-scale">
-          <NativeSelect
+          <StyledSelect
             id="map-sheet-scale"
             className={FORM_INPUT_CLASS}
             value={String(value.scale)}
@@ -107,7 +107,7 @@ export function MapSheetSetup({
               </option>
             ))}
             <option value="fit">Fit the block</option>
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
       </div>
       {kind?.description && <p className="text-muted-foreground">{kind.description}</p>}
@@ -118,7 +118,7 @@ export function MapSheetSetup({
       )}
       {areas && onArea && (
         <FormField label="Block" htmlFor="map-sheet-area">
-          <NativeSelect
+          <StyledSelect
             id="map-sheet-area"
             className={FORM_INPUT_CLASS}
             value={area ?? ''}
@@ -129,7 +129,7 @@ export function MapSheetSetup({
                 {entry.label}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
       )}
       <div className="grid gap-x-3 gap-y-2 sm:grid-cols-2">

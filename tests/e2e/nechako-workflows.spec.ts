@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { choose } from './styled-select'
 
 const portal = 'https://nechakowatershed-portal.ca'
 const points = {
@@ -76,7 +77,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByText('buffer: stations.geojson (1)', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Undo vector edit', exact: true }).click()
     await expect(page.getByText('buffer: stations.geojson (1)', { exact: false })).toHaveCount(0)
-    await page.getByLabel('Drawing mode').selectOption('Point')
+    await choose(page.getByLabel('Drawing mode'), 'Point')
     await page.locator('.maplibregl-canvas').click({ position: { x: 150, y: 180 } })
     await expect(page.getByText('1 vertices; click the map to place them.')).toBeVisible()
     await page.getByRole('button', { name: 'Finish drawing', exact: true }).click()
@@ -141,15 +142,15 @@ for (const width of [1440, 390]) {
       ).join('\n') +
       '\ninvalid,A,1,2'
     await page.getByLabel('Monitoring CSV', { exact: true }).setInputFiles(upload('monitoring.csv', csv, 'text/csv'))
-    await page.getByLabel('Primary measurement', { exact: true }).selectOption('temp')
-    await page.getByLabel('Secondary measurement', { exact: true }).selectOption('level')
+    await choose(page.getByLabel('Primary measurement', { exact: true }), 'temp')
+    await choose(page.getByLabel('Secondary measurement', { exact: true }), 'level')
     await page.getByLabel('Primary unit', { exact: true }).fill('°C')
     await page.getByLabel('Secondary unit', { exact: true }).fill('m')
     await expect(
       page.getByText('54 valid observations · 1 rejected rows · 0 duplicate station/timestamps'),
     ).toBeVisible()
     await expect(page.getByLabel('line monitoring chart')).toBeVisible()
-    await page.getByLabel('Monitoring chart type').selectOption('bar')
+    await choose(page.getByLabel('Monitoring chart type'), 'bar')
     await expect(page.getByLabel('bar monitoring chart')).toBeVisible()
     await page.getByRole('button', { name: 'Next observations', exact: true }).click()
     await expect(page.getByText('54 filtered observations · Page 2 of 2')).toBeVisible()
@@ -161,7 +162,7 @@ for (const width of [1440, 390]) {
     // Search opens on the unified public-content search; the portal's own
     // expression and geographic search is the "Live portal submissions" type.
     await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
-    await page.getByLabel('Search geographic limit').selectOption('extent')
+    await choose(page.getByLabel('Search geographic limit'), 'extent')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('button', { name: '73', exact: true })).toBeVisible()
     const sent = requests.find((item) => item.path.endsWith('getSearchResults.php'))!

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import type { DrainageEvidence } from '../../src/pages/dev-forestry-roads/drainageEvidence'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, isMobile: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { cn } from '@/lib/utils'
 
+import { formatKm, formatPct } from './measureFormat'
 import type { StationResult } from './types'
 
 const VIEW_WIDTH = 320
@@ -111,7 +112,7 @@ export function VisibilityProfile({
         viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
         className="h-auto w-full touch-none"
         role="img"
-        aria-label={`Visible share of the block along ${(totalMeters / 1000).toFixed(1)} kilometres of road`}
+        aria-label={`Visible share of the block along ${formatKm(totalMeters, 1)} of road`}
         onPointerMove={(event) => setHoverIndex(indexAtClientX(event.clientX))}
         onPointerLeave={() => setHoverIndex(null)}
         onPointerDown={(event) => {
@@ -183,7 +184,7 @@ export function VisibilityProfile({
             textAnchor="middle"
             className="fill-foreground text-[8px] font-semibold"
           >
-            {peak.visiblePercent.toFixed(0)}%
+            {formatPct(peak.visiblePercent, 0)}
           </text>
         )}
 
@@ -217,15 +218,15 @@ export function VisibilityProfile({
           textAnchor="end"
           className="fill-muted-foreground text-[7px]"
         >
-          {(totalMeters / 1000).toFixed(1)} km
+          {formatKm(totalMeters, 1)}
         </text>
       </svg>
 
       <p className="mt-1 text-2xs text-muted-foreground">
         {hovered ? (
           <>
-            <span className="font-medium text-foreground">{hovered.visiblePercent.toFixed(1)}%</span> visible at{' '}
-            {(hovered.distanceAlongMeters / 1000).toFixed(2)} km
+            <span className="font-medium text-foreground">{formatPct(hovered.visiblePercent)}</span> visible at{' '}
+            {formatKm(hovered.distanceAlongMeters)}
           </>
         ) : positionMeters != null ? (
           // Two rules, and only one of them was ever named.

@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
 import { openRoadPanel } from './road-sidebar'
-import { optionLabels } from './road-select'
+import { optionLabels } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 390, height: 844 }, hasTouch: true, actionTimeout: 15_000 })
 test.setTimeout(180_000)

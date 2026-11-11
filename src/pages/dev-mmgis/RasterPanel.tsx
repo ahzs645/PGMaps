@@ -7,6 +7,7 @@ import { clampText, uid, type Mission, type Coordinate } from './model'
 import type { LocalRaster } from '../dev-forestry/types'
 import { importLocalRaster } from '../dev-forestry/toolImports'
 import { sampleRaster } from './raster'
+import { StyledSelect } from '@/components/ui/styled-select'
 
 export function RasterPanel({
   mission,
@@ -83,10 +84,10 @@ export function RasterPanel({
         <p className="mm-help">Connect tiled imagery or a Cloud Optimized GeoTIFF through a TiTiler service.</p>
         <label className="mm-field">
           Source type
-          <select value={kind} onChange={(e) => setKind(e.target.value)}>
+          <StyledSelect value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="xyz">XYZ raster tiles</option>
             <option value="cog">COG through TiTiler</option>
-          </select>
+          </StyledSelect>
         </label>
         <label className="mm-field">
           Layer name

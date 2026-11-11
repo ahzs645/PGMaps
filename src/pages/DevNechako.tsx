@@ -1,7 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { lazy, Suspense, useState } from 'react'
 import { TabBar, type TabOption } from '@/components/ui/tab-bar'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ExternalLink } from '@/components/ui/text-button'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
@@ -295,7 +295,7 @@ export default function DevNechako() {
         <div className="mb-4">
           <label className="text-sm font-medium">
             Map catalogue source
-            <NativeSelect
+            <StyledSelect
               aria-label="Map catalogue source"
               value={catalogueSource}
               className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
@@ -309,7 +309,7 @@ export default function DevNechako() {
             >
               <option value="snapshot">Repository snapshot</option>
               <option value="live">Live portal catalogue</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
         </div>
         <PortalLayers

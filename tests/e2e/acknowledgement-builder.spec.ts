@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose, expectSelected } from './styled-select'
 
 // Keep production-preview caching from bypassing mocked source failures.
 test.use({ serviceWorkers: 'block' })
@@ -157,7 +158,7 @@ test('combined drafts remain incomplete until every location has a reviewed sele
   await addAddress(page)
   await addAddress(page, 'Unknown place, BC')
   await goWording(page)
-  await page.getByLabel('Acknowledgment purpose', { exact: true }).selectOption('operations')
+  await choose(page.getByLabel('Acknowledgment purpose', { exact: true }), 'operations')
   await expect(page.getByRole('textbox', { name: 'Draft acknowledgment', exact: true })).toHaveValue('')
   await expect(page.getByRole('button', { name: 'Copy draft', exact: true })).toBeDisabled()
   await expect(page.getByText(/1 of 2 locations ready\./)).toBeVisible()
@@ -310,10 +311,10 @@ test('venue choice and distributed purpose preserve location facts and survive r
   const editor = page.getByRole('textbox', { name: 'Draft acknowledgment', exact: true })
   await expect(editor).toHaveValue(/Lheidli/)
   await expect(editor).not.toHaveValue(/Treaty 8/)
-  await page.getByLabel('Event venue', { exact: true }).selectOption({ label: '9820 120 Avenue, Fort St. John, BC' })
+  await choose(page.getByLabel('Event venue', { exact: true }), { label: '9820 120 Avenue, Fort St. John, BC' })
   await expect(editor).toHaveValue(/Treaty 8/)
   await expect(editor).not.toHaveValue(/Lheidli/)
-  await page.getByLabel('Acknowledgment purpose', { exact: true }).selectOption('distributed')
+  await choose(page.getByLabel('Acknowledgment purpose', { exact: true }), 'distributed')
   await expect(editor).toHaveValue(/For participants joining from/)
   const text = await editor.inputValue()
   expect(text).toContain('unceded traditional territory of Lheidli')
@@ -321,7 +322,7 @@ test('venue choice and distributed purpose preserve location facts and survive r
   expect(text).not.toMatch(/gather|operates/)
   await page.reload()
   await goWording(page)
-  await expect(page.getByLabel('Acknowledgment purpose', { exact: true })).toHaveValue('distributed')
+  await expectSelected(page.getByLabel('Acknowledgment purpose', { exact: true }), 'distributed')
   await expect(editor).toHaveValue(text)
   for (const width of [320, 390, 768]) {
     await page.setViewportSize({ width, height: 844 })

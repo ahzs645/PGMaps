@@ -2,22 +2,25 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, ImageOff, Loader2, S
 import { useEffect, useRef } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { CheckboxField, FORM_INPUT_CLASS, FormField } from '@/components/ui/form-field'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
+import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { Slider } from '@/components/ui/slider'
+import { ExternalLink } from '@/components/ui/text-button'
+import { ToggleRow } from '@/components/ui/toggle-row'
 import { formatDate } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import { photoNearDrive } from './mapillary'
+import { formatKm } from './measureFormat'
 import type { FieldPhotoState } from './useFieldPhoto'
-
-const INPUT_CLASS =
-  'h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-10'
 
 function Credit({ photo }: { photo: { creator: string | null; pageUrl: string } }) {
   return (
-    <a className="underline" href={photo.pageUrl} target="_blank" rel="noreferrer">
+    <ExternalLink href={photo.pageUrl} hideIcon className="text-3xs font-normal">
       {photo.creator ?? 'Mapillary contributor'} · Mapillary · CC BY-SA 4.0
-    </a>
+    </ExternalLink>
   )
 }
 
@@ -57,13 +60,14 @@ export function FieldPhotoPanel({
           void photo.load(photo.input)
         }}
       >
-        <input
-          className={INPUT_CLASS}
-          aria-label="Mapillary photo link or image key"
-          placeholder="Mapillary photo link or image key"
-          value={photo.input}
-          onChange={(event) => photo.setInput(event.target.value)}
-        />
+        <FormField label="Mapillary photo link or image key" hideLabel className="flex-1">
+          <input
+            className={cn(FORM_INPUT_CLASS, 'h-9 touch:h-10')}
+            placeholder="Mapillary photo link or image key"
+            value={photo.input}
+            onChange={(event) => photo.setInput(event.target.value)}
+          />
+        </FormField>
         <Button type="submit" variant="outline" size="sm" className="touch:h-10" disabled={photo.status.loading}>
           {photo.status.loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Load'}
         </Button>
@@ -107,7 +111,7 @@ export function FieldPhotoPanel({
                   )}
                   <span className="block truncate px-1 py-0.5 text-3xs text-muted-foreground">
                     {candidate.capturedAt ? formatDate(candidate.capturedAt) : 'Undated'} ·{' '}
-                    {(candidate.targetMeters / 1000).toFixed(1)} km
+                    {formatKm(candidate.targetMeters, 1)}
                   </span>
                 </button>
               </li>
@@ -115,22 +119,17 @@ export function FieldPhotoPanel({
           </ul>
         </div>
       )}
-      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-3.5 w-3.5"
-          checked={photo.follow}
-          onChange={(event) => {
-            photo.setFollow(event.target.checked)
-            if (event.target.checked && search.status !== 'ready') void photo.findPhotos()
-          }}
-        />
-        <span>
-          <span className="font-medium text-foreground">Show street photos while driving.</span> The nearest photo taken
-          from the road, looking the way the camera looks
-          {search.status === 'ready' ? ` (${search.road.length} along this road)` : ''}.
-        </span>
-      </label>
+      <CheckboxField
+        label={<span className="font-medium">Show street photos while driving</span>}
+        description={`The nearest photo taken from the road, looking the way the camera looks${
+          search.status === 'ready' ? ` (${search.road.length} along this road)` : ''
+        }.`}
+        checked={photo.follow}
+        onCheckedChange={(follow) => {
+          photo.setFollow(follow)
+          if (follow && search.status !== 'ready') void photo.findPhotos()
+        }}
+      />
       {image && (
         <div className="space-y-2 rounded-md border border-border p-2">
           {image.thumbUrl && (
@@ -154,7 +153,7 @@ export function FieldPhotoPanel({
               fov && { label: 'Field of view', value: `${fov.horizontal.toFixed(0)}° × ${fov.vertical.toFixed(0)}°` },
               onRoad && {
                 label: 'From the road line',
-                value: `${onRoad.offsetMeters.toFixed(0)} m off, ${(onRoad.distanceAlongMeters / 1000).toFixed(2)} km along`,
+                value: `${onRoad.offsetMeters.toFixed(0)} m off, ${formatKm(onRoad.distanceAlongMeters)} along`,
               },
             ]}
           />
@@ -288,36 +287,45 @@ export function PhotoOverlay({ photo }: { photo: FieldPhotoState }) {
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <label className="block">
-          <span className="text-2xs text-muted-foreground">
-            Photo {Math.round(match.opacity * 100)}% · road view behind
-          </span>
-          <Slider
-            aria-label="Photo opacity"
-            value={[match.opacity * 100]}
-            min={0}
-            max={100}
-            step={5}
-            onValueChange={([value]) => set({ opacity: value / 100 })}
+        <NumericRangeField
+          label="Photo"
+          aria-label="Photo opacity"
+          layout="inline"
+          valueSeparator=" "
+          display={`${Math.round(match.opacity * 100)}% · road view behind`}
+          headerClassName="text-2xs text-muted-foreground"
+          min={0}
+          max={100}
+          step={5}
+          value={match.opacity * 100}
+          onChange={(value) => set({ opacity: value / 100 })}
+          renderControl={(control) => (
+            <Slider
+              id={control.id}
+              aria-label={control['aria-label']}
+              aria-labelledby={control['aria-labelledby']}
+              value={[control.value]}
+              min={control.min}
+              max={control.max}
+              step={control.step}
+              disabled={control.disabled}
+              onValueChange={([value]) => control.onChange(value)}
+            />
+          )}
+        />
+        <div className="grid grid-cols-2 gap-2" role="group" aria-label="Drawn over the photo">
+          <ToggleRow
+            layout="tile"
+            label="Terrain skyline"
+            active={match.showSkyline}
+            onClick={() => set({ showSkyline: !match.showSkyline })}
           />
-        </label>
-        <div className="flex flex-wrap gap-3">
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={match.showSkyline}
-              onChange={(event) => set({ showSkyline: event.target.checked })}
-            />
-            Terrain skyline
-          </label>
-          <label className="flex items-center gap-1">
-            <input
-              type="checkbox"
-              checked={match.showBlock}
-              onChange={(event) => set({ showBlock: event.target.checked })}
-            />
-            Cutblock
-          </label>
+          <ToggleRow
+            layout="tile"
+            label="Cutblock"
+            active={match.showBlock}
+            onClick={() => set({ showBlock: !match.showBlock })}
+          />
         </div>
         <div className="flex items-center gap-1" aria-label="Nudge the view">
           <Button
@@ -458,14 +466,13 @@ export function StreetPhotoInset({
         </Button>
       </div>
       <p className="px-1.5 pb-1.5 text-3xs text-muted-foreground">
-        <a
-          className="underline"
+        <ExternalLink
           href={`https://www.mapillary.com/app/?pKey=${near.id}&focus=photo`}
-          target="_blank"
-          rel="noreferrer"
+          hideIcon
+          className="text-3xs font-normal"
         >
           Mapillary · CC BY-SA 4.0
-        </a>
+        </ExternalLink>
       </p>
     </div>
   )

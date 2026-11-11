@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { choose, expectSelected } from './styled-select'
 
 // Synthetic API fixtures exercise the verified native contracts; they are not live observations.
 for (const width of [1440, 390])
@@ -79,12 +80,12 @@ for (const width of [1440, 390])
     await page.getByRole('button', { name: 'Open submission resources', exact: true }).click()
     await page.getByText('Spatial layers', { exact: true }).click()
     await page.getByRole('button', { name: 'Load spatial layers', exact: true }).click()
-    await page.getByLabel('Submission attribute layer').selectOption('386')
+    await choose(page.getByLabel('Submission attribute layer'), '386')
     await page.getByRole('button', { name: 'Read source layer attributes', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Monitor record 1', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Monitor record 2', exact: true })).toHaveCount(0)
     await page.getByRole('button', { name: 'Monitor record 1', exact: true }).click()
-    await expect(page.getByLabel('Monitoring source mode')).toHaveValue('layer')
+    await expectSelected(page.getByLabel('Monitoring source mode'), 'layer')
     await expect(page.getByLabel('Monitoring layer or schema ID')).toHaveValue('386')
     await expect(page.getByLabel('Monitoring record sequence ID')).toHaveValue('1')
     await expect(page.getByRole('button', { name: 'Read schema fields', exact: true })).toBeDisabled()
@@ -92,9 +93,9 @@ for (const width of [1440, 390])
     await expect(page.getByText('Rows 1–2 of 2 · page 1 of 1', { exact: true })).toBeVisible()
     expect(queries).toEqual([{ layerId: '386', recId: '1', pageSize: '500', pageNumber: '0' }])
     await page.getByRole('button', { name: 'Chart and report this page', exact: true }).click()
-    await page.getByLabel('timestamp column', { exact: true }).selectOption('date')
-    await page.getByLabel('Primary measurement', { exact: true }).selectOption('min_temp_c')
-    await page.getByLabel('Monitoring date format').selectOption('dmy')
+    await choose(page.getByLabel('timestamp column', { exact: true }), 'date')
+    await choose(page.getByLabel('Primary measurement', { exact: true }), 'min_temp_c')
+    await choose(page.getByLabel('Monitoring date format'), 'dmy')
     await page.getByLabel('Timestamp time zone', { exact: true }).fill('UTC')
     await expect(
       page.getByText('2 valid observations · 0 rejected rows · 0 duplicate station/timestamps', { exact: true }),

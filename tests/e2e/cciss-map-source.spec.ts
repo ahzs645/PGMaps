@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { choose } from './styled-select'
 
 test('trace is the default; numeric vector and original tiles are explicit choices', async ({ page }) => {
   test.setTimeout(60_000)
@@ -35,14 +36,14 @@ test('trace is the default; numeric vector and original tiles are explicit choic
   expect(url.searchParams.get('z')).toBe('5.48')
 
   // An unprepared selection must not silently bring the public raster back.
-  await page.getByRole('combobox', { name: 'Species', exact: true }).selectOption('Fd')
+  await choose(page.getByRole('combobox', { name: 'Species', exact: true }), 'Fd')
   await expect(page.getByText('No prepared overlay for this selection')).toBeVisible()
   expect(remote).toEqual([])
   await page.getByRole('button', { name: 'Comparison options', exact: true }).click()
   await page.getByRole('button', { name: 'Original CCISS tiles', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('This tile set is unavailable')
   expect(remote.some((url) => url.includes('NewFeas_1961_1990_ref_C4_Fd.json'))).toBe(true)
-  await page.getByRole('combobox', { name: 'Species', exact: true }).selectOption('Pl')
+  await choose(page.getByRole('combobox', { name: 'Species', exact: true }), 'Pl')
   await page.getByRole('button', { name: 'Tile trace', exact: true }).click()
   await expect(page).toHaveURL(/render=trace/)
   await expect(page.getByText(/visible blocks? ready\./)).toBeVisible()

@@ -207,14 +207,14 @@
         {
           "label": "Alignment",
           "icon": "route",
-          "hint": "Sketch a new road or edit the selected alignment.",
-          "commands": ["sketch", "alignment"]
+          "hint": "Sketch a new road, edit the selected alignment or its road template.",
+          "commands": ["sketch", "alignment", "section"]
         },
         {
           "label": "Checks",
           "icon": "ruler",
-          "hint": "Inspect the road profile and review design limits.",
-          "commands": ["profile", "review"]
+          "hint": "Inspect the road profile, its engineering inputs and the design limits.",
+          "commands": ["profile", "engineering", "review"]
         },
         {
           "label": "View",
@@ -258,6 +258,21 @@
       }
     },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
-    "headerTools": ["interfaceSwitch", "history", "summarySettings", "presets", "saveState", "controls", "undo", "redo", "projects", "export", "fullscreen"]
+    "headerTools": [
+      "interfaceSwitch",
+      "startDesign",
+      "history",
+      "loadMapped",
+      "summarySettings",
+      "presets",
+      "saveState",
+      "controls",
+      "undo",
+      "redo",
+      "projects",
+      "open",
+      "export",
+      "fullscreen"
+    ]
   }
 ]

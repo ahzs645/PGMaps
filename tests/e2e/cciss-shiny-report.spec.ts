@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose } from './styled-select'
 
 test('real published report, silvics, safe export, and browser summary recalculation', async ({ page }) => {
   const errors: string[] = []
@@ -12,11 +13,11 @@ test('real published report, silvics, safe export, and browser summary recalcula
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Load published example' }).click()
   await expect(dialog.getByText('Published Williams Lake example · historical periods', { exact: true })).toBeVisible()
-  await dialog.getByLabel('Site and site series').selectOption(JSON.stringify(['4812311', 'IDFxm/01']))
-  await dialog.getByLabel('Species detail').selectOption('Ac')
+  await choose(dialog.getByLabel('Site and site series'), JSON.stringify(['4812311', 'IDFxm/01']))
+  await choose(dialog.getByLabel('Species detail'), 'Ac')
   await expect(dialog.getByRole('img', { name: 'Period 2055 vote proportions' })).toBeVisible()
   await expect(dialog.getByText('Low 3.0%', { exact: false }).first()).toBeVisible()
-  await dialog.getByLabel('Species detail').selectOption('Pl')
+  await choose(dialog.getByLabel('Species detail'), 'Pl')
   await page.screenshot({ path: 'tmp/cciss-species-report.png' })
   await dialog.getByRole('tab', { name: 'Silvics', exact: true }).click()
   await expect(dialog.getByText('Tolerance', { exact: true })).toBeVisible()

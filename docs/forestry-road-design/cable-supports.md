@@ -318,7 +318,8 @@ line in 0.5 s, about 40 spans each.
   release, one codegen unit, `panic=abort`, LTO, no debug information, stripped, with every local
   path remapped (`scripts/build-cable-wasm.mjs`). Two clean rebuilds, one from another directory,
   gave identical bytes. Commit the rebuilt file with any change to the crate.
-- The **Checks** workflow's `cable-wasm` job runs the crate's tests, rebuilds the file and fails when
+- The **Checks** workflow's `cable-wasm` job, which runs when the crate, its build script, the committed
+  file or the workflow changes (or by hand), runs the crate's tests, rebuilds the file and fails when
   the committed bytes differ, uploading the rebuilt file as `cable-layout-wasm-rebuilt` to commit.
 - The page loads the file with `new URL(..., import.meta.url)` inside `cableLayout.worker.ts`, only
   when **Find supports** or **Check saved layout** is pressed; Vitest reads it from disk.

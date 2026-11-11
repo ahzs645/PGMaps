@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import type { CviData } from '../../src/pages/climate-vulnerability/data'
 import type { Family, Manifest } from '../../src/pages/early-learning/data'
+import { choose, expectSelected } from './styled-select'
 
 test.use({ serviceWorkers: 'block' })
 test.setTimeout(90_000)
@@ -158,13 +159,13 @@ for (const mobile of [false, true]) {
     // Filtering one source row does not recalculate the scale over that row.
     for (const label of ['< 0.6', '0.6 – < 1', '1 – < 2.8', '≥ 2.8'])
       await expect(legend.getByText(label, { exact: true })).toHaveCount(1)
-    await page.getByRole('combobox', { name: 'Mapped variable', exact: true }).selectOption('missing_measure')
+    await choose(page.getByRole('combobox', { name: 'Mapped variable', exact: true }), 'missing_measure')
     await expect(sourceRow).toContainText('Unavailable')
     await expect(legend.getByText('Unavailable', { exact: true })).toHaveCount(1)
     await page.getByRole('button', { name: 'Reproducibility', exact: true }).click()
     await expect(page.getByText('Synthetic diagnostics retained.', { exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Map inputs', exact: true }).click()
-    await expect(page.getByRole('combobox', { name: 'Mapped variable', exact: true })).toHaveValue('missing_measure')
+    await expectSelected(page.getByRole('combobox', { name: 'Mapped variable', exact: true }), 'missing_measure')
     await expectNoHorizontalOverflow(page)
     expect(errors).toEqual([])
   })
@@ -244,7 +245,7 @@ for (const mobile of [false, true]) {
     await page.goto(`/dev/early-learning?release=${releaseId}`)
     await expect(page.locator('canvas.maplibregl-canvas')).toBeVisible()
     await expandPanel(page, mobile)
-    await expect(page.getByRole('combobox', { name: 'EDI source release', exact: true })).toHaveValue('source-b')
+    await expectSelected(page.getByRole('combobox', { name: 'EDI source release', exact: true }), 'source-b')
     const list = page.getByRole('list', { name: 'Early development areas', exact: true })
     const scroll = page.locator('[data-map-sidebar-scroll="true"]').filter({ has: list })
     await expect(list.getByRole('listitem').first()).toHaveAttribute('aria-setsize', '105')
@@ -255,13 +256,13 @@ for (const mobile of [false, true]) {
     await expect(last).toContainText('Not reported / suppressed')
     await last.click()
     await expect(last).toHaveAttribute('aria-pressed', 'true')
-    await page.getByRole('combobox', { name: 'EDI wave', exact: true }).selectOption('8')
+    await choose(page.getByRole('combobox', { name: 'EDI wave', exact: true }), { value: '8' })
     await page.getByRole('textbox', { name: 'Find an area', exact: true }).fill('GEOSD_104')
     await expect(list.getByRole('listitem')).toHaveCount(1)
     await expect(last).toContainText('20.0%')
-    await page.getByRole('combobox', { name: 'EDI wave', exact: true }).selectOption('9')
+    await choose(page.getByRole('combobox', { name: 'EDI wave', exact: true }), { value: '9' })
     await expect(last).toContainText('Not reported / suppressed')
-    await page.getByRole('combobox', { name: 'EDI source release', exact: true }).selectOption('source-a')
+    await choose(page.getByRole('combobox', { name: 'EDI source release', exact: true }), 'source-a')
     await expect(last).toHaveCount(0)
     await expect(page.getByRole('status').filter({ hasText: 'Loading' })).toBeVisible()
     finishSourceA()

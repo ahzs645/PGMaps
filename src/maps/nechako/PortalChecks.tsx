@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ExternalLink } from '@/components/ui/text-button'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { PaginationControls } from '@/components/ui/pagination-controls'
 import { usePagination } from '@/hooks/usePagination'
@@ -265,7 +265,7 @@ export function PortalSearch({
         </fieldset>
         <fieldset className="space-y-3 rounded-lg border p-3">
           <legend className="px-1 text-sm font-medium">Geographic limit</legend>
-          <NativeSelect
+          <StyledSelect
             aria-label="Search geographic limit"
             value={areaMode}
             onChange={(event) => setAreaMode(event.target.value as typeof areaMode)}
@@ -274,7 +274,7 @@ export function PortalSearch({
             <option value="none">No geographic limit</option>
             <option value="extent">Longitude/latitude extent</option>
             <option value="polygon">Imported or drawn polygon layer</option>
-          </NativeSelect>
+          </StyledSelect>
           {areaMode === 'extent' && (
             <>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -319,7 +319,7 @@ export function PortalSearch({
           {areaMode === 'polygon' && (
             <label className="block text-sm">
               Search area layer
-              <NativeSelect
+              <StyledSelect
                 aria-label="Search area layer"
                 value={areaVectorId}
                 onChange={(event) => setAreaVectorId(event.target.value)}
@@ -339,7 +339,7 @@ export function PortalSearch({
                       {item.name}
                     </option>
                   ))}
-              </NativeSelect>
+              </StyledSelect>
               <p className="mt-2 text-xs text-muted-foreground">
                 The original client also sends vector search areas as GeoJSON. Live geographic filtering needs
                 verification after registration is fixed.
@@ -623,7 +623,7 @@ export function PortalFormats({ defaultSource = 'live' }: { defaultSource?: Cata
       </h2>
       <label className="block text-sm font-medium">
         Format registry source
-        <NativeSelect
+        <StyledSelect
           aria-label="Format registry source"
           className="ml-2 max-w-full rounded-md border bg-background p-2 text-base"
           value={source}
@@ -631,7 +631,7 @@ export function PortalFormats({ defaultSource = 'live' }: { defaultSource?: Cata
         >
           <option value="snapshot">Repository snapshot</option>
           <option value="live">Live portal registry</option>
-        </NativeSelect>
+        </StyledSelect>
       </label>
       <p className="text-sm text-muted-foreground">
         These formats are advertised by the portal. Listing a format does not verify import/export round trips or make

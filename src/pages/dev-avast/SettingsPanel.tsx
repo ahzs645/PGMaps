@@ -1,4 +1,4 @@
-import { FormField, NullableNumberField, NativeSelect } from '@/components/ui/form-field'
+import { FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import { FilterChipGroup, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -294,7 +294,7 @@ export function SettingsPanel({
           <div className="grid grid-cols-2 gap-2">
             <label className={LABEL_CLASS}>
               DEM detail
-              <NativeSelect
+              <StyledSelect
                 className={FIELD_CLASS}
                 value={settings.demZoom}
                 onChange={(event) => onChange({ demZoom: Number(event.target.value) })}
@@ -302,7 +302,7 @@ export function SettingsPanel({
                 <option value={12}>Overview (~19 m)</option>
                 <option value={13}>Standard (~10 m)</option>
                 <option value={14}>Fine (~5 m)</option>
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <NumberField
               label="Slope cell"
@@ -334,7 +334,7 @@ export function SettingsPanel({
         <div className="grid grid-cols-2 gap-2">
           <label className={LABEL_CLASS}>
             Preferred VPH decimals
-            <NativeSelect
+            <StyledSelect
               className={FIELD_CLASS}
               value={settings.vphDecimals}
               onChange={(event) => onChange({ vphDecimals: Number(event.target.value) })}
@@ -342,7 +342,7 @@ export function SettingsPanel({
               <option value={0}>Whole m³/ha</option>
               <option value={1}>1 decimal</option>
               <option value={2}>2 decimals</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <NumberField
             label="Reference target"

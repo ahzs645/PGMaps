@@ -1,9 +1,11 @@
 import { Fragment, type ReactNode } from 'react'
+import { Ellipsis } from 'lucide-react'
+import { ActionMenu } from '@/components/ui/action-menu'
 import { CommandButton, type CommandPresentation } from './CommandButton'
-import { isWorkspaceCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { isWorkspaceCommand, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
 import type { WorkspaceWidget } from './workspaceLayouts'
 
-export type HeaderTool = WorkspaceCommand | WorkspaceWidget
+type HeaderTool = WorkspaceCommand | WorkspaceWidget
 
 /**
  * The header's tools when a layout names none: the workbench's original line. A layout can
@@ -25,6 +27,18 @@ export const DEFAULT_HEADER_TOOLS: HeaderTool[] = [
   'export',
   'fullscreen',
 ]
+
+/**
+ * Tools that fold into the header's More menu between 768 and 1023 px, where the line holding
+ * the title, the road switcher and every button would otherwise wrap to two. Each maps to the
+ * registry command the menu runs; the interface switch is a widget on the line and a command there.
+ */
+const HEADER_OVERFLOW: Partial<Record<HeaderTool, WorkspaceCommand>> = {
+  interfaceSwitch: 'chooseInterface',
+  summarySettings: 'summarySettings',
+  projects: 'projects',
+  fullscreen: 'fullscreen',
+}
 
 /**
  * A header bar renderer. It owns no commands: labels and icons come from the registry, behaviour
@@ -50,15 +64,18 @@ export function WorkspaceHeader({
   disabled?: boolean
   onCommand: (id: WorkspaceCommand) => void
 }) {
+  const overflow = tools.flatMap((tool) => {
+    const id = HEADER_OVERFLOW[tool]
+    return id && !resolveCommand(id, states[id]).hidden && (isWorkspaceCommand(tool) || widgets[tool]) ? [id] : []
+  })
   return (
     <header className="flex shrink-0 flex-wrap items-center justify-between gap-2" data-testid="road-workspace-header">
       {heading}
       {roadSwitcher}
       <div className="flex flex-wrap items-center gap-1">
-        {tools.map((tool) =>
-          isWorkspaceCommand(tool) ? (
+        {tools.map((tool) => {
+          const node = isWorkspaceCommand(tool) ? (
             <CommandButton
-              key={tool}
               id={tool}
               surface="header"
               state={states[tool]}
@@ -67,8 +84,34 @@ export function WorkspaceHeader({
               onRun={onCommand}
             />
           ) : (
-            <Fragment key={tool}>{widgets[tool]}</Fragment>
-          ),
+            widgets[tool]
+          )
+          return HEADER_OVERFLOW[tool] ? (
+            <span key={tool} className="contents md:max-lg:hidden">
+              {node}
+            </span>
+          ) : (
+            <Fragment key={tool}>{node}</Fragment>
+          )
+        })}
+        {overflow.length > 0 && (
+          <span className="hidden md:max-lg:contents">
+            <ActionMenu
+              label="More workspace commands"
+              trigger={<Ellipsis className="size-4" aria-hidden="true" />}
+              items={overflow.map((id) => {
+                const command = resolveCommand(id, states[id], disabled)
+                const Icon = command.icon
+                return {
+                  id,
+                  label: command.label,
+                  icon: <Icon className="size-4" aria-hidden="true" />,
+                  disabled: command.disabled,
+                  onSelect: () => onCommand(id),
+                }
+              })}
+            />
+          </span>
         )}
       </div>
     </header>

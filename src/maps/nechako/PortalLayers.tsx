@@ -1,5 +1,5 @@
 import { useObserveMapViewport } from '@/components/ui/map-viewport'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { MapMouseEvent } from 'maplibre-gl'
 import { Button } from '@/components/ui/button'
@@ -442,7 +442,7 @@ export function PortalLayers({
       </Button>
       <label className="block text-sm font-medium">
         Map service
-        <NativeSelect
+        <StyledSelect
           aria-label="Map service"
           className="mt-1 w-full rounded-md border bg-background p-2 text-base"
           value={sourceUrl}
@@ -460,7 +460,7 @@ export function PortalLayers({
               {item.name}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </label>
       <p className="text-xs text-muted-foreground">
         {sources.filter(isWmsSource).length} WMS services in the current catalogue. HTTPS basemaps remain available in
@@ -476,7 +476,7 @@ export function PortalLayers({
         <>
           <label className="block text-sm font-medium">
             Named layer or group ({caps.layers.length})
-            <NativeSelect
+            <StyledSelect
               aria-label="Named layer or group"
               className="mt-1 w-full rounded-md border bg-background p-2 text-base"
               value={layerName}
@@ -490,12 +490,12 @@ export function PortalLayers({
                   {item.title}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           {(layer?.styles.length ?? 0) > 0 && (
             <label className="block text-sm font-medium">
               Layer style
-              <NativeSelect
+              <StyledSelect
                 aria-label="Layer style"
                 className="mt-1 w-full rounded-md border bg-background p-2 text-base"
                 value={style}
@@ -507,7 +507,7 @@ export function PortalLayers({
                     {item.title}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           )}
           {!canRender && (
@@ -693,7 +693,7 @@ export function PortalLayers({
           {item.layer.styles.length > 0 && (
             <label className="block text-xs">
               Advertised WMS style
-              <NativeSelect
+              <StyledSelect
                 aria-label={`WMS style for ${wmsDisplayName(item)}`}
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={item.style}
@@ -712,7 +712,7 @@ export function PortalLayers({
                     {style.title}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           )}
           <details className="text-xs">
@@ -1031,7 +1031,7 @@ export function PortalLayers({
       )}
       <label className="block text-sm font-medium">
         Inspect on map click
-        <NativeSelect
+        <StyledSelect
           aria-label="Inspect on map click"
           className="mt-1 w-full rounded-md border bg-background p-2 text-base"
           value={identifyId}
@@ -1048,7 +1048,7 @@ export function PortalLayers({
                 {item.source.name} — {wmsDisplayName(item)}
               </option>
             ))}
-        </NativeSelect>
+        </StyledSelect>
       </label>
       {inspection && (
         <div className="rounded-lg border p-4" aria-live="polite">

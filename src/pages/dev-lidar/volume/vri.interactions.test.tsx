@@ -6,6 +6,11 @@ import { StatGroup } from '@/components/ui/stat-group'
 import { VriVolumeWorkspace } from './VriVolumeWorkspace'
 import type { VriVolumeData } from './vri'
 import type { AnalysisSummary } from '../types'
+// Radix's menu needs a DOM; the double is a plain <select> with the same props.
+vi.mock('@/components/ui/styled-select', async (actual) => ({
+  ...(await actual<typeof import('@/components/ui/styled-select')>()),
+  StyledSelect: (await import('@/components/ui/styledSelectTestDouble')).StyledSelectTestDouble,
+}))
 vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 const download = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/useIsMobile', () => ({ useIsMobile: () => false }))

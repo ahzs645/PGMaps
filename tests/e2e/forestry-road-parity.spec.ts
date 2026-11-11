@@ -4,7 +4,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
 import { dialogsClosed } from './road-dialogs'
-import { choose, optionLabels } from './road-select'
+import { choose, optionLabels } from './styled-select'
 import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })

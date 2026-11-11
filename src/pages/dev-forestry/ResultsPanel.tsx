@@ -1,9 +1,14 @@
 import { Check, Mountain, TriangleAlert, X } from 'lucide-react'
 
+import { Badge } from '@/components/ui/badge'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { StackedShareBar } from '@/components/ui/share-bars'
+import { StatGroup } from '@/components/ui/stat-group'
+import { formatMeasure, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
+import { formatHa, formatKm, formatPct } from './measureFormat'
 import { resolvedThresholds, resolveThreshold } from './integrity'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
 import {
@@ -25,62 +30,44 @@ type AlterationScale = {
   note: string
 }
 
-function hectares(squareMeters: number): string {
-  return `${(squareMeters / 10000).toLocaleString('en-CA', { maximumFractionDigits: 1 })} ha`
-}
-
-function kilometres(meters: number | null): string {
-  return meters === null ? '—' : `${(meters / 1000).toFixed(2)} km`
-}
-
 function VerdictBadge({ met, label }: { met: boolean; label: string }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-2xs font-semibold',
-        met
-          ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200'
-          : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200',
-      )}
-    >
-      {met ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+    <Badge tone={met ? 'success' : 'danger'} size="sm" className="font-semibold">
+      {met ? <Check className="h-3 w-3" aria-hidden="true" /> : <X className="h-3 w-3" aria-hidden="true" />}
       {label}
-    </span>
+    </Badge>
   )
 }
 
 /** Visible ground split across foreground, middleground, and background. */
 function ZoneBar({ target }: { target: TargetVisibility }) {
-  const total = VIEWING_ZONES.reduce((sum, zone) => sum + (target.visibleAreaByZone[zone.id] ?? 0), 0)
+  const zones = VIEWING_ZONES.map((zone) => ({ ...zone, area: target.visibleAreaByZone[zone.id] ?? 0 })).filter(
+    (zone) => zone.area > 0,
+  )
+  const total = zones.reduce((sum, zone) => sum + zone.area, 0)
   if (total <= 0) return null
 
   return (
     <div className="mt-2">
-      {/* A 2px surface gap keeps adjacent segments from reading as one block. */}
-      <div className="flex h-2 gap-0.5 overflow-hidden rounded-full">
-        {VIEWING_ZONES.map((zone) => {
-          const area = target.visibleAreaByZone[zone.id] ?? 0
-          if (area <= 0) return null
-          return (
-            <span
-              key={zone.id}
-              className="h-full"
-              style={{ backgroundColor: zone.color, width: `${(area / total) * 100}%` }}
-            />
-          )
-        })}
-      </div>
+      {/* The legend below names each segment and its area, so the bar is decoration. */}
+      <StackedShareBar
+        className="h-2 rounded-full"
+        aria-hidden="true"
+        total={total}
+        segments={zones.map((zone) => ({
+          key: zone.id,
+          value: zone.area,
+          color: zone.color,
+          title: `${zone.label} ${formatHa(zone.area)}`,
+        }))}
+      />
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-2xs text-muted-foreground">
-        {VIEWING_ZONES.map((zone) => {
-          const area = target.visibleAreaByZone[zone.id] ?? 0
-          if (area <= 0) return null
-          return (
-            <span key={zone.id} className="inline-flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: zone.color }} />
-              {zone.label} {hectares(area)}
-            </span>
-          )
-        })}
+        {zones.map((zone) => (
+          <span key={zone.id} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full" style={{ backgroundColor: zone.color }} />
+            {zone.label} {formatHa(zone.area)}
+          </span>
+        ))}
       </div>
     </div>
   )
@@ -163,44 +150,53 @@ export function ResultsPanel({
 
       {scales.length > 0 ? (
         <div className="space-y-2">
-          {scales.map((scale) => (
-            <div key={scale.basis} className="rounded-lg border border-border bg-muted/20 p-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="text-xs text-muted-foreground">{scale.title}</p>
-                  <p className="mt-0.5 text-3xl font-bold tabular-nums text-foreground">
-                    {scale.breakdown.cumulativePercent.toFixed(1)}
-                    <span className="text-lg font-semibold">%</span>
-                  </p>
-                </div>
-                <VerdictBadge met={scale.verdict.met} label={scale.verdict.met ? 'Within range' : 'Over range'} />
-              </div>
-              {/* What is already on the ground versus what this proposal adds —
-                  the objective is met or missed by the total, not the increment. */}
-              {scale.breakdown.existingPercent > 0 && (
-                <p className="mt-1 text-2xs tabular-nums text-muted-foreground">
-                  {scale.breakdown.existingPercent.toFixed(1)}% already harvested +{' '}
-                  {scale.breakdown.proposedPercent.toFixed(1)}% proposed
-                </p>
-              )}
-              <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                Against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
-                {scale.verdict.objective.label.toLowerCase()} range is{' '}
-                {rangeFloorFor(
-                  landformTarget!.objectiveId,
-                  scale.basis,
-                  resolvedThresholds(landformTarget!.objectiveId, scale.basis, thresholds, landformTarget!.vac),
-                )}
-                –{scale.verdict.thresholdPercent}%. This reads as{' '}
-                <span
-                  className="font-medium"
-                  style={{ color: scale.verdict.achieved?.color ?? scale.verdict.objective.color }}
-                >
-                  {scale.verdict.achieved?.label ?? 'beyond maximum modification'}
+          <StatGroup
+            variant="tiles"
+            size="md"
+            aria-label="Landform alteration"
+            // One tile per row: side by side, the scale names truncate in a sidebar.
+            className="grid-cols-1"
+            items={scales.map((scale) => ({
+              key: scale.basis,
+              label: scale.title,
+              value: formatPct(scale.breakdown.cumulativePercent),
+              valueClassName: 'text-2xl workspace-sm:text-3xl',
+              // What is already on the ground versus what this proposal adds —
+              // the objective is met or missed by the total, not the increment.
+              note: (
+                <span className="mt-1 flex flex-col items-start gap-1">
+                  <VerdictBadge met={scale.verdict.met} label={scale.verdict.met ? 'Within range' : 'Over range'} />
+                  {scale.breakdown.existingPercent > 0 && (
+                    <span className="tabular-nums">
+                      {formatPct(scale.breakdown.existingPercent)} already harvested +{' '}
+                      {formatPct(scale.breakdown.proposedPercent)} proposed
+                    </span>
+                  )}
                 </span>
-                . {scale.note}
-              </p>
-            </div>
+              ),
+            }))}
+          />
+          {scales.map((scale) => (
+            <p key={scale.basis} className="text-xs leading-5 text-muted-foreground">
+              <span className="font-medium text-foreground">
+                {scale.basis === 'perspective' ? 'Perspective' : 'Planimetric'}:
+              </span>{' '}
+              against <span className="font-medium text-foreground">{landformTarget!.name}</span>, the{' '}
+              {scale.verdict.objective.label.toLowerCase()} range is{' '}
+              {rangeFloorFor(
+                landformTarget!.objectiveId,
+                scale.basis,
+                resolvedThresholds(landformTarget!.objectiveId, scale.basis, thresholds, landformTarget!.vac),
+              )}
+              –{scale.verdict.thresholdPercent}%. This reads as{' '}
+              <span
+                className="font-medium"
+                style={{ color: scale.verdict.achieved?.color ?? scale.verdict.objective.color }}
+              >
+                {scale.verdict.achieved?.label ?? 'beyond maximum modification'}
+              </span>
+              . {scale.note}
+            </p>
           ))}
           <p className="text-2xs leading-4 text-muted-foreground">
             Numeric range only. The regulation also weighs scale, whether the alteration looks natural, and whether it
@@ -237,12 +233,12 @@ export function ResultsPanel({
               <span className="min-w-0">
                 <span className="block truncate text-sm font-semibold text-foreground">{target.name}</span>
                 <span className="text-xs text-muted-foreground">
-                  {hectares(block.areaMeters)} · objective {objective.code}
+                  {formatHa(block.areaMeters)} · objective {objective.code}
                 </span>
               </span>
               <span className="shrink-0 text-right">
                 <span className="block text-2xl font-bold tabular-nums text-foreground">
-                  {block.visiblePercent.toFixed(0)}
+                  {formatNumber(block.visiblePercent)}
                   <span className="text-sm">%</span>
                 </span>
                 <span className="text-2xs text-muted-foreground">visible</span>
@@ -251,7 +247,7 @@ export function ResultsPanel({
 
             {block.outOfRange ? (
               <p className="mt-2 text-xs text-muted-foreground">
-                Beyond the {(result.settings.maxViewDistanceMeters / 1000).toFixed(0)} km view distance — not assessed.
+                Beyond the {formatKm(result.settings.maxViewDistanceMeters, 0)} view distance — not assessed.
               </p>
             ) : (
               <>
@@ -260,15 +256,15 @@ export function ResultsPanel({
                   rows={[
                     {
                       label: isCorridor ? 'Seen from anywhere on the road' : 'Seen from the viewpoint',
-                      value: `${hectares(block.visibleAreaMeters)} of ${hectares(block.areaMeters)}`,
+                      value: `${formatHa(block.visibleAreaMeters)} of ${formatHa(block.areaMeters)}`,
                     },
                     {
                       label: 'Share of its apparent size in view',
-                      value: `${block.apparentVisiblePercent.toFixed(1)}%`,
+                      value: formatPct(block.apparentVisiblePercent),
                     },
                     {
                       label: 'Nearest / furthest visible ground',
-                      value: `${kilometres(block.nearestVisibleDistanceMeters)} / ${kilometres(
+                      value: `${formatKm(block.nearestVisibleDistanceMeters)} / ${formatKm(
                         block.farthestVisibleDistanceMeters,
                       )}`,
                     },
@@ -281,7 +277,7 @@ export function ResultsPanel({
                             // the block's own slope classes rather than read off
                             // the mean, which is what the procedure asks for.
                             label: 'Mean slope · green-up height',
-                            value: `${block.meanSlopePercent.toFixed(0)}% · ${block.vegHeightMeters.toFixed(1)} m`,
+                            value: `${formatPct(block.meanSlopePercent, 0)} · ${formatMeasure(block.vegHeightMeters, 'm', { minimumFractionDigits: 1 })}`,
                           },
                         ]
                       : []),
@@ -315,7 +311,7 @@ export function ResultsPanel({
           <KeyValueRows
             className="mt-2"
             rows={[
-              { label: 'Landform area', value: hectares(landscape.areaMeters) },
+              { label: 'Landform area', value: formatHa(landscape.areaMeters) },
               {
                 // The denudation denominator. Where the inventory answered, it
                 // is the treed part; otherwise the whole landform, which reads
@@ -323,15 +319,15 @@ export function ResultsPanel({
                 label: 'Forested area (denudation base)',
                 value:
                   landscape.forestedAreaMeters !== null
-                    ? `${hectares(landscape.forestedAreaMeters)} (${(
-                        (landscape.forestedAreaMeters / Math.max(1, landscape.areaMeters)) *
-                        100
-                      ).toFixed(0)}% treed)`
+                    ? `${formatHa(landscape.forestedAreaMeters)} (${formatPct(
+                        (landscape.forestedAreaMeters / Math.max(1, landscape.areaMeters)) * 100,
+                        0,
+                      )} treed)`
                     : 'Whole landform — no inventory',
               },
               {
                 label: 'Visible from the road',
-                value: `${hectares(landscape.visibleAreaMeters)} (${landscape.visiblePercent.toFixed(0)}%)`,
+                value: `${formatHa(landscape.visibleAreaMeters)} (${formatPct(landscape.visiblePercent, 0)})`,
               },
               {
                 label: 'Visual absorption capability',
@@ -349,15 +345,21 @@ export function ResultsPanel({
           rows={[
             {
               label: 'Terrain detail',
-              value: `${result.demResolutionMeters.toFixed(0)} m per sample · ${result.demTileCount} tiles`,
+              value: `${formatMeasure(result.demResolutionMeters, 'm', { maximumFractionDigits: 0 })} per sample · ${result.demTileCount} tiles`,
             },
             {
               label: 'Viewing stations',
               value: isCorridor
-                ? `${result.stations.length} over ${(result.corridorLengthMeters / 1000).toFixed(2)} km`
+                ? `${result.stations.length} over ${formatKm(result.corridorLengthMeters)}`
                 : '1 (spot)',
             },
-            { label: 'Run time', value: `${(result.elapsedMs / 1000).toFixed(1)} s` },
+            {
+              label: 'Run time',
+              value: formatMeasure(result.elapsedMs / 1000, 's', {
+                minimumFractionDigits: 1,
+                maximumFractionDigits: 1,
+              }),
+            },
           ]}
         />
         <p className="mt-2 flex items-start gap-1.5 text-2xs leading-4 text-muted-foreground">

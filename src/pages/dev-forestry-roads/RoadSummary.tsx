@@ -64,7 +64,8 @@ export function RoadSummary({
             aria-label={expanded ? 'Hide road summary' : 'Show road summary'}
             onClick={onExpand}
           >
-            <BarChart3 size={15} /> Road summary {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            <BarChart3 size={15} /> <span className="road-summary-label">Road summary</span>{' '}
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
         ) : (
           <h2>Road summary</h2>

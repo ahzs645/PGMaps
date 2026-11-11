@@ -1,29 +1,39 @@
 import { useMemo, useState } from 'react'
-import { Layers, PencilLine, Plus, Route, Upload } from 'lucide-react'
+import { Route } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CommandButton } from '@/components/interfaces/CommandButton'
+import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import { loadableMappedRoads } from './mappedRoad'
 import { roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import type { ContextFeature } from './types'
 
-/** A design with no road yet: peg one, sketch one, or start from a mapped road in the project. */
+/**
+ * A design with no road yet: peg one, sketch one, import one, or start from a mapped road in the
+ * project. The first four are the registry's commands, with the workspace's own rules.
+ */
 export function FirstRoadPanel({
   context,
-  onPeg,
-  onSketch,
-  onImport,
+  commandStates,
+  onCommand,
   onLoadMappedRoad,
-  onLoadAllInView,
 }: {
   context: readonly ContextFeature[]
-  onPeg: () => void
-  onSketch: () => void
-  /** Opens the road-line picker: GeoJSON, a zipped shapefile, KML or KMZ. */
-  onImport?: () => void
+  commandStates?: Partial<Record<WorkspaceCommand, CommandState>>
+  onCommand: (id: WorkspaceCommand) => void
   onLoadMappedRoad: (featureId: string) => void
-  /** Loads every mapped road with a part in the plan's view, each as its own road. */
-  onLoadAllInView?: () => void
 }) {
+  const tool = (id: WorkspaceCommand, caption: string, extra: { primary?: boolean; wide?: boolean } = {}) => (
+    <div className={extra.wide ? 'col-span-2 grid' : 'grid'}>
+      <CommandButton
+        id={id}
+        surface="sidebar"
+        state={commandStates?.[id]}
+        presentation={{ caption, emphasis: extra.primary ? 'primary' : undefined }}
+        onRun={onCommand}
+      />
+    </div>
+  )
   const roads = useMemo(() => loadableMappedRoads(context), [context])
   const [filter, setFilter] = useState('')
   const shown = useMemo(() => {
@@ -48,26 +58,22 @@ export function FirstRoadPanel({
           to read its profile on this terrain.
         </p>
         <div className="grid grid-cols-2 gap-1">
-          <Button size="sm" className="gap-1 px-1" onClick={onPeg}>
-            <Plus className="size-3" /> Peg road
-          </Button>
-          <Button size="sm" variant="outline" className="gap-1 px-1" onClick={onSketch}>
-            <PencilLine className="size-3" /> Sketch road
-          </Button>
-          {onImport && (
-            <Button size="sm" variant="outline" className="col-span-2 gap-1 px-1" onClick={onImport}>
-              <Upload className="size-3" /> Import line
-            </Button>
-          )}
+          {tool('peg', 'Peg road', { primary: true })}
+          {tool('sketch', 'Sketch road')}
+          {tool('importAlignment', 'Import line', { wide: true })}
         </div>
         {roads.length > 0 && (
           <div className="space-y-1.5">
             <p className="text-xs font-semibold">Mapped roads in this project · {roads.length}</p>
-            {onLoadAllInView && (
-              <Button size="sm" variant="outline" className="w-full gap-1" onClick={onLoadAllInView}>
-                <Layers className="size-3" /> Load all roads in view
-              </Button>
-            )}
+            <div className="grid">
+              <CommandButton
+                id="loadMapped"
+                surface="sidebar"
+                state={commandStates?.loadMapped}
+                presentation={{ caption: 'Load all roads in view' }}
+                onRun={onCommand}
+              />
+            </div>
             {roads.length > 6 && (
               <input
                 type="search"

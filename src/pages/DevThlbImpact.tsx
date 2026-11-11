@@ -7,7 +7,7 @@ import { MAP_SIDEBAR_CLASS, MapSectionLayout } from '@/components/layout/MapSect
 import { numberColumn, textColumn } from '@/components/map/tableColumns'
 import { defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
-import { FormField, NativeSelect, NumberField } from '@/components/ui/form-field'
+import { FormField, StyledSelect, NumberField } from '@/components/ui/form-field'
 import { InlineAlert, MapSidebarShell, SidebarSection } from '@/components/ui/map-panels'
 import { TabBar } from '@/components/ui/tab-bar'
 import { formatNumber } from '@/lib/format'
@@ -191,7 +191,7 @@ export default function DevThlbImpact() {
               description="Defaults to 80 years. Confirm the appropriate threshold for your TSA and purpose. Uses the imported age as recorded."
             />
             <FormField label="Impact measure">
-              <NativeSelect
+              <StyledSelect
                 value={settings.reductionPercent === null ? 'affected' : 'scenario'}
                 onChange={(event) =>
                   setSettings((current) => ({
@@ -202,7 +202,7 @@ export default function DevThlbImpact() {
               >
                 <option value="affected">Affected THLB hectares only</option>
                 <option value="scenario">Apply an assumed reduction rate</option>
-              </NativeSelect>
+              </StyledSelect>
             </FormField>
             {settings.reductionPercent !== null && (
               <NumberField

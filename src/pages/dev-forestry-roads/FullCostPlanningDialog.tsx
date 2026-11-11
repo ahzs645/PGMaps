@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -130,7 +131,7 @@ export function FullCostPlanningDialog({
   const adopt = (id: string) => {
     if (!review || stale || running || w.busy) return
     try {
-      if (w.project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      if (roadLimitReached(w.project)) throw Error(ROAD_LIMIT_MESSAGE)
       const candidate = review.run.candidates.find((item) => item.alignment.id === id)!
       const result = review.run.comparison.candidates.find((item) => item.id === id)!
       if (result.status !== 'feasible' || result.totalCost === null || !candidate.checks.adoptable)
@@ -384,7 +385,7 @@ export function FullCostPlanningDialog({
                             running ||
                             result.status !== 'feasible' ||
                             !candidate.checks.adoptable ||
-                            w.project.alignments.length >= 20
+                            roadLimitReached(w.project)
                           }
                           onClick={() => adopt(result.id)}
                         >

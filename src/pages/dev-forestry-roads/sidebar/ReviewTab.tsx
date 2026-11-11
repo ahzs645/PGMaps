@@ -1,3 +1,4 @@
+import { CommandButton } from '@/components/interfaces/CommandButton'
 import { StationValue } from '../roadStation'
 import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
@@ -264,9 +265,15 @@ function CableLines(p: SidebarProps) {
       summary={`${project.cables.length}`}
       help="Positive offsets inset the supports; negative offsets extend the span. Heights follow the selected yarder and tailhold ends. An assumed parabolic sag screens clearance; Rope and load solves one static skyline span for tension and the loaded carriage path."
     >
-      <Button variant="outline" size="sm" className="w-full" onClick={() => p.onMode('cable')}>
-        Draw landing-to-tailhold line
-      </Button>
+      <div className="grid">
+        <CommandButton
+          id="cable"
+          surface="sidebar"
+          state={p.commandStates?.cable}
+          presentation={{ caption: 'Draw landing-to-tailhold line' }}
+          onRun={(id) => p.onCommand?.(id)}
+        />
+      </div>
       {project.cables.map((c) => (
         <div key={c.id} className="mt-2 space-y-2 rounded border p-2">
           <div className="flex items-center justify-between gap-1">

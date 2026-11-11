@@ -1,6 +1,7 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
+import { MAX_PROJECT_ROADS, roadCount } from './dev-forestry-roads/roadLimits'
 import { detailTitle, type DetailView } from './dev-forestry-roads/detailViews'
-import { snapIndex, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
+import { roadSnapLines, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
 import { createPortal } from 'react-dom'
 import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
 import { RibbonPaneHost } from '@/components/interfaces/RibbonTaskPane'
@@ -290,12 +291,9 @@ function newAlignment(points: Coordinate[], name: string, template = DEFAULT_TEM
 }
 /** Points a drawing needs before Finish: an extension continues from a road end, so one is enough. */
 const minimumDraftPoints = (mode: DrawMode) => (mode === 'avoid' ? 3 : mode === 'extend' ? 1 : 2)
-/** Roads the user has, not counting the hidden placeholder of a design with none yet. */
-const roadCount = (p: RoadProject) => p.alignments.filter((a) => a.id !== p.designPlaceholderId).length
 const pointsInUse = (p: RoadProject) =>
   p.alignments.filter((a) => a.id !== p.designPlaceholderId).reduce((n, a) => n + a.points.length, 0)
 const MAX_PROJECT_POINTS = 2000
-const MAX_PROJECT_ROADS = 20
 /**
  * A searched route as a road: its corners get the project's minimum radius, reduced where the
  * tangents are too short to hold it, so a generated road turns on curves rather than at points.
@@ -1256,49 +1254,8 @@ export default function DevForestryRoads({
     },
     [busy],
   )
-  // Roads a new road's pegs snap onto: every design road (not the one being extended, whose
-  // own end Extend already continues) and every existing road line on the map.
-  const drawingRoad = mode === 'road' || mode === 'extend'
-  const snapLines = useMemo(
-    () =>
-      drawingRoad
-        ? snapIndex([
-            ...project.alignments
-              .filter(
-                (a) =>
-                  a.id !== project.designPlaceholderId && !(mode === 'extend' && a.id === project.activeAlignmentId),
-              )
-              .map((a) => ({
-                id: a.id,
-                name: a.name,
-                kind: 'design' as const,
-                // The centreline the plan draws, curves included, so a branch lands on the line seen.
-                coordinates: w.analyses.get(a.id)?.centerline ?? a.points.map((point) => point.coordinate),
-              })),
-            ...project.context.flatMap((feature) =>
-              feature.kind === 'existing-road' && feature.geometry.type === 'LineString'
-                ? [
-                    {
-                      id: feature.id,
-                      name: feature.name,
-                      kind: 'existing' as const,
-                      coordinates: feature.geometry.coordinates as Coordinate[],
-                    },
-                  ]
-                : [],
-            ),
-          ])
-        : undefined,
-    [
-      drawingRoad,
-      mode,
-      project.alignments,
-      project.context,
-      project.designPlaceholderId,
-      project.activeAlignmentId,
-      w.analyses,
-    ],
-  )
+  // Roads a peg snaps onto (`drawSnap.ts`): every design road as drawn and every existing road line.
+  const snapLines = useMemo(() => roadSnapLines(project, w.analyses), [project, w.analyses])
   // Stable, so the plan does not re-register its pointer handlers on every render.
   const setNoticeRef = useRef(w.setNotice)
   useLayoutEffect(() => {
@@ -3109,7 +3066,6 @@ export default function DevForestryRoads({
     drawAvoid: { pressed: mode === 'avoid' && polygonKind === 'avoid' },
     drawStream: { pressed: mode === 'stream' },
     drawProfile: { pressed: mode === 'profile' },
-    cable: { pressed: mode === 'cable' },
     traceRoad: { pressed: mode === 'trace' },
     inspect: { pressed: mode === 'inspect' },
     sectionCsv: {
@@ -3127,10 +3083,31 @@ export default function DevForestryRoads({
     undo: { disabled: !canUndo, label: hasDraftPoint ? 'Undo point' : undefined },
     redo: { disabled: !canRedo },
     projects: { disabled: !!busy },
+    chooseInterface: { disabled: false },
+    // Views and files of a road's results need a road; a terrain profile has its own stations and section.
+    stations: { disabled: noRoad && !terrainProfile },
+    crossSection: { disabled: noRoad && !terrainProfile },
+    profile: { disabled: noRoad && !terrainProfile },
+    landing: { disabled: designResultsUnavailable },
+    compare: { disabled: roadCount(project) < 2 },
+    cable: { disabled: editLocked, pressed: mode === 'cable' },
+    network: { disabled: noRoad },
+    fullCosts: { disabled: editLocked || noRoad },
+    stakeout: { disabled: !!busy || noRoad },
+    plotbook: { disabled: !!busy || noRoad },
+    reportPdf: { disabled: !!busy || noRoad },
+    exportGis: { disabled: !!busy || noRoad },
+    import: { disabled: !!busy },
+    lidar: { disabled: !!busy },
+    regional: { disabled: !!busy },
+
     open: { disabled: !!busy },
     export: { disabled: !!busy, label: investigation ? 'Save project' : undefined },
     startDesign: { hidden: !investigation },
-    loadMapped: { hidden: !investigation && !project.context.some(isLoadableMappedRoad) },
+    loadMapped: {
+      hidden: !investigation && !project.context.some(isLoadableMappedRoad),
+      disabled: !!busy || (!investigation && roadLimitReached),
+    },
     controls: {
       disabled: false,
       hidden: inlineWorkflow,
@@ -3154,18 +3131,29 @@ export default function DevForestryRoads({
       className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
     />
   )
-  const interfaceSwitcher = (
-    <button
-      type="button"
-      className="lp-interface-switch"
-      aria-label="Switch workspace interface"
-      title={`Switch workspace · ${active.name}`}
-      onClick={() => setChoosingInterface(true)}
-    >
-      <InterfaceIcon size={16} aria-hidden="true" />
-      <span>{active.shortName ?? active.name}</span>
-    </button>
+  // The registry's Switch interface command, showing the interface in use. The header line names
+  // it only on the widest screens, so the page title keeps its room beside the road switcher.
+  const interfaceSwitch = (captionFrom: 'lg' | '2xl') => (
+    <CommandButton
+      id="chooseInterface"
+      surface="header"
+      state={commandStates.chooseInterface}
+      presentation={{
+        ariaLabel: 'Switch workspace interface',
+        title: `Switch workspace · ${active.name}`,
+        captionFrom,
+        caption: active.shortName ?? active.name,
+        icon: (
+          <InterfaceIcon
+            className={captionFrom === 'lg' ? 'size-4 lg:mr-1 lg:size-3' : 'size-4 2xl:mr-1 2xl:size-3'}
+            aria-hidden="true"
+          />
+        ),
+      }}
+      onRun={runCommand}
+    />
   )
+  const interfaceSwitcher = interfaceSwitch('2xl')
   const projectNameControl = (
     <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
   )
@@ -3371,7 +3359,7 @@ export default function DevForestryRoads({
               {undoHistory}
               {!summaryTab && summarySettingsButton}
               {saveMark}
-              {interfaceSwitcher}
+              {interfaceSwitch('lg')}
             </>
           )
         }
@@ -3812,8 +3800,6 @@ export default function DevForestryRoads({
                             selectedPoint={selectedPoint}
                             onPoint={setSelectedPoint}
                             onProfile={selectProfile}
-                            activeProfile={activeProfile}
-                            onDuplicate={duplicateRoad}
                             commandStates={commandStates}
                             onCommand={runCommand}
                             onRemoveAlignment={() => {
@@ -4386,7 +4372,9 @@ export default function DevForestryRoads({
                               {() => (
                                 <div className="flex min-h-0 flex-1 flex-col gap-2">
                                   {/* The section keeps 7 rem under the section tools, which scroll past it. */}
-                                  <div className={`${detail === 'section' ? 'min-h-28' : 'min-h-0'} flex-1`}>
+                                  <div
+                                    className={`${detail === 'section' && !tinyHeight ? 'min-h-28' : 'min-h-0'} flex-1`}
+                                  >
                                     {detail === 'section' && (
                                       <CrossSectionChart
                                         holdScale={sectionTools.holdScale}

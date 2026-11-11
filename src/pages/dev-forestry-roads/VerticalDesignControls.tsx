@@ -1,5 +1,6 @@
 import { StationValue } from './roadStation'
 import { derivedRoadName } from './roadNames'
+import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -64,8 +65,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
     workspace.setBusyCancel({ label: 'Cancel profile optimization', onCancel: stop })
     let shown = -1
     try {
-      if (resultTarget === 'road' && project.alignments.length >= 20)
-        throw Error('The project already has 20 road alternatives.')
+      if (resultTarget === 'road' && roadLimitReached(project)) throw Error(ROAD_LIMIT_MESSAGE)
       const result = await optimizeVerticalProfileAsync(
         alignment,
         analysis.length,

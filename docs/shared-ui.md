@@ -27,7 +27,7 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Tighter sidebar                                   | `MapSidebarShell density="compact"` tightens every `SidebarSection` inside it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Head of a scrolling tool page                     | `ToolPageHeader` (`tool-page-header.ts`): `back`, `eyebrow`, `eyebrowIcon`, `title`, `description`, `aside`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Local files                                       | `FileDropField` (`file-drop-field.ts`): `Add files`, optional `folderLabel`, and drag and drop, including dropped folders. `multiple={false}` for an import that reads one file (a drop still hands over every file; take the first). `filesFromInput` and `filesFromDrop` (`picked-files.ts`) are the DOM-only helpers, with no React. For an import button in a toolbar or panel, `FileButton` (`file-button.ts`): a `Button` over a hidden input named by `label`; `onFiles` gets `File[]`, and the input clears so the same file can be picked again. The LiDAR inventory toolbar is the reference. |
-| A titled block inside it                          | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| A titled block inside it                          | `SidebarSection` (`title`, `icon`, `actions`; `headingLevel={3}` when nested under another heading; `variant="subsection"` for a block inside a step: a hairline above, none below, heading level 3)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
 | Numbered steps of a procedure                     | `StepSection` (`step-section.tsx`): `step`, `title`, `status` (`done` / `current` / `todo`), `reference`, one-line `summary`; folds to its header and keeps its content mounted. `collapsible={false}` gives a plain heading for a step already in its own tab panel. `StepMarker` is the numbered/checked circle on its own, for tabs. For a long procedure, show one step at a time: `TabBar` with a `StepMarker` per tab, each step's panel kept mounted and `hidden` when not selected (the forestry visual-quality sidebar is the reference).                                                      |
 | Settings people set once (mode, period)           | `MobileCollapsibleSection` (folds on phones only)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | A disclosure at every width                       | `CollapsibleSection collapseOn="always"`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
@@ -48,25 +48,52 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 
 ## Form fields and ranges
 
-Use `form-field.tsx` exports `FormField`, `NativeSelect`, `SelectField`,
+Use `form-field.tsx` exports `FormField`, `StyledSelect`, `SelectField`,
 `NumberField` and `NullableNumberField`. `FormField` associates a label and
 help/error text with direct native children; compound controls can pass
 `htmlFor` / `descriptionId`. `group` names a group of controls, and `hintAction`
 keeps an optional `InfoTip` outside the input's label.
 
-`NativeSelect` forwards every native select prop and its ref. It retains multiple
-selection, option groups and keyboard behavior. An explicit `className` is used
-unchanged; only an omitted class gets `FORM_INPUT_CLASS`. Use `SelectField` when
-the field wrapper is also needed; its `className` styles the select and
-`fieldClassName` styles the wrapper.
+### Dropdowns
 
-For a styled dropdown, use `AppSelect` (`select.tsx`). `searchable` turns it into a combobox with a
-filter box over the list, for lists too long to scan; `searchText` gives a non-text label something
-to match. The trigger and each option carry their value in `data-value`, so tests and readers can
-pick and check values without depending on labels. The road design page uses styled dropdowns
-throughout through `RoadSelect` (`dev-forestry-roads/Controls.tsx`), which also accepts `<option>`
-children; its e2e specs pick options with `tests/e2e/road-select.ts`, since `selectOption` and
-`toHaveValue` only work on native selects.
+Every dropdown is the shared styled select; a native `<select>` is only for
+multi-select. `StyledSelect` (`styled-select.tsx`) is a drop-in for a native
+select: it takes `<option>` and `<optgroup>` children (through fragments, arrays
+and conditionals; groups get a heading), or `options`; `value` or `defaultValue`;
+and `onChange(event)` with `event.target.value` and `name`, or
+`onValueChange(value)`. It also takes `disabled`, `id`, `name`, `title`,
+`required` and `aria-label` / `-labelledby` / `-describedby` / `-invalid`, and
+`placeholder` for a value that matches no option (without one it shows the
+first option, as a native select does). The menu is the Radix one from `AppSelect`,
+layered at `z-workspace-popover` so it opens above dialogs and fullscreen panes;
+past `SEARCHABLE_FROM` (10) options it becomes a combobox with a filter box, and
+`searchable` forces either way. `multiple` or a `size` above 1 renders a real
+`<select>`.
+
+`className` is read as a native select's: width, flex, grid, margin and display
+classes (`splitSelectClasses`) size the wrapper and the rest style the trigger,
+which brings no border, height or padding of its own. An omitted class gives
+`FORM_INPUT_CLASS`. Page CSS that styled `select` reaches the trigger through
+`[data-select-trigger]`. `SelectField` is `FormField` around it: its
+`className` styles the trigger, `fieldClassName` the wrapper and `menuClassName`
+the menu. A wrapping `<label>` or `htmlFor` names the trigger button, so
+`getByLabel` and `getByRole('combobox', { name })` keep working.
+
+For a dropdown with an options array and no native heritage, `AppSelect`
+(`select.tsx`) is the underlying piece: `searchable` adds the filter box,
+`searchText` gives a non-text label something to match, and an option's `group`
+puts it under a heading. The road design page uses `RoadSelect`
+(`dev-forestry-roads/Controls.tsx`), which sizes it like the other road fields
+and reuses `StyledSelect`'s option and class helpers.
+
+Triggers and options carry their value in `data-value`. E2E specs pick and read
+dropdowns with `tests/e2e/styled-select.ts` (`choose`, `expectSelected`,
+`selectedValue`, `optionLabels`, `optionEntries`, `optionDisabled`,
+`selectTriggers`), since `selectOption`, `toHaveValue` and `option` locators only
+work on native selects. Unit tests that render a page without a DOM (react-test-renderer
+under Node, or static markup) mock `@/components/ui/styled-select` with
+`StyledSelectTestDouble` (`styledSelectTestDouble.ts`), a plain `<select>` with the
+same props: Radix's menu needs `window`, and a closed menu renders no options.
 
 Radix renders a closed dropdown's whole option list on every render. `AppSelect` therefore keeps
 its handler stable and reuses the option list while the options read the same (text labels, value,
@@ -464,6 +491,17 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   collections use this worker-tiled renderer with their original GeoJSON.
   The raster comparison mode does not alter native vector data.
 
+- Overlays: `MapOverlay` (`position`). Pass `clearChrome` rather than writing
+  your own `calc(…)` offsets: it keeps clear of the phone toolbar above, the
+  bottom sheet, safe area and timeline below, and the corner controls and
+  legend. A `className` inset still overrides it.
+- Playback: `PlaybackControls` steps through frames; `mode="continuous"` seeks a
+  position the page's own animation loop advances (metres along a road), with
+  `skip`/`skipLabel` steps, `canPlay`, `valueLabel` and an `actions` slot. The
+  visual-quality road view is the reference.
+- Colours a person picks: `ColorField` (`value`/`onChange` with `null` for
+  unset, `presets`, `presetDisplay="picker"` in a dense row, `size="sm"`). Unset
+  is drawn striped, never as white.
 - Scale: `MapScaleBar` (`map-controls.tsx`, `position`, `maxWidth`), a metric
   bar measured great-circle across the map's middle (so Mercator's stretch at
   our latitude, 1.7×, is not read off the zoom), in the app's theme. It hides

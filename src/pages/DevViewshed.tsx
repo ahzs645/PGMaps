@@ -1,5 +1,5 @@
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { visibilityOutline } from '@/features/terrain-viewshed'
 import { useMemo, useRef, useState } from 'react'
 import type { StyleSpecification } from 'maplibre-gl'
@@ -366,7 +366,7 @@ export default function DevViewshed() {
           </label>
           <label>
             Time zone
-            <NativeSelect
+            <StyledSelect
               aria-label="Sun time zone"
               value={zone}
               onChange={(event) => setZone(event.target.value)}
@@ -376,7 +376,7 @@ export default function DevViewshed() {
               <option value="UTC">UTC</option>
               <option value="America/Toronto">Toronto</option>
               <option value="Europe/London">London</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
         </div>
         <NumericRangeField

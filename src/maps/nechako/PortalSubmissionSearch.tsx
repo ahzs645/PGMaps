@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -296,7 +296,7 @@ export function PortalSubmissionSearch({
         <div className="flex shrink-0 flex-wrap items-center gap-2 text-xs">
           <label className="flex min-w-0 items-center gap-2">
             Form
-            <NativeSelect
+            <StyledSelect
               aria-label="Submission form"
               className={`${selectClass} max-w-[250px]`}
               value={formId}
@@ -312,7 +312,7 @@ export function PortalSubmissionSearch({
                   {name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <Button size="sm" variant="ghost" className="ml-auto" onClick={() => setHelpOpen(true)}>
             Help
@@ -484,7 +484,7 @@ export function PortalSubmissionSearch({
         <div className="flex flex-wrap gap-2 border-t pt-2 text-xs">
           <label className="flex items-center gap-2">
             Selection Type:
-            <NativeSelect
+            <StyledSelect
               aria-label="Submission selection type"
               className={selectClass}
               disabled={busy}
@@ -498,11 +498,11 @@ export function PortalSubmissionSearch({
               <option value="area" disabled={!polygons.length}>
                 Select By Area
               </option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="flex min-w-0 items-center gap-2">
             Selection Layer:
-            <NativeSelect
+            <StyledSelect
               aria-label="Submission selection layer"
               className={`${selectClass} max-w-[240px]`}
               value={selection === 'extent' ? 'extent' : layerId}
@@ -525,7 +525,7 @@ export function PortalSubmissionSearch({
                   ))}
                 </>
               )}
-            </NativeSelect>
+            </StyledSelect>
           </label>
         </div>
       </div>
@@ -581,7 +581,7 @@ export function PortalSubmissionSearch({
               </label>
               <label className="flex items-center gap-2 text-sm">
                 Match
-                <NativeSelect
+                <StyledSelect
                   aria-label="Simple expression match"
                   className={selectClass}
                   value={simpleMode}
@@ -589,7 +589,7 @@ export function PortalSubmissionSearch({
                 >
                   <option value="AND">All words</option>
                   <option value="OR">Any word</option>
-                </NativeSelect>
+                </StyledSelect>
               </label>
               <Button
                 onClick={() => {

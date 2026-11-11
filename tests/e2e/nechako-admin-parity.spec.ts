@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 
 // Run against the dedicated Vite instance with:
 // VITE_NECHAKO_GATEWAY_URL=https://fixture-gateway.example/api/nechako-portal
@@ -366,7 +367,7 @@ test('hosted admin submission catalogue pages all records and clears on session 
   await expect(admin.getByRole('table', { name: 'Administrator submissions', exact: true })).toContainText(
     'Synthetic admin submission 227',
   )
-  await admin.getByLabel('Submission manager state', { exact: true }).selectOption('DRAFT')
+  await choose(admin.getByLabel('Submission manager state', { exact: true }), 'DRAFT')
   await expect(admin.getByRole('table', { name: 'Administrator submissions', exact: true })).toContainText(
     'Synthetic admin submission 202',
   )

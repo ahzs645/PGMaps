@@ -1,4 +1,4 @@
-import { FormField as Field, NativeSelect } from '@/components/ui/form-field'
+import { FormField as Field, StyledSelect } from '@/components/ui/form-field'
 import { fitMapToPoints } from '@pgmaps/geo-toolkit/map/map-fit'
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -498,7 +498,7 @@ export default function DevWaterTemperature() {
                       />
                     </Field>
                     <Field label="Sort stations">
-                      <NativeSelect
+                      <StyledSelect
                         className={fieldClass}
                         value={sort}
                         onChange={(event) => setSort(event.target.value)}
@@ -506,7 +506,7 @@ export default function DevWaterTemperature() {
                         <option value="code">Station code</option>
                         <option value="count">Most observations</option>
                         <option value="waterbody">Waterbody</option>
-                      </NativeSelect>
+                      </StyledSelect>
                     </Field>
                   </div>
                   <label className="flex min-w-0 items-center gap-2 text-sm">
@@ -655,7 +655,7 @@ export default function DevWaterTemperature() {
                   {aggregation === 'season' && (
                     <div className="mb-3 grid max-w-sm grid-cols-2 gap-3">
                       <Field label="Season starts">
-                        <NativeSelect
+                        <StyledSelect
                           className={fieldClass}
                           value={startMonth}
                           onChange={(event) => {
@@ -668,10 +668,10 @@ export default function DevWaterTemperature() {
                               {month}
                             </option>
                           ))}
-                        </NativeSelect>
+                        </StyledSelect>
                       </Field>
                       <Field label="Season ends">
-                        <NativeSelect
+                        <StyledSelect
                           className={fieldClass}
                           value={endMonth}
                           onChange={(event) => {
@@ -684,7 +684,7 @@ export default function DevWaterTemperature() {
                               {month}
                             </option>
                           ))}
-                        </NativeSelect>
+                        </StyledSelect>
                       </Field>
                     </div>
                   )}

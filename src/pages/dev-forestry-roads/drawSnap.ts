@@ -6,7 +6,7 @@
  * planner attaches a road to the line it touches by projecting onto that line's segments
  * (`connected-network.md`), and a branch needs no change to the road it starts from.
  */
-import type { Coordinate } from './types'
+import type { Coordinate, RoadProject } from './types'
 
 /** How close, in screen pixels, a click has to be to a road to land on it. */
 export const DRAW_SNAP_PX = 12
@@ -118,3 +118,45 @@ export function snapNotice(snap: DrawSnap, first: boolean): string {
   if (snap.at === 'line') return first ? `This road branches from ${snap.name}.` : `This road ends on ${snap.name}.`
   return `${first ? 'Starts' : 'Ends'} at the ${snap.at} of ${snap.name}.`
 }
+
+/**
+ * Every road a peg can land on: each design road as the plan draws it (its calculated centreline,
+ * curves included, else its points) and each existing road line on the map. The design
+ * placeholder of a project with no road yet is never one.
+ */
+export function roadSnapLines(
+  project: Pick<RoadProject, 'alignments' | 'context' | 'designPlaceholderId'>,
+  centrelines: ReadonlyMap<string, { centerline: Coordinate[] }>,
+): SnapLine[] {
+  return [
+    ...project.alignments
+      .filter((a) => a.id !== project.designPlaceholderId)
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        kind: 'design' as const,
+        coordinates: centrelines.get(a.id)?.centerline ?? a.points.map((point) => point.coordinate),
+      })),
+    // An existing road may be one line or several parts (a MultiLineString); each part snaps.
+    ...project.context.flatMap((feature) => {
+      if (feature.kind !== 'existing-road') return []
+      const geometry = feature.geometry as GeoJSON.Geometry
+      const parts =
+        geometry.type === 'LineString'
+          ? [geometry.coordinates]
+          : geometry.type === 'MultiLineString'
+            ? geometry.coordinates
+            : []
+      return parts.map((coordinates) => ({
+        id: feature.id,
+        name: feature.name,
+        kind: 'existing' as const,
+        coordinates: coordinates as Coordinate[],
+      }))
+    }),
+  ]
+}
+
+/** Ground metres per screen pixel of a Web Mercator map at `zoom` and `latitude` (512 px tiles). */
+export const mercatorMetresPerPixel = (zoom: number, latitude: number) =>
+  (40075016.7 * Math.cos((latitude * Math.PI) / 180)) / (512 * 2 ** zoom)

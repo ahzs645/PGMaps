@@ -74,7 +74,6 @@ export interface SidebarProps {
   onClearBreaklines: () => void
   selectedPoint: string | null
   onPoint: (id: string | null) => void
-  onDuplicate: () => void
   /** Registry commands the sidebar shows, with the workspace's own state and handlers. */
   commandStates?: Partial<Record<WorkspaceCommand, CommandState>>
   onCommand?: (id: WorkspaceCommand) => void
@@ -156,7 +155,6 @@ export interface SidebarProps {
   templatePreviewActive?: boolean
   onOptimize: (objective: RoadOptimizationObjective, corridorHalfWidthM: number) => void
   onProfile: (id: string) => void
-  activeProfile: string | null
   onPreviewTemplate: (template: RoadTemplate, name: string) => void
   onCloseTemplatePreview: () => void
   onQuantities: () => void

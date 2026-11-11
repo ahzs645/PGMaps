@@ -1,5 +1,5 @@
 import { DEFAULT_LOCALE } from '@/lib/format'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -135,7 +135,7 @@ export function PortalLiveMonitoring({
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       <label className="block">
         Monitoring source
-        <NativeSelect
+        <StyledSelect
           aria-label="Monitoring source mode"
           className="mt-1 w-full rounded border bg-background p-2"
           value={mode}
@@ -155,7 +155,7 @@ export function PortalLiveMonitoring({
           <option value="submission">Submission form node</option>
           <option value="layer">Portal layer Attributes</option>
           <option value="schema">Portal schema Attributes</option>
-        </NativeSelect>
+        </StyledSelect>
       </label>
       <Button
         size="sm"
@@ -247,7 +247,7 @@ export function PortalLiveMonitoring({
           {relations.length > 0 && (
             <label className="block">
               Station / schema
-              <NativeSelect
+              <StyledSelect
                 aria-label="Monitoring station schema"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={selected}
@@ -265,7 +265,7 @@ export function PortalLiveMonitoring({
                     {row.layerName} · {row.schemaName} · record {row.recId}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           )}
         </>
@@ -351,7 +351,7 @@ export function PortalLiveMonitoring({
           {attributeRecordIds.length > 0 && (
             <label className="block">
               Enabled source record
-              <NativeSelect
+              <StyledSelect
                 aria-label="Enabled monitoring attribute record"
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={attributeRecordIds.includes(recordId) ? recordId : ''}
@@ -367,7 +367,7 @@ export function PortalLiveMonitoring({
                     Record {id}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           )}
         </div>

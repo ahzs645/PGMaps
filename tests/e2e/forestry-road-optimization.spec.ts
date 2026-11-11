@@ -4,7 +4,7 @@ import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import { distance, positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { expandRoadSection } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(150000)

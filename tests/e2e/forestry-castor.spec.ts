@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 import JSZip from 'jszip'
 import { fromArrayBuffer } from 'geotiff'
 import { runCastor } from '../../src/features/forestry-castor/engine'
@@ -114,7 +115,7 @@ test('runs the compiled forest worker and exports every report and reproducible 
   const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'))
   expect(manifest.source.synthetic).toBe(true)
   expect(manifest.snapshotPeriods).toEqual([0, 1, 2, 3, 4])
-  await page.getByRole('combobox', { name: 'Report', exact: true }).selectOption('constraints')
+  await choose(page.getByRole('combobox', { name: 'Report', exact: true }), 'constraints')
   await expect(page.getByRole('table', { name: 'Management constraints', exact: true })).toBeVisible()
   const constraints = await download(page, 'Download table CSV')
   expect(constraints.bytes.toString()).toContain('before-harvest')
@@ -130,7 +131,7 @@ test('renders actual spatial features and downloads georeferenced GeoTIFF and Ge
   await runSynthetic(page)
   await page.getByRole('tab', { name: 'Maps', exact: true }).click()
   await expect(page.getByTestId('castor-map-rendered')).toContainText('96 pixels drawn in view', { timeout: 30_000 })
-  await page.getByRole('combobox', { name: 'Map output', exact: true }).selectOption('constrainedYears')
+  await choose(page.getByRole('combobox', { name: 'Map output', exact: true }), 'constrainedYears')
   const geo = await download(page, 'Download map GeoJSON')
   const collection = JSON.parse(geo.bytes.toString())
   expect(collection.type).toBe('FeatureCollection')
@@ -155,14 +156,14 @@ test('renders actual spatial features and downloads georeferenced GeoTIFF and Ge
   const bands = await image.readRasters()
   expect(bands[0]).toHaveLength(96)
   expect(Array.from(bands[0] as Float64Array).every((value) => value >= 0 && value <= 20)).toBe(true)
-  await page.getByRole('combobox', { name: 'Map period', exact: true }).selectOption('0')
+  await choose(page.getByRole('combobox', { name: 'Map period', exact: true }), '0')
   const initial = JSON.parse((await download(page, 'Download map GeoJSON')).bytes.toString())
   expect(initial.features.every((feature: { properties: { value: number } }) => feature.properties.value === 0)).toBe(
     true,
   )
   await page.screenshot({ path: info.outputPath('castor-map-desktop.png'), fullPage: true })
   await page.getByText('Overlay a local GeoTIFF', { exact: true }).click()
-  await page.getByRole('combobox', { name: 'Raster meaning', exact: true }).selectOption('zone')
+  await choose(page.getByRole('combobox', { name: 'Raster meaning', exact: true }), 'zone')
   await page.getByRole('textbox', { name: 'Imported zone name', exact: true }).fill('constraint-history')
   await page
     .getByLabel('Import Castor raster overlay', { exact: true })
@@ -295,7 +296,7 @@ test('supports phone controls and rejects malformed imports without losing the c
   await page.getByRole('spinbutton', { name: 'Replicates', exact: true }).blur()
   await page.getByRole('button', { name: 'Run forest scenario', exact: true }).click()
   await expect(page.getByTestId('castor-run-status')).toContainText('Scenario complete')
-  await page.getByRole('combobox', { name: 'Report', exact: true }).selectOption('uncertainty')
+  await choose(page.getByRole('combobox', { name: 'Report', exact: true }), 'uncertainty')
   await expect(page.getByRole('table', { name: 'Yield sensitivity', exact: true }).getByRole('row')).toHaveCount(9)
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)
   expect(overflow).toBe(false)

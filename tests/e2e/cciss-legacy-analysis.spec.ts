@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose } from './styled-select'
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -65,9 +66,9 @@ test('location, six-model comparisons, regional results, references and complete
   expect(html).toContain('MRI-ESM2-0')
   expect(html).toContain('70.6%')
   expect(html).toContain('No rating means missing data')
-  await dialog.getByLabel('Analysis site condition').selectOption('B2')
+  await choose(dialog.getByLabel('Analysis site condition'), 'B2')
   await dialog.getByRole('tab', { name: 'Regional outlook', exact: true }).click()
-  await dialog.getByLabel('Regional summary').selectOption('100MileHouse')
+  await choose(dialog.getByLabel('Regional summary'), '100MileHouse')
   await expect(dialog.getByRole('heading', { name: 'Regional outlook · 100MileHouse' })).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Download analysis JSON' })).toBeEnabled()
   await dialog.getByLabel('Longitude', { exact: true }).fill('-123.37')

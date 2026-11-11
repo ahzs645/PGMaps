@@ -3,6 +3,8 @@ import { Loader2, MapPin, Radar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { ResultRow } from '@/components/ui/result-list'
+import { formatMeasure, formatPercentValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import type { ReverseRoadResult } from './reverseViewshed'
@@ -72,16 +74,18 @@ export function ViewpointFinderPanel({
       className="-mx-4 border-b-0 border-t border-border/60"
     >
       {standingName && (
-        <div className="mb-2 flex items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-2xs">
-          <span className="min-w-0">
-            Standing at <span className="font-medium text-foreground">{standingName}</span>
+        <InlineAlert className="mb-2" tone="info">
+          <span className="flex items-center justify-between gap-2">
+            <span className="min-w-0">
+              Standing at <span className="font-medium text-foreground">{standingName}</span>
+            </span>
+            {onBack && backName && (
+              <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-2xs" onClick={onBack}>
+                Back to {backName}
+              </Button>
+            )}
           </span>
-          {onBack && backName && (
-            <Button type="button" variant="outline" size="sm" className="h-7 shrink-0 px-2 text-2xs" onClick={onBack}>
-              Back to {backName}
-            </Button>
-          )}
-        </div>
+        </InlineAlert>
       )}
       <div className="flex items-center gap-2">
         <Button
@@ -131,51 +135,61 @@ export function ViewpointFinderPanel({
             {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
             {reverseRunning ? 'Tracing sightlines…' : 'Check which of them see the block'}
           </Button>
-          <ul className="mt-2 space-y-1.5" aria-label="Inventory viewpoints near the block">
+          <ul
+            className="mt-2 divide-y divide-border overflow-hidden rounded-md border border-border"
+            aria-label="Inventory viewpoints near the block"
+          >
             {shown.map((candidate) => {
               const row = reverseRows.get(candidate.key)
               return (
-                <li key={candidate.key} className="rounded-md border border-border p-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <button
-                      type="button"
-                      className="min-w-0 truncate text-left text-xs font-medium text-foreground hover:underline"
-                      onClick={() => onShow(candidate)}
-                    >
-                      {candidate.name}
-                    </button>
-                    {row && (
-                      <span
-                        className={cn(
-                          'shrink-0 text-xs font-semibold tabular-nums',
-                          row.maxVisiblePercent > 0 ? 'text-rose-600' : 'text-muted-foreground',
-                        )}
-                        title="Share of the block's ground in view from here, bare earth"
-                      >
-                        {row.maxVisiblePercent > 0 ? `${row.maxVisiblePercent.toFixed(0)}% seen` : 'Hidden'}
+                <li key={candidate.key}>
+                  <ResultRow
+                    className="px-2 py-1.5"
+                    onClick={() => onShow(candidate)}
+                    title={<span className="text-xs">{candidate.name}</span>}
+                    subtitle={
+                      <span className="whitespace-normal text-3xs leading-4">
+                        {candidate.kind === 'rec-site' ? 'Rec site' : 'VLI viewpoint'} ·{' '}
+                        {formatMeasure(candidate.distanceMeters / 1000, 'km', {
+                          minimumFractionDigits: 1,
+                          maximumFractionDigits: 1,
+                        })}{' '}
+                        {compassPoint(candidate.bearingToBlock + 180)} of the block
+                        {candidate.arrow
+                          ? candidate.arrow.aims
+                            ? ' · arrow points at it'
+                            : ` · arrow points ${compassPoint(candidate.arrow.bearing)}, ${Math.round(candidate.arrow.offsetDegrees)}° off`
+                          : ''}
                       </span>
-                    )}
+                    }
+                    trailing={
+                      row && (
+                        <span
+                          className={cn(
+                            'text-xs',
+                            row.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
+                          )}
+                          title="Share of the block's ground in view from here, bare earth"
+                        >
+                          {row.maxVisiblePercent > 0
+                            ? `${formatPercentValue(row.maxVisiblePercent, { maximumFractionDigits: 0 })} seen`
+                            : 'Hidden'}
+                        </span>
+                      )
+                    }
+                  />
+                  <div className="px-2 pb-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-2xs"
+                      title="Open the road view standing here, facing the block"
+                      onClick={() => onUse(candidate)}
+                    >
+                      Stand here
+                    </Button>
                   </div>
-                  <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">
-                    {candidate.kind === 'rec-site' ? 'Rec site' : 'VLI viewpoint'} ·{' '}
-                    {(candidate.distanceMeters / 1000).toFixed(1)} km {compassPoint(candidate.bearingToBlock + 180)} of
-                    the block
-                    {candidate.arrow
-                      ? candidate.arrow.aims
-                        ? ' · arrow points at it'
-                        : ` · arrow points ${compassPoint(candidate.arrow.bearing)}, ${Math.round(candidate.arrow.offsetDegrees)}° off`
-                      : ''}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-1 h-7 px-2 text-2xs"
-                    title="Open the road view standing here, facing the block"
-                    onClick={() => onUse(candidate)}
-                  >
-                    Stand here
-                  </Button>
                 </li>
               )
             })}

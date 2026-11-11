@@ -842,7 +842,7 @@ paragraphs (BCTS Prince George 2026, CHU_26_1–4 and ML_26_1–6) that
 `visualsNarrative.test.ts` pins:
 
 1. **Overlap** — the EVQO classes under the block, from the visual inventory
-   snapshot's `REC_EVQO_CODE`, sampled at about 2,500 points. Over 90% of the
+   inventory's `REC_EVQO_CODE` (read live from the WFS), sampled at about 2,500 points. Over 90% of the
    block reads as the block overlapping; over 60% as "most of the block"; less
    as "the eastern portion"; under 10% as "very minor", and "just around the
    edges of the block boundary" when every overlapping sample is within 50 m of
@@ -1010,6 +1010,51 @@ view (`capturePlanMap`) and left out, with a note saying so, if the export runs
 while the road view is open. exceljs and jsPDF load on demand and are passed in,
 so `blockNote.test.ts` writes and reads back real files.
 
+## The Hwy 16 · Purden Lake sample
+
+*Start from → Hwy 16 · Purden Lake* (`purdenLakeScenario.ts`) is the worked
+case for the planner's workflow, on real records with one invented block:
+
+- **Road:** 9.5 km of Hwy 16 along Purden Lake, about 60 km east of Prince
+  George, from the Digital Road Atlas.
+- **Landform:** the lake's north face, VLI polygons 337 (Retention, VAC low) and
+  350 (Partial Retention) joined, 729 ha.
+- **Block PL-1** (hypothetical, 59 ha): laid along the contour 2.2 km across
+  the water from the highway, 68% over polygon 337's Retention and 32% over the
+  PR band. It is not a recorded or proposed harvest.
+
+What it shows, after *Load around the block*, *Check which of them see the
+block* and *Run visibility* (checked 10 November 2026): seven VLI viewpoints
+within 5 km, four with arrows aimed at the block; highway viewpoint 148 sees
+92% of it. The run sees 96% of the block from the road at 18.6% perspective
+alteration against Retention's 0–1.5%, so step 5's draft reads "block overlaps
+EVQO Retention 'R' and Partial Retention 'PR' polygons … may be visible from
+Hwy 16 … may not meet the requirements for EVQO R; redesign before layout",
+with the WTRA and post-layout VIA sentences. From there: stand at viewpoint
+148, take screenshots in the note look, try a design alternative in step 3, and
+export the block note.
+
+The Tabor Mountain sample stays the short introduction (no EVQO under its
+blocks), and *Roadside demo drive* the road-view demo.
+
+## The plan map's legend and hovers
+
+The plan map's legend is the shared `MapLegendPanel` (`PlanMapLegend.tsx`),
+collapsed on phones, with a row for each layer on the map now: blocks,
+landform, existing openings and masks; the road and, after a run, the ground
+classes, the assessment viewpoint and the exposure ramp; terrain candidates,
+other ridge layers and landform clues; sensitivity units, VLI viewpoints,
+viewing directions, rec sites and screenings. Layers and rows read one set of
+colours, `planMapStyle.ts`; sensitivity units are drawn in their objective's
+colour, the colour their sidebar rows show. Map hovers are `mapTooltipHtml`
+cards. The road view keeps its own status panel and has no legend.
+
+The plan map also offers the shared table view (`useVisualQualityTable.ts`):
+the scene's polygons, the viewpoints and rec sites loaded around the block
+(with the checked share in view), and the run's viewing stations (with the
+alteration in view from each). It is withdrawn in the road view and while
+drawing, when its corner belongs to the drawing controls.
+
 ## Standing at viewpoints, block colours and EVQO polygons
 
 What a planner does in Google Earth: load the terrain, colour the block, drape
@@ -1039,13 +1084,30 @@ the VQO polygons, and stand at the viewpoints.
   the colour it was taken with. It is display only and kept out of the run's
   fingerprint.
 - **EVQO polygons** in the road view's *Show* row drape the established
-  objectives from the visual inventory snapshot over the ground at 30%,
+  objectives from the visual inventory (live WFS) over the ground at 30%,
   retention blue and partial retention brown as in the planner's layer,
   modification teal so it never reads as a yellow block (`EVQO_COLORS`).
 
 ## BC inventory lookup
 
-The page uses a downloaded **Visual Landscape Inventory — Visual Sensitivity Units — View** snapshot for boundaries and their recorded objective/VAC fields. It is owned by `vendor/bcdatamapper`, synced to `public/data/forest/visual-inventory`, and served as an index plus full-resolution spatial shards. No Cloudflare Worker, R2 bucket or live visual-inventory service request is needed. Existing harvest, RESULTS forest cover and VRI remain live queries.
+*Look up this view*, the Visuals paragraph's EVQO overlap and the road view's
+EVQO drape read the **Visual Landscape Inventory** live from DataBC's WFS
+(`WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY`, `queryVisualInventory`
+in `visualInventorySnapshot.ts`), for the area asked about, at full resolution.
+The box goes in `CQL_FILTER`, longitude first, and at most 3,000 polygons come
+back at once (reported as truncated past that).
+
+The downloaded snapshot (owned by `vendor/bcdatamapper`, synced to
+`public/data/forest/visual-inventory`) is now only the fallback when the WFS
+cannot be reached, and the source of *Find a landform*'s candidates. It was
+built from the ArcGIS layer (`MapServer/6`), which stops at **10,000 of the
+60,499** polygons: its count reports exactly 10,000, and Purden Lake on Hwy 16
+returns none. Read from the snapshot, a block there under Retention and Partial
+Retention was reported as overlapping no EVQO at all (checked 10 November 2026).
+A complete full-resolution snapshot would be about six times the current 75 MB
+gzipped, more than bcdatamapper's Pages site has room for; rebuilding it from
+the WFS, simplified, is open. Existing harvest, RESULTS forest cover and VRI
+remain live queries.
 
 `Find a landform` automatically ranks up to five candidate units within 25 km of the entire road polyline, including unrated units. A selector switches to the proposed block centre when desired. Proximity does not establish visibility. `Show boundary` previews a candidate; `Use candidate` adopts it explicitly. A VSU is not automatically the viewpoint-specific assessment landform. If no candidate is appropriate, draw or import the visible hillside. A nearby polygon does not establish coverage of the proposed block.
 

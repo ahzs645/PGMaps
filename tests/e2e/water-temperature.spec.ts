@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block' })
 const stations = ['A', 'B', 'C', 'D', 'E'].map((id, index) => ({
@@ -165,8 +166,8 @@ test('date range links charts and CSV, and aggregation and seasonality controls 
   await page.getByRole('button', { name: 'Monthly', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Monthly', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('button', { name: 'Seasonal', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Season starts', exact: true }).selectOption('11')
-  await page.getByRole('combobox', { name: 'Season ends', exact: true }).selectOption('2')
+  await choose(page.getByRole('combobox', { name: 'Season starts', exact: true }), '11')
+  await choose(page.getByRole('combobox', { name: 'Season ends', exact: true }), '2')
   await page.getByRole('button', { name: 'Daily', exact: true }).click()
   await page.getByRole('button', { name: 'Browse stations', exact: true }).click()
   await page.getByLabel('Search stations', { exact: true }).fill('River B')
@@ -471,8 +472,8 @@ test('aggregate markers, period tooltips and all chart download formats retain t
   await expect(timeline.locator('.recharts-default-tooltip')).toContainText('A')
   await expect(timeline.locator('.recharts-label')).toContainText('Monthly mean °C')
   await page.getByRole('button', { name: 'Seasonal', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Season starts', exact: true }).selectOption('1')
-  await page.getByRole('combobox', { name: 'Season ends', exact: true }).selectOption('3')
+  await choose(page.getByRole('combobox', { name: 'Season starts', exact: true }), '1')
+  await choose(page.getByRole('combobox', { name: 'Season ends', exact: true }), '3')
   await expect(markers).toHaveCount(1) // A single seasonal mean must remain visible.
   await markers.first().hover()
   await expect(timeline.locator('.recharts-default-tooltip')).toContainText('Jan 2023 – Mar 2023')

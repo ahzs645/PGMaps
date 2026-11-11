@@ -38,6 +38,7 @@ import {
   organizationOptions,
   type LibraryItem,
 } from './dev-view/libraryOrganization'
+import { StyledSelect } from '@/components/ui/styled-select'
 
 const STREET: StyleSpecification = {
   version: 8,
@@ -710,7 +711,7 @@ export default function DevView() {
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm">
               Page{' '}
-              <select
+              <StyledSelect
                 aria-label="Source page"
                 value={sheetPage}
                 onChange={(e) => {
@@ -724,7 +725,7 @@ export default function DevView() {
                     {s.label}
                   </option>
                 ))}
-              </select>
+              </StyledSelect>
             </label>
             <Button size="sm" variant={legend ? 'outline' : 'default'} onClick={() => setLegend(false)}>
               Full sheet

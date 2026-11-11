@@ -5,7 +5,7 @@ import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/
 import { demoTerrain } from '../../src/pages/dev-forestry-roads/terrain'
 import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engineeringTypes'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.setTimeout(180_000)
 async function activate(locator: Locator) {

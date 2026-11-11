@@ -6,7 +6,7 @@ import { Download, FileText } from 'lucide-react'
 import { MapTableBridge, defineTableSource, useMapTable } from '@/components/map/useMapTable'
 import { numberColumn, textColumn } from '@/components/map/tableColumns'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Map } from '@/components/ui/map'
 import { MapGeoJsonLayer } from '@/components/ui/map-layers'
@@ -281,7 +281,7 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
             title="Acquisition year"
             subtitle={total == null ? undefined : `${tilesText(total)} of ${product.label.toLowerCase()} in BC`}
           >
-            <NativeSelect
+            <StyledSelect
               aria-label="Acquisition year"
               value={year ?? ''}
               onChange={(event) => {
@@ -295,7 +295,7 @@ export function CoverageWorkspace({ basemap }: { basemap: Basemap }) {
                   {row.year} · {tilesText(row.tiles)}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
             {productYears && productYears.length > 0 && (
               <ShareBars
                 className="mt-3"

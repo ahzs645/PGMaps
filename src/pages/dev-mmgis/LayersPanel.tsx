@@ -9,6 +9,7 @@ import { LayerLegend } from '../dev-data/LayerLegend'
 import { effectiveStyle, type LoadedLayer, type ViewportBounds } from '../dev-data/layerData'
 import { clampText, copyLabel, MAX_KEY_TEXT, moveLayer, updateLayers, uid, type Mission } from './model'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import { StyledSelect } from '@/components/ui/styled-select'
 
 export function LayersPanel({
   mission,
@@ -75,7 +76,7 @@ export function LayersPanel({
           </label>
           <label className="mm-field">
             Time field
-            <select
+            <StyledSelect
               value={active.timeProperty}
               onChange={(e) =>
                 change((m) => ({
@@ -94,7 +95,7 @@ export function LayersPanel({
                     {a.label}
                   </option>
                 ))}
-            </select>
+            </StyledSelect>
           </label>
           <p className="mm-help">
             Dates are interpreted as UTC; numeric timestamps must be milliseconds since the Unix epoch. Features with

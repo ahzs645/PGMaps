@@ -1,5 +1,9 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
+import { MapPin } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { withBase } from '@/lib/dataUrl'
 import { downloadText } from '@/lib/download'
 import type { ForestryScene } from './scene'
@@ -8,6 +12,7 @@ import { metersPerDegree, polygonBounds } from './visibility'
 import { nearestLandformCandidates, nearestLandformsAlongRoad } from './landformCandidates'
 import { loadVisualInventorySnapshot, VISUAL_INVENTORY_PATH } from './visualInventorySnapshot'
 import { DEFAULT_LOCALE } from '@/lib/format'
+import { formatKm } from './measureFormat'
 
 export function LandformSuggestions({
   scene,
@@ -21,6 +26,7 @@ export function LandformSuggestions({
   const [attempt, setAttempt] = useState(0)
   const [searchMode, setSearchMode] = useState<'road' | 'block'>('road')
   const [blockId, setBlockId] = useState('')
+  const [shownId, setShownId] = useState<string | null>(null)
   const blocks = scene.targets.filter((t) => t.role === 'block')
   const selected = blocks.find((b) => b.id === blockId) ?? blocks[0]
   const b = selected ? polygonBounds(selected.geometry) : null
@@ -86,16 +92,20 @@ export function LandformSuggestions({
     downloadText(JSON.stringify(collection), 'bc-nearby-visual-inventory.geojson', 'application/geo+json')
   }
   return (
-    <details className="rounded-lg border p-3 text-xs" data-forestry-disclosure="inventory-landforms">
-      <summary className="cursor-pointer font-medium">Find a landform in the BC inventory</summary>
-      <p className="my-2 text-muted-foreground">
+    <CollapsibleSection
+      label="Find a landform in the BC inventory"
+      toggleProps={{ 'data-forestry-disclosure': 'inventory-landforms' }}
+      className="rounded-lg border text-xs"
+      contentClassName="space-y-2 px-3 pb-3"
+    >
+      <p className="text-muted-foreground">
         Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside
         from the road before using one as the assessment landform.
       </p>
       {road.length > 1 && (
         <label className="block">
           Search area
-          <NativeSelect
+          <StyledSelect
             aria-label="Landform search area"
             className="my-1 w-full rounded border bg-background p-1"
             value={searchMode}
@@ -103,13 +113,13 @@ export function LandformSuggestions({
           >
             <option value="road">Whole road corridor</option>
             <option value="block">Selected cutblock centre</option>
-          </NativeSelect>
+          </StyledSelect>
         </label>
       )}
       {!useRoad && blocks.length > 1 && (
         <label className="block">
           Search near cutblock
-          <NativeSelect
+          <StyledSelect
             aria-label="Landform search cutblock"
             className="my-1 w-full rounded border bg-background p-1"
             value={selected?.id}
@@ -120,7 +130,7 @@ export function LandformSuggestions({
                 {block.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
       )}
       {!hasAnchor ? (
@@ -133,80 +143,97 @@ export function LandformSuggestions({
             : selected
               ? `${selected.name}’s map centre`
               : 'the viewpoint'}
-          ; nearest polygon edge first.
+          ; nearest polygon edge first. Choose one to show its boundary.
         </p>
       )}
       {tooLarge && (
-        <p role="alert">
+        <InlineAlert tone="error">
           Split this road into sections under 1.5° extent and 5,000 vertices for a whole-corridor search.
-        </p>
+        </InlineAlert>
       )}
-      {hasAnchor && !tooLarge && !data && !error && <p role="status">Loading downloaded BC inventory…</p>}
+      {hasAnchor && !tooLarge && !data && !error && <InlineAlert loading>Loading downloaded BC inventory…</InlineAlert>}
       {error && (
-        <div role="alert">
-          <p>Inventory snapshot unavailable. Draw or import a landform, or retry.</p>
-          <button className="my-2 rounded border px-2 py-1" onClick={() => setAttempt((n) => n + 1)}>
+        <InlineAlert tone="error" title="Inventory snapshot unavailable">
+          <p>Draw or import a landform, or retry.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="my-2 text-foreground touch:h-10"
+            onClick={() => setAttempt((n) => n + 1)}
+          >
             Retry inventory download
-          </button>
-          <details>
-            <summary>Details</summary>
-            {error}
-          </details>
-        </div>
+          </Button>
+          <p className="break-words">{error}</p>
+        </InlineAlert>
       )}
       {data && hasAnchor && !tooLarge && !candidates.length && (
-        <p className="my-2">
+        <p>
           No mapped sensitivity units within 25 km. Draw or import the visible landform; a more distant unit would not
           establish coverage here.
         </p>
       )}
-      <ul className="my-2 space-y-2">
-        {candidates.map(({ unit, distanceMeters }) => (
-          <li key={unit.id} className="rounded border p-2">
-            <p className="font-medium">
-              {unit.name} ·{' '}
-              {distanceMeters < 1
+      {candidates.length > 0 && (
+        <ul className="divide-y overflow-hidden rounded-md border" aria-label="Inventory landform candidates">
+          {candidates.map(({ unit, distanceMeters }) => {
+            const shown = shownId === unit.id
+            const title = `${unit.name} · ${
+              distanceMeters < 1
                 ? useRoad
                   ? 'intersects road'
                   : 'contains search point'
-                : `${(distanceMeters / 1000).toFixed(1)} km away`}
-            </p>
-            <p className="text-muted-foreground">
-              {unit.objectiveId
-                ? `Established: ${unit.objectiveId}`
-                : unit.recommendedId
-                  ? `Recommended only: ${unit.recommendedId}`
-                  : 'No objective recorded'}{' '}
-              · VAC {unit.vac ?? 'unrated'}
-            </p>
-            <div className="mt-1 flex gap-2">
-              <button className="rounded border px-2 py-1" onClick={() => onShow(unit)}>
-                Show boundary
-              </button>
-              <button className="rounded border px-2 py-1" onClick={() => onAdopt(unit)}>
-                Use candidate
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="flex flex-wrap gap-2">
+                : `${formatKm(distanceMeters, 1)} away`
+            }`
+            return (
+              <li key={unit.id}>
+                <ResultRow
+                  className="py-2"
+                  title={title}
+                  subtitle={`${
+                    unit.objectiveId
+                      ? `Established: ${unit.objectiveId}`
+                      : unit.recommendedId
+                        ? `Recommended only: ${unit.recommendedId}`
+                        : 'No objective recorded'
+                  } · VAC ${unit.vac ?? 'unrated'}`}
+                  leading={<MapPin className="mt-1 size-3 text-muted-foreground" aria-hidden="true" />}
+                  selected={shown}
+                  aria-label={`Show boundary: ${title}`}
+                  onClick={() => {
+                    setShownId(unit.id)
+                    onShow(unit)
+                  }}
+                />
+                {shown && (
+                  <ResultRowDetail>
+                    <Button size="sm" className="touch:h-10" onClick={() => onAdopt(unit)}>
+                      Use candidate
+                    </Button>
+                  </ResultRowDetail>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      <div className="flex flex-wrap items-center gap-2">
         {data && (
-          <button className="rounded border px-2 py-1" onClick={downloadNearby}>
+          <Button variant="outline" size="sm" className="touch:h-10" onClick={downloadNearby}>
             Download nearby inventory (GeoJSON)
-          </button>
+          </Button>
         )}
-        <a className="underline" href={withBase(VISUAL_INVENTORY_PATH)} download="bc-visual-inventory-manifest.json">
-          BC snapshot manifest
-        </a>
+        <Button asChild variant="outline" size="sm" className="touch:h-10">
+          <a href={withBase(VISUAL_INVENTORY_PATH)} download="bc-visual-inventory-manifest.json">
+            BC snapshot manifest
+          </a>
+        </Button>
       </div>
       {data && (
-        <p className="mt-1 text-muted-foreground">
+        <p className="text-muted-foreground">
           {data.manifest.featureCount.toLocaleString(DEFAULT_LOCALE)} units · original boundary coordinates. Downloaded{' '}
           {data.manifest.retrievedAt.slice(0, 10)}; source records may be older. Static snapshot; inventory gaps and
           unrated areas remain.
         </p>
       )}
-    </details>
+    </CollapsibleSection>
   )
 }

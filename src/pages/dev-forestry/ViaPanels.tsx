@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
+import { formatPercentValue } from '@/lib/format'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -34,7 +35,7 @@ const SELECT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-10'
 
 function percent(value: number | null | undefined, digits = 1): string {
-  return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${value.toFixed(digits)}%`
+  return formatPercentValue(value, { minimumFractionDigits: digits, maximumFractionDigits: digits, fallback: '—' })
 }
 
 /** Whether an alteration of class `id` satisfies an objective — the same or less altered. */
@@ -143,10 +144,10 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
       </div>
 
       {stale && (
-        <p role="alert" className="mt-3 rounded-md border border-amber-500 p-2 text-xs text-foreground">
+        <InlineAlert className="mt-3" tone="warning">
           Scene changed — rerun the analysis. Previous results, road preview and assessed exports are unavailable until
           the run matches this scene.
-        </p>
+        </InlineAlert>
       )}
 
       {stats.length > 0 && <StatGroup className="mt-3" variant="tiles" size="sm" columns={3} items={stats} />}
@@ -227,7 +228,7 @@ export function ViewpointTypeField({
           : 'Run the simulation to estimate how long the proposal is in view.'
       }
     >
-      <NativeSelect
+      <StyledSelect
         className={SELECT_CLASS}
         aria-label="Viewpoint type"
         value={review.viewpointType ?? ''}
@@ -243,7 +244,7 @@ export function ViewpointTypeField({
             {type.id}. {type.label}
           </option>
         ))}
-      </NativeSelect>
+      </StyledSelect>
     </ChoiceField>
   )
 }
@@ -270,7 +271,7 @@ export function OcularAssessmentFields({
         alteration — every existing opening not yet greened up included. The model does not fill these in.
       </p>
       <ChoiceField label="Ease of seeing">
-        <NativeSelect
+        <StyledSelect
           className={SELECT_CLASS}
           aria-label="Ease of seeing"
           value={ocular.visibleness ?? ''}
@@ -282,10 +283,10 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </ChoiceField>
       <ChoiceField label="Scale, relative to the landform">
-        <NativeSelect
+        <StyledSelect
           className={SELECT_CLASS}
           aria-label="Scale relative to the landform"
           value={ocular.scale ?? ''}
@@ -297,10 +298,10 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </ChoiceField>
       <ChoiceField label="Shape">
-        <NativeSelect
+        <StyledSelect
           className={SELECT_CLASS}
           aria-label="Shape"
           value={ocular.shape ?? ''}
@@ -312,20 +313,19 @@ export function OcularAssessmentFields({
               {term.label}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-3.5 w-3.5"
-          checked={ocular.onBoundary === true}
-          onChange={(event) => setOcular({ onBoundary: event.target.checked })}
-        />
-        <span>
-          <span className="font-medium text-foreground">On the class boundary.</span> The alteration sits between{' '}
-          {assessment.objective.label.toLowerCase()} and the next more-altered class. Table 7 rates this Inconclusive.
-        </span>
-      </label>
+      <CheckboxField
+        label={<span className="text-2xs font-medium">On the class boundary</span>}
+        description={
+          <span className="text-2xs leading-4">
+            The alteration sits between {assessment.objective.label.toLowerCase()} and the next more-altered class.
+            Table 7 rates this Inconclusive.
+          </span>
+        }
+        checked={ocular.onBoundary === true}
+        onCheckedChange={(onBoundary) => setOcular({ onBoundary })}
+      />
       {result && (
         <InlineAlert
           tone={achieves(result.classId, assessment.objective.id) && !result.onBoundary ? 'success' : 'warning'}
@@ -421,7 +421,7 @@ export function AdjustmentFields({
                 : element.question
             }
           >
-            <NativeSelect
+            <StyledSelect
               className={SELECT_CLASS}
               aria-label={element.label}
               value={own ?? ''}
@@ -437,12 +437,12 @@ export function AdjustmentFields({
               <option value="-1">Good (−1) · {element.good}</option>
               <option value="0">Moderate (0) · {element.moderate}</option>
               <option value="1">Poor (+1) · {element.poor}</option>
-            </NativeSelect>
+            </StyledSelect>
           </ChoiceField>
         )
       })}
       <ChoiceField label="Roads, landings and sidecast (Table 4)">
-        <NativeSelect
+        <StyledSelect
           className={SELECT_CLASS}
           aria-label="Roads, landings and sidecast"
           value={review.roads ?? ''}
@@ -456,10 +456,10 @@ export function AdjustmentFields({
               {entry.label} ({signed(entry.value)})
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </ChoiceField>
       <ChoiceField label="Tree retention (Table 5)">
-        <NativeSelect
+        <StyledSelect
           className={SELECT_CLASS}
           aria-label="Tree retention"
           value={review.retention ?? ''}
@@ -476,17 +476,17 @@ export function AdjustmentFields({
               {level.label} ({signed(level.factor)})
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-3.5 w-3.5"
-          checked={review.retentionNetted === true}
-          onChange={(event) => onChange({ retentionNetted: event.target.checked })}
-        />
-        <span>Retained patches are already cut out of the block outlines, so they are not counted a second time.</span>
-      </label>
+      <CheckboxField
+        label={
+          <span className="text-2xs leading-4">
+            Retained patches are already cut out of the block outlines, so they are not counted a second time.
+          </span>
+        }
+        checked={review.retentionNetted === true}
+        onCheckedChange={(retentionNetted) => onChange({ retentionNetted })}
+      />
       <KeyValueRows
         variant="divided"
         rows={[

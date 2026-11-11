@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildInventoryWfsUrl,
+  VLI_WFS_LAYER,
   BC_VISUAL_LAYERS,
   buildInventoryQueryUrl,
   clampQueryBounds,
@@ -95,6 +97,25 @@ describe('buildInventoryQueryUrl', () => {
     expect(
       new URL(buildInventoryQueryUrl(6, bounds, { simplifyDegrees: 0 })).searchParams.get('maxAllowableOffset'),
     ).toBeNull()
+  })
+})
+
+describe('buildInventoryWfsUrl', () => {
+  it('asks the complete WFS layer for a bbox, longitude first, in CQL', () => {
+    const url = new URL(buildInventoryWfsUrl([-121.94, 53.92, -121.92, 53.935]))
+    expect(url.searchParams.get('typeName')).toBe(VLI_WFS_LAYER)
+    expect(url.searchParams.get('bbox')).toBeNull()
+    expect(url.searchParams.get('CQL_FILTER')).toBe("BBOX(GEOMETRY,-121.94,53.92,-121.92,53.935,'EPSG:4326')")
+    expect(url.searchParams.get('propertyName')?.split(',')).toEqual(
+      expect.arrayContaining(['OBJECTID', 'VLI_POLYGON_NO', 'REC_EVQO_CODE', 'GEOMETRY']),
+    )
+  })
+
+  it('keeps an over-wide view to the query cap', () => {
+    const filter = new URL(buildInventoryWfsUrl([-130, 49, -115, 59])).searchParams.get('CQL_FILTER')!
+    const [west, south, east, north] = filter.slice('BBOX(GEOMETRY,'.length).split(',').map(Number)
+    expect(east - west).toBeCloseTo(1.5)
+    expect(north - south).toBeCloseTo(1.5)
   })
 })
 

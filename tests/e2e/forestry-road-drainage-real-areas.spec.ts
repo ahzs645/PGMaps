@@ -10,7 +10,7 @@ import {
 } from '../../src/pages/dev-forestry-roads/drainageRun'
 import { formatRoadStation } from '../../src/pages/dev-forestry-roads/Charts'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 const root = process.env.PGMAPS_ROAD_DRAINAGE_PROJECT_DIR
 test.skip(!root, 'Supply the directory containing the actual Kamloops and Vernon exported road projects.')

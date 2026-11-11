@@ -5,6 +5,7 @@
  * the plan. Calculation lives in `pegCursor.ts`, `pointQuery.ts`, `gradeClasses.ts` and
  * `followStation.ts`.
  */
+import type { SnapLine } from './drawSnap'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { GeoJSONSource, Map as MapLibreMap } from 'maplibre-gl'
 import { Footprints, ScanSearch } from 'lucide-react'
@@ -77,6 +78,8 @@ export interface PlanToolsInput {
   terrainOnly?: boolean
   /** Appends pegs to the active road; without it the peg tool is off. */
   onPeg?: (coordinates: Coordinate[]) => boolean
+  /** Roads a straight peg leg snaps onto (`drawSnap.ts`). */
+  snapLines?: SnapLine[]
   onStation: (station: number) => void
   onTypeStation?: (station: number) => number
 }
@@ -195,6 +198,7 @@ function PlanToolLayer(
         alignment={props.alignment}
         source={props.source}
         onPeg={props.onPeg}
+        snapLines={props.snapLines}
         onClose={props.onClose}
         panelHost={props.panelHost}
       />

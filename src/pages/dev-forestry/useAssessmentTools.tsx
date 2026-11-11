@@ -1,10 +1,20 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import {
+  CheckboxField,
+  FORM_INPUT_CLASS,
+  FormField,
+  StyledSelect,
+  NullableNumberField,
+  NumberField,
+} from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ClipboardList, GitCompareArrows } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FileButton } from '@/components/ui/file-button'
 import { downloadText } from '@/lib/download'
+import { formatMeasure } from '@/lib/format'
 import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
-import { ToolFieldPanel, ToolField, TOOL_INPUT } from './ToolFieldPanel'
+import { ToolFieldPanel } from './ToolFieldPanel'
+import { formatPct } from './measureFormat'
 import { SightlineProfileChart } from './SightlineProfileChart'
 import { createId, type ForestryScene } from './scene'
 import { sceneFingerprint } from './sceneInput'
@@ -37,6 +47,8 @@ type Props = {
   analysisRunning: boolean
   onImportScene: (scene: ForestryScene) => void
 }
+const hectares = (value: number) => formatMeasure(value, 'ha', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
 export function useAssessmentTools({
   scene,
   result,
@@ -63,8 +75,7 @@ export function useAssessmentTools({
     [inspectIndex, setInspectIndex] = useState(0),
     [inspectStation, setInspectStation] = useState(0),
     [exporting, setExporting] = useState(false)
-  const importInput = useRef<HTMLInputElement>(null),
-    documentRef = useRef(d),
+  const documentRef = useRef(d),
     saveQueue = useRef(Promise.resolve())
   documentRef.current = d
   const key = useMemo(() => sceneFingerprint(scene), [scene]),
@@ -182,12 +193,12 @@ export function useAssessmentTools({
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       {runner.error && <InlineAlert tone="error">{runner.error}</InlineAlert>}
       {runner.running && (
-        <div role="status" className="space-y-2 text-xs">
+        <InlineAlert loading>
           <p>{runner.progress || 'Starting analysis…'}</p>
-          <Button size="sm" variant="outline" onClick={runner.cancel}>
+          <Button size="sm" variant="outline" className="mt-2 touch:h-10" onClick={runner.cancel}>
             Cancel tool run
           </Button>
-        </div>
+        </InlineAlert>
       )}
     </>
   )
@@ -216,9 +227,9 @@ export function useAssessmentTools({
         defaultOpen
       >
         <div className="space-y-2 py-3 text-xs">
-          <ToolField label="Design alternative name">
-            <input className={TOOL_INPUT} value={optionName} onChange={(e) => setOptionName(e.target.value)} />
-          </ToolField>
+          <FormField label="Design alternative name">
+            <input className={FORM_INPUT_CLASS} value={optionName} onChange={(e) => setOptionName(e.target.value)} />
+          </FormField>
           <Button
             size="sm"
             variant="outline"
@@ -310,27 +321,23 @@ export function useAssessmentTools({
             and worst station; values are never pooled across landforms.
           </p>
           {d.views.map((v) => (
-            <label className="flex gap-2" key={v.id}>
-              <input
-                type="checkbox"
-                checked={selectedViews.includes(v.id)}
-                onChange={() => setSelectedViews(toggle(selectedViews, v.id))}
-              />
-              {v.name}
-            </label>
+            <CheckboxField
+              key={v.id}
+              label={v.name}
+              checked={selectedViews.includes(v.id)}
+              onCheckedChange={() => setSelectedViews(toggle(selectedViews, v.id))}
+            />
           ))}
           {!d.views.length && <p>Record a viewpoint in step 2 first.</p>}
           {scene.targets
             .filter((t) => t.role === 'landscape')
             .map((t) => (
-              <label className="flex gap-2" key={t.id}>
-                <input
-                  type="checkbox"
-                  checked={selectedLandforms.includes(t.id)}
-                  onChange={() => setSelectedLandforms(toggle(selectedLandforms, t.id))}
-                />
-                {t.name}
-              </label>
+              <CheckboxField
+                key={t.id}
+                label={t.name}
+                checked={selectedLandforms.includes(t.id)}
+                onCheckedChange={() => setSelectedLandforms(toggle(selectedLandforms, t.id))}
+              />
             ))}
           <Button
             size="sm"
@@ -375,45 +382,39 @@ export function useAssessmentTools({
           {scene.targets
             .filter((t) => t.role === 'block')
             .map((t) => (
-              <ToolField key={t.id} label={`Planned harvest year for ${t.name}`}>
-                <input
-                  type="number"
-                  min="1900"
-                  max="2200"
-                  className={TOOL_INPUT}
-                  value={t.plannedHarvestYear ?? ''}
-                  onChange={(e) =>
-                    onChange({
-                      ...scene,
-                      targets: scene.targets.map((v) =>
-                        v.id === t.id
-                          ? { ...v, plannedHarvestYear: e.target.value ? Number(e.target.value) : null }
-                          : v,
-                      ),
-                    })
-                  }
-                />
-              </ToolField>
+              <NullableNumberField
+                key={t.id}
+                label={`Planned harvest year for ${t.name}`}
+                min={1900}
+                max={2200}
+                value={t.plannedHarvestYear ?? null}
+                onValueChange={(plannedHarvestYear) =>
+                  onChange({
+                    ...scene,
+                    targets: scene.targets.map((v) => (v.id === t.id ? { ...v, plannedHarvestYear } : v)),
+                  })
+                }
+              />
             ))}
-          <ToolField label="Assessment years, separated by commas">
-            <input className={TOOL_INPUT} value={years} onChange={(e) => setYears(e.target.value)} />
-          </ToolField>
-          <ToolField label="Height–age curve: age,height in metres per line">
+          <FormField label="Assessment years, separated by commas">
+            <input className={FORM_INPUT_CLASS} value={years} onChange={(e) => setYears(e.target.value)} />
+          </FormField>
+          <FormField label="Height–age curve: age,height in metres per line">
             <textarea
               rows={4}
-              className={TOOL_INPUT}
+              className={FORM_INPUT_CLASS}
               value={curve}
               onChange={(e) => setCurve(e.target.value)}
               placeholder={'0,0\n10,3\n20,8'}
             />
-          </ToolField>
-          <ToolField label="Height–age curve source">
+          </FormField>
+          <FormField label="Height–age curve source">
             <input
-              className={TOOL_INPUT}
+              className={FORM_INPUT_CLASS}
               value={d.growthSource}
               onChange={(e) => change({ ...d, growthSource: e.target.value })}
             />
-          </ToolField>
+          </FormField>
           <Button
             size="sm"
             disabled={busy || !result}
@@ -459,9 +460,8 @@ export function useAssessmentTools({
             Click an analysis sample on the map, or select a sample and station below, to trace it through the numerical
             terrain and screening surface.
           </p>
-          <ToolField label="Sightline target">
-            <NativeSelect
-              className={TOOL_INPUT}
+          <FormField label="Sightline target">
+            <StyledSelect
               value={inspectTarget}
               onChange={(e) => {
                 setInspectTarget(e.target.value)
@@ -474,31 +474,24 @@ export function useAssessmentTools({
                   {scene.targets.find((v) => v.id === t.targetId)?.name ?? t.targetId} · {t.sampleCount} samples
                 </option>
               ))}
-            </NativeSelect>
-          </ToolField>
-          <ToolField label="Sample index (zero based)">
-            <input
-              type="number"
-              min="0"
-              max={(result?.targets.find((t) => t.targetId === inspectTarget)?.sampleCount ?? 1) - 1}
-              className={TOOL_INPUT}
-              value={inspectIndex}
-              onChange={(e) => setInspectIndex(Number(e.target.value))}
-            />
-          </ToolField>
-          <ToolField label="Viewing station">
-            <NativeSelect
-              className={TOOL_INPUT}
-              value={inspectStation}
-              onChange={(e) => setInspectStation(Number(e.target.value))}
-            >
+            </StyledSelect>
+          </FormField>
+          <NumberField
+            label="Sample index (zero based)"
+            min={0}
+            max={(result?.targets.find((t) => t.targetId === inspectTarget)?.sampleCount ?? 1) - 1}
+            value={inspectIndex}
+            onValueChange={setInspectIndex}
+          />
+          <FormField label="Viewing station">
+            <StyledSelect value={inspectStation} onChange={(e) => setInspectStation(Number(e.target.value))}>
               {result?.stations.map((s, i) => (
                 <option key={i} value={i}>
                   Station {i + 1} · {s.distanceAlongMeters.toFixed(0)} m
                 </option>
               ))}
-            </NativeSelect>
-          </ToolField>
+            </StyledSelect>
+          </FormField>
           <Button
             size="sm"
             variant="outline"
@@ -530,8 +523,8 @@ export function useAssessmentTools({
                 {r.summary ? (
                   <>
                     <p>
-                      Perspective: {r.summary.perspectiveAlteration?.cumulativePercent?.toFixed(2) ?? 'withheld'}% ·
-                      planimetric: {r.summary.planimetricAlteration?.cumulativePercent?.toFixed(2) ?? 'withheld'}%
+                      Perspective: {formatPct(r.summary.perspectiveAlteration?.cumulativePercent, 2, 'withheld')} ·
+                      planimetric: {formatPct(r.summary.planimetricAlteration?.cumulativePercent, 2, 'withheld')}
                     </p>
                     <p>
                       {r.summary.quality?.numericalReady ? 'Scenario estimate available' : 'Provisional'} · measured
@@ -539,8 +532,8 @@ export function useAssessmentTools({
                       {r.summary.via.rating?.label ?? 'pending'}
                     </p>
                     <p>
-                      Block area {r.summary.blockAreaHa.toFixed(2)} ha · visible block ground{' '}
-                      {r.summary.visibleHa.toFixed(2)} ha
+                      Block area {hectares(r.summary.blockAreaHa)} · visible block ground{' '}
+                      {hectares(r.summary.visibleHa)}
                     </p>
                   </>
                 ) : (
@@ -582,16 +575,16 @@ export function useAssessmentTools({
     <SidebarSection title="VIA evidence package and workspace" icon={ClipboardList} headingLevel={3}>
       <div className="space-y-3 text-xs">
         {message}
-        <ToolField label="Assessment evidence viewpoint">
-          <NativeSelect className={TOOL_INPUT} value={reportView} onChange={(e) => setReportView(e.target.value)}>
+        <FormField label="Assessment evidence viewpoint">
+          <StyledSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
             <option value="">Not linked</option>
             {d.views.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>
             ))}
-          </NativeSelect>
-        </ToolField>
+          </StyledSelect>
+        </FormField>
         <Button size="sm" variant="outline" disabled={busy || !result} onClick={() => perform(record)}>
           {openedRun ? 'Update reviewed assessment record' : 'Record current assessment'}
         </Button>
@@ -659,22 +652,15 @@ export function useAssessmentTools({
           >
             Export assessment workspace
           </Button>
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => importInput.current?.click()}>
+          <FileButton
+            label="Import assessment workspace"
+            accept=".json"
+            disabled={busy}
+            onFiles={([file]) => void importWorkspace(file)}
+          >
             Import assessment workspace
-          </Button>
+          </FileButton>
         </div>
-        <input
-          ref={importInput}
-          className="hidden"
-          type="file"
-          accept=".json"
-          aria-label="Import assessment workspace"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            e.target.value = ''
-            if (f) void importWorkspace(f)
-          }}
-        />
         <p>
           JSON includes saved inputs, local rasters, hashes, results, judgments and resized attachments. Stored on this
           device in IndexedDB; export a backup before clearing browser data. Imported results are historical records,

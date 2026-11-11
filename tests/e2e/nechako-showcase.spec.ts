@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { expectSelected } from './styled-select'
 
 for (const width of [1440, 390]) {
   test(`bundled Nechako showcase works with external data blocked at ${width}px`, async ({ page }) => {
@@ -26,7 +27,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('heading', { name: 'Public attachment links (8)' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Open article', exact: true })).toHaveCount(8)
     await page.getByRole('button', { name: 'Browse bundled research', exact: true }).click()
-    await expect(page.getByLabel('Research data source')).toHaveValue('snapshot')
+    await expectSelected(page.getByLabel('Research data source'), 'snapshot')
     await expect(page.getByText('1,408 total records · 365 without location tags')).toBeVisible()
     await page.getByRole('button', { name: 'Unmapped records', exact: true }).click()
     await expect(page.getByText('365 matching records', { exact: true })).toBeVisible()
@@ -44,7 +45,7 @@ for (const width of [1440, 390]) {
     await expect(page).toHaveURL(/view=layers/)
     await expect(page.getByText('Nechako research locations (46)', { exact: false })).toBeVisible()
     await expect(page.getByText('32 WMS services', { exact: false })).toBeVisible()
-    await expect(page.getByLabel('Named layer or group')).not.toHaveValue('')
+    await expect(page.getByLabel('Named layer or group')).not.toHaveAttribute('data-value', '')
     await page.getByText('Save, load and import workspaces', { exact: true }).click()
     const workspaceDownload = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export workspace JSON', exact: true }).click()

@@ -47,6 +47,10 @@ They have no DOM, terrain fetches or network access, and carry the unit tests. T
 4. **Click** to add the leg. **Alt-click** (Option-click) adds a straight leg to the clicked point,
    whatever its grade; **Straight legs** does the same for every click. **Right-click**,
    **Backspace**, **Undo leg**, or Ctrl/Cmd+Z while legs are held, removes the last leg.
+   A straight leg clicked within `DRAW_SNAP_PX` screen pixels of another road ends exactly on it
+   (`drawSnap.ts`), and the note says which road, so a run can join a road or end on one. A leg at
+   grade is placed by the grade and is never moved onto a road; switch to a straight leg for the
+   last peg.
 5. **Enter**, a **double-click** or **Finish** adds every leg to the end of the road in one edit,
    which one Undo removes. **Escape** or the close button drops the legs and puts the tool down.
 

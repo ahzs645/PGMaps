@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
 import JSZip from 'jszip'
 import ExcelJS from 'exceljs'
+import { expectSelected } from './styled-select'
 
 test.use({ serviceWorkers: 'block' })
 test.setTimeout(180_000)
@@ -52,7 +53,7 @@ test('runs the AVAST procedure on dropped files and exports the workbook and geo
   await page.locator('[data-avast-files="candidates"]').setInputFiles([json('Test_blocks.geojson', BLOCKS)])
   await page.locator('[data-avast-files="avast"]').setInputFiles([json('TimberAnalysis_Base.geojson', AVAST)])
   await expect(page.locator('[data-avast-candidates]')).toHaveAttribute('data-avast-candidates', '2', { timeout: 60_000 })
-  await expect(page.locator('[data-avast-input="avast"] select').first()).toHaveValue('CMM_m3ha')
+  await expectSelected(page.locator('[data-avast-input="avast"] [data-select-trigger]').first(), 'CMM_m3ha')
 
   await page.locator('[data-avast-tab="results"]').click()
   await page.locator('[data-avast-run]').click()

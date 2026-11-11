@@ -5,7 +5,7 @@ import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/
 import { DEFAULT_DRAINAGE_SETTINGS } from '../../src/pages/dev-forestry-roads/drainageRun'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import type { drainageComparisonsExport } from '../../src/pages/dev-forestry-roads/drainageSensitivity'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.setTimeout(180_000)
 async function prepare(page: Page, url = '/dev/forestry/road-design?example=training') {
