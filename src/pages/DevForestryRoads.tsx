@@ -1,6 +1,6 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
 import { detailTitle, type DetailView } from './dev-forestry-roads/detailViews'
-import { snapIndex, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
+import { roadSnapLines, snapNotice, type DrawSnap } from './dev-forestry-roads/drawSnap'
 import { createPortal } from 'react-dom'
 import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
 import { RibbonPaneHost } from '@/components/interfaces/RibbonTaskPane'
@@ -1244,49 +1244,8 @@ export default function DevForestryRoads({
     },
     [busy],
   )
-  // Roads a new road's pegs snap onto: every design road (not the one being extended, whose
-  // own end Extend already continues) and every existing road line on the map.
-  const drawingRoad = mode === 'road' || mode === 'extend'
-  const snapLines = useMemo(
-    () =>
-      drawingRoad
-        ? snapIndex([
-            ...project.alignments
-              .filter(
-                (a) =>
-                  a.id !== project.designPlaceholderId && !(mode === 'extend' && a.id === project.activeAlignmentId),
-              )
-              .map((a) => ({
-                id: a.id,
-                name: a.name,
-                kind: 'design' as const,
-                // The centreline the plan draws, curves included, so a branch lands on the line seen.
-                coordinates: w.analyses.get(a.id)?.centerline ?? a.points.map((point) => point.coordinate),
-              })),
-            ...project.context.flatMap((feature) =>
-              feature.kind === 'existing-road' && feature.geometry.type === 'LineString'
-                ? [
-                    {
-                      id: feature.id,
-                      name: feature.name,
-                      kind: 'existing' as const,
-                      coordinates: feature.geometry.coordinates as Coordinate[],
-                    },
-                  ]
-                : [],
-            ),
-          ])
-        : undefined,
-    [
-      drawingRoad,
-      mode,
-      project.alignments,
-      project.context,
-      project.designPlaceholderId,
-      project.activeAlignmentId,
-      w.analyses,
-    ],
-  )
+  // Roads a peg snaps onto (`drawSnap.ts`): every design road as drawn and every existing road line.
+  const snapLines = useMemo(() => roadSnapLines(project, w.analyses), [project, w.analyses])
   // Stable, so the plan does not re-register its pointer handlers on every render.
   const setNoticeRef = useRef(w.setNotice)
   useLayoutEffect(() => {

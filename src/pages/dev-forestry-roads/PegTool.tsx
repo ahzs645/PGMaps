@@ -5,6 +5,7 @@
  * legs, goes straight to the point clicked. With the map focused, ← and → turn the aim and Space
  * adds the leg; the panel's fields and buttons do the same from anywhere.
  */
+import { mercatorMetresPerPixel, snapIndex, snapToRoads, type DrawSnap, type SnapLine } from './drawSnap'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { MapMouseEvent } from 'maplibre-gl'
@@ -63,6 +64,7 @@ export function PegTool({
   alignment,
   source,
   onPeg,
+  snapLines,
   onClose,
   panelHost,
 }: {
@@ -70,6 +72,12 @@ export function PegTool({
   alignment: Alignment
   source: TerrainSource
   onPeg: (coordinates: Coordinate[]) => boolean
+  /**
+   * Roads a straight leg snaps onto (`drawSnap.ts`): a straight leg clicked within reach of one ends
+   * exactly on it, so the run can join or branch onto it. Legs at grade land where the grade puts
+   * them, never moved onto a road.
+   */
+  snapLines?: SnapLine[]
   onClose: () => void
   panelHost: HTMLElement | null
 }) {
@@ -112,7 +120,12 @@ export function PegTool({
         ? pegBearing(from, aimPoint)
         : null
 
-  const commit = (target: Aim | null) => {
+  // Other roads only: the run pegs on from this road's own end.
+  const roads = useMemo(
+    () => (snapLines ? snapIndex(snapLines.filter((line) => line.id !== alignment.id)) : null),
+    [snapLines, alignment.id],
+  )
+  const commit = (target: Aim | null, snap?: DrawSnap | null) => {
     if (!chain) return
     const result = solve(target)
     if (!result) {
@@ -128,7 +141,7 @@ export function PegTool({
       return
     }
     setChain(addPegLeg(chain, result.leg))
-    setNote('')
+    setNote(snap ? `This leg ends ${snap.at === 'line' ? 'on' : `at the ${snap.at} of`} ${snap.name}.` : '')
   }
   const undo = () => {
     if (!chain?.legs.length) return
@@ -144,9 +157,10 @@ export function PegTool({
     setAim({ kind: 'bearing', bearing: ((((aimBearing ?? 0) + degrees) % 360) + 360) % 360 })
 
   const legs = chain?.legs.length ?? 0
-  const live = useRef({ commit, undo, finish, cancel: onClose, turn, aim, legs })
+  const straightAlways = settings.straight
+  const live = useRef({ commit, undo, finish, cancel: onClose, turn, aim, legs, roads, straightAlways })
   useEffect(() => {
-    live.current = { commit, undo, finish, cancel: onClose, turn, aim, legs }
+    live.current = { commit, undo, finish, cancel: onClose, turn, aim, legs, roads, straightAlways }
   })
 
   useEffect(() => {
@@ -156,7 +170,14 @@ export function PegTool({
     let frame = 0
     let pending: Aim | null = null
     let lastClick: { time: number; x: number; y: number } | null = null
-    const at = (e: MapMouseEvent): Coordinate => [e.lngLat.lng, e.lngLat.lat]
+    // A straight leg goes to the point clicked, so it snaps onto a road within reach; a leg at
+    // grade is placed by the grade and keeps the cursor only as its aim.
+    const snapFor = (e: MapMouseEvent) => {
+      const { roads, straightAlways } = live.current
+      if (!roads || !(straightAlways || e.originalEvent.altKey)) return null
+      return snapToRoads([e.lngLat.lng, e.lngLat.lat], roads, mercatorMetresPerPixel(map.getZoom(), e.lngLat.lat))
+    }
+    const at = (e: MapMouseEvent): Coordinate => snapFor(e)?.coordinate ?? [e.lngLat.lng, e.lngLat.lat]
     const move = (e: MapMouseEvent) => {
       pending = { kind: 'cursor', coordinate: at(e), alt: e.originalEvent.altKey }
       if (!frame)
@@ -170,9 +191,14 @@ export function PegTool({
       // The second click of a double-click finishes; it does not add a leg of its own.
       if (isSecondClickOfDouble(lastClick, press)) return
       lastClick = press
-      const target: Aim = { kind: 'cursor', coordinate: at(e), alt: e.originalEvent.altKey }
+      const snap = snapFor(e)
+      const target: Aim = {
+        kind: 'cursor',
+        coordinate: snap?.coordinate ?? [e.lngLat.lng, e.lngLat.lat],
+        alt: e.originalEvent.altKey,
+      }
       setAim(target)
-      live.current.commit(target)
+      live.current.commit(target, snap)
     }
     const dblclick = (e: MapMouseEvent) => {
       e.preventDefault()

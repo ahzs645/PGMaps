@@ -82,7 +82,7 @@ import type {
   RoadStation,
   TerrainSource,
 } from './types'
-import { snapToRoads, type DrawSnap, type SnapIndex } from './drawSnap'
+import { mercatorMetresPerPixel, snapIndex, snapToRoads, type DrawSnap, type SnapLine } from './drawSnap'
 
 /** `sketch` takes one freehand stroke; `extend` pegs on from the active road's nearer end. */
 export type DrawMode =
@@ -126,7 +126,7 @@ interface PlanProps {
    * Roads a pegged point snaps onto while drawing a road (`drawSnap.ts`). A click within
    * `DRAW_SNAP_PX` of one lands exactly on its line, so the new road starts or ends on it.
    */
-  snapLines?: SnapIndex
+  snapLines?: SnapLine[]
   /** A pegged point landed on another road; `first` when it is the road's first point. */
   onSnap?: (snap: DrawSnap, first: boolean) => void
   /** A finished freehand stroke in `sketch` mode, with the ground size of a screen pixel when it ended. */
@@ -288,6 +288,14 @@ function Layers(
     planToolActive,
   } = props
   const draftLength = props.draft.length
+  // Pegging a new road snaps to every road; extending one snaps to every road but itself.
+  const snapRoads = useMemo(
+    () =>
+      snapLines && (mode === 'road' || mode === 'extend')
+        ? snapIndex(snapLines.filter((line) => !(mode === 'extend' && line.id === props.alignment.id)))
+        : undefined,
+    [snapLines, mode, props.alignment.id],
+  )
   const projectCables = useMemo(
     () => (investigation ? [] : props.project.cables),
     [investigation, props.project.cables],
@@ -1351,12 +1359,8 @@ function Layers(
     if (!map || !isLoaded) return
     // Only road pegging snaps; streams, areas and profiles are drawn where they are clicked.
     const snapAt = (e: MapMouseEvent) =>
-      snapLines && (mode === 'road' || mode === 'extend')
-        ? snapToRoads(
-            [e.lngLat.lng, e.lngLat.lat],
-            snapLines,
-            (40075016.7 * Math.cos((e.lngLat.lat * Math.PI) / 180)) / (512 * 2 ** map.getZoom()),
-          )
+      snapRoads
+        ? snapToRoads([e.lngLat.lng, e.lngLat.lat], snapRoads, mercatorMetresPerPixel(map.getZoom(), e.lngLat.lat))
         : null
     const click = (e: MapMouseEvent) => {
       // A note tool, or a click on a drawn note, belongs to the notes layer.
@@ -1474,7 +1478,7 @@ function Layers(
     isLoaded,
     mode,
     onDraw,
-    snapLines,
+    snapRoads,
     onSnap,
     draftLength,
     onStation,
@@ -2040,6 +2044,7 @@ export function PlanView(input: PlanProps) {
     investigation,
     terrainOnly: props.terrainOnly,
     onPeg: props.onPeg,
+    snapLines: props.snapLines,
     onStation: props.onStation,
     onTypeStation: props.onTypeStation,
   })
