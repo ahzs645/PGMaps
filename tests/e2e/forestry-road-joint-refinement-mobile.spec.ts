@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { alignmentLength, analyzeRoad, offsetCoordinate } from '../../src/pages/dev-forestry-roads/engine'
 import { parseProject } from '../../src/pages/dev-forestry-roads/project'
@@ -118,7 +119,7 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await open(page, fixture(), 'phone-joint.road.json')
   const before = await save(page)
@@ -141,7 +142,9 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
     /Plan\/profile refinement: .* engineering cost; 4 evaluated trials/,
     { timeout: 60_000 },
   )
-  await expect.poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length).toBe(2)
+  await expect
+    .poll(async () => (await optionLabels(page.getByRole('combobox', { name: 'Active road', exact: true }))).length)
+    .toBe(2)
   const after = await save(page)
   const refined = after.alignments.find((road) => road.id === after.activeAlignmentId)!
   expect(after.alignments.find((road) => road.id === original.id)).toEqual(original)
@@ -170,7 +173,10 @@ test('touch joint refinement adopts a cheaper editable road, retains the origina
   await open(page, edited, 'phone-refined-reopen.road.json')
   await designControls(page)
   await expect(page.getByLabel('Road name', { exact: true })).toHaveValue(name)
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveAttribute('data-value', refined.id)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true })).toHaveAttribute(
+    'data-value',
+    refined.id,
+  )
   await page.getByRole('button', { name: 'Refine plan and profile', exact: true }).scrollIntoViewIfNeeded()
   expect(
     await page.evaluate(() => {

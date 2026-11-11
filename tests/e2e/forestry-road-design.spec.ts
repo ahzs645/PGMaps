@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
@@ -42,6 +43,11 @@ async function mapState(page: Page) {
             : 0,
           roadCount: new Set(roads.map((feature) => feature.properties?.id)).size,
           roads: roads.map((feature) => ({ id: feature.properties?.id, chainage: feature.properties?.chainage })),
+          roadLines: roads.flatMap((feature) =>
+            feature.geometry.type === 'LineString'
+              ? [{ id: String(feature.properties?.id), coordinates: feature.geometry.coordinates }]
+              : [],
+          ),
           roadClicks: roads.flatMap((feature) => {
             if (!feature.properties?.selected || feature.geometry.type !== 'LineString') return []
             const position = map.project(feature.geometry.coordinates[1] as [number, number])
@@ -102,7 +108,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   if ((page.viewportSize()?.width ?? 1512) < 768)
     await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toHaveText('Road design')
   else await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
@@ -305,6 +311,48 @@ test('pegging uses real map points with live leg grade and an undoable new road'
   await expect.poll(async () => (await optionLabels(page.getByLabel('Active road'))).length).toBe(2)
   await page.getByRole('button', { name: 'Redo road edit', exact: true }).click()
   await expect(page.getByLabel('Active road')).toHaveText('Road 3')
+  expect(errors).toEqual([])
+})
+
+test('a road pegged from another road starts on its line, as a branch', async ({ page }) => {
+  const errors = await prepare(page)
+  const parent = (await saveProject(page)).project
+  const parentId = parent.activeAlignmentId
+  const parentName = parent.alignments.find((a: { id: string }) => a.id === parentId)!.name
+  await page.getByRole('button', { name: 'Peg road', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Finish road', exact: true })).toBeVisible()
+  // Read positions once the drawing bar has moved the plan down. The point of the active road
+  // nearest the plan's centre is inside the pane and away from the existing road its start meets.
+  const box = (await page.locator('[data-testid="road-plan-view"] .maplibregl-canvas').boundingBox())!
+  const centre = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  const start = (await mapState(page))!.roadClicks.reduce((best, click) =>
+    Math.hypot(click.x - centre.x, click.y - centre.y) < Math.hypot(best.x - centre.x, best.y - centre.y)
+      ? click
+      : best,
+  )
+  // A few pixels off the road: the peg lands on its line.
+  await page.mouse.click(start.x + 4, start.y + 4)
+  await expect(page.getByTestId('road-workspace-header')).toContainText(`This road branches from ${parentName}.`)
+  await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.2)
+  await page.mouse.click(box.x + box.width * 0.6, box.y + box.height * 0.12)
+  await page.getByRole('button', { name: 'Finish road', exact: true }).click()
+  const saved = (await saveProject(page)).project
+  expect(saved.alignments).toHaveLength(parent.alignments.length + 1)
+  const branch = saved.alignments.find((a: { id: string }) => a.id === saved.activeAlignmentId)!
+  const [lng, lat] = branch.points[0].coordinate
+  // Distance in metres from the branch's first point to the parent's drawn centreline.
+  const line = (await mapState(page))!.roadLines.filter((l) => l.id === parentId).flatMap((l) => l.coordinates)
+  const kx = 111_320 * Math.cos((lat * Math.PI) / 180)
+  let nearest = Infinity
+  for (let i = 1; i < line.length; i++) {
+    const [ax, ay] = [(line[i - 1][0] - lng) * kx, (line[i - 1][1] - lat) * 111_320]
+    const [bx, by] = [(line[i][0] - lng) * kx, (line[i][1] - lat) * 111_320]
+    const dx = bx - ax,
+      dy = by - ay
+    const t = Math.min(1, Math.max(0, -(ax * dx + ay * dy) / (dx * dx + dy * dy || 1)))
+    nearest = Math.min(nearest, Math.hypot(ax + t * dx, ay + t * dy))
+  }
+  expect(nearest).toBeLessThan(0.05)
   expect(errors).toEqual([])
 })
 
@@ -533,7 +581,7 @@ test('failed saved-terrain restoration cannot autosave synthetic fallback over t
     terrainRequests++
     return route.fulfill({ status: 503, body: 'Temporarily unavailable' })
   })
-  await page.goto('/dev/forestry/road-design')
+  await openWorkbench(page, '/dev/forestry/road-design')
   await expect(page.getByRole('alert').first()).toContainText('has not been overwritten')
   expect(terrainRequests).toBeGreaterThan(0)
   await page.clock.install()

@@ -9,27 +9,15 @@ import { TemplateComponents } from '../TemplateComponents'
 import { RockCutFields, rockCutSummary } from '../RockCutFields'
 import { RoadSection } from '../SidebarParts'
 import { EntryProblem } from '../InputProblem'
-import { inputMessage } from '../inputErrors'
+import { TEMPLATE_FIELDS } from '../roadFieldDefinitions'
+import { TemplateField } from '../SharedRoadFields'
 import { createEngineeringDesign } from '../engineeringTypes'
-import { ditchWidthRange, keyedRockFillTemplate } from '../templates'
+import { keyedRockFillTemplate } from '../templates'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
-import type { RoadTemplate, WidthOverride } from '../types'
+import type { WidthOverride } from '../types'
 import { appliedTapers, duplicateWideningAt, fullWidthRange, limitedTaper } from '../wideningEntry'
 
 const id = () => crypto.randomUUID()
-type NumericTemplateKey = {
-  [K in keyof RoadTemplate]-?: RoadTemplate[K] extends number | undefined ? K : never
-}[keyof RoadTemplate]
-const TEMPLATE_FIELDS: [NumericTemplateKey, string, number, number][] = [
-  ['leftWidth', 'Left half-width (m)', 0.1, 50],
-  ['rightWidth', 'Right half-width (m)', 0.1, 50],
-  ['crossfallPercent', 'Crown crossfall (%)', 0, 20],
-  ['cutSlope', 'Cut batter (H:V)', 0.1, 10],
-  ['fillSlope', 'Fill batter (H:V)', 0.1, 10],
-  ['ditchWidth', 'Ditch width (m)', 0, 10],
-  ['ditchDepth', 'Ditch depth (m)', 0, 5],
-  ['surfaceDepth', 'Surfacing depth (m)', 0, 2],
-]
 
 export function SectionTab(
   p: SidebarProps & { onTab: (tab: SidebarTab) => void; onOpenTemplate?: (templateId: string) => void },
@@ -71,22 +59,8 @@ export function SectionTab(
         help="Formation geometry is a crown, a cut-side ditch and batters that run out to meet the ground. Flatter batters (a larger H:V) reach further, so a high fill or deep cut needs more section reach. The surfacing layer is a separate quantity. Batters and costs are editable planning assumptions."
       >
         <div className="grid grid-cols-2 items-end gap-x-2 gap-y-1.5">
-          {TEMPLATE_FIELDS.map(([key, label, min, max]) => (
-            <NumberField
-              key={key}
-              label={label}
-              value={alignment.template[key] ?? 0}
-              // A ditch cannot be narrower than a flat bottom entered under Template components.
-              min={ditchWidthRange(alignment.template, key)?.min ?? min}
-              max={max}
-              hint={
-                key === 'ditchWidth' && (ditchWidthRange(alignment.template, key)?.min ?? 0) > 0
-                  ? 'No narrower than the ditch bottom width set under Template components. Reduce the bottom width first.'
-                  : undefined
-              }
-              error={inputMessage(problem, 'template', undefined, key)}
-              onChange={(value) => updateAlignment((a) => ({ ...a, template: { ...a.template, [key]: value } }))}
-            />
+          {TEMPLATE_FIELDS.map(([key]) => (
+            <TemplateField key={key} field={key} workspace={p.workspace} />
           ))}
         </div>
         {/* Side values are edited under Template components, which shows one component at a time. */}

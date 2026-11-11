@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
@@ -81,6 +82,7 @@ import type {
   RoadStation,
   TerrainSource,
 } from './types'
+import { snapToRoads, type DrawSnap, type SnapIndex } from './drawSnap'
 
 /** `sketch` takes one freehand stroke; `extend` pegs on from the active road's nearer end. */
 export type DrawMode =
@@ -97,7 +99,6 @@ export type DrawMode =
 /** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
 export const SKETCH_CAPTURE_PX = 1.5
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
-type FitRequest = { revision: number; target: 'roads' | 'active' | 'terrain' }
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   stream: 'Streams',
   'existing-road': 'Existing roads',
@@ -105,6 +106,7 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   avoid: 'Review areas',
 }
 interface PlanProps {
+  display: ReturnType<typeof usePlanDisplay>
   selectedRange?: RoadSelectionRange
   onMapReady?: (map: MapLibreMap | null) => void
   project: RoadProject
@@ -120,6 +122,13 @@ interface PlanProps {
   onMode?: (mode: DrawMode) => void
   draft: Coordinate[]
   onDraw: (coordinate: Coordinate) => void
+  /**
+   * Roads a pegged point snaps onto while drawing a road (`drawSnap.ts`). A click within
+   * `DRAW_SNAP_PX` of one lands exactly on its line, so the new road starts or ends on it.
+   */
+  snapLines?: SnapIndex
+  /** A pegged point landed on another road; `first` when it is the road's first point. */
+  onSnap?: (snap: DrawSnap, first: boolean) => void
   /** A finished freehand stroke in `sketch` mode, with the ground size of a screen pixel when it ended. */
   onSketch?: (stroke: Coordinate[], metresPerPixel: number) => void
   onMovePoint: (id: string, coordinate: Coordinate) => void
@@ -262,6 +271,8 @@ function Layers(
   const {
     mode,
     onDraw,
+    snapLines,
+    onSnap,
     onStation,
     onSelectAlignment,
     onHover,
@@ -276,6 +287,7 @@ function Layers(
     onPourPoint,
     planToolActive,
   } = props
+  const draftLength = props.draft.length
   const projectCables = useMemo(
     () => (investigation ? [] : props.project.cables),
     [investigation, props.project.cables],
@@ -1337,6 +1349,15 @@ function Layers(
 
   useEffect(() => {
     if (!map || !isLoaded) return
+    // Only road pegging snaps; streams, areas and profiles are drawn where they are clicked.
+    const snapAt = (e: MapMouseEvent) =>
+      snapLines && (mode === 'road' || mode === 'extend')
+        ? snapToRoads(
+            [e.lngLat.lng, e.lngLat.lat],
+            snapLines,
+            (40075016.7 * Math.cos((e.lngLat.lat * Math.PI) / 180)) / (512 * 2 ** map.getZoom()),
+          )
+        : null
     const click = (e: MapMouseEvent) => {
       // A note tool, or a click on a drawn note, belongs to the notes layer.
       if (noteTool || planToolActive) return
@@ -1348,7 +1369,9 @@ function Layers(
       }
       if (mode === 'sketch') return
       if (!['inspect', 'edit'].includes(mode)) {
-        onDraw([e.lngLat.lng, e.lngLat.lat])
+        const snap = snapAt(e)
+        onDraw(snap?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
+        if (snap) onSnap?.(snap, draftLength === 0)
         return
       }
       if ((e.originalEvent.target as Element)?.closest('.maplibregl-marker')) return
@@ -1423,7 +1446,7 @@ function Layers(
     }
     const move = (e: MapMouseEvent) => {
       if (pourPointPicking || noteTool || planToolActive) return
-      if (!['inspect', 'edit'].includes(mode)) onHover([e.lngLat.lng, e.lngLat.lat])
+      if (!['inspect', 'edit'].includes(mode)) onHover(snapAt(e)?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
       else {
         // Match click precedence: hovering a spoke above the road must not
         // move the landing station and invalidate the fan before its click.
@@ -1451,6 +1474,9 @@ function Layers(
     isLoaded,
     mode,
     onDraw,
+    snapLines,
+    onSnap,
+    draftLength,
     onStation,
     onSelectAlignment,
     onHover,
@@ -1948,9 +1974,8 @@ export function PlanView(input: PlanProps) {
     props.project.sharedCrossingCosts,
   ])
   const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
-  const [showContours, setShowContours] = useState(true)
-  const [showLabels, setShowLabels] = useState(true)
-  const [showEarthwork, setShowEarthwork] = useState(true)
+  const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
+    props.display
   const [sheetSymbols, setSheetSymbols] = useState(false)
   const [editHelpVisible, setEditHelpVisible] = useState(() => {
     try {
@@ -1973,7 +1998,7 @@ export function PlanView(input: PlanProps) {
   // Reference features: imported points, lines and areas that only the plan draws.
   const reference = props.project.reference ?? NO_REFERENCE
   const [referenceVisible, setReferenceVisible] = useState(true)
-  const [notesOpen, setNotesOpen] = useState(false)
+  const { notesOpen, setNotesOpen } = props.display
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
   const [noteArrow, setNoteArrow] = useState(true)
@@ -1999,7 +2024,7 @@ export function PlanView(input: PlanProps) {
   }
   // A road drawing tool and a note tool never run together: picking one puts the other down.
   const roadDrawing = !['inspect', 'edit'].includes(props.mode)
-  if (roadDrawing && noteTool) setNoteTool(null)
+  if ((!notesOpen || roadDrawing) && noteTool) setNoteTool(null)
   const tools = usePlanTools({
     project: props.project,
     alignment: props.alignment,
@@ -2078,9 +2103,6 @@ export function PlanView(input: PlanProps) {
       props.onHighlightRoad?.(feature)
     } else props.onContextSelect?.(feature)
   }
-  const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
-  const fit = (target: FitRequest['target']) =>
-    setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsButton = useRef<HTMLButtonElement>(null)
@@ -2379,10 +2401,7 @@ export function PlanView(input: PlanProps) {
           aria-label="Map notes"
           aria-pressed={notesOpen}
           title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
-          onClick={() => {
-            if (notesOpen) setNoteTool(null)
-            setNotesOpen(!notesOpen)
-          }}
+          onClick={() => setNotesOpen(!notesOpen)}
         >
           <StickyNote className="size-4" />
         </Button>
@@ -2400,10 +2419,7 @@ export function PlanView(input: PlanProps) {
             onVisible={setNotesVisible}
             count={notes.length}
             disabled={!props.onNotesChange}
-            onClose={() => {
-              setNoteTool(null)
-              setNotesOpen(false)
-            }}
+            onClose={() => setNotesOpen(false)}
           />
         </div>
       )}

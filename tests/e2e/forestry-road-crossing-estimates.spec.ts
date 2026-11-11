@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
@@ -13,7 +14,7 @@ test('entered crossing items and a shared item persist with source evidence and 
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('tab', { name: 'Engineering', exact: true }).click()
   const panel = page.getByTestId('stream-crossings-panel')

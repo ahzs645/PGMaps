@@ -5,7 +5,6 @@ import { PanelDialog } from '@/components/ui/dialog-shell'
 import { roadFieldClass, RoadSelect } from './Controls'
 import {
   ROAD_LAYOUT_OPTIONS,
-  ROAD_PANE_SPLITS,
   ROAD_PANEL_OPTIONS,
   panelsEdited,
   roadPanelsKey,
@@ -74,10 +73,12 @@ export function LayoutPicker({
   hiddenPanels,
   onHiddenPanels,
   compact = false,
+  showButtonLabel = false,
 }: {
   selection: string
   hiddenPanels: RoadPaneId[]
   compact?: boolean
+  showButtonLabel?: boolean
   onHiddenPanels: (hidden: RoadPaneId[]) => void
   /** `saved` carries the list when a layout is selected in the same update that creates it. */
   onSelect: (selection: string, saved?: SavedLayout[]) => void
@@ -96,11 +97,11 @@ export function LayoutPicker({
     const layout: SavedLayout = { id: crypto.randomUUID(), name: label, base: current.base }
     // The new layout starts from the current pane sizes, then keeps its own.
     try {
-      for (const split of ROAD_PANE_SPLITS)
-        for (const suffix of ['', ':stacked']) {
-          const value = localStorage.getItem(roadPaneKey(current.storageId, split) + suffix)
-          if (value !== null) localStorage.setItem(roadPaneKey(`saved-${layout.id}`, split) + suffix, value)
-        }
+      const prefix = roadPaneKey(current.storageId, '')
+      for (const key of Object.keys(localStorage).filter((key) => key.startsWith(prefix))) {
+        const value = localStorage.getItem(key)
+        if (value !== null) localStorage.setItem(roadPaneKey(`saved-${layout.id}`, key.slice(prefix.length)), value)
+      }
       localStorage.setItem(roadPanelsKey(`saved-${layout.id}`), JSON.stringify(hiddenPanels))
     } catch {
       /* Sizes fall back to the defaults. */
@@ -115,9 +116,8 @@ export function LayoutPicker({
   const remove = (layout: SavedLayout) => {
     const next = saved.filter((s) => s.id !== layout.id)
     try {
-      for (const split of ROAD_PANE_SPLITS)
-        for (const suffix of ['', ':stacked'])
-          localStorage.removeItem(roadPaneKey(`saved-${layout.id}`, split) + suffix)
+      const prefix = roadPaneKey(`saved-${layout.id}`, '')
+      for (const key of Object.keys(localStorage).filter((key) => key.startsWith(prefix))) localStorage.removeItem(key)
       localStorage.removeItem(roadPanelsKey(`saved-${layout.id}`))
     } catch {
       /* Nothing to clean. */
@@ -146,14 +146,15 @@ export function LayoutPicker({
         />
       </span>
       <Button
-        size="icon"
+        size={showButtonLabel ? 'sm' : 'icon'}
         variant="outline"
-        className="size-8"
+        className={showButtonLabel ? 'gap-1' : 'size-8'}
         aria-label="Screen presets & panels"
         title="Screen presets & panels"
         onClick={() => setOpen(true)}
       >
         <LayoutDashboard className="size-4" />
+        {showButtonLabel && 'Panels'}
       </Button>
       <PanelDialog
         open={open}
@@ -162,7 +163,15 @@ export function LayoutPicker({
         size="md"
         title="Screen presets & panels"
         subtitle="A preset always opens as drawn. A saved layout keeps its own panels and pane sizes on this device."
-        contentProps={{ 'data-testid': 'road-layouts-dialog' }}
+        contentProps={{
+          'data-testid': 'road-layouts-dialog',
+          onKeyDown: (event) => {
+            if (event.key === 'Escape' && !event.defaultPrevented) {
+              event.stopPropagation()
+              setOpen(false)
+            }
+          },
+        }}
       >
         <div className="space-y-4 text-xs">
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">

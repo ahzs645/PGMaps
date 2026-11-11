@@ -8,6 +8,7 @@ import {
   withReportedArea,
 } from './curvedVolume'
 import { analyzeRoad, offsetCoordinate } from './engine'
+import { roadSummaryMetrics } from './roadSummaryMetrics'
 import { createEngineeringDesign } from './engineeringTypes'
 import type { Alignment, Coordinate, RoadSettings, TerrainSource } from './types'
 
@@ -173,6 +174,26 @@ describe('curvature-corrected road quantities', () => {
     expect(applied.fillVolumeM3).toBeCloseTo(reported.curvatureCorrection!.fillVolumeM3, 6)
     expect(c.averageEndCutVolumeM3).toBeCloseTo(reported.cutVolumeM3, 6)
     expect(c.averageEndFillVolumeM3).toBeCloseTo(reported.fillVolumeM3, 6)
+    // The road summary's earthworks label says so too, in either wording, and never when not applied.
+    const label = (analysis: typeof applied, curveNote?: 'full' | 'short') =>
+      roadSummaryMetrics({
+        analysis,
+        alignment: curved,
+        settings,
+        groundOnly: false,
+        preview: null,
+        record: undefined,
+        recordCurrent: false,
+        unpriced: 0,
+        incomplete: [],
+        costOpen: false,
+        onCost: () => {},
+        onIncomplete: () => {},
+        curveNote,
+      }).find((metric) => metric.key === 'earthworks')!.label
+    expect(label(applied)).toMatch(/· curve-corrected$/)
+    expect(label(applied, 'short')).toMatch(/· curve$/)
+    expect(label(reported)).not.toMatch(/curve/)
     expect(applied.balanceM3).toBeCloseTo(applied.cutVolumeM3 * 0.8 - applied.fillVolumeM3, 6)
     expect(applied.stations[applied.stations.length - 1].massM3).toBeCloseTo(applied.balanceM3, 6)
     expect(applied.estimatedCost).toBeCloseTo(

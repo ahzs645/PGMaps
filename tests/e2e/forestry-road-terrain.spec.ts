@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator } from '@playwright/test'
 import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
@@ -125,7 +126,7 @@ test('source gaps remain visible across station selection, charts and the terrai
     sha256: raster.sha256,
     raster,
   }
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   const chooser = page.waitForEvent('filechooser')
   await page.getByRole('button', { name: 'Open', exact: true }).click()

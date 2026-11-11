@@ -1,3 +1,4 @@
+import { openWorkbench, selectWorkbench } from './road-workbench'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
@@ -189,7 +190,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
     if (fixture.sha256) expect(imported.metadata.sha256).toBe(fixture.sha256)
     const bounds = terrainBounds(imported.metadata)!
     await dismissExampleNoticeWhenShown(page)
-    await page.goto('/dev/forestry/road-design')
+    await openWorkbench(page, '/dev/forestry/road-design')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     const startupError = page.getByTestId('workspace-toast-error')
     if (await startupError.isVisible()) {
@@ -409,18 +410,21 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       await page.screenshot({ path: info.outputPath(`06-terrain-${viewport.width}x${viewport.height}.png`) })
     }
     await page.setViewportSize({ width: 390, height: 844 })
+    await page.getByRole('button', { name: 'Show road summary', exact: true }).tap()
     await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).tap()
     await expect(page.getByRole('dialog').filter({ hasText: 'Covered estimate' })).toBeVisible()
     await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
     await tabs.getByRole('tab', { name: 'Plan', exact: true }).tap()
     await page.screenshot({ path: info.outputPath('07-mobile-complete.png') })
 
-    await expect
-      .poll(() => savedActiveRoadId(page))
-      .toBe(optimized.activeAlignmentId)
+    await expect.poll(() => savedActiveRoadId(page)).toBe(optimized.activeAlignmentId)
     await page.reload()
+    await selectWorkbench(page)
     await controls(page, 'Design')
-    await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
+    await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute(
+      'data-value',
+      optimized.activeAlignmentId,
+    )
     expect(await save(page)).toEqual(optimized)
 
     const fresh = await browser.newContext({
@@ -437,13 +441,16 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
           ? r.fulfill({ json: { version: 8, sources: {}, layers: [] } })
           : r.abort(),
       )
-      await reopened.goto(new URL('/dev/forestry/road-design?example=training', page.url()).href)
+      await openWorkbench(reopened, new URL('/dev/forestry/road-design?example=training', page.url()).href)
       await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled()
       const choose = reopened.waitForEvent('filechooser')
       await reopened.getByRole('button', { name: 'Open', exact: true }).tap()
       await (await choose).setFiles(info.outputPath('05-optimized.road.json'))
       await controls(reopened, 'Design')
-      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
+      await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute(
+        'data-value',
+        optimized.activeAlignmentId,
+      )
       expect(await save(reopened)).toEqual(optimized)
       await fits(reopened)
     } finally {

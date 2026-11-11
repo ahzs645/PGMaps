@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
 import { alignmentLength, positionAt } from '../../src/pages/dev-forestry-roads/engine'
@@ -13,7 +14,7 @@ async function prepare(page: Page, url = '/dev/forestry/road-design?example=trai
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto(url)
+  await openWorkbench(page, url)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -145,12 +146,12 @@ for (const size of [
         await expect(fresh.getByRole('article', { name: 'Comparison Preserved basin', exact: true })).toContainText(
           'Preserve depressions',
         )
-        await expect(
-          fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true }),
-        ).toHaveText('Lowest elevation')
-        await expect(
-          fresh.getByRole('combobox', { name: 'Depression treatment', exact: true }),
-        ).toHaveText('Preserve depressions')
+        await expect(fresh.getByRole('combobox', { name: 'Outlet snap policy', exact: true })).toHaveText(
+          'Lowest elevation',
+        )
+        await expect(fresh.getByRole('combobox', { name: 'Depression treatment', exact: true })).toHaveText(
+          'Preserve depressions',
+        )
         const again = JSON.parse((await download(fresh, 'Export comparison evidence')).toString()) as ReturnType<
           typeof drainageComparisonsExport
         >

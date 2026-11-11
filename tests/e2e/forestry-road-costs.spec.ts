@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose, optionLabels } from './road-select'
@@ -11,7 +12,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   const tabs = page.getByRole('tablist', { name: 'Visible road pane', exact: true })
   if (await tabs.isVisible()) await tabs.getByRole('tab', { name: 'Profile', exact: true }).click()
@@ -128,17 +129,19 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   const coveredTotal = await page.getByTestId('road-cost-total').innerText()
   await page.getByTestId('road-bc-cost-toggle').click()
   const region = page.getByRole('combobox', { name: 'BC natural resource region', exact: true })
-  await expect.poll(() => optionLabels(region)).toEqual([
-    'Choose a region',
-    'Cariboo',
-    'Kootenay-Boundary',
-    'Northeast',
-    'Omineca',
-    'Skeena',
-    'Thompson-Okanagan',
-    'South Coast',
-    'West Coast',
-  ])
+  await expect
+    .poll(() => optionLabels(region))
+    .toEqual([
+      'Choose a region',
+      'Cariboo',
+      'Kootenay-Boundary',
+      'Northeast',
+      'Omineca',
+      'Skeena',
+      'Thompson-Okanagan',
+      'South Coast',
+      'West Coast',
+    ])
   await choose(region, { label: 'Cariboo' })
   const interiorDownload = page.getByRole('button', { name: 'Download Interior comparison JSON', exact: true })
   await expect(interiorDownload).toBeDisabled()

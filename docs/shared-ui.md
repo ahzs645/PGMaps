@@ -341,6 +341,17 @@ track grows to the longest cell in any column.
   `engineeringPinnedColumnClass` keeps the identifying first column in view. The road design
   wraps this as `CellNumberField` (`dev-forestry-roads/Controls.tsx`); never put a labelled form
   field in a table cell, where every row repeats the column header above its input.
+- Configurable workspaces (`src/components/interfaces/`): define each command once in
+  `workspaceCommands.ts` (label, icon, `kind`, editor, investigation availability) and render it
+  only through `CommandButton`, whose `surface` (`ribbon`, `quick`, `header`, `sidebar`) and
+  `presentation` (caption breakpoint, short label, accessible name, emphasis) decide how it looks.
+  Layouts in `public/workspace-layouts.json` arrange command and widget IDs; `WorkspaceTools`
+  renders a top ribbon or a side guide and `WorkspaceHeader` a header line from the same IDs, so a
+  new arrangement (a dashboard, a compact bar) is a layout entry, not new components. The page
+  supplies one handler, one `CommandState` and one widget node per ID. Parse the layout file with
+  `workspaceLayoutSchema.ts` (pure, takes the ID vocabulary as an argument). `RibbonTaskPane` /
+  `RibbonPaneHost` give a task pane beside the drawing, and `PanelCorner` (`panel-corner.tsx`) the
+  dotted resize grip the panels share. `/dev/forestry/road-design` is the reference.
 
 ## Mobile sheets
 
@@ -528,6 +539,9 @@ the mouse layout. The shared controls above already do.
   `MONTH_SHORT_NAMES`. Pass `DEFAULT_LOCALE` to any direct `toLocaleString`.
 - `color.ts`: `hexToRgba`, `readableTextColor`, `colorForKey`.
 - `download.ts`: `downloadBlob`, `downloadText`.
+- `jsonGuards.ts`: `object`, `strictObject`, `text`, `bool`, `int`, `oneOf`, `list`,
+  `optional`, `distinct` for parsing served configuration or browser storage by hand. Each throws
+  an Error naming the field; there is no schema library in the browser bundle.
 
 ## Shared application behavior
 

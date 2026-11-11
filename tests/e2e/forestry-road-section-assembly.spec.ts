@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { openRoadPanel } from './road-sidebar'
 import { choose, optionLabels } from './road-select'
@@ -29,7 +30,7 @@ for (const device of [
       await page.route('https://basemaps.cartocdn.com/**', (route) =>
         route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
       )
-      await page.goto('/dev/forestry/road-design?example=training')
+      await openWorkbench(page, '/dev/forestry/road-design?example=training')
       await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
       await showControls(page)
       const workflow = page.getByRole('tablist', { name: 'Road workflow', exact: true })
@@ -62,7 +63,10 @@ for (const device of [
       await stripping.getByRole('button', { name: 'Add stripping range', exact: true }).click()
       await stripping.getByLabel('Stripping 1 Removal depth (m)', { exact: true }).fill('.3')
       await stripping.getByLabel('Stripping 1 Removal depth (m)', { exact: true }).press('Tab')
-      await expect(stripping.getByRole('combobox', { name: 'Stripping 1 material', exact: true })).not.toHaveAttribute('data-value', '')
+      await expect(stripping.getByRole('combobox', { name: 'Stripping 1 material', exact: true })).not.toHaveAttribute(
+        'data-value',
+        '',
+      )
       await page.screenshot({ path: info.outputPath(`${device.name}-site-preparation.png`) })
       const overflowing = await page.evaluate(() => ({
         document: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,

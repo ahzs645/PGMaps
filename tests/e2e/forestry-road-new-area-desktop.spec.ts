@@ -1,3 +1,4 @@
+import { openWorkbench, selectWorkbench } from './road-workbench'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
@@ -104,7 +105,7 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
   const guide = metadata.guide as Coordinate[]
   const active = (project: RoadProject) => project.alignments.find((a) => a.id === project.activeAlignmentId)!
   await routes(page)
-  await page.goto('/dev/forestry/road-design')
+  await openWorkbench(page, '/dev/forestry/road-design')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   // Where the published LiDAR example is reachable, it loads its 1 m DTM before Save is offered.
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled({ timeout: 90000 })
@@ -266,7 +267,11 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
 
   await expect.poll(() => savedActiveRoadId(page)).toBe(optimized.activeAlignmentId)
   await page.reload()
-  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
+  await selectWorkbench(page)
+  await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute(
+    'data-value',
+    optimized.activeAlignmentId,
+  )
   expect(await save(page)).toEqual(optimized)
 
   const fresh = await context.browser()!.newContext({ viewport: { width: 1512, height: 982 }, serviceWorkers: 'block' })
@@ -275,12 +280,15 @@ test('desktop user loads Kamloops DEM, locates its coverage and designs an edita
     reopened.on('pageerror', (error) => errors.push(error.message))
     await routes(reopened)
     await replaceSavedProjectWhenAsked(reopened)
-    await reopened.goto(new URL('/dev/forestry/road-design', page.url()).href)
+    await openWorkbench(reopened, new URL('/dev/forestry/road-design', page.url()).href)
     await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
     const choose = reopened.waitForEvent('filechooser')
     await reopened.getByRole('button', { name: 'Open', exact: true }).click()
     await (await choose).setFiles(info.outputPath('optimized.road.json'))
-    await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', optimized.activeAlignmentId)
+    await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute(
+      'data-value',
+      optimized.activeAlignmentId,
+    )
     expect(await save(reopened)).toEqual(optimized)
     await expect(reopened.getByTestId('road-profile-chart')).toBeVisible()
     await expect(reopened.getByTestId('road-section-chart')).toBeVisible()

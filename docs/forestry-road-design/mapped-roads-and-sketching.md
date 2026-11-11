@@ -100,6 +100,24 @@ that road. Any other stroke is a new road. **Extend** pegs on from the active ro
 one click at a time. The old end becomes a corner and takes the minimum radius; existing curves
 keep theirs.
 
+## Pegging a road onto another road
+
+**Peg road** adds a point per click; **Enter**, a double-click or **Finish road** adds the road in one
+edit, and one Undo removes it. While pegging or extending, a click within `DRAW_SNAP_PX` screen
+pixels of another road lands exactly on it (`drawSnap.ts`), and the drawn line follows the cursor
+onto it before the click:
+
+- Near a road's **end**, the peg takes that end, so the new road joins it end to end. An end in
+  reach wins over a nearer point partway along.
+- Near the **middle** of a road, the peg lands on its centreline, as drawn with its curves, and the
+  header says the new road branches from it. The road it branches from is not changed.
+- Design roads and existing roads on the map both snap; the road being extended does not.
+
+A peg on another road's line is what joins the two: the network planner attaches a road to the
+line it touches by projecting onto that line's segments (see
+[Connected network](connected-network.md)). Streams, areas, terrain profiles and D-lines are drawn
+where they are clicked.
+
 A road with a vertical profile, widenings, engineering inputs or crossing records can be extended
 only from its end. Adding at the start would move every station those inputs are measured from.
 
@@ -117,6 +135,7 @@ A sketched road is a planning sketch. Its grades and quantities mean as much as 
 | Terrain coarser than 5 m is flagged as smoothing grades                                     | `COARSE_TERRAIN_M`, `mappedRoad.ts`                               |
 | Sketch strokes are thinned at the larger of 4 screen pixels and 2 m                         | `SKETCH_TOLERANCE_PX`, `SKETCH_MIN_TOLERANCE_M`, `sketchRoad.ts`  |
 | A stroke within 14 screen pixels of a road end continues that road                          | `EXTEND_SNAP_PX`, `sketchRoad.ts`                                 |
+| A pegged point within 12 screen pixels of another road lands on it                          | `DRAW_SNAP_PX`, `drawSnap.ts`                                     |
 | Stroke points closer than 1.5 screen pixels are not captured                                | `SKETCH_CAPTURE_PX`, `PlanView.tsx`                               |
 | At most 20 roads and 2,000 horizontal points per project, mapped roads included             | `MAX_PROJECT_ROADS`, `MAX_PROJECT_POINTS`, `DevForestryRoads.tsx` |
 | Loading roads together gives each at most a fair share of the points left, smallest first   | `loadMappedRoads`, `mappedRoad.ts`                                |

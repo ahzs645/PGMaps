@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { writeArrayBuffer } from 'geotiff'
 import proj4 from 'proj4'
@@ -69,7 +70,7 @@ test('phone terrain preparation, independent imagery and survey evidence survive
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
   if (await show.isVisible()) await show.click()

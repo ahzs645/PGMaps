@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './road-select'
@@ -11,7 +12,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -144,7 +145,10 @@ for (const viewport of [
     await dialog
       .getByLabel('Network scenario file', { exact: true })
       .setInputFiles({ name: 'network-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(bundle.text) })
-    await expect(dialog.getByRole('combobox', { name: 'Network example', exact: true })).toHaveAttribute('data-value', 'imported')
+    await expect(dialog.getByRole('combobox', { name: 'Network example', exact: true })).toHaveAttribute(
+      'data-value',
+      'imported',
+    )
     await calculate(dialog)
     const imported = JSON.parse(
       (await downloadText(page, dialog.getByRole('button', { name: 'Network scenario JSON', exact: true }))).text,
@@ -165,7 +169,8 @@ test('project network preview reaches the actual map and selected branch adoptio
   await page
     .getByRole('button', { name: 'Load Training · connected access, gravel and condition', exact: true })
     .click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', 
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute(
+    'data-value',
     'training-full-cost-short-a',
   )
   const initial = await saveProject(page)
@@ -198,7 +203,8 @@ test('project network preview reaches the actual map and selected branch adoptio
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(saved)),
   })
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', 
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute(
+    'data-value',
     candidate.id,
   )
   const reopened = await saveProject(page)

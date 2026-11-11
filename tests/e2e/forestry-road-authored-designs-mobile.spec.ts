@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
@@ -80,7 +81,7 @@ for (const viewport of [
     await page.route('https://basemaps.cartocdn.com/**', (route) =>
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
     )
-    await page.goto('/dev/forestry/road-design?example=training')
+    await openWorkbench(page, '/dev/forestry/road-design?example=training')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     const initial = await save(page)
     const original = initial.alignments.find((a) => a.id === initial.activeAlignmentId)!
@@ -90,9 +91,9 @@ for (const viewport of [
     await editor.getByRole('button', { name: /Profiles on this road/ }).tap()
     await editor.getByLabel('New profile name', { exact: true }).fill('Mobile raised profile')
     await editor.getByRole('button', { name: 'Add profile', exact: true }).tap()
-    await expect(
-      editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true }),
-    ).toHaveText('Mobile raised profile')
+    await expect(editor.getByRole('combobox', { name: 'Active vertical alternative', exact: true })).toHaveText(
+      'Mobile raised profile',
+    )
     await chooseOption(
       page,
       editor.getByRole('combobox', { name: 'Vertical alternative engineering mode', exact: true }),
@@ -170,7 +171,11 @@ for (const viewport of [
     await reports.getByRole('spinbutton', { name: 'Report station interval (m)', exact: true }).fill('50')
     await reports.getByRole('spinbutton', { name: 'Report station interval (m)', exact: true }).press('Tab')
     await fits(page, '[data-testid="road-files-dialog"]')
-    await page.screenshot({ path: info.outputPath(`authored-report-${viewport.width}x${viewport.height}.png`), animations: 'disabled', timeout: 60000 })
+    await page.screenshot({
+      path: info.outputPath(`authored-report-${viewport.width}x${viewport.height}.png`),
+      animations: 'disabled',
+      timeout: 60000,
+    })
     const book = await download(page, dialog.getByRole('button', { name: 'Download Plot book', exact: true }))
     expect(book.text).toContain('@page{size:A4 landscape')
     expect(book.text).toContain('Mobile station schedule')

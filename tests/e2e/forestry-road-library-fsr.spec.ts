@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose, optionEntries, optionLabels } from './road-select'
@@ -73,7 +74,7 @@ test('the connected-access library scenario previews and generates a chosen FSR 
     }
     return route.continue()
   })
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   await page.getByRole('button', { name: /Browse \d+ example scenarios/ }).click()

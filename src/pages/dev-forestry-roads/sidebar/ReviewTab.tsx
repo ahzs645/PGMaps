@@ -1,10 +1,12 @@
-import { useMemo, useRef, useState, type ReactNode } from 'react'
+import type { RoadSettings } from '../types'
+import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
 import type { SidebarProps, SidebarTab } from '../DesignSidebarBody'
-import type { RoadSettings } from '../types'
+import { RATES, SAMPLING } from '../roadFieldDefinitions'
+import { ProjectSettingField } from '../SharedRoadFields'
 import { surfacingSupplyCost } from '../gravel'
 import { crossingRegisterSummary } from '../crossingRegister'
 import { gradeRule, gradeRuleText } from '../designStandards'
@@ -21,36 +23,12 @@ import { CrossingRegisterList, ReadinessList } from '../ReadinessPanel'
 import { projectReadiness, type ReadinessRow } from '../readiness'
 import { HaulPanel } from '../HaulPanel'
 
-type NumericSetting = Exclude<keyof RoadSettings, 'curvatureCorrection'>
 /** The settings with the curvature correction applied, or back to report only (the field left out). */
 const withCurvatureCorrection = (settings: RoadSettings, apply: boolean): RoadSettings => {
   const next = { ...settings }
   delete next.curvatureCorrection
   return apply ? { ...next, curvatureCorrection: 'apply' } : next
 }
-const SAMPLING: [NumericSetting, string, number, number, ReactNode][] = [
-  [
-    'stationInterval',
-    'Station spacing (m)',
-    2,
-    100,
-    'Distance between sampled sections. Curve and event stations are added on top.',
-  ],
-  [
-    'crossSectionHalfWidth',
-    'Section reach each side (m)',
-    5,
-    100,
-    'How far out from the centreline each section looks for where the cut or fill batter meets the ground. A high fill or deep cut needs more; a station whose batter runs past it is drawn red on the plan and left out of quantities.',
-  ],
-]
-const RATES = [
-  ['cutRate', 'Cut ($/m³)'],
-  ['fillRate', 'Fill ($/m³)'],
-  ['surfacingRate', 'Surfacing ($/m³)'],
-  ['clearingRate', 'Clearing ($/m²)'],
-  ['shrinkFactor', 'Reusable cut factor'],
-] as const
 
 export function ReviewTab(
   p: SidebarProps & {
@@ -61,8 +39,6 @@ export function ReviewTab(
   const { project, alignment, analysis, update, updateAlignment, setStation } = p.workspace
   const aggregateSource = alignment.engineering?.surfacingSupply
   const aggregate = surfacingSupplyCost(analysis.surfaceVolumeM3, project.settings.surfacingRate, aggregateSource)
-  const setting = (key: NumericSetting, value: number) =>
-    update((x) => ({ ...x, settings: { ...x.settings, [key]: value } }))
   const settings = project.settings
   const { rows, register } = useMemo(
     () => projectReadiness(project, alignment, analysis, { drainageStale: !!p.drainageStale, vehicle: p.vehicleFit }),
@@ -203,17 +179,8 @@ export function ReviewTab(
         help="How closely the road is sampled and how far out each section looks. Grade and radius limits are under Design standards."
       >
         <div className="grid grid-cols-2 items-end gap-2">
-          {SAMPLING.map(([key, label, min, max, hint]) => (
-            <NumberField
-              key={key}
-              label={label}
-              hint={hint}
-              value={settings[key]}
-              min={min}
-              max={max}
-              step={1}
-              onChange={(value) => setting(key, value)}
-            />
+          {SAMPLING.map(([key]) => (
+            <ProjectSettingField key={key} field={key} workspace={p.workspace} />
           ))}
         </div>
       </RoadSection>
@@ -255,20 +222,8 @@ export function ReviewTab(
           </RoadSelect>
         </Field>
         <div className="grid grid-cols-2 gap-2">
-          {RATES.map(([key, label]) => (
-            <NumberField
-              key={key}
-              label={label}
-              hint={
-                key === 'surfacingRate'
-                  ? 'Base surfacing rate. An enabled aggregate source supplies its entered capacity at its delivered rate; only the remainder uses this base rate.'
-                  : undefined
-              }
-              value={project.settings[key]}
-              min={key === 'shrinkFactor' ? 0.1 : 0}
-              max={key === 'shrinkFactor' ? 2 : 10000}
-              onChange={(value) => setting(key, value)}
-            />
+          {RATES.map(([key]) => (
+            <ProjectSettingField key={key} field={key} workspace={p.workspace} />
           ))}
         </div>
         <p className="text-2xs text-muted-foreground" data-testid="road-review-aggregate-summary">

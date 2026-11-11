@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page, type Download } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
@@ -19,7 +20,10 @@ async function saved(page: Page): Promise<RoadProject> {
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await page.getByRole('button', { name: 'Save project JSON', exact: true }).click()
   const project = await jsonDownload(await next)
-  await page.getByRole('dialog', { name: 'Save & export', exact: true }).getByRole('button', { name: 'Close', exact: true }).click()
+  await page
+    .getByRole('dialog', { name: 'Save & export', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
   return project
 }
 async function openProject(page: Page, project: RoadProject) {
@@ -51,18 +55,31 @@ async function openProject(page: Page, project: RoadProject) {
 }
 async function prepare(page: Page) {
   const errors: string[] = []
-  page.on('pageerror', e => errors.push(e.message))
-  await page.route('https://basemaps.cartocdn.com/**', r => r.fulfill({ json: { version: 8, sources: {}, layers: [] } }))
-  await page.goto('/dev/forestry/road-design?example=training')
+  page.on('pageerror', (e) => errors.push(e.message))
+  await page.route('https://basemaps.cartocdn.com/**', (r) =>
+    r.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
-  const project = await saved(page), f = corridorFrame([-122.72, 53.89])
+  const project = await saved(page),
+    f = corridorFrame([-122.72, 53.89])
   const a = project.alignments[0]
   a.name = 'Optimizer browser guide'
-  a.points = [[0, 0], [110, 60], [230, 20]].map((p, i) => ({ id: 'test-peg-' + i, coordinate: f.fromXY([p[0], p[1]]), radiusM: 0 }))
-  a.vertical = []; a.overrides = []; delete a.engineering
-  project.alignments = [a]; project.activeAlignmentId = a.id
-  project.context = []; project.cables = []; project.profiles = []
-  project.settings.minRadius = 20; project.settings.maxGradePercent = 12
+  a.points = [
+    [0, 0],
+    [110, 60],
+    [230, 20],
+  ].map((p, i) => ({ id: 'test-peg-' + i, coordinate: f.fromXY([p[0], p[1]]), radiusM: 0 }))
+  a.vertical = []
+  a.overrides = []
+  delete a.engineering
+  project.alignments = [a]
+  project.activeAlignmentId = a.id
+  project.context = []
+  project.cables = []
+  project.profiles = []
+  project.settings.minRadius = 20
+  project.settings.maxGradePercent = 12
   await openProject(page, project)
   await expandRoadSection(page, 'road-route-tools')
   await page.getByLabel('Corridor half-width metres', { exact: true }).fill('100')
@@ -78,7 +95,7 @@ async function actualMap(page: Page) {
   return page.evaluate(() => {
     const container = document.querySelector('[data-testid="road-plan-view"] .maplibregl-map')
     if (!container) return null
-    const key = Object.keys(container).find(k => k.startsWith('__reactFiber$'))
+    const key = Object.keys(container).find((k) => k.startsWith('__reactFiber$'))
     if (!key) return null
     type Map = import('maplibre-gl').Map
     type Hook = { memoizedState?: { current?: Map } | Map; next?: Hook }
@@ -87,17 +104,30 @@ async function actualMap(page: Page) {
     for (let depth = 0; fiber && depth < 200; depth++, fiber = fiber.return!) {
       for (let h = fiber.memoizedState, n = 0; h && n < 40; h = h.next, n++) {
         const value = h.memoizedState
-        const map = value && typeof value === 'object' && 'current' in value ? value.current : value as Map | undefined
+        const map =
+          value && typeof value === 'object' && 'current' in value ? value.current : (value as Map | undefined)
         if (typeof map?.getTerrain !== 'function') continue
         const source = map.getSource('road-section')
         const roads = map.getSource('road-roads')
-        const selected = roads?.type === 'geojson'
-          ? (roads.serialize().data as GeoJSON.FeatureCollection<GeoJSON.LineString>).features.filter(f => f.properties?.selected)
-          : []
+        const selected =
+          roads?.type === 'geojson'
+            ? (roads.serialize().data as GeoJSON.FeatureCollection<GeoJSON.LineString>).features.filter(
+                (f) => f.properties?.selected,
+              )
+            : []
         return {
-          selected: selected.map(f => ({ id: String(f.properties?.id), chainage: Number(f.properties?.chainage), coordinates: f.geometry.coordinates })),
-          roads: map.getLayer('road-alignments') ? map.queryRenderedFeatures({ layers: ['road-alignments'] }).length : 0,
-          section: source?.type === 'geojson' ? (source.serialize().data as GeoJSON.FeatureCollection).features[0]?.geometry : null,
+          selected: selected.map((f) => ({
+            id: String(f.properties?.id),
+            chainage: Number(f.properties?.chainage),
+            coordinates: f.geometry.coordinates,
+          })),
+          roads: map.getLayer('road-alignments')
+            ? map.queryRenderedFeatures({ layers: ['road-alignments'] }).length
+            : 0,
+          section:
+            source?.type === 'geojson'
+              ? (source.serialize().data as GeoJSON.FeatureCollection).features[0]?.geometry
+              : null,
         }
       }
     }
@@ -105,7 +135,9 @@ async function actualMap(page: Page) {
   })
 }
 
-test('corridor review, adoption, linked station, report, undo and reopen retain real geometry', async ({ page }, info) => {
+test('corridor review, adoption, linked station, report, undo and reopen retain real geometry', async ({
+  page,
+}, info) => {
   const { errors, project } = await prepare(page)
   const review = await optimize(page)
   const reportDownload = page.waitForEvent('download')
@@ -124,15 +156,18 @@ test('corridor review, adoption, linked station, report, undo and reopen retain 
   expect(adopted.alignments[1].points).toEqual(report.candidate.points)
   expect(adopted.activeAlignmentId).toBe(report.candidate.id)
   const station = page.getByRole('spinbutton', { name: 'Selected station metres', exact: true })
-  await station.fill('60'); await station.press('Tab')
+  await station.fill('60')
+  await station.press('Tab')
   await expect(page.getByTestId('road-profile-chart')).toHaveAttribute('data-station', '60')
   await expect(page.getByTestId('road-active-map-station')).toHaveAttribute('data-chainage', '60')
   await expect(page.getByTestId('road-section-chart')).toHaveAttribute('data-station', '60')
   await expect.poll(async () => (await actualMap(page))?.roads ?? 0).toBeGreaterThan(0)
   expect((await actualMap(page))?.section).toBeTruthy()
   // The NEW candidate, not merely some road, must be the selected rendered source.
-  await expect.poll(async () => [...new Set((await actualMap(page))?.selected.map(f => f.id) ?? [])]).toEqual([adopted.activeAlignmentId])
-  const rendered = (await actualMap(page))!.selected.find(f => Math.abs(f.chainage - 60) < 0.001)
+  await expect
+    .poll(async () => [...new Set((await actualMap(page))?.selected.map((f) => f.id) ?? [])])
+    .toEqual([adopted.activeAlignmentId])
+  const rendered = (await actualMap(page))!.selected.find((f) => Math.abs(f.chainage - 60) < 0.001)
   expect(rendered).toBeTruthy()
   const last = rendered!.coordinates[rendered!.coordinates.length - 1]
   const expected = positionAt(adopted.alignments[1], 60).coordinate
@@ -157,8 +192,29 @@ test('discard and cancellation never change the saved road', async ({ page }) =>
   // Cancel. Use a larger, genuinely expensive blocked search, not a fake delay.
   const cancellationProject = structuredClone(project)
   const frame = corridorFrame([-122.72, 53.89])
-  cancellationProject.alignments[0].points = [[0, 0], [1000, 500]].map((p, i) => ({ id: 'cancel-peg-' + i, coordinate: frame.fromXY([p[0], p[1]]), radiusM: 0 }))
-  cancellationProject.context = [{ id: 'cancel-barrier', name: 'Cancellation test exclusion', kind: 'avoid', geometry: { type: 'Polygon', coordinates: [[frame.fromXY([450, -500]), frame.fromXY([550, -500]), frame.fromXY([550, 1000]), frame.fromXY([450, 1000]), frame.fromXY([450, -500])]] } }]
+  cancellationProject.alignments[0].points = [
+    [0, 0],
+    [1000, 500],
+  ].map((p, i) => ({ id: 'cancel-peg-' + i, coordinate: frame.fromXY([p[0], p[1]]), radiusM: 0 }))
+  cancellationProject.context = [
+    {
+      id: 'cancel-barrier',
+      name: 'Cancellation test exclusion',
+      kind: 'avoid',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            frame.fromXY([450, -500]),
+            frame.fromXY([550, -500]),
+            frame.fromXY([550, 1000]),
+            frame.fromXY([450, 1000]),
+            frame.fromXY([450, -500]),
+          ],
+        ],
+      },
+    },
+  ]
   await openProject(page, cancellationProject)
   const beforeCancellation = await saved(page)
   await expandRoadSection(page, 'road-route-tools')

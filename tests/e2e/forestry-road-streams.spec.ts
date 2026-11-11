@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './road-select'
@@ -8,7 +9,7 @@ async function open(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('tab', { name: 'Terrain', exact: true }).click()
 }

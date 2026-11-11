@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engineeringTypes'
 import { createTrainingScenario } from '../../src/pages/dev-forestry-roads/scenarios'
@@ -23,7 +24,7 @@ async function prepare(page: Page, url = '/dev/forestry/road-design?example=trai
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto(url)
+  await openWorkbench(page, url)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -136,9 +137,10 @@ for (const size of [
       await showMaterialConverter(page)
       const reuse = page.getByRole('spinbutton', { name: `${materialName} reusable fraction`, exact: true })
       await expect(reuse).toHaveValue(String(reusableFraction))
-      await choose(page
-        .getByRole('combobox', { name: `${materialName} factor convention`, exact: true })
-        , 'bank-per-compacted')
+      await choose(
+        page.getByRole('combobox', { name: `${materialName} factor convention`, exact: true }),
+        'bank-per-compacted',
+      )
       await page.getByLabel(`${materialName} entered volume factor`, { exact: true }).fill('1.1')
       await page.getByLabel(`${materialName} factor source (optional)`, { exact: true }).fill(source)
       await expect(page.getByLabel(`${materialName} canonical factor preview`, { exact: true })).toContainText(

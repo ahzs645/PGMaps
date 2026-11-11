@@ -1,0 +1,263 @@
+[
+  {
+    "id": "ribbon",
+    "name": "Ribbon",
+    "description": "Find project files, terrain tools and road commands in a familiar tabbed ribbon.",
+    "icon": "ribbon",
+    "preview": "ribbon.webp",
+    "preset": "split",
+    "sidebar": "collapsed",
+    "summary": { "visible": true, "placement": "left" },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "toolbar": {
+      "dock": "top",
+      "fullWidth": true,
+      "header": "controls",
+      "compact": true,
+      "editorPlacement": "pane",
+      "quickAccess": ["saveProject", "undo", "redo"],
+      "label": "Command ribbon",
+      "tabsLabel": "Ribbon tabs",
+      "startGroup": "File",
+      "groups": [
+        {
+          "label": "File",
+          "sections": [
+            {
+              "label": "Project files",
+              "primary": "newProject",
+              "rows": 2,
+              "items": ["newProject", "open", "saveProject", "projects"]
+            },
+            { "label": "Current project", "items": ["projectInfo"] },
+            { "label": "Drawing packages", "rows": 2, "items": ["plotbook", "reportPdf"] },
+            { "label": "Data exchange", "primary": "export", "rows": 2, "items": ["export", "stakeout", "exportGis"] }
+          ]
+        },
+        {
+          "label": "Terrain",
+          "editor": "terrain",
+          "sections": [
+            {
+              "label": "Ground source",
+              "primary": "import",
+              "rows": 2,
+              "items": ["import", "terrainSource"],
+              "more": ["lidar", "regional"]
+            },
+            {
+              "label": "Import settings",
+              "rows": 2,
+              "items": ["importDatum", "cloudSurface"],
+              "more": ["cloudClass", "preserveCorridorM", "retainTin"]
+            },
+            {
+              "label": "Field mapping",
+              "primary": "drawBlock",
+              "rows": 2,
+              "items": ["drawBlock", "drawStream", "importReference"],
+              "more": ["drawAvoid", "drawProfile"]
+            }
+          ]
+        },
+        {
+          "label": "Road",
+          "editor": "design",
+          "sections": [
+            { "label": "Active road", "rows": 2, "items": ["roadSelector", "roadName"] },
+            {
+              "label": "Design criteria",
+              "rows": 2,
+              "items": ["maxGradePercent", "minRadius"],
+              "more": ["shortPitchGradePercent", "shortPitchMaxLengthM"]
+            },
+            {
+              "label": "Create alignment",
+              "primary": "peg",
+              "rows": 2,
+              "items": ["peg", "sketch", "duplicateRoad", "startDesign", "loadMapped"],
+              "more": ["importAlignment", "traceRoad"]
+            },
+            {
+              "label": "Edit alignment",
+              "rows": 2,
+              "items": ["editPoints", "extend", "undo", "redo"],
+              "more": ["inspect"]
+            }
+          ]
+        },
+        {
+          "label": "Section",
+          "editor": "template",
+          "sections": [
+            {
+              "label": "Formation",
+              "rows": 2,
+              "items": ["leftWidth", "rightWidth"],
+              "more": ["crossfallPercent", "surfaceDepth"]
+            },
+            { "label": "Roadside geometry", "rows": 2, "items": ["cutSlope", "fillSlope", "ditchWidth", "ditchDepth"] },
+            {
+              "label": "Curve widening",
+              "items": ["curveDesignSpeedKmh"],
+              "more": ["maxSuperelevationPercent", "runoffLengthM"]
+            },
+            {
+              "label": "Station sections",
+              "rows": 2,
+              "items": ["crossSection", "templates"],
+              "more": ["stationInterval", "crossSectionHalfWidth", "sectionCsv"]
+            }
+          ]
+        },
+        {
+          "label": "Engineering",
+          "editor": "engineering",
+          "sections": [
+            {
+              "label": "Earthworks",
+              "primary": "quantities",
+              "rows": 2,
+              "items": ["quantities", "materials", "massHaul"],
+              "more": ["shrinkFactor"]
+            },
+            {
+              "label": "Drainage",
+              "primary": "drainage",
+              "rows": 2,
+              "items": ["drainage", "rainfallMmPerHr", "runoffCoefficient", "culverts"],
+              "more": ["manningN", "streamThresholdHa", "bufferM"]
+            },
+            { "label": "Forest access", "primary": "network", "rows": 2, "items": ["network", "landing", "cable"] },
+            {
+              "label": "Cost estimate",
+              "primary": "fullCosts",
+              "rows": 2,
+              "items": ["fullCosts", "cutRate", "fillRate"],
+              "more": ["surfacingRate", "clearingRate"]
+            }
+          ]
+        },
+        {
+          "label": "Review",
+          "editor": "review",
+          "sections": [
+            {
+              "label": "Haul criteria",
+              "rows": 2,
+              "items": ["designVehicle", "loadedDirection", "adverseGradePercent"],
+              "more": ["designSpeedKmh"]
+            },
+            {
+              "label": "Site standards",
+              "rows": 2,
+              "items": ["maxClearingWidthM", "maxCrossDrainSpacingM"],
+              "more": ["runningSurfaceWidthM"]
+            },
+            { "label": "Design checks", "primary": "review", "rows": 2, "items": ["review", "sweptPath", "compare"] },
+            { "label": "Stations & notes", "primary": "stations", "rows": 2, "items": ["stations", "fieldNotes"] }
+          ]
+        },
+        {
+          "label": "View",
+          "sections": [
+            { "label": "Map extent", "primary": "fitRoad", "rows": 2, "items": ["fitRoad", "fitAll", "fitTerrain"] },
+            { "label": "Map layers", "rows": 2, "items": ["contours", "stationLabels"], "more": ["earthworks"] },
+            {
+              "label": "Drawing views",
+              "primary": "plan",
+              "rows": 2,
+              "items": ["plan", "profile", "terrain3d"],
+              "more": ["crossSection"]
+            },
+            { "label": "Road summary", "rows": 2, "items": ["summary", "summarySettings"] },
+            {
+              "label": "Workspace",
+              "rows": 2,
+              "items": ["chooseInterface", "presets", "customizeRibbon", "fullscreen"],
+              "more": ["controls"]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "id": "guided",
+    "name": "Guided map",
+    "description": "Start with the terrain, lay out a road, then check its grades on the map.",
+    "icon": "compass",
+    "preview": "guided.webp",
+    "preset": "linked",
+    "view": "focused",
+    "summary": { "visible": true, "placement": "left" },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "toolbar": {
+      "dock": "side",
+      "title": "Road layout",
+      "label": "Road layout guide",
+      "tabsLabel": "Road layout steps",
+      "groups": [
+        {
+          "label": "Terrain",
+          "icon": "map",
+          "hint": "Choose the ground surface for your road.",
+          "commands": ["terrain", "import"]
+        },
+        {
+          "label": "Alignment",
+          "icon": "route",
+          "hint": "Sketch a new road or edit the selected alignment.",
+          "commands": ["sketch", "alignment"]
+        },
+        {
+          "label": "Checks",
+          "icon": "ruler",
+          "hint": "Inspect the road profile and review design limits.",
+          "commands": ["profile", "review"]
+        },
+        {
+          "label": "View",
+          "icon": "panels",
+          "hint": "Change how the workspace is laid out.",
+          "commands": ["chooseInterface", "summarySettings", "fullscreen"]
+        }
+      ]
+    }
+  },
+  {
+    "id": "workbench",
+    "name": "Engineering workbench",
+    "shortName": "Workbench",
+    "description": "Edit a station with its plan, profile and cross-section linked side by side.",
+    "icon": "panels",
+    "preview": "workbench.webp",
+    "preset": "linked",
+    "summary": { "visible": true, "placement": "left" },
+    "panelFrame": { "background": "white", "inset": 24, "gap": 14, "resizeCorners": true }
+  },
+  {
+    "id": "dashboard",
+    "name": "Dashboard",
+    "description": "Every road measurement across the top, with plan, profile, section and data panes below.",
+    "icon": "dashboard",
+    "preview": "dashboard.webp",
+    "preset": "engineering",
+    "sidebar": "collapsed",
+    "summary": {
+      "visible": true,
+      "placement": "top",
+      "metrics": {
+        "length": "detailed",
+        "elevation": "detailed",
+        "grade": "detailed",
+        "grade-range": "detailed",
+        "earthworks": "detailed",
+        "cost": "detailed",
+        "coverage": "detailed"
+      }
+    },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "headerTools": ["interfaceSwitch", "history", "summarySettings", "presets", "saveState", "controls", "undo", "redo", "projects", "export", "fullscreen"]
+  }
+]

@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
@@ -13,7 +14,7 @@ async function openTraining(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   if ((page.viewportSize()?.width ?? 1512) < 768)
     await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toHaveText('Road design')
   else await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()

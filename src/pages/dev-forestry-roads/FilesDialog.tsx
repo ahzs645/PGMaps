@@ -49,6 +49,7 @@ type PreviewResult =
  */
 export function FilesDialog({
   open,
+  initialOutput = 'project',
   onOpenChange,
   name,
   onName,
@@ -71,6 +72,7 @@ export function FilesDialog({
   blockSheetSettings,
 }: {
   open: boolean
+  initialOutput?: RoadExport
   onOpenChange: (open: boolean) => void
   name: string
   onName: (name: string) => void
@@ -99,16 +101,16 @@ export function FilesDialog({
   /** The block sheet's settings, so a saved sheet setup can be saved from and applied to it. */
   blockSheetSettings?: { value: BlockSheetSettings; onApply: (settings: BlockSheetSettings) => void }
 }) {
-  const [selected, setSelected] = useState<RoadExport>('project')
+  const [selected, setSelected] = useState<RoadExport>(initialOutput)
   const [view, setView] = useState<'preview' | 'setup' | 'issue'>('preview')
   // The part of the setup a click on the preview asked for: a plot-book chapter or a report section.
   const [setupFocus, setSetupFocus] = useState<{ chapter?: string; section?: ReportSectionId } | null>(null)
-  // Each opening starts on the project file, which the header's Save button is for.
+  // Open on the requested deliverable, including when the previous session used another file.
   const [wasOpen, setWasOpen] = useState(open)
   if (open !== wasOpen) {
     setWasOpen(open)
     if (open) {
-      setSelected('project')
+      setSelected(initialOutput)
       setView('preview')
     }
   }
