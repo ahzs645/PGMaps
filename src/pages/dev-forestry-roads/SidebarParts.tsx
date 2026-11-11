@@ -1,7 +1,7 @@
-import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolSection, type ToolSectionProps } from '@/components/ui/tool-section'
 import { formatRoadStation } from './Charts'
 import { isBeyondReachFlag } from './engine'
 import type { RoadWorkspace } from './useRoadWorkspace'
@@ -12,71 +12,13 @@ export const MAX_SECTION_REACH_M = 100
 /**
  * A sidebar section with its explanation behind an (i) in the heading, not printed under it.
  * `summary` folds it to one row that states the section's current values; content stays mounted.
+ * The shared `ToolSection`, with the road designer's `toggleTestId` hook.
  */
 export function RoadSection({
-  title,
-  help,
-  actions,
-  summary,
-  defaultOpen = false,
-  open,
-  onOpenChange,
   toggleTestId,
-  children,
   ...props
-}: {
-  title: string
-  help?: ReactNode
-  actions?: ReactNode
-  summary?: ReactNode
-  defaultOpen?: boolean
-  open?: boolean
-  onOpenChange?: (open: boolean) => void
-  toggleTestId?: string
-  children: ReactNode
-} & Record<`data-${string}`, string>) {
-  if (summary !== undefined)
-    return (
-      <div {...props}>
-        <CollapsibleSection
-          label={title}
-          summary={summary}
-          summaryWhenCollapsedOnly
-          defaultOpen={defaultOpen}
-          open={open}
-          onOpenChange={onOpenChange}
-          contentClassName="space-y-2 px-3 pb-3"
-          toggleProps={toggleTestId ? { 'data-testid': toggleTestId } : undefined}
-          actions={
-            (help || actions) && (
-              <>
-                {actions}
-                {help && <InfoTip label={`About ${title.toLowerCase()}`}>{help}</InfoTip>}
-              </>
-            )
-          }
-        >
-          {children}
-        </CollapsibleSection>
-      </div>
-    )
-  return (
-    <SidebarSection
-      title={title}
-      className="px-3 py-3"
-      actions={
-        (help || actions) && (
-          <>
-            {actions}
-            {help && <InfoTip label={`About ${title.toLowerCase()}`}>{help}</InfoTip>}
-          </>
-        )
-      }
-      {...props}
-    >
-      {children}
-    </SidebarSection>
-  )
+}: Omit<ToolSectionProps, 'toggleProps'> & { toggleTestId?: string }) {
+  return <ToolSection {...props} toggleProps={toggleTestId ? { 'data-testid': toggleTestId } : undefined} />
 }
 
 /**

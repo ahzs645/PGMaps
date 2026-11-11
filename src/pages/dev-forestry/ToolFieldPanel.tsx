@@ -11,8 +11,8 @@ import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { TextButton } from '@/components/ui/text-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
-import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
-import { Camera } from 'lucide-react'
+import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { ToolSection } from '@/components/ui/tool-section'
 import { InfoTip } from '@/components/ui/info-tip'
 import { createId } from './scene'
 import { importFieldImage } from './toolImports'
@@ -165,16 +165,11 @@ export function ToolFieldPanel({
           )
       : []
   return (
-    <SidebarSection
+    <ToolSection
       title="Field records"
-      icon={Camera}
-      headingLevel={3}
-      actions={
-        <InfoTip label="About field records">
-          Assessment viewpoints with their photographs and why each matters. They stay on this device and travel in the
-          workspace export.
-        </InfoTip>
-      }
+      summary={d.views.length ? `${d.views.length} viewpoint${d.views.length === 1 ? '' : 's'} recorded` : 'None yet'}
+      toggleProps={{ 'data-forestry-disclosure': 'field-records' }}
+      help="Assessment viewpoints with their photographs and why each matters. They stay on this device and travel in the workspace export."
     >
       <div className="space-y-2">
         <FormField label="Viewpoint name">
@@ -428,6 +423,6 @@ export function ToolFieldPanel({
           </div>
         </DialogShell>
       )}
-    </SidebarSection>
+    </ToolSection>
   )
 }

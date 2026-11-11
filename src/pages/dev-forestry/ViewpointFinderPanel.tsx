@@ -2,7 +2,8 @@ import { Loader2, MapPin, Radar } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow } from '@/components/ui/result-list'
 import { formatMeasure, formatPercentValue } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -60,8 +61,8 @@ export function ViewpointFinderPanel({
   const data = state.data
   const shown = candidates.slice(0, 10)
   return (
-    <CollapsibleSection
-      label="Viewpoints and rec sites"
+    <ToolSection
+      title="Viewpoints and rec sites"
       toggleProps={{ 'data-forestry-disclosure': 'inventory-viewpoints' }}
       // The section remounts after the road view; once loaded, it reopens on its list.
       defaultOpen={!!data}
@@ -70,8 +71,6 @@ export function ViewpointFinderPanel({
           ? `${data.viewpoints.length} viewpoints · ${data.arrows.length} arrows · ${data.recSites.length} rec sites`
           : 'BC Visual Landscape Inventory'
       }
-      summaryWhenCollapsedOnly
-      className="-mx-4 border-b-0 border-t border-border/60"
     >
       {standingName && (
         <InlineAlert className="mb-2" tone="info">
@@ -206,6 +205,6 @@ export function ViewpointFinderPanel({
           inventory left out.
         </p>
       )}
-    </CollapsibleSection>
+    </ToolSection>
   )
 }

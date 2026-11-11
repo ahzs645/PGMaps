@@ -48,11 +48,6 @@ export function FieldPhotoPanel({
   const { image, fov, onRoad, search } = photo
   return (
     <div className="space-y-3 text-xs" aria-label="Field photo">
-      <p className="text-2xs leading-4 text-muted-foreground">
-        Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. A street-level photo
-        from Mapillary can stand in for a first visit: line the road view up with it and see whether the terrain and
-        timber match.
-      </p>
       <form
         className="flex gap-2"
         onSubmit={(event) => {

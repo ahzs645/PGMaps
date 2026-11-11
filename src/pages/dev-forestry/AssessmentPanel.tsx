@@ -8,8 +8,10 @@ import {
 } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Eye } from 'lucide-react'
+import { ToolDisclosure } from '@/components/ui/tool-section'
+import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { TextButton } from '@/components/ui/text-button'
 import { cn } from '@/lib/utils'
@@ -107,7 +109,14 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
     return (
       <section className="space-y-3 text-xs" aria-label="Assessment landform">
         <label className="block">
-          Active landform
+          <span className="flex items-center gap-1">
+            Active landform
+            <InfoTip label="About the active landform">
+              An inventory sensitivity unit is only a candidate. A landform is what one viewpoint sees as a single
+              hillside, and a unit usually holds several; confirm the boundary from the assessment viewpoint. Other
+              landforms are not pooled into its denominator.
+            </InfoTip>
+          </span>
           <StyledSelect
             aria-label="Active assessment landform"
             className="mt-1 w-full rounded border bg-background p-2"
@@ -122,11 +131,6 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
             ))}
           </StyledSelect>
         </label>
-        <p className="text-muted-foreground">
-          An inventory sensitivity unit is only a candidate. A landform is what one viewpoint sees as a single hillside,
-          and a unit usually holds several; confirm the boundary from the assessment viewpoint. Other landforms are not
-          pooled into its denominator.
-        </p>
         {/* A cleared year restores the last one on blur rather than writing year 0. */}
         <NumberField
           label="Assessment year"
@@ -158,12 +162,12 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
             {resolveThreshold(landform.objectiveId, 'planimetric', scene.thresholds, landform.vac).note}
           </p>
         )}
-        <CollapsibleSection
+        <ToolDisclosure
           label="Existing-opening recovery overrides"
-          className="rounded-md border"
-          contentClassName="space-y-2 px-3 pb-3"
+          summary="Green-up age unless set"
+          toggleProps={{ 'data-forestry-disclosure': 'recovery-overrides' }}
         >
-          <p>
+          <p className="text-muted-foreground">
             Empty uses the stated green-up-age assumption. A percentage is a supplied recovery estimate, not an
             automatically observed value. An opening 70% greened up still counts 30% of its area (handbook 3.4.2).
           </p>
@@ -189,7 +193,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                 }
               />
             ))}
-        </CollapsibleSection>
+        </ToolDisclosure>
       </section>
     )
   // One export action, then what goes into it: the readiness of the run, the
@@ -197,7 +201,6 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
   // other viewpoints and the office fields are folded under it.
   return (
     <section className="space-y-3 text-xs" aria-label="Assessment integrity and PDF export">
-      <h3 className="text-sm font-semibold">FS1252 draft package</h3>
       {result && (
         <>
           <InlineAlert tone={result.quality?.numericalReady ? 'success' : 'warning'}>
@@ -225,217 +228,211 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
             Export filled FS1252 PDF
           </Button>
           {busy && <InlineAlert loading>Preparing PDF…</InlineAlert>}
-          <p className="text-muted-foreground">
-            The PDF takes the ocular class and ratings you recorded in step 4; field photographs, the final decision and
-            the signature are still the reviewer's to add.
-          </p>
-          <CollapsibleSection
-            label={`Choose viewpoints for the PDF (${selected.length})`}
-            toggleProps={{ 'data-forestry-disclosure': 'report-viewpoints' }}
-            className="rounded-md border"
-            contentClassName="space-y-2 px-3 pb-3"
-          >
-            <p>
-              FS1252 2008/04 — simulation draft. One form per selected station; original reference pages and a scenario
-              appendix follow. The form has five design rows; number, size and spacing stays on the step 4 record.
-            </p>
-            <div className="flex gap-2">
-              <StyledSelect
-                className="min-w-0 flex-1 rounded border bg-background p-1"
-                aria-label="Report viewpoint"
-                value={pick}
-                onChange={(e) => setPick(Number(e.target.value))}
-              >
-                {result.stations.map((s, i) => (
-                  <option value={i} key={i}>
-                    Station {i + 1} · {formatKm(s.distanceAlongMeters)}
-                    {result.assessmentStationIndex === i ? ' · highest estimated ratio' : ''}
-                  </option>
-                ))}
-              </StyledSelect>
+        </>
+      )}
+      {/* The folds stack as one list under the export, with no gaps between them. */}
+      <div>
+        {result && (
+          <>
+            <ToolDisclosure
+              label={`Choose viewpoints for the PDF (${selected.length})`}
+              toggleProps={{ 'data-forestry-disclosure': 'report-viewpoints' }}
+            >
+              <p>
+                FS1252 2008/04 — simulation draft. One form per selected station; original reference pages and a
+                scenario appendix follow. The form has five design rows; number, size and spacing stays on the step 4
+                record.
+              </p>
+              <div className="flex gap-2">
+                <StyledSelect
+                  className="min-w-0 flex-1 rounded border bg-background p-1"
+                  aria-label="Report viewpoint"
+                  value={pick}
+                  onChange={(e) => setPick(Number(e.target.value))}
+                >
+                  {result.stations.map((s, i) => (
+                    <option value={i} key={i}>
+                      Station {i + 1} · {formatKm(s.distanceAlongMeters)}
+                      {result.assessmentStationIndex === i ? ' · highest estimated ratio' : ''}
+                    </option>
+                  ))}
+                </StyledSelect>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="touch:h-10"
+                  onClick={() => setSelected((s) => (s.includes(pick) ? s : [...s, pick].sort((a, b) => a - b)))}
+                >
+                  Add
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 size="sm"
                 className="touch:h-10"
-                onClick={() => setSelected((s) => (s.includes(pick) ? s : [...s, pick].sort((a, b) => a - b)))}
+                onClick={() =>
+                  setSelected((s) => (s.includes(currentStation) ? s : [...s, currentStation].sort((a, b) => a - b)))
+                }
               >
-                Add
+                Add current road-view station
               </Button>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="touch:h-10"
-              onClick={() =>
-                setSelected((s) => (s.includes(currentStation) ? s : [...s, currentStation].sort((a, b) => a - b)))
-              }
-            >
-              Add current road-view station
-            </Button>
-            {selected.length > 0 && (
-              <ul className="divide-y overflow-hidden rounded-md border" aria-label="Viewpoints in the PDF">
-                {selected.map((index) => {
-                  const open = openStation === index
-                  return (
-                    <li key={index}>
-                      {/* A row opens the station's optional reviewer inputs under it. */}
-                      <ResultRow
-                        className="py-2"
-                        title={`Station ${index + 1} · ${formatKm(result.stations[index].distanceAlongMeters)}`}
-                        subtitle={
-                          index === result.assessmentStationIndex
-                            ? 'The assessment station'
-                            : reviews[index]
-                              ? 'Reviewer inputs set'
-                              : 'Reviewer inputs optional'
-                        }
-                        leading={<Eye className="mt-1 size-3 text-muted-foreground" aria-hidden="true" />}
-                        trailing={
-                          <ChevronDown
-                            aria-hidden="true"
-                            className={cn(
-                              'mt-1 size-4 text-muted-foreground transition-transform',
-                              open && 'rotate-180',
+              {selected.length > 0 && (
+                <ul className="divide-y overflow-hidden rounded-md border" aria-label="Viewpoints in the PDF">
+                  {selected.map((index) => {
+                    const open = openStation === index
+                    return (
+                      <li key={index}>
+                        {/* A row opens the station's optional reviewer inputs under it. */}
+                        <ResultRow
+                          className="py-2"
+                          title={`Station ${index + 1} · ${formatKm(result.stations[index].distanceAlongMeters)}`}
+                          subtitle={
+                            index === result.assessmentStationIndex
+                              ? 'The assessment station'
+                              : reviews[index]
+                                ? 'Reviewer inputs set'
+                                : 'Reviewer inputs optional'
+                          }
+                          leading={<Eye className="mt-1 size-3 text-muted-foreground" aria-hidden="true" />}
+                          trailing={
+                            <ChevronDown
+                              aria-hidden="true"
+                              className={cn(
+                                'mt-1 size-4 text-muted-foreground transition-transform',
+                                open && 'rotate-180',
+                              )}
+                            />
+                          }
+                          selected={open}
+                          aria-expanded={open}
+                          onClick={() => setOpenStation(open ? null : index)}
+                        />
+                        {open && (
+                          <ResultRowDetail className="space-y-2">
+                            {index === result.assessmentStationIndex && viaReview && !reviews[index] && (
+                              <p className="text-muted-foreground">
+                                Design, road and retention entries come from step 4 unless you set them below.
+                              </p>
                             )}
-                          />
-                        }
-                        selected={open}
-                        aria-expanded={open}
-                        onClick={() => setOpenStation(open ? null : index)}
-                      />
-                      {open && (
-                        <ResultRowDetail className="space-y-2">
-                          {index === result.assessmentStationIndex && viaReview && !reviews[index] && (
                             <p className="text-muted-foreground">
-                              Design, road and retention entries come from step 4 unless you set them below.
+                              Optional reviewer-supplied design inputs. These five judgements are not inferred by the
+                              model. They are labelled as supplied review inputs, not a field visit.
                             </p>
-                          )}
-                          <p className="text-muted-foreground">
-                            Optional reviewer-supplied design inputs. These five judgements are not inferred by the
-                            model. They are labelled as supplied review inputs, not a field visit.
-                          </p>
-                          {designLabels.map((label, i) => (
-                            <label className="flex items-center justify-between gap-2" key={label}>
-                              <span>{label}</span>
+                            {designLabels.map((label, i) => (
+                              <label className="flex items-center justify-between gap-2" key={label}>
+                                <span>{label}</span>
+                                <StyledSelect
+                                  className="rounded border bg-background"
+                                  value={reviews[index]?.design?.[i] ?? ''}
+                                  onChange={(e) => {
+                                    const design = [...(reviews[index]?.design ?? Array(5).fill(null))]
+                                    design[i] = e.target.value === '' ? null : Number(e.target.value)
+                                    changeReview(index, { design: design as FormReview['design'] })
+                                  }}
+                                >
+                                  <option value="">Not assessed</option>
+                                  <option value="-1">Good (-1)</option>
+                                  <option value="0">Moderate (0)</option>
+                                  <option value="1">Poor (+1)</option>
+                                </StyledSelect>
+                              </label>
+                            ))}
+                            <label className="flex justify-between">
+                              Roads/sidecast within openings
                               <StyledSelect
                                 className="rounded border bg-background"
-                                value={reviews[index]?.design?.[i] ?? ''}
-                                onChange={(e) => {
-                                  const design = [...(reviews[index]?.design ?? Array(5).fill(null))]
-                                  design[i] = e.target.value === '' ? null : Number(e.target.value)
-                                  changeReview(index, { design: design as FormReview['design'] })
-                                }}
+                                value={reviews[index]?.roads ?? ''}
+                                onChange={(e) =>
+                                  changeReview(index, {
+                                    roads: e.target.value === '' ? null : (Number(e.target.value) as 0 | 1 | 2 | 3),
+                                  })
+                                }
                               >
                                 <option value="">Not assessed</option>
-                                <option value="-1">Good (-1)</option>
-                                <option value="0">Moderate (0)</option>
-                                <option value="1">Poor (+1)</option>
+                                <option value="0">None (0)</option>
+                                <option value="1">Subordinate (+1)</option>
+                                <option value="2">Significant (+2)</option>
+                                <option value="3">Dominant (+3)</option>
                               </StyledSelect>
                             </label>
-                          ))}
-                          <label className="flex justify-between">
-                            Roads/sidecast within openings
-                            <StyledSelect
-                              className="rounded border bg-background"
-                              value={reviews[index]?.roads ?? ''}
-                              onChange={(e) =>
-                                changeReview(index, {
-                                  roads: e.target.value === '' ? null : (Number(e.target.value) as 0 | 1 | 2 | 3),
-                                })
+                            <label className="flex justify-between">
+                              Dispersed retention
+                              <StyledSelect
+                                className="rounded border bg-background"
+                                value={reviews[index]?.retention ?? ''}
+                                onChange={(e) =>
+                                  changeReview(index, {
+                                    retention: e.target.value === '' ? null : (Number(e.target.value) as -2 | -1 | 0),
+                                  })
+                                }
+                              >
+                                <option value="">Not assessed</option>
+                                <option value="-2">High, over 22% (-2)</option>
+                                <option value="-1">Moderate, 15–22% (-1)</option>
+                                <option value="0">Low, under 15% (0)</option>
+                              </StyledSelect>
+                            </label>
+                            <CheckboxField
+                              label="Retained patches were already netted from the geometry"
+                              checked={reviews[index]?.retentionAlreadyNetted === true}
+                              onCheckedChange={(retentionAlreadyNetted) =>
+                                changeReview(index, { retentionAlreadyNetted })
                               }
-                            >
-                              <option value="">Not assessed</option>
-                              <option value="0">None (0)</option>
-                              <option value="1">Subordinate (+1)</option>
-                              <option value="2">Significant (+2)</option>
-                              <option value="3">Dominant (+3)</option>
-                            </StyledSelect>
-                          </label>
-                          <label className="flex justify-between">
-                            Dispersed retention
-                            <StyledSelect
-                              className="rounded border bg-background"
-                              value={reviews[index]?.retention ?? ''}
-                              onChange={(e) =>
-                                changeReview(index, {
-                                  retention: e.target.value === '' ? null : (Number(e.target.value) as -2 | -1 | 0),
-                                })
-                              }
-                            >
-                              <option value="">Not assessed</option>
-                              <option value="-2">High, over 22% (-2)</option>
-                              <option value="-1">Moderate, 15–22% (-1)</option>
-                              <option value="0">Low, under 15% (0)</option>
-                            </StyledSelect>
-                          </label>
-                          <CheckboxField
-                            label="Retained patches were already netted from the geometry"
-                            checked={reviews[index]?.retentionAlreadyNetted === true}
-                            onCheckedChange={(retentionAlreadyNetted) =>
-                              changeReview(index, { retentionAlreadyNetted })
-                            }
-                          />
-                          <FormField label={`Review notes for station ${index + 1}`} hideLabel>
-                            <textarea
-                              className={FORM_INPUT_CLASS}
-                              maxLength={4000}
-                              placeholder="Reviewer notes and evidence"
-                              value={reviews[index]?.notes ?? ''}
-                              onChange={(e) => changeReview(index, { notes: e.target.value })}
                             />
-                          </FormField>
-                          <TextButton
-                            tone="danger"
-                            onClick={() => {
-                              setSelected((s) => s.filter((i) => i !== index))
-                              setOpenStation(null)
-                            }}
-                          >
-                            Remove station {index + 1} from the PDF
-                          </TextButton>
-                        </ResultRowDetail>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </CollapsibleSection>
-          <CollapsibleSection
-            label="Run diagnostics"
-            className="rounded-md border"
-            contentClassName="space-y-2 px-3 pb-3"
-          >
-            <p>
-              Largest landform grid cell: {formatPct(result.quality?.largestGroundCellPercent, 2)} of green map area.
-              This is a resolution diagnostic, not an error bound.
-            </p>
-            {result.quality?.warnings.map((message, i) => (
-              <p key={i} className="text-muted-foreground">
-                {message}
+                            <FormField label={`Review notes for station ${index + 1}`} hideLabel>
+                              <textarea
+                                className={FORM_INPUT_CLASS}
+                                maxLength={4000}
+                                placeholder="Reviewer notes and evidence"
+                                value={reviews[index]?.notes ?? ''}
+                                onChange={(e) => changeReview(index, { notes: e.target.value })}
+                              />
+                            </FormField>
+                            <TextButton
+                              tone="danger"
+                              onClick={() => {
+                                setSelected((s) => s.filter((i) => i !== index))
+                                setOpenStation(null)
+                              }}
+                            >
+                              Remove station {index + 1} from the PDF
+                            </TextButton>
+                          </ResultRowDetail>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </ToolDisclosure>
+            <ToolDisclosure label="Run diagnostics" toggleProps={{ 'data-forestry-disclosure': 'run-diagnostics' }}>
+              <p>
+                Largest landform grid cell: {formatPct(result.quality?.largestGroundCellPercent, 2)} of green map area.
+                This is a resolution diagnostic, not an error bound.
               </p>
-            ))}
-            <p className="text-muted-foreground">
-              Custom planning thresholds do not replace the form’s perspective class ranges.
-            </p>
-          </CollapsibleSection>
-        </>
-      )}
-      <CollapsibleSection
-        label="FS1252 office information"
-        className="rounded-md border"
-        contentClassName="space-y-2 px-3 pb-3"
-      >
-        <p>
-          Unknown fields stay blank. Export time is not a field-evaluation date. The signature and final EE decision are
-          never auto-filled.
-        </p>
-        {fields.map(([key, label]) => (
-          <FormField label={label} key={key}>
-            <input maxLength={2000} value={meta[key] ?? ''} onChange={(e) => changeMeta(key, e.target.value)} />
-          </FormField>
-        ))}
-      </CollapsibleSection>
+              {result.quality?.warnings.map((message, i) => (
+                <p key={i} className="text-muted-foreground">
+                  {message}
+                </p>
+              ))}
+              <p className="text-muted-foreground">
+                Custom planning thresholds do not replace the form’s perspective class ranges.
+              </p>
+            </ToolDisclosure>
+          </>
+        )}
+        <ToolDisclosure label="FS1252 office information" toggleProps={{ 'data-forestry-disclosure': 'office-fields' }}>
+          <p className="text-muted-foreground">
+            Unknown fields stay blank. Export time is not a field-evaluation date. The signature and final EE decision
+            are never auto-filled.
+          </p>
+          {fields.map(([key, label]) => (
+            <FormField label={label} key={key}>
+              <input maxLength={2000} value={meta[key] ?? ''} onChange={(e) => changeMeta(key, e.target.value)} />
+            </FormField>
+          ))}
+        </ToolDisclosure>
+      </div>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
     </section>
   )

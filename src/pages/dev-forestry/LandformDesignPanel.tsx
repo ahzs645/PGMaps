@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { CollapsibleSection } from '@/components/ui/map-panels'
+import { ToolSection } from '@/components/ui/tool-section'
 import { ExternalLink } from '@/components/ui/text-button'
 import { formatPct } from './measureFormat'
 import type { AnalysisResult } from './types'
@@ -16,19 +16,24 @@ export function LandformDesignPanel({
 }) {
   const review = result?.landformDesign
   return (
-    <CollapsibleSection
-      label="Landform design review"
-      className="rounded-lg border text-xs"
-      contentClassName="space-y-2 px-3 pb-3"
+    <ToolSection
+      title="Landform design review"
+      className="text-xs"
+      summary={
+        review ? `${review.blocks.length} block${review.blocks.length === 1 ? '' : 's'} · Appendix 5` : 'Needs a run'
+      }
+      toggleProps={{ 'data-forestry-disclosure': 'landform-design-review' }}
+      help={
+        <>
+          Review opening shape, position and edges from representative road views, as the VIA Handbook&apos;s Appendix 5
+          (pp. 55–56) sets out. Proposed blocks assume full harvest inside their boundaries. Historical openings use
+          recorded harvest and recovery inputs; missing details remain assumptions. This reviews a proposal—it does not
+          optimize harvest area or timber volume.
+        </>
+      }
     >
       <p>
-        Use <ExternalLink href={`${BC_DESIGN_HANDBOOK}#page=61`}>BC VIA Handbook, Appendix 5, pp. 55–56</ExternalLink>{' '}
-        to review opening shape, position and edges from representative road views.
-      </p>
-      <p>
-        Proposed blocks assume full harvest inside their boundaries. Historical openings use recorded harvest and
-        recovery inputs; missing details remain assumptions. This reviews a proposal—it does not optimize harvest area
-        or timber volume.
+        <ExternalLink href={`${BC_DESIGN_HANDBOOK}#page=61`}>BC VIA Handbook, Appendix 5, pp. 55–56</ExternalLink>
       </p>
       {!review && (
         <p className="text-muted-foreground">
@@ -111,6 +116,6 @@ export function LandformDesignPanel({
         These prompts do not score design quality or change the assessment denominator, VQO class or FS1252 design
         judgements.
       </p>
-    </CollapsibleSection>
+    </ToolSection>
   )
 }

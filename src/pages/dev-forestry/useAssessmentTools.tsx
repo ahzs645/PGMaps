@@ -7,12 +7,12 @@ import {
   NumberField,
 } from '@/components/ui/form-field'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ClipboardList, GitCompareArrows } from 'lucide-react'
+import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
 import { downloadText } from '@/lib/download'
 import { formatMeasure } from '@/lib/format'
-import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolFieldPanel } from './ToolFieldPanel'
 import { formatPct } from './measureFormat'
 import { SightlineProfileChart } from './SightlineProfileChart'
@@ -219,14 +219,19 @@ export function useAssessmentTools({
     </>
   )
   const design = (
-    <SidebarSection title="Design comparisons and diagnostic tools" icon={GitCompareArrows} headingLevel={3}>
+    <ToolSection
+      title="Design comparisons"
+      summary={
+        d.options.length
+          ? `${d.options.length} saved alternative${d.options.length === 1 ? '' : 's'}`
+          : 'Alternatives and diagnostics'
+      }
+      toggleProps={{ 'data-forestry-disclosure': 'design-comparisons' }}
+      help="Save design alternatives and compare them at a station, and run the diagnostics: the viewpoint and landform matrix, sampling and screening sensitivity, harvest scheduling and recovery, and a single sightline."
+    >
       {message}
-      <CollapsibleSection
-        toggleProps={{ 'data-forestry-disclosure': '' }}
-        label="Saved design alternatives"
-        defaultOpen
-      >
-        <div className="space-y-2 py-3 text-xs">
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Saved design alternatives" defaultOpen>
+        <div className="space-y-2 text-xs">
           <FormField label="Design alternative name">
             <input className={FORM_INPUT_CLASS} value={optionName} onChange={(e) => setOptionName(e.target.value)} />
           </FormField>
@@ -313,9 +318,9 @@ export function useAssessmentTools({
             openings, surfaces, settings and station. Complete reviewer ratings separately in step 4.
           </p>
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Viewpoint and landform matrix">
-        <div className="space-y-2 py-3 text-xs">
+      </ToolDisclosure>
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Viewpoint and landform matrix">
+        <div className="space-y-2 text-xs">
           <p>
             Select significant viewpoints recorded in step 2 and reviewed landforms. Each pair has its own denominator
             and worst station; values are never pooled across landforms.
@@ -360,9 +365,9 @@ export function useAssessmentTools({
             Maximum 12 jobs per batch. A completed batch replaces the previous result set; export important runs first.
           </p>
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Sampling and screening sensitivity">
-        <div className="space-y-2 py-3 text-xs">
+      </ToolDisclosure>
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Sampling and screening sensitivity">
+        <div className="space-y-2 text-xs">
           <p>
             Compare finer area sampling, closer stations, eye height ±0.5 m, and screening toggled against the baseline.
             These comparisons reveal dependence on assumptions; they are not confidence intervals.
@@ -371,9 +376,9 @@ export function useAssessmentTools({
             Run sensitivity comparisons
           </Button>
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Harvest scheduling and recovery">
-        <div className="space-y-2 py-3 text-xs">
+      </ToolDisclosure>
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Harvest scheduling and recovery">
+        <div className="space-y-2 text-xs">
           <p>
             Each year is an independent scenario. Before its scheduled year a proposal is omitted; during that year it
             is proposed alteration; afterward it becomes an existing opening. The supplied height–age curve controls
@@ -453,9 +458,9 @@ export function useAssessmentTools({
             require a supported stand model and are rejected.
           </p>
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Inspect a sightline">
-        <div className="space-y-2 py-3 text-xs">
+      </ToolDisclosure>
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Inspect a sightline">
+        <div className="space-y-2 text-xs">
           <p>
             Click an analysis sample on the map, or select a sample and station below, to trace it through the numerical
             terrain and screening surface.
@@ -509,14 +514,10 @@ export function useAssessmentTools({
           </Button>
           {profile && <SightlineProfileChart profile={profile} />}
         </div>
-      </CollapsibleSection>
+      </ToolDisclosure>
       {!!d.runs.length && (
-        <CollapsibleSection
-          toggleProps={{ 'data-forestry-disclosure': '' }}
-          label="Saved assessment results"
-          defaultOpen
-        >
-          <div className="space-y-3 py-3 text-xs">
+        <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Saved assessment results" defaultOpen>
+          <div className="space-y-3 text-xs">
             {d.runs.map((r) => (
               <div key={r.id} className="space-y-1 border-b pb-3">
                 <p className="font-medium">{r.name}</p>
@@ -567,12 +568,27 @@ export function useAssessmentTools({
               available inventory and does not overwrite the stored result.
             </p>
           </div>
-        </CollapsibleSection>
+        </ToolDisclosure>
       )}
-    </SidebarSection>
+    </ToolSection>
   )
   const report = (
-    <SidebarSection title="VIA evidence package and workspace" icon={ClipboardList} headingLevel={3}>
+    <ToolSection
+      title="VIA evidence package"
+      summary={`${evidenceGaps(d).length} evidence gap${evidenceGaps(d).length === 1 ? '' : 's'}`}
+      toggleProps={{ 'data-forestry-disclosure': 'via-evidence' }}
+      help={
+        <>
+          Record after completing step 4. Attach photos, matching simulations, a topographic map and design annotations
+          in step 2. Use the road view’s existing image download for a simulation attachment.
+          <br />
+          The workspace JSON holds saved inputs, local rasters, hashes, results, judgments and resized attachments. It
+          is stored on this device in IndexedDB; export a backup before clearing browser data. Imported results are
+          historical records, not verified new calculations. This native VIA evidence report is separate from the
+          historical FS1252 form.
+        </>
+      }
+    >
       <div className="space-y-3 text-xs">
         {message}
         <FormField label="Assessment evidence viewpoint">
@@ -593,11 +609,7 @@ export function useAssessmentTools({
             Record next assessment separately
           </Button>
         )}
-        <p>
-          Record after completing step 4. Attach photos, matching simulations, a topographic map and design annotations
-          in step 2. Use the road view’s existing image download for a simulation attachment.
-        </p>
-        <CollapsibleSection
+        <ToolDisclosure
           toggleProps={{ 'data-forestry-disclosure': '' }}
           label={`Evidence checklist · ${evidenceGaps(d).length} gaps`}
           defaultOpen
@@ -608,7 +620,7 @@ export function useAssessmentTools({
             ))}
             {!evidenceGaps(d).length && <li>Expected evidence categories present. Check content and adequacy.</li>}
           </ul>
-        </CollapsibleSection>
+        </ToolDisclosure>
         <div className="flex flex-wrap gap-2">
           <Button
             size="sm"
@@ -661,13 +673,8 @@ export function useAssessmentTools({
             Import assessment workspace
           </FileButton>
         </div>
-        <p>
-          JSON includes saved inputs, local rasters, hashes, results, judgments and resized attachments. Stored on this
-          device in IndexedDB; export a backup before clearing browser data. Imported results are historical records,
-          not verified new calculations. This native VIA evidence report is separate from the historical FS1252 form.
-        </p>
       </div>
-    </SidebarSection>
+    </ToolSection>
   )
   return { field, design, report, inspect, cancel: runner.cancel, running: runner.running }
 }

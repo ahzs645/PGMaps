@@ -2,7 +2,8 @@ import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
+import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { withBase } from '@/lib/dataUrl'
 import { downloadText } from '@/lib/download'
@@ -92,16 +93,15 @@ export function LandformSuggestions({
     downloadText(JSON.stringify(collection), 'bc-nearby-visual-inventory.geojson', 'application/geo+json')
   }
   return (
-    <CollapsibleSection
-      label="Find a landform in the BC inventory"
+    <ToolSection
+      title="Find a landform in the BC inventory"
+      summary={
+        data ? `${data.manifest.featureCount.toLocaleString(DEFAULT_LOCALE)} units in the snapshot` : 'Nearby units'
+      }
+      help="Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside from the road before using one as the assessment landform."
       toggleProps={{ 'data-forestry-disclosure': 'inventory-landforms' }}
-      className="rounded-lg border text-xs"
-      contentClassName="space-y-2 px-3 pb-3"
+      className="text-xs"
     >
-      <p className="text-muted-foreground">
-        Nearby BC inventory boundaries are suggestions. Proximity does not establish visibility. Review the hillside
-        from the road before using one as the assessment landform.
-      </p>
       {road.length > 1 && (
         <label className="block">
           Search area
@@ -234,6 +234,6 @@ export function LandformSuggestions({
           unrated areas remain.
         </p>
       )}
-    </CollapsibleSection>
+    </ToolSection>
   )
 }

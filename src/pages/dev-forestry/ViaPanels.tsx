@@ -54,10 +54,10 @@ function classCode(id: VisualQualityClassId | null | undefined): string {
 
 type OnReviewChange = (patch: Partial<ViaReview>) => void
 
-function ChoiceField({ label, hint, children }: { label: string; hint?: ReactNode; children: ReactNode }) {
+function ChoiceField({ label, hint, children }: { label?: string; hint?: ReactNode; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-2xs font-medium text-muted-foreground">{label}</span>
+      {label && <span className="mb-1 block text-2xs font-medium text-muted-foreground">{label}</span>}
       {children}
       {hint && <span className="mt-1 block text-3xs leading-4 text-muted-foreground">{hint}</span>}
     </label>
@@ -115,14 +115,14 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
     : []
 
   return (
-    <section className="border-b border-border bg-background/95 p-4" aria-label="VIA headline result">
+    <section className="border-b border-border bg-background/95 p-3" aria-label="VIA headline result">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-2xs font-medium uppercase tracking-wide text-muted-foreground">VIA rating</p>
-          <p className="mt-0.5 text-xl font-bold text-foreground" data-via-rating={rating?.id ?? 'none'}>
+          <p className="text-3xs font-medium uppercase tracking-wide text-muted-foreground">VIA rating</p>
+          <p className="text-base font-semibold leading-6 text-foreground" data-via-rating={rating?.id ?? 'none'}>
             {rating ? rating.label : assessment ? 'Not rated yet' : 'No landform yet'}
           </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {assessment
               ? `${assessment.objective.label} objective${landformName ? ` · ${landformName}` : ''}`
               : 'Choose or draw the landform the proposal sits on to set its objective.'}
@@ -150,7 +150,7 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
         </InlineAlert>
       )}
 
-      {stats.length > 0 && <StatGroup className="mt-3" variant="tiles" size="sm" columns={3} items={stats} />}
+      {stats.length > 0 && <StatGroup className="mt-2" variant="tiles" size="sm" columns={3} items={stats} />}
 
       {!rating &&
         assessment?.reviewStarted &&
@@ -184,7 +184,7 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
           type="button"
           onClick={() => onOpenStep(next.id)}
           aria-label={`Go to step ${next.number}`}
-          className="mt-3 flex w-full items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-left text-xs text-foreground hover:bg-primary/10 touch:min-h-10"
+          className="mt-2 flex w-full items-center gap-2 rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-left text-xs text-foreground hover:bg-primary/10 touch:min-h-10"
         >
           <span className="min-w-0 flex-1 truncate">
             <span className="font-semibold">Next: step {next.number}</span>
@@ -210,16 +210,19 @@ export function ViewpointTypeField({
   review,
   speedKmh,
   onChange,
+  hideLabel = false,
 }: {
   result: AnalysisResult | null
   review: ViaReview
   speedKmh: number
   onChange: OnReviewChange
+  /** Leave the label to a section heading that already names the field. */
+  hideLabel?: boolean
 }) {
   const computed = result && result.stations.length > 1 ? viewpointImportance(result, { speedKmh }) : null
   return (
     <ChoiceField
-      label="Viewpoint type (handbook 3.2.1)"
+      label={hideLabel ? undefined : 'Viewpoint type (handbook 3.2.1)'}
       hint={
         computed
           ? computed.rating
@@ -266,10 +269,6 @@ export function OcularAssessmentFields({
   const result = assessment.ocular
   return (
     <div className="space-y-3" aria-label="Ocular assessment">
-      <p className="text-2xs leading-4 text-muted-foreground">
-        The primary measure. Look at the after-harvest road view at the scale a traveller sees it and describe the
-        alteration — every existing opening not yet greened up included. The model does not fill these in.
-      </p>
       <ChoiceField label="Ease of seeing">
         <StyledSelect
           className={SELECT_CLASS}
@@ -383,10 +382,6 @@ export function NumericalAssessmentSummary({
           },
         ]}
       />
-      <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-        Share of the landform&apos;s visible green face, in perspective from the assessment station, read against
-        handbook Table 2. Estimated from terrain sightlines, not measured on a photograph.
-      </p>
     </div>
   )
 }
@@ -404,10 +399,6 @@ export function AdjustmentFields({
     onChange({ design: { ...review.design, [id]: value } })
   return (
     <div className="space-y-3" aria-label="Adjustments">
-      <p className="text-2xs leading-4 text-muted-foreground">
-        Table 3: Good −1, Moderate 0, Poor +1. Distance, and one or two openings, are measured from the run; override
-        them if the view says otherwise.
-      </p>
       {DESIGN_ELEMENTS.map((element) => {
         const entry = assessment.design[element.id]
         const own = review.design?.[element.id]

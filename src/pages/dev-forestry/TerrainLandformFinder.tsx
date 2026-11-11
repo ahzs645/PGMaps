@@ -1,6 +1,7 @@
 import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 
+import { ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -187,8 +188,35 @@ export function TerrainLandformFinder({
     : []
 
   return (
-    <div className="space-y-2 rounded-lg border p-3 text-xs" aria-label="Landform from the terrain">
-      <p className="font-medium text-foreground">From the terrain</p>
+    <ToolSection
+      title="Find a landform from the terrain"
+      summary={
+        candidate
+          ? `Candidate · ${formatHa(candidate.areaHectares * 10_000, 0)}`
+          : method === 'ridge-layer'
+            ? 'Ridge layer seen'
+            : 'Face turned to the road'
+      }
+      help={
+        method === 'ridge-layer' ? (
+          <>
+            The layer of ridge the block sits in, as the road sees the hills stack up: the visible ground joined to the
+            block&apos;s, stopped where a nearer ridge hides what lies in front and where the ground drops out of view
+            behind. Read from up to {MAX_RIDGE_STATIONS} stations along the road and joined, as the block is seen
+            driving past.
+          </>
+        ) : (
+          <>
+            The hillside the block sits on, as seen from the road: grown out from the block until the ground turns away
+            (a ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
+            {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water.
+          </>
+        )
+      }
+      toggleProps={{ 'data-forestry-disclosure': 'terrain-landform' }}
+      defaultOpen={!!candidate}
+      className="text-xs"
+    >
       <SegmentedControl
         label="How to read the landform"
         size="sm"
@@ -199,19 +227,6 @@ export function TerrainLandformFinder({
           onCandidate(null)
         }}
       />
-      {method === 'ridge-layer' ? (
-        <p className="text-muted-foreground">
-          The layer of ridge the block sits in, as the road sees the hills stack up: the visible ground joined to the
-          block's, stopped where a nearer ridge hides what lies in front and where the ground drops out of view behind.
-          Read from up to {MAX_RIDGE_STATIONS} stations along the road and joined, as the block is seen driving past.
-        </p>
-      ) : (
-        <p className="text-muted-foreground">
-          The hillside the block sits on, as seen from the road: grown out from the block until the ground turns away (a
-          ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
-          {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water.
-        </p>
-      )}
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block to read the landform around"
@@ -324,6 +339,6 @@ export function TerrainLandformFinder({
           </div>
         </div>
       )}
-    </div>
+    </ToolSection>
   )
 }

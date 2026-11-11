@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button'
-import { InfoTip } from '@/components/ui/info-tip'
+import { ToolSection } from '@/components/ui/tool-section'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumericRangeField, type NumericRangeControlProps } from '@/components/ui/numeric-range-field'
@@ -28,6 +28,8 @@ function continuousRange(accentClassName: string) {
   }
 }
 
+const MODE_LABELS = { point: 'Current view', stretch: 'Whole stretch', travel: 'As you move' } as const
+
 const kmNumber = (metres: number) =>
   formatMeasure(metres / 1000, null, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -48,18 +50,23 @@ export function RouteViewshedPanel({
 }) {
   const { analysis } = preview
   return (
-    <section aria-label="Preliminary terrain preview" className="space-y-2 rounded-lg border p-3 text-xs">
-      <h4 className="flex items-center gap-1.5 text-sm font-semibold">
-        Route preview
-        <InfoTip label="About the route preview">
+    <ToolSection
+      title="Route preview"
+      aria-label="Preliminary terrain preview"
+      className="text-xs"
+      summary={preview.enabled ? `On · ${MODE_LABELS[preview.mode]}` : 'Terrain seen from the road'}
+      toggleProps={{ 'data-forestry-disclosure': 'route-preview' }}
+      help={
+        <>
           Terrain visibility along the road before any cutblock is assessed: red is ground in view, purple is terrain
           that did not load. It reads AWS overview terrain only — no trees, buildings, cutblock percentages or VQO
           ratings. Current view follows one road position (pause for a detailed view); Whole stretch joins the views
           from every sample on the blue stretch; As you move keeps adding views as you scrub or drive, through the
           furthest point reached, and starts again when the stretch, radius or eye height changes. Between samples a
           view is not guaranteed.
-        </InfoTip>
-      </h4>
+        </>
+      }
+    >
       <ToggleRow label="Road viewshed" active={preview.enabled} onClick={() => preview.setEnabled(!preview.enabled)} />
       {!preview.valid && <p>Draw or import a road with at least two distinct points.</p>}
       {preview.enabled && preview.valid && (
@@ -69,11 +76,7 @@ export function RouteViewshedPanel({
             size="sm"
             value={preview.mode}
             onChange={preview.setMode}
-            options={[
-              { value: 'point', label: 'Current view' },
-              { value: 'stretch', label: 'Whole stretch' },
-              { value: 'travel', label: 'As you move' },
-            ]}
+            options={(['point', 'stretch', 'travel'] as const).map((value) => ({ value, label: MODE_LABELS[value] }))}
           />
           {preview.mode !== 'point' && (
             <>
@@ -186,6 +189,6 @@ export function RouteViewshedPanel({
           )}
         </>
       )}
-    </section>
+    </ToolSection>
   )
 }

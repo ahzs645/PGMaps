@@ -1,9 +1,9 @@
 import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
-import { Layers } from 'lucide-react'
+import { ToolDisclosure, ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
-import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { createId, type ForestryScene } from './scene'
 import { MASK_LABELS } from './assessmentMasks'
 import { readShapeFile } from './shapeImport'
@@ -73,9 +73,18 @@ export function ToolSourcesPanel({
     }
   }
   return (
-    <SidebarSection title="Assessment masks and local surfaces" icon={Layers} headingLevel={3}>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Classify assessment areas">
-        <div className="space-y-2 py-3 text-xs">
+    <ToolSection
+      title="Masks and local surfaces"
+      summary={
+        (scene.masks?.length ?? 0) + (scene.localRasters?.length ?? 0)
+          ? `${scene.masks?.length ?? 0} masks · ${scene.localRasters?.length ?? 0} surfaces`
+          : 'None · AWS terrain'
+      }
+      toggleProps={{ 'data-forestry-disclosure': 'masks-surfaces' }}
+      help="Classify parts of the landform (natural non-green ground, private land, retained patches) and bring in a local terrain or canopy-height GeoTIFF in place of the AWS terrain."
+    >
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Classify assessment areas">
+        <div className="space-y-2 text-xs">
           <p>
             Natural non-green ground leaves the denominator. Private land and permanent non-forestry disturbance remain
             in the assessable land base but contribute no forestry alteration. Retained patches remain green and are
@@ -171,9 +180,9 @@ export function ToolSourcesPanel({
             </div>
           ))}
         </div>
-      </CollapsibleSection>
-      <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Import terrain or canopy GeoTIFF">
-        <div className="space-y-2 py-3 text-xs">
+      </ToolDisclosure>
+      <ToolDisclosure toggleProps={{ 'data-forestry-disclosure': '' }} label="Import terrain or canopy GeoTIFF">
+        <div className="space-y-2 text-xs">
           <p>
             Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported
             coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11.
@@ -229,8 +238,8 @@ export function ToolSourcesPanel({
             </InlineAlert>
           )}
         </div>
-      </CollapsibleSection>
+      </ToolDisclosure>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
-    </SidebarSection>
+    </ToolSection>
   )
 }

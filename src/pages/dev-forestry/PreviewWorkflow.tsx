@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { X } from 'lucide-react'
 import { Button, type ButtonProps } from '@/components/ui/button'
 import { FileButton } from '@/components/ui/file-button'
-import { InfoTip } from '@/components/ui/info-tip'
+import { ToolSection } from '@/components/ui/tool-section'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { cn } from '@/lib/utils'
 import { formatKm } from './measureFormat'
@@ -80,57 +80,66 @@ export function PreviewWorkflow(props: Props) {
       </section>
     )
   }
+  const showStatus = !props.active || props.analysis.status === 'error' || !!props.message || !!props.children
   return (
-    <section className="space-y-4" aria-label="Drive preview">
-      {!props.active && (
-        <div className="space-y-2">
-          <Button
-            size="sm"
-            className="w-full touch:h-10"
-            disabled={!!error || busy || props.drawMode !== 'none'}
-            onClick={props.onPreview}
-          >
-            {props.analysis.status === 'error' ? 'Retry' : busy ? 'Preparing the road view…' : 'Look from the road'}
-          </Button>
-          {error && <p className="text-xs text-muted-foreground">{error}</p>}
-          {busy && (
-            <InlineAlert loading>
-              <p>
-                {progress?.phase === 'terrain' ? 'Loading terrain' : 'Finding candidate views'}
-                {progress && progress.total > 0
-                  ? ` · ${Math.round((100 * progress.completed) / progress.total)}%`
-                  : '…'}
-              </p>
-              <ActionButton className="mt-2" onClick={props.onCancel}>
-                Cancel preparation
-              </ActionButton>
+    <>
+      {showStatus && (
+        <section className="space-y-2 px-3 py-3" aria-label="Drive preview">
+          {!props.active && (
+            <div className="space-y-2">
+              <Button
+                size="sm"
+                className="w-full touch:h-10"
+                disabled={!!error || busy || props.drawMode !== 'none'}
+                onClick={props.onPreview}
+              >
+                {props.analysis.status === 'error' ? 'Retry' : busy ? 'Preparing the road view…' : 'Look from the road'}
+              </Button>
+              {error && <p className="text-xs text-muted-foreground">{error}</p>}
+              {busy && (
+                <InlineAlert loading>
+                  <p>
+                    {progress?.phase === 'terrain' ? 'Loading terrain' : 'Finding candidate views'}
+                    {progress && progress.total > 0
+                      ? ` · ${Math.round((100 * progress.completed) / progress.total)}%`
+                      : '…'}
+                  </p>
+                  <ActionButton className="mt-2" onClick={props.onCancel}>
+                    Cancel preparation
+                  </ActionButton>
+                </InlineAlert>
+              )}
+            </div>
+          )}
+          {props.analysis.status === 'error' && (
+            <InlineAlert tone="error">
+              Preview could not be prepared: {props.analysis.error}. Check the connection, then retry.
             </InlineAlert>
           )}
-        </div>
+          {props.message && (
+            <InlineAlert>
+              <p role="status" className="break-words">
+                {props.message}
+              </p>
+            </InlineAlert>
+          )}
+          {props.children}
+        </section>
       )}
-      {props.analysis.status === 'error' && (
-        <InlineAlert tone="error">
-          Preview could not be prepared: {props.analysis.error}. Check the connection, then retry.
-        </InlineAlert>
-      )}
-      {props.message && (
-        <InlineAlert>
-          <p role="status" className="break-words">
-            {props.message}
-          </p>
-        </InlineAlert>
-      )}
-      {props.children}
-      <div className="rounded-lg border p-3 text-xs space-y-2">
-        <h4 className="flex items-center gap-1.5 text-sm font-semibold">
-          Saved views
-          <InfoTip label="About saved views">
+      <ToolSection
+        title="Saved views"
+        className="space-y-2 text-xs"
+        help={
+          <>
             Your record of each viewpoint (handbook 3.2). Save a view from the road view&rsquo;s bar; it is named with
             its planning-note caption. Reopen one to compare both harvest phases from the same spot. The downloaded
             preview holds the geometry and views; terrain and inventory need a connection when it is reopened.
-          </InfoTip>
-        </h4>
-        {!props.views.length && <p className="text-2xs text-muted-foreground">None yet.</p>}
+          </>
+        }
+      >
+        {!props.views.length && (
+          <p className="text-2xs text-muted-foreground">None yet. Save one from the road view&rsquo;s bar.</p>
+        )}
         {props.onReopenPrevious && (
           <ActionButton onClick={props.onReopenPrevious}>Reopen previous saved preview</ActionButton>
         )}
@@ -154,7 +163,7 @@ export function PreviewWorkflow(props: Props) {
             </Button>
           </div>
         ))}
-        <div className="flex flex-wrap gap-2">
+        <div className="grid grid-cols-2 gap-1.5">
           <ActionButton disabled={!!error} onClick={props.onExport}>
             Download preview
           </ActionButton>
@@ -169,7 +178,7 @@ export function PreviewWorkflow(props: Props) {
           </FileButton>
         </div>
         {props.storageWarning && <InlineAlert tone="warning">{props.storageWarning}</InlineAlert>}
-      </div>
-    </section>
+      </ToolSection>
+    </>
   )
 }

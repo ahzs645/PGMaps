@@ -2,7 +2,7 @@ import type { DriveState } from './Sidebar'
 import type { ForestHistoryData } from './bcForestHistory'
 import type { RegrowthStand } from './regrowth'
 import { DEFAULT_LOCALE, formatMeasure } from '@/lib/format'
-import { InfoTip } from '@/components/ui/info-tip'
+import { ToolSection } from '@/components/ui/tool-section'
 import { Button } from '@/components/ui/button'
 import { CheckboxField, NumberField } from '@/components/ui/form-field'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
@@ -23,28 +23,30 @@ const metres = (value: number | null | undefined) =>
 export function RegrowthControls({ drive, update, year, loading, data, stands, unknown, retry }: Props) {
   const count = (basis: RegrowthStand['basis']) => stands.filter((s) => s.basis === basis).length
   return (
-    <div className="space-y-2 rounded-md border border-border p-2 text-xs" aria-label="Existing forest and regrowth">
-      <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 font-medium text-foreground">
-          Existing forest
-          <InfoTip label="About existing forest and regrowth">
-            Harvest, planting and forest-cover records from DataBC set the drawn trees&rsquo; heights for {year}.
-            Projections add the assumed growth since the recorded year; turn them off to use the recorded height.
-            Planting and harvest estimates start at 0.3 m and assume regeneration after the delay, which does not
-            confirm planting. Growth stops at the regional stand height without shrinking a taller recorded tree, and a
-            partial harvest keeps an illustrative share of mature trees. Counts are source polygons, not coverage; newer
-            overlapping records win. Spacing, survival and growth are illustrative, and the assessment numbers never use
-            them.
-          </InfoTip>
-        </span>
+    <ToolSection
+      title="Existing forest and regrowth"
+      aria-label="Existing forest and regrowth"
+      className="space-y-2 text-xs"
+      actions={
         <CheckboxField
           label="Load"
           aria-label="Load existing forest for this route"
-          labelClassName="items-center text-muted-foreground"
+          labelClassName="items-center text-xs text-muted-foreground"
           checked={drive.existingForest}
           onCheckedChange={(existingForest) => update({ existingForest, playing: false })}
         />
-      </div>
+      }
+      help={
+        <>
+          Harvest, planting and forest-cover records from DataBC set the drawn trees&rsquo; heights for {year}.
+          Projections add the assumed growth since the recorded year; turn them off to use the recorded height. Planting
+          and harvest estimates start at 0.3 m and assume regeneration after the delay, which does not confirm planting.
+          Growth stops at the regional stand height without shrinking a taller recorded tree, and a partial harvest
+          keeps an illustrative share of mature trees. Counts are source polygons, not coverage; newer overlapping
+          records win. Spacing, survival and growth are illustrative, and the assessment numbers never use them.
+        </>
+      }
+    >
       <p role="status" className="text-2xs text-muted-foreground">
         {loading
           ? 'Loading harvest, planting and forest-cover records…'
@@ -107,8 +109,8 @@ export function RegrowthControls({ drive, update, year, loading, data, stands, u
       {!!stands.length && (
         <CollapsibleSection
           label="Height sources and dates"
-          className="rounded-md border text-2xs"
-          contentClassName="px-3 pb-2"
+          className="-mx-3 border-b-0 border-t border-border/60 bg-transparent text-2xs"
+          contentClassName="px-3 pb-1"
         >
           <ul className="max-h-40 overflow-y-auto">
             {stands.slice(0, 30).map((s) => (
@@ -127,6 +129,6 @@ export function RegrowthControls({ drive, update, year, loading, data, stands, u
           )}
         </CollapsibleSection>
       )}
-    </div>
+    </ToolSection>
   )
 }

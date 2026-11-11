@@ -26,11 +26,22 @@ is typed survives switching.
 
 | Step | Handbook | In the sidebar |
 | --- | --- | --- |
-| 1 · Identify the VQO and viewpoints | 3.1 | *Start from* (Tabor sample, roadside demo, new site); **Road or viewpoint** (draw, import, snap, and "which roads see the block"); **Cutblocks** with their objective and harvest system; **Landform and objective** — the landform rows, existing openings, *From the terrain*, the BC inventory finder and lookup |
-| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view its settings (where to look, what the analysis sees, the timber); saved views; the field photo; the viewpoint type (3.2.1) |
-| 3 · Design and simulate | 3.3 | Run assumptions (active landform, year, green area, existing disturbance), the run, its settings, results, then the Appendix 5 design review |
-| 4 · Assess against the VQO | 3.4 | Ocular assessment (3.4.1), percent alteration (3.4.2), design, road and retention adjustments (3.4.3) |
-| 5 · Final rating and package | 3.5, 4.0 | The Table 7 rating, the rationale, then the FS1252 package: whether its numbers are usable, the viewpoints it carries, **one** *Export filled FS1252 PDF*, and folded beneath it the viewpoint picker, run diagnostics and office fields; the worksheet and scene file as a smaller *Also download* row |
+| 1 · Identify the VQO and viewpoints | 3.1 | **Start from** (Tabor sample, Purden Lake, roadside demo, new site); **Road or viewpoint** (spot or length of road, draw, import, snap); folded *Which roads see the block* and *Viewpoints and rec sites*; **Cutblocks** with their objective and harvest system; **Landform and objective**; folded *Existing openings*, *Find a landform from the terrain*, *Find a landform in the BC inventory* and *Look up this map view* |
+| 2 · Visit the viewpoints | 3.2 | *Look from the road*, and while in the road view its settings (**Road view**, folded *Block colours*, **Drawn timber**, **Existing forest and regrowth**); **Saved views**; folded *Route preview*, *Field records* and *Field photo*; **Viewpoint type** (3.2.1) |
+| 3 · Design and simulate | 3.3 | **Run assumptions** (active landform, year, green area, existing disturbance), **Simulation** (the run), **Results**, then folded *Simulation settings*, *Planning thresholds*, *Masks and local surfaces*, *Landform design review* (Appendix 5) and *Design comparisons* |
+| 4 · Assess against the VQO | 3.4 | **Ocular assessment** (3.4.1), **Percent alteration** (3.4.2), **Design adjustments** (3.4.3) |
+| 5 · Final rating and package | 3.5, 4.0 | **Final rating** (Table 7) and the rationale, **Planning note · Visuals**, then **FS1252 package**: whether its numbers are usable, the viewpoints it carries, **one** *Export filled FS1252 PDF*, and folded beneath it the viewpoint picker, run diagnostics and office fields; folded *VIA evidence package*; the worksheet and scene file under *Also download* |
+
+The sidebar is laid out like the road designer's: the step tabs at the top of
+the scroll, then flat `ToolSection`s (`src/components/ui/tool-section.tsx`)
+separated by full-width rules. A section's explanation and handbook reference
+sit behind the (i) in its heading, not printed under it; secondary sections fold
+to one row that states their live values (**bold** above is always open,
+*italic* is folded); and a fold inside a section is a `ToolDisclosure`, never a
+bordered card. Each folded section's toggle carries `data-forestry-disclosure`,
+which the e2e suite's `openAllSteps` opens. Each step starts with one line —
+its title and handbook section, its purpose behind the (i), and the step's
+status (`data-step-status`) — rather than a repeated step header.
 
 A step is **done** when the handbook's output for it exists: step 1 needs a
 viewpoint, a cutblock and a landform; step 2 a run, and this road and these cutblocks viewed

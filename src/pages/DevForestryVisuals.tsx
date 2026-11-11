@@ -2146,7 +2146,7 @@ function DevForestryVisuals() {
       setup={<PreviewWorkflow part="setup" {...previewProps} />}
       landformFinder={
         !drive.active && (
-          <div className="space-y-3">
+          <>
             <TerrainLandformFinder
               scene={scene}
               result={result}
@@ -2165,11 +2165,12 @@ function DevForestryVisuals() {
               onUndo={undoTerrainLandform}
             />
             <LandformSuggestions scene={scene} onShow={showCandidate} onAdopt={adoptCandidate} />
-          </div>
+          </>
         )
       }
       visit={
         <>
+          <PreviewWorkflow part="visit" {...previewProps} />
           <RouteViewshedPanel
             preview={routeViewshed}
             driving={drive.active}
@@ -2194,16 +2195,11 @@ function DevForestryVisuals() {
               )
             }}
           />
-          <PreviewWorkflow part="visit" {...previewProps} />
           {tools.field}
         </>
       }
-      landformScope={
-        <>
-          <AssessmentPanel part="scope" {...assessmentProps} />
-          <ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} />
-        </>
-      }
+      landformScope={<AssessmentPanel part="scope" {...assessmentProps} />}
+      localSources={<ToolSourcesPanel scene={scene} onChange={setScene} selectedTargetId={selectedTargetId} />}
       designReview={
         <>
           <LandformDesignPanel
@@ -2233,15 +2229,13 @@ function DevForestryVisuals() {
         />
       }
       report={
-        <>
-          <AssessmentPanel
-            part="report"
-            {...assessmentProps}
-            viaReview={viaAssessment ? fs1252ReviewFromVia(viaAssessment, scene.viaReview) : null}
-          />
-          {tools.report}
-        </>
+        <AssessmentPanel
+          part="report"
+          {...assessmentProps}
+          viaReview={viaAssessment ? fs1252ReviewFromVia(viaAssessment, scene.viaReview) : null}
+        />
       }
+      evidence={tools.report}
       scene={scene}
       onViewpointChange={setViewpoint}
       onSettingsChange={(settings) => setScene((current) => ({ ...current, settings }))}

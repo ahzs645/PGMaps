@@ -9,14 +9,11 @@ import {
   StyledSelect,
 } from '@/components/ui/form-field'
 import {
-  Camera,
   Crosshair,
   Download,
-  Eye,
   FileText,
   FileUp,
   Waypoints,
-  Gauge,
   Landmark,
   Loader2,
   Magnet,
@@ -25,11 +22,8 @@ import {
   Play,
   Radar,
   Route,
-  Ruler,
-  Sparkles,
   SquareDashed,
   Trash2,
-  TreePine,
   Trees,
   X,
   ZoomIn,
@@ -48,14 +42,9 @@ import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
 import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
-import {
-  CollapsibleSection,
-  InlineAlert,
-  MapSidebarShell,
-  SidebarSection,
-  ToggleChip,
-} from '@/components/ui/map-panels'
-import { StepMarker, StepSection, stepStatusText } from '@/components/ui/step-section'
+import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
+import { ToolSection } from '@/components/ui/tool-section'
+import { StepMarker, stepStatusText } from '@/components/ui/step-section'
 import { TabBar } from '@/components/ui/tab-bar'
 import { cn } from '@/lib/utils'
 
@@ -162,6 +151,9 @@ const STEP_TAB_LABELS: Record<ViaStepId, string> = {
   assess: 'Assess',
   rate: 'Rate',
 }
+
+/** A button in a two-column grid of actions, as in the road designer's sidebar. */
+const GRID_BUTTON = 'h-auto min-h-8 whitespace-normal px-2 text-xs touch:min-h-10'
 
 const SELECT_CLASS =
   'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
@@ -455,10 +447,14 @@ type SidebarProps = {
   fieldPhoto?: ReactNode
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
+  /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
+  localSources?: ReactNode
   /** Step 3: the landform design review. */
   designReview: ReactNode
   /** Step 5: the FS1252 draft package. */
   report: ReactNode
+  /** Step 5: the VIA evidence package and workspace, a folded section of its own. */
+  evidence?: ReactNode
   /** Step 1: inventory viewpoints and rec sites near the block. */
   viewpointFinder?: ReactNode
   /** Step 2, in the road view: jump to a spot the block is seen from. */
@@ -518,8 +514,10 @@ export function Sidebar({
   visit,
   fieldPhoto,
   landformScope,
+  localSources,
   designReview,
   report,
+  evidence,
   viewpointFinder,
   roadViewJump,
   roadViewForest,
@@ -564,32 +562,14 @@ export function Sidebar({
     // Back to the top of the step, tabs in view.
     window.requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
-  const stepProps = (id: ViaStepId) => {
-    const step = VIA_STEPS.find((entry) => entry.id === id)!
-    return {
-      step: step.number,
-      title: step.title,
-      reference: `Handbook ${step.section}`,
-      status: via.statuses[id],
-      collapsible: false,
-    }
-  }
   const stepPanelProps = (id: ViaStepId) => ({
     role: 'tabpanel' as const,
     id: `via-steps-panel-${id}`,
-    'aria-labelledby': `via-steps-tab-${id}`,
+    // Named by the step's title in its intro line, so the panel reads as "Design and simulate", not its short tab label.
+    'aria-labelledby': `via-step-title-${id}`,
     hidden: activeStep !== id,
     'data-via-panel': id,
   })
-  // One line, not a paragraph: the step's title and summary already say where you are.
-  const stepPurpose = (id: ViaStepId) => (
-    <div className="px-4 pb-2 text-2xs text-muted-foreground">
-      <InfoTip label="What this step is for" showLabel>
-        {VIA_STEPS.find((step) => step.id === id)!.purpose}
-      </InfoTip>
-    </div>
-  )
-
   const assessment = via.assessment
   const numericalReady = !!result?.quality?.numericalReady
   const summaries: Record<ViaStepId, string> = {
@@ -762,10 +742,10 @@ export function Sidebar({
   return (
     <MapSidebarShell
       title="Visual quality"
-      subtitle="Visual impact assessment, step by step"
-      icon={Eye}
       actions={<ForestryBackLink />}
       className={MAP_SIDEBAR_CLASS}
+      headerClassName="px-3 py-2.5"
+      titleClassName="text-base"
       density="compact"
     >
       <ViaHeadline
@@ -778,67 +758,68 @@ export function Sidebar({
       />
 
       {/* The five handbook steps as tabs, pinned while the step scrolls. */}
-      <div ref={tabsRef} className="sticky top-0 z-10 border-b border-border bg-background/95 px-2 pt-1 backdrop-blur">
+      <div ref={tabsRef} className="sticky top-0 z-10 border-b border-border bg-background/95 p-1.5 backdrop-blur">
         <TabBar
           label="Assessment steps"
-          variant="underline"
           stretch
           stacked
           idPrefix="via-steps"
-          className="border-b-0"
           value={activeStep}
           onChange={setActiveStep}
           options={VIA_STEPS.map((step) => ({
             value: step.id,
             label: STEP_TAB_LABELS[step.id],
             ariaLabel: `Step ${step.number}: ${step.title} (${stepStatusText(via.statuses[step.id])})`,
-            marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-5 w-5 text-2xs" />,
+            marker: <StepMarker step={step.number} status={via.statuses[step.id]} className="h-4 w-4 text-3xs" />,
           }))}
-          getTabProps={(option) => ({ 'data-via-step': option.value })}
+          getTabProps={(option) => ({ 'data-via-step': option.value, title: summaries[option.value] })}
         />
       </div>
 
       {/* Step 1 — 3.1: the proposal, its objective, and where it may be seen from. */}
       <div {...stepPanelProps('identify')}>
-        <StepSection {...stepProps('identify')} summary={summaries.identify}>
-          {stepPurpose('identify')}
-          {/* Where to begin: a worked sample, the road-view demo, or a clean site. */}
-          <div className="space-y-2 px-4 pb-4">
-            <p className="text-xs font-medium text-foreground">Start from</p>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" className="touch:h-10" onClick={onLoadSample}>
-                Tabor Mountain sample
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="touch:h-10"
-                onClick={onLoadHighwaySample}
-                title="A hypothetical block on Purden Lake's north face, across the water from Hwy 16, under BC's Retention and Partial Retention EVQO. The road, landform, viewpoints and arrows are real records."
-              >
-                Hwy 16 · Purden Lake
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="touch:h-10"
-                onClick={onLoadDriveSample}
-                title="A hypothetical opening beside a 1.2 km route, opened straight into the road view. It has no landform: its block stands on the valley floor."
-              >
-                Roadside demo drive
-              </Button>
-              <Button type="button" variant="outline" size="sm" className="touch:h-10" onClick={onClearScene}>
-                New site
-              </Button>
-            </div>
+        <StepIntro id="identify" status={via.statuses.identify} summary={summaries.identify} />
+        <ToolSection
+          title="Start from"
+          help="A worked sample, the roadside demo (opened straight into the road view), or a clean site. Each replaces what is on the map."
+        >
+          <div className="grid grid-cols-2 gap-1.5">
+            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onLoadSample}>
+              Tabor Mountain sample
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GRID_BUTTON}
+              onClick={onLoadHighwaySample}
+              title="A hypothetical block on Purden Lake's north face, across the water from Hwy 16, under BC's Retention and Partial Retention EVQO. The road, landform, viewpoints and arrows are real records."
+            >
+              Hwy 16 · Purden Lake
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className={GRID_BUTTON}
+              onClick={onLoadDriveSample}
+              title="A hypothetical opening beside a 1.2 km route, opened straight into the road view. It has no landform: its block stands on the valley floor."
+            >
+              Roadside demo drive
+            </Button>
+            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onClearScene}>
+              New site
+            </Button>
           </div>
+        </ToolSection>
 
-          <SidebarSection title="Road or viewpoint" icon={Route} variant="subsection">
-            {(drawMode === 'corridor' || drawMode === 'spot') && <div className="mb-3">{setup}</div>}
+        <ToolSection
+          title="Road or viewpoint"
+          help="Where the assessment is made from: one spot, or a length of road driven end to end. Snap replaces a drawn line with the road the basemap says it traces."
+        >
+          <div className="space-y-2">
+            {(drawMode === 'corridor' || drawMode === 'spot') && setup}
             <SegmentedControl
-              className="mb-3"
               size="sm"
               label="Assess from"
               value={viewpoint.mode}
@@ -850,37 +831,49 @@ export function Sidebar({
                 if (mode !== viewpoint.mode) onViewpointChange({ ...viewpoint, mode, coordinates: [] })
               }}
             />
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="mb-3 w-full"
-              onClick={() => onDrawModeChange(viewpoint.mode)}
-            >
-              <Crosshair className="h-4 w-4" />
-              {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
-            </Button>
-            {viewpoint.mode === 'corridor' && (
-              <FileButton
-                label="Road file"
-                accept=".zip,.geojson,.json"
-                variant="ghost"
-                className="-mt-2 mb-3 w-full text-2xs"
-                onFiles={([file]) => onImportRoad(file)}
+            <div className={cn('grid gap-1.5', viewpoint.mode === 'corridor' && 'grid-cols-2')}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={GRID_BUTTON}
+                onClick={() => onDrawModeChange(viewpoint.mode)}
               >
-                <FileUp className="h-3.5 w-3.5" />
-                Import a road (GeoJSON or zipped shapefile)
-              </FileButton>
-            )}
-
+                <Crosshair className="h-3.5 w-3.5" />
+                {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
+              </Button>
+              {viewpoint.mode === 'corridor' && (
+                <FileButton
+                  label="Road file"
+                  accept=".zip,.geojson,.json"
+                  variant="outline"
+                  className={GRID_BUTTON}
+                  title="A road as GeoJSON or a zipped shapefile"
+                  onFiles={([file]) => onImportRoad(file)}
+                >
+                  <FileUp className="h-3.5 w-3.5" />
+                  Import road
+                </FileButton>
+              )}
+            </div>
             {hasViewpoint && (
-              <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-border p-2 text-xs">
-                <span className="min-w-0 truncate text-muted-foreground">
+              <div className="flex items-center gap-1.5 rounded-md border bg-muted/20 py-1 pl-2.5 pr-1 text-xs">
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">
                   {viewpoint.mode === 'spot'
                     ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
                     : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                  onClick={onSnapToRoad}
+                  aria-label="Snap to the nearest road"
+                  title="Snap to the nearest road"
+                >
+                  <Magnet className="h-3.5 w-3.5" />
+                </Button>
                 <Button
                   type="button"
                   variant="ghost"
@@ -894,323 +887,293 @@ export function Sidebar({
                 </Button>
               </div>
             )}
+            {snapMessage && <p className="text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
+          </div>
+        </ToolSection>
 
-            {hasViewpoint && (
-              <div className="mb-3">
-                <Button type="button" variant="outline" size="sm" className="w-full" onClick={onSnapToRoad}>
-                  <Magnet className="h-4 w-4" />
-                  Snap to the nearest road
-                </Button>
-                {snapMessage && <p className="mt-1 text-3xs leading-4 text-muted-foreground">{snapMessage}</p>}
-              </div>
-            )}
-            {/* The same question the other way round: rather than picking a road and
-              asking what it sees, take the block and find the roads that see it. */}
-            <CollapsibleSection
-              label="Which roads see the block"
-              toggleProps={{ 'data-forestry-disclosure': 'reverse-viewshed' }}
-              summary="Search the roads on screen"
-              summaryWhenCollapsedOnly
-              className="-mx-4 border-b-0 border-t border-border/60"
-            >
+        {/* The same question the other way round: rather than picking a road and
+          asking what it sees, take the block and find the roads that see it. */}
+        <ToolSection
+          title="Which roads see the block"
+          summary={
+            reverse.result
+              ? `${reverse.result.roads.length} road${reverse.result.roads.length === 1 ? '' : 's'} found`
+              : 'Search the roads on screen'
+          }
+          toggleProps={{ 'data-forestry-disclosure': 'reverse-viewshed' }}
+          help="Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first: roads off screen are not searched. Percentages are the share of the block's ground area in view from one point. Pick a road to make it the corridor, then run the full assessment for the figures an objective is judged on."
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={blocks.length === 0 || reverseRunning}
+            onClick={onRunReverse}
+          >
+            {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
+            {reverseRunning ? 'Searching…' : 'Find them on screen'}
+          </Button>
+
+          {reverseRunning && reverse.progress && (
+            <InlineAlert loading>
+              {reverse.progress.phase === 'terrain'
+                ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
+                : 'Tracing sightlines…'}
+            </InlineAlert>
+          )}
+
+          {reverse.error && <InlineAlert tone="error">{reverse.error}</InlineAlert>}
+
+          {reverse.result && reverse.result.roads.length === 0 && (
+            <p className="text-2xs text-muted-foreground">
+              No road on screen can see it
+              {reverse.result.outOfRangeRoadCount > 0
+                ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
+                : '.'}
+            </p>
+          )}
+
+          {reverse.result && reverse.result.roads.length > 0 && (
+            <div className="overflow-hidden rounded-md border border-border">
+              <ListHeader
+                count={reverse.result.roads.length}
+                noun={['road', 'roads']}
+                shown={showAllRoads ? undefined : Math.min(ROADS_SHOWN, reverse.result.roads.length)}
+                sticky={false}
+                className="px-2 py-1.5 text-2xs"
+                aside={
+                  reverse.result.roads.length > ROADS_SHOWN && (
+                    <TextButton className="text-2xs" onClick={() => setShowAllRoads((value) => !value)}>
+                      {showAllRoads ? 'Show fewer' : 'Show all'}
+                    </TextButton>
+                  )
+                }
+              />
+              <ul className="divide-y divide-border" aria-label="Roads that see the block">
+                {(showAllRoads ? reverse.result.roads : reverse.result.roads.slice(0, ROADS_SHOWN)).map((road) => (
+                  <li key={road.roadId}>
+                    <ResultRow
+                      className="px-2 py-2"
+                      onClick={() => onUseRoad(road.roadId)}
+                      title={<span className="text-xs">{road.name}</span>}
+                      subtitle={
+                        <span className="whitespace-normal text-3xs leading-4">
+                          {road.seeingStationCount === 0
+                            ? 'Hidden from every point on it'
+                            : `Seen from ${formatPercentValue(road.exposedLengthFraction * 100, { maximumFractionDigits: 0 })} of its length · ` +
+                              `nearest ${formatMeasure(road.nearestDistanceMeters / 1000, 'km', { maximumFractionDigits: 1 })}`}
+                        </span>
+                      }
+                      trailing={
+                        <span
+                          className={cn(
+                            'text-xs',
+                            road.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
+                          )}
+                        >
+                          {formatPercentValue(road.maxVisiblePercent, { maximumFractionDigits: 0 })}
+                        </span>
+                      }
+                    />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </ToolSection>
+        {viewpointFinder}
+
+        <ToolSection
+          title="Cutblocks"
+          help="The proposed openings, traced on the map or imported as a zipped shapefile or GeoJSON. Each carries its objective and harvest system; retention feeds Table 5, and a partial cut is read from Table 6 rather than as cleared ground."
+        >
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <Button
                 type="button"
-                variant="outline"
+                variant={drawMode === 'block' ? 'default' : 'outline'}
                 size="sm"
-                className="w-full"
-                disabled={blocks.length === 0 || reverseRunning}
-                onClick={onRunReverse}
+                className={GRID_BUTTON}
+                aria-pressed={drawMode === 'block'}
+                onClick={() => onDrawModeChange(drawMode === 'block' ? 'none' : 'block')}
               >
-                {reverseRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Radar className="h-4 w-4" />}
-                {reverseRunning ? 'Searching…' : 'Find them on screen'}
+                <SquareDashed className="h-3.5 w-3.5" />
+                Draw block
               </Button>
-              <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
-                Reads the roads the basemap is drawing right now, so pan and zoom to the ground you want tested first —
-                roads off screen are not searched.
-              </p>
-
-              {reverseRunning && reverse.progress && (
-                <InlineAlert className="mt-2" loading>
-                  {reverse.progress.phase === 'terrain'
-                    ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
-                    : 'Tracing sightlines…'}
-                </InlineAlert>
-              )}
-
-              {reverse.error && (
-                <InlineAlert className="mt-2" tone="error">
-                  {reverse.error}
-                </InlineAlert>
-              )}
-
-              {reverse.result && reverse.result.roads.length === 0 && (
-                <p className="mt-2 text-2xs text-muted-foreground">
-                  No road on screen can see it
-                  {reverse.result.outOfRangeRoadCount > 0
-                    ? `, and ${reverse.result.outOfRangeRoadCount} sat beyond the view distance.`
-                    : '.'}
-                </p>
-              )}
-
-              {reverse.result && reverse.result.roads.length > 0 && (
-                <div className="mt-2 overflow-hidden rounded-md border border-border">
-                  <ListHeader
-                    count={reverse.result.roads.length}
-                    noun={['road', 'roads']}
-                    shown={showAllRoads ? undefined : Math.min(ROADS_SHOWN, reverse.result.roads.length)}
-                    sticky={false}
-                    className="px-2 py-1.5 text-2xs"
-                    aside={
-                      reverse.result.roads.length > ROADS_SHOWN && (
-                        <TextButton className="text-2xs" onClick={() => setShowAllRoads((value) => !value)}>
-                          {showAllRoads ? 'Show fewer' : 'Show all'}
-                        </TextButton>
-                      )
-                    }
-                  />
-                  <ul className="divide-y divide-border" aria-label="Roads that see the block">
-                    {(showAllRoads ? reverse.result.roads : reverse.result.roads.slice(0, ROADS_SHOWN)).map((road) => (
-                      <li key={road.roadId}>
-                        <ResultRow
-                          className="px-2 py-2"
-                          onClick={() => onUseRoad(road.roadId)}
-                          title={<span className="text-xs">{road.name}</span>}
-                          subtitle={
-                            <span className="whitespace-normal text-3xs leading-4">
-                              {road.seeingStationCount === 0
-                                ? 'Hidden from every point on it'
-                                : `Seen from ${formatPercentValue(road.exposedLengthFraction * 100, { maximumFractionDigits: 0 })} of its length · ` +
-                                  `nearest ${formatMeasure(road.nearestDistanceMeters / 1000, 'km', { maximumFractionDigits: 1 })}`}
-                            </span>
-                          }
-                          trailing={
-                            <span
-                              className={cn(
-                                'text-xs',
-                                road.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
-                              )}
-                            >
-                              {formatPercentValue(road.maxVisiblePercent, { maximumFractionDigits: 0 })}
-                            </span>
-                          }
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {reverse.result && reverse.result.roads.length > 0 && (
-                <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-                  Percentages are the share of the block&rsquo;s ground area in view from one point. Pick a road to make
-                  it the corridor, then run the full assessment for the figures an objective is judged on.
-                </p>
-              )}
-            </CollapsibleSection>
-            {viewpointFinder}
-          </SidebarSection>
-
-          <SidebarSection
-            title="Cutblocks"
-            icon={TreePine}
-            variant="subsection"
-            actions={
               <FileButton
                 label="Cutblock or landform file"
                 accept=".zip,.geojson,.json"
-                variant="ghost"
-                className="h-7 px-2 text-2xs"
+                variant="outline"
+                className={GRID_BUTTON}
+                title="Cutblocks or landforms as GeoJSON or a zipped shapefile"
                 onFiles={([file]) => onImportFile(file)}
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Import
               </FileButton>
-            }
-          >
-            <div className="mb-3">
-              <ToggleChip
-                active={drawMode === 'block'}
-                tone="rose"
-                onClick={() => onDrawModeChange(drawMode === 'block' ? 'none' : 'block')}
-              >
-                <span className="inline-flex items-center gap-1">
-                  <SquareDashed className="h-3 w-3" /> Draw block
-                </span>
-              </ToggleChip>
             </div>
-            {drawMode === 'block' && <div className="mb-3">{setup}</div>}
+            {drawMode === 'block' && setup}
             {importMessage && (
-              <InlineAlert className="mb-3" tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>
-                {importMessage}
-              </InlineAlert>
+              <InlineAlert tone={importMessage.startsWith('Could not') ? 'error' : 'info'}>{importMessage}</InlineAlert>
             )}
             {blocks.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                Trace a cutblock on the map, or import a zipped shapefile or GeoJSON of them.
-              </p>
+              <p className="text-2xs text-muted-foreground">None yet. Draw one on the map or import a file.</p>
             ) : (
               <ul className="space-y-1.5">{blocks.map(renderTarget)}</ul>
             )}
-          </SidebarSection>
+          </div>
+        </ToolSection>
 
-          <SidebarSection
-            title="Landform and objective"
-            icon={Mountain}
-            variant="subsection"
-            subtitle="Handbook 3.1.1: the objective comes from the visual landscape inventory, and is judged against one landform."
-          >
-            <div className="mb-3">
-              <ToggleChip
-                active={drawMode === 'landscape'}
-                tone="cyan"
-                onClick={() => onDrawModeChange(drawMode === 'landscape' ? 'none' : 'landscape')}
-              >
-                <span className="inline-flex items-center gap-1">
-                  <Mountain className="h-3 w-3" /> Draw landform
-                </span>
-              </ToggleChip>
-            </div>
-            {drawMode === 'landscape' && <div className="mb-3">{setup}</div>}
+        <ToolSection
+          title="Landform and objective"
+          help="Handbook 3.1.1: the objective comes from the visual landscape inventory, and is judged against one landform. Suggest one from the terrain or the BC inventory below, or draw the hillside."
+        >
+          <div className="space-y-2">
+            <Button
+              type="button"
+              variant={drawMode === 'landscape' ? 'default' : 'outline'}
+              size="sm"
+              className={cn(GRID_BUTTON, 'w-full')}
+              aria-pressed={drawMode === 'landscape'}
+              onClick={() => onDrawModeChange(drawMode === 'landscape' ? 'none' : 'landscape')}
+            >
+              <Mountain className="h-3.5 w-3.5" />
+              Draw landform
+            </Button>
+            {drawMode === 'landscape' && setup}
             {landforms.length === 0 ? (
-              <p className="mb-3 text-xs text-muted-foreground">
-                No landform yet. Suggest one from the terrain or the inventory below, or draw the hillside.
+              <p className="text-2xs text-muted-foreground">
+                None yet. Find one from the terrain or the BC inventory below, or draw the hillside.
               </p>
             ) : (
-              <ul className="mb-3 space-y-1.5">{landforms.map(renderTarget)}</ul>
+              <ul className="space-y-1.5">{landforms.map(renderTarget)}</ul>
             )}
-            {openings.length > 0 && (
-              <CollapsibleSection
-                label="Existing openings"
-                toggleProps={{ 'data-forestry-disclosure': 'existing-openings' }}
-                summary={`${openings.length} on the map`}
-                summaryWhenCollapsedOnly
-                className="-mx-4 mb-3 border-b-0 border-y border-border/60"
-              >
-                <ul className="space-y-1.5">{openings.map(renderTarget)}</ul>
-              </CollapsibleSection>
+          </div>
+        </ToolSection>
+        {openings.length > 0 && (
+          <ToolSection
+            title="Existing openings"
+            summary={`${openings.length} on the map`}
+            toggleProps={{ 'data-forestry-disclosure': 'existing-openings' }}
+          >
+            <ul className="space-y-1.5">{openings.map(renderTarget)}</ul>
+          </ToolSection>
+        )}
+        {landformFinder}
+        {/* The map-extent lookup also brings in existing harvest and forest
+          cover, so it is more than a landform finder — but it is secondary
+          to the two finders above, and folded. */}
+        <ToolSection
+          title="Look up this map view"
+          summary={inventory.units.length ? `${inventory.units.length} units` : 'BC inventory and existing harvest'}
+          toggleProps={{ 'data-forestry-disclosure': 'inventory-lookup' }}
+          help="Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries are candidates: review the visible landform before adopting one."
+          actions={
+            inventory.units.length > 0 && (
+              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-2xs" onClick={onToggleInventory}>
+                {showInventory ? 'Hide' : 'Show'}
+              </Button>
+            )
+          }
+        >
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={inventory.status === 'loading'}
+            onClick={onLookupInventory}
+          >
+            {inventory.status === 'loading' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Landmark className="h-4 w-4" />
             )}
-            {landformFinder && <div className="mb-3">{landformFinder}</div>}
-            {/* The map-extent lookup also brings in existing harvest and forest
-              cover, so it is more than a landform finder — but it is secondary
-              to the two finders above, and folded. */}
-            <CollapsibleSection
-              label="Look up this map view in the BC inventory"
-              toggleProps={{ 'data-forestry-disclosure': 'inventory-lookup' }}
-              summary={inventory.units.length ? `${inventory.units.length} units` : 'Also brings in existing harvest'}
-              summaryWhenCollapsedOnly
-              className="-mx-4 border-b-0 border-t border-border/60"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium text-foreground">Units in this map view</span>
-                {inventory.units.length > 0 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 px-2 text-2xs"
-                    onClick={onToggleInventory}
-                  >
-                    {showInventory ? 'Hide' : 'Show'}
-                  </Button>
-                )}
-              </div>
-              <div className="mt-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-full"
-                  disabled={inventory.status === 'loading'}
-                  onClick={onLookupInventory}
-                >
-                  {inventory.status === 'loading' ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Landmark className="h-4 w-4" />
-                  )}
-                  {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
-                </Button>
-                <p className="mt-2 text-2xs leading-4 text-muted-foreground">
-                  Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries
-                  are candidates: review the visible landform before adopting one.
+            {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
+          </Button>
+
+          {inventory.status === 'error' && <InlineAlert tone="error">{inventory.error}</InlineAlert>}
+
+          {inventory.status === 'ready' &&
+            (inventory.units.length === 0 ? (
+              <InlineAlert>
+                No inventory boundaries intersect this map extent. Use &ldquo;Find a landform in the BC inventory&rdquo;
+                above to search nearby units, or draw or import the visible hillside.
+              </InlineAlert>
+            ) : (
+              <div>
+                <p className="text-2xs text-muted-foreground">
+                  {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective ·{' '}
+                  {inventorySummary.withVac} with a VAC rating
+                  {inventory.truncated ? ' · more exist than were returned' : ''}
+                  {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
+                  {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
                 </p>
-
-                {inventory.status === 'error' && (
-                  <InlineAlert className="mt-2" tone="error">
-                    {inventory.error}
-                  </InlineAlert>
-                )}
-
-                {inventory.status === 'ready' &&
-                  (inventory.units.length === 0 ? (
-                    <InlineAlert className="mt-2">
-                      No inventory boundaries intersect this map extent. Use "Find a landform in the BC inventory" above
-                      to search nearby units, or draw or import the visible hillside.
-                    </InlineAlert>
-                  ) : (
-                    <div className="mt-2">
-                      <p className="text-2xs text-muted-foreground">
-                        {inventorySummary.total} units · {inventorySummary.withObjective} with an established objective
-                        · {inventorySummary.withVac} with a VAC rating
-                        {inventory.truncated ? ' · more exist than were returned' : ''}
-                        {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
-                        {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
-                      </p>
-                      <ul
-                        className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"
-                        aria-label="Inventory units in this view"
-                      >
-                        {ratedUnits.map((unit) => (
-                          <li key={unit.id}>
-                            <ResultRow
-                              className="px-2 py-1.5"
-                              onClick={() => onAdoptUnit(unit.id)}
-                              leading={
-                                // The unit's colour on the map: its objective's, grey with none.
-                                <span
-                                  className="mt-1 block h-2.5 w-2.5 rounded-sm"
-                                  style={{
-                                    backgroundColor: unit.objectiveId
-                                      ? visualQualityClass(unit.objectiveId).color
-                                      : SENSITIVITY_UNIT_COLORS.unrated,
-                                  }}
-                                />
-                              }
-                              title={<span className="text-xs">{unit.name}</span>}
-                              subtitle={
-                                <span className="text-2xs">
-                                  {unit.objectiveId
-                                    ? visualQualityClass(unit.objectiveId).label
-                                    : 'No established objective'}
-                                  {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
-                                  {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
-                                </span>
-                              }
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                      {ratedUnits.length < inventory.units.length && (
-                        <p className="mt-1 text-3xs text-muted-foreground">
-                          {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
-                        </p>
-                      )}
-                    </div>
+                <ul
+                  className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"
+                  aria-label="Inventory units in this view"
+                >
+                  {ratedUnits.map((unit) => (
+                    <li key={unit.id}>
+                      <ResultRow
+                        className="px-2 py-1.5"
+                        onClick={() => onAdoptUnit(unit.id)}
+                        leading={
+                          // The unit's colour on the map: its objective's, grey with none.
+                          <span
+                            className="mt-1 block h-2.5 w-2.5 rounded-sm"
+                            style={{
+                              backgroundColor: unit.objectiveId
+                                ? visualQualityClass(unit.objectiveId).color
+                                : SENSITIVITY_UNIT_COLORS.unrated,
+                            }}
+                          />
+                        }
+                        title={<span className="text-xs">{unit.name}</span>}
+                        subtitle={
+                          <span className="text-2xs">
+                            {unit.objectiveId ? visualQualityClass(unit.objectiveId).label : 'No established objective'}
+                            {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
+                            {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
+                          </span>
+                        }
+                      />
+                    </li>
                   ))}
+                </ul>
+                {ratedUnits.length < inventory.units.length && (
+                  <p className="mt-1 text-3xs text-muted-foreground">
+                    {inventory.units.length - ratedUnits.length} unrated units are on the map but not listed.
+                  </p>
+                )}
               </div>
-            </CollapsibleSection>
-          </SidebarSection>
-        </StepSection>
+            ))}
+        </ToolSection>
       </div>
 
       {/* Step 2 — 3.2: travel the road as a visitor would and record the views. */}
       <div {...stepPanelProps('visit')}>
-        <StepSection {...stepProps('visit')} summary={summaries.visit}>
-          {stepPurpose('visit')}
-          {/* The map's bar plays, saves and exits; everything about how the view
-            looks is here, once. */}
-          {result && drive.active && (
-            <SidebarSection title="Road view" icon={Route} variant="subsection">
+        <StepIntro id="visit" status={via.statuses.visit} summary={summaries.visit} />
+        {/* The map's bar plays, saves and exits; everything about how the view
+          looks is here, once. */}
+        {result && drive.active && (
+          <>
+            <ToolSection
+              title="Road view"
+              help={
+                <>
+                  Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery
+                  drapes the photo over the hills. EVQO polygons drape the established objectives over the ground,
+                  coloured by class, as a planner&apos;s Google Earth layer does. Landform drapes the landform being
+                  assessed (light blue) and the other ridge layers read for it (purple), so you can see which band of
+                  the mountain the block takes a share of. Distance haze fades each ridge a little more than the one in
+                  front, as real air does; it changes only the picture. Note screenshot look is how planning-note
+                  screenshots are taken in Google Earth: imagery, the proposed blocks filled white, no drawn timber or
+                  points. Turn timber back on to see what roadside trees would screen.
+                </>
+              }
+            >
               <div className="space-y-3">
                 <Field label="Where to look">
                   <StyledSelect
@@ -1229,25 +1192,8 @@ export function Sidebar({
                 </Field>
                 {roadViewJump}
                 <div>
-                  <p className="mb-1 flex items-center gap-1 text-2xs font-medium text-muted-foreground">
-                    Show
-                    <InfoTip label="About these views">
-                      Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery
-                      drapes the photo over the hills. EVQO polygons drape the established objectives over the ground,
-                      coloured by class, as a planner's Google Earth layer does; each block's own colour is set under
-                      Block colours below. Landform drapes the landform being assessed (light blue) and the other ridge
-                      layers read for it (purple), so you can see which band of the mountain the block takes a share of.
-                      Distance haze fades each ridge a little more than the one in front, as real air does; it changes
-                      only the picture. Note screenshot look is how planning-note screenshots are taken in Google Earth:
-                      imagery, the proposed blocks filled white, no drawn timber or points. Turn timber back on to see
-                      what roadside trees would screen.
-                    </InfoTip>
-                  </p>
-                  <div
-                    className="grid grid-cols-2 gap-1.5 sm:grid-cols-3"
-                    role="group"
-                    aria-label="Show in the road view"
-                  >
+                  <p className="mb-1 text-2xs font-medium text-muted-foreground">Show</p>
+                  <div className="grid grid-cols-2 gap-1.5" role="group" aria-label="Show in the road view">
                     <ToggleRow
                       layout="tile"
                       tone="primary"
@@ -1314,123 +1260,6 @@ export function Sidebar({
                     </p>
                   )}
                 </div>
-                {blocks.length > 0 && (
-                  <div>
-                    <p className="mb-1 flex items-center gap-1 text-2xs font-medium text-muted-foreground">
-                      Block colours
-                      <InfoTip label="About block colours">
-                        How each block is filled on the map, in the road view and in the screenshots taken from it:
-                        white for a planning-note screenshot, or any colour to tell blocks apart. Unset, a block is
-                        cleared ground (white in the note screenshot look). Display only: the run never changes. A saved
-                        screenshot keeps the colour it was taken with.
-                      </InfoTip>
-                    </p>
-                    <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Block colours">
-                      {blocks.map((block) => (
-                        <li key={block.id} className="flex items-center gap-1.5 text-2xs">
-                          <BlockColorSwatch
-                            target={block}
-                            onChange={(displayColor) => onTargetChange(block.id, { displayColor })}
-                          />
-                          <span className="max-w-[9rem] truncate">{block.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* The block as the gap where the trees stop tells you whether
-                  you can see it, which is what the objective is about. */}
-                <div className="rounded-md border border-border p-2">
-                  <div className="flex items-center gap-1.5">
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      icon={Trees}
-                      label="Standing timber"
-                      className="flex-1"
-                      active={drive.forest}
-                      onClick={() => onDriveChange({ forest: !drive.forest })}
-                    />
-                    <InfoTip label="About the drawn timber">
-                      Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a
-                      gap. It is a drawing: stand height, cleared width and stem style change only the picture, never
-                      the percentages. A 28 m tree 15 m away fills the sky, so widen the cleared strip to open the
-                      foreground
-                      {roadClearing?.roadClass
-                        ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
-                        : ''}
-                      {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
-                    </InfoTip>
-                  </div>
-                  {drive.forest && (
-                    <div className="mt-2 space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <NumberField
-                          label="Stand height"
-                          value={drive.treeHeightMeters}
-                          min={5}
-                          max={60}
-                          step={1}
-                          suffix="m"
-                          onChange={(value) => onDriveChange({ treeHeightMeters: value })}
-                        />
-                        <NumberField
-                          label="Cleared width"
-                          value={drive.roadClearWidthMeters}
-                          min={6}
-                          max={400}
-                          step={2}
-                          suffix="m"
-                          onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
-                        />
-                      </div>
-                      <SegmentedControl
-                        size="sm"
-                        label="How a stem is drawn"
-                        value={drive.treeStyle}
-                        onChange={(treeStyle) => onDriveChange({ treeStyle })}
-                        options={[
-                          {
-                            value: 'hybrid',
-                            label: 'Stable silhouettes',
-                            title:
-                              'Three fixed silhouette planes per near tree; distant instances stand for canopy groups',
-                          },
-                          { value: 'billboard', label: 'Billboards', title: 'Two fixed planes per near tree; lighter' },
-                          {
-                            value: 'solid',
-                            label: 'Solid cones',
-                            title: 'Real cone geometry: honest from any angle, about fifteen times the triangles',
-                          },
-                        ]}
-                      />
-                      {drive.lookAtTargetId && (
-                        <ToggleRow
-                          layout="tile"
-                          tone="primary"
-                          label="Viewing gap to the block"
-                          title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
-                          active={drive.viewingGap}
-                          onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
-                        />
-                      )}
-                      {forestStatus?.error ? (
-                        <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
-                      ) : (
-                        forestStatus !== null && (
-                          <p className="text-3xs leading-4 text-muted-foreground">
-                            {formatNumber(forestStatus.treeCount)} stems ·{' '}
-                            {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
-                              ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
-                              : 'a regional mix; look up the BC inventory to draw what was recorded here'}
-                          </p>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-                {roadViewForest}
                 <label className="flex items-center justify-between gap-2 text-xs">
                   Display quality
                   <StyledSelect
@@ -1445,53 +1274,189 @@ export function Sidebar({
                   </StyledSelect>
                 </label>
               </div>
-            </SidebarSection>
-          )}
-          <div className="px-4 pb-4">{visit}</div>
-          {fieldPhoto && (
-            <SidebarSection title="Field photo" icon={Camera} variant="subsection">
-              {fieldPhoto}
-            </SidebarSection>
-          )}
-          <div className="border-t border-border/60 px-4 py-3">
-            <ViewpointTypeField
-              result={result}
-              review={via.review}
-              speedKmh={drive.speedKmh}
-              onChange={via.onReviewChange}
-            />
-          </div>
-        </StepSection>
+            </ToolSection>
+
+            {blocks.length > 0 && (
+              <ToolSection
+                title="Block colours"
+                summary={
+                  blocks.some((block) => block.displayColor)
+                    ? `${blocks.filter((block) => block.displayColor).length} of ${blocks.length} set`
+                    : 'Cleared ground'
+                }
+                toggleProps={{ 'data-forestry-disclosure': 'block-colours' }}
+                help="How each block is filled on the map, in the road view and in the screenshots taken from it: white for a planning-note screenshot, or any colour to tell blocks apart. Unset, a block is cleared ground (white in the note screenshot look). Display only: the run never changes. A saved screenshot keeps the colour it was taken with."
+              >
+                <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Block colours">
+                  {blocks.map((block) => (
+                    <li key={block.id} className="flex items-center gap-1.5 text-2xs">
+                      <BlockColorSwatch
+                        target={block}
+                        onChange={(displayColor) => onTargetChange(block.id, { displayColor })}
+                      />
+                      <span className="max-w-[9rem] truncate">{block.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </ToolSection>
+            )}
+
+            {/* The block as the gap where the trees stop tells you whether
+              you can see it, which is what the objective is about. */}
+            <ToolSection
+              title="Drawn timber"
+              help={
+                <>
+                  Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a gap. It
+                  is a drawing: stand height, cleared width and stem style change only the picture, never the
+                  percentages. A 28 m tree 15 m away fills the sky, so widen the cleared strip to open the foreground
+                  {roadClearing?.roadClass
+                    ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
+                    : ''}
+                  {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
+                </>
+              }
+            >
+              <div className="space-y-2">
+                <ToggleRow
+                  layout="tile"
+                  tone="primary"
+                  icon={Trees}
+                  label="Standing timber"
+                  active={drive.forest}
+                  onClick={() => onDriveChange({ forest: !drive.forest })}
+                />
+                {drive.forest && (
+                  <>
+                    <div className="grid grid-cols-2 gap-2">
+                      <NumberField
+                        label="Stand height"
+                        value={drive.treeHeightMeters}
+                        min={5}
+                        max={60}
+                        step={1}
+                        suffix="m"
+                        onChange={(value) => onDriveChange({ treeHeightMeters: value })}
+                      />
+                      <NumberField
+                        label="Cleared width"
+                        value={drive.roadClearWidthMeters}
+                        min={6}
+                        max={400}
+                        step={2}
+                        suffix="m"
+                        onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
+                      />
+                    </div>
+                    <SegmentedControl
+                      size="sm"
+                      label="How a stem is drawn"
+                      value={drive.treeStyle}
+                      onChange={(treeStyle) => onDriveChange({ treeStyle })}
+                      options={[
+                        {
+                          value: 'hybrid',
+                          label: 'Stable silhouettes',
+                          title:
+                            'Three fixed silhouette planes per near tree; distant instances stand for canopy groups',
+                        },
+                        { value: 'billboard', label: 'Billboards', title: 'Two fixed planes per near tree; lighter' },
+                        {
+                          value: 'solid',
+                          label: 'Solid cones',
+                          title: 'Real cone geometry: honest from any angle, about fifteen times the triangles',
+                        },
+                      ]}
+                    />
+                    {drive.lookAtTargetId && (
+                      <ToggleRow
+                        layout="tile"
+                        tone="primary"
+                        label="Viewing gap to the block"
+                        title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
+                        active={drive.viewingGap}
+                        onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
+                      />
+                    )}
+                    {forestStatus?.error ? (
+                      <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
+                    ) : (
+                      forestStatus !== null && (
+                        <p className="text-3xs leading-4 text-muted-foreground">
+                          {formatNumber(forestStatus.treeCount)} stems ·{' '}
+                          {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
+                            ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
+                            : 'a regional mix; look up the BC inventory to draw what was recorded here'}
+                        </p>
+                      )
+                    )}
+                  </>
+                )}
+              </div>
+            </ToolSection>
+            {roadViewForest}
+          </>
+        )}
+        {visit}
+        {fieldPhoto && (
+          <ToolSection
+            title="Field photo"
+            summary="Mapillary street-level photo"
+            toggleProps={{ 'data-forestry-disclosure': 'field-photo' }}
+            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. A street-level photo from Mapillary can stand in for a first visit: line the road view up with it and see whether the terrain and timber match."
+          >
+            {fieldPhoto}
+          </ToolSection>
+        )}
+        <ToolSection
+          title="Viewpoint type"
+          help="Handbook 3.2.1: how important the viewpoint is, from how long the proposal stays in view at travel speed. Types 4 and 5 are land uses a terrain model cannot see."
+        >
+          <ViewpointTypeField
+            result={result}
+            review={via.review}
+            speedKmh={drive.speedKmh}
+            onChange={via.onReviewChange}
+            hideLabel
+          />
+        </ToolSection>
       </div>
 
       {/* Step 3 — 3.3: delineate the landform, review the design, simulate. */}
       <div {...stepPanelProps('design')}>
-        <StepSection {...stepProps('design')} summary={summaries.design}>
-          {stepPurpose('design')}
-          <SidebarSection
-            title="Run assumptions"
-            icon={Mountain}
-            variant="subsection"
-            subtitle="Handbook 3.3.2: the proposal is measured against the landform it sits on."
-          >
-            {landformScope}
-          </SidebarSection>
-          <SidebarSection
-            title="Simulation"
-            icon={Sparkles}
-            variant="subsection"
-            subtitle="Handbook 3.3.4: terrain sightlines from each station on the road."
-          >
-            <div className="flex gap-1.5">
+        <StepIntro id="design" status={via.statuses.design} summary={summaries.design} />
+        <ToolSection
+          title="Run assumptions"
+          help="Handbook 3.3.2: the proposal is measured against the landform it sits on, as it stands in the assessment year."
+        >
+          {landformScope}
+        </ToolSection>
+        <ToolSection
+          title="Simulation"
+          help="Handbook 3.3.4: terrain sightlines from each station on the road to every point on every block. Add the on-screen roads as site disturbance (FS1252 line b): without them the alteration figure is a floor, and on steep ground a road can read as heavily as the block it serves."
+        >
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <Button
                 type="button"
-                className="flex-1"
                 size="sm"
+                className={GRID_BUTTON}
                 disabled={!hasViewpoint || blocks.length === 0 || running}
                 onClick={onRun}
               >
                 {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 {running ? 'Working…' : 'Run visibility'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className={GRID_BUTTON}
+                title="Adds the roads drawn on screen inside the landform as FS1252 line (b) site disturbance"
+                onClick={onAddRoadDisturbance}
+              >
+                <Waypoints className="h-4 w-4" />
+                Add on-screen roads as site disturbance
               </Button>
             </div>
 
@@ -1519,19 +1484,15 @@ export function Sidebar({
               />
             )}
 
-            {!hasViewpoint && <p className="mt-2 text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
+            {!hasViewpoint && <p className="text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
             {hasViewpoint && blocks.length === 0 && (
-              <p className="mt-2 text-2xs text-muted-foreground">Add at least one block to assess.</p>
+              <p className="text-2xs text-muted-foreground">Add at least one block to assess.</p>
             )}
-            {analysis.error && (
-              <InlineAlert className="mt-2" tone="error">
-                {analysis.error}
-              </InlineAlert>
-            )}
+            {analysis.error && <InlineAlert tone="error">{analysis.error}</InlineAlert>}
             {/* Whether the run's numbers can be used, where the run was pressed
               rather than only in the package two steps on. */}
             {result && !running && (
-              <InlineAlert className="mt-2" tone={numericalReady ? 'success' : 'warning'}>
+              <InlineAlert tone={numericalReady ? 'success' : 'warning'}>
                 {numericalReady
                   ? 'Scenario numerical fields available'
                   : 'Provisional result — PDF numerical fields withheld'}
@@ -1540,318 +1501,299 @@ export function Sidebar({
                 ) : null}
               </InlineAlert>
             )}
-
-            {/* FS1252 line 2.3.2 (b): roads, landings and side cast outside the
-            openings. Without these the alteration figure is a floor, and on
-            steep ground a road can read as heavily as the block it serves. */}
-            <Button type="button" variant="outline" size="sm" className="mt-2 w-full" onClick={onAddRoadDisturbance}>
-              <Waypoints className="h-4 w-4" />
-              Add on-screen roads as site disturbance
-            </Button>
-          </SidebarSection>
-          <CollapsibleSection
-            label="Simulation settings"
-            toggleProps={{ 'data-forestry-disclosure': 'simulation-settings' }}
-            summary={`${formatMeasure(settings.observerHeightMeters, 'm')} eye · ${formatMeasure(settings.maxViewDistanceMeters / 1000, 'km', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} range`}
-            summaryWhenCollapsedOnly
-            className="border-b-0 border-t border-border/60"
-          >
-            <div className="px-4 pb-4">
-              <NumberField
-                label="Eye height above the road"
-                suffix="m"
-                value={settings.observerHeightMeters}
-                min={0}
-                max={100}
-                step={0.1}
-                hint="1.6 m is a person standing; raise it for a loaded truck cab or a lookout."
-                onChange={(value) => onSettingsChange({ ...settings, observerHeightMeters: value })}
-              />
-              {viewpoint.mode === 'corridor' && (
-                <div className="mt-3">
-                  <NumberField
-                    label="Distance between viewing stations"
-                    suffix="m"
-                    value={settings.stationSpacingMeters}
-                    min={20}
-                    max={2000}
-                    step={10}
-                    hint="Closer stations catch short windows through the trees at the cost of run time."
-                    onChange={(value) => onSettingsChange({ ...settings, stationSpacingMeters: value })}
-                  />
-                </div>
-              )}
-              <div className="mt-3">
-                <Field
-                  label="Terrain detail"
-                  hint={`${formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom), 'm', { maximumFractionDigits: 0 })} between elevation samples. Finer detail means many more tiles to fetch.`}
-                >
-                  <StyledSelect
-                    className={FORM_INPUT_CLASS}
-                    value={settings.demZoom}
-                    onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
-                  >
-                    {Array.from({ length: MAX_DEM_ZOOM - MIN_DEM_ZOOM + 1 }, (_, index) => {
-                      const zoom = MIN_DEM_ZOOM + index
-                      return (
-                        <option key={zoom} value={zoom}>
-                          Zoom {zoom} ·{' '}
-                          {formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, zoom), 'm', {
-                            maximumFractionDigits: 0,
-                          })}
-                        </option>
-                      )
-                    })}
-                  </StyledSelect>
-                </Field>
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <NumberField
-                    label="Max view distance"
-                    suffix="km"
-                    value={settings.maxViewDistanceMeters / 1000}
-                    min={0.5}
-                    max={40}
-                    step={0.5}
-                    onChange={(value) => onSettingsChange({ ...settings, maxViewDistanceMeters: value * 1000 })}
-                  />
-                  <NumberField
-                    label="Target height"
-                    suffix="m"
-                    value={settings.targetOffsetMeters}
-                    min={0}
-                    max={60}
-                    step={0.5}
-                    onChange={(value) => onSettingsChange({ ...settings, targetOffsetMeters: value })}
-                  />
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <NumberField
-                    label="Green-up age"
-                    suffix="yr"
-                    value={settings.greenUpAgeYears}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onChange={(value) => onSettingsChange({ ...settings, greenUpAgeYears: value })}
-                  />
-                  <NumberField
-                    label="Screening crown closure"
-                    suffix="%"
-                    value={settings.minCrownClosurePercent}
-                    min={0}
-                    max={100}
-                    step={5}
-                    onChange={(value) => onSettingsChange({ ...settings, minCrownClosurePercent: value })}
-                  />
-                </div>
-                <CheckboxField
-                  className="mt-3"
-                  label={<span className="text-2xs font-medium">Screen with standing timber</span>}
-                  description={
-                    <span className="text-2xs leading-4">
-                      Adds VRI rank-1&apos;s projected stand height to the ground along each sightline, so a block
-                      behind mature timber reads as hidden. Openings and the proposal itself are treated as cleared.
-                      Full-landscape coverage, and a slow query — it fetches every inventory polygon over the run&apos;s
-                      extent.
-                    </span>
-                  }
-                  checked={settings.screeningEnabled}
-                  onCheckedChange={(screeningEnabled) => onSettingsChange({ ...settings, screeningEnabled })}
-                />
-                <div className="mt-3">
-                  <NumberField
-                    label="Sample points per polygon"
-                    value={settings.sampleBudget}
-                    min={100}
-                    max={20000}
-                    step={100}
-                    hint="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
-                    onChange={(value) => onSettingsChange({ ...settings, sampleBudget: value })}
-                  />
-                </div>
-              </div>
-            </div>
-          </CollapsibleSection>
-          <CollapsibleSection
-            label="Planning thresholds"
-            toggleProps={{ 'data-forestry-disclosure': 'planning-thresholds' }}
-            summary="Not the handbook’s Table 2"
-            summaryWhenCollapsedOnly
-            className="border-b-0 border-t border-border/60"
-          >
-            <div className="px-4 pb-4">
-              <SegmentedControl
-                className="mb-2"
-                size="sm"
-                label="Threshold scale"
-                value={thresholdBasis}
-                onChange={setThresholdBasis}
-                options={(['perspective', 'planimetric'] as AlterationBasis[]).map((basis) => ({
-                  value: basis,
-                  label: ALTERATION_BASIS_LABELS[basis],
-                }))}
-              />
-              <p className="mb-2 text-2xs leading-4 text-muted-foreground">
-                {ALTERATION_BASIS_NOTES[thresholdBasis]} Defaults come from{' '}
-                {thresholdBasis === 'perspective'
-                  ? 'A Guide to Visual Quality Objectives (2013)'
-                  : 'Procedures for Factoring Visual Resources into Timber Supply Analyses (1998), Table 3'}
-                — edit them to match a district&apos;s own numbers.
-              </p>
-              <div className="space-y-1">
-                {VISUAL_QUALITY_CLASSES.map((entry) => (
-                  <div key={entry.id} className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: entry.color }} />
-                    <span className="min-w-0 flex-1 truncate text-xs text-foreground" title={entry.description}>
-                      {entry.label}
-                    </span>
-                    {/* A cleared box keeps the threshold until a new number is typed. */}
-                    <SharedNumberField
-                      label={`${entry.label} ${thresholdBasis} threshold`}
-                      aria-label={`${entry.label} ${thresholdBasis} threshold`}
-                      hideLabel
-                      value={thresholds[thresholdBasis][entry.id]}
-                      min={0}
-                      max={100}
-                      step={0.5}
-                      suffix="%"
-                      clampOn="commit"
-                      onValueChange={(next) =>
-                        onThresholdsChange({
-                          ...thresholds,
-                          [thresholdBasis]: { ...thresholds[thresholdBasis], [entry.id]: next },
-                        })
-                      }
-                      contentClassName="flex flex-row items-center gap-1 text-2xs text-muted-foreground"
-                      inputClassName={cn(FORM_INPUT_CLASS, 'w-16 text-right')}
-                      unitClassName="text-2xs"
-                    />
-                  </div>
-                ))}
-              </div>
-              {thresholdBasis === 'planimetric' && (
-                <p className="mt-2 text-3xs leading-4 text-muted-foreground">
-                  Table 4 narrows these to one figure per visual absorption capability. Rate a landform&apos;s VAC in
-                  the polygon list above and the results use that figure instead of the class maximum.
-                </p>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2 h-7 px-2 text-2xs text-muted-foreground"
-                onClick={() => onThresholdsChange({ ...DEFAULT_VISUAL_QUALITY_THRESHOLDS })}
-              >
-                Reset to guidebook defaults
-              </Button>
-            </div>
-          </CollapsibleSection>
-          {result && (
-            <SidebarSection title="Simulation results" icon={Gauge} variant="subsection">
-              <ResultsPanel
-                result={result}
-                targets={targets}
-                thresholds={thresholds}
-                selectedTargetId={selectedTargetId}
-                onSelectTarget={onSelectTarget}
-                drivePositionMeters={drive.active ? drive.positionMeters : null}
-                onSeek={(distanceMeters) => onDriveChange({ active: true, positionMeters: distanceMeters })}
-              />
-            </SidebarSection>
+          </div>
+        </ToolSection>
+        {result && (
+          <ToolSection title="Results">
+            <ResultsPanel
+              result={result}
+              targets={targets}
+              thresholds={thresholds}
+              selectedTargetId={selectedTargetId}
+              onSelectTarget={onSelectTarget}
+              drivePositionMeters={drive.active ? drive.positionMeters : null}
+              onSeek={(distanceMeters) => onDriveChange({ active: true, positionMeters: distanceMeters })}
+            />
+          </ToolSection>
+        )}
+        <ToolSection
+          title="Simulation settings"
+          summary={`${formatMeasure(settings.observerHeightMeters, 'm')} eye · ${formatMeasure(settings.maxViewDistanceMeters / 1000, 'km', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} range`}
+          toggleProps={{ 'data-forestry-disclosure': 'simulation-settings' }}
+        >
+          <NumberField
+            label="Eye height above the road"
+            suffix="m"
+            value={settings.observerHeightMeters}
+            min={0}
+            max={100}
+            step={0.1}
+            hint="1.6 m is a person standing; raise it for a loaded truck cab or a lookout."
+            onChange={(value) => onSettingsChange({ ...settings, observerHeightMeters: value })}
+          />
+          {viewpoint.mode === 'corridor' && (
+            <NumberField
+              label="Distance between viewing stations"
+              suffix="m"
+              value={settings.stationSpacingMeters}
+              min={20}
+              max={2000}
+              step={10}
+              hint="Closer stations catch short windows through the trees at the cost of run time."
+              onChange={(value) => onSettingsChange({ ...settings, stationSpacingMeters: value })}
+            />
           )}
-          {/* Guidance for reading the design against the terrain: after the
-            results it explains, and folded, since it is reading, not a control. */}
-          <div className="border-t border-border/60 px-4 py-3">{designReview}</div>
-        </StepSection>
+          <Field
+            label="Terrain detail"
+            hint={`${formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom), 'm', { maximumFractionDigits: 0 })} between elevation samples. Finer detail means many more tiles to fetch.`}
+          >
+            <StyledSelect
+              className={FORM_INPUT_CLASS}
+              value={settings.demZoom}
+              onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
+            >
+              {Array.from({ length: MAX_DEM_ZOOM - MIN_DEM_ZOOM + 1 }, (_, index) => {
+                const zoom = MIN_DEM_ZOOM + index
+                return (
+                  <option key={zoom} value={zoom}>
+                    Zoom {zoom} ·{' '}
+                    {formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, zoom), 'm', {
+                      maximumFractionDigits: 0,
+                    })}
+                  </option>
+                )
+              })}
+            </StyledSelect>
+          </Field>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField
+              label="Max view distance"
+              suffix="km"
+              value={settings.maxViewDistanceMeters / 1000}
+              min={0.5}
+              max={40}
+              step={0.5}
+              onChange={(value) => onSettingsChange({ ...settings, maxViewDistanceMeters: value * 1000 })}
+            />
+            <NumberField
+              label="Target height"
+              suffix="m"
+              value={settings.targetOffsetMeters}
+              min={0}
+              max={60}
+              step={0.5}
+              onChange={(value) => onSettingsChange({ ...settings, targetOffsetMeters: value })}
+            />
+            <NumberField
+              label="Green-up age"
+              suffix="yr"
+              value={settings.greenUpAgeYears}
+              min={0}
+              max={100}
+              step={1}
+              onChange={(value) => onSettingsChange({ ...settings, greenUpAgeYears: value })}
+            />
+            <NumberField
+              label="Screening crown closure"
+              suffix="%"
+              value={settings.minCrownClosurePercent}
+              min={0}
+              max={100}
+              step={5}
+              onChange={(value) => onSettingsChange({ ...settings, minCrownClosurePercent: value })}
+            />
+          </div>
+          <div className="flex items-start gap-1">
+            <CheckboxField
+              className="flex-1"
+              label={<span className="text-2xs font-medium">Screen with standing timber</span>}
+              checked={settings.screeningEnabled}
+              onCheckedChange={(screeningEnabled) => onSettingsChange({ ...settings, screeningEnabled })}
+            />
+            <InfoTip label="About screening with standing timber">
+              Adds VRI rank-1&apos;s projected stand height to the ground along each sightline, so a block behind mature
+              timber reads as hidden. Openings and the proposal itself are treated as cleared. Full-landscape coverage,
+              and a slow query — it fetches every inventory polygon over the run&apos;s extent.
+            </InfoTip>
+          </div>
+          <NumberField
+            label="Sample points per polygon"
+            value={settings.sampleBudget}
+            min={100}
+            max={20000}
+            step={100}
+            hint="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
+            onChange={(value) => onSettingsChange({ ...settings, sampleBudget: value })}
+          />
+        </ToolSection>
+        <ToolSection
+          title="Planning thresholds"
+          summary="Not the handbook’s Table 2"
+          toggleProps={{ 'data-forestry-disclosure': 'planning-thresholds' }}
+          help={
+            <>
+              {ALTERATION_BASIS_NOTES[thresholdBasis]} Defaults come from{' '}
+              {thresholdBasis === 'perspective'
+                ? 'A Guide to Visual Quality Objectives (2013)'
+                : 'Procedures for Factoring Visual Resources into Timber Supply Analyses (1998), Table 3'}
+              — edit them to match a district&apos;s own numbers.
+              {thresholdBasis === 'planimetric' &&
+                ' Table 4 narrows these to one figure per visual absorption capability. Rate a landform’s VAC in step 1 and the results use that figure instead of the class maximum.'}
+            </>
+          }
+        >
+          <SegmentedControl
+            size="sm"
+            label="Threshold scale"
+            value={thresholdBasis}
+            onChange={setThresholdBasis}
+            options={(['perspective', 'planimetric'] as AlterationBasis[]).map((basis) => ({
+              value: basis,
+              label: ALTERATION_BASIS_LABELS[basis],
+            }))}
+          />
+          <div className="space-y-1">
+            {VISUAL_QUALITY_CLASSES.map((entry) => (
+              <div key={entry.id} className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: entry.color }} />
+                <span className="min-w-0 flex-1 truncate text-xs text-foreground" title={entry.description}>
+                  {entry.label}
+                </span>
+                {/* A cleared box keeps the threshold until a new number is typed. */}
+                <SharedNumberField
+                  label={`${entry.label} ${thresholdBasis} threshold`}
+                  aria-label={`${entry.label} ${thresholdBasis} threshold`}
+                  hideLabel
+                  value={thresholds[thresholdBasis][entry.id]}
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  suffix="%"
+                  clampOn="commit"
+                  onValueChange={(next) =>
+                    onThresholdsChange({
+                      ...thresholds,
+                      [thresholdBasis]: { ...thresholds[thresholdBasis], [entry.id]: next },
+                    })
+                  }
+                  contentClassName="flex flex-row items-center gap-1 text-2xs text-muted-foreground"
+                  inputClassName={cn(FORM_INPUT_CLASS, 'w-16 text-right')}
+                  unitClassName="text-2xs"
+                />
+              </div>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-2xs text-muted-foreground"
+            onClick={() => onThresholdsChange({ ...DEFAULT_VISUAL_QUALITY_THRESHOLDS })}
+          >
+            Reset to guidebook defaults
+          </Button>
+        </ToolSection>
+        {localSources}
+        {/* Guidance for reading the design against the terrain: after the
+          results it explains, and folded, since it is reading, not a control. */}
+        {designReview}
       </div>
 
       {/* Step 4 — 3.4: the ocular class first, then the measured and adjusted figure. */}
       <div {...stepPanelProps('assess')}>
-        <StepSection {...stepProps('assess')} summary={summaries.assess}>
-          {stepPurpose('assess')}
-          {assessment ? (
-            <>
-              <SidebarSection
-                title="Ocular assessment"
-                icon={Eye}
-                variant="subsection"
-                subtitle="Handbook 3.4.1 · Table 1"
-              >
-                <OcularAssessmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-              </SidebarSection>
-              <SidebarSection
-                title="Percent alteration"
-                icon={Ruler}
-                variant="subsection"
-                subtitle="Handbook 3.4.2 · Table 2"
-              >
-                <NumericalAssessmentSummary assessment={assessment} result={result} />
-              </SidebarSection>
-              <SidebarSection
-                title="Design adjustments"
-                icon={Waypoints}
-                variant="subsection"
-                subtitle="Handbook 3.4.3 · Tables 3–5"
-              >
-                <AdjustmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-              </SidebarSection>
-            </>
-          ) : (
-            <div className="px-4 pb-4">
-              <InlineAlert>
-                Set the landform in step 1 first — the assessment is made against its objective.
-              </InlineAlert>
-            </div>
-          )}
-        </StepSection>
+        <StepIntro id="assess" status={via.statuses.assess} summary={summaries.assess} />
+        {assessment ? (
+          <>
+            <ToolSection
+              title="Ocular assessment"
+              help="Handbook 3.4.1, Table 1. The primary measure. Look at the after-harvest road view at the scale a traveller sees it and describe the alteration — every existing opening not yet greened up included. The model does not fill these in."
+            >
+              <OcularAssessmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+            </ToolSection>
+            <ToolSection
+              title="Percent alteration"
+              help="Handbook 3.4.2, Table 2. The share of the landform's visible green face, in perspective from the assessment station, read against Table 2. Estimated from terrain sightlines, not measured on a photograph."
+            >
+              <NumericalAssessmentSummary assessment={assessment} result={result} />
+            </ToolSection>
+            <ToolSection
+              title="Design adjustments"
+              help="Handbook 3.4.3, Tables 3–5. Table 3: Good −1, Moderate 0, Poor +1. Distance, and one or two openings, are measured from the run; override them if the view says otherwise."
+            >
+              <AdjustmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+            </ToolSection>
+          </>
+        ) : (
+          <div className="px-3 py-3">
+            <InlineAlert>Set the landform in step 1 first — the assessment is made against its objective.</InlineAlert>
+          </div>
+        )}
       </div>
 
       {/* Step 5 — 3.5 and 4.0: the rating, why, and the package. */}
       <div {...stepPanelProps('rate')}>
-        <StepSection {...stepProps('rate')} summary={summaries.rate}>
-          {stepPurpose('rate')}
-          {assessment && (
-            <SidebarSection title="Final rating" icon={Gauge} variant="subsection" subtitle="Handbook 3.5 · Table 7">
-              <FinalRatingFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
-            </SidebarSection>
-          )}
-          {visualsParagraph && (
-            <SidebarSection
-              title="Planning note · Visuals"
-              icon={FileText}
-              variant="subsection"
-              subtitle="The block summary and the Visuals paragraph, drafted from the run."
-            >
-              {visualsParagraph}
-            </SidebarSection>
-          )}
-          <SidebarSection
-            title="Package"
-            icon={FileText}
-            variant="subsection"
-            subtitle="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint."
+        <StepIntro id="rate" status={via.statuses.rate} summary={summaries.rate} />
+        {assessment && (
+          <ToolSection
+            title="Final rating"
+            help="Handbook 3.5, Table 7: the ocular class and the adjusted figure, read against the objective's range. The ocular class decides where the two disagree."
           >
-            {report}
-            {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
-            <div className="mt-3 border-t border-border/60 pt-3">
-              <p className="mb-2 text-2xs font-medium text-muted-foreground">Also download</p>
-              <div className="flex flex-wrap gap-2">
-                {onExportReport && (
-                  <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onExportReport}>
-                    <FileText className="h-3.5 w-3.5" />
-                    Download the worksheet
-                  </Button>
-                )}
-                <Button type="button" variant="ghost" size="sm" className="h-8 px-2 text-xs" onClick={onExport}>
-                  <Download className="h-3.5 w-3.5" />
-                  Export the scene (JSON)
-                </Button>
-              </div>
-            </div>
-          </SidebarSection>
-        </StepSection>
+            <FinalRatingFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+          </ToolSection>
+        )}
+        {visualsParagraph && (
+          <ToolSection
+            title="Planning note · Visuals"
+            help="The block summary and the Visuals paragraph, drafted from the run. The paragraph is yours to sign: the draft never overwrites what you write."
+          >
+            {visualsParagraph}
+          </ToolSection>
+        )}
+        <ToolSection
+          title="FS1252 package"
+          help="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint. The PDF takes the ocular class and ratings recorded in step 4; field photographs, the final decision and the signature are still the reviewer's to add."
+        >
+          {report}
+        </ToolSection>
+        {evidence}
+        {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
+        <ToolSection title="Also download">
+          <div className="grid grid-cols-2 gap-1.5">
+            {onExportReport && (
+              <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onExportReport}>
+                <FileText className="h-3.5 w-3.5" />
+                Download the worksheet
+              </Button>
+            )}
+            <Button type="button" variant="outline" size="sm" className={GRID_BUTTON} onClick={onExport}>
+              <Download className="h-3.5 w-3.5" />
+              Export the scene (JSON)
+            </Button>
+          </div>
+        </ToolSection>
       </div>
     </MapSidebarShell>
+  )
+}
+
+/**
+ * The step's name and handbook section in one line, its purpose behind the (i).
+ * The tab above already says which step this is; this says what it is for.
+ */
+function StepIntro({ id, status, summary }: { id: ViaStepId; status: ViaStepStatus; summary: string }) {
+  const step = VIA_STEPS.find((entry) => entry.id === id)!
+  return (
+    <div className="border-b border-border bg-muted/20 px-3 py-2" data-step-status={status}>
+      <h2 className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+        <span id={`via-step-title-${id}`} className="min-w-0 truncate">
+          {step.title}
+        </span>
+        <span className="shrink-0 text-2xs font-normal text-muted-foreground">Handbook {step.section}</span>
+        <InfoTip label="What this step is for" className="ml-auto">
+          {step.purpose}
+        </InfoTip>
+      </h2>
+      <p className="mt-0.5 truncate text-2xs text-muted-foreground">{summary}</p>
+    </div>
   )
 }

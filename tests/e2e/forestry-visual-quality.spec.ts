@@ -1298,7 +1298,7 @@ test.describe('forestry visual quality', () => {
       })
     }
     await showStep(page, 'identify')
-    await importGeometry('Import a road (GeoJSON or zipped shapefile)', 'my-road.geojson', {
+    await importGeometry('Import road', 'my-road.geojson', {
       type: 'LineString',
       coordinates: [
         [-122.64, 53.91],
