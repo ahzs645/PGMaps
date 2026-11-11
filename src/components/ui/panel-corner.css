@@ -1,3 +1,7 @@
+.road-workspace[data-interface][data-panel-background='white'] {
+  /* The page's own background: white in the light theme, the dark background in the dark one. */
+  background: hsl(var(--background));
+}
 .road-workspace[data-interface][data-panel-background='gray'] {
   background: color-mix(in srgb, hsl(var(--foreground)) var(--workspace-panel-gray, 19%), hsl(var(--background)));
 }

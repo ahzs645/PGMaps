@@ -15,6 +15,7 @@ describe('workspace layout catalog', () => {
     const layouts = parseLayoutCatalog(shipped)
     expect(layouts.map((layout) => layout.id)).toEqual(['ribbon', 'guided', 'workbench', 'dashboard'])
     expect(layouts.find((layout) => layout.id === 'dashboard')?.summary?.placement).toBe('top')
+    expect(layouts.find((layout) => layout.id === 'workbench')?.panelFrame?.background).toBe('white')
   })
 
   it('offers the interface switch from every configurable toolbar', () => {

@@ -76,7 +76,7 @@ export interface LayoutToolbar<I extends string = string, C extends string = str
 }
 
 export interface PanelFrame {
-  background?: 'default' | 'gray'
+  background?: 'default' | 'gray' | 'white'
   grayPercent?: number
   inset?: number
   gap?: number
@@ -190,7 +190,9 @@ function defaultIcon<I extends string>(vocabulary: LayoutVocabulary<I, string, s
 function parsePanelFrame(value: unknown, label: string): PanelFrame {
   const source = strictObject(value, label, ['background', 'grayPercent', 'inset', 'gap', 'resizeCorners'])
   return compact({
-    background: optional(source, 'background', (v) => oneOf(v, `${label} background`, ['default', 'gray'] as const)),
+    background: optional(source, 'background', (v) =>
+      oneOf(v, `${label} background`, ['default', 'gray', 'white'] as const),
+    ),
     grayPercent: optional(source, 'grayPercent', (v) => int(v, `${label} grayPercent`, 0, 100)),
     inset: optional(source, 'inset', (v) => int(v, `${label} inset`, 0, 80)),
     gap: optional(source, 'gap', (v) => int(v, `${label} gap`, 0, 40)),

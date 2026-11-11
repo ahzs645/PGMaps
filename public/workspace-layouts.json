@@ -234,7 +234,7 @@
     "preview": "workbench.webp",
     "preset": "linked",
     "summary": { "visible": true, "placement": "left" },
-    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true }
+    "panelFrame": { "background": "white", "inset": 24, "gap": 14, "resizeCorners": true }
   },
   {
     "id": "dashboard",
