@@ -7,6 +7,8 @@ import { sampleAlongLine } from './dev-forestry/visibility'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MetricSummaryLayout } from '@/components/ui/metric-summary'
+import { useMediaQuery } from '@/hooks/useMediaQuery'
 import { MapTableBridge } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
 import { Map, MapScaleBar, MapMarker, MarkerContent, WORKSPACE_MAP_CONTROLS, type MapRef } from '@/components/ui/map'
@@ -140,6 +142,8 @@ import {
 } from './dev-forestry/planMapStyle'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
+import { ViewpointSummary, useViewpointSummaryPreferences } from './dev-forestry/ViewpointSummary'
+import { viewpointSummaryMetrics } from './dev-forestry/viewpointSummaryRows'
 import { assessVia, fs1252ReviewFromVia, viaStepStatuses, type ViaReview } from './dev-forestry/via'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
@@ -2024,6 +2028,55 @@ function DevForestryVisuals() {
     result?.targets.find((t) => t.role === 'block')
   const currentExposure = exposureTarget?.stations[driveStationIndex]
   const exposureName = scene.targets.find((target) => target.id === exposureTarget?.targetId)?.name ?? 'the block'
+  const summaryControls = useViewpointSummaryPreferences()
+  const smallSummary = useMediaQuery('(max-width: 767px), (max-height: 480px)')
+  const summaryStation = drive.active && !preliminaryDrive ? driveStationIndex : (result?.assessmentStationIndex ?? 0)
+  const summaryUnit = sceneLandform?.inventoryUnitId
+    ? inventory.units.find((unit) => unit.id === sceneLandform.inventoryUnitId)
+    : undefined
+  const objectiveSource: 'established' | 'recommended' | 'chosen' = !sceneLandform?.inventoryUnitId
+    ? 'chosen'
+    : summaryUnit
+      ? summaryUnit.objectiveId === sceneLandform.objectiveId
+        ? 'established'
+        : summaryUnit.recommendedId === sceneLandform.objectiveId
+          ? 'recommended'
+          : 'chosen'
+      : // The adopted name records the inventory's word when the units are not loaded this session.
+        ((/\((established|recommended)\)$/.exec(sceneLandform.name)?.[1] as
+          | 'established'
+          | 'recommended'
+          | undefined) ?? 'chosen')
+  const summaryMetrics = useMemo(
+    () =>
+      result
+        ? viewpointSummaryMetrics({
+            result,
+            stationIndex: summaryStation,
+            driving: drive.active && !preliminaryDrive,
+            viewpointName: standingNow ? `Standing at ${standingNow.name}` : scene.viewpoint.name,
+            block: exposureTarget ? { targetId: exposureTarget.targetId, name: exposureName } : null,
+            landform: sceneLandform ?? null,
+            objectiveSource,
+            thresholds: scene.thresholds,
+            via: viaAssessment,
+          })
+        : [],
+    [
+      result,
+      summaryStation,
+      drive.active,
+      preliminaryDrive,
+      standingNow,
+      scene.viewpoint.name,
+      exposureTarget,
+      exposureName,
+      sceneLandform,
+      objectiveSource,
+      scene.thresholds,
+      viaAssessment,
+    ],
+  )
   const canSaveView =
     !preliminaryDrive &&
     drive.active &&
@@ -2495,734 +2548,763 @@ function DevForestryVisuals() {
             : 'Choose a road and cutblock'
       }
     >
-      <Map
-        ref={mapRef}
-        center={PG_CENTER}
-        zoom={9}
-        maxPitch={85}
-        controls={WORKSPACE_MAP_CONTROLS}
-        deferResize={table.deferResize}
-      >
-        <MapTableBridge table={table} />
-        <TerrainSupport
-          terrain={drive.active}
-          exaggeration={1}
-          hillshade
-          hillshadeIntensity={drive.active ? 0.25 : 0.45}
-        />
-        <SatelliteImagery visible={showImagery} />
-        {routeViewshed.enabled && routeViewshed.valid && (
-          <>
-            {routeViewshed.mode !== 'point' && (
-              <MapLineLayer
-                data={routeViewshed.selectedRoad}
-                color="#2563eb"
-                width={5}
-                opacity={1}
-                interactive={false}
-                sourceKey="forestry-viewshed-selected-road"
-              />
-            )}
-            {routeViewshed.mode !== 'point' && (
-              <MapLineLayer
-                data={routeViewshed.currentRadius}
-                color={VIEWSHED_COLORS.visible}
-                width={1}
-                opacity={0.6}
-                interactive={false}
-                sourceKey="forestry-viewshed-moving-radius"
-              />
-            )}
-            {!drive.active && (
-              <MapMarker
-                longitude={routeViewshed.observer.lng}
-                latitude={routeViewshed.observer.lat}
-                opacityWhenCovered="1"
-              >
-                <MarkerContent>
-                  <span
-                    role="img"
-                    aria-label="Road viewshed observer"
-                    className="block h-4 w-4 rounded-full border-2 border-white shadow"
-                    style={{ backgroundColor: VIEWSHED_COLORS.visible }}
+      <MetricSummaryLayout placement={summaryControls.preferences.placement} small={smallSummary} className="h-full">
+        {result && <ViewpointSummary metrics={summaryMetrics} controls={summaryControls} small={smallSummary} />}
+        <div className="relative min-h-0 min-w-0 flex-1">
+          <Map
+            ref={mapRef}
+            center={PG_CENTER}
+            zoom={9}
+            maxPitch={85}
+            controls={WORKSPACE_MAP_CONTROLS}
+            deferResize={table.deferResize}
+          >
+            <MapTableBridge table={table} />
+            <TerrainSupport
+              terrain={drive.active}
+              exaggeration={1}
+              hillshade
+              hillshadeIntensity={drive.active ? 0.25 : 0.45}
+            />
+            <SatelliteImagery visible={showImagery} />
+            {routeViewshed.enabled && routeViewshed.valid && (
+              <>
+                {routeViewshed.mode !== 'point' && (
+                  <MapLineLayer
+                    data={routeViewshed.selectedRoad}
+                    color="#2563eb"
+                    width={5}
+                    opacity={1}
+                    interactive={false}
+                    sourceKey="forestry-viewshed-selected-road"
                   />
-                </MarkerContent>
-              </MapMarker>
+                )}
+                {routeViewshed.mode !== 'point' && (
+                  <MapLineLayer
+                    data={routeViewshed.currentRadius}
+                    color={VIEWSHED_COLORS.visible}
+                    width={1}
+                    opacity={0.6}
+                    interactive={false}
+                    sourceKey="forestry-viewshed-moving-radius"
+                  />
+                )}
+                {!drive.active && (
+                  <MapMarker
+                    longitude={routeViewshed.observer.lng}
+                    latitude={routeViewshed.observer.lat}
+                    opacityWhenCovered="1"
+                  >
+                    <MarkerContent>
+                      <span
+                        role="img"
+                        aria-label="Road viewshed observer"
+                        className="block h-4 w-4 rounded-full border-2 border-white shadow"
+                        style={{ backgroundColor: VIEWSHED_COLORS.visible }}
+                      />
+                    </MarkerContent>
+                  </MapMarker>
+                )}
+                <ViewshedOverlay
+                  result={routeViewshed.analysis.overlayResult}
+                  mode="standing"
+                  opacity={0.6}
+                  showHidden={false}
+                  sourceKey="forestry-route-viewshed"
+                />
+                <MapLineLayer
+                  data={routeOutline}
+                  color={VIEWSHED_COLORS.visible}
+                  width={1.5}
+                  opacity={1}
+                  interactive={false}
+                  sourceTolerance={0}
+                  sourceKey="forestry-route-viewshed-outline"
+                />
+              </>
             )}
-            <ViewshedOverlay
-              result={routeViewshed.analysis.overlayResult}
-              mode="standing"
-              opacity={0.6}
-              showHidden={false}
-              sourceKey="forestry-route-viewshed"
+            <ForestOverlay
+              active={drive.active && drive.forest}
+              configuration={forestConfiguration}
+              centre={driveEye}
+              gapTarget={
+                !drive.viewingGap
+                  ? null
+                  : drive.lookAtTargetId
+                    ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
+                    : facedArrowGeometry
+              }
+              terrainMessage={previewTerrain.message}
+              onStatus={setForestStatus}
+            />
+            {/* Satellite imagery is the real ground, so the drawn floor and soil
+            stand aside for it rather than covering it at 82%. */}
+            <MapFillLayer
+              data={forestGround.floor}
+              fillColor="#3a4f35"
+              fillOpacity={0.82}
+              lineWidth={0}
+              visible={drive.active && drive.forest && !drive.imagery}
+            />
+            <MapFillLayer
+              data={forestGround.soil}
+              fillColor="#a7977d"
+              fillOpacity={0.95}
+              lineWidth={0}
+              visible={drive.active && drive.forest && !drive.imagery}
+            />
+            {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
+            <MapFillLayer
+              data={forestGround.water}
+              fillColor={ROAD_VIEW_WATER_COLOR}
+              fillOpacity={drive.imagery ? 0.35 : 0.92}
+              lineColor={ROAD_VIEW_SHORE_COLOR}
+              lineWidth={drive.imagery ? 0 : 1}
+              lineOpacity={0.8}
+              visible={drive.active}
+            />
+            <MapFillLayer
+              data={previewRoad}
+              fillColor="#a7977d"
+              fillOpacity={1}
+              lineColor="#c0b397"
+              lineWidth={1}
+              visible={drive.active}
+            />
+            {/* Hectares and kilometres are the page's units. It clears the phone sheet
+            and hides itself in the pitched road view. */}
+            <MapScaleBar position="bottom-right" />
+            <BasemapContextProbe
+              enabled={!drive.active}
+              corridor={scene.viewpoint.coordinates}
+              bounds={basemapBounds}
+              onChange={setBasemap}
+            />
+            <MapDrawCapture
+              active={drawMode !== 'none'}
+              onPoint={handleMapPoint}
+              onFinish={drawMode === 'spot' ? undefined : finishDraft}
+            />
+            {/* A one-off point a sidebar tool asked for, such as where a landform is read from. */}
+            <MapDrawCapture
+              active={!!mapPick && drawMode === 'none'}
+              onPoint={(point) => {
+                mapPick?.onPoint(point)
+                setMapPick(null)
+              }}
+            />
+
+            {/* Inventory polygons sit under the scene's own, and units with nothing
+            established are drawn back so the ones that constrain harvesting read first. */}
+            <MapFillLayer
+              data={inventoryCollection}
+              fillColor={SENSITIVITY_UNIT_COLOR as never}
+              fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.12, 0.03]}
+              lineColor={SENSITIVITY_UNIT_COLOR as never}
+              lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
+              lineOpacity={0.9}
+              idProperty="id"
+              visible={showInventory && inventory.units.length > 0 && (!drive.active || drive.showAnalysis)}
+              onFeatureClick={(id) => handleAdoptUnit(id)}
+              hoverHtml={inventoryHoverHtml}
+            />
+            {/* Both terrain readings, coloured by reading; the one in front filled and drawn heavier. */}
+            <MapFillLayer
+              data={terrainCandidateCollection}
+              visible={!drive.active}
+              fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+              fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
+              lineWidth={0}
             />
             <MapLineLayer
-              data={routeOutline}
-              color={VIEWSHED_COLORS.visible}
-              width={1.5}
-              opacity={1}
-              interactive={false}
-              sourceTolerance={0}
-              sourceKey="forestry-route-viewshed-outline"
+              data={terrainCandidateCollection}
+              visible={!drive.active}
+              color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+              width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
+              dashArray={[2, 1.5]}
+              opacity={['case', ['==', ['get', 'selected'], 1], 0.95, 0.7] as never}
             />
-          </>
-        )}
-        <ForestOverlay
-          active={drive.active && drive.forest}
-          configuration={forestConfiguration}
-          centre={driveEye}
-          gapTarget={
-            !drive.viewingGap
-              ? null
-              : drive.lookAtTargetId
-                ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
-                : facedArrowGeometry
-          }
-          terrainMessage={previewTerrain.message}
-          onStatus={setForestStatus}
-        />
-        {/* Satellite imagery is the real ground, so the drawn floor and soil
-            stand aside for it rather than covering it at 82%. */}
-        <MapFillLayer
-          data={forestGround.floor}
-          fillColor="#3a4f35"
-          fillOpacity={0.82}
-          lineWidth={0}
-          visible={drive.active && drive.forest && !drive.imagery}
-        />
-        <MapFillLayer
-          data={forestGround.soil}
-          fillColor="#a7977d"
-          fillOpacity={0.95}
-          lineWidth={0}
-          visible={drive.active && drive.forest && !drive.imagery}
-        />
-        {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
-        <MapFillLayer
-          data={forestGround.water}
-          fillColor={ROAD_VIEW_WATER_COLOR}
-          fillOpacity={drive.imagery ? 0.35 : 0.92}
-          lineColor={ROAD_VIEW_SHORE_COLOR}
-          lineWidth={drive.imagery ? 0 : 1}
-          lineOpacity={0.8}
-          visible={drive.active}
-        />
-        <MapFillLayer
-          data={previewRoad}
-          fillColor="#a7977d"
-          fillOpacity={1}
-          lineColor="#c0b397"
-          lineWidth={1}
-          visible={drive.active}
-        />
-        {/* Hectares and kilometres are the page's units. It clears the phone sheet
-            and hides itself in the pitched road view. */}
-        <MapScaleBar position="bottom-right" />
-        <BasemapContextProbe
-          enabled={!drive.active}
-          corridor={scene.viewpoint.coordinates}
-          bounds={basemapBounds}
-          onChange={setBasemap}
-        />
-        <MapDrawCapture
-          active={drawMode !== 'none'}
-          onPoint={handleMapPoint}
-          onFinish={drawMode === 'spot' ? undefined : finishDraft}
-        />
-        {/* A one-off point a sidebar tool asked for, such as where a landform is read from. */}
-        <MapDrawCapture
-          active={!!mapPick && drawMode === 'none'}
-          onPoint={(point) => {
-            mapPick?.onPoint(point)
-            setMapPick(null)
-          }}
-        />
-
-        {/* Inventory polygons sit under the scene's own, and units with nothing
-            established are drawn back so the ones that constrain harvesting read first. */}
-        <MapFillLayer
-          data={inventoryCollection}
-          fillColor={SENSITIVITY_UNIT_COLOR as never}
-          fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.12, 0.03]}
-          lineColor={SENSITIVITY_UNIT_COLOR as never}
-          lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
-          lineOpacity={0.9}
-          idProperty="id"
-          visible={showInventory && inventory.units.length > 0 && (!drive.active || drive.showAnalysis)}
-          onFeatureClick={(id) => handleAdoptUnit(id)}
-          hoverHtml={inventoryHoverHtml}
-        />
-        {/* Both terrain readings, coloured by reading; the one in front filled and drawn heavier. */}
-        <MapFillLayer
-          data={terrainCandidateCollection}
-          visible={!drive.active}
-          fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
-          fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
-          lineWidth={0}
-        />
-        <MapLineLayer
-          data={terrainCandidateCollection}
-          visible={!drive.active}
-          color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
-          width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
-          dashArray={[2, 1.5]}
-          opacity={['case', ['==', ['get', 'selected'], 1], 0.95, 0.7] as never}
-        />
-        {/* The other ridge layers a ridge-layer candidate found, as the road sees them stack. */}
-        <MapLineLayer
-          data={ridgeLayerCollection}
-          visible={drive.active ? drive.showLandform : planShow.landform}
-          color={['case', ['==', ['get', 'own'], 1], TERRAIN_CANDIDATE_COLOR, OTHER_RIDGE_LAYER_COLOR]}
-          width={['case', ['==', ['get', 'own'], 1], 0, drive.active ? 2.5 : 1.2]}
-          opacity={0.75}
-          interactive={false}
-        />
-        {/* BC's viewpoints, their arrows, rec sites and recorded screenings. */}
-        <MapFillLayer
-          data={viewpointLayers.screenings}
-          visible={!drive.active && showInventory}
-          fillColor={INVENTORY_COLORS.screening}
-          fillOpacity={0.12}
-          lineColor={INVENTORY_COLORS.screening}
-          lineWidth={0.8}
-          lineOpacity={0.6}
-        />
-        <MapFillLayer
-          data={drive.active ? standingArrows : viewpointLayers.arrows}
-          visible={drive.active ? standingArrows.features.length > 0 : showInventory}
-          fillColor={INVENTORY_COLORS.viewpoint}
-          // Standing at the viewpoint puts its arrows under the eye, so in the
-          // road view they are outlines over a faint fill, the faced one heavier.
-          fillOpacity={
-            drive.active
-              ? (['case', ['==', ['get', 'faced'], 1], 0.18, 0.06] as never)
-              : ['case', ['==', ['get', 'size'], 'large'], 0.45, 0.3]
-          }
-          lineColor={drive.active ? INVENTORY_COLORS.viewpoint : INVENTORY_COLORS.arrowOutline}
-          lineWidth={drive.active ? (['case', ['==', ['get', 'faced'], 1], 3.5, 1.5] as never) : 0.8}
-          lineOpacity={drive.active ? 0.95 : 0.8}
-        />
-        <MapCircleLayer
-          data={viewpointLayers.points}
-          visible={!drive.active && showInventory}
-          radius={5}
-          color={['case', ['==', ['get', 'kind'], 'rec-site'], INVENTORY_COLORS.recSite, INVENTORY_COLORS.viewpoint]}
-          strokeColor="#ffffff"
-          strokeWidth={1.5}
-          idProperty="id"
-          hoverHtml={viewpointHoverHtml}
-          onFeatureClick={(id) => {
-            const candidate = viewpointCandidates.find((entry) => entry.key === id)
-            if (candidate) handleUseViewpoint(candidate)
-          }}
-        />
-        <MapCircleLayer
-          data={landformClues}
-          visible={!drive.active}
-          radius={3}
-          color={[
-            'match',
-            ['get', 'position'],
-            'ridge',
-            LANDFORM_CLUE_COLORS.ridge,
-            'hollow',
-            LANDFORM_CLUE_COLORS.hollow,
-            LANDFORM_CLUE_COLORS.other,
-          ]}
-        />
-        <MapFillLayer
-          data={landscapeCollection}
-          visible={drive.active ? drive.showAnalysis || drive.showLandform : planShow.landform}
-          fillColor={ROLE_COLORS.landscape}
-          fillOpacity={drive.active && drive.showLandform ? 0.18 : 0.08}
-          lineColor={ROLE_COLORS.landscape}
-          lineWidth={drive.active ? 3 : 1.6}
-          lineOpacity={0.8}
-          idProperty="id"
-          selectedId={selectedTargetId}
-          onFeatureClick={(id) => setSelectedTargetId(id)}
-          hoverHtml={targetHoverHtml}
-        />
-        {/* The established VQO polygons draped under everything else in the road view. */}
-        <MapFillLayer
-          data={evqoDisplay?.collection ?? EMPTY_COLLECTION}
-          visible={showEvqo}
-          fillColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
-          fillOpacity={0.3}
-          lineColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
-          lineWidth={1.5}
-          lineOpacity={0.9}
-        />
-        {/* Existing openings sit under the proposal, in a duller colour: they
+            {/* The other ridge layers a ridge-layer candidate found, as the road sees them stack. */}
+            <MapLineLayer
+              data={ridgeLayerCollection}
+              visible={drive.active ? drive.showLandform : planShow.landform}
+              color={['case', ['==', ['get', 'own'], 1], TERRAIN_CANDIDATE_COLOR, OTHER_RIDGE_LAYER_COLOR]}
+              width={['case', ['==', ['get', 'own'], 1], 0, drive.active ? 2.5 : 1.2]}
+              opacity={0.75}
+              interactive={false}
+            />
+            {/* BC's viewpoints, their arrows, rec sites and recorded screenings. */}
+            <MapFillLayer
+              data={viewpointLayers.screenings}
+              visible={!drive.active && showInventory}
+              fillColor={INVENTORY_COLORS.screening}
+              fillOpacity={0.12}
+              lineColor={INVENTORY_COLORS.screening}
+              lineWidth={0.8}
+              lineOpacity={0.6}
+            />
+            <MapFillLayer
+              data={drive.active ? standingArrows : viewpointLayers.arrows}
+              visible={drive.active ? standingArrows.features.length > 0 : showInventory}
+              fillColor={INVENTORY_COLORS.viewpoint}
+              // Standing at the viewpoint puts its arrows under the eye, so in the
+              // road view they are outlines over a faint fill, the faced one heavier.
+              fillOpacity={
+                drive.active
+                  ? (['case', ['==', ['get', 'faced'], 1], 0.18, 0.06] as never)
+                  : ['case', ['==', ['get', 'size'], 'large'], 0.45, 0.3]
+              }
+              lineColor={drive.active ? INVENTORY_COLORS.viewpoint : INVENTORY_COLORS.arrowOutline}
+              lineWidth={drive.active ? (['case', ['==', ['get', 'faced'], 1], 3.5, 1.5] as never) : 0.8}
+              lineOpacity={drive.active ? 0.95 : 0.8}
+            />
+            <MapCircleLayer
+              data={viewpointLayers.points}
+              visible={!drive.active && showInventory}
+              radius={5}
+              color={[
+                'case',
+                ['==', ['get', 'kind'], 'rec-site'],
+                INVENTORY_COLORS.recSite,
+                INVENTORY_COLORS.viewpoint,
+              ]}
+              strokeColor="#ffffff"
+              strokeWidth={1.5}
+              idProperty="id"
+              hoverHtml={viewpointHoverHtml}
+              onFeatureClick={(id) => {
+                const candidate = viewpointCandidates.find((entry) => entry.key === id)
+                if (candidate) handleUseViewpoint(candidate)
+              }}
+            />
+            <MapCircleLayer
+              data={landformClues}
+              visible={!drive.active}
+              radius={3}
+              color={[
+                'match',
+                ['get', 'position'],
+                'ridge',
+                LANDFORM_CLUE_COLORS.ridge,
+                'hollow',
+                LANDFORM_CLUE_COLORS.hollow,
+                LANDFORM_CLUE_COLORS.other,
+              ]}
+            />
+            <MapFillLayer
+              data={landscapeCollection}
+              visible={drive.active ? drive.showAnalysis || drive.showLandform : planShow.landform}
+              fillColor={ROLE_COLORS.landscape}
+              fillOpacity={drive.active && drive.showLandform ? 0.18 : 0.08}
+              lineColor={ROLE_COLORS.landscape}
+              lineWidth={drive.active ? 3 : 1.6}
+              lineOpacity={0.8}
+              idProperty="id"
+              selectedId={selectedTargetId}
+              onFeatureClick={(id) => setSelectedTargetId(id)}
+              hoverHtml={targetHoverHtml}
+            />
+            {/* The established VQO polygons draped under everything else in the road view. */}
+            <MapFillLayer
+              data={evqoDisplay?.collection ?? EMPTY_COLLECTION}
+              visible={showEvqo}
+              fillColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
+              fillOpacity={0.3}
+              lineColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
+              lineWidth={1.5}
+              lineOpacity={0.9}
+            />
+            {/* Existing openings sit under the proposal, in a duller colour: they
             are context for the cumulative number, not the thing being assessed. */}
-        <MapFillLayer
-          data={harvestedCollection}
-          fillColor={ROLE_COLORS.harvested}
-          fillOpacity={0.22}
-          lineColor={ROLE_COLORS.harvested}
-          lineWidth={1}
-          lineOpacity={0.8}
-          idProperty="id"
-          selectedId={selectedTargetId}
-          onFeatureClick={(id) => setSelectedTargetId(id)}
-          hoverHtml={targetHoverHtml}
-        />
-        <MapFillLayer
-          data={
-            drive.active && drive.harvestPhase === 'after' && !drive.showAnalysis
-              ? previewBlockCollection
-              : blockCollection
-          }
-          visible={!drive.active || drive.harvestPhase === 'after' || drive.showAnalysis}
-          // A block's own colour wins wherever it is drawn; unset, it is cleared
-          // ground in the road view, white in the note screenshot look.
-          fillColor={[
-            'coalesce',
-            ['get', 'color'],
-            drive.active && drive.reportLook
-              ? '#ffffff'
-              : drive.active && !drive.showAnalysis
-                ? harvestedGroundColor
-                : ROLE_COLORS.block,
-          ]}
-          fillOpacity={drive.active ? (drive.reportLook ? 1 : 0.85) : 0.3}
-          lineColor={
-            drive.active
-              ? [
-                  'coalesce',
-                  ['get', 'color'],
-                  drive.reportLook ? '#ffffff' : drive.showAnalysis ? ROLE_COLORS.block : '#b69a70',
-                ]
-              : ROLE_COLORS.block
-          }
-          lineWidth={1.8}
-          lineOpacity={0.95}
-          idProperty="id"
-          selectedId={selectedTargetId}
-          selectionColor={drive.active && !drive.showAnalysis ? '#b69a70' : '#111827'}
-          onFeatureClick={(id) => setSelectedTargetId(id)}
-          hoverHtml={targetHoverHtml}
-        />
+            <MapFillLayer
+              data={harvestedCollection}
+              fillColor={ROLE_COLORS.harvested}
+              fillOpacity={0.22}
+              lineColor={ROLE_COLORS.harvested}
+              lineWidth={1}
+              lineOpacity={0.8}
+              idProperty="id"
+              selectedId={selectedTargetId}
+              onFeatureClick={(id) => setSelectedTargetId(id)}
+              hoverHtml={targetHoverHtml}
+            />
+            <MapFillLayer
+              data={
+                drive.active && drive.harvestPhase === 'after' && !drive.showAnalysis
+                  ? previewBlockCollection
+                  : blockCollection
+              }
+              visible={!drive.active || drive.harvestPhase === 'after' || drive.showAnalysis}
+              // A block's own colour wins wherever it is drawn; unset, it is cleared
+              // ground in the road view, white in the note screenshot look.
+              fillColor={[
+                'coalesce',
+                ['get', 'color'],
+                drive.active && drive.reportLook
+                  ? '#ffffff'
+                  : drive.active && !drive.showAnalysis
+                    ? harvestedGroundColor
+                    : ROLE_COLORS.block,
+              ]}
+              fillOpacity={drive.active ? (drive.reportLook ? 1 : 0.85) : 0.3}
+              lineColor={
+                drive.active
+                  ? [
+                      'coalesce',
+                      ['get', 'color'],
+                      drive.reportLook ? '#ffffff' : drive.showAnalysis ? ROLE_COLORS.block : '#b69a70',
+                    ]
+                  : ROLE_COLORS.block
+              }
+              lineWidth={1.8}
+              lineOpacity={0.95}
+              idProperty="id"
+              selectedId={selectedTargetId}
+              selectionColor={drive.active && !drive.showAnalysis ? '#b69a70' : '#111827'}
+              onFeatureClick={(id) => setSelectedTargetId(id)}
+              hoverHtml={targetHoverHtml}
+            />
 
-        <MapFillLayer
-          data={maskCollection}
-          visible={drive.active ? drive.showAnalysis : planShow.analysis}
-          fillColor={[
-            'match',
-            ['get', 'kind'],
-            'natural',
-            MASK_COLORS.natural,
-            'private',
-            MASK_COLORS.private,
-            'permanent',
-            MASK_COLORS.permanent,
-            MASK_COLORS.retained,
-          ]}
-          fillOpacity={0.15}
-          lineColor="#475569"
-          lineWidth={1}
-        />
-        {/* Distance haze: draped over the ground and the blocks, faded by real distance from the eye. */}
-        <MapFillLayer
-          data={hazeCollection}
-          visible={drive.active && drive.haze}
-          fillColor="#cbd8e5"
-          fillOpacity={['get', 'opacity']}
-          lineWidth={0}
-        />
-        {/* Sample points carry the answer: red is ground the road can see. */}
-        <MapCircleLayer
-          data={sampleCollection}
-          onFeatureClick={(_id, _event, properties) =>
-            tools.inspect(
-              String(properties.targetId),
-              Number(properties.sampleIndex),
-              drive.active ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
-            )
-          }
-          visible={
-            !preliminaryDrive &&
-            (drive.active ? drive.showAnalysis && drive.harvestPhase === 'after' : planShow.analysis)
-          }
-          color={[
-            'case',
-            ['==', ['get', 'visible'], 2],
-            UNKNOWN_COLOR,
-            ['==', ['get', 'visible'], 1],
-            VISIBLE_COLOR,
-            SCREENED_COLOR,
-          ]}
-          radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}
-          opacity={['case', ['==', ['get', 'visible'], 1], 0.95, 0.35]}
-          strokeWidth={0}
-        />
+            <MapFillLayer
+              data={maskCollection}
+              visible={drive.active ? drive.showAnalysis : planShow.analysis}
+              fillColor={[
+                'match',
+                ['get', 'kind'],
+                'natural',
+                MASK_COLORS.natural,
+                'private',
+                MASK_COLORS.private,
+                'permanent',
+                MASK_COLORS.permanent,
+                MASK_COLORS.retained,
+              ]}
+              fillOpacity={0.15}
+              lineColor="#475569"
+              lineWidth={1}
+            />
+            {/* Distance haze: draped over the ground and the blocks, faded by real distance from the eye. */}
+            <MapFillLayer
+              data={hazeCollection}
+              visible={drive.active && drive.haze}
+              fillColor="#cbd8e5"
+              fillOpacity={['get', 'opacity']}
+              lineWidth={0}
+            />
+            {/* Sample points carry the answer: red is ground the road can see. */}
+            <MapCircleLayer
+              data={sampleCollection}
+              onFeatureClick={(_id, _event, properties) =>
+                tools.inspect(
+                  String(properties.targetId),
+                  Number(properties.sampleIndex),
+                  drive.active ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
+                )
+              }
+              visible={
+                !preliminaryDrive &&
+                (drive.active ? drive.showAnalysis && drive.harvestPhase === 'after' : planShow.analysis)
+              }
+              color={[
+                'case',
+                ['==', ['get', 'visible'], 2],
+                UNKNOWN_COLOR,
+                ['==', ['get', 'visible'], 1],
+                VISIBLE_COLOR,
+                SCREENED_COLOR,
+              ]}
+              radius={['interpolate', ['linear'], ['zoom'], 9, 1.5, 12, 2.6, 15, 5]}
+              opacity={['case', ['==', ['get', 'visible'], 1], 0.95, 0.35]}
+              strokeWidth={0}
+            />
 
-        {/* The reverse answer sits on the roads themselves: a hot stretch is
+            {/* The reverse answer sits on the roads themselves: a hot stretch is
             road the block is in view from, a cold one road where it is hidden.
             Drawn as the road rather than as the points it was sampled at. */}
-        <MapLineLayer
-          data={reverseRoadCollection}
-          color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
-          width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
-          opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
-          visible={!drive.active}
-        />
+            <MapLineLayer
+              data={reverseRoadCollection}
+              color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
+              width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
+              opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
+              visible={!drive.active}
+            />
 
-        {/* From eye level the road is directly under the camera, where a line
+            {/* From eye level the road is directly under the camera, where a line
             and its stations fill the frame instead of marking anything. */}
-        <MapLineLayer data={corridorCollection} color={ROAD_COLOR} width={3} opacity={0.9} visible={!drive.active} />
-        {/* Once a run exists the corridor carries its own answer: how much of
+            <MapLineLayer
+              data={corridorCollection}
+              color={ROAD_COLOR}
+              width={3}
+              opacity={0.9}
+              visible={!drive.active}
+            />
+            {/* Once a run exists the corridor carries its own answer: how much of
             the block each stretch of road sees, graded along it. */}
-        <MapLineLayer
-          data={corridorExposureCollection}
-          color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
-          width={5}
-          opacity={0.95}
-          visible={!drive.active}
-        />
-        {/* Only the assessment viewpoint keeps a marker — it is a single place,
+            <MapLineLayer
+              data={corridorExposureCollection}
+              color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
+              width={5}
+              opacity={0.95}
+              visible={!drive.active}
+            />
+            {/* Only the assessment viewpoint keeps a marker — it is a single place,
             not a sample of a continuum. */}
-        <MapCircleLayer
-          data={stationCollection}
-          color={ASSESSMENT_VIEWPOINT_COLOR}
-          radius={['case', ['==', ['get', 'assessment'], 1], 6, 0]}
-          strokeColor="#ffffff"
-          strokeWidth={['case', ['==', ['get', 'assessment'], 1], 1.5, 0]}
-          visible={!drive.active}
-        />
-        <MapCircleLayer
-          data={spotCollection}
-          color={ROAD_COLOR}
-          radius={7}
-          strokeColor="#ffffff"
-          strokeWidth={2}
-          visible={!drive.active}
-        />
+            <MapCircleLayer
+              data={stationCollection}
+              color={ASSESSMENT_VIEWPOINT_COLOR}
+              radius={['case', ['==', ['get', 'assessment'], 1], 6, 0]}
+              strokeColor="#ffffff"
+              strokeWidth={['case', ['==', ['get', 'assessment'], 1], 1.5, 0]}
+              visible={!drive.active}
+            />
+            <MapCircleLayer
+              data={spotCollection}
+              color={ROAD_COLOR}
+              radius={7}
+              strokeColor="#ffffff"
+              strokeWidth={2}
+              visible={!drive.active}
+            />
 
-        <MapLineLayer data={draftLine} color="#111827" width={2} dashArray={[2, 1.5]} opacity={0.9} />
-        <MapCircleLayer data={draftVertices} color="#111827" radius={4} strokeColor="#ffffff" strokeWidth={1.2} />
+            <MapLineLayer data={draftLine} color="#111827" width={2} dashArray={[2, 1.5]} opacity={0.9} />
+            <MapCircleLayer data={draftVertices} color="#111827" radius={4} strokeColor="#ffffff" strokeWidth={1.2} />
 
-        {drive.active && photoLook && <PhotoOverlay photo={fieldPhoto} />}
-        {drive.active && (
-          <StreetPhotoInset
-            photo={fieldPhoto}
-            positionMeters={drive.positionMeters}
-            lookBearing={lookBearing}
-            onLineUp={(id) => {
-              setDrive((current) => ({ ...current, playing: false }))
-              void fieldPhoto.load(id, { onLoaded: (image) => lineUpPhoto(image) })
-            }}
-          />
-        )}
+            {drive.active && photoLook && <PhotoOverlay photo={fieldPhoto} />}
+            {drive.active && (
+              <StreetPhotoInset
+                photo={fieldPhoto}
+                positionMeters={drive.positionMeters}
+                lookBearing={lookBearing}
+                onLineUp={(id) => {
+                  setDrive((current) => ({ ...current, playing: false }))
+                  void fieldPhoto.load(id, { onLoaded: (image) => lineUpPhoto(image) })
+                }}
+              />
+            )}
 
-        {drawMode !== 'none' && (
-          <MapOverlay
-            position="top-left"
-            clearChrome
-            className="right-14 p-3 md:hidden"
-            role="region"
-            aria-label="Map drawing controls"
-          >
-            <p className="text-xs">
-              Tap the map to trace the{' '}
-              {drawMode === 'corridor' ? 'road' : drawMode === 'spot' ? 'viewpoint' : 'polygon'}.{' '}
-              {draftCoordinates.length} points added.
-            </p>
-            <div className="mt-2 flex gap-2">
-              {drawMode !== 'spot' && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="touch:h-10"
-                  disabled={draftCoordinates.length < (drawMode === 'corridor' ? 2 : 3)}
-                  onClick={finishDraft}
-                >
-                  Finish drawing
-                </Button>
-              )}
-              <Button variant="outline" size="sm" className="touch:h-10" onClick={() => handleDrawModeChange('none')}>
-                Cancel drawing
-              </Button>
-            </div>
-          </MapOverlay>
-        )}
-
-        {(result || preliminaryDrive) && (
-          <DriveCamera
-            actions={
-              preliminaryDrive ? null : (
-                <>
-                  <SegmentedControl
-                    label="Harvest phase"
-                    variant="solid"
-                    size="sm"
-                    fullWidth={false}
-                    value={drive.harvestPhase}
-                    options={HARVEST_PHASE_OPTIONS}
-                    onChange={(phase) => updateDrive({ harvestPhase: phase, playing: false, forest: true })}
-                  />
+            {drawMode !== 'none' && (
+              <MapOverlay
+                position="top-left"
+                clearChrome
+                className="right-14 p-3 md:hidden"
+                role="region"
+                aria-label="Map drawing controls"
+              >
+                <p className="text-xs">
+                  Tap the map to trace the{' '}
+                  {drawMode === 'corridor' ? 'road' : drawMode === 'spot' ? 'viewpoint' : 'polygon'}.{' '}
+                  {draftCoordinates.length} points added.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  {drawMode !== 'spot' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="touch:h-10"
+                      disabled={draftCoordinates.length < (drawMode === 'corridor' ? 2 : 3)}
+                      onClick={finishDraft}
+                    >
+                      Finish drawing
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 px-2 touch:h-10"
-                    disabled={!canSaveView}
-                    aria-label="Save viewpoint"
-                    title="Save this spot, look and harvest phase; it is captioned for the planning note"
-                    onClick={saveView}
+                    className="touch:h-10"
+                    onClick={() => handleDrawModeChange('none')}
                   >
-                    <Bookmark className="h-3.5 w-3.5" />
-                    <span className="max-sm:hidden">Save</span>
+                    Cancel drawing
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 px-2 touch:h-10"
-                    disabled={!canSaveView}
-                    aria-label="Download image"
-                    title="Download this view as a captioned PNG"
-                    onClick={saveImage}
-                  >
-                    <ImageDown className="h-3.5 w-3.5" />
-                    <span className="max-sm:hidden">Image</span>
-                  </Button>
-                </>
-              )
-            }
-            status={
-              preliminaryDrive ? (
-                (previewTerrain.loading || previewTerrain.message) && (
-                  <p>
-                    {previewTerrain.loading
-                      ? `Loading road terrain · ${previewTerrain.progress}%`
-                      : previewTerrain.message}
-                    {!previewTerrain.loading && previewTerrain.message && (
-                      <TextButton
-                        className="ml-2"
-                        onClick={() => {
-                          previewTerrain.retry()
-                          routeViewshed.retry()
-                        }}
+                </div>
+              </MapOverlay>
+            )}
+
+            {(result || preliminaryDrive) && (
+              <DriveCamera
+                actions={
+                  preliminaryDrive ? null : (
+                    <>
+                      <SegmentedControl
+                        label="Harvest phase"
+                        variant="solid"
+                        size="sm"
+                        fullWidth={false}
+                        value={drive.harvestPhase}
+                        options={HARVEST_PHASE_OPTIONS}
+                        onChange={(phase) => updateDrive({ harvestPhase: phase, playing: false, forest: true })}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2 touch:h-10"
+                        disabled={!canSaveView}
+                        aria-label="Save viewpoint"
+                        title="Save this spot, look and harvest phase; it is captioned for the planning note"
+                        onClick={saveView}
                       >
-                        Retry terrain
-                      </TextButton>
-                    )}
-                  </p>
-                )
-              ) : (
-                <>
-                  {liveForest.loading && (
-                    <p>Preliminary forest — existing records are loading; saving waits for them.</p>
-                  )}
-                  {liveForest.pendingUpdate && !liveForest.loading && (
-                    <p>New forest records are ready. Pause to apply them.</p>
-                  )}
-                  {!!liveForest.data?.issues.length && (
-                    <p>Existing forest records are incomplete; retry under Road view in the sidebar.</p>
-                  )}
-                  {(previewTerrain.loading ||
-                    previewTerrain.message ||
-                    (drive.forest && !currentForestStatus?.ready)) && (
-                    <p>
-                      {previewTerrain.loading
-                        ? `Loading terrain · ${previewTerrain.progress}%`
-                        : (previewTerrain.message ??
-                          currentForestStatus?.error ??
-                          `Preparing forest${currentForestStatus?.totalPatches ? ` · ${Math.round((100 * (currentForestStatus.patchCount ?? 0)) / currentForestStatus.totalPatches)}%` : '…'}${currentForestStatus?.nearbyReady ? ' · nearby view ready' : ''}`)}
-                      {!previewTerrain.loading && previewTerrain.message && (
-                        <TextButton className="ml-2" onClick={previewTerrain.retry}>
-                          Retry terrain
-                        </TextButton>
-                      )}
-                    </p>
-                  )}
-                  {lowFrameRate && drive.quality === 'auto' && (
-                    <p>Frame rate is low: pause to inspect, or set display quality to Faster in the sidebar.</p>
-                  )}
-                  {drive.showEvqo && evqoDisplay?.key === evqoKey && evqoDisplay.error && (
-                    <p>EVQO polygons unavailable: {evqoDisplay.error}</p>
-                  )}
-                  {drive.showEvqo &&
-                    evqoDisplay?.key === evqoKey &&
-                    !evqoDisplay.error &&
-                    !evqoDisplay.collection.features.length && <p>No established VQO polygons around these blocks.</p>}
-                  {previewMessage && <p>{previewMessage}</p>}
-                </>
-              )
-            }
-            preliminary={preliminaryDrive}
-            spot={!preliminaryDrive && activeRouteLength <= 2 * PULLOUT_METERS}
-            restoredLook={restoreLook}
-            onLookChange={(look) => {
-              cameraLook.current = look
-            }}
-            onStatusChange={setCameraStatus}
-            onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
-            forestReady={!drive.forest || !!currentForestStatus?.nearbyReady}
-            routeLengthMeters={activeRouteLength}
-            onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
-            speedKmh={drive.speedKmh}
-            onSpeedChange={(speedKmh) => updateDrive({ speedKmh })}
-            fixedLook={photoLook}
-            verticalFovDegrees={photoLook ? fieldPhoto.viewFov : null}
-            elevation={previewTerrain.source}
-            active={drive.active}
-            playing={drive.playing}
-            stations={activeStations}
-            roadCoordinates={
-              preliminaryDrive ? scene.viewpoint.coordinates : result?.inputSnapshot?.viewpoint.coordinates
-            }
-            seekMeters={drive.positionMeters}
-            seekVersion={seekVersion}
-            speedMetersPerSecond={(drive.speedKmh * 1000) / 3600}
-            eyeHeightMeters={
-              preliminaryDrive ? 150 : (result?.settings.observerHeightMeters ?? scene.settings.observerHeightMeters)
-            }
-            lookAt={preliminaryDrive ? null : lookAtTarget}
-            spotBearing={spotBearing}
-            onPosition={({ distanceMeters, stationIndex, lng, lat, bearing }) => {
-              setDriveStationIndex(stationIndex)
-              // Rounded, so a slow turn does not re-render the page every report.
-              setLookBearing((current) =>
-                Math.abs(((bearing - current + 540) % 360) - 180) < 5 ? current : Math.round(bearing),
-              )
-              setCameraEye((current) => (current?.lng === lng && current?.lat === lat ? current : { lng, lat }))
-              setDrive((current) =>
-                Math.abs(current.positionMeters - distanceMeters) < 0.0001
-                  ? current
-                  : { ...current, positionMeters: distanceMeters },
-              )
-            }}
-            onPause={() => setDrive((current) => ({ ...current, playing: false }))}
-            onPlay={() => setDrive((current) => ({ ...current, playing: true }))}
-            onExit={() => {
-              setPreliminaryDrive(false)
-              setDrive((current) => ({ ...current, active: false, playing: false }))
-            }}
-            onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
-          />
-        )}
-      </Map>
-
-      {!drive.active && (
-        <PlanMapLegend
-          blocks={{
-            count: blockCollection.features.length,
-            customColors: scene.targets.some((target) => target.role === 'block' && !!target.displayColor),
-          }}
-          landform={landscapeCollection.features.length > 0}
-          existingOpenings={harvestedCollection.features.length > 0}
-          road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
-          run={!!result}
-          reverseRoads={reverseRoadCollection.features.length > 0}
-          sensitivityUnits={showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []}
-          terrainCandidates={[...new Set(terrainCandidates.map((candidate) => candidate.method ?? 'facing'))]}
-          otherRidgeLayers={ridgeLayerCollection.features.some((feature) => feature.properties?.own === 0)}
-          landformClues={landformClues.features.length > 0}
-          inventory={
-            showInventory && viewpointInventory.data
-              ? {
-                  viewpoints: viewpointInventory.data.viewpoints.length > 0,
-                  arrows: viewpointInventory.data.arrows.length > 0,
-                  recSites: viewpointInventory.data.recSites.length > 0,
-                  screenings: viewpointInventory.data.screenings.length > 0,
+                        <Bookmark className="h-3.5 w-3.5" />
+                        <span className="max-sm:hidden">Save</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-2 touch:h-10"
+                        disabled={!canSaveView}
+                        aria-label="Download image"
+                        title="Download this view as a captioned PNG"
+                        onClick={saveImage}
+                      >
+                        <ImageDown className="h-3.5 w-3.5" />
+                        <span className="max-sm:hidden">Image</span>
+                      </Button>
+                    </>
+                  )
                 }
-              : null
-          }
-          masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
-          show={{
-            state: planShow,
-            onToggle: (key) => setPlanShow((current) => ({ ...current, [key]: !current[key] })),
-          }}
-        />
-      )}
+                status={
+                  preliminaryDrive ? (
+                    (previewTerrain.loading || previewTerrain.message) && (
+                      <p>
+                        {previewTerrain.loading
+                          ? `Loading road terrain · ${previewTerrain.progress}%`
+                          : previewTerrain.message}
+                        {!previewTerrain.loading && previewTerrain.message && (
+                          <TextButton
+                            className="ml-2"
+                            onClick={() => {
+                              previewTerrain.retry()
+                              routeViewshed.retry()
+                            }}
+                          >
+                            Retry terrain
+                          </TextButton>
+                        )}
+                      </p>
+                    )
+                  ) : (
+                    <>
+                      {liveForest.loading && (
+                        <p>Preliminary forest — existing records are loading; saving waits for them.</p>
+                      )}
+                      {liveForest.pendingUpdate && !liveForest.loading && (
+                        <p>New forest records are ready. Pause to apply them.</p>
+                      )}
+                      {!!liveForest.data?.issues.length && (
+                        <p>Existing forest records are incomplete; retry under Road view in the sidebar.</p>
+                      )}
+                      {(previewTerrain.loading ||
+                        previewTerrain.message ||
+                        (drive.forest && !currentForestStatus?.ready)) && (
+                        <p>
+                          {previewTerrain.loading
+                            ? `Loading terrain · ${previewTerrain.progress}%`
+                            : (previewTerrain.message ??
+                              currentForestStatus?.error ??
+                              `Preparing forest${currentForestStatus?.totalPatches ? ` · ${Math.round((100 * (currentForestStatus.patchCount ?? 0)) / currentForestStatus.totalPatches)}%` : '…'}${currentForestStatus?.nearbyReady ? ' · nearby view ready' : ''}`)}
+                          {!previewTerrain.loading && previewTerrain.message && (
+                            <TextButton className="ml-2" onClick={previewTerrain.retry}>
+                              Retry terrain
+                            </TextButton>
+                          )}
+                        </p>
+                      )}
+                      {lowFrameRate && drive.quality === 'auto' && (
+                        <p>Frame rate is low: pause to inspect, or set display quality to Faster in the sidebar.</p>
+                      )}
+                      {drive.showEvqo && evqoDisplay?.key === evqoKey && evqoDisplay.error && (
+                        <p>EVQO polygons unavailable: {evqoDisplay.error}</p>
+                      )}
+                      {drive.showEvqo &&
+                        evqoDisplay?.key === evqoKey &&
+                        !evqoDisplay.error &&
+                        !evqoDisplay.collection.features.length && (
+                          <p>No established VQO polygons around these blocks.</p>
+                        )}
+                      {previewMessage && <p>{previewMessage}</p>}
+                    </>
+                  )
+                }
+                preliminary={preliminaryDrive}
+                spot={!preliminaryDrive && activeRouteLength <= 2 * PULLOUT_METERS}
+                restoredLook={restoreLook}
+                onLookChange={(look) => {
+                  cameraLook.current = look
+                }}
+                onStatusChange={setCameraStatus}
+                onSlowFrames={drive.quality === 'auto' ? () => setLowFrameRate(true) : undefined}
+                forestReady={!drive.forest || !!currentForestStatus?.nearbyReady}
+                routeLengthMeters={activeRouteLength}
+                onSeek={(distance) => updateDrive({ positionMeters: distance, playing: false })}
+                speedKmh={drive.speedKmh}
+                onSpeedChange={(speedKmh) => updateDrive({ speedKmh })}
+                fixedLook={photoLook}
+                verticalFovDegrees={photoLook ? fieldPhoto.viewFov : null}
+                elevation={previewTerrain.source}
+                active={drive.active}
+                playing={drive.playing}
+                stations={activeStations}
+                roadCoordinates={
+                  preliminaryDrive ? scene.viewpoint.coordinates : result?.inputSnapshot?.viewpoint.coordinates
+                }
+                seekMeters={drive.positionMeters}
+                seekVersion={seekVersion}
+                speedMetersPerSecond={(drive.speedKmh * 1000) / 3600}
+                eyeHeightMeters={
+                  preliminaryDrive
+                    ? 150
+                    : (result?.settings.observerHeightMeters ?? scene.settings.observerHeightMeters)
+                }
+                lookAt={preliminaryDrive ? null : lookAtTarget}
+                spotBearing={spotBearing}
+                onPosition={({ distanceMeters, stationIndex, lng, lat, bearing }) => {
+                  setDriveStationIndex(stationIndex)
+                  // Rounded, so a slow turn does not re-render the page every report.
+                  setLookBearing((current) =>
+                    Math.abs(((bearing - current + 540) % 360) - 180) < 5 ? current : Math.round(bearing),
+                  )
+                  setCameraEye((current) => (current?.lng === lng && current?.lat === lat ? current : { lng, lat }))
+                  setDrive((current) =>
+                    Math.abs(current.positionMeters - distanceMeters) < 0.0001
+                      ? current
+                      : { ...current, positionMeters: distanceMeters },
+                  )
+                }}
+                onPause={() => setDrive((current) => ({ ...current, playing: false }))}
+                onPlay={() => setDrive((current) => ({ ...current, playing: true }))}
+                onExit={() => {
+                  setPreliminaryDrive(false)
+                  setDrive((current) => ({ ...current, active: false, playing: false }))
+                }}
+                onReachEnd={() => setDrive((current) => ({ ...current, playing: false }))}
+              />
+            )}
+          </Map>
 
-      {drive.active && (
-        <MapOverlay
-          position="top-left"
-          clearChrome
-          className="max-w-[20rem] px-2.5 py-1.5"
-          aria-label="Road view status"
-        >
-          {preliminaryDrive ? (
-            <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
-              Route overview · raised 150 m
-              <InfoTip label="About the route overview">
-                Red is ground seen from driver-height samples along the road; pause for a detailed calculation at the
-                stopped position. Terrain only, at true scale: no trees, buildings or cutblock figures. Return to the
-                map to add cutblocks and run the assessment.
-              </InfoTip>
-            </p>
-          ) : (
-            <p className="flex items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
-              <span className="font-medium">
-                {drive.harvestPhase === 'before' ? 'Before harvest' : 'After harvest'}
-              </span>
-              {currentExposure &&
-                ((currentExposure.unknownPercent ?? 0) > 0 ? (
-                  <span className="text-amber-700 dark:text-amber-300">· terrain incomplete here</span>
-                ) : (
-                  <span>
-                    ·{' '}
-                    <span className="font-semibold tabular-nums" data-ground-visible>
-                      {currentExposure.visiblePercent.toFixed(0)}%
-                    </span>{' '}
-                    of {exposureName.length <= 16 ? exposureName : 'the block'} in view
+          {!drive.active && (
+            <PlanMapLegend
+              blocks={{
+                count: blockCollection.features.length,
+                customColors: scene.targets.some((target) => target.role === 'block' && !!target.displayColor),
+              }}
+              landform={landscapeCollection.features.length > 0}
+              existingOpenings={harvestedCollection.features.length > 0}
+              road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
+              run={!!result}
+              reverseRoads={reverseRoadCollection.features.length > 0}
+              sensitivityUnits={
+                showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []
+              }
+              terrainCandidates={[...new Set(terrainCandidates.map((candidate) => candidate.method ?? 'facing'))]}
+              otherRidgeLayers={ridgeLayerCollection.features.some((feature) => feature.properties?.own === 0)}
+              landformClues={landformClues.features.length > 0}
+              inventory={
+                showInventory && viewpointInventory.data
+                  ? {
+                      viewpoints: viewpointInventory.data.viewpoints.length > 0,
+                      arrows: viewpointInventory.data.arrows.length > 0,
+                      recSites: viewpointInventory.data.recSites.length > 0,
+                      screenings: viewpointInventory.data.screenings.length > 0,
+                    }
+                  : null
+              }
+              masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
+              show={{
+                state: planShow,
+                onToggle: (key) => setPlanShow((current) => ({ ...current, [key]: !current[key] })),
+              }}
+            />
+          )}
+
+          {drive.active && (
+            <MapOverlay
+              position="top-left"
+              clearChrome
+              className="max-w-[20rem] px-2.5 py-1.5"
+              aria-label="Road view status"
+            >
+              {preliminaryDrive ? (
+                <p className="flex items-center gap-1.5 text-xs font-medium text-foreground">
+                  Route overview · raised 150 m
+                  <InfoTip label="About the route overview">
+                    Red is ground seen from driver-height samples along the road; pause for a detailed calculation at
+                    the stopped position. Terrain only, at true scale: no trees, buildings or cutblock figures. Return
+                    to the map to add cutblocks and run the assessment.
+                  </InfoTip>
+                </p>
+              ) : (
+                <p className="flex items-center gap-1.5 whitespace-nowrap text-xs text-foreground">
+                  <span className="font-medium">
+                    {drive.harvestPhase === 'before' ? 'Before harvest' : 'After harvest'}
                   </span>
-                ))}
-              <InfoTip label="About this view">
-                {currentExposure ? `${exposureName}: the` : 'The'} percentage is the share of the block&rsquo;s ground
-                the terrain lets you see from the nearest calculated station — not the share of your screen, and the
-                drawn trees do not change it.
-                {drive.showAnalysis ? ' Red points are that same ground visibility.' : ''}{' '}
-                {drive.harvestPhase === 'before'
-                  ? 'Before harvest, the proposed openings are filled with the same illustrative forest.'
-                  : 'After harvest, trees inside the proposed cutblocks are removed, showing the opening and its edges.'}{' '}
-                Terrain is at true scale (1×). Tree positions are illustrative; heights and species{' '}
-                {forestInventory.length
-                  ? 'use dated inventory and labelled regrowth estimates, with a regional fallback.'
-                  : 'use an assumed regional stand.'}{' '}
-                Road width and forest layout are assumptions and do not change the assessment.
-                {scene.viewpoint.id === ROADSIDE_DEMO_ID ? ' This demo is a hypothetical harvest on real terrain.' : ''}
-              </InfoTip>
-            </p>
+                  {currentExposure &&
+                    ((currentExposure.unknownPercent ?? 0) > 0 ? (
+                      <span className="text-amber-700 dark:text-amber-300">· terrain incomplete here</span>
+                    ) : (
+                      <span>
+                        ·{' '}
+                        <span className="font-semibold tabular-nums" data-ground-visible>
+                          {currentExposure.visiblePercent.toFixed(0)}%
+                        </span>{' '}
+                        of {exposureName.length <= 16 ? exposureName : 'the block'} in view
+                      </span>
+                    ))}
+                  <InfoTip label="About this view">
+                    {currentExposure ? `${exposureName}: the` : 'The'} percentage is the share of the block&rsquo;s
+                    ground the terrain lets you see from the nearest calculated station — not the share of your screen,
+                    and the drawn trees do not change it.
+                    {drive.showAnalysis ? ' Red points are that same ground visibility.' : ''}{' '}
+                    {drive.harvestPhase === 'before'
+                      ? 'Before harvest, the proposed openings are filled with the same illustrative forest.'
+                      : 'After harvest, trees inside the proposed cutblocks are removed, showing the opening and its edges.'}{' '}
+                    Terrain is at true scale (1×). Tree positions are illustrative; heights and species{' '}
+                    {forestInventory.length
+                      ? 'use dated inventory and labelled regrowth estimates, with a regional fallback.'
+                      : 'use an assumed regional stand.'}{' '}
+                    Road width and forest layout are assumptions and do not change the assessment.
+                    {scene.viewpoint.id === ROADSIDE_DEMO_ID
+                      ? ' This demo is a hypothetical harvest on real terrain.'
+                      : ''}
+                  </InfoTip>
+                </p>
+              )}
+              {standingNow && !preliminaryDrive && (
+                <p className="mt-0.5 flex flex-wrap items-center gap-x-2 whitespace-normal text-2xs text-muted-foreground">
+                  <span>Standing at {standingNow.name}</span>
+                  <TextButton onClick={handleBackToRoad}>Back to {standingNow.previous.name || 'the road'}</TextButton>
+                </p>
+              )}
+              {scene.viewpoint.id === ROADSIDE_DEMO_ID && !preliminaryDrive && (
+                <div className="mt-1 whitespace-normal text-2xs leading-4 text-muted-foreground">
+                  <p>{roadsideDriveCue(drive.positionMeters)}</p>
+                  <div className="mt-1 flex gap-1.5">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-2xs touch:h-9"
+                      onClick={() =>
+                        updateDrive({
+                          positionMeters: 600,
+                          lookAtTargetId: scene.targets.find((t) => t.role === 'block')?.id ?? null,
+                          playing: false,
+                        })
+                      }
+                    >
+                      View opening
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-2xs touch:h-9"
+                      onClick={() => updateDrive({ positionMeters: 200, lookAtTargetId: null, playing: true })}
+                    >
+                      Replay approach
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </MapOverlay>
           )}
-          {standingNow && !preliminaryDrive && (
-            <p className="mt-0.5 flex flex-wrap items-center gap-x-2 whitespace-normal text-2xs text-muted-foreground">
-              <span>Standing at {standingNow.name}</span>
-              <TextButton onClick={handleBackToRoad}>Back to {standingNow.previous.name || 'the road'}</TextButton>
-            </p>
-          )}
-          {scene.viewpoint.id === ROADSIDE_DEMO_ID && !preliminaryDrive && (
-            <div className="mt-1 whitespace-normal text-2xs leading-4 text-muted-foreground">
-              <p>{roadsideDriveCue(drive.positionMeters)}</p>
-              <div className="mt-1 flex gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-2xs touch:h-9"
-                  onClick={() =>
-                    updateDrive({
-                      positionMeters: 600,
-                      lookAtTargetId: scene.targets.find((t) => t.role === 'block')?.id ?? null,
-                      playing: false,
-                    })
-                  }
-                >
-                  View opening
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 px-2 text-2xs touch:h-9"
-                  onClick={() => updateDrive({ positionMeters: 200, lookAtTargetId: null, playing: true })}
-                >
-                  Replay approach
-                </Button>
-              </div>
-            </div>
-          )}
-        </MapOverlay>
-      )}
+        </div>
+      </MetricSummaryLayout>
     </MapSectionLayout>
   )
 }
