@@ -155,6 +155,31 @@ async function stubInventory(page: Page, mode: 'covered' | 'empty' = 'covered') 
       body: zlib.gzipSync(JSON.stringify({ type: 'FeatureCollection', features })),
     }),
   )
+  // The page reads the inventory live from DataBC's WFS; answer with the same
+  // units, filtered by the box the request carries, as GeoServer would.
+  await page.route('**/geo/pub/wfs?**', (route) => {
+    const url = new URL(route.request().url())
+    if (url.searchParams.get('typeName') !== 'WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY')
+      return route.fallback()
+    const [west, south, east, north] = /BBOX\(GEOMETRY,([^']+),'/
+      .exec(url.searchParams.get('CQL_FILTER') ?? '')![1]
+      .split(',')
+      .map(Number)
+    const inBox = features.filter((feature) => {
+      const ring = feature.geometry.coordinates[0]
+      const lngs = ring.map(([lng]) => lng)
+      const lats = ring.map(([, lat]) => lat)
+      return (
+        Math.min(...lngs) <= east &&
+        Math.max(...lngs) >= west &&
+        Math.min(...lats) <= north &&
+        Math.max(...lats) >= south
+      )
+    })
+    return route.fulfill({
+      json: { type: 'FeatureCollection', numberMatched: inBox.length, features: inBox },
+    })
+  })
 }
 
 /** The lookup also asks for existing openings; keep the test off the network. */
@@ -333,9 +358,9 @@ test.describe('forestry visual quality', () => {
     await openPage(page)
 
     await showStep(page, 'identify')
-    await expect(page.getByRole('button', { name: /Block A — west face/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Block B — over the height of land/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Tabor Mountain landform/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Block A — west face/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Block B — over the height of land/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Tabor Mountain landform/ })).toBeVisible()
     // The scene's one landform is the active assessment unit without being asked.
     await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
       'Tabor Mountain landform',
@@ -450,7 +475,7 @@ test.describe('forestry visual quality', () => {
     await page.getByLabel('Ease of seeing').selectOption('easy')
     await page.getByLabel('Scale relative to the landform').selectOption('medium')
     await page.getByLabel('Shape', { exact: true }).selectOption('natural')
-    await page.locator('label', { hasText: 'On the class boundary.' }).locator('input[type="checkbox"]').check()
+    await page.getByRole('checkbox', { name: 'On the class boundary' }).check()
     await expect(rating).toHaveAttribute('data-via-rating', 'inconclusive')
 
     // A rating with its rationale finishes step 5.
@@ -660,8 +685,9 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByText('2 units · 1 with an established objective · 1 with a VAC rating')).toBeVisible()
 
     // Unrated units are selectable too; missing objectives stay explicit.
-    await expect(page.getByRole('button', { name: /VLI 1672/ })).toBeVisible()
-    await page.getByRole('button', { name: /VLI 1668/ }).click()
+    // Anchored: the inventory suggestions' rows are "Show boundary: VLI …" buttons.
+    await expect(page.getByRole('button', { name: /^VLI 1672/ })).toBeVisible()
+    await page.getByRole('button', { name: /^VLI 1668/ }).click()
 
     // The province's own objective and absorption rating come across, rather
     // than the page's defaults.
@@ -687,9 +713,8 @@ test.describe('forestry visual quality', () => {
       if (request.url().includes('/MapServer/6/query')) liveVliCalls++
     })
     await openPage(page)
-    const suggestions = page
-      .locator('details')
-      .filter({ has: page.locator('summary', { hasText: /^Find a landform in the BC inventory$/ }) })
+    // The inventory section folds; its rows show a boundary and only the shown one offers "Use candidate".
+    const suggestions = page.locator('section:has(> div > [data-forestry-disclosure="inventory-landforms"])')
     await showStep(page, 'identify')
     await expect(suggestions.getByText('VLI 1668 · intersects road')).toBeVisible()
     await suggestions.getByLabel('Landform search area').selectOption('block')
@@ -1495,14 +1520,15 @@ test.describe('forestry assessment workspace tools', () => {
     await page.getByLabel('I checked the camera record and image alignment against field evidence.').check()
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await showStep(page, 'design')
-    await page.getByLabel('Sightline target', { exact: true }).selectOption('tool-block')
+    // By role: a label wrapping a select reads its options as label text, so exact getByLabel misses it.
+    await page.getByRole('combobox', { name: 'Sightline target', exact: true }).selectOption('tool-block')
     await page.getByRole('button', { name: 'Trace selected sightline', exact: true }).click()
     await expect(
       page.getByRole('img', { name: 'Sightline profile: elevation in metres by distance from the viewing station' }),
     ).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')
     await page
-      .getByLabel('Assessment evidence viewpoint', { exact: true })
+      .getByRole('combobox', { name: 'Assessment evidence viewpoint', exact: true })
       .selectOption({ label: 'Public road turnout' })
     await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
     const workspaceDownload = page.waitForEvent('download')
@@ -1575,7 +1601,7 @@ test.describe('forestry assessment workspace tools', () => {
     await page.reload()
     await openAllSteps(page)
     await expect(page.getByText('survey-dem.tif · terrain', { exact: true })).toBeVisible()
-    await page.getByLabel('Assessment mask classification', { exact: true }).selectOption('retained')
+    await page.getByRole('combobox', { name: 'Assessment mask classification', exact: true }).selectOption('retained')
     const mask = {
       type: 'FeatureCollection',
       features: [

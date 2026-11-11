@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { formatPercentValue } from '@/lib/format'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -34,7 +35,7 @@ const SELECT_CLASS =
   'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-10'
 
 function percent(value: number | null | undefined, digits = 1): string {
-  return value === null || value === undefined || !Number.isFinite(value) ? '—' : `${value.toFixed(digits)}%`
+  return formatPercentValue(value, { minimumFractionDigits: digits, maximumFractionDigits: digits, fallback: '—' })
 }
 
 /** Whether an alteration of class `id` satisfies an objective — the same or less altered. */
@@ -143,10 +144,10 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
       </div>
 
       {stale && (
-        <p role="alert" className="mt-3 rounded-md border border-amber-500 p-2 text-xs text-foreground">
+        <InlineAlert className="mt-3" tone="warning">
           Scene changed — rerun the analysis. Previous results, road preview and assessed exports are unavailable until
           the run matches this scene.
-        </p>
+        </InlineAlert>
       )}
 
       {stats.length > 0 && <StatGroup className="mt-3" variant="tiles" size="sm" columns={3} items={stats} />}
@@ -314,18 +315,17 @@ export function OcularAssessmentFields({
           ))}
         </NativeSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-3.5 w-3.5"
-          checked={ocular.onBoundary === true}
-          onChange={(event) => setOcular({ onBoundary: event.target.checked })}
-        />
-        <span>
-          <span className="font-medium text-foreground">On the class boundary.</span> The alteration sits between{' '}
-          {assessment.objective.label.toLowerCase()} and the next more-altered class. Table 7 rates this Inconclusive.
-        </span>
-      </label>
+      <CheckboxField
+        label={<span className="text-2xs font-medium">On the class boundary</span>}
+        description={
+          <span className="text-2xs leading-4">
+            The alteration sits between {assessment.objective.label.toLowerCase()} and the next more-altered class.
+            Table 7 rates this Inconclusive.
+          </span>
+        }
+        checked={ocular.onBoundary === true}
+        onCheckedChange={(onBoundary) => setOcular({ onBoundary })}
+      />
       {result && (
         <InlineAlert
           tone={achieves(result.classId, assessment.objective.id) && !result.onBoundary ? 'success' : 'warning'}
@@ -478,15 +478,15 @@ export function AdjustmentFields({
           ))}
         </NativeSelect>
       </ChoiceField>
-      <label className="flex items-start gap-2 text-2xs leading-4 text-muted-foreground">
-        <input
-          type="checkbox"
-          className="mt-0.5 h-3.5 w-3.5"
-          checked={review.retentionNetted === true}
-          onChange={(event) => onChange({ retentionNetted: event.target.checked })}
-        />
-        <span>Retained patches are already cut out of the block outlines, so they are not counted a second time.</span>
-      </label>
+      <CheckboxField
+        label={
+          <span className="text-2xs leading-4">
+            Retained patches are already cut out of the block outlines, so they are not counted a second time.
+          </span>
+        }
+        checked={review.retentionNetted === true}
+        onCheckedChange={(retentionNetted) => onChange({ retentionNetted })}
+      />
       <KeyValueRows
         variant="divided"
         rows={[

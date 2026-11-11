@@ -1,13 +1,13 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, FormField, NativeSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { FileButton } from '@/components/ui/file-button'
 import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { createId, type ForestryScene } from './scene'
 import { MASK_LABELS } from './assessmentMasks'
 import { readShapeFile } from './shapeImport'
 import { importLocalRaster } from './toolImports'
-import { TOOL_INPUT, ToolField } from './ToolFieldPanel'
 import type { AssessmentMaskKind, LocalRaster } from './types'
 
 export function ToolSourcesPanel({
@@ -25,9 +25,7 @@ export function ToolSourcesPanel({
     [reference, setReference] = useState(''),
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false)
-  const masksInput = useRef<HTMLInputElement>(null),
-    rasterInput = useRef<HTMLInputElement>(null),
-    selected = scene.targets.find((t) => t.id === selectedTargetId)
+  const selected = scene.targets.find((t) => t.id === selectedTargetId)
   const sceneRef = useRef(scene)
   sceneRef.current = scene
   const importMasks = async (file: File) => {
@@ -83,35 +81,24 @@ export function ToolSourcesPanel({
             in the assessable land base but contribute no forestry alteration. Retained patches remain green and are
             removed from the proposal geometrically.
           </p>
-          <ToolField label="Assessment mask classification">
-            <NativeSelect
-              className={TOOL_INPUT}
-              value={kind}
-              onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}
-            >
+          <FormField label="Assessment mask classification">
+            <NativeSelect value={kind} onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}>
               {Object.entries(MASK_LABELS).map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
                 </option>
               ))}
             </NativeSelect>
-          </ToolField>
-          <input
-            className="hidden"
-            ref={masksInput}
-            type="file"
-            accept=".json,.geojson,.zip"
-            aria-label="Import assessment masks"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void importMasks(file)
-            }}
-          />
+          </FormField>
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => masksInput.current?.click()}>
+            <FileButton
+              label="Import assessment masks"
+              accept=".json,.geojson,.zip"
+              disabled={busy}
+              onFiles={([file]) => void importMasks(file)}
+            >
               Import mask polygons
-            </Button>
+            </FileButton>
             <Button
               size="sm"
               variant="outline"
@@ -146,7 +133,6 @@ export function ToolSourcesPanel({
               <p className="font-medium">{m.name}</p>
               <NativeSelect
                 aria-label={`Classification of ${m.name}`}
-                className={TOOL_INPUT}
                 value={m.kind}
                 onChange={(e) =>
                   onChange({
@@ -163,17 +149,18 @@ export function ToolSourcesPanel({
                   </option>
                 ))}
               </NativeSelect>
-              <input
-                aria-label={`Source for ${m.name}`}
-                className={TOOL_INPUT}
-                value={m.source}
-                onChange={(e) =>
-                  onChange({
-                    ...scene,
-                    masks: scene.masks?.map((x) => (x.id === m.id ? { ...x, source: e.target.value } : x)),
-                  })
-                }
-              />
+              <FormField label={`Source for ${m.name}`} hideLabel>
+                <input
+                  className={FORM_INPUT_CLASS}
+                  value={m.source}
+                  onChange={(e) =>
+                    onChange({
+                      ...scene,
+                      masks: scene.masks?.map((x) => (x.id === m.id ? { ...x, source: e.target.value } : x)),
+                    })
+                  }
+                />
+              </FormField>
               <Button
                 size="sm"
                 variant="ghost"
@@ -191,42 +178,31 @@ export function ToolSourcesPanel({
             Use a cropped, single-band, metre-valued GeoTIFF. Native cells and no-data are preserved. Supported
             coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11.
           </p>
-          <ToolField label="Local surface type">
-            <NativeSelect
-              className={TOOL_INPUT}
-              value={rasterKind}
-              onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}
-            >
+          <FormField label="Local surface type">
+            <NativeSelect value={rasterKind} onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}>
               <option value="terrain">Bare-earth terrain elevation</option>
               <option value="canopy">Canopy height above ground</option>
             </NativeSelect>
-          </ToolField>
-          <ToolField label="Surface acquisition date">
-            <input type="date" className={TOOL_INPUT} value={date} onChange={(e) => setDate(e.target.value)} />
-          </ToolField>
-          <ToolField label="Vertical reference and units">
+          </FormField>
+          <FormField label="Surface acquisition date">
+            <input type="date" className={FORM_INPUT_CLASS} value={date} onChange={(e) => setDate(e.target.value)} />
+          </FormField>
+          <FormField label="Vertical reference and units">
             <input
-              className={TOOL_INPUT}
+              className={FORM_INPUT_CLASS}
               placeholder={rasterKind === 'terrain' ? 'e.g. CGVD2013, metres' : 'Metres above local ground'}
               value={reference}
               onChange={(e) => setReference(e.target.value)}
             />
-          </ToolField>
-          <input
-            className="hidden"
-            ref={rasterInput}
-            type="file"
+          </FormField>
+          <FileButton
+            label="Import local raster"
             accept=".tif,.tiff"
-            aria-label="Import local raster"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void importRaster(file)
-            }}
-          />
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => rasterInput.current?.click()}>
+            disabled={busy}
+            onFiles={([file]) => void importRaster(file)}
+          >
             {busy ? 'Reading source…' : 'Import local surface'}
-          </Button>
+          </FileButton>
           {(scene.localRasters ?? []).map((r) => (
             <div key={r.id} className="space-y-1 border-b py-2">
               <p className="font-medium">

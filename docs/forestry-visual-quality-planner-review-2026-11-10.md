@@ -90,14 +90,23 @@ ridge layers never did.
 After *Load around the block*, the plan map shows the VLI viewpoints (pink),
 their arrows, recreation sites (green) and inventory screenings (teal); hover
 names a point and a click stands there. Within 12 km of the selected block only;
-rows the inventory types `ERROR` are left out; they are hidden in the road view
-and have no legend entry yet.
+rows the inventory types `ERROR` are left out; they are hidden in the road view.
+The plan map's legend lists each of them (11 Nov).
+
+## EVQO coverage (found 11 Nov)
+
+The EVQO overlap read nothing at Purden Lake, a block entirely under R and PR.
+The bcdatamapper snapshot holds 10,000 of the inventory's 60,499 polygons,
+because the ArcGIS layer it was built from stops there. The page now reads the
+inventory live from DataBC's WFS and keeps the snapshot as a fallback; see
+*BC inventory lookup* in the contract. *Find a landform* still reads the
+snapshot, and the snapshot itself needs rebuilding from the WFS.
 
 ## Left to do
 
 In rough order of value to the planner:
 
-1. **Viewpoints in the road view, and a legend**, and a way to stand at
+1. **Viewpoints in the road view** (the plan map's legend is done), and a way to stand at
    another viewpoint without leaving the road view (the list is on the plan
    map). Pins for the other viewpoints
    and rec sites, so standing on the highway shows where the rec site is.

@@ -1,3 +1,4 @@
+import { formatKm } from './measureFormat'
 import type { SightlineProfile } from './sightlineProfile'
 export function SightlineProfileChart({ profile }: { profile: SightlineProfile }) {
   const all = profile.points
@@ -26,7 +27,7 @@ export function SightlineProfileChart({ profile }: { profile: SightlineProfile }
   return (
     <div className="space-y-2 text-xs">
       <p>
-        {profile.status} · {(profile.distanceMeters / 1000).toFixed(2)} km
+        {profile.status} · {formatKm(profile.distanceMeters)}
         {profile.blockedAtMeters !== null ? ` · first obstruction at ${profile.blockedAtMeters.toFixed(0)} m` : ''}
       </p>
       <svg

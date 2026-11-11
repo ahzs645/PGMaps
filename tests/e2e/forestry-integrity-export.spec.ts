@@ -64,7 +64,7 @@ test('road preview has finite real camera state and restores map controls', asyn
 test('a scenario edit withholds stale PDF export until a new run', async ({ page }) => {
   test.setTimeout(180_000)
   await openScenario(page)
-  await page.locator('label', { hasText: 'Assessment year' }).locator('input').fill('2027')
+  await page.getByRole('spinbutton', { name: 'Assessment year', exact: true }).fill('2027')
   await expect(page.getByText(/Scene changed — rerun the analysis/)).toBeVisible()
   await expect(page.getByRole('button', { name: 'Export filled FS1252 PDF', exact: true })).toHaveCount(0)
 })

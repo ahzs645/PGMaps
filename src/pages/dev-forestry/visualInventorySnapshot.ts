@@ -1,6 +1,8 @@
 import { fetchJson } from '@/lib/fetchJson'
 import {
+  buildInventoryWfsUrl,
   parseSensitivityUnits,
+  VLI_WFS_MAX_FEATURES,
   type BcSensitivityUnit,
   type Bounds,
   type InventoryQueryResult,
@@ -94,5 +96,32 @@ export async function queryVisualInventorySnapshot(
       return b[0] <= bounds[2] && b[2] >= bounds[0] && b[1] <= bounds[3] && b[3] >= bounds[1]
     }),
     truncated: false,
+  }
+}
+
+export type VisualInventorySource = 'wfs' | 'snapshot'
+
+/**
+ * The inventory units in a bbox: live from DataBC's WFS, which holds all of
+ * them, and from the snapshot only when the WFS cannot be reached. The
+ * snapshot was built from the ArcGIS layer, which stops at 10,000 of the
+ * 60,499 polygons, so it misses most of BC (Purden Lake among them).
+ */
+export async function queryVisualInventory(
+  bounds: Bounds,
+  signal?: AbortSignal,
+): Promise<InventoryQueryResult & { source: VisualInventorySource }> {
+  try {
+    const response = await fetch(buildInventoryWfsUrl(bounds), { signal })
+    if (!response.ok) throw new Error(`DataBC WFS answered ${response.status}`)
+    const payload = (await response.json()) as { features?: unknown[]; numberMatched?: number }
+    const units = parseSensitivityUnits(payload)
+    const returned = payload.features?.length ?? 0
+    const truncated =
+      typeof payload.numberMatched === 'number' ? payload.numberMatched > returned : returned >= VLI_WFS_MAX_FEATURES
+    return { units, truncated, source: 'wfs' }
+  } catch (error) {
+    if (signal?.aborted) throw error
+    return { ...(await queryVisualInventorySnapshot(bounds, signal)), source: 'snapshot' }
   }
 }
