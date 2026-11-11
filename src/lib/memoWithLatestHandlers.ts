@@ -91,7 +91,9 @@ export function memoWithLatestHandlers<P extends object>(
       return fn
     }
     const stable: Record<string, unknown> = {}
+    // The proxies read `latest` only when called, from a handler, never while rendering.
     for (const [key, value] of Object.entries(props)) {
+      // eslint-disable-next-line react-hooks/refs
       if (typeof value === 'function') stable[key] = proxy(key, () => latest.current[key])
       else if (bags.has(key) && plain(value)) {
         // The bag itself is new each render; its functions become proxies, everything else is kept.
@@ -99,7 +101,8 @@ export function memoWithLatestHandlers<P extends object>(
         for (const [field, entry] of Object.entries(value))
           bag[field] =
             typeof entry === 'function'
-              ? proxy(
+              ? // eslint-disable-next-line react-hooks/refs
+                proxy(
                   `${key}\u0000${field}`,
                   () => (latest.current[key] as Record<string, unknown> | undefined)?.[field],
                 )

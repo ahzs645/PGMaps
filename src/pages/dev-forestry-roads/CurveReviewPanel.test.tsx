@@ -68,7 +68,7 @@ describe('linked curve review controls', () => {
       await act(async () => button.props.onClick())
       expect(onStation).toHaveBeenLastCalledWith(expected)
     }
-    const csv = renderer!.root.findAllByType('button').find((node) => node.children.includes('Curve CSV'))!
+    const csv = renderer!.root.findAllByType('button').find((node) => node.props['aria-label'] === 'Curve CSV')!
     await act(async () => csv.props.onClick())
     expect(downloadText).toHaveBeenCalledWith(
       expect.stringContaining('"UI fixture",1,"Test datum"'),
