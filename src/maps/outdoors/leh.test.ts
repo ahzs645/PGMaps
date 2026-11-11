@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  huntsForHuntArea,
   huntsForUnit,
   normalizeUnitId,
   oddsText,
@@ -144,5 +145,21 @@ describe('regulationLinks', () => {
 
   it('always offers the limited entry synopsis and the corrections page', () => {
     expect(regulationLinks('1-5')).toHaveLength(3)
+  })
+})
+
+describe('huntsForHuntArea', () => {
+  const { hunts } = parseLehDraws(REPORT)
+
+  it('finds the hunts of one zone and one species', () => {
+    expect(huntsForHuntArea(hunts, '725A', 'Moose').map((hunt) => hunt.huntCode)).toEqual(['4377'])
+    expect(huntsForHuntArea(hunts, '725', 'ELK').map((hunt) => hunt.huntCode)).toEqual(['2213'])
+  })
+
+  it('keeps zones and species apart', () => {
+    // Elk are drawn for the whole unit; there is no elk hunt in moose zone A.
+    expect(huntsForHuntArea(hunts, '725A', 'Elk')).toEqual([])
+    expect(huntsForHuntArea(hunts, '725', 'Moose')).toEqual([])
+    expect(huntsForHuntArea(hunts, 'nonsense', 'Moose')).toEqual([])
   })
 })

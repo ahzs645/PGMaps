@@ -2,7 +2,10 @@ import { StyledSelect } from '@/components/ui/form-field'
 import { useClipboardText } from '@/hooks/useClipboardText'
 import type * as MapLibreGL from 'maplibre-gl'
 import {
+  CalendarClock,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Copy,
   Crosshair,
   Download,
@@ -19,6 +22,7 @@ import {
   Satellite,
   Route as RouteIcon,
   Sparkles,
+  Target,
   TrainTrack,
   Trash2,
   Trees,
@@ -47,13 +51,25 @@ import {
   DEFAULT_BASE_LAYERS,
   OutdoorsBaseLayers,
   PLAN_LAYER_ORDER,
+  isMapClickClaimed,
   type BaseLayerChoices,
   type BaseLayerKey,
   type DataLayerKey,
   type LayerStatus,
   type LayerStatuses,
 } from '@/maps/outdoors/BaseLayers'
-import { CUTBLOCK_AGE_COLORS, CUTBLOCK_AGE_LABELS, type CutblockAge } from '@/maps/outdoors/bcLayers'
+import {
+  CUTBLOCK_AGE_COLORS,
+  CUTBLOCK_AGE_LABELS,
+  DEPTH_BANDS,
+  HUNT_ZONE_SPECIES,
+  titleCase,
+  type CutblockAge,
+  type DepthChartSet,
+  type HuntZoneSpecies,
+} from '@/maps/outdoors/bcLayers'
+import { clampImageryDate, recentImageryRange, shiftIsoDate, todayIsoDate } from '@/maps/outdoors/recentImagery'
+import { ChartViewer } from '@/maps/outdoors/ChartViewer'
 import { UnitInfo } from '@/maps/outdoors/UnitInfo'
 import {
   AREA_KINDS,
@@ -104,6 +120,7 @@ function readBaseLayerChoices(): BaseLayerChoices {
 
 /** What each data layer counts, for its status line. */
 const LAYER_NOUNS: Record<DataLayerKey, [singular: string, plural: string]> = {
+  huntZones: ['zone', 'zones'],
   forestRoads: ['road section', 'road sections'],
   rail: ['rail segment', 'rail segments'],
   cutblocks: ['cutblock', 'cutblocks'],
@@ -452,6 +469,13 @@ function DevOutdoors() {
   const [activeStage, setActiveStage] = useState<PlanStage>('eligibility')
   const [baseLayers, setBaseLayers] = useState<BaseLayerChoices>(readBaseLayerChoices)
   const [layerStatuses, setLayerStatuses] = useState<LayerStatuses>({})
+  // The day is read once per visit, so the date limits cannot move while the page is open.
+  const imageryRange = useMemo(() => recentImageryRange(todayIsoDate()), [])
+  const [recentDate, setRecentDate] = useState(imageryRange.latest)
+  const chooseRecentDate = useCallback((date: string) => setRecentDate(clampImageryDate(date, todayIsoDate())), [])
+  const [zoneSpecies, setZoneSpecies] = useState<HuntZoneSpecies>('MOOSE')
+  const [openChart, setOpenChart] = useState<DepthChartSet | null>(null)
+  const closeChart = useCallback(() => setOpenChart(null), [])
   const handleLayerStatus = useCallback((layer: DataLayerKey, status: LayerStatus) => {
     setLayerStatuses((current) => ({ ...current, [layer]: status }))
   }, [])
@@ -606,12 +630,18 @@ function DevOutdoors() {
 
   const handleWmuClick = useCallback((id: string, _event: unknown, properties: Record<string, unknown>) => {
     if (drawModeRef.current) return
-    setPlan((current) => {
-      if (current.wmus.some((wmu) => wmu.id === id)) {
-        return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
-      }
-      const name = typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
-      return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
+    // The unit fill lies under every other layer and hears the click first.
+    // Waiting a microtask lets a layer above claim it, so clicking a lake for
+    // its chart does not also add or remove the unit beneath.
+    queueMicrotask(() => {
+      if (isMapClickClaimed()) return
+      setPlan((current) => {
+        if (current.wmus.some((wmu) => wmu.id === id)) {
+          return { ...current, wmus: current.wmus.filter((wmu) => wmu.id !== id) }
+        }
+        const name = typeof properties.boundaryName === 'string' ? properties.boundaryName : undefined
+        return { ...current, wmus: [...current.wmus, { id, ...(name ? { name } : {}) }] }
+      })
     })
   }, [])
 
@@ -1325,6 +1355,59 @@ function DevOutdoors() {
             tone="emerald"
           />
           <ToggleRow
+            active={baseLayers.recent}
+            onClick={() => toggleBaseLayer('recent')}
+            icon={CalendarClock}
+            label="Recent satellite passes"
+            description={
+              baseLayers.recent
+                ? `Sentinel-2 and Landsat on ${recentDate}`
+                : 'Dated images from the last days, 30 m detail'
+            }
+            tone="cyan"
+          />
+          {baseLayers.recent && (
+            <div className="space-y-1 px-1">
+              <div className="flex items-center gap-1">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  aria-label="Previous day"
+                  disabled={recentDate <= imageryRange.earliest}
+                  onClick={() => chooseRecentDate(shiftIsoDate(recentDate, -1))}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <input
+                  type="date"
+                  aria-label="Image date"
+                  className={INPUT_CLASS}
+                  value={recentDate}
+                  min={imageryRange.earliest}
+                  max={imageryRange.latest}
+                  onChange={(event) => chooseRecentDate(event.target.value)}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7 shrink-0"
+                  aria-label="Next day"
+                  disabled={recentDate >= imageryRange.latest}
+                  onClick={() => chooseRecentDate(shiftIsoDate(recentDate, 1))}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <p className="text-2xs leading-4 text-muted-foreground">
+                Each day shows only the strips a satellite flew, cloud included. Step back a day or two if the view is
+                blank or cloudy. Images arrive about a week after the pass.
+              </p>
+            </div>
+          )}
+          <ToggleRow
             active={baseLayers.relief}
             onClick={() => toggleBaseLayer('relief')}
             icon={Mountain}
@@ -1332,6 +1415,34 @@ function DevOutdoors() {
             description="Hill shading from open elevation tiles"
             tone="amber"
           />
+          <ToggleRow
+            active={baseLayers.huntZones}
+            onClick={() => toggleBaseLayer('huntZones')}
+            icon={Target}
+            label="Limited entry zones"
+            description={
+              baseLayers.huntZones
+                ? layerStatusText('huntZones', layerStatuses.huntZones, 'Loading…')
+                : 'Zones inside each unit, such as 7-25 A, B and C'
+            }
+            tone="rose"
+          />
+          {baseLayers.huntZones && (
+            <div className="px-1">
+              <StyledSelect
+                className={INPUT_CLASS}
+                value={zoneSpecies}
+                aria-label="Species for limited entry zones"
+                onChange={(event) => setZoneSpecies(event.target.value as HuntZoneSpecies)}
+              >
+                {HUNT_ZONE_SPECIES.map((species) => (
+                  <option key={species} value={species}>
+                    {titleCase(species)} zones
+                  </option>
+                ))}
+              </StyledSelect>
+            </div>
+          )}
           <ToggleRow
             active={baseLayers.forestRoads}
             onClick={() => toggleBaseLayer('forestRoads')}
@@ -1406,6 +1517,26 @@ function DevOutdoors() {
             }
             tone="sky"
           />
+          {baseLayers.lakeDepth && (
+            <div className="space-y-1 px-1">
+              <ul className="flex flex-wrap gap-x-3 gap-y-1 text-2xs text-muted-foreground">
+                {DEPTH_BANDS.map((band) => (
+                  <li key={band.label} className="flex items-center gap-1">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm"
+                      style={{ backgroundColor: band.color }}
+                      aria-hidden="true"
+                    />
+                    {band.label}
+                  </li>
+                ))}
+              </ul>
+              <p className="text-2xs leading-4 text-muted-foreground">
+                Only 28 lakes in BC have depth contours as map data, and those are coloured. Every other surveyed lake
+                is outlined in pale blue: click it to view its scanned depth chart here.
+              </p>
+            </div>
+          )}
         </div>
         <p className="mt-2 flex gap-1.5 text-2xs leading-4 text-muted-foreground">
           <Layers className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
@@ -1507,7 +1638,13 @@ function DevOutdoors() {
       >
         <MapTableBridge table={table} />
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
-        <OutdoorsBaseLayers choices={baseLayers} onStatus={handleLayerStatus} />
+        <OutdoorsBaseLayers
+          choices={baseLayers}
+          recentDate={recentDate}
+          zoneSpecies={zoneSpecies}
+          onOpenChart={setOpenChart}
+          onStatus={handleLayerStatus}
+        />
         {wmuLayer && (
           <MapPmtilesFillLayer
             url={wmuLayer.pmtilesUrl}
@@ -1581,6 +1718,9 @@ function DevOutdoors() {
         />
       </Map>
       {drawBanner}
+      {openChart && (
+        <ChartViewer key={`${openChart.lake}-${openChart.surveyYear}`} chart={openChart} onClose={closeChart} />
+      )}
     </MapSectionLayout>
   )
 }

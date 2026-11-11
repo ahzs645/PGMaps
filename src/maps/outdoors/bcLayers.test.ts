@@ -8,11 +8,15 @@ import {
   describeCutblock,
   describeDepthChart,
   describeForestRoad,
+  depthBandColor,
+  depthChartSet,
+  huntZoneFilter,
   parseCoastalLaunches,
   parseCutblocks,
   parseDepthCharts,
   parseDepthContours,
   parseForestRoads,
+  parseHuntZones,
   parseRecLaunches,
   secureUrl,
   titleCase,
@@ -242,5 +246,78 @@ describe('titleCase', () => {
     expect(titleCase('PINCHI SOUTH EAST')).toBe('Pinchi South East')
     expect(titleCase('FORT ST. JAMES')).toBe('Fort St. James')
     expect(titleCase("O'CONNOR-BLACK LAKE")).toBe("O'connor-Black Lake")
+  })
+})
+
+describe('depth bands and chart sheets', () => {
+  it('colours a contour by the band its depth starts', () => {
+    expect(depthBandColor(0)).toBe('#bae6fd')
+    expect(depthBandColor(3)).toBe('#7dd3fc')
+    expect(depthBandColor(10)).toBe('#38bdf8')
+    expect(depthBandColor(30)).toBe('#0284c7')
+    expect(depthBandColor(90)).toBe('#1e1b4b')
+  })
+
+  it('drops the inventory’s 99999 island marker', () => {
+    const contour = (depth: number) => feature(square, { LAKE_GAZETTED_NAME: 'Pinchi Lake', CONTOUR_DEPTH_M: depth })
+    const { collection } = parseDepthContours({ features: [contour(99999), contour(0), contour(60)] })
+    expect(collection.features.map((row) => row.properties.depthM)).toEqual([0, 60])
+  })
+
+  it('gathers every sheet of the clicked lake’s chart, in order', () => {
+    const sheet = (id: number, lake: string, sheetNo: number, file: string) =>
+      feature(square, {
+        OBJECTID: id,
+        GAZETTED_NAME: lake,
+        DRAFT_DATE: '1953-07-01Z',
+        SHEET_NO: sheetNo,
+        NUMBER_OF_MAP_SHEETS: 3,
+        PDF_FILE_URL: `http://a100.gov.bc.ca/pub/fidq/downloadBathymetricMap.do?filename=${file}`,
+      })
+    const charts = parseDepthCharts({
+      features: [
+        sheet(1, 'STUART LAKE', 3, 'c.pdf'),
+        sheet(2, 'STUART LAKE', 1, 'a.pdf'),
+        sheet(3, 'KAZCHEK LAKE', 1, 'k.pdf'),
+        sheet(4, 'STUART LAKE', 2, 'b.pdf'),
+      ],
+    }).collection.features.map((row) => row.properties)
+    const set = depthChartSet(charts, '4')
+    expect(set?.lake).toBe('Stuart Lake')
+    expect(set?.sheets.map((entry) => entry.sheet)).toEqual([1, 2, 3])
+    expect(set?.sheets[0].url).toBe('https://a100.gov.bc.ca/pub/fidq/downloadBathymetricMap.do?filename=a.pdf')
+    expect(depthChartSet(charts, 'missing')).toBeNull()
+  })
+})
+
+describe('limited entry zones', () => {
+  it('filters by one species from the fixed list and ANDs it with the box', () => {
+    expect(huntZoneFilter('MOOSE')).toBe("LTD_ENTRY_HUNTING_ZONE_TYPE='MOOSE'")
+    const filter = new URL(bcLayerUrl('huntZones', TACHIE, huntZoneFilter('MULE DEER'))).searchParams.get('CQL_FILTER')
+    expect(filter).toMatch(/^BBOX\(GEOMETRY,.*\) AND \(LTD_ENTRY_HUNTING_ZONE_TYPE='MULE DEER'\)$/)
+  })
+
+  it('reads a zone with the id that joins it to the draw report', () => {
+    const { collection } = parseHuntZones({
+      features: [
+        feature(square, {
+          LEHZ_SYSID: 77,
+          LIMITED_ENTRY_HUNTING_ZONE: 'M_7-25A',
+          MANAGEMENT_UNITS: '7-25',
+          LTD_ENTRY_HUNTING_ZONE_TYPE: 'MOOSE',
+          LTD_ENTRY_HUNTING_ZONE_LABEL: 'Zone A of 7-25',
+          LEH_HUNT_AREA_ID: '725A',
+        }),
+        feature(square, { LEHZ_SYSID: 78 }),
+      ],
+    })
+    expect(collection.features).toHaveLength(1)
+    expect(collection.features[0].properties).toEqual({
+      id: '77',
+      species: 'Moose',
+      label: 'Zone A of 7-25',
+      units: '7-25',
+      huntAreaId: '725A',
+    })
   })
 })

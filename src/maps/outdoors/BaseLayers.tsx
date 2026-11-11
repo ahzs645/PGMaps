@@ -21,17 +21,24 @@ import {
   describeDepthChart,
   describeDepthContour,
   describeForestRoad,
+  DEPTH_BANDS,
+  depthChartSet,
   fetchBcLayer,
+  huntZoneFilter,
   parseCoastalLaunches,
   parseCutblocks,
   parseDepthCharts,
   parseDepthContours,
   parseForestRoads,
+  parseHuntZones,
   parseRecLaunches,
   type BcLayerId,
   type CardText,
+  type DepthChartSet,
+  type HuntZoneSpecies,
   type LayerAnswer,
 } from './bcLayers'
+import { huntsForHuntArea, loadLehDraws, oddsText, seasonText, type LehHunt } from './leh'
 import {
   RAILWAY_MIN_ZOOM,
   boundsContain,
@@ -41,6 +48,12 @@ import {
   padBounds,
   type Bounds,
 } from './railways'
+import {
+  RECENT_IMAGERY_ATTRIBUTION,
+  RECENT_IMAGERY_LAYERS,
+  RECENT_IMAGERY_MAX_ZOOM,
+  recentImageryTiles,
+} from './recentImagery'
 
 const TERRAIN_ID = 'outdoors'
 const HILLSHADE_LAYER_ID = `${TERRAIN_ID}-hillshade`
@@ -53,6 +66,7 @@ const HILLSHADE_LAYER_ID = `${TERRAIN_ID}-hillshade`
  * `PLAN_LAYER_ORDER` and up, above all of these.
  */
 const ORDER = {
+  huntZones: 8,
   depthCharts: 10,
   depthContours: 11,
   cutblocks: 12,
@@ -71,7 +85,9 @@ const DEM: MapTerrainProps['dem'] = {
 
 export const BASE_LAYER_KEYS = [
   'satellite',
+  'recent',
   'relief',
+  'huntZones',
   'forestRoads',
   'rail',
   'cutblocks',
@@ -83,7 +99,9 @@ export type BaseLayerChoices = Record<BaseLayerKey, boolean>
 
 export const DEFAULT_BASE_LAYERS: BaseLayerChoices = {
   satellite: false,
+  recent: false,
   relief: false,
+  huntZones: false,
   forestRoads: false,
   rail: false,
   cutblocks: false,
@@ -99,8 +117,30 @@ export type LayerStatus =
   | { state: 'error'; message: string }
 
 /** The layers that load data and so have something to report. */
-export type DataLayerKey = Exclude<BaseLayerKey, 'satellite' | 'relief'>
+export type DataLayerKey = Exclude<BaseLayerKey, 'satellite' | 'recent' | 'relief'>
 export type LayerStatuses = Partial<Record<DataLayerKey, LayerStatus>>
+
+/**
+ * One click reaches every layer under the pointer, and the management-unit
+ * fill under everything toggles its unit on any click. A layer here that acts
+ * on a click claims it, and the planner leaves a claimed click alone.
+ *
+ * MapLibre calls every layer's click listener in one synchronous pass, and the
+ * toolkit hands a listener only the modifier keys, not the event, so there is
+ * no shared object to mark. The claim is a timestamp instead: the planner
+ * checks it a microtask later, after the whole pass, and a claim made in that
+ * same pass is at most a few milliseconds old.
+ */
+const CLICK_CLAIM_WINDOW_MS = 50
+let clickClaimedAt = Number.NEGATIVE_INFINITY
+
+function claimMapClick() {
+  clickClaimedAt = performance.now()
+}
+
+export function isMapClickClaimed(): boolean {
+  return performance.now() - clickClaimedAt < CLICK_CLAIM_WINDOW_MS
+}
 
 type MapInstance = NonNullable<ReturnType<typeof useMap>['map']>
 type Collection<P> = GeoJSON.FeatureCollection<GeoJSON.Geometry, P>
@@ -251,12 +291,12 @@ function viewLoader<P>(layer: BcLayerId, parse: (payload: unknown) => LayerAnswe
 }
 
 /**
- * Satellite imagery under the labels and under the relief shading when that is
- * on, so the hills still read on the photo. A raster added above the hillshade
- * would hide it, and the two can be switched on in either order, so the anchor
- * is looked up after the relief has had its turn to mount.
+ * Where imagery goes: under the labels, and under the relief shading when that
+ * is on, so the hills still read on the photo. A raster added above the
+ * hillshade would hide it, and the two can be switched on in either order, so
+ * the anchor is looked up after the relief has had its turn to mount.
  */
-function ImageryLayer({ visible, relief }: { visible: boolean; relief: boolean }) {
+function useImageryAnchor(visible: boolean, relief: boolean): { id: string | undefined } | null {
   const { map, isLoaded } = useMap()
   const [anchor, setAnchor] = useState<{ id: string | undefined } | null>(null)
 
@@ -276,7 +316,13 @@ function ImageryLayer({ visible, relief }: { visible: boolean; relief: boolean }
     // disappears with it, and the imagery has to be re-anchored each time.
   }, [map, isLoaded, visible, relief])
 
-  if (!visible || !anchor) return null
+  return visible ? anchor : null
+}
+
+/** The sharp, undated photo. */
+function ImageryLayer({ visible, relief }: { visible: boolean; relief: boolean }) {
+  const anchor = useImageryAnchor(visible, relief)
+  if (!anchor) return null
   return (
     <MapRasterLayer
       key={anchor.id ?? 'top'}
@@ -287,6 +333,31 @@ function ImageryLayer({ visible, relief }: { visible: boolean; relief: boolean }
       attribution={SATELLITE_ATTRIBUTION}
       beforeId={anchor.id}
     />
+  )
+}
+
+/**
+ * One day's satellite passes, drawn over the undated photo. It mounts after
+ * `ImageryLayer` and takes the same anchor, so it lands above it; where no
+ * satellite passed that day the tiles are transparent and the photo shows.
+ */
+function RecentImageryLayer({ visible, relief, date }: { visible: boolean; relief: boolean; date: string }) {
+  const anchor = useImageryAnchor(visible, relief)
+  if (!anchor) return null
+  return (
+    <>
+      {RECENT_IMAGERY_LAYERS.map((layer, index) => (
+        <MapRasterLayer
+          // A new day is a new source: MapLibre cannot swap a raster source's tiles in place.
+          key={`${layer}-${date}-${anchor.id ?? 'top'}`}
+          tiles={[recentImageryTiles(layer, date)]}
+          tileSize={256}
+          maxZoom={RECENT_IMAGERY_MAX_ZOOM}
+          attribution={index === 0 ? RECENT_IMAGERY_ATTRIBUTION : undefined}
+          beforeId={anchor.id}
+        />
+      ))}
+    </>
   )
 }
 
@@ -449,8 +520,21 @@ const loadDepthContours = async (signal: AbortSignal) =>
 const depthChartHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeDepthChart(properties))
 const depthContourHoverHtml = (properties: Record<string, unknown>) => cardHtml(describeDepthContour(properties))
 const ignoreStatus = () => {}
+/** `step` reads "this colour until the depth reaches the next band's start". */
+const DEPTH_COLOR = [
+  'step',
+  ['get', 'depthM'],
+  DEPTH_BANDS[0].color,
+  ...DEPTH_BANDS.slice(1).flatMap((band) => [band.fromM, band.color]),
+]
 
-function LakeDepthLayer({ onStatus }: { onStatus: (status: LayerStatus) => void }) {
+function LakeDepthLayer({
+  onStatus,
+  onOpenChart,
+}: {
+  onStatus: (status: LayerStatus) => void
+  onOpenChart: (chart: DepthChartSet) => void
+}) {
   const { collection: charts, visible } = useViewData(
     loadDepthCharts,
     BC_LAYER_SOURCES.depthCharts.minZoom ?? 0,
@@ -458,14 +542,6 @@ function LakeDepthLayer({ onStatus }: { onStatus: (status: LayerStatus) => void 
   )
   // The digitized contours cover only a few lakes; the charts carry the count.
   const contours = useWholeData(loadDepthContours, ignoreStatus)
-
-  const chartUrls = useMemo(() => {
-    const urls = new Map<string, string>()
-    for (const feature of charts.features) {
-      if (feature.properties.pdfUrl) urls.set(feature.properties.id, feature.properties.pdfUrl)
-    }
-    return urls
-  }, [charts])
 
   return (
     <>
@@ -480,21 +556,23 @@ function LakeDepthLayer({ onStatus }: { onStatus: (status: LayerStatus) => void 
           idProperty="id"
           hoverHtml={depthChartHoverHtml}
           onFeatureClick={(id) => {
-            const url = chartUrls.get(String(id))
-            if (url) window.open(url, '_blank', 'noopener,noreferrer')
+            claimMapClick()
+            const chart = depthChartSet(
+              charts.features.map((feature) => feature.properties),
+              String(id),
+            )
+            if (chart) onOpenChart(chart)
           }}
           layerOrder={ORDER.depthCharts}
         />
       )}
-      {/* Stacked translucent fills: each polygon is "deeper than this", so the
-          lake darkens toward its deepest point without a colour ramp. */}
       <MapFillLayer
         data={contours}
-        fillColor="#0c4a6e"
-        fillOpacity={0.16}
-        lineColor="#e0f2fe"
-        lineWidth={0.6}
-        lineOpacity={0.7}
+        fillColor={DEPTH_COLOR}
+        fillOpacity={0.85}
+        lineColor="#f0f9ff"
+        lineWidth={0.7}
+        lineOpacity={0.8}
         hoverHtml={depthContourHoverHtml}
         layerOrder={ORDER.depthContours}
       />
@@ -502,17 +580,96 @@ function LakeDepthLayer({ onStatus }: { onStatus: (status: LayerStatus) => void 
   )
 }
 
+function huntLine(hunt: LehHunt): string {
+  const tags = hunt.authorizations != null ? `${hunt.authorizations} tag${hunt.authorizations === 1 ? '' : 's'}` : null
+  return [hunt.animalClass, seasonText(hunt), tags, oddsText(hunt)].filter(Boolean).join(' · ')
+}
+
+/**
+ * The zones a management unit is split into for one species' draw. The layer
+ * remounts when the species changes (its parent keys it), so each species
+ * starts from an empty map instead of showing the last one's zones.
+ */
+function HuntZoneLayer({ species, onStatus }: { species: HuntZoneSpecies; onStatus: (status: LayerStatus) => void }) {
+  const load = useMemo(() => {
+    const filter = huntZoneFilter(species)
+    return async (bounds: Bounds, signal: AbortSignal) => ({
+      ...parseHuntZones(await fetchBcLayer('huntZones', bounds, signal, filter)),
+      bounds: clampRailwayBounds(bounds),
+    })
+  }, [species])
+  const { collection, visible } = useViewData(load, BC_LAYER_SOURCES.huntZones.minZoom ?? 0, onStatus)
+
+  // The draw report joins to a zone by its hunt area id. Without it the card
+  // still names the zone; it just cannot list the hunts.
+  const [draws, setDraws] = useState<{ drawYear: number | null; hunts: LehHunt[] } | null>(null)
+  useEffect(() => {
+    let live = true
+    loadLehDraws()
+      .then((result) => {
+        if (live) setDraws(result)
+      })
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [])
+
+  const hoverHtml = useMemo(
+    () => (properties: Record<string, unknown>) => {
+      const zoneSpecies = typeof properties.species === 'string' ? properties.species : ''
+      const label = typeof properties.label === 'string' ? properties.label : 'Zone'
+      const huntAreaId = typeof properties.huntAreaId === 'string' ? properties.huntAreaId : ''
+      const hunts = draws && huntAreaId ? huntsForHuntArea(draws.hunts, huntAreaId, zoneSpecies) : []
+      const lines = !draws
+        ? ['Loading the draw report…']
+        : hunts.length > 0
+          ? hunts.map(huntLine)
+          : [`No ${zoneSpecies.toLowerCase()} hunt was drawn here in ${draws.drawYear ?? 'the last draw'}`]
+      return cardHtml({
+        title: `${zoneSpecies} zone: ${label}`,
+        lines,
+        caution: draws?.drawYear ? `${draws.drawYear} draw results, not the coming season.` : undefined,
+      })
+    },
+    [draws],
+  )
+
+  if (!visible) return null
+  return (
+    <MapFillLayer
+      data={collection}
+      fillColor="#a21caf"
+      fillOpacity={0.06}
+      lineColor="#a21caf"
+      lineWidth={2}
+      lineOpacity={0.9}
+      hoverHtml={hoverHtml}
+      layerOrder={ORDER.huntZones}
+    />
+  )
+}
+
 /** The trip planner's optional layers. Render inside the planner's `Map`. */
 export function OutdoorsBaseLayers({
   choices,
+  recentDate,
+  zoneSpecies,
+  onOpenChart,
   onStatus,
 }: {
   choices: BaseLayerChoices
+  /** The day shown by the recent-imagery layer, yyyy-mm-dd. */
+  recentDate: string
+  zoneSpecies: HuntZoneSpecies
+  /** A surveyed lake was clicked: show its scanned chart. */
+  onOpenChart: (chart: DepthChartSet) => void
   onStatus: (layer: DataLayerKey, status: LayerStatus) => void
 }) {
   // One stable reporter per layer, so a layer's effects do not restart on every render.
   const report = useMemo(
     () => ({
+      huntZones: (status: LayerStatus) => onStatus('huntZones', status),
       forestRoads: (status: LayerStatus) => onStatus('forestRoads', status),
       rail: (status: LayerStatus) => onStatus('rail', status),
       cutblocks: (status: LayerStatus) => onStatus('cutblocks', status),
@@ -530,13 +687,15 @@ export function OutdoorsBaseLayers({
           reliefOnly
           // Over a photo the shading only has to hint at the slope; on the
           // pale plan map it carries the whole picture of the ground.
-          hillshadeIntensity={choices.satellite ? 0.35 : 0.6}
+          hillshadeIntensity={choices.satellite || choices.recent ? 0.35 : 0.6}
           hillshadeShadowColor="#1e293b"
           hillshadeHighlightColor="#f8fafc"
         />
       )}
       <ImageryLayer visible={choices.satellite} relief={choices.relief} />
-      {choices.lakeDepth && <LakeDepthLayer onStatus={report.lakeDepth} />}
+      <RecentImageryLayer visible={choices.recent} relief={choices.relief} date={recentDate} />
+      {choices.huntZones && <HuntZoneLayer key={zoneSpecies} species={zoneSpecies} onStatus={report.huntZones} />}
+      {choices.lakeDepth && <LakeDepthLayer onStatus={report.lakeDepth} onOpenChart={onOpenChart} />}
       {choices.cutblocks && <CutblockLayer onStatus={report.cutblocks} />}
       {choices.forestRoads && <ForestRoadLayer onStatus={report.forestRoads} />}
       {choices.rail && <RailwayLayer onStatus={report.rail} />}

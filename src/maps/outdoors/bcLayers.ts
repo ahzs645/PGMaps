@@ -17,6 +17,9 @@
  *   from the 1950s to 1990s.
  * - **Lake depth contours** (`BATH_LAKE_BATHYMETRIC_SP`): the few lakes whose
  *   charts were digitized into depth polygons.
+ * - **Limited entry hunting zones** (`WAA_LTD_HNT_ZONE_CURR_YEAR_SVW`): the
+ *   zones a management unit is split into for a draw, one set per species.
+ *   "Zone A of 7-25" for moose is not the same ground as an elk zone there.
  *
  * Everything here is pure except `fetchBcLayer`. The bounding box goes in
  * `CQL_FILTER`, never the WFS `bbox` parameter: WFS 2.0 with EPSG:4326 is
@@ -36,6 +39,7 @@ export type BcLayerId =
   | 'coastalLaunches'
   | 'depthCharts'
   | 'depthContours'
+  | 'huntZones'
 
 interface BcLayerSource {
   typeName: string
@@ -102,6 +106,21 @@ export const BC_LAYER_SOURCES: Record<BcLayerId, BcLayerSource> = {
     minZoom: 7,
     maxFeatures: 3000,
   },
+  huntZones: {
+    typeName: 'WHSE_WILDLIFE_MANAGEMENT.WAA_LTD_HNT_ZONE_CURR_YEAR_SVW',
+    geometryColumn: 'GEOMETRY',
+    fields: [
+      'LEHZ_SYSID',
+      'LIMITED_ENTRY_HUNTING_ZONE',
+      'MANAGEMENT_UNITS',
+      'LTD_ENTRY_HUNTING_ZONE_TYPE',
+      'LTD_ENTRY_HUNTING_ZONE_LABEL',
+      'LEH_HUNT_AREA_ID',
+    ],
+    // Zone outlines are detailed: one species near the Tachie River is about 4 MB.
+    minZoom: 8,
+    maxFeatures: 400,
+  },
   depthContours: {
     typeName: 'WHSE_FISH.BATH_LAKE_BATHYMETRIC_SP',
     geometryColumn: 'SHAPE',
@@ -122,7 +141,7 @@ export function clampBounds(bounds: Bounds, limit = MAX_BC_QUERY_DEGREES): Bound
 }
 
 /** The query for a layer; `bounds` is required for a layer with a `minZoom` and ignored otherwise. */
-export function bcLayerUrl(layer: BcLayerId, bounds?: Bounds): string {
+export function bcLayerUrl(layer: BcLayerId, bounds?: Bounds, extraFilter?: string): string {
   const source = BC_LAYER_SOURCES[layer]
   const clauses: string[] = []
   if (source.minZoom != null) {
@@ -130,7 +149,7 @@ export function bcLayerUrl(layer: BcLayerId, bounds?: Bounds): string {
     const [west, south, east, north] = clampBounds(bounds).map((value) => value.toFixed(5))
     clauses.push(`BBOX(${source.geometryColumn},${west},${south},${east},${north},'EPSG:4326')`)
   }
-  if (source.filter) clauses.push(clauses.length > 0 ? `(${source.filter})` : source.filter)
+  for (const filter of [source.filter, extraFilter]) if (filter) clauses.push(`(${filter})`)
   const params = new URLSearchParams({
     service: 'WFS',
     version: '2.0.0',
@@ -447,6 +466,34 @@ export function parseDepthCharts(payload: unknown): LayerAnswer<DepthChartProper
   })
 }
 
+/** One lake's scanned chart, sheet by sheet, for the in-app viewer. */
+export interface DepthChartSet {
+  lake: string
+  surveyYear: number | null
+  sheets: Array<{ sheet: number; url: string }>
+}
+
+/**
+ * Every sheet of the chart a clicked sheet belongs to. A large lake is charted
+ * on several sheets, each its own polygon; they share a lake name and survey
+ * year, which is what groups them here.
+ */
+export function depthChartSet(charts: DepthChartProperties[], clickedId: string): DepthChartSet | null {
+  const clicked = charts.find((chart) => chart.id === clickedId)
+  if (!clicked) return null
+  const sheets = new Map<number, string>()
+  for (const chart of charts) {
+    if (chart.lake !== clicked.lake || chart.surveyYear !== clicked.surveyYear || !chart.pdfUrl) continue
+    sheets.set(chart.sheet ?? sheets.size + 1, chart.pdfUrl)
+  }
+  if (sheets.size === 0) return null
+  return {
+    lake: clicked.lake,
+    surveyYear: clicked.surveyYear,
+    sheets: [...sheets.entries()].sort(([a], [b]) => a - b).map(([sheet, url]) => ({ sheet, url })),
+  }
+}
+
 export function describeDepthChart(properties: Partial<DepthChartProperties>): CardText {
   const lines: string[] = []
   const facts = [
@@ -457,12 +504,35 @@ export function describeDepthChart(properties: Partial<DepthChartProperties>): C
       : null,
   ].filter(Boolean)
   if (facts.length > 0) lines.push(facts.join(' · '))
-  lines.push(properties.pdfUrl ? 'Click to open the depth chart (PDF)' : 'No chart file is listed')
+  lines.push(properties.pdfUrl ? 'Click to view the depth chart' : 'No chart file is listed')
   return {
     title: `${properties.lake ?? 'Lake'} depth chart`,
     lines,
     caution: 'Not for navigation. Water levels and bottoms change.',
   }
+}
+
+/**
+ * Depth bands for the digitized lakes, shallow to deep. A contour polygon is
+ * "everything at least this deep", so it takes the colour of the band its own
+ * depth starts.
+ */
+export const DEPTH_BANDS = [
+  { fromM: 0, label: '0–3 m', color: '#bae6fd' },
+  { fromM: 3, label: '3–10 m', color: '#7dd3fc' },
+  { fromM: 10, label: '10–20 m', color: '#38bdf8' },
+  { fromM: 20, label: '20–40 m', color: '#0284c7' },
+  { fromM: 40, label: '40–60 m', color: '#1d4ed8' },
+  { fromM: 60, label: 'Over 60 m', color: '#1e1b4b' },
+] as const
+
+/** The inventory marks islands with a depth of 99999. */
+const MAX_REAL_DEPTH_M = 2000
+
+export function depthBandColor(depthM: number): string {
+  let color: string = DEPTH_BANDS[0].color
+  for (const band of DEPTH_BANDS) if (depthM >= band.fromM) color = band.color
+  return color
 }
 
 export interface DepthContourProperties {
@@ -476,7 +546,7 @@ export interface DepthContourProperties {
 export function parseDepthContours(payload: unknown): LayerAnswer<DepthContourProperties> {
   const parsed = answer<DepthContourProperties>(payload, 'depthContours', 'polygon', (properties, index) => {
     const depth = number(properties.CONTOUR_DEPTH_M)
-    if (depth == null || depth < 0) return null
+    if (depth == null || depth < 0 || depth > MAX_REAL_DEPTH_M) return null
     const name = text(properties.LAKE_GAZETTED_NAME)
     return {
       id: key(properties.OBJECTID, `contour-${index}`),
@@ -486,8 +556,8 @@ export function parseDepthContours(payload: unknown): LayerAnswer<DepthContourPr
       surveyYear: year(properties.LAKE_SURVEY_DATE),
     }
   })
-  // Each polygon is "everything deeper than this"; drawn shallow first, the
-  // deeper ones land on top and the lake darkens toward its deepest point.
+  // Each polygon is "everything at least this deep"; drawn shallow first, the
+  // deeper ones land on top, so each band shows only where the next has not begun.
   parsed.collection.features.sort((a, b) => a.properties.depthM - b.properties.depthM)
   return parsed
 }
@@ -496,12 +566,61 @@ export function describeDepthContour(properties: Partial<DepthContourProperties>
   return {
     title: properties.lake ?? 'Lake',
     lines: [
-      `Deeper than ${properties.depthM ?? '?'} m here`,
+      properties.depthM ? `At least ${properties.depthM} m deep here` : 'Shallows, to the first contour',
       ...(properties.maxDepthM != null ? [`Deepest point ${properties.maxDepthM} m`] : []),
       ...(properties.surveyYear != null ? [`Surveyed ${properties.surveyYear}`] : []),
     ],
     caution: 'Not for navigation. Water levels and bottoms change.',
   }
+}
+
+// ---------------------------------------------------------------------------
+// Limited entry hunting zones
+
+/** The species the zone layer carries, as it spells them. */
+export const HUNT_ZONE_SPECIES = [
+  'MOOSE',
+  'ELK',
+  'MULE DEER',
+  'WHITE-TAILED DEER',
+  'MOUNTAIN GOAT',
+  'MOUNTAIN SHEEP',
+  'CARIBOU',
+  'BISON',
+  'BLACK BEAR',
+  'TURKEY',
+] as const
+export type HuntZoneSpecies = (typeof HUNT_ZONE_SPECIES)[number]
+
+/** CQL for one species. The value comes from the fixed list above, never from free text. */
+export function huntZoneFilter(species: HuntZoneSpecies): string {
+  return `LTD_ENTRY_HUNTING_ZONE_TYPE='${species}'`
+}
+
+export interface HuntZoneProperties {
+  id: string
+  species: string
+  /** "Zone A of 7-25", or the unit number alone when the zone is the whole unit. */
+  label: string
+  /** "7-25" or "6-05, 6-06" as recorded. */
+  units: string | null
+  /** Joins to the draw report's "LEH Hunt Area", e.g. "725A". */
+  huntAreaId: string | null
+}
+
+export function parseHuntZones(payload: unknown): LayerAnswer<HuntZoneProperties> {
+  return answer(payload, 'huntZones', 'polygon', (properties, index) => {
+    const species = text(properties.LTD_ENTRY_HUNTING_ZONE_TYPE)
+    const label = text(properties.LTD_ENTRY_HUNTING_ZONE_LABEL) ?? text(properties.LIMITED_ENTRY_HUNTING_ZONE)
+    if (!species || !label) return null
+    return {
+      id: key(properties.LEHZ_SYSID, `zone-${index}`),
+      species: titleCase(species),
+      label,
+      units: text(properties.MANAGEMENT_UNITS),
+      huntAreaId: text(properties.LEH_HUNT_AREA_ID),
+    }
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -511,8 +630,13 @@ export async function fetchBcLayer(
   layer: BcLayerId,
   bounds: Bounds | undefined,
   signal?: AbortSignal,
+  extraFilter?: string,
 ): Promise<unknown> {
-  const response = await fetch(bcLayerUrl(layer, bounds), { signal })
+  const response = await fetch(bcLayerUrl(layer, bounds, extraFilter), { signal })
+  return readWfsResponse(response)
+}
+
+async function readWfsResponse(response: Response): Promise<unknown> {
   if (!response.ok) throw new Error(`DataBC answered ${response.status}`)
   const payload: unknown = await response.json()
   if ((payload as { exceptions?: unknown } | null)?.exceptions) throw new Error('DataBC refused the query')

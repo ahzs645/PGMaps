@@ -202,6 +202,16 @@ export function huntsForUnit(hunts: LehHunt[], unitId: string): Array<{ species:
     }))
 }
 
+/** The hunts drawn for one zone polygon: same hunt area, same species. */
+export function huntsForHuntArea(hunts: LehHunt[], huntAreaId: string, species: string): LehHunt[] {
+  const place = unitFromHuntArea(huntAreaId)
+  if (!place) return []
+  const wanted = species.trim().toLowerCase()
+  return hunts
+    .filter((hunt) => hunt.unitId === place.unitId && hunt.zone === place.zone && hunt.species.toLowerCase() === wanted)
+    .sort((a, b) => (a.seasons[0]?.open ?? '').localeCompare(b.seasons[0]?.open ?? ''))
+}
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 function shortDate(iso: string): string {
