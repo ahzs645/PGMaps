@@ -2795,6 +2795,7 @@ function DevForestryVisuals() {
         {drawMode !== 'none' && (
           <MapOverlay
             position="top-left"
+            clearChrome
             className="right-14 p-3 md:hidden"
             role="region"
             aria-label="Map drawing controls"
@@ -3011,7 +3012,8 @@ function DevForestryVisuals() {
       {drive.active && (
         <MapOverlay
           position="top-left"
-          className="top-[calc(env(safe-area-inset-top)+3.75rem)] max-w-[20rem] px-2.5 py-1.5 md:top-3"
+          clearChrome
+          className="max-w-[20rem] px-2.5 py-1.5"
           aria-label="Road view status"
         >
           {preliminaryDrive ? (
