@@ -4,7 +4,7 @@ import type { RoadPaneId } from '@/pages/dev-forestry-roads/RoadPaneLayout'
 import type { WorkspaceLayout } from './workspaceLayouts'
 import { storeInterface } from './interfacePreference'
 
-const preferenceKey = (id: string) => `light-path-layout-${id}`
+const preferenceKey = (id: string) => `pgmaps-road-layout-${id}`
 
 function readPreset(layout: WorkspaceLayout) {
   try {

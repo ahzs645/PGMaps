@@ -1,3 +1,4 @@
+import type { CommandState, WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { WorkflowEditor } from '@/components/interfaces/workspaceLayouts'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ClipboardCheck, HardHat, Mountain, Route, SlidersHorizontal } from 'lucide-react'
@@ -74,6 +75,9 @@ export interface SidebarProps {
   selectedPoint: string | null
   onPoint: (id: string | null) => void
   onDuplicate: () => void
+  /** Registry commands the sidebar shows, with the workspace's own state and handlers. */
+  commandStates?: Partial<Record<WorkspaceCommand, CommandState>>
+  onCommand?: (id: WorkspaceCommand) => void
   /** Loads a mapped road from context as a road whose formation follows the ground. */
   onLoadMappedRoad?: (featureId: string) => void
   /** Loads every mapped road with a part in the plan's view, each as its own road. */

@@ -1,22 +1,19 @@
 import { useEffect, useState } from 'react'
-import { z } from 'zod'
 import type { WorkspaceLayout } from '@/components/interfaces/workspaceLayouts'
+import {
+  parseSummaryOptions,
+  type SummaryLevel,
+  type SummaryOptions,
+} from '@/components/interfaces/workspaceLayoutSchema'
 
-const level = z.enum(['hidden', 'value', 'detailed'])
-export const summaryOptions = z.strictObject({
-  visible: z.boolean().optional(),
-  placement: z.enum(['left', 'top']).optional(),
-  metrics: z.record(z.string(), level).optional(),
-})
-type Options = z.infer<typeof summaryOptions>
-export type SummaryLevel = z.infer<typeof level>
-export type SummaryPreferences = Required<Options>
+export type { SummaryLevel }
+export type SummaryPreferences = Required<SummaryOptions>
 
-const storageKey = (id: string) => `light-path-summary:${id}`
+const storageKey = (id: string) => `pgmaps-road-summary:${id}`
 
-function read(id: string): Options {
+function read(id: string): SummaryOptions {
   try {
-    return summaryOptions.parse(JSON.parse(localStorage.getItem(storageKey(id)) ?? '{}'))
+    return parseSummaryOptions(JSON.parse(localStorage.getItem(storageKey(id)) ?? '{}'))
   } catch {
     return {}
   }
@@ -38,8 +35,9 @@ export function useSummaryPreferences(layout: WorkspaceLayout) {
     visible: overrides.visible ?? layout.summary?.visible ?? true,
     placement: overrides.placement ?? layout.summary?.placement ?? 'left',
     metrics: { ...layout.summary?.metrics, ...overrides.metrics },
+    curveNote: overrides.curveNote ?? layout.summary?.curveNote ?? 'full',
   }
-  function change(patch: Options | null) {
+  function change(patch: SummaryOptions | null) {
     const options = patch ? { ...overrides, ...patch, metrics: { ...overrides.metrics, ...patch.metrics } } : {}
     setEntry({ id: layout.id, options })
     try {

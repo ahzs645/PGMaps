@@ -10,15 +10,6 @@
   font-size: 12px;
   font-weight: 600;
 }
-.lp-arrange-tab select {
-  width: 100%;
-  padding: 6px 9px;
-  min-height: 34px;
-  border: 1px solid hsl(var(--input));
-  border-radius: 5px;
-  background: hsl(var(--background));
-  font: inherit;
-}
 .lp-arrange-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -47,7 +38,7 @@
   flex: none;
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 4px);
   color: hsl(var(--muted-foreground));
 }
 .lp-arrange-action:hover:not(:disabled),
@@ -65,12 +56,6 @@
   padding-inline: 5px;
   font-size: 11px;
 }
-.lp-arrange button:focus-visible,
-.lp-arrange li:focus-visible,
-.lp-arrange select:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: -2px;
-}
 .lp-arrange-groups ul {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -79,14 +64,14 @@
 .lp-arrange-groups li button {
   width: 100%;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 4px);
   text-align: start;
   font-size: 13px;
   border: 1px solid hsl(var(--border));
   overflow-wrap: anywhere;
 }
 .lp-arrange-groups li button[aria-pressed='true'] {
-  border-color: #4d85ba;
+  border-color: hsl(var(--primary));
   background: hsl(var(--accent));
   font-weight: 600;
 }
@@ -105,7 +90,7 @@
 }
 .lp-arrange-tools ul:not(:empty) {
   border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 2px);
   overflow: hidden;
 }
 .lp-arrange-tools p {
@@ -146,8 +131,5 @@
   .lp-arrange-action {
     width: 36px;
     height: 36px;
-  }
-  .lp-arrange-tab select {
-    font-size: 16px;
   }
 }

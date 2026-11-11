@@ -12,7 +12,7 @@ export default function ForestryRoadWorkspace() {
   )
 }
 
-type Catalog = { layouts: WorkspaceLayout[]; initial: WorkspaceLayout }
+type Catalog = { layouts: WorkspaceLayout[]; initial: WorkspaceLayout; fallback: boolean }
 
 /**
  * Opens straight into the interface the user last chose (or the one a link names). Switching
@@ -22,10 +22,10 @@ function RoadWorkspaceLoader() {
   const [catalog, setCatalog] = useState<Catalog | null>(null)
   useEffect(() => {
     const controller = new AbortController()
-    void loadWorkspaceLayouts(controller.signal).then(({ layouts }) => {
+    void loadWorkspaceLayouts(controller.signal).then(({ layouts, fallback }) => {
       if (controller.signal.aborted) return
       const id = initialInterfaceId(layouts, window.location.search, readStoredInterface())
-      setCatalog({ layouts, initial: layouts.find((layout) => layout.id === id) ?? layouts[0] })
+      setCatalog({ layouts, initial: layouts.find((layout) => layout.id === id) ?? layouts[0], fallback })
     })
     return () => controller.abort()
   }, [])
@@ -37,7 +37,7 @@ function RoadWorkspaceLoader() {
   if (!catalog) return loading
   return (
     <Suspense fallback={loading}>
-      <RoadDesign layouts={catalog.layouts} initialInterface={catalog.initial} />
+      <RoadDesign layouts={catalog.layouts} initialInterface={catalog.initial} layoutsFallback={catalog.fallback} />
     </Suspense>
   )
 }

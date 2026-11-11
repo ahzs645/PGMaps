@@ -9,6 +9,9 @@ export const ribbonWidgetLabels: Record<WorkspaceWidget, string> = {
   roadSelector: 'Viewing road',
   presets: 'Screen presets and panels',
   terrainSource: 'Terrain source',
+  interfaceSwitch: 'Workspace interface',
+  history: 'Edit history',
+  saveState: 'Save status',
 }
 export const isRibbonCommand = (id: RibbonTool): id is WorkspaceCommand =>
   Object.prototype.hasOwnProperty.call(workspaceCommands, id)

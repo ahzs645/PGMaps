@@ -27,6 +27,8 @@ type SummarySource = {
   unpriced: number
   incomplete: IncompleteReason[]
   costOpen: boolean
+  /** How the earthworks label says its volumes are curve-corrected; the note itself is always shown. */
+  curveNote?: 'full' | 'short'
   onCost: () => void
   onIncomplete: (chainage: number) => void
 }
@@ -120,7 +122,10 @@ export function roadSummaryMetrics(source: SummarySource): RoadSummaryMetric[] {
   metrics.push(
     {
       key: 'earthworks',
-      label: stale ? 'Cut / fill · invalid input left out' : covered ? 'Cut / fill' : 'Covered cut / fill',
+      // AGENTS.md: every surface that shows a volume says when it is curve-corrected.
+      label: `${stale ? 'Cut / fill · invalid input left out' : covered ? 'Cut / fill' : 'Covered cut / fill'}${
+        analysis.curvatureCorrection?.applied ? (source.curveNote === 'short' ? ' · curve' : ' · curve-corrected') : ''
+      }`,
       value: calculated ? `${number(analysis.cutVolumeM3, 0)} / ${number(analysis.fillVolumeM3, 0)} m³` : 'Unavailable',
       note: calculated ? `Surfacing volume ${number(analysis.surfaceVolumeM3, 0)} m³` : 'No calculated sections',
       tone: stale ? 'warning' : 'default',

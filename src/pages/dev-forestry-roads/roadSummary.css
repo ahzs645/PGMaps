@@ -20,7 +20,7 @@
   min-height: 0;
   color: hsl(var(--foreground));
   border: 1px solid hsl(var(--border));
-  border-radius: 8px;
+  border-radius: var(--radius);
   background: hsl(var(--card));
 }
 .road-summary-heading {
@@ -40,7 +40,7 @@
   align-items: center;
   gap: 6px;
   padding: 5px;
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 4px);
   font-size: 12px;
 }
 .road-summary-heading button:hover,
@@ -68,7 +68,7 @@
   text-align: start;
 }
 .road-summary dl:last-child > div {
-  border-radius: 0 0 7px 7px;
+  border-radius: 0 0 calc(var(--radius) - 1px) calc(var(--radius) - 1px);
 }
 .road-summary dt {
   white-space: normal;
@@ -119,9 +119,9 @@
   width: min(14rem, 100%);
   max-height: calc(100% - 32px);
   border: 1px solid hsl(var(--border));
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 2px);
   background: hsl(var(--card));
-  box-shadow: 0 6px 18px #0002;
+  box-shadow: 0 6px 18px hsl(var(--lp-shadow-color, 0 0% 0%) / 0.12);
 }
 .road-summary-layout[data-small][data-placement='top'] .road-summary {
   width: 100%;
@@ -157,14 +157,13 @@
   padding-block: 8px;
   border-top: 1px solid hsl(var(--border));
 }
-.road-summary-form select,
 .road-summary-reset {
   padding: 5px 7px;
   border: 1px solid hsl(var(--border));
-  border-radius: 4px;
+  border-radius: calc(var(--radius) - 4px);
   background: hsl(var(--background));
   font-size: 12px;
 }
-.road-summary-form select {
-  max-width: 56%;
+.road-summary-reset:hover {
+  background: hsl(var(--muted));
 }

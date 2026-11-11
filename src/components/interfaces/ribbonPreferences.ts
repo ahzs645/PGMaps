@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { z } from 'zod'
+import { list, object, text } from '@/lib/jsonGuards'
 import type { WorkspaceLayout, WorkspaceToolbar } from './workspaceLayouts'
 import type { RibbonTool } from './ribbonToolCatalog'
 
@@ -25,21 +25,30 @@ function identifyGroups(toolbar: WorkspaceToolbar): WorkspaceToolbar {
     }),
   }
 }
-const storageKey = (layoutId: string) => `light-path-ribbon-order:${layoutId}`
-const names = z.array(z.string())
-const preferences = z.array(
-  z.object({
-    tab: z.string(),
-    order: names.optional(),
-    sections: z.array(z.object({ label: z.string(), items: names, more: names })),
-  }),
-)
-type Preferences = z.infer<typeof preferences>
+const storageKey = (layoutId: string) => `pgmaps-road-ribbon-order:${layoutId}`
+type Preferences = { tab: string; order?: string[]; sections: { label: string; items: string[]; more: string[] }[] }[]
 
-function parsePreferences(raw: string | null): Preferences {
+const names = (value: unknown, label: string) => list(value, label).map((name) => text(name, label, 400))
+
+/** A personal ribbon arrangement from browser storage. Anything malformed resets to the served layout. */
+export function parsePreferences(raw: string | null): Preferences {
   if (!raw) return []
   try {
-    return preferences.parse(JSON.parse(raw))
+    return list(JSON.parse(raw), 'Ribbon preferences', 100).map((entry) => {
+      const tab = object(entry, 'Ribbon tab')
+      return {
+        tab: text(tab.tab, 'Ribbon tab name'),
+        ...(tab.order === undefined ? {} : { order: names(tab.order, 'Ribbon group order') }),
+        sections: list(tab.sections, 'Ribbon groups', 100).map((value) => {
+          const section = object(value, 'Ribbon group')
+          return {
+            label: text(section.label, 'Ribbon group name'),
+            items: names(section.items, 'Ribbon group tools'),
+            more: names(section.more, 'Ribbon group settings'),
+          }
+        }),
+      }
+    })
   } catch {
     return []
   }

@@ -1,4 +1,4 @@
-import { ArrowRight, Route, X } from 'lucide-react'
+import { ArrowRight, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { layoutIcons, type WorkspaceLayout } from './workspaceLayouts'
 import './interfaces.css'
@@ -27,10 +27,7 @@ export function InterfaceChooser({
   const content = (
     <div className="lp-launcher">
       <div className="lp-mast">
-        <div className="lp-wordmark">
-          <Route aria-hidden="true" /> Light Path
-        </div>
-        <span>Forest road design</span>
+        <p className="lp-mast-title">Road design workspaces</p>
         {onCancel && (
           <button className="lp-close" onClick={onCancel} aria-label="Close interface chooser">
             <X size={18} />

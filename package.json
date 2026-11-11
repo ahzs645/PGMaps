@@ -209,7 +209,6 @@
     "tailwind-merge": "^2.2.0",
     "whitebox-wasm": "0.6.1",
     "yalps": "0.6.4",
-    "zod": "4.3.6",
     "zstddec": "0.1.0"
   },
   "devDependencies": {

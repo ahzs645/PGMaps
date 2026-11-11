@@ -156,7 +156,15 @@ type AppSelectProps = {
   /** Adds a filter box: the menu becomes a combobox, for lists too long to scan. */
   searchable?: boolean
   searchPlaceholder?: string
+  /** The trigger button, e.g. for a pane's initial focus. */
+  triggerRef?: React.Ref<HTMLButtonElement>
 }
+
+/** A compact trigger sized like a 32 px workspace field (road designer, ribbon panes). */
+const compactSelectTriggerClass =
+  'h-8 w-full min-w-0 gap-1.5 bg-background px-2 py-1 text-base shadow-none md:text-xs [&>span]:min-w-0 [&>span]:truncate'
+/** Menu content for a compact select that may open inside a fullscreen workspace or its dialogs. */
+const workspaceSelectContentClass = 'z-workspace-popover text-base md:text-xs'
 
 const EMPTY_SELECT_VALUE = '__app_select_empty__'
 
@@ -173,6 +181,7 @@ function AppSelect({
   disabled,
   searchable,
   searchPlaceholder,
+  triggerRef,
   ...props
 }: AppSelectProps & React.HTMLAttributes<HTMLDivElement>) {
   if (searchable)
@@ -189,6 +198,7 @@ function AppSelect({
           id={id}
           disabled={disabled}
           searchPlaceholder={searchPlaceholder}
+          triggerRef={triggerRef}
         />
       </div>
     )
@@ -204,7 +214,13 @@ function AppSelect({
         onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_SELECT_VALUE ? '' : nextValue)}
         disabled={disabled}
       >
-        <SelectTrigger id={id} className={triggerClassName} aria-label={triggerAriaLabel} data-value={value}>
+        <SelectTrigger
+          ref={triggerRef}
+          id={id}
+          className={triggerClassName}
+          aria-label={triggerAriaLabel}
+          data-value={value}
+        >
           <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
         </SelectTrigger>
         <SelectContent className={contentClassName}>
@@ -244,6 +260,7 @@ function SearchableSelect({
   id,
   disabled,
   searchPlaceholder = 'Search…',
+  triggerRef,
 }: Omit<AppSelectProps, 'className' | 'searchable'>) {
   const listId = React.useId()
   const [open, setOpen] = React.useState(false)
@@ -291,6 +308,7 @@ function SearchableSelect({
     <PopoverPrimitive.Root open={open} onOpenChange={changeOpen}>
       <PopoverPrimitive.Trigger asChild disabled={disabled}>
         <button
+          ref={triggerRef}
           id={id}
           type="button"
           role="combobox"
@@ -388,6 +406,8 @@ function SearchableSelect({
 
 export {
   AppSelect,
+  compactSelectTriggerClass,
+  workspaceSelectContentClass,
   Select,
   SelectGroup,
   SelectValue,

@@ -1,18 +1,10 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { RoadNameField } from '../SharedRoadFields'
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Copy,
-  Layers,
-  PencilLine,
-  Plus,
-  SquareArrowOutUpRight,
-  Trash2,
-  Upload,
-  Waypoints,
-  type LucideIcon,
-} from 'lucide-react'
+import { Layers, Plus, SquareArrowOutUpRight, Trash2, Upload, Waypoints, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
+import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
 import { FolderTree, Map as MapIcon, Mountain, Truck } from 'lucide-react'
@@ -112,7 +104,9 @@ export function DesignTab(p: SidebarProps) {
                 className={roadFieldClass}
                 value={alignment.id}
                 onValueChange={(value) => {
-                  p.workspace.update((x) => ({ ...x, activeAlignmentId: value }))
+                  // The same selection as the road switcher: it also clears previews and the station.
+                  if (p.onSelectRoad) p.onSelectRoad(value)
+                  else p.workspace.update((x) => ({ ...x, activeAlignmentId: value }))
                   p.onProfile('')
                   p.onPoint(null)
                 }}
@@ -126,80 +120,19 @@ export function DesignTab(p: SidebarProps) {
             </Field>
             <RoadNameField workspace={p.workspace} />
           </div>
-          {/* Two rows of two: four labelled buttons do not fit the sidebar's width on one line. */}
+          {/* Two rows of two: four labelled buttons do not fit the sidebar's width on one line. The
+              buttons are the registry's commands, so their enable rules match the ribbon's. */}
           <div className="grid grid-cols-2 gap-1">
-            <Button
-              size="sm"
-              className="min-w-0 gap-1 px-1"
-              onClick={() => p.onMode('road')}
-              aria-pressed={p.mode === 'road'}
-              disabled={full}
-            >
-              <Plus className="size-3" />
-              Peg road
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-w-0 gap-1 px-1"
-              onClick={() => p.onMode('sketch')}
-              aria-pressed={p.mode === 'sketch'}
-              title="Press and drag to sketch a road freehand"
-            >
-              <PencilLine className="size-3" />
-              Sketch
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-w-0 gap-1 px-1"
-              onClick={() => p.onMode('extend')}
-              aria-pressed={p.mode === 'extend'}
-              disabled={mapped}
-              title={
-                mapped ? 'Copy this mapped road as a design to extend it' : 'Peg on from the nearer end of this road'
-              }
-            >
-              <SquareArrowOutUpRight className="size-3" />
-              Extend
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-w-0 gap-1 px-1"
-              aria-label={mapped ? 'Copy mapped road as a design' : 'Duplicate active alignment'}
-              title={
-                mapped
-                  ? 'An editable design on this mapped line'
-                  : 'Keep this road and edit a separate path alternative'
-              }
-              onClick={mapped ? () => p.onCopyMappedRoad?.() : p.onDuplicate}
-              disabled={full}
-            >
-              <Copy className="size-3" /> {mapped ? 'Copy as design' : 'Duplicate'}
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-w-0 gap-1 px-1"
-              onClick={() => p.onFile('alignment')}
-              disabled={full}
-              title="A road line from GeoJSON, a zipped shapefile, KML or KMZ"
-            >
-              <Upload className="size-3" />
-              Import line
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="min-w-0 gap-1 px-1"
-              onClick={() => p.onMode('trace')}
-              aria-pressed={p.mode === 'trace'}
-              title="Click along an existing road seen on imagery; on LiDAR the line follows the road bench. Adds an existing road to connect to."
-            >
-              <Waypoints className="size-3" />
-              Trace road
-            </Button>
+            {CREATE_TOOLS.map((id) => (
+              <CommandButton
+                key={id}
+                id={id}
+                surface="sidebar"
+                state={p.commandStates?.[id]}
+                presentation={createToolPresentation(id, mapped)}
+                onRun={(command) => p.onCommand?.(command)}
+              />
+            ))}
           </div>
           {hasMappedRoads && p.onLoadMappedRoadsInView && (
             <Button
@@ -984,4 +917,45 @@ function VerticalAlignment(p: SidebarProps) {
       )}
     </RoadSection>
   )
+}
+
+/** The Design tab's create tools: registry commands, captioned to fit the sidebar's two columns. */
+const CREATE_TOOLS: WorkspaceCommand[] = ['peg', 'sketch', 'extend', 'duplicateRoad', 'importAlignment', 'traceRoad']
+
+function createToolPresentation(id: WorkspaceCommand, mapped: boolean): CommandPresentation {
+  switch (id) {
+    case 'peg':
+      return { emphasis: 'primary' }
+    case 'sketch':
+      return { shortLabel: 'Sketch', title: 'Press and drag to sketch a road freehand' }
+    case 'extend':
+      return {
+        shortLabel: 'Extend',
+        icon: <SquareArrowOutUpRight className="size-3" />,
+        title: mapped ? 'Copy this mapped road as a design to extend it' : 'Peg on from the nearer end of this road',
+      }
+    case 'duplicateRoad':
+      return {
+        ariaLabel: mapped ? 'Copy mapped road as a design' : 'Duplicate active alignment',
+        caption: mapped ? 'Copy as design' : 'Duplicate',
+        title: mapped
+          ? 'An editable design on this mapped line'
+          : 'Keep this road and edit a separate path alternative',
+      }
+    case 'importAlignment':
+      return {
+        shortLabel: 'Import line',
+        icon: <Upload className="size-3" />,
+        title: 'A road line from GeoJSON, a zipped shapefile, KML or KMZ',
+      }
+    case 'traceRoad':
+      return {
+        shortLabel: 'Trace road',
+        icon: <Waypoints className="size-3" />,
+        title:
+          'Click along an existing road seen on imagery; on LiDAR the line follows the road bench. Adds an existing road to connect to.',
+      }
+    default:
+      return {}
+  }
 }

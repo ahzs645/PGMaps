@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ActionMenu } from '@/components/ui/action-menu'
 
 /** Measure the real strip, including changes in the availability and width of configured tools. */
 function useScrollEdges(container: RefObject<HTMLElement>, selector: string) {
@@ -55,14 +56,19 @@ export function RibbonTabs({
     <div className="lp-tab-navigation" ref={nav}>
       {children}
       {(previous || next) && (
-        <label className="lp-all-tabs" title="Choose ribbon tab">
-          <ChevronDown size={15} aria-hidden="true" />
-          <select aria-label="Choose ribbon tab" value={active} onChange={(event) => onChoose(event.target.value)}>
-            {names.map((name) => (
-              <option key={name}>{name}</option>
-            ))}
-          </select>
-        </label>
+        <ActionMenu
+          label="Choose ribbon tab"
+          triggerClassName="lp-all-tabs"
+          trigger={<ChevronDown size={15} aria-hidden="true" />}
+          width={200}
+          items={names.map((name) => ({
+            id: name,
+            label: name,
+            radio: true,
+            checked: name === active,
+            onSelect: () => onChoose(name),
+          }))}
+        />
       )}
     </div>
   )

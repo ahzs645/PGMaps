@@ -1,7 +1,15 @@
-import { Children, isValidElement, useState, type FormEvent, type OptionHTMLAttributes, type ReactNode } from 'react'
+import {
+  Children,
+  isValidElement,
+  useState,
+  type FormEvent,
+  type OptionHTMLAttributes,
+  type ReactNode,
+  type Ref,
+} from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { FormField, NumberField as SharedNumberField, NullableNumberField } from '@/components/ui/form-field'
-import { AppSelect } from '@/components/ui/select'
+import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
 import { engineeringCellInputClass } from '@/components/ui/engineering-table'
 import { cn } from '@/lib/utils'
 
@@ -65,6 +73,7 @@ export function RoadSelect({
   searchable,
   placeholder,
   id,
+  triggerRef,
 }: {
   value: string
   onValueChange: (value: string) => void
@@ -77,6 +86,8 @@ export function RoadSelect({
   searchable?: boolean
   placeholder?: string
   id?: string
+  /** The trigger button, e.g. for a pane's initial focus. */
+  triggerRef?: Ref<HTMLButtonElement>
 }) {
   const tokens = (className ?? '').split(/\s+/).filter(Boolean)
   const list = [...(options ?? optionsFromChildren(children))]
@@ -89,10 +100,10 @@ export function RoadSelect({
         tokens.filter((token) => LAYOUT_CLASS.test(token)),
       )}
       triggerClassName={cn(
-        'h-8 w-full min-w-0 gap-1.5 bg-background px-2 py-1 text-base shadow-none md:text-xs [&>span]:min-w-0 [&>span]:truncate',
+        compactSelectTriggerClass,
         tokens.filter((token) => !LAYOUT_CLASS.test(token)),
       )}
-      contentClassName="z-workspace-popover text-base md:text-xs"
+      contentClassName={workspaceSelectContentClass}
       triggerAriaLabel={ariaLabel}
       value={value}
       onValueChange={onValueChange}
@@ -100,6 +111,7 @@ export function RoadSelect({
       disabled={disabled}
       searchable={searchable ?? list.length > SEARCHABLE_FROM}
       placeholder={placeholder}
+      triggerRef={triggerRef}
     />
   )
 }

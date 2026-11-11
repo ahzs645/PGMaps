@@ -1,4 +1,5 @@
 import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
+import { detailTitle, type DetailView } from './dev-forestry-roads/detailViews'
 import { createPortal } from 'react-dom'
 import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
 import { RibbonPaneHost } from '@/components/interfaces/RibbonTaskPane'
@@ -6,8 +7,16 @@ import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane
 import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
 import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
 import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
-import { layoutIcons, type WorkspaceLayout } from '@/components/interfaces/workspaceLayouts'
-import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
+import { layoutIcons, type WorkspaceLayout, type WorkspaceWidget } from '@/components/interfaces/workspaceLayouts'
+import {
+  commandDef,
+  designOnlyCommands,
+  workspaceCommandIds,
+  type EditorCommand,
+  type WorkspaceCommand,
+} from '@/components/interfaces/workspaceCommands'
+import { DEFAULT_HEADER_TOOLS, WorkspaceHeader } from '@/components/interfaces/WorkspaceHeader'
+import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
 import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
@@ -61,20 +70,9 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type ReactNode,
 } from 'react'
-import {
-  BarChart3,
-  Download,
-  FolderOpen,
-  LibraryBig,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Pause,
-  Play,
-  Redo2,
-  Undo2,
-  X,
-} from 'lucide-react'
+import { Download, PanelLeftClose, PanelLeftOpen, Pause, Play, X, Maximize, Minimize } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
@@ -94,7 +92,7 @@ import {
 import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
-import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
+import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
@@ -326,9 +324,12 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
 export default function DevForestryRoads({
   initialInterface,
   layouts,
+  layoutsFallback = false,
 }: {
   initialInterface: WorkspaceLayout
   layouts: WorkspaceLayout[]
+  /** The served layout file could not be read, so only the built-in workbench is offered. */
+  layoutsFallback?: boolean
 }) {
   const {
     active,
@@ -373,19 +374,7 @@ export default function DevForestryRoads({
   const [verticalReference, setVerticalReference] = useState('')
   const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
   const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
-  const [detail, setDetail] = useState<
-    | 'section'
-    | 'terrain'
-    | 'mass'
-    | 'table'
-    | 'compare'
-    | 'cable'
-    | 'pegs'
-    | 'engineering'
-    | 'landing'
-    | 'drainage'
-    | 'swept'
-  >('section')
+  const [detail, setDetail] = useState<DetailView>('section')
   const [fallbackDrainageSettings] = useState<DrainageSettings>(readDrainageSettings)
   const drainageSettings = project.drainage?.settings ?? fallbackDrainageSettings
   const [drainagePicking, setDrainagePicking] = useState<Pick<
@@ -2936,6 +2925,7 @@ export default function DevForestryRoads({
         unpriced: unpricedCount,
         incomplete: incompleteReasons,
         costOpen: costPreview || completeCostRecord ? completeCostOpen : costOpen,
+        curveNote: summaryControls.preferences.curveNote,
         onCost: costPreview || completeCostRecord ? openCompleteCosts : () => setCostOpen((open) => !open),
         onIncomplete: (chainage) => {
           setStation(chainage)
@@ -2949,6 +2939,13 @@ export default function DevForestryRoads({
     }
     setSummaryTarget(key)
   }
+  // Commands that open a workflow editor are derived from the registry, not listed by hand.
+  const editorCommands = Object.fromEntries(
+    workspaceCommandIds.flatMap((id) => {
+      const editor = commandDef(id).editor
+      return editor ? [[id, () => showControls(editor)]] : []
+    }),
+  ) as Record<EditorCommand, () => void>
   const commands: Record<WorkspaceCommand, () => void> = {
     customizeRibbon: () => setCustomizingRibbon(true),
     newProject: openNewProject,
@@ -3006,7 +3003,6 @@ export default function DevForestryRoads({
     },
     summarySettings: () => showSummarySettings(),
     fullscreen: toggle,
-    engineering: () => showControls('engineering'),
     plan: () => showPane('plan'),
     terrain3d: () => showDetailPane('terrain'),
     stations: () => showDetailPane('table'),
@@ -3016,14 +3012,13 @@ export default function DevForestryRoads({
     open: () => requestFile('project'),
     export: () => (investigation ? save('project') : openExport('project')),
     import: () => requestFile('terrain'),
-    terrain: () => showControls('terrain'),
-    alignment: () => showControls('design'),
-    section: () => showControls('template'),
-    review: () => showControls('review'),
+    ...editorCommands,
+    chooseInterface: () => setChoosingInterface(true),
     profile: () => showPane('profile'),
     compare: () => showDetailPane('compare'),
     sketch: () => drawFromRibbon('sketch'),
   }
+  const runCommand = (id: WorkspaceCommand) => commands[id]()
   const distributed = toolbar?.header === 'controls'
   const editLocked = !!busy || !!costPreview
   const roadLimitReached = roadCount(project) >= MAX_PROJECT_ROADS
@@ -3082,29 +3077,8 @@ export default function DevForestryRoads({
     drainage: { disabled: designResultsUnavailable },
     quantities: { disabled: designResultsUnavailable },
   }
-  if (investigation) {
-    const evidenceTools: WorkspaceCommand[] = [
-      'newProject',
-      'projects',
-      'open',
-      'export',
-      'undo',
-      'redo',
-      'startDesign',
-      'loadMapped',
-      'plan',
-      'fitAll',
-      'fitTerrain',
-      'contours',
-      'controls',
-      'fullscreen',
-      'fieldNotes',
-      'customizeRibbon',
-    ]
-    for (const id of Object.keys(commands) as WorkspaceCommand[]) {
-      if (!evidenceTools.includes(id)) commandStates[id] = { hidden: true }
-    }
-  }
+  // An access investigation has evidence but no design yet: only commands the registry marks for it stay.
+  if (investigation) for (const id of designOnlyCommands) commandStates[id] = { hidden: true }
   const saveMark = (trainingSave || saveNotice) && (
     <span
       role="img"
@@ -3163,16 +3137,7 @@ export default function DevForestryRoads({
     />
   )
   const summarySettingsButton = summaryAvailable && (
-    <Button
-      variant="outline"
-      size="icon"
-      className="size-8"
-      aria-label="Road summary settings"
-      title="Road summary settings"
-      onClick={commands.summarySettings}
-    >
-      <BarChart3 className="size-4" />
-    </Button>
+    <CommandButton id="summarySettings" surface="header" state={commandStates.summarySettings} onRun={runCommand} />
   )
   const undoHistory = (
     <UndoHistoryButton
@@ -3185,22 +3150,60 @@ export default function DevForestryRoads({
       disabled={!!busy}
     />
   )
-  const projectHeader = (
-    <header className="flex shrink-0 flex-wrap items-center justify-between gap-2" data-testid="road-workspace-header">
-      <h1 className="text-sm font-semibold md:hidden">
-        {investigation ? 'Forest access investigation' : 'Forest road design'}
-      </h1>
+  const workspaceTitle = investigation ? 'Forest access investigation' : 'Forest road design'
+  // Each widget is rendered once; the header, ribbon and guide only decide where it sits.
+  const workspaceWidgets: Partial<Record<WorkspaceWidget, ReactNode>> = {
+    ...ribbonFields(
+      w,
+      { verticalReference, onVerticalReference: setVerticalReference, pointCloud, onPointCloud: setPointCloud },
+      !noRoad,
+      investigation,
+      !terrainProfile && !noRoad ? { settings: drainageSettings, onSettings: changeDrainageSettings } : undefined,
+    ),
+    projectInfo: (
+      <div className="lp-project-field">
+        <h1>{workspaceTitle}</h1>
+        {projectNameControl}
+        {projectStatus}
+      </div>
+    ),
+    roadSelector: investigation ? null : project.alignments.length >= 2 ? (
+      roadSwitcher
+    ) : (
+      <span>{awaitingFirstRoad(project) ? 'No road selected' : alignment.name}</span>
+    ),
+    presets: investigation ? null : presetPicker,
+    terrainSource: (
+      <div className="lp-source-field" title={planningBasis}>
+        <strong>{project.terrain.name}</strong>
+        <span>
+          {project.terrain.kind === 'demo'
+            ? 'Synthetic training surface'
+            : `${project.terrain.resolutionM} m resolution`}
+        </span>
+      </div>
+    ),
+    interfaceSwitch: interfaceSwitcher,
+    history: undoHistory,
+    saveState: saveMark,
+  }
+  const heading = (
+    <>
+      <h1 className="text-sm font-semibold md:hidden">{workspaceTitle}</h1>
       <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
         <ForestryBackLink />
         <div className="road-workspace-title min-w-0">
           {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
           <div className="flex min-w-0 items-center gap-1">
-            <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">
-              {investigation ? 'Forest access investigation' : 'Forest road design'}
-            </h1>
+            <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">{workspaceTitle}</h1>
             {projectNameControl}
           </div>
           {projectStatus}
+          {layoutsFallback && (
+            <p role="status" className="truncate text-2xs text-amber-700 dark:text-amber-400">
+              Workspace layouts could not be loaded: using the built-in engineering workbench.
+            </p>
+          )}
         </div>
         {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
         {project.terrain.kind !== 'geotiff' && (
@@ -3221,108 +3224,64 @@ export default function DevForestryRoads({
           </span>
         )}
       </div>
-      {!investigation && !awaitingFirstRoad(project) && roadSwitcher}
-      <div className="flex flex-wrap items-center gap-1">
-        {interfaceSwitcher}
-        {investigation && (
-          <Button size="sm" variant="outline" disabled={!!busy} onClick={commands.startDesign}>
-            Start design
-          </Button>
-        )}
-        {undoHistory}
-        {investigation && (
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!!busy}
-            title="Load every mapped road in the plan's view as its own road, to read and compare their profiles"
-            onClick={loadMappedRoadsInView}
-          >
-            Load roads in view
-          </Button>
-        )}
-        {summarySettingsButton}
-        {!investigation && presetPicker}
-        {/* A routine autosave shows nothing here: only a session that will not be kept, or a failed save. */}
-        {saveMark}
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          aria-label={
-            controlsShown
-              ? investigation
-                ? 'Hide access evidence'
-                : 'Hide road controls'
-              : investigation
-                ? 'Show access evidence'
-                : 'Show road controls'
-          }
-          aria-expanded={controlsShown}
-          onClick={commands.controls}
-        >
-          {controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          aria-label="Undo road edit"
-          title={`Undo (${shortcutKeys.undo})`}
-          aria-keyshortcuts={shortcutKeys.undoAria}
-          disabled={!canUndo}
-          onClick={commands.undo}
-        >
-          <Undo2 className="size-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-8"
-          aria-label="Redo road edit"
-          title={`Redo (${shortcutKeys.redo})`}
-          aria-keyshortcuts={shortcutKeys.redoAria}
-          disabled={!canRedo}
-          onClick={commands.redo}
-        >
-          <Redo2 className="size-4" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
-          aria-label="Projects"
-          title={`Projects · ${project.name}`}
-          disabled={!!w.busy}
-          onClick={commands.projects}
-        >
-          <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
-          <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="size-8 px-0 lg:w-auto lg:px-3"
-          title="Open project"
-          disabled={!!w.busy}
-          onClick={commands.open}
-        >
-          <FolderOpen className="size-4 lg:mr-1 lg:size-3" />
-          <span className="sr-only lg:not-sr-only">Open</span>
-        </Button>
-        <Button
-          size="sm"
-          className="size-8 px-0 lg:w-auto lg:px-3"
-          title="Save & export"
-          disabled={!!w.busy}
-          onClick={commands.export}
-        >
-          <Download className="size-4 lg:mr-1 lg:size-3" />
-          <span className="sr-only lg:not-sr-only">Save</span>
-        </Button>
-        <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
-      </div>
-    </header>
+    </>
+  )
+  // How the header line presents registry commands; their labels, icons and behaviour stay in the registry.
+  const controlsCaption = commandStates.controls?.label ?? 'Road controls'
+  const headerPresentations: Partial<Record<WorkspaceCommand, CommandPresentation>> = {
+    startDesign: { captionFrom: 'always' },
+    loadMapped: {
+      captionFrom: 'always',
+      title: "Load every mapped road in the plan's view as its own road, to read and compare their profiles",
+    },
+    controls: {
+      ariaLabel: `${controlsShown ? 'Hide' : 'Show'} ${controlsCaption.toLowerCase()}`,
+      expanded: controlsShown,
+      icon: controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />,
+    },
+    undo: {
+      ariaLabel: 'Undo road edit',
+      title: `Undo (${shortcutKeys.undo})`,
+      keyShortcuts: shortcutKeys.undoAria,
+    },
+    redo: {
+      ariaLabel: 'Redo road edit',
+      title: `Redo (${shortcutKeys.redo})`,
+      keyShortcuts: shortcutKeys.redoAria,
+    },
+    projects: {
+      ariaLabel: 'Projects',
+      title: `Projects · ${project.name}`,
+      captionFrom: '2xl',
+      caption: project.name || 'Projects',
+    },
+    open: { title: 'Open project', captionFrom: 'lg', shortLabel: 'Open' },
+    export: { title: 'Save & export', captionFrom: 'lg', shortLabel: 'Save', emphasis: 'primary' },
+    fullscreen: {
+      ariaLabel: `${fullscreen ? 'Exit fullscreen' : 'Fullscreen'} Road workspace`,
+      icon: fullscreen ? <Minimize className="size-4" /> : <Maximize className="size-4" />,
+    },
+  }
+  const headerStates: Partial<Record<WorkspaceCommand, CommandState>> = {
+    ...commandStates,
+    // The header keeps its pressed-free look and shows these only where they apply on its line.
+    controls: { ...commandStates.controls, pressed: undefined, hidden: false },
+    fullscreen: { ...commandStates.fullscreen, pressed: undefined },
+    undo: { ...commandStates.undo, label: undefined },
+    loadMapped: { ...commandStates.loadMapped, hidden: !investigation },
+    summarySettings: { ...commandStates.summarySettings, hidden: !summaryAvailable },
+  }
+  const projectHeader = (
+    <WorkspaceHeader
+      heading={heading}
+      roadSwitcher={!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+      tools={active.headerTools ?? DEFAULT_HEADER_TOOLS}
+      widgets={workspaceWidgets}
+      states={headerStates}
+      presentations={headerPresentations}
+      disabled={!!busy}
+      onCommand={runCommand}
+    />
   )
   const workspaceTools = toolbar && (
     <>
@@ -3350,39 +3309,8 @@ export default function DevForestryRoads({
             </>
           )
         }
-        widgets={{
-          ...ribbonFields(
-            w,
-            { verticalReference, onVerticalReference: setVerticalReference, pointCloud, onPointCloud: setPointCloud },
-            !noRoad,
-            investigation,
-            !terrainProfile && !noRoad ? { settings: drainageSettings, onSettings: changeDrainageSettings } : undefined,
-          ),
-          projectInfo: (
-            <div className="lp-project-field">
-              <h1>{investigation ? 'Forest access investigation' : 'Forest road design'}</h1>
-              {projectNameControl}
-              {projectStatus}
-            </div>
-          ),
-          roadSelector: investigation ? null : project.alignments.length >= 2 ? (
-            roadSwitcher
-          ) : (
-            <span>{awaitingFirstRoad(project) ? 'No road selected' : alignment.name}</span>
-          ),
-          presets: investigation ? null : presetPicker,
-          terrainSource: (
-            <div className="lp-source-field" title={planningBasis}>
-              <strong>{project.terrain.name}</strong>
-              <span>
-                {project.terrain.kind === 'demo'
-                  ? 'Synthetic training surface'
-                  : `${project.terrain.resolutionM} m resolution`}
-              </span>
-            </div>
-          ),
-        }}
-        onCommand={(id) => commands[id]()}
+        widgets={workspaceWidgets}
+        onCommand={runCommand}
       >
         {toolbar.includeProjectHeader && projectHeader}
       </WorkspaceTools>
@@ -3818,6 +3746,8 @@ export default function DevForestryRoads({
                           onProfile={selectProfile}
                           activeProfile={activeProfile}
                           onDuplicate={duplicateRoad}
+                          commandStates={commandStates}
+                          onCommand={runCommand}
                           onRemoveAlignment={() => {
                             // The neighbouring road is shown, and a notice names the deleted one with a way back.
                             const result = removeRoad(project, alignment.id)
@@ -4323,29 +4253,7 @@ export default function DevForestryRoads({
                           {(chartSlot) => (
                             <FullscreenPanel
                               resizeHandle={panelCorner('detail', 'detail panel')}
-                              title={
-                                detail === 'section'
-                                  ? 'Cross-section'
-                                  : detail === 'terrain'
-                                    ? '3D terrain'
-                                    : detail === 'mass'
-                                      ? 'Mass haul'
-                                      : detail === 'table'
-                                        ? 'Station schedule'
-                                        : detail === 'compare'
-                                          ? 'Compare alternatives'
-                                          : detail === 'pegs'
-                                            ? 'Pegging data'
-                                            : detail === 'engineering'
-                                              ? 'Engineering quantities'
-                                              : detail === 'landing'
-                                                ? 'Landing deflection explorer'
-                                                : detail === 'drainage'
-                                                  ? 'Drainage · existing vs design surface'
-                                                  : detail === 'swept'
-                                                    ? 'Design vehicle swept path'
-                                                    : 'D-line clearance'
-                              }
+                              title={detailTitle(detail)}
                               actions={
                                 <>
                                   {detail === 'mass' && (

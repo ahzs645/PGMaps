@@ -174,7 +174,7 @@
             {
               "label": "Workspace",
               "rows": 2,
-              "items": ["presets", "customizeRibbon", "fullscreen"],
+              "items": ["chooseInterface", "presets", "customizeRibbon", "fullscreen"],
               "more": ["controls"]
             }
           ]
@@ -215,6 +215,12 @@
           "icon": "ruler",
           "hint": "Inspect the road profile and review design limits.",
           "commands": ["profile", "review"]
+        },
+        {
+          "label": "View",
+          "icon": "panels",
+          "hint": "Change how the workspace is laid out.",
+          "commands": ["chooseInterface", "summarySettings", "fullscreen"]
         }
       ]
     }
@@ -229,5 +235,28 @@
     "preset": "linked",
     "summary": { "visible": true, "placement": "left" },
     "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true }
+  },
+  {
+    "id": "dashboard",
+    "name": "Dashboard",
+    "description": "Every road measurement across the top, with plan, profile, section and data panes below.",
+    "icon": "dashboard",
+    "preset": "engineering",
+    "sidebar": "collapsed",
+    "summary": {
+      "visible": true,
+      "placement": "top",
+      "metrics": {
+        "length": "detailed",
+        "elevation": "detailed",
+        "grade": "detailed",
+        "grade-range": "detailed",
+        "earthworks": "detailed",
+        "cost": "detailed",
+        "coverage": "detailed"
+      }
+    },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "headerTools": ["interfaceSwitch", "history", "summarySettings", "presets", "saveState", "controls", "undo", "redo", "projects", "export", "fullscreen"]
   }
 ]

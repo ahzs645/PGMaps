@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CheckboxField } from '@/components/ui/form-field'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { DrainageSettings } from './drainageRun'
 import { DesignStandardField } from './DesignStandardsFields'
@@ -116,15 +117,11 @@ export function TerrainImportField(p: TerrainProps & { field: TerrainFieldId; co
     )
   if (p.field === 'retainTin')
     return (
-      <label className="flex items-center gap-2 text-xs">
-        <input
-          type="checkbox"
-          className="shrink-0"
-          checked={p.pointCloud.retainTin ?? false}
-          onChange={(e) => p.onPointCloud({ ...p.pointCloud, retainTin: e.target.checked })}
-        />
-        {p.compact ? ribbonFieldLabels[p.field] : 'Retain source TIN for LandXML (250,000 vertices)'}
-      </label>
+      <CheckboxField
+        label={p.compact ? ribbonFieldLabels[p.field] : 'Retain source TIN for LandXML (250,000 vertices)'}
+        checked={p.pointCloud.retainTin ?? false}
+        onCheckedChange={(retainTin) => p.onPointCloud({ ...p.pointCloud, retainTin })}
+      />
     )
   if (p.field === 'cloudSurface')
     return (

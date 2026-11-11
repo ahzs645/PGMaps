@@ -3,9 +3,25 @@ import { BarChart3, ChevronDown, ChevronUp, Settings2 } from 'lucide-react'
 import { StatTileBody } from '@/components/ui/stat-group'
 import { AnchoredPopover } from '@/components/ui/anchored-popover'
 import { RibbonTaskPane } from '@/components/interfaces/RibbonTaskPane'
+import { CheckboxField } from '@/components/ui/form-field'
+import { RoadSelect, type RoadSelectOption } from './Controls'
 import type { RoadSummaryMetric } from './roadSummaryMetrics'
 import type { SummaryControls, SummaryLevel, SummaryPreferences } from './summaryPreferences'
 import './roadSummary.css'
+
+const PLACEMENTS: RoadSelectOption[] = [
+  { value: 'left', label: 'Left stack' },
+  { value: 'top', label: 'Top row' },
+]
+const CURVE_NOTE_OPTIONS: RoadSelectOption[] = [
+  { value: 'full', label: 'curve-corrected' },
+  { value: 'short', label: 'curve' },
+]
+const LEVELS: RoadSelectOption[] = [
+  { value: 'hidden', label: 'Hidden' },
+  { value: 'value', label: 'Value' },
+  { value: 'detailed', label: 'Value and detail' },
+]
 
 export function RoadSummary({
   metrics,
@@ -142,7 +158,7 @@ export function RoadSummarySettings({
   onReveal: () => void
 }) {
   const { preferences, change } = controls
-  const initialControl = useRef<HTMLSelectElement>(null)
+  const initialControl = useRef<HTMLButtonElement>(null)
   return (
     <RibbonTaskPane
       title="Road summary settings"
@@ -157,43 +173,49 @@ export function RoadSummarySettings({
       }
     >
       <div className="road-summary-form">
-        <label className="road-summary-show">
-          <input
-            type="checkbox"
-            checked={preferences.visible}
-            onChange={(event) => {
-              change({ visible: event.target.checked })
-              if (event.target.checked) onReveal()
-            }}
-          />{' '}
-          Show road summary
-        </label>
-        <label className="road-summary-position">
-          Position
-          <select
+        <CheckboxField
+          className="road-summary-show"
+          label="Show road summary"
+          checked={preferences.visible}
+          onCheckedChange={(visible) => {
+            change({ visible })
+            if (visible) onReveal()
+          }}
+        />
+        <div className="road-summary-position">
+          <span aria-hidden="true">Position</span>
+          <RoadSelect
+            ariaLabel="Position"
+            className="w-[56%]"
             value={preferences.placement}
-            onChange={(event) => change({ placement: event.target.value === 'left' ? 'left' : 'top' })}
-          >
-            <option value="left">Left stack</option>
-            <option value="top">Top row</option>
-          </select>
-        </label>
+            onValueChange={(value) => change({ placement: value === 'left' ? 'left' : 'top' })}
+            options={PLACEMENTS}
+          />
+        </div>
+        <div className="road-summary-position">
+          <span aria-hidden="true">Curve note</span>
+          <RoadSelect
+            ariaLabel="Curve-corrected volume note"
+            className="w-[56%]"
+            value={preferences.curveNote}
+            onValueChange={(value) => change({ curveNote: value === 'short' ? 'short' : 'full' })}
+            options={CURVE_NOTE_OPTIONS}
+          />
+        </div>
         <fieldset>
           <legend>Measurements</legend>
           {metrics.map((metric) => (
-            <label key={metric.key} className="road-summary-level">
+            <div key={metric.key} className="road-summary-level">
               <span>{metric.label}</span>
-              <select
-                ref={metric.key === selected ? initialControl : undefined}
-                aria-label={`Display for ${metric.label}`}
+              <RoadSelect
+                triggerRef={metric.key === selected ? initialControl : undefined}
+                ariaLabel={`Display for ${metric.label}`}
+                className="w-[56%]"
                 value={preferences.metrics[metric.key] ?? 'value'}
-                onChange={(event) => change({ metrics: { [metric.key]: event.target.value as SummaryLevel } })}
-              >
-                <option value="hidden">Hidden</option>
-                <option value="value">Value</option>
-                <option value="detailed">Value and detail</option>
-              </select>
-            </label>
+                onValueChange={(value) => change({ metrics: { [metric.key]: value as SummaryLevel } })}
+                options={LEVELS}
+              />
+            </div>
           ))}
         </fieldset>
         {preferences.visible && metrics.every((metric) => preferences.metrics[metric.key] === 'hidden') && (

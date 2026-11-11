@@ -7,8 +7,10 @@ for (const width of [390, 1108, 1440]) {
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
     )
     await page.goto('/dev/forestry/road-design?example=training')
-    await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toBeVisible()
-    await expect(page.getByTestId('road-workspace')).toHaveCount(0)
+    // The designer opens straight into the workbench: no chooser stands in front of it.
+    await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
+    await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Switch workspace interface' }).click()
     for (const preview of await page.locator('.lp-preview img').all()) {
       await expect.poll(() => preview.evaluate((img) => (img as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
     }
@@ -42,6 +44,7 @@ for (const width of [390, 1108, 1440]) {
     await tabs.getByRole('tab', { name: 'Engineering', exact: true }).click()
     await expect(ribbon.getByRole('button', { name: 'Quantities', exact: true })).toBeVisible()
     await tabs.getByRole('tab', { name: 'View', exact: true }).click()
+    await expect(ribbon.getByRole('button', { name: 'Switch interface', exact: true })).toBeVisible()
     await ribbon.getByRole('button', { name: 'Screen presets & panels' }).click()
     const layoutDialog = page.getByTestId('road-layouts-dialog')
     await expect(layoutDialog).toBeVisible()
@@ -74,8 +77,10 @@ for (const width of [390, 1108, 1440]) {
     await expect(station).toHaveValue('200')
     await expect(page).toHaveTitle(road)
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    // A reload reopens the interface last chosen, still without a chooser.
     await page.reload()
-    await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toBeVisible()
+    await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
+    await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toHaveCount(0)
   })
 }
 
@@ -115,7 +120,7 @@ test('a runtime-defined layout reuses the edited project, file contents and undo
     })
   })
   await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).click()
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
   const projectName = page.getByTestId('road-project-name')
   const originalName = await projectName.innerText()
   await projectName.click()
@@ -151,11 +156,29 @@ test('a runtime-defined layout reuses the edited project, file contents and undo
   await expect(projectName).toHaveText(originalName)
 })
 
-test('an invalid layout configuration leaves the built-in chooser available', async ({ page }) => {
+test('an invalid layout configuration opens the built-in workbench and says so', async ({ page }) => {
   await page.route('**/workspace-layouts.json', (route) => route.fulfill({ json: [{ id: 'unknown' }] }))
   await page.goto('/dev/forestry/road-design')
-  await expect(page.getByRole('status')).toContainText('built-in engineering workbench')
-  await expect(page.getByRole('button', { name: 'Open Engineering workbench', exact: true })).toBeVisible()
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'workbench')
+  await expect(page.getByTestId('road-workspace-header')).toContainText('built-in engineering workbench')
+})
+
+test('a link or the last choice opens its interface directly', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+  await page.goto('/dev/forestry/road-design?interface=dashboard&example=training')
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'dashboard')
+  await expect(page.getByRole('complementary', { name: 'Road summary', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Switch workspace interface' }).click()
+  await page.getByRole('button', { name: 'Open Guided map', exact: true }).click()
+  await page.goto('/dev/forestry/road-design?example=training')
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', 'guided')
+  const steps = page.getByRole('tablist', { name: 'Road layout steps' })
+  await steps.getByRole('tab', { name: 'View', exact: true }).click()
+  await page.getByRole('button', { name: 'Switch interface', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Choose your workspace' })).toBeVisible()
 })
 
 test('a layout without a task pane can still expand its shared editor inside the ribbon', async ({ page }) => {
@@ -168,8 +191,7 @@ test('a layout without a task pane can still expand its shared editor inside the
     delete layouts.find((layout: { id: string }) => layout.id === 'ribbon').toolbar.editorPlacement
     await route.fulfill({ json: layouts })
   })
-  await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
   const ribbon = page.getByRole('region', { name: 'Command ribbon' })
   await ribbon.getByRole('tablist', { name: 'Ribbon tabs' }).getByRole('tab', { name: 'Section', exact: true }).click()
   const plan = page.getByTestId('road-plan-view')
@@ -207,8 +229,7 @@ for (const width of [390, 1440]) {
       groups.find((group) => group.editor === 'design')!.label = 'Route editing'
       await route.fulfill({ json: layouts })
     })
-    await page.goto('/dev/forestry/road-design?example=training')
-    await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+    await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
     const ribbon = page.getByRole('region', { name: 'Command ribbon' })
     const pane = (name: string) => page.getByRole(width < 900 ? 'dialog' : 'complementary', { name, exact: true })
     const tabs = ribbon.getByRole('tablist', { name: 'Ribbon tabs' })

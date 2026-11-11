@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './road-select'
 
-async function open(page: Page, name = 'Ribbon') {
-  await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: `Open ${name}`, exact: true }).click()
+async function open(page: Page, id = 'ribbon') {
+  await page.goto(`/dev/forestry/road-design?interface=${id}&example=training`)
+  await expect(page.getByTestId('road-workspace')).toHaveAttribute('data-interface', id)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 }
 
@@ -38,11 +39,11 @@ test('customize the left stack from a metric and the View tab, then recover hidd
   await expect(view).toHaveAttribute('aria-selected', 'true')
   const lengthLevel = settings.getByRole('combobox', { name: 'Display for Length', exact: true })
   await expect(lengthLevel).toBeFocused()
-  await lengthLevel.selectOption('detailed')
+  await choose(lengthLevel, 'detailed')
   await expect(length).toContainText('calculation stations')
-  await settings.getByRole('combobox', { name: 'Display for Ground elevation' }).selectOption('hidden')
+  await choose(settings.getByRole('combobox', { name: 'Display for Ground elevation' }), 'hidden')
   await expect(elevation).toHaveCount(0)
-  await settings.getByLabel('Position').selectOption('top')
+  await choose(settings.getByRole('combobox', { name: 'Position', exact: true }), 'top')
   expect((await length.boundingBox())!.y).toBeCloseTo((await rail.locator('[data-metric="grade"]').boundingBox())!.y, 0)
   await settings.getByLabel('Show road summary').uncheck()
   await expect(rail).toHaveCount(0)
@@ -60,17 +61,17 @@ test('customize the left stack from a metric and the View tab, then recover hidd
   await expect(rail).toHaveCount(0)
   await view.click()
   await ribbon.getByRole('button', { name: 'Road summary settings', exact: true }).click()
-  await expect(lengthLevel).toHaveValue('detailed')
+  await expect(lengthLevel).toHaveAttribute('data-value', 'detailed')
   await settings.getByLabel('Show road summary').check()
   await expect(length).toContainText('calculation stations')
   await expect(elevation).toHaveCount(0)
   for (const level of await settings.getByRole('combobox', { name: /^Display for / }).all())
-    await level.selectOption('hidden')
+    await choose(level, 'hidden')
   await expect(rail).toHaveCount(0)
   await settings.getByRole('button', { name: 'Restore defaults' }).click()
   await expect(rail.locator('[data-metric]')).toHaveCount(6)
   await expect(length).not.toContainText('calculation stations')
-  await expect(settings.getByLabel('Position')).toHaveValue('left')
+  await expect(settings.getByRole('combobox', { name: 'Position', exact: true })).toHaveAttribute('data-value', 'left')
   await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
   await rail.getByRole('button', { name: 'Show how the covered estimate is calculated' }).click()
   await expect(page.getByRole('dialog', { name: 'Covered estimate' })).toBeVisible()
@@ -87,7 +88,7 @@ test('mobile settings restore the configured defaults and the stack expands over
     }
     await route.fulfill({ json: layouts })
   })
-  await open(page, 'Engineering workbench')
+  await open(page, 'workbench')
   const rail = page.getByRole('complementary', { name: 'Road summary', exact: true })
   await expect(rail).toHaveCount(0)
   await page.getByRole('button', { name: 'Road summary settings', exact: true }).click()

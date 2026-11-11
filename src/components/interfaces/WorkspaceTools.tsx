@@ -11,10 +11,11 @@ import {
   ribbonWidgetLabels as widgetLabels,
   type RibbonTool as ToolId,
 } from './ribbonToolCatalog'
-import { workspaceCommands, type WorkspaceCommand } from './workspaceCommands'
+import { resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { CommandButton } from './CommandButton'
 import { layoutIcons, type WorkspaceToolbar, type WorkspaceWidget } from './workspaceLayouts'
 
-export type CommandState = { disabled?: boolean; pressed?: boolean; hidden?: boolean; label?: string }
+export type { CommandState }
 const isQuickField = (id: ToolId): id is RibbonFieldId => Object.prototype.hasOwnProperty.call(ribbonFieldLabels, id)
 type OpenSettings = { tab: string; sectionIndex: number; label: string; focusItem?: ToolId }
 
@@ -103,7 +104,8 @@ export function WorkspaceTools({
   const findTools = toolbar.dock === 'top' && (toolbar.findTools ?? compact)
   const quickAccess = toolbar.dock === 'top' ? (toolbar.quickAccess?.filter(visible) ?? []) : []
   function visibleInStrip(id: ToolId) {
-    return visible(id) && !(detailed && !paneEditor && isQuickField(id))
+    // An open editor already shows every field, inline or in its pane: one live input per value.
+    return visible(id) && !(detailed && isQuickField(id))
   }
 
   function searchEntries(): RibbonResult[] {
@@ -120,13 +122,8 @@ export function WorkspaceTools({
               id,
             }
             if (isCommand(id)) {
-              const { label, icon } = workspaceCommands[id]
-              return {
-                ...location,
-                label: states[id]?.label ?? label,
-                icon,
-                disabled: states[id]?.disabled ?? disabled,
-              }
+              const { label, icon, disabled: off } = resolveCommand(id, states[id], disabled)
+              return { ...location, label, icon, disabled: off }
             }
             return { ...location, label: widgetLabels[id], disabled: isQuickField(id) && disabled }
           }),
@@ -134,15 +131,8 @@ export function WorkspaceTools({
     )
     for (const id of quickAccess) {
       if (!entries.some((entry) => entry.id === id)) {
-        const { label, icon } = workspaceCommands[id]
-        entries.push({
-          id,
-          tab: group.label,
-          section: 'Quick access',
-          label: states[id]?.label ?? label,
-          icon,
-          disabled: states[id]?.disabled ?? disabled,
-        })
+        const { label, icon, disabled: off } = resolveCommand(id, states[id], disabled)
+        entries.push({ id, tab: group.label, section: 'Quick access', label, icon, disabled: off })
       }
     }
     return entries
@@ -188,31 +178,22 @@ export function WorkspaceTools({
     return commandButton(id, surface, primary === id)
   }
   function commandButton(id: WorkspaceCommand, surface: 'strip' | 'pane' | 'quick', primary = false) {
-    const quick = surface === 'quick'
-    const state = states[id]
-    const { label, icon: Icon } = workspaceCommands[id]
-    const caption = state?.label ?? label
     return (
-      <button
-        type="button"
-        className={quick ? 'lp-quick-command' : 'lp-command'}
+      <CommandButton
         key={id}
-        data-ribbon-item={id}
-        data-primary={primary || undefined}
-        onClick={() => {
-          const opensTaskPane = id === 'customizeRibbon' || id === 'summarySettings'
+        id={id}
+        state={states[id]}
+        disabled={disabled}
+        surface={surface === 'quick' ? 'quick' : 'ribbon'}
+        primary={primary}
+        onRun={(command) => {
+          // A task pane replaces the open group settings; a pane-placed editor folds so the two never stack.
+          const opensTaskPane = resolveCommand(command, undefined).kind === 'pane'
           if (surface === 'pane' || opensTaskPane) setSettings(null)
           if (opensTaskPane && paneEditor && detailed) onGroupChange(group.label, true)
-          onCommand(id)
+          onCommand(command)
         }}
-        disabled={state?.disabled ?? disabled}
-        aria-pressed={state?.pressed}
-        aria-label={quick ? `Quick access: ${caption}` : undefined}
-        title={quick ? caption : undefined}
-      >
-        <Icon size={quick ? 16 : 18} strokeWidth={1.65} aria-hidden="true" />
-        {!quick && caption}
-      </button>
+      />
     )
   }
   const editorButtonLabel = paneEditor

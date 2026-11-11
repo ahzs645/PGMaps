@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, Pin, PinOff, Settings2, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
 import { RibbonTaskPane, restorePaneFocus } from './RibbonTaskPane'
 import { workspaceCommands } from './workspaceCommands'
 import { isRibbonCommand, ribbonToolLabel, type RibbonTool } from './ribbonToolCatalog'
@@ -173,20 +174,20 @@ export function CustomizeRibbonPane({
       }
     >
       <div className="lp-arrange">
-        <label className="lp-arrange-tab">
-          Ribbon tab
-          <select
+        <div className="lp-arrange-tab">
+          <span aria-hidden="true">Ribbon tab</span>
+          <AppSelect
+            triggerAriaLabel="Ribbon tab"
+            triggerClassName={compactSelectTriggerClass}
+            contentClassName={workspaceSelectContentClass}
             value={tab.label}
-            onChange={(event) => {
-              setTabName(event.target.value)
+            onValueChange={(value) => {
+              setTabName(value)
               setSelectedGroup(undefined)
             }}
-          >
-            {tabs.map((entry) => (
-              <option key={entry.label}>{entry.label}</option>
-            ))}
-          </select>
-        </label>
+            options={tabs.map((entry) => ({ value: entry.label, label: entry.label }))}
+          />
+        </div>
         <div className="lp-arrange-body">
           <section className="lp-arrange-groups" aria-label="Group order">
             <div className="lp-arrange-group-heading">
