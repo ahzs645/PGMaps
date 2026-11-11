@@ -99,6 +99,7 @@ import { StatGroup } from '@/components/ui/stat-group'
 import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
 import { formatRoadNumber as number } from './dev-forestry-roads/roadFormat'
 import { roadSummaryMetrics } from './dev-forestry-roads/roadSummaryMetrics'
+import { parseRoadReportSettings } from './dev-forestry-roads/reportSettings'
 import { useSummaryPreferences } from './dev-forestry-roads/summaryPreferences'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { PanelCorner } from '@/components/ui/panel-corner'
@@ -1987,7 +1988,9 @@ export default function DevForestryRoads({
             ? '.json'
             : kind === 'landxml'
               ? '.xml,application/xml,text/xml'
-              : SPATIAL_ACCEPT
+              : kind === 'alignment'
+                ? `${SPATIAL_ACCEPT},.xml,application/xml,text/xml`
+                : SPATIAL_ACCEPT
       // Several LAS/LAZ tiles of one job import together as one surface.
       fileRef.current.multiple = kind === 'terrain'
       fileRef.current.value = ''
@@ -2004,6 +2007,10 @@ export default function DevForestryRoads({
     const file = files[0]
     const label = files.length > 1 ? `${files.length} point-cloud tiles` : file.name
     return void run(`Opening ${label}…`, async (signal) => {
+      if (fileKind.current === 'alignment') {
+        const { isLandXml } = await import('./dev-forestry-roads/landXmlImport')
+        if (isLandXml(await file.slice(0, 4096).text())) fileKind.current = 'landxml'
+      }
       if (fileKind.current === 'terrain') {
         const name = pendingProject.current
         pendingProject.current = null
@@ -2251,7 +2258,7 @@ export default function DevForestryRoads({
    * they render and download in one step, and preview through the report page and the plan map.
    */
   const exportFile = async (
-    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf' | 'dline-sheet-pdf'>,
+    kind: Exclude<RoadExport, 'map-pdf' | 'report-pdf' | 'block-sheet-pdf' | 'dline-sheet-pdf' | 'plotbook-pdf'>,
   ): Promise<{ content: string | Blob; filename: string; mime: string; notice: string }> => {
     const { safe, basename } = exportBasis(kind)
     const text = (content: string, filename: string, mime: string, notice = 'Export downloaded.') => ({
@@ -2473,6 +2480,22 @@ export default function DevForestryRoads({
         })
         return
       }
+      if (kind === 'plotbook-pdf') {
+        void run('Building the plot book PDF…', async (signal) => {
+          const [book, { plotBookPdf }] = await Promise.all([
+            exportFile('plotbook'),
+            import('./dev-forestry-roads/plotBookPdf'),
+          ])
+          const paper = parseRoadReportSettings(safe.reportSettings).paper
+          downloadBlob(await plotBookPdf(book.content as string, paper, signal), `${basename}-plot-book.pdf`)
+          w.setNotice(
+            book.notice
+              .replace(/^Plot book downloaded/, 'Plot book PDF downloaded')
+              .replace(/ Open it and use Print \/ Save as PDF\.$/, ''),
+          )
+        })
+        return
+      }
       if (kind === 'block-sheet-pdf') {
         void run('Building block map sheet…', async (signal) => {
           const { blockSheetPdf } = await import('./dev-forestry-roads/blockSheet')
@@ -2556,6 +2579,8 @@ export default function DevForestryRoads({
   const buildExportPreview = async (kind: RoadExport, signal: AbortSignal): Promise<ExportPreview> => {
     const { safe } = exportBasis(kind)
     if (kind === 'report-pdf') return { type: 'html', html: reportHtml(safe) }
+    // The PDF draws the same sheets, so it previews the plot book page.
+    if (kind === 'plotbook-pdf') return { type: 'html', html: (await exportFile('plotbook')).content as string }
     if (kind === 'dline-sheet-pdf') {
       const { dLineSheetPreview } = await import('./dev-forestry-roads/dline/sheetExport')
       const preview = await dLineSheetPreview({ ...dLineSheetRequest(safe), signal })
@@ -3532,7 +3557,6 @@ export default function DevForestryRoads({
         }}
         name={project.name}
         onName={(name) => update((p) => ({ ...p, name }))}
-        onFile={requestFile}
         onSave={save}
         reportSettings={project.reportSettings}
         onReportSettings={(reportSettings) => update((p) => ({ ...p, reportSettings }))}
@@ -3554,6 +3578,7 @@ export default function DevForestryRoads({
           terrainProfile: !!terrainProfile,
           hasTerrainGrid: !!project.terrain.raster,
           hasProvincialEvidence: !!project.provincialStreamData,
+          hasStreams: project.context.some((feature) => feature.kind === 'stream'),
           hasNotes: !!project.notes?.length,
           dLineSheetUnavailable: dLineSheetUnavailable(cableLine),
         }}

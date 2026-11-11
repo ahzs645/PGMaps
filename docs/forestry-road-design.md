@@ -1545,19 +1545,32 @@ sparse stations can miss small ditches, scarps or sharp cut/fill transitions.
 
 ## Exports and restoration
 
-The header's **Save** button opens the **Save & export** dialog. It owns project
-naming, project and line import, and all data/document exports; Files is no longer
-another sidebar tab. Every output is a row in one grouped list (`exportCatalog.ts`
+The header's **Save** button opens the **Save & export** dialog. It only saves:
+the project file (with the project's name, edited on that row) and every data and
+document export. Opening a project file is under **Projects**, and road lines,
+including LandXML alignments, come in through **Import line** on the Design tab.
+Files is no longer another sidebar tab. Every output is a row in one grouped list (`exportCatalog.ts`
 holds its type, description and why it is unavailable); the selected one is
 previewed beside the list from the same content its download writes, built by
 `exportFile` in `DevForestryRoads.tsx`: documents render in a sandboxed frame,
 CSVs show their first rows, GeoJSON and shapefiles draw their geometry, and XML,
 grids and the project file show their opening lines. The Report PDF previews its
-report page and the Map PDF its captured plan. The dialog opens on the project file
+report page, the Plot book PDF its sheets and the Map PDF its captured plan. A page
+wider than the pane, such as a plot-book sheet, is scaled down to the pane's width
+(`fitToWidth`, `ExportPreview.tsx`). An output with nothing to write is greyed out
+with the reason: the stream register, for example, until the project has a stream. The dialog opens on the project file
 each time, since its Save button (`Save project JSON`) is what the header promises. **Map PDF** downloads the current plan with its rendered
-terrain, roads, markers and scale. **Report PDF** writes the same report content as
-HTML, with paginated text/tables and profile/cross-section plots. Both are direct
-PDF downloads; the existing HTML report and A3 plot book remain available.
+terrain, roads, station labels, crossing marks and scale bar. `mapImage` (`pdf.ts`)
+composes the WebGL canvas with the map's HTML overlays through html2canvas: buttons
+are left out as controls unless they sit in a marker (station labels are buttons),
+the clone is held at the on-screen size, because laid out again it grew about
+26 px and pushed the scale bar off the image, and each marker label is redrawn as
+one SVG of its box and text (`markerLabelAsSvg`), because html2canvas set the text
+about 5 px below its box and painted the translucent box over anything inside it. **Report PDF** writes the same report content as
+HTML, with paginated text/tables and profile/cross-section plots. **Plot book PDF**
+draws each plot-book sheet as vector pages on the book's paper (`plotBookPdf.ts`,
+svg2pdf.js pinned at an exact version). These are direct PDF downloads; the HTML
+report and plot book remain available.
 The plan uses the shared styled `AppSelect` for terrain display, a settings popover
 for overlays/context, and the shared collapsible `MapLegendPanel`. Fit is above zoom.
 The legend is anchored 8 px from the plan's bottom/right edges in both states;

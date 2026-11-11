@@ -175,13 +175,13 @@ for (const viewport of [
     // A fresh page load loses the in-memory flow grids. Import the actual downloaded project through the UI.
     await openWorkbench(page, '/dev/forestry/road-design?example=training')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
-    await page.getByRole('button', { name: 'Save', exact: true }).tap()
+    await page.getByRole('button', { name: 'Projects', exact: true }).tap()
     const chooser = page.waitForEvent('filechooser')
-    await page.getByRole('button', { name: 'Open project', exact: true }).tap()
+    await page.getByRole('button', { name: 'Open project file', exact: true }).tap()
     await (
       await chooser
     ).setFiles({ name: 'mobile-drainage.road.json', mimeType: 'application/json', buffer: saved.bytes })
-    // Opening from the Save & export sheet closes it; wait for its exit before using the page.
+    // Opening from the Projects sheet closes it; wait for its exit before using the page.
     await dialogsClosed(page)
     await showDrainage(page)
     await expect(panel.getByRole('region', { name: 'Saved drainage evidence', exact: true })).toBeVisible()

@@ -40,8 +40,21 @@ function fixture() {
       throw Error('The live WebGL canvas must not be cloned again')
     }),
   }
-  const marker = { tagName: 'DIV', hasAttribute: () => false, getAttribute: () => null, querySelector: () => null }
+  const marker = {
+    tagName: 'DIV',
+    hasAttribute: () => false,
+    getAttribute: () => null,
+    querySelector: () => null,
+    closest: () => null,
+  }
   const legend = { ...marker }
+  // A station label is a button inside a marker; zoom and layer buttons are map controls.
+  const stationLabel = {
+    ...marker,
+    tagName: 'BUTTON',
+    closest: (selector: string) => (selector === '.maplibregl-marker' ? marker : null),
+  }
+  const control = { ...marker, tagName: 'BUTTON' }
   const container = {
     contains: (element: unknown) => [source, marker, legend].includes(element as typeof source),
     getBoundingClientRect: () => ({ width: 200.25, height: 100.5 }),
@@ -72,7 +85,11 @@ function fixture() {
   }
   const cloneChildren: unknown[] = [marker, legend]
   const host = { prepend: vi.fn((node) => cloneChildren.unshift(node)) }
-  const clonedMap = { querySelector: vi.fn(() => host) }
+  const clonedMap = {
+    querySelector: vi.fn(() => host),
+    querySelectorAll: vi.fn(() => []),
+    style: { width: '', height: '', flex: '' },
+  }
   const clonedDocument = { createElement: vi.fn(() => image), defaultView: { frameElement: frame } }
   vi.stubGlobal('document', {
     createElement: vi.fn(() => canvas),
@@ -116,6 +133,8 @@ function fixture() {
     container,
     marker,
     legend,
+    stationLabel,
+    control,
     canvas,
     encodedDimensions,
     frames,
@@ -147,6 +166,11 @@ describe('map PDF composition', () => {
     expect(options.ignoreElements!(f.source as unknown as Element)).toBe(true)
     expect(options.ignoreElements!(f.marker as unknown as Element)).toBe(false)
     expect(options.ignoreElements!(f.legend as unknown as Element)).toBe(false)
+    expect(options.ignoreElements!(f.stationLabel as unknown as Element)).toBe(false)
+    expect(options.ignoreElements!(f.control as unknown as Element)).toBe(true)
+    // The clone keeps the on-screen size, so overlays placed from the bottom edge stay on the image.
+    expect(f.clonedMap.style).toEqual({ width: '201px', height: '101px', flex: 'none' })
+    expect(f.clonedMap.querySelectorAll).toHaveBeenCalledWith('.maplibregl-marker *')
     expect(f.clonedMap.querySelector).toHaveBeenCalledWith('.maplibregl-canvas-container')
     expect(f.cloneChildren).toEqual([f.image, f.marker, f.legend])
     expect(f.image).toMatchObject({

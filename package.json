@@ -206,6 +206,7 @@
     "recharts": "^3.8.1",
     "shpjs": "^6.2.0",
     "sql.js": "1.15.1",
+    "svg2pdf.js": "2.8.1",
     "tailwind-merge": "^2.2.0",
     "whitebox-wasm": "0.6.1",
     "yalps": "0.6.4",

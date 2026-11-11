@@ -40,6 +40,64 @@ function withinExportBudget<T>(start: () => Promise<T>, signal: AbortSignal | un
   })
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg'
+
+/**
+ * Redraws a marker label (a station label, the selected-station readout) as one SVG of its box and
+ * text. html2canvas places text by its own font metrics, which set the station labels' text about
+ * 5 px below their boxes, and it paints a label's translucent background over an SVG inside it. An
+ * SVG holding both is drawn by the browser, so the label prints as the map shows it.
+ */
+function markerLabelAsSvg(element: HTMLElement) {
+  const text = element.textContent ?? ''
+  if (element.children.length || !text.trim()) return
+  const document = element.ownerDocument
+  const style = document.defaultView?.getComputedStyle(element)
+  if (!style) return
+  const { width, height } = element.getBoundingClientRect()
+  if (width <= 0 || height <= 0) return
+  const px = (value: string) => Number.parseFloat(value) || 0
+  const node = (name: string, attributes: Record<string, string | number>) => {
+    const created = document.createElementNS(SVG_NS, name)
+    for (const [key, value] of Object.entries(attributes)) created.setAttribute(key, String(value))
+    return created
+  }
+  const border = px(style.borderTopWidth)
+  const svg = node('svg', { width, height, viewBox: `0 0 ${width} ${height}` })
+  svg.style.display = 'block'
+  svg.style.overflow = 'visible'
+  const box = node('rect', {
+    x: border / 2,
+    y: border / 2,
+    width: width - border,
+    height: height - border,
+    rx: px(style.borderTopLeftRadius),
+    fill: style.backgroundColor,
+    ...(border ? { stroke: style.borderTopColor, 'stroke-width': border } : {}),
+  })
+  const label = node('text', {
+    x: px(style.paddingLeft) + px(style.borderLeftWidth),
+    y: height / 2,
+    'dominant-baseline': 'central',
+    'font-family': style.fontFamily,
+    'font-size': style.fontSize,
+    'font-weight': style.fontWeight,
+    fill: style.color,
+  })
+  label.textContent = text
+  svg.append(box, label)
+  // The SVG now draws the box: the element keeps its size and shadow, and nothing else.
+  Object.assign(element.style, {
+    boxSizing: 'border-box',
+    width: `${width}px`,
+    height: `${height}px`,
+    padding: '0',
+    border: '0',
+    background: 'transparent',
+  })
+  element.replaceChildren(svg)
+}
+
 /** Read WebGL once, inside render, before its drawing buffer is discarded. */
 /** The plan map with its HTML markers, as the map PDF prints it. */
 export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
@@ -100,7 +158,10 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
             // the captured image is inserted below without changing overlay z-order.
             if (element === original) return true
             if (element.tagName === 'CANVAS' && !container.contains(element)) return true
-            if (element.hasAttribute('data-map-export-ignore') || element.tagName === 'BUTTON') return true
+            if (element.hasAttribute('data-map-export-ignore')) return true
+            // Buttons are map controls, except inside a marker: station labels and crossing marks
+            // on the plan are buttons, and they are part of what the map shows.
+            if (element.tagName === 'BUTTON' && !element.closest('.maplibregl-marker')) return true
             if (
               element.getAttribute('data-testid') === 'road-terrain-legend' &&
               !element.querySelector('[aria-expanded="true"]')
@@ -113,6 +174,13 @@ export async function mapImage(map: MapLibreMap, signal?: AbortSignal) {
             throwIfAborted(signal)
             const frame = clonedDocument.defaultView?.frameElement
             if (frame) ownedFrames.add(frame as HTMLIFrameElement)
+            // Hold the clone at the size on screen. Laid out again in html2canvas's frame, the map
+            // grew about 26 px, which pushed everything placed from its bottom edge (the scale bar,
+            // the attribution, an open legend) down and off the image.
+            clonedMap.style.width = `${width}px`
+            clonedMap.style.height = `${height}px`
+            clonedMap.style.flex = 'none'
+            for (const label of clonedMap.querySelectorAll<HTMLElement>('.maplibregl-marker *')) markerLabelAsSvg(label)
             const host = clonedMap.querySelector('.maplibregl-canvas-container')
             if (!host) throw Error('The map image could not be placed in the export.')
             const replacement = clonedDocument.createElement('img')

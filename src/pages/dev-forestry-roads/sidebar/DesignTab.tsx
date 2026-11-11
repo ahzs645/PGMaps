@@ -84,8 +84,8 @@ export function DesignTab(p: SidebarProps) {
             <br />
             <b>Extend:</b> peg on from the active road&apos;s nearer end.
             <br />
-            <b>Import line:</b> a road line from GeoJSON, a zipped shapefile, KML or KMZ becomes a road with a control
-            at every vertex.
+            <b>Import line:</b> a road line from GeoJSON, a zipped shapefile, KML, KMZ or LandXML becomes a road with a
+            control at every vertex.
             <br />
             <b>Edit points:</b> drag any numbered control; click + between controls to add a middle point.
             <br />
@@ -946,7 +946,7 @@ function createToolPresentation(id: WorkspaceCommand, mapped: boolean): CommandP
       return {
         shortLabel: 'Import line',
         icon: <Upload className="size-3" />,
-        title: 'A road line from GeoJSON, a zipped shapefile, KML or KMZ',
+        title: 'A road line from GeoJSON, a zipped shapefile, KML, KMZ or a LandXML alignment',
       }
     case 'traceRoad':
       return {

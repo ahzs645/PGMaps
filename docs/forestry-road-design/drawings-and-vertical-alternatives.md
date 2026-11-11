@@ -54,7 +54,7 @@ blocked until its live references are explicitly reassigned or removed.
 
 ## Author a plot book
 
-Open **Save**, select **Plot book** and switch its pane to **Sheet setup**; **Preview** redraws the book as you edit. Drawing settings travel in project JSON as
+Open **Save**, select **Plot book PDF** or **Plot book HTML** and switch its pane to **Sheet setup**; **Preview** redraws the book as you edit. Drawing settings travel in project JSON as
 `reportSettings`, schema `pgmaps-road-report-v1`. They do not change calculation station spacing.
 
 You can choose A3, A4, tabloid (11 × 17 in, ANSI B) or ANSI D (22 × 34 in) landscape paper and add,

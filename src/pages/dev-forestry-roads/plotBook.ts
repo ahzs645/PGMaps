@@ -5,6 +5,7 @@
  * block. Pure: strings only.
  */
 import { sectionStations, type ToGrid } from './designExports'
+import { textWidth } from '@/lib/mapSheet/textMetrics'
 import { horizontalCurveSummary } from './engine'
 import { refuseInvalidResults } from './inputErrors'
 import { unknownEarthworkSpans } from './massHaul'
@@ -202,7 +203,14 @@ function planProfileSheet(
         road: alignment.name,
         project: projectName,
       })
-      return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="#111827"/><text x="${(label[0] + settings.labelOffsetX).toFixed(1)}" y="${(label[1] + settings.labelOffsetY).toFixed(1)}" font-size="11" text-anchor="middle">${html(text)}</text>`
+      // A station at the frame's edge (the window's first and last) is labelled inside the frame,
+      // not centred on the edge where the clip cut "0+000" to "000".
+      const at = px(rotate(offsetPoint(s, 0)))
+      const inside = at[0] >= plan.left && at[0] <= plan.left + plan.width
+      const half = textWidth(text, 11) / 2 + 2
+      const x = label[0] + settings.labelOffsetX
+      const labelX = inside ? Math.min(Math.max(x, plan.left + half), plan.left + plan.width - half) : x
+      return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="#111827"/><text x="${labelX.toFixed(1)}" y="${(label[1] + settings.labelOffsetY).toFixed(1)}" font-size="11" text-anchor="middle">${html(text)}</text>`
     })
     .join('')
   const north = (-angle * 180) / Math.PI
@@ -213,7 +221,8 @@ function planProfileSheet(
   const profile = bandsOn
     ? { left: 90, top: 410, width: W - 150, height: 798 - 410 - 24 - SHEET_BANDS_HEIGHT }
     : { left: 90, top: 470, width: W - 150, height: 330 }
-  const mass = { left: 90, top: 830, width: W - 150, height: 130 }
+  // The strip's title sits under the profile's station labels (profile bottom + 16), not on them.
+  const mass = { left: 90, top: 850, width: W - 150, height: 110 }
   const prepared = inWindow.map((s) => s.section.find((p) => Math.abs(p.offset) < 1e-7)?.preparedGround ?? null)
   const zs = inWindow
     .flatMap((s, i) => [s.groundElevation, s.designElevation, prepared[i]])
@@ -277,7 +286,7 @@ function planProfileSheet(
     .filter((s, i) => i % Math.max(1, Math.round(inWindow.length / 10)) === 0 && s.gradePercent !== null)
     .map(
       (s) =>
-        `<text x="${(sx(s.chainage) + settings.labelOffsetX).toFixed(1)}" y="${(sy(s.designElevation ?? s.groundElevation ?? zLow) - 8 + settings.labelOffsetY).toFixed(1)}" font-size="10" text-anchor="middle" fill="#0f766e">${html(formatDrawingLabel(settings.gradeLabel, { grade: s.gradePercent, station: formatRoadStation(s.chainage), ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: alignment.name, project: projectName }))}</text>`,
+        `<text x="${(sx(s.chainage) + settings.labelOffsetX).toFixed(1)}" y="${(Math.min(sy(s.designElevation ?? zLow), sy(s.groundElevation ?? s.designElevation ?? zLow)) - 6 + settings.labelOffsetY).toFixed(1)}" font-size="10" text-anchor="middle" fill="#0f766e">${html(formatDrawingLabel(settings.gradeLabel, { grade: s.gradePercent, station: formatRoadStation(s.chainage), ground: s.groundElevation, design: s.designElevation, radius: s.curveRadiusM, road: alignment.name, project: projectName }))}</text>`,
     )
     .join('')
   const preparedLine = prepared.some((z) => z !== null)
@@ -289,7 +298,7 @@ function planProfileSheet(
   )}" fill="none" stroke="#a07845" stroke-width="1.6"/><path d="${pathOf(
     inWindow.map((s) => s.designElevation),
     sy,
-  )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 70}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 70} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)${unknownEarthwork.length ? ' · shaded: earthwork unknown, balance carried across' : ''}</text>${unknownBands}<rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
+  )}" fill="none" stroke="#0d9488" stroke-width="2.2"/>${preparedLine}${grades}<text x="${profile.left - 50}" y="${profile.top + profile.height / 2}" font-size="11" transform="rotate(-90 ${profile.left - 50} ${profile.top + profile.height / 2})" text-anchor="middle">Elevation (m)</text><text x="${mass.left}" y="${mass.top - 8}" font-size="12" font-weight="600">Mass haul (m³)${unknownEarthwork.length ? ' · shaded: earthwork unknown, balance carried across' : ''}</text>${unknownBands}<rect x="${mass.left}" y="${mass.top}" width="${mass.width}" height="${mass.height}" fill="none" stroke="#111827"/><line x1="${mass.left}" x2="${mass.left + mass.width}" y1="${my(0).toFixed(1)}" y2="${my(0).toFixed(1)}" stroke="#9ca3af"/><path d="${pathOf(masses, my)}" fill="none" stroke="#7c3aed" stroke-width="1.6"/><text x="${mass.left - 8}" y="${mass.top + 10}" font-size="10" text-anchor="end">${fmt(mHigh, 0)}</text><text x="${mass.left - 8}" y="${mass.top + mass.height}" font-size="10" text-anchor="end">${fmt(mLow, 0)}</text>`
   const massStart = profileSvg.indexOf(`<text x="${mass.left}" y="${mass.top - 8}"`)
   const labelsSvg = settings.subviews.profileLabels
     ? sheetProfileLabelsSvg({ analysis, alignment, start, end, sx, sy, top: profile.top, limits: gradeLimits })

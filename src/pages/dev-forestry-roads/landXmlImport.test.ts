@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { designProfileAt, distance, horizontalCurveSummary, offsetCoordinate, analyzeRoad } from './engine'
 import { landXml } from './designExports'
 import {
+  isLandXml,
   checkElements,
   landXmlImportSummary,
   landXmlRoads,
@@ -149,5 +150,14 @@ describe('alignment checks (Lima specification T8)', () => {
     expect(small.passed).toBe(true)
     const large = checkElements([first, line([100, 0], 0.07)]).find((c) => c.kind === 'kink')!
     expect(large.passed).toBe(false)
+  })
+})
+
+describe('telling LandXML from a spatial file', () => {
+  it('reads the root element, with or without a namespace prefix, and ignores the name', () => {
+    expect(isLandXml('<?xml version="1.0"?>\n<LandXML xmlns="http://www.landxml.org/schema/LandXML-1.2">')).toBe(true)
+    expect(isLandXml('<?xml version="1.0"?><lx:LandXML version="1.1">')).toBe(true)
+    expect(isLandXml('<?xml version="1.0"?><kml xmlns="http://www.opengis.net/kml/2.2">')).toBe(false)
+    expect(isLandXml('{"type":"FeatureCollection","features":[]}')).toBe(false)
   })
 })

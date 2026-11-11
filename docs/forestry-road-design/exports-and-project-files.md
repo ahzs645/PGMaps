@@ -50,7 +50,7 @@ formats are specified in the
 | Stakeout CSV                     | Active road, about every 20 m: centreline, formation edges, ditch bottoms (cut only) and catch points with offset, grid coordinates, level, ground and cut/fill                                                                                                                                                                                                                              | Same as LandXML                                                                  | Reference or offset stakes, instrument data, point descriptions for a data collector                                                        |
 | CAD drawing (`.dxf`, R12)        | Active road: plan centreline (lines and true arcs, spirals as polylines), 3D feature lines for the centreline, formation edges, ditch bottoms and catch points at every calculated station, station ticks and labels; profile and cross-sections at true scale below the plan                                                                                                                | Plan: same as LandXML. Profile and sections: their own frames below the plan     | Surfaces, hatching, title block, other roads, terrain contours                                                                              |
 | Shapefile (`-shapefiles.zip`)    | `road_centrelines` (the road on screen, or every road), `road_stations` and `road_culverts` (active road only), each with `.prj` and `.cpg`                                                                                                                                                                                                                                                  | WGS84 lon/lat (`GCS_WGS_1984` `.prj`), 2D                                        | Sections, catch lines, sites, context, drainage, elevations as Z                                                                            |
-| Plot book (`-plot-book.html`)    | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                                                                                                                                                                                                                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid               | Culverts, curve data, PI table, legend, a fixed print scale                                                                                 |
+| Plot book (`.pdf` and `.html`)   | Active road: A3 plan-and-profile sheets every 250 m with mass haul, then cross-section sheets of twelve every 20 m; title block on each                                                                                                                                                                                                                                                      | Plan drawn in grid metres, rotated to the road; no coordinate grid               | Culverts, curve data, PI table, legend, a fixed print scale                                                                                 |
 | Printed report (`-report.html`)  | Active road summary, profile, full station table, crossings, materials, culverts, haul, costs, provenance, assumptions, and up to 240 section plots every 20 m                                                                                                                                                                                                                               | Chainage                                                                         | Drainage, plan view, LandXML-level geometry                                                                                                 |
 | Block map sheet (`-<sheet>.pdf`) | One block on a printed sheet: field layout, LiDAR slope, canopy height or hillshade, 1:50,000 access or portrait imagery. Title bar, block information (area, centroid, BCGS mapsheet, elevation range, typed fields), a legend of what is drawn, Road Information table, scale bar, north arrow, the plan's notes as review markup. See [block map sheets](../forestry-block-map-sheets.md) | Web Mercator, north up; scale true at the frame's centre latitude; DMS graticule | Sections, profiles, culverts, haul; road surface classes; the reference sheets' BC Albers rotation                                          |
 
@@ -120,8 +120,7 @@ book.
 ### Bringing spatial files in
 
 Every spatial picker reads GeoJSON, a zipped shapefile, KML and KMZ through one reader
-(`readSpatialImport` in `spatialImport.ts`): **Import line** on the Design tab, **Import road lines**
-under Save, the **Streams** import, **Import cutblocks**, **Import existing roads** and **Import
+(`readSpatialImport` in `spatialImport.ts`): **Import line** on the Design tab, the **Streams** import, **Import cutblocks**, **Import existing roads** and **Import
 reference layer**. The picker only says what it is for; the file's contents decide the rest.
 
 - **Format comes from the content, not the name.** A KMZ renamed `.zip` or a shapefile given to any
@@ -228,8 +227,9 @@ Those results are not the current design, so each output follows one rule
 
 ### Importing a LandXML alignment
 
-Files → **Import LandXML alignment** brings each `Alignment` in a LandXML 1.0–1.2 file in as a new
-road (`landXmlImport.ts`); the active road is never replaced.
+**Import line** on the Design tab also takes a LandXML 1.0–1.2 file and brings each `Alignment` in
+it in as a new road (`landXmlImport.ts`); the active road is never replaced. The file's opening
+decides the reader (`isLandXml`), not its name.
 
 - **Horizontal geometry.** `Line`, `Curve` and `Spiral` elements of `CoordGeom` are read. Each run of
   curves and spirals between tangents becomes one intersection point, where the tangents at its
@@ -355,6 +355,13 @@ FLAGS`. `road_culverts`: `NAME, STATION_M, DIAM_M, COVER_M, COST_CAD`.
   fixed print scale the sheet holds its printable width of road: at 1:1,000 about 380 m on A3,
   395 m on tabloid and 789 m on ANSI D. Print at 100 % on the chosen paper; the page size is set
   in the file (`@page`), but some browsers still need the paper picked in their print dialog.
+- **Plot book PDF prints the same sheets as vector pages** on the chosen paper (`plotBookPdf.ts`,
+  through svg2pdf.js), so its text is selectable. jsPDF's standard fonts are WinAnsi Helvetica in
+  normal and bold: labels are folded through `pdfText`, and a weight of 600 or more prints bold.
+  The HTML plot book stays for printing from a browser.
+- **Station labels stay inside the plan frame:** the window's first and last labels are moved in
+  from the frame's edge rather than clipped. Grade labels sit above the higher of the ground and
+  design lines, and the mass-haul strip starts below the profile's station labels.
 - **A click on a preview sheet opens that chapter's settings,** and a click on a title block
   opens the issue stamp (`previewPick.ts`). The Preview / Sheet setup / Issue stamp switch does
   the same from the keyboard.
