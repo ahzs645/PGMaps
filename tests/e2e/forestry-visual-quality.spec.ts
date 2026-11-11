@@ -226,10 +226,15 @@ async function openAllSteps(page: Page) {
   await showStep(page, 'design')
 }
 
-/** What the map is actually doing, rather than what the sidebar says about it. */
-async function readMapState(page: Page) {
-  return page.evaluate(() => {
-    const container = document.querySelector('.maplibregl-map')
+/**
+ * What a map is actually doing, rather than what the sidebar says about it. The road view has its
+ * own map while it is open; `auto` reads that one then, and the plan map otherwise.
+ */
+async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto') {
+  return page.evaluate((which) => {
+    const eye = document.querySelector('[data-testid="visuals-road-view"] .maplibregl-map')
+    const plan = document.querySelector('[data-testid="visuals-plan-map"] .maplibregl-map')
+    const container = which === 'eye' ? eye : which === 'plan' ? plan : (eye ?? plan)
     if (!container) return null
     const fiberKey = Object.keys(container).find((key) => key.startsWith('__reactFiber$'))
     if (!fiberKey) return null
@@ -249,6 +254,7 @@ async function readMapState(page: Page) {
           getCenter?: () => { lng: number; lat: number }
           getBearing?: () => number
           getPitch?: () => number
+          getStyle?: () => { layers?: Array<{ id: string }> }
         }
         if (map?.queryTerrainElevation) {
           const tree = map.getLayer?.('forestry-trees') as
@@ -277,6 +283,7 @@ async function readMapState(page: Page) {
             forestRenderLayerCount: tree?.implementation?.renderLayerCount,
             forestReach: tree?.implementation?.coverageMeters ?? 0,
             zoom: map.getZoom?.() ?? 0,
+            viewerCone: Boolean(map.getStyle?.()?.layers?.some((layer) => layer.id.startsWith('viewer-cone-fill'))),
             camera: {
               center: map.getCenter?.(),
               bearing: map.getBearing?.(),
@@ -290,7 +297,7 @@ async function readMapState(page: Page) {
       node = (node as { return?: unknown }).return as typeof node
     }
     return null
-  })
+  }, which)
 }
 
 async function setNumberField(page: Page, label: string, value: string) {
@@ -756,6 +763,8 @@ test.describe('forestry visual quality', () => {
     // pass just as well with terrain switched off entirely.
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 60_000 }).toBe(true)
     expect((await readMapState(page))?.hillshade).toBe(true)
+    // The road view is a map of its own: the plan map beside it stays flat.
+    expect((await readMapState(page, 'plan'))?.terrain).toBe(false)
     // A horizon target kilometres away clips nearby trees even at the right altitude.
     await expect.poll(async () => (await readMapState(page))?.zoom, { timeout: 60000 }).toBeGreaterThan(18)
 
@@ -768,7 +777,8 @@ test.describe('forestry visual quality', () => {
       .getByRole('button', { name: 'Return to map' })
       .click()
     await expect(page.getByText(/Standing on the road ·/)).toHaveCount(0)
-    // Leaving the drive puts the map back to a flat basemap.
+    // Leaving the drive closes the road view's map; the plan map is still a flat basemap.
+    await expect(page.getByTestId('visuals-road-view').locator('.maplibregl-map')).toHaveCount(0)
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 30_000 }).toBe(false)
   })
 
@@ -943,7 +953,7 @@ test.describe('forestry visual quality', () => {
     await expect(controls.getByLabel('Route position')).toHaveValue(String(previousPosition))
     await page.getByRole('button', { name: 'View opening', exact: true }).click()
     await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
-    await page.locator('canvas.maplibregl-canvas').press('ArrowRight')
+    await page.getByTestId('visuals-road-view').locator('canvas.maplibregl-canvas').press('ArrowRight')
     await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
     // A saved view is named by its planning-note caption, "View from <road> going <direction>".
     await expect(controls.getByText(/Saved View from .+ (going|looking) [a-z]+/)).toBeVisible()
