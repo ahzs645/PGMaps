@@ -23,6 +23,12 @@ import { DATASETS } from '@/lib/dataCatalog'
 import { collectionHref, collectionMembers, PROJECT_COLLECTIONS } from '@/lib/projectCollections'
 import { KIND_LABELS } from '@/maps/project-workspace/projectPresentation'
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog'
+import {
+  SearchComboboxInput,
+  SearchResultContent,
+  SearchResultList,
+  useSearchCombobox,
+} from '@/components/ui/search-combobox'
 
 interface SearchItem {
   id: string
@@ -408,7 +414,6 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
   const includeCrime = /crime|theft|break|mischief/i.test(query)
   const loading = Object.values(sourceStatus).includes('loading')
   const failed = Object.values(sourceStatus).includes('error')
-  const [selectedIdx, setSelectedIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const navigate = useNavigate()
@@ -471,10 +476,6 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     return [...groups.values()].flat()
   }, [query, index])
 
-  useEffect(() => {
-    setSelectedIdx(0)
-  }, [results])
-
   const navigateTo = useCallback(
     (item: SearchItem) => {
       // A section path may carry its own query (e.g. a MISC tab); item params join it.
@@ -489,36 +490,14 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     [navigate],
   )
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        setOpen(false)
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault()
-        setSelectedIdx((i) => Math.max(0, Math.min(i + 1, results.length - 1)))
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault()
-        setSelectedIdx((i) => Math.max(i - 1, 0))
-      } else if (e.key === 'Enter' && results[selectedIdx]) {
-        navigateTo(results[selectedIdx])
-      }
-    },
-    [results, selectedIdx, navigateTo],
-  )
-
-  // Group results by section
-  const grouped = useMemo(() => {
-    const groups: Record<string, SearchItem[]> = {}
-    results.forEach((item) => {
-      if (!groups[item.section]) groups[item.section] = []
-      groups[item.section].push(item)
-    })
-    return groups
-  }, [results])
-
-  const activeResultId = results[selectedIdx] ? `global-search-result-${selectedIdx}` : undefined
+  const combobox = useSearchCombobox({
+    items: results,
+    onPick: navigateTo,
+    id: 'global-search-results',
+    resetKey: results,
+    loop: false,
+    activateOnHover: true,
+  })
 
   const searchOverlay = (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -539,38 +518,28 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
         <DialogDescription className="sr-only">
           Search maps, projects, datasets, restaurants, parks, and properties.
         </DialogDescription>
-        <div className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <Search className="h-5 w-5 text-muted-foreground" />
-          <label htmlFor="global-search-input" className="sr-only">
-            Search PGMaps
-          </label>
-          <input
-            id="global-search-input"
-            ref={inputRef}
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Search projects, restaurants, parks, maps..."
-            aria-label="Search PGMaps"
-            role="combobox"
-            aria-autocomplete="list"
-            aria-expanded={open}
-            aria-controls="global-search-results"
-            aria-activedescendant={activeResultId}
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
-          />
-          {query && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              aria-label="Clear search"
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
-        </div>
+        <SearchComboboxInput
+          id="global-search-input"
+          ref={inputRef}
+          combobox={combobox}
+          variant="bare"
+          boxClassName="flex items-center gap-3 border-b border-border px-4 py-3"
+          icon={<Search className="h-5 w-5 text-muted-foreground" />}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== 'Escape') return
+            e.preventDefault()
+            e.stopPropagation()
+            setOpen(false)
+          }}
+          placeholder="Search projects, restaurants, parks, maps..."
+          aria-label="Search PGMaps"
+          className="min-w-0 flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none"
+          onClear={() => setQuery('')}
+          buttonClassName="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md hover:bg-muted"
+          buttonIcon={<X className="h-4 w-4 text-muted-foreground" />}
+        />
 
         {(loading || failed) && (
           <div
@@ -585,54 +554,36 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
             )}
           </div>
         )}
-        <div
-          id="global-search-results"
-          role="listbox"
+        <SearchResultList
+          combobox={combobox}
           aria-label="Search results"
           className="min-h-0 max-h-80 overflow-y-auto p-2"
-        >
-          {Object.entries(grouped).length === 0 && (
+          optionAs="button"
+          getKey={(item) => item.id}
+          getGroup={(item) => item.section}
+          groupHeadingClassName="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+          optionClassName={({ active }) =>
+            cn(
+              'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
+              active ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent',
+            )
+          }
+          renderOption={(item) => {
+            const Icon = item.icon
+            return (
+              <SearchResultContent
+                icon={<Icon className={cn('h-4 w-4 shrink-0', item.iconColor)} />}
+                title={item.label}
+                detail={item.sublabel}
+              />
+            )
+          }}
+          empty={
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               {loading ? 'Searching…' : failed ? 'Search is partially unavailable.' : 'No results found.'}
             </div>
-          )}
-
-          {(() => {
-            let flatIdx = 0
-            return Object.entries(grouped).map(([section, items]) => (
-              <div key={section}>
-                <div className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {section}
-                </div>
-                {items.map((item) => {
-                  const idx = flatIdx++
-                  const Icon = item.icon
-                  return (
-                    <button
-                      key={item.id}
-                      id={`global-search-result-${idx}`}
-                      type="button"
-                      role="option"
-                      aria-selected={idx === selectedIdx}
-                      onClick={() => navigateTo(item)}
-                      onMouseEnter={() => setSelectedIdx(idx)}
-                      className={cn(
-                        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors',
-                        idx === selectedIdx ? 'bg-accent text-accent-foreground' : 'text-foreground hover:bg-accent',
-                      )}
-                    >
-                      <Icon className={cn('h-4 w-4 shrink-0', item.iconColor)} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{item.label}</div>
-                        <div className="truncate text-xs text-muted-foreground">{item.sublabel}</div>
-                      </div>
-                    </button>
-                  )
-                })}
-              </div>
-            ))
-          })()}
-        </div>
+          }
+        />
 
         <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
           <span>{results.length} results</span>
