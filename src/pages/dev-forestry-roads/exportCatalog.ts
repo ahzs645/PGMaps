@@ -21,6 +21,7 @@ export type RoadExport =
   | 'stakeout'
   | 'shapefile'
   | 'plotbook'
+  | 'plotbook-pdf'
   | 'terrain-landxml'
   | 'terrain-ascii'
   | 'streams-csv'
@@ -43,6 +44,7 @@ export const STAMPED_EXPORTS: readonly RoadExport[] = [
   'report',
   'report-pdf',
   'plotbook',
+  'plotbook-pdf',
   'map-pdf',
   'block-sheet-pdf',
   'dline-sheet-pdf',
@@ -88,6 +90,7 @@ export const INVALID_INPUT_RULES: Record<RoadExport, InvalidInputRule> = {
   // No road input reaches a D-line; the D-line's own invalid inputs refuse it (`dLineSheetUnavailable`).
   'dline-sheet-pdf': 'unaffected',
   plotbook: 'refuse',
+  'plotbook-pdf': 'refuse',
   landxml: 'refuse',
   dxf: 'refuse',
   stakeout: 'refuse',
@@ -158,11 +161,18 @@ export const EXPORT_ITEMS: readonly ExportItem[] = [
       'The D-line on screen on one page: profile with supports and load path, a plan strip, the support and stake-out table, limits, rigging and assumptions.',
   },
   {
+    kind: 'plotbook-pdf',
+    group: 'documents',
+    label: 'Plot book PDF',
+    extension: '.pdf',
+    description: 'Drawing sheets: plan and profile, sections and schedules, laid out by Sheet setup.',
+  },
+  {
     kind: 'plotbook',
     group: 'documents',
-    label: 'Plot book',
+    label: 'Plot book HTML',
     extension: '.html',
-    description: 'Drawing sheets: plan and profile, sections and schedules, laid out by Sheet setup.',
+    description: 'The same drawing sheets as a web page, to read in a browser or print.',
   },
   {
     kind: 'geojson',
@@ -247,6 +257,8 @@ export interface ExportContext {
   terrainProfile: boolean
   hasTerrainGrid: boolean
   hasProvincialEvidence: boolean
+  /** The project has at least one stream, so the stream register has a row to write. */
+  hasStreams: boolean
   hasNotes: boolean
   /** Why the D-line sheet cannot be made (no D-line, or its own inputs are invalid); null when it can. */
   dLineSheetUnavailable?: string | null
@@ -267,11 +279,13 @@ export function exportUnavailable(kind: RoadExport, context: ExportContext): str
   if (!context.hasResults) return 'No calculated results yet.'
   if (kind === 'dline-sheet-pdf' && context.dLineSheetUnavailable !== null)
     return context.dLineSheetUnavailable ?? 'Draw a D-line in Review first.'
-  if (context.terrainProfile && ['plotbook', 'landxml', 'dxf', 'stakeout'].includes(kind))
+  if (context.terrainProfile && ['plotbook', 'plotbook-pdf', 'landxml', 'dxf', 'stakeout'].includes(kind))
     return 'Return to the road first.'
   if ((kind === 'terrain-landxml' || kind === 'terrain-ascii') && !context.hasTerrainGrid)
     return 'Needs an imported or prepared terrain grid.'
   if (kind === 'provincial-evidence' && !context.hasProvincialEvidence) return 'Load provincial stream evidence first.'
+  if (kind === 'streams-csv' && !context.hasStreams)
+    return 'No streams in this project yet. Import or load streams first.'
   const invalid = invalidFor(kind, context)
   if (invalid && INVALID_INPUT_RULES[kind] === 'refuse')
     return `Correct the invalid input first. ${invalidInputMessages(invalid).join(' ')}`

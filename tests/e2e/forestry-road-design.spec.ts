@@ -437,7 +437,12 @@ test('alternatives, comparison, undo and GeoJSON/project round trips preserve ed
   expect(collection.features.some((feature) => feature.geometry.type === 'Point')).toBe(true)
   expect(geo.text).not.toContain('NaN')
 
-  await page.getByRole('button', { name: 'Import road lines', exact: true }).click()
+  // Save & export only saves; road lines come in through the Design tab's Import line.
+  await page
+    .getByRole('dialog', { name: 'Save & export', exact: true })
+    .getByRole('button', { name: 'Close', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Import line', exact: true }).click()
   await page
     .getByTestId('road-file-input')
     .setInputFiles({ name: 'roundtrip.geojson', mimeType: 'application/geo+json', buffer: Buffer.from(geo.text) })

@@ -52,6 +52,7 @@ limits; a valid source query can still be too large for a project that already h
 - **Stream register CSV**: one row per retained reach, with source, suggested and recorded
   classes in separate columns, review status, widths and evidence, source provenance, and
   crossings by road and chainage. Formula-leading user text is escaped for spreadsheet use.
+  Save & export greys it out until the project has a stream.
 - **Fish & watershed GeoJSON**: the latest query's fish points and designation polygons,
   including observation dates, catalogue URLs, retrieval time and bounds. FWA reaches travel
   with the ordinary project GeoJSON, including their source metadata.

@@ -20,6 +20,7 @@ const ready: ExportContext = {
   terrainProfile: false,
   hasTerrainGrid: true,
   hasProvincialEvidence: true,
+  hasStreams: true,
   hasNotes: true,
   dLineSheetUnavailable: null,
 }
@@ -39,6 +40,8 @@ describe('export catalog', () => {
     expect(exportUnavailable('report', { ...ready, terrainProfile: true })).toBeNull()
     expect(exportUnavailable('terrain-ascii', { ...ready, hasTerrainGrid: false })).toMatch(/terrain grid/)
     expect(exportUnavailable('provincial-evidence', { ...ready, hasProvincialEvidence: false })).toMatch(/provincial/)
+    expect(exportUnavailable('streams-csv', { ...ready, hasStreams: false })).toMatch(/No streams/)
+    expect(exportUnavailable('plotbook-pdf', { ...ready, terrainProfile: true })).toMatch(/Return to the road/)
     expect(exportUnavailable('notes', { ...ready, designPreview: true, hasResults: false })).toBeNull()
     expect(exportUnavailable('notes', { ...ready, hasNotes: false })).toMatch(/Draw a note/)
     for (const item of EXPORT_ITEMS) expect(exportUnavailable(item.kind, ready)).toBeNull()
@@ -71,7 +74,7 @@ describe('exports while an input is invalid', () => {
   })
 
   it('refuses the files a contractor or another program reads, and names the input', () => {
-    for (const kind of ['landxml', 'stakeout', 'plotbook', 'csv', 'geojson', 'shapefile'] as const)
+    for (const kind of ['landxml', 'stakeout', 'plotbook', 'plotbook-pdf', 'csv', 'geojson', 'shapefile'] as const)
       expect(exportUnavailable(kind, context)).toBe(
         'Correct the invalid input first. Road section: left half-width (m) must be 0.1 to 50.',
       )

@@ -11,6 +11,19 @@ const bytes = (n: number) =>
   n < 1024 ? `${n} B` : n < 1024 ** 2 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1024 ** 2).toFixed(1)} MB`
 
 /**
+ * Scales a document wider than its frame down to the frame's width, as a print preview does, so a
+ * fixed-size sheet (the plot book's A3) shows whole rather than cropped. Narrower documents, such as
+ * the report, are left at their own size.
+ */
+export function fitToWidth(doc: Document) {
+  const root = doc.documentElement
+  root.style.removeProperty('zoom')
+  const room = root.clientWidth,
+    wide = root.scrollWidth
+  if (room > 0 && wide > room + 1) root.style.setProperty('zoom', String(room / wide))
+}
+
+/**
  * An HTML preview. With `onPick`, a click on a part that has settings (`previewPick.ts`) hands
  * that part up; the frame runs no script of its own, so the page listens on the frame's document.
  */
@@ -19,10 +32,20 @@ function HtmlPreview({ html, title, onPick }: { html: string; title: string; onP
   useEffect(() => {
     latest.current = onPick
   })
+  // Refits the loaded document whenever the pane changes width (a dialog resize, a phone turned).
+  const resize = useRef<ResizeObserver | null>(null)
+  useEffect(() => () => resize.current?.disconnect(), [])
   const picking = !!onPick
   const attach = (frame: HTMLIFrameElement) => {
     const doc = frame.contentDocument
-    if (!doc || !picking) return
+    if (!doc) return
+    resize.current?.disconnect()
+    fitToWidth(doc)
+    if (typeof ResizeObserver !== 'undefined') {
+      resize.current = new ResizeObserver(() => fitToWidth(doc))
+      resize.current.observe(frame)
+    }
+    if (!picking) return
     const style = doc.createElement('style')
     style.textContent = `${PREVIEW_PICK_SELECTOR}{cursor:pointer}h2:hover{text-decoration:underline}`
     doc.head.append(style)

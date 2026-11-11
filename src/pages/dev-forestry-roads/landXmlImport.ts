@@ -32,6 +32,12 @@ export const LANDXML_JOINT_TOLERANCE_M = 0.001
 /** Change of direction allowed at a joint. */
 export const LANDXML_KINK_TOLERANCE_DEG = 0.06
 export const MAX_LANDXML_BYTES = 50_000_000
+
+/**
+ * Whether the opening of a file is a LandXML document. **Import line** takes LandXML as well as the
+ * spatial formats, and the content decides which reader gets it, never the file's name.
+ */
+export const isLandXml = (head: string) => /<(?:[\w-]+:)?LandXML[\s>]/.test(head)
 export const MAX_LANDXML_ELEMENTS = 4000
 
 // ---- A small XML reader --------------------------------------------------------------------------

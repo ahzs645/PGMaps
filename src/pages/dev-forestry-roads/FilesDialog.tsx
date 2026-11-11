@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Download, FolderOpen, Upload } from 'lucide-react'
+import { Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
 import { ResultRow } from '@/components/ui/result-list'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { Field, roadFieldClass } from './Controls'
-import type { FileKind } from './DesignSidebarBody'
 import {
   EXPORT_GROUP_LABELS,
   EXPORT_ITEMS,
@@ -53,7 +52,6 @@ export function FilesDialog({
   onOpenChange,
   name,
   onName,
-  onFile,
   onSave,
   busy,
   portalContainer,
@@ -76,7 +74,6 @@ export function FilesDialog({
   onOpenChange: (open: boolean) => void
   name: string
   onName: (name: string) => void
-  onFile: (kind: FileKind) => void
   onSave: (kind: RoadExport) => void
   busy: boolean
   portalContainer?: HTMLElement | null
@@ -120,7 +117,8 @@ export function FilesDialog({
   const stamped = STAMPED_EXPORTS.includes(item.kind) && !!onIssue
   const setupView = setupViews?.[item.kind]
   const reportContents = item.kind === 'report' || item.kind === 'report-pdf'
-  const setupAvailable = ((item.kind === 'plotbook' || reportContents) && !!onReportSettings) || !!setupView
+  const plotBook = item.kind === 'plotbook' || item.kind === 'plotbook-pdf'
+  const setupAvailable = ((plotBook || reportContents) && !!onReportSettings) || !!setupView
   // A view the selected output does not have falls back to its preview.
   const shownView =
     view === 'setup' ? (setupAvailable ? view : 'preview') : view === 'issue' && !stamped ? 'preview' : view
@@ -155,7 +153,7 @@ export function FilesDialog({
   const pane = useRef<HTMLElement>(null)
   // Saved sheet setups sit above the plot book's and the block sheet's own setup.
   const setupLibrary =
-    item.kind === 'plotbook' || item.kind === 'block-sheet-pdf' ? (
+    plotBook || item.kind === 'block-sheet-pdf' ? (
       <SheetSetupLibrary plotBook={reportSettings} onPlotBook={onReportSettings} blockSheet={blockSheetSettings} />
     ) : null
   /** A click on a part of the preview opens that part's settings, where the output has them. */
@@ -172,10 +170,6 @@ export function FilesDialog({
     // Stacked on a phone, the preview sits under the list; bring it up. Side by side this does nothing.
     requestAnimationFrame(() => pane.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
-  const fileAction = (kind: FileKind) => {
-    onOpenChange(false)
-    onFile(kind)
-  }
   // The toolkit's `workspace-*` variants are not built for app classes, so the layout uses `sm:`, which
   // matches the dialog's own breakpoint in this workspace. `workspace-sm:p-0` only overrides its padding.
   return (
@@ -183,38 +177,10 @@ export function FilesDialog({
       open={open}
       onOpenChange={onOpenChange}
       title="Save & export"
-      subtitle="Pick a file to preview it, then download"
       size="xl"
       portalContainer={portalContainer}
       className="sm:h-[min(48rem,92dvh)]"
       bodyClassName="p-0 workspace-sm:p-0"
-      toolbar={
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="min-w-48 flex-1">
-            <Field label="Project name">
-              <input
-                className={roadFieldClass}
-                value={name}
-                maxLength={200}
-                disabled={busy}
-                onChange={(event) => onName(event.target.value)}
-              />
-            </Field>
-          </div>
-          <Button variant="outline" size="sm" className="h-8" disabled={busy} onClick={() => fileAction('project')}>
-            <FolderOpen className="size-3.5" />
-            Open project
-          </Button>
-          <Button variant="outline" size="sm" className="h-8" disabled={busy} onClick={() => fileAction('alignment')}>
-            <Upload className="size-3.5" />
-            Import road lines
-          </Button>
-          <Button variant="outline" size="sm" className="h-8" disabled={busy} onClick={() => fileAction('landxml')}>
-            <Upload className="size-3.5" />
-            Import LandXML alignment
-          </Button>
-        </div>
-      }
       contentProps={{ 'data-testid': 'road-files-dialog' }}
     >
       <fieldset disabled={busy} className="min-w-0 sm:h-full sm:min-h-0">
@@ -274,6 +240,17 @@ export function FilesDialog({
                 {item.kind === 'project' ? 'Save' : 'Download'}
               </Button>
             </div>
+            {/* The name every file is saved under; opening and importing files live in Projects and Design. */}
+            {item.kind === 'project' && (
+              <Field label="Project name">
+                <input
+                  className={roadFieldClass}
+                  value={name}
+                  maxLength={200}
+                  onChange={(event) => onName(event.target.value)}
+                />
+              </Field>
+            )}
             {(stamped || setupAvailable) && (
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <SegmentedControl
