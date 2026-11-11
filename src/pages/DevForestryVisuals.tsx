@@ -2353,7 +2353,11 @@ function DevForestryVisuals() {
   useEffect(() => setEyeMapLingers(eyeMapShown), [eyeMapShown])
   const eyeMapMounted = eyeMapShown || eyeMapLingers
   const paneClose = (pane: VisualsPane) =>
-    phone || pane === 'road' ? null : (
+    phone ? null : pane === 'road' ? (
+      // Closing the road view's pane leaves the road view, as Return to map does; it comes back
+      // with Look from the road. It is never the last pane: the map takes the screen.
+      <TilePaneClose label="road view" title="Close the road view (Esc)" onClose={leaveRoadView} />
+    ) : (
       <TilePaneClose
         label={pane === 'map' ? 'map' : 'viewpoint summary'}
         disabled={VISUALS_WORKSPACE.panes.filter((option) => !hiddenPanes.includes(option.id)).length <= 1}
@@ -2374,6 +2378,17 @@ function DevForestryVisuals() {
     void forestConfiguration
     return new globalThis.Map<string, TreeInstance[]>()
   }, [forestConfiguration])
+  // The legend folds while the map shares the screen with the road view or the summary, where it
+  // would cover much of a half-width map; a click opens it, until the arrangement changes again.
+  const mapSharesScreen =
+    !phone && !hiddenPanes.includes('map') && (!hiddenPanes.includes('road') || !hiddenPanes.includes('summary'))
+  const [legendChoice, setLegendChoice] = useState<{ shared: boolean; collapsed: boolean } | null>(null)
+  const legendCollapsed =
+    legendChoice && legendChoice.shared === mapSharesScreen
+      ? legendChoice.collapsed
+      : phone
+        ? undefined
+        : mapSharesScreen
   const layerData: SceneLayerData = {
     drive,
     scene,
@@ -2803,6 +2818,8 @@ function DevForestryVisuals() {
                       </Map>
                       {
                         <PlanMapLegend
+                          collapsed={legendCollapsed}
+                          onCollapsedChange={(collapsed) => setLegendChoice({ shared: mapSharesScreen, collapsed })}
                           blocks={{
                             count: blockCollection.features.length,
                             customColors: scene.targets.some(

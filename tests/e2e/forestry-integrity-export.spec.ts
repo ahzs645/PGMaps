@@ -24,10 +24,14 @@ async function openScenario(page: Page) {
 }
 
 // Mirrors the existing suite's read-only React-ref discovery. It asserts real
-// MapLibre state, not merely the words in the new camera panel.
+// MapLibre state, not merely the words in the new camera panel. The road view has
+// its own map while it is open; read that one then, and the plan map otherwise,
+// matching the map by its container because the page holds both maps' refs.
 async function cameraState(page: Page) {
   return page.evaluate(() => {
-    const container = document.querySelector('.maplibregl-map')
+    const container =
+      document.querySelector('[data-testid="visuals-road-view"] .maplibregl-map') ??
+      document.querySelector('[data-testid="visuals-plan-map"] .maplibregl-map')
     if (!container) return null
     const fiberKey = Object.keys(container).find(key => key.startsWith('__reactFiber$'))
     if (!fiberKey) return null
@@ -36,7 +40,7 @@ async function cameraState(page: Page) {
       let hook = node.memoizedState
       for (let count = 0; hook && count < 40; count++, hook = hook.next) {
         const map = hook.memoizedState?.current
-        if (typeof map?.queryTerrainElevation === 'function') return { terrain: !!map.getTerrain(), pitch: map.getPitch(), zoom: map.getZoom(), bearing: map.getBearing(), maxPitch: map.getMaxPitch(), clamped: map.getCenterClampedToGround() }
+        if (typeof map?.queryTerrainElevation === 'function' && map.getContainer?.() === container) return { terrain: !!map.getTerrain(), pitch: map.getPitch(), zoom: map.getZoom(), bearing: map.getBearing(), maxPitch: map.getMaxPitch(), clamped: map.getCenterClampedToGround() }
       }
     }
     return null

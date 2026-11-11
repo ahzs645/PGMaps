@@ -65,6 +65,8 @@ type Props = {
   /** Match a photo's lens while comparing against it; MapLibre's own default otherwise. */
   verticalFovDegrees?: number | null
 }
+/** Below this map width the controls open folded to the player row, as on a phone. */
+const NARROW_VIEW_PX = 640
 /** Look-around owns pointer gestures only while driving; the ordinary map is fully restored on exit. */
 export function DriveCamera(props: Props) {
   const { map, isLoaded } = useMap()
@@ -96,9 +98,20 @@ export function DriveCamera(props: Props) {
   }, [props.seekVersion, props.lookAt, props.active])
   // Folded to one bar on a phone, where the panel, caption and sheet together
   // otherwise cover most of the road view it is there to show.
-  const [optionsExpanded, setOptionsExpanded] = useState(
-    () => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches,
+  // A road view in a narrow pane beside the plan folds the same way: it is judged by its own map's
+  // width, so a pane dragged narrow folds too. Show or Hide options then holds until the view closes.
+  const [narrowView, setNarrowView] = useState(
+    () => typeof window !== 'undefined' && !window.matchMedia('(min-width: 768px)').matches,
   )
+  const [optionsChoice, setOptionsChoice] = useState<boolean | null>(null)
+  const optionsExpanded = optionsChoice ?? !narrowView
+  useEffect(() => {
+    if (!map) return
+    const container = map.getContainer()
+    const observer = new ResizeObserver(() => setNarrowView(container.clientWidth < NARROW_VIEW_PX))
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [map])
   // The animation frame reads the latest look and props without the effect
   // below being torn down and rebuilt, which would restart playback per render.
   const viewRef = useRef(view)
@@ -344,9 +357,10 @@ export function DriveCamera(props: Props) {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 px-2 md:hidden touch:h-10"
+            // Wherever the view is narrow, a phone or a pane beside the plan, not only below `md`.
+            className={narrowView ? 'h-8 px-2 touch:h-10' : 'h-8 px-2 md:hidden touch:h-10'}
             aria-expanded={optionsExpanded}
-            onClick={() => setOptionsExpanded((current) => !current)}
+            onClick={() => setOptionsChoice(!optionsExpanded)}
           >
             {optionsExpanded ? 'Hide options' : 'Show options'}
           </Button>

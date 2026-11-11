@@ -428,7 +428,8 @@ track grows to the longest cell in any column.
   pane at a time on phones, and `tilePaneKey` names the stored sizes. `TileLayoutPicker`
   (`tile-layout-picker.tsx`) is the preset dropdown with its `· edited` entry and the Screen presets
   & panels dialog (panel checklist, saved layouts). Frame a pane with `TilePane` (the
-  `FullscreenPanel` title bar, optional `PanelCorner` grip) and `TilePaneClose`. The road designer
+  `FullscreenPanel` title bar, optional `PanelCorner` grip) and `TilePaneClose` (pass `title` when
+  closing does something else, such as leaving a mode). The road designer
   (`RoadPaneLayout.tsx`, `LayoutPicker.tsx`) and the visual-quality tool (`visualsWorkspace.ts`) are
   the references.
 - Headline measurements beside a workspace: `MetricSummary` (`metric-summary.tsx`) is a titled stack

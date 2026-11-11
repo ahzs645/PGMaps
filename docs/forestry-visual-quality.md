@@ -1003,11 +1003,20 @@ page (`ForestOverlay`'s `patches`), so a reopened road view reuses the timber it
 already placed rather than placing it again. Closing it unmounts its contents
 first and the map one commit later: React runs a removed tree's cleanups parent
 first, and removing both at once left `MapTerrain` and `ForestOverlay` cleaning
-up against a removed map, which took the page down. Opening the road view shows its pane
+up against a removed map, which took the page down. Both now also tolerate a
+removed map (the toolkit's `releaseMapTerrain`), but keep the two-commit close:
+`DriveCamera`'s exit still moves the camera. Opening the road view shows its pane
 whatever the layout last hid; picking a layout without it (or unticking it)
 closes the road view, since it has no life off screen. On a phone one pane
 shows at a time behind a tab bar, the road view takes the screen when it opens,
 and leaving its tab pauses playback.
+
+The road view's pane has a close button that leaves the road view, as *Return to
+map* does. A road view narrower than 640 px — a phone, or the pane beside the
+plan — opens its bar folded to the player row, judged by its own map's width, so
+a pane dragged narrow folds too; *Show options* opens the harvest phase, *Save*
+and *Image*. While the map shares the screen with the road view or the summary,
+its legend starts folded; opening it holds until the arrangement changes.
 
 While the road view is open the plan map marks the viewer with the shared
 `MapViewerCone`: a dot at the viewing station (the pose's ground position,

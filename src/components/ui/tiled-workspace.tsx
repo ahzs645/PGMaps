@@ -181,11 +181,14 @@ export function TilePaneClose({
   label,
   disabled,
   onClose,
+  title = 'Close panel · restore in Screen presets & panels',
 }: {
   /** "plan", "detail view": read as "Close plan panel". */
   label: string
   disabled?: boolean
   onClose: () => void
+  /** The tooltip, for a pane whose close does something else, such as leaving a mode. */
+  title?: string
 }) {
   return (
     <Button
@@ -194,7 +197,7 @@ export function TilePaneClose({
       className="size-8"
       aria-label={`Close ${label} panel`}
       disabled={disabled}
-      title="Close panel · restore in Screen presets & panels"
+      title={title}
       onClick={onClose}
     >
       <X className="size-3.5" />

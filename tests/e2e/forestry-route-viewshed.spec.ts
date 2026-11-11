@@ -37,13 +37,18 @@ async function setup(page: Page, fail = false) {
   await expect(page.getByRole('button', { name: 'Finish drawing', exact: true })).toBeEnabled()
   await page.getByRole('button', { name: 'Finish drawing', exact: true }).click()
   await page.locator('[data-via-step="visit"]').click()
+  // The route preview opens folded, with its state as the summary.
+  const routePreview = page.locator('[data-forestry-disclosure="route-preview"]')
+  if ((await routePreview.getAttribute('aria-expanded')) === 'false') await routePreview.click()
   await page.getByRole('button', { name: 'Road viewshed', exact: true }).click()
   return host
 }
 
 async function state(page: Page) {
   return page.evaluate(() => {
-    const element = document.querySelector('.maplibregl-map')!
+    // The road view has its own map while open; the page holds both maps' refs, so match by container.
+    const element = (document.querySelector('[data-testid="visuals-road-view"] .maplibregl-map') ??
+      document.querySelector('[data-testid="visuals-plan-map"] .maplibregl-map'))!
     const key = Object.keys(element).find((key) => key.startsWith('__reactFiber$'))!
     type Hook = {
       memoizedState?: {
@@ -51,6 +56,7 @@ async function state(page: Page) {
           getTerrain?: () => unknown
           getSource?: (key: string) => { serialize: () => { data: GeoJSON.FeatureCollection } } | undefined
           getCenter?: () => { lng: number; lat: number }
+          getContainer?: () => Element
         }
       }
       next?: Hook
@@ -61,7 +67,7 @@ async function state(page: Page) {
       let hook = node.memoizedState
       for (let i = 0; hook && i < 40; i++, hook = hook.next!) {
         const map = hook.memoizedState?.current
-        if (typeof map?.getTerrain !== 'function') continue
+        if (typeof map?.getTerrain !== 'function' || map.getContainer?.() !== element) continue
         return {
           terrain: Boolean(map.getTerrain()),
           areas: map.getSource?.('fill-shared-forestry-route-viewshed')?.serialize().data,

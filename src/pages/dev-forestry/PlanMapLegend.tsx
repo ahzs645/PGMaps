@@ -79,6 +79,9 @@ export type PlanMapLegendProps = {
   masks: ReadonlyArray<AssessmentMaskKind>
   /** The plan map's own switches for what the road view's *Show* also offers. */
   show?: { state: PlanShow; onToggle: (key: keyof PlanShow) => void }
+  /** Folded to its heading; the page folds it while the map shares the screen with the road view. */
+  collapsed?: boolean
+  onCollapsedChange?: (collapsed: boolean) => void
 }
 
 /** What the plan map draws, switched from its legend; the road view keeps its own set. */
@@ -110,6 +113,8 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
       title="Legend"
       collapsible
       defaultCollapsed="mobile"
+      collapsed={props.collapsed}
+      onCollapsedChange={props.onCollapsedChange}
       width="sm"
       data-testid="visual-quality-legend"
       contentClassName="max-h-72 overflow-y-auto overscroll-contain"

@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { choose, expectSelected, optionLabels } from './styled-select'
 
 // Production-preview caching would serve around the stubbed sources below.
@@ -300,6 +300,12 @@ async function readMapState(page: Page, which: 'auto' | 'plan' | 'eye' = 'auto')
     }
     return null
   }, which)
+}
+
+/** A road view narrower than 640 px, such as the pane beside the plan, opens with its options folded. */
+async function showRoadOptions(controls: Locator) {
+  const show = controls.getByRole('button', { name: 'Show options', exact: true })
+  if (await show.isVisible()) await show.click()
 }
 
 async function setNumberField(page: Page, label: string, value: string) {
@@ -907,6 +913,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByRole('region', { name: 'Road view controls' })).toBeVisible({ timeout: 60000 })
     await expect(page.getByText(/Opening on your right in 150 m/)).toBeVisible()
     const controls = page.getByRole('region', { name: 'Road view controls' })
+    await showRoadOptions(controls)
     await page.getByRole('button', { name: 'View opening', exact: true }).click()
     await expect(controls.getByLabel('Route position', { exact: true })).toHaveValue('600')
     await expect.poll(async () => (await readMapState(page))?.nearTreeCount, { timeout: 60000 }).toBeGreaterThan(100)
@@ -951,6 +958,7 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Roadside demo drive', exact: true }).click()
     const controls = page.getByRole('region', { name: 'Road view controls' })
     await expect(controls).toBeVisible({ timeout: 60000 })
+    await showRoadOptions(controls)
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
     await choose(controls.getByLabel('Driving speed'), '5')
     await expectSelected(controls.getByLabel('Driving speed'), '5')
@@ -1043,6 +1051,7 @@ test.describe('forestry visual quality', () => {
     await controls.getByRole('button', { name: 'After harvest', exact: true }).click()
     await controls.getByRole('button', { name: 'Play', exact: true }).click()
     await controls.getByRole('button', { name: 'Pause', exact: true }).click()
+    await showRoadOptions(controls)
     await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
     await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
     await controls.getByRole('button', { name: 'Hide options', exact: true }).click()
@@ -1101,6 +1110,7 @@ test.describe('forestry visual quality', () => {
       await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 15000 })
       const playableMs = Date.now() - firstStart
       await expect(controls.getByText(/Preliminary forest/)).toBeVisible()
+      await showRoadOptions(controls)
       expect((await readMapState(page))?.terrain).toBe(true)
       expect((await readMapState(page))?.treeCount).toBeGreaterThan(0)
       await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeDisabled()
@@ -1229,6 +1239,7 @@ test.describe('forestry visual quality', () => {
     await expect(
       forest.getByText(`planting estimate · ${expectedHeight} m · 2021 · planting-3`, { exact: true }),
     ).toBeVisible()
+    await showRoadOptions(controls)
     await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeEnabled({ timeout: 60000 })
     await controls.getByRole('button', { name: 'Save viewpoint', exact: true }).click()
     const download = page.waitForEvent('download')
