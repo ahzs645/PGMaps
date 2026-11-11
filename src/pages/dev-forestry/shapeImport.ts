@@ -13,6 +13,16 @@ export type ImportedPolygon = {
   name: string
   geometry: PolygonGeometry
   areaMeters: number
+  /** Planning identifiers the attributes carried, for the block summary. */
+  planning?: BlockPlanningIds
+}
+
+/** What a planning note heads a block with: block, licence, cutting permit, opening. */
+export type BlockPlanningIds = {
+  blockId?: string | null
+  licenceId?: string | null
+  permitId?: string | null
+  openingId?: string | null
 }
 
 export type ImportedLine = {
@@ -59,12 +69,46 @@ export function featureName(
 ): string {
   if (properties) {
     for (const key of NAME_KEYS) {
-      const value = properties[key]
-      if (typeof value === 'string' && value.trim()) return value.trim()
-      if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+      const value = attribute(properties, key)
+      if (value) return value
     }
   }
   return `${prefix} ${fallbackIndex + 1}`
+}
+
+/**
+ * An attribute by name, ignoring case: an ArcGIS export writes `Block_ID` where
+ * a BCTS one writes `BLOCK_ID`, and both mean the same column.
+ */
+function attribute(properties: Record<string, unknown>, key: string): string | null {
+  const direct = properties[key]
+  const value =
+    direct !== undefined
+      ? direct
+      : properties[Object.keys(properties).find((name) => name.toLowerCase() === key.toLowerCase()) ?? '']
+  if (typeof value === 'string' && value.trim()) return value.trim()
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return null
+}
+
+function firstAttribute(properties: Record<string, unknown>, keys: readonly string[]): string | null {
+  for (const key of keys) {
+    const value = attribute(properties, key)
+    if (value) return value
+  }
+  return null
+}
+
+/** Block, licence, permit and opening, from the column names BCTS and RESULTS exports use. */
+export function planningIds(properties: Record<string, unknown> | null | undefined): BlockPlanningIds | undefined {
+  if (!properties) return undefined
+  const ids: BlockPlanningIds = {
+    blockId: firstAttribute(properties, ['CUT_BLOCK_ID', 'CUTBLOCK_ID', 'BLOCK_ID', 'BLOCK']),
+    licenceId: firstAttribute(properties, ['LICENCE_ID', 'LICENSE_ID', 'FOREST_FILE_ID', 'LICN_LICEN']),
+    permitId: firstAttribute(properties, ['PERMIT_ID', 'CUTTING_PERMIT_ID', 'CP_ID', 'CUT_PERMIT']),
+    openingId: firstAttribute(properties, ['OPENING_ID', 'OPENING']),
+  }
+  return Object.values(ids).some(Boolean) ? ids : undefined
 }
 
 function isPosition(value: unknown): value is [number, number] {
@@ -109,10 +153,12 @@ export function collectImportedGeometry(input: unknown, namePrefix = 'Polygon'):
     const properties = (feature.properties ?? {}) as Record<string, unknown>
 
     if (geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon') {
+      const planning = planningIds(properties)
       polygons.push({
         name: featureName(properties, polygons.length, namePrefix),
         geometry,
         areaMeters: polygonAreaMeters(geometry),
+        ...(planning ? { planning } : {}),
       })
       return
     }

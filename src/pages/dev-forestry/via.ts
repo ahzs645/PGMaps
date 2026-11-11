@@ -612,6 +612,12 @@ export type ViaReview = {
   viewpointType?: ViewpointTypeId | null
   /** 3.5.2 — landscape character, constraints, design strategies. */
   rationale?: string
+  /**
+   * The planning note's Visuals paragraph as the reviewer signed it. Drafted
+   * from the run (`visualsNarrative.ts`); once written here the reviewer's text
+   * is kept and the draft only offered beside it.
+   */
+  visualsNote?: string
 }
 
 export type DesignSuggestion = { rating: DesignRating; basis: string }
@@ -825,6 +831,7 @@ export function parseViaReview(raw: unknown): ViaReview | undefined {
         ? (viewpointType as ViewpointTypeId)
         : null,
     rationale: typeof value.rationale === 'string' ? value.rationale.slice(0, 4000) : '',
+    visualsNote: typeof value.visualsNote === 'string' ? value.visualsNote.slice(0, 4000) : '',
   }
 }
 

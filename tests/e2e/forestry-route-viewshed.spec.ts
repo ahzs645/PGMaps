@@ -100,7 +100,7 @@ test('a road-only scene previews, caches scrubbing and plays the existing road c
   expect(host.requests).toBe(requests)
   await page.getByRole('button', { name: 'Open route overview', exact: true }).click()
   const controls = page.getByRole('region', { name: 'Road view controls' })
-  await expect(controls.getByText('Preliminary route overview · 1× terrain', { exact: true })).toBeVisible()
+  await expect(page.getByText('Route overview · raised 150 m', { exact: true })).toBeVisible()
   await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
   expect((await state(page))?.terrain).toBe(true)
   await controls.getByRole('button', { name: 'Play', exact: true }).click({ timeout: 60000 })

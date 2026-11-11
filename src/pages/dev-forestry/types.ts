@@ -34,6 +34,13 @@ export type TargetPolygon = {
   geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
   source: string
   inventoryUnitId?: string | null
+  /** Block, licence, permit and opening from the imported attributes; display only. */
+  planning?: import('./shapeImport').BlockPlanningIds
+  /**
+   * The colour the block is drawn in on the map and in the road view (`#rrggbb`).
+   * Display only: kept out of the run's fingerprint, so recolouring never stales a run.
+   */
+  displayColor?: string | null
 }
 export type AssessmentMaskKind = 'natural' | 'private' | 'permanent' | 'retained'
 export type AssessmentMask = {
@@ -130,6 +137,12 @@ export type TargetVisibility = {
   elevations: Float64Array
   /** 0 = occluded/out-of-range, 1 = visible, 2 = unknown. A known visible station wins in the union. */
   anyVisible: Uint8Array
+  /**
+   * 1 where the bare ground is clear from at least one station: visible, or
+   * hidden only by the timber screening the sightline. A sample hidden with
+   * this set is screened, not behind a ridge. Absent on runs saved before it.
+   */
+  anyBareEarthVisible?: Uint8Array
   visibleByStation: Uint8Array
   visibleDistances: Float64Array
   sampleCount: number

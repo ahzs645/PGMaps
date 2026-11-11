@@ -65,6 +65,10 @@ export type ReverseStation = {
   distanceToBlockMeters: number
   /** Share of the block visible from this point, in percent. */
   visiblePercent: number
+  /** Share hidden only by timber screening the sightline, in percent; 0 without screening. */
+  screenedPercent: number
+  /** Mean elevation angle from the eye to the block's ground, degrees; positive looks up. */
+  elevationAngleDegrees: number | null
 }
 
 export type ReverseRoadResult = {
@@ -82,6 +86,9 @@ export type ReverseRoadResult = {
   /** Mean over the stations that see it at all. */
   meanVisiblePercentWhereSeen: number
   nearestDistanceMeters: number
+  /** At the station that sees the most: the share screened by timber, and the angle to the block. */
+  screenedPercentAtMax: number
+  elevationAngleAtMax: number | null
 }
 
 export type ReverseViewshedResult = {
@@ -202,6 +209,7 @@ export function computeReverseViewshed(
     let maxVisiblePercent = 0
     let visibleSum = 0
     let nearestDistance = Number.POSITIVE_INFINITY
+    let best: { visible: number; screened: number; angle: number | null } | null = null
 
     for (const station of roadStations) {
       const observer: GroundPoint = {
@@ -211,16 +219,27 @@ export function computeReverseViewshed(
       }
       if (Number.isNaN(observer.groundElevationMeters)) continue
 
-      let visibleSamples = 0
+      let visibleSamples = 0,
+        screenedSamples = 0,
+        angleSum = 0,
+        angleCount = 0
       let closest = Number.POSITIVE_INFINITY
+      const eye = observer.groundElevationMeters + options.observerHeightMeters
       for (const sample of samples) {
         const result = testSightline(source, observer, sample, options, canopy)
+        if (result.distanceMeters >= 1 && Number.isFinite(result.distanceMeters)) {
+          angleSum += Math.atan2(sample.groundElevationMeters - eye, result.distanceMeters)
+          angleCount += 1
+        }
+        if (result.occludedBy === 'canopy') screenedSamples += 1
         if (!result.visible) continue
         visibleSamples += 1
         if (result.distanceMeters < closest) closest = result.distanceMeters
       }
 
       const visiblePercent = samples.length > 0 ? (visibleSamples / samples.length) * 100 : 0
+      const screenedPercent = samples.length > 0 ? (screenedSamples / samples.length) * 100 : 0
+      const elevationAngleDegrees = angleCount ? ((angleSum / angleCount) * 180) / Math.PI : null
       stations.push({
         lng: station.lng,
         lat: station.lat,
@@ -228,8 +247,16 @@ export function computeReverseViewshed(
         distanceAlongMeters: station.distanceAlongMeters,
         distanceToBlockMeters: Number.isFinite(closest) ? closest : distanceToBounds(station, blockBounds),
         visiblePercent,
+        screenedPercent,
+        elevationAngleDegrees,
       })
 
+      if (
+        best === null ||
+        visiblePercent > best.visible ||
+        (visiblePercent === best.visible && screenedPercent > best.screened)
+      )
+        best = { visible: visiblePercent, screened: screenedPercent, angle: elevationAngleDegrees }
       if (visiblePercent > 0) {
         seeingStations += 1
         visibleSum += visiblePercent
@@ -249,6 +276,8 @@ export function computeReverseViewshed(
       maxVisiblePercent,
       meanVisiblePercentWhereSeen: seeingStations > 0 ? visibleSum / seeingStations : 0,
       nearestDistanceMeters: Number.isFinite(nearestDistance) ? nearestDistance : Number.POSITIVE_INFINITY,
+      screenedPercentAtMax: best?.screened ?? 0,
+      elevationAngleAtMax: best?.angle ?? null,
     })
   })
 

@@ -192,6 +192,7 @@ type Pass = {
   surface: GroundPoint[]
   matrix: Uint8Array
   any: Uint8Array
+  bareEarth: Uint8Array
   distance: Float64Array
   visibleArea: Float64Array
 }
@@ -282,6 +283,7 @@ export function computeAnalysis(
     })
     const matrix = new Uint8Array(grid.length * stations.length),
       any = new Uint8Array(grid.length),
+      bareEarth = new Uint8Array(grid.length),
       distance = new Float64Array(grid.length).fill(-1),
       visibleArea = new Float64Array(stations.length)
     if (target.inRange)
@@ -296,6 +298,7 @@ export function computeAnalysis(
           )
           const code = sight.status === 'unknown' ? 2 : sight.visible ? 1 : 0
           matrix[s * grid.length + p] = code
+          if (code === 1 || sight.occludedBy === 'canopy') bareEarth[p] = 1
           if (code === 1) {
             any[p] = 1
             visibleArea[s] += areas[p]
@@ -311,7 +314,7 @@ export function computeAnalysis(
           onProgress({ phase: 'sightlines', completed, total })
         }
       }
-    return { target, grid, samples, surface, normals, areas, matrix, any, distance, visibleArea }
+    return { target, grid, samples, surface, normals, areas, matrix, any, bareEarth, distance, visibleArea }
   })
   onProgress?.({ phase: 'sightlines', completed: total, total })
   const land = passes.find((p) => p.target.role === 'landscape')
@@ -498,6 +501,7 @@ export function computeAnalysis(
       positions,
       elevations,
       anyVisible: pass.any,
+      anyBareEarthVisible: pass.bareEarth,
       visibleByStation: pass.matrix,
       visibleDistances: pass.distance,
       sampleCount: n,

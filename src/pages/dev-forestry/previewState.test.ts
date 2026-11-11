@@ -71,3 +71,26 @@ describe('driving preview workflow', () => {
     for (let i = 0; i < 900; i++) expect(intermittent.push(i % 10 ? 16 : 70)).toBe(false)
   })
 })
+
+describe('block display colour', () => {
+  it('survives a save and never stales the run', () => {
+    const scene = createRoadsideDriveScene()
+    const block = scene.targets.find((target) => target.role === 'block')!
+    const coloured = {
+      ...scene,
+      targets: scene.targets.map((target) => (target === block ? { ...target, displayColor: '#FACC15' } : target)),
+    }
+    expect(sceneFingerprint(coloured)).toBe(sceneFingerprint(scene))
+    const restored = parseScene(JSON.parse(serializeScene(coloured)))!
+    expect(restored.targets.find((target) => target.id === block.id)?.displayColor).toBe('#facc15')
+    const junk = parseScene(
+      JSON.parse(
+        serializeScene({
+          ...scene,
+          targets: scene.targets.map((target) => (target === block ? { ...target, displayColor: 'red' } : target)),
+        }),
+      ),
+    )!
+    expect(junk.targets.find((target) => target.id === block.id)?.displayColor).toBeUndefined()
+  })
+})
