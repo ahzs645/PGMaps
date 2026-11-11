@@ -1,5 +1,7 @@
 > **Implementation update:** See [the integrity, road-camera and PDF export contract](forestry-visual-quality-integrity.md). It supersedes the older descriptions below of pooled landforms, maximum-ground-area viewpoint selection, missing terrain being clear, VAC defaults and the original drive controller.
 
+> **Planner review:** [November 2026](forestry-visual-quality-planner-review-2026-11-10.md) — what a BCTS planner asked for in a recorded walkthrough, what is built, how the view compares with human sight, and what is left.
+
 > **Work log:** [September 2026 round](forestry-visual-quality-worklog.md) — the handbook steps as tabs, map scale, field photos, retention and partial cuts, inventory-calibrated forest density, terrain landforms, and what each turned up.
 
 # Forestry visual quality (`/dev/forestry/visual-quality`)
@@ -800,8 +802,12 @@ matrix that projected the ground under them.
 | `src/pages/dev-forestry/impostor.ts` | Drawn tree silhouettes and the atlas they are packed into |
 | `src/pages/dev-forestry/treeLayer.ts` | The MapLibre custom layer that draws the stand |
 | `src/pages/dev-forestry/ForestOverlay.tsx` | Which ground to grow, and when to regrow it |
+| `src/pages/dev-forestry/visualsNarrative.ts`, `VisualsParagraphPanel.tsx` | Step 5's planning-note summary and the drafted Visuals paragraph |
+| `src/pages/dev-forestry/viewpointInventory.ts`, `ViewpointFinderPanel.tsx` | VLI viewpoints and arrows, rec sites, screenings and tenure road names around a block |
+| `src/pages/dev-forestry/ridgeLayers.ts` | A candidate landform as the ridge layer seen from the road |
+| `src/pages/dev-forestry/SatelliteImagery.tsx` | Satellite imagery under the page's layers |
 
-`terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
+`terrain.ts`, `visibility.ts`, `vqo.ts`, `via.ts`, `photoPose.ts`, `skylineFit.ts`, `landformFromTerrain.ts`, `ridgeLayers.ts`, `visualsNarrative.ts`, `basemapContext.ts`, `shapeImport.ts`, `reverseViewshed.ts`,
 `roadSnap.ts`, and `forest.ts` are pure and carry unit tests; `analysis.ts` takes an `ElevationSource`, so a run can be driven
 against synthetic terrain or real tiles outside a browser. `demLoader.ts` takes
 an injectable decoder for the same reason — the browser path uses
@@ -818,6 +824,224 @@ glyph URL template, so the style never finishes loading, the map context's
 passing. The drive and stand tests now assert `map.getTerrain()` and the tree
 layer's own stem count rather than the copy beside them, and both fail if either
 component is reduced to a no-op.
+
+## The planning note's Visuals paragraph
+
+Step 5's **Planning note · Visuals** heads the block the way a BCTS block
+report does — block, licence, cutting permit and opening when the imported
+attributes carry them (`planningIds` in `shapeImport.ts`, any case of
+`BLOCK_ID`, `LICENCE_ID`, `PERMIT_ID`, `OPENING_ID`), its area, and the EVQO
+classes under it — and drafts the **Visuals** paragraph of the report's
+"Other Considerations" sheet from the run. The reviewer's text
+(`viaReview.visualsNote`) is kept once written; the draft stays beside it, each
+sentence with the measurement it was written from. `viaReview` stays out of the
+scene fingerprint, so editing the paragraph never stales a run.
+
+`visualsNarrative.ts` writes it in the order planners do, read off eight real
+paragraphs (BCTS Prince George 2026, CHU_26_1–4 and ML_26_1–6) that
+`visualsNarrative.test.ts` pins:
+
+1. **Overlap** — the EVQO classes under the block, from the visual inventory
+   snapshot's `REC_EVQO_CODE`, sampled at about 2,500 points. Over 90% of the
+   block reads as the block overlapping; over 60% as "most of the block"; less
+   as "the eastern portion"; under 10% as "very minor", and "just around the
+   edges of the block boundary" when every overlapping sample is within 50 m of
+   it. A sample in two units counts toward the stricter.
+2. **Visibility** — from the run's viewpoint, and from up to two inventory
+   viewpoints or rec sites the reverse check found it in view from (rec sites
+   and major viewpoints first; a point within 300 m of the run's own road is
+   that road's view, not another). Over 15% of the block in view is "will be
+   visible", any less "may be"; hidden only by timber is "may not be visible
+   directly … due to screening along"; within 2° of eye level adds "relatively
+   flat terrain". Bare ground in view across flat country, with no timber in
+   the run, stays "may": that is what roadside trees hide best. When the
+   classes are seen differently the sentence splits by class ("the area that
+   overlaps the 'R' polygon is not visible …, however the area that overlaps the
+   'PR' may be").
+3. **Recommendations** — a WTRA where a P, R or PR part (not a sliver) is in
+   view; pulling the boundary back with a windfirm screen toward a tenure road
+   within 100 m (named from FTEN, "Davie Lake FSR"); "do not expand the boundary
+   north or east" into a sliver of a stricter class; an internal WTRA and no
+   straight/angular boundaries when a Modification block is plainly in view;
+   "Based on desktop review" against Table 2 when the landform's initial X was
+   measured; and "Complete VIA post layout", naming openings within 1 km.
+4. **Screenshots** — "See screenshots below." when views are saved, and their
+   captions.
+
+The thresholds are judgement calls fitted to those paragraphs, not handbook
+rules. They are `NARRATIVE_LIMITS`, and the panel's (i) quotes them.
+
+The run records, per sample, whether the bare ground is clear from some station
+(`anyBareEarthVisible`, from `testSightline`'s `occludedBy`): a sample hidden
+with it set is screened by timber, not behind a ridge. When timber blocks a
+sightline first, the march carries on over the bare ground to tell the two
+apart. Runs saved before it read every hidden sample as hidden by terrain, never
+as screened.
+
+## Inventory viewpoints and their arrows
+
+Step 1's **Viewpoints and rec sites** reads five DataBC WFS layers within 12 km
+of the block (`viewpointInventory.ts`): VLI viewing points
+(`REC_VIEWPOINT_POINT_SVW`), their landscape arrows
+(`REC_VIEWING_DIRECTION_LIN`), inventory screenings (`REC_SCREENINGS_POLY`),
+recreation sites (`FTEN_REC_SITE_POINTS_SVW`) and tenure road sections
+(`FTEN_ROAD_SECTION_LINES_SVW`). Three facts about the data shape the code:
+
+- The ArcGIS view of the viewpoints (MapServer layer 5) advertises queries but
+  answers with no rows; the WFS has all 12,396. Every one carries an expiry
+  date in the past, so expiry is shown, not filtered on. Rows typed `ERROR` are
+  the inventory flagging its own mistakes and are dropped.
+- The arrows are polygons, and `COMPASS_BEARING` is 0 on every row. The bearing
+  runs from the arrow's viewpoint (joined on `VIEWPOINT_ID`, a median 8 m from
+  the tail) to the vertex farthest from it. Read from the shape alone — the
+  wider end as the head — it was backwards for 33 of 294 arrows around Bear
+  Lake, so the shape is only the fallback.
+- Forest service road names come upper case ("DAVIE LAKE FSR") and are title
+  cased; permit road codes ("DABE 2000") are kept as written.
+
+Viewpoints rank nearest first, raised when an arrow points within 30° of the
+block and for major viewpoints and rec sites; an arrow aimed elsewhere does not
+drop one, because people at a site look around. **Check which of them see the
+block** sends them through the reverse run as one-point roads, bare earth at eye
+height. A visibility run resets the shared worker's reverse state, so the page
+keeps the viewpoint rows, with the block they were checked for, until the next
+check. **Assess from here** makes one the spot viewpoint.
+
+## Ridge layers
+
+**From the terrain** has a second reading, now the default: **Ridge layer
+seen** (`ridgeLayers.ts`), the landform as a planner reads it off the view —
+each layer of continuous ridge seen from the road is one landform. From each
+station it sweeps rays (0.25°, 25 m bins) across the 5 km around the block,
+keeping the running horizon, and joins visible bins that touch along a ray or
+across to the next; a ridge hiding the ground behind it breaks the run. The
+block's layer is the one most of its visible ground falls in, unioned over up
+to eight stations along the drive. Flat ground (under 8%) below the block is
+valley floor and stops it — across a broad valley nothing hides the foreground,
+and without that the layer ran down to the highway at Bear Lake. Hidden pockets
+inside are filled, so the run's own sightlines decide what of the landform is in
+view.
+
+It reports which edges are skyline, a nearer ridge in front, or valley floor,
+how many stations see the block, and outlines the other layers seen from the
+first one. On the redesigned CHU_26_1 from Hwy 97 it found a 548 ha landform,
+layer 2 of 6 from the road, seen from 4 of 8 stations. Like the facing reading
+it is a candidate, adopted only on "Use this landform".
+
+## The road view's layout
+
+The bar over the map plays: play and pause, the route position with 10 m
+steps, speed, the harvest phase, **Save** and **Image**, reset look, the keys
+behind an (i), and the way back to the map. Everything about how the view looks
+— where to look, a jump to a view of the block, analysis points, satellite
+imagery, the note screenshot look, block colours, EVQO polygons, the landform, distance haze,
+the drawn timber, existing forest and regrowth, display quality — is step 2's
+**Road view** section, which comes first
+in that step while the road view is open. One status line over the map reads the
+harvest phase and the share of the block's ground in view; its assumptions are
+behind an (i). Loading, saving and data issues share one status line under the
+bar and are absent when there is nothing to say. On a phone the bar opens to the
+player row; *Show options* adds the phase and saving, and a held arrow pad walks
+off the road. The roadside demo's *View opening* and *Replay approach* sit with
+its cue, not on the bar. Explanations everywhere in step 2 are (i) tips rather
+than paragraphs.
+
+**Landform** (off by default) drapes the landform being assessed and, for a
+ridge-layer landform, its other bands. **Distance haze** (off by default)
+drapes rings around the eye faded by Koschmieder's law, `1 − exp(−3.912 d / V)`
+with `V = 60 km` (`hazeRings`); MapLibre's own fog is unusable at eye level. Both
+are display only. See the
+[planner review](forestry-visual-quality-planner-review-2026-11-10.md).
+
+## Walking off the road, imagery and the note screenshot look
+
+In the road view, **W A S D** (held, Shift to hurry) or the on-screen pad walk
+off the road while paused, along where the camera looks: 6 m/s, 30 m/s with
+Shift, at most 2 km out. The eye stands on the same fixed ground mosaic as on
+the road (`renderedGroundSource`), and `DriveController.canStand` refuses a step
+onto ground the mosaic does not hold rather than dropping the eye. Red ground
+still shows what the nearest road station sees, and the panel says so; Play, a
+seek, or facing another block puts the walker back on the road.
+
+**Satellite imagery** drapes Esri World Imagery under every layer the page
+draws, below the basemap's first label layer (`SatelliteImagery.tsx`), never as
+a new `styles` object, which would `setStyle` the 3D timber away. Its source
+stops at z18: rural BC has no z19 imagery, and Esri's grey "Map data not yet
+available" tile otherwise filled the ground under the eye-level camera.
+
+**Note screenshot look** recreates the Google Earth screenshots planners paste
+under the paragraph: imagery on, proposed blocks solid white, no drawn timber or
+analysis dots. Saved views and downloaded images are captioned the way notes
+caption them — "View from Hwy 97 going north", or "looking west toward
+CHU_26_1" when the view turns more than 45° off the road — and Step 5 lists the
+captions to copy. Saving a view no longer waits for the 3D stand when no timber
+is drawn.
+
+## The block note: Excel or PDF
+
+Step 5's *Planning note · Visuals* ends with **Download Excel** and **Download
+PDF** (`blockNote.ts`). Both carry the header (block, licence, permit, opening,
+area, EVQO classes under the block), the viewpoint, the landform with its percent
+alteration in perspective view against its Table 2 range, the Visuals paragraph
+— the reviewer's, or the draft flagged "not yet reviewed" — every saved view's
+screenshot with its caption, in the order saved and from every place stood at,
+and a plan map framed on the block and viewpoint.
+
+- **Excel** follows the planner's own `*_Report.xlsx`: an *Other
+  Considerations* sheet with "Visuals" in B2 and the paragraph in C2, the
+  screenshots and captions below, so the row pastes into their workbook; a
+  *Block* sheet with the header and figures; a *Basis* sheet with the
+  measurement behind each drafted sentence.
+- **PDF** (letter, landscape) puts the first view large with the header and
+  paragraph beside it, in the style of the report a GIS analyst produced at
+  Canfor, then the other views and the plan map two to a page.
+
+The draft's closing "See screenshots below." is reworded for where the file
+puts them (`paragraphForLayout`): kept in Excel, where they are below; "See the
+view at left and the others on the next page" in the PDF, where the first sits
+beside the paragraph; dropped when the note has no screenshot. Only that
+sentence changes; the rest of the reviewer's text is theirs.
+
+Screenshots are taken when *Save viewpoint* is pressed (`captureMapImage`,
+JPEG, 1600 px on the long side), because the frame being saved is the one the
+reviewer chose; they are kept for the session, and a view saved without one is
+listed by caption instead. The plan map is captured at export from the plan
+view (`capturePlanMap`) and left out, with a note saying so, if the export runs
+while the road view is open. exceljs and jsPDF load on demand and are passed in,
+so `blockNote.test.ts` writes and reads back real files.
+
+## Standing at viewpoints, block colours and EVQO polygons
+
+What a planner does in Google Earth: load the terrain, colour the block, drape
+the VQO polygons, and stand at the viewpoints.
+
+- **Stand here** on a row of *Viewpoints and rec sites* (or a click on its dot)
+  opens the road view standing there, facing the block. The road view is built
+  along a road — its ground mosaic, timber and road surface — so the viewpoint
+  becomes a 30 m pullout through the point, square to the line of sight
+  (`pulloutThrough`, `PULLOUT_METERS`). That is a real run from there, not the
+  highway's run seen from elsewhere: the share in view, red ground, timber,
+  imagery and screenshot look all follow. The bar drops Play, the scrubber and
+  speed at a spot; looking around and walking stay. The road it replaced is
+  kept: *Back to Hwy 97* returns to it at the point nearest where you stood.
+  Each place's saved views are shelved while you are elsewhere and come back
+  with it, and step 5 lists the captions from every place ("View of CHU_26_1
+  from Davie Lake South Rec Site."). Saved views are kept for the session;
+  *Download preview* keeps the current place's.
+- **Block colours**: in step 2's *Road view* section, beside the note
+  screenshot look, one swatch per block opens a colour picker with screenshot
+  presets (white, yellow, orange, magenta, cyan, purple, black); the (×)
+  resets it. It lives there, and only there, because the colour is chosen while
+  composing a screenshot: in step 1 it was a tab hop away from the view it
+  changes. Step 1's row keeps a marker that shows the chosen colour. The colour
+  is used on the map, in the road view and in the block note's plan map, over
+  the cleared ground or the screenshot look's white; each saved screenshot keeps
+  the colour it was taken with. It is display only and kept out of the run's
+  fingerprint.
+- **EVQO polygons** in the road view's *Show* row drape the established
+  objectives from the visual inventory snapshot over the ground at 30%,
+  retention blue and partial retention brown as in the planner's layer,
+  modification teal so it never reads as a yellow block (`EVQO_COLORS`).
 
 ## BC inventory lookup
 

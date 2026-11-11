@@ -53,6 +53,7 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
       delete kept.volumeRemovedPercent
       delete kept.residualHeightMeters
       delete kept.plannedHarvestYear
+      delete kept.displayColor
       if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
       return kept
     })

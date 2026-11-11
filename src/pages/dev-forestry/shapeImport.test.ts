@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { collectImportedGeometry, featureName, toFeatures } from './shapeImport'
+import { collectImportedGeometry, featureName, planningIds, toFeatures } from './shapeImport'
 
 const SQUARE: GeoJSON.Polygon = {
   type: 'Polygon',
@@ -20,6 +20,19 @@ describe('featureName', () => {
     expect(featureName({ name: 'Unnamed', BLOCK_ID: 'A12' }, 0)).toBe('A12')
     expect(featureName({ OPENING_ID: 448122 }, 0)).toBe('448122')
     expect(featureName({ name: 'North face' }, 0)).toBe('North face')
+  })
+
+  it('reads the identifier whatever its case, as ArcGIS exports write Block_ID', () => {
+    // The CHU_26_1_4 planning shapefile: Block_ID, Shape_Leng, Shape_Area, Area, Operating_.
+    expect(featureName({ Block_ID: 'CHU_26_1', Operating_: 'Chuchinka' }, 0)).toBe('CHU_26_1')
+  })
+
+  it('carries block, licence and permit for the block summary', () => {
+    // A BCTS block export (CHUC_19_13).
+    expect(
+      planningIds({ BLOCK_ID: 'CHUC_19_13', LICENCE_ID: '!PG_COFA_DEFER', PERMIT_ID: 'APR - !PG_COFA_DEFER', UBI: '' }),
+    ).toEqual({ blockId: 'CHUC_19_13', licenceId: '!PG_COFA_DEFER', permitId: 'APR - !PG_COFA_DEFER', openingId: null })
+    expect(planningIds({ Shape_Area: 12 })).toBeUndefined()
   })
 
   it('falls back to a numbered label', () => {

@@ -31,6 +31,10 @@ export type LandformBoundary =
   | 'narrow'
   | 'no-data'
   | 'search-limit'
+  /** Ridge-layer reading (`ridgeLayers.ts`): the ground beyond the layer drops out of view, or is a farther layer. */
+  | 'skyline'
+  /** Ridge-layer reading: the ground in front is hidden by, or is, a nearer ridge. */
+  | 'nearer-ridge'
 
 export type TerrainLandformOptions = {
   /** Grid cell, metres. 50 m resolves a hillside face without resolving every gully. */
@@ -260,7 +264,7 @@ export function traceRings(mask: Uint8Array, width: number, height: number): Arr
   return rings
 }
 
-function signedArea(ring: ReadonlyArray<[number, number]>): number {
+export function signedArea(ring: ReadonlyArray<[number, number]>): number {
   let area = 0
   for (let i = 0; i < ring.length; i += 1) {
     const [x0, y0] = ring[i],
@@ -297,7 +301,7 @@ function boxBlur(values: Float64Array, width: number, height: number, r: number)
 }
 
 /** Square structuring element of radius `r`: a cell is set when any (dilate) or every (erode) cell within it is. */
-function morph(mask: Uint8Array, width: number, height: number, r: number, any: boolean): Uint8Array {
+export function morph(mask: Uint8Array, width: number, height: number, r: number, any: boolean): Uint8Array {
   const out = new Uint8Array(mask.length)
   for (let y = 0; y < height; y += 1)
     for (let x = 0; x < width; x += 1) {
@@ -320,7 +324,7 @@ const dilate = (mask: Uint8Array, width: number, height: number, r: number) => m
 const erode = (mask: Uint8Array, width: number, height: number, r: number) => morph(mask, width, height, r, false)
 
 /** Douglas–Peucker on a closed ring, so a staircase of cells reads as a line. */
-function simplifyRing(ring: Array<[number, number]>, tolerance: number): Array<[number, number]> {
+export function simplifyRing(ring: Array<[number, number]>, tolerance: number): Array<[number, number]> {
   if (ring.length < 5) return ring
   const keep = new Uint8Array(ring.length)
   const distance = (p: [number, number], a: [number, number], b: [number, number]) => {

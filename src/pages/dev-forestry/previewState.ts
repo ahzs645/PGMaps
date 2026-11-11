@@ -126,7 +126,8 @@ export function parsePreview(input: unknown): { scene: ForestryScene; views: Sav
     return [
       {
         id: `view-${index}`,
-        name: typeof v.name === 'string' ? v.name.slice(0, 80) : `View ${index + 1}`,
+        // Names are planning-note captions now ("View from Hwy 97 looking west toward CHU_26_1"), not "View 1".
+        name: typeof v.name === 'string' ? v.name.slice(0, 200) : `View ${index + 1}`,
         positionMeters: Math.min(length, v.positionMeters),
         yaw: ((v.yaw % 360) + 360) % 360,
         tilt: v.tilt,

@@ -2,12 +2,34 @@ import { NativeSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ChevronLeft,
+  ChevronRight,
+  Pause,
+  Play,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { useMap } from '@/components/ui/map'
 import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
 import { PreviewFrameBudget } from './previewState'
-import { DRIVE_SPEEDS_KMH, roadPath, type DriveLookAt, type DriveStation } from './driveMath'
+import {
+  DRIVE_SPEEDS_KMH,
+  NO_WALK,
+  WALK_SPEEDS,
+  roadPath,
+  walkStep,
+  type DriveLookAt,
+  type DriveStation,
+  type WalkOffset,
+} from './driveMath'
 export type { DriveLookAt, DriveStation } from './driveMath'
 type Props = {
   /** Terrain-only route exploration, before a cutblock assessment. */
@@ -21,7 +43,15 @@ type Props = {
   onSeek?: (distance: number) => void
   speedKmh?: number
   onSpeedChange?: (speed: number) => void
-  comparison?: ReactNode
+  /**
+   * The page's own buttons for the second row: the harvest phase, saving a
+   * view, demo shortcuts. Everything else about the view lives in the sidebar.
+   */
+  actions?: ReactNode
+  /** One status line under the controls (loading, saved, data issues); nothing when idle. */
+  status?: ReactNode
+  /** Standing at one spot (a viewpoint's pullout): no playback, scrubber or speed, only looking and walking. */
+  spot?: boolean
   elevation: ElevationSource | null
   active: boolean
   playing: boolean
@@ -50,6 +80,11 @@ export function DriveCamera(props: Props) {
   const controllerRef = useRef<DriveController | null>(null)
   const [status, setStatus] = useState<DriveStatus>('waiting-for-terrain')
   const [view, setView] = useState(() => props.restoredLook ?? { yaw: 0, tilt: 0 })
+  // Walking off the road: an offset the render loop moves while keys are held.
+  const walkRef = useRef<WalkOffset>(NO_WALK)
+  const heldRef = useRef(new Set<string>())
+  const [offRoadMeters, setOffRoadMeters] = useState(0)
+  const [walkHeld, setWalkHeld] = useState(false)
   const [lookReset, setLookReset] = useState({
     lookAt: props.lookAt,
     seekVersion: props.seekVersion,
@@ -62,7 +97,12 @@ export function DriveCamera(props: Props) {
   ) {
     setLookReset({ lookAt: props.lookAt, seekVersion: props.seekVersion, active: props.active })
     setView(props.restoredLook ?? { yaw: 0, tilt: 0 })
+    setOffRoadMeters(0)
   }
+  // A seek, a new block to face or a fresh drive puts the walker back on the road.
+  useEffect(() => {
+    walkRef.current = NO_WALK
+  }, [props.seekVersion, props.lookAt, props.active])
   // Folded to one bar on a phone, where the panel, caption and sheet together
   // otherwise cover most of the road view it is there to show.
   const [optionsExpanded, setOptionsExpanded] = useState(
@@ -127,8 +167,29 @@ export function DriveCamera(props: Props) {
         downgraded = true
         current.onSlowFrames?.()
       }
+      // Up to the controller's own stall limit, so a slow frame rate does not slow the walker down.
+      const dt = previousFrame ? Math.min(0.5, (time - previousFrame) / 1000) : 0
       previousFrame = time
-      const options: DriveOptions = { ...current, ...viewRef.current, onStatus: setStatus }
+      const held = heldRef.current
+      if (current.playing && (walkRef.current.east || walkRef.current.north)) {
+        walkRef.current = NO_WALK
+        setOffRoadMeters(0)
+      } else if (!current.playing && dt > 0 && held.size) {
+        const forward = (held.has('w') ? 1 : 0) - (held.has('s') ? 1 : 0)
+        const right = (held.has('d') ? 1 : 0) - (held.has('a') ? 1 : 0)
+        const bearing = controller.viewBearing()
+        if ((forward || right) && bearing !== null) {
+          const speed = (held.has('shift') ? WALK_SPEEDS.fast : WALK_SPEEDS.normal) * dt
+          const next = walkStep(walkRef.current, bearing, forward * speed, right * speed)
+          if (controller.canStand(next)) {
+            walkRef.current = next
+            const metres = Math.round(Math.hypot(next.east, next.north))
+            setOffRoadMeters((previous) => (previous === metres ? previous : metres))
+            setWalkHeld(false)
+          } else setWalkHeld(true)
+        }
+      }
+      const options: DriveOptions = { ...current, ...viewRef.current, walk: walkRef.current, onStatus: setStatus }
       controller.tick(time, options)
       frame = requestAnimationFrame(render)
     }
@@ -157,7 +218,19 @@ export function DriveCamera(props: Props) {
         dragging = null
       }
     }
+    const walkKey = (event: KeyboardEvent) => event.key.length === 1 && 'wasd'.includes(event.key.toLowerCase())
+    const release = (event: KeyboardEvent) => {
+      if (walkKey(event)) heldRef.current.delete(event.key.toLowerCase())
+      if (event.key === 'Shift') heldRef.current.delete('shift')
+    }
+    const clearHeld = () => heldRef.current.clear()
     const key = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') heldRef.current.add('shift')
+      if (walkKey(event)) {
+        event.preventDefault()
+        if (!propsRef.current.playing) heldRef.current.add(event.key.toLowerCase())
+        return
+      }
       if (event.key === 'Escape') {
         event.preventDefault()
         propsRef.current.onExit?.()
@@ -185,6 +258,8 @@ export function DriveCamera(props: Props) {
     canvas.addEventListener('pointerup', up)
     canvas.addEventListener('pointercancel', up)
     canvas.addEventListener('keydown', key)
+    canvas.addEventListener('keyup', release)
+    canvas.addEventListener('blur', clearHeld)
     document.addEventListener('visibilitychange', hidden)
     frame = requestAnimationFrame(render)
     return () => {
@@ -195,6 +270,9 @@ export function DriveCamera(props: Props) {
       canvas.removeEventListener('pointerup', up)
       canvas.removeEventListener('pointercancel', up)
       canvas.removeEventListener('keydown', key)
+      canvas.removeEventListener('keyup', release)
+      canvas.removeEventListener('blur', clearHeld)
+      clearHeld()
       document.removeEventListener('visibilitychange', hidden)
       canvas.style.touchAction = oldTouchAction
       controller.stop()
@@ -202,120 +280,202 @@ export function DriveCamera(props: Props) {
     }
   }, [props.active, map, isLoaded, path, props.stations, props.elevation])
   if (!props.active) return null
+  const km = (metres: number) => (metres / 1000).toFixed(2)
+  const statusText =
+    status === 'waiting-for-terrain'
+      ? 'Waiting for terrain at the camera. Playback is held.'
+      : status === 'invalid-camera'
+        ? 'This camera pose is invalid. Reset the look or return to the map.'
+        : null
   return (
     <div
-      className={`absolute left-3 md:left-10 right-3 max-w-xs max-h-[55%] overflow-y-auto ${MAP_OVERLAY_Z.controls} bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] rounded-lg border bg-background/95 p-3 shadow-lg md:bottom-3`}
+      className={`absolute left-3 right-3 ${MAP_OVERLAY_Z.controls} bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] rounded-lg border bg-background/95 px-2.5 py-2 text-xs shadow-lg md:bottom-3 md:left-1/2 md:right-auto md:w-[min(46rem,calc(100%-6rem))] md:-translate-x-1/2`}
       role="region"
       aria-label="Road view controls"
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-xs font-semibold">
-          {props.preliminary ? 'Preliminary route overview' : 'Road-level preview'} · 1× terrain
-        </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="shrink-0 touch:h-10"
-          aria-expanded={optionsExpanded}
-          onClick={() => setOptionsExpanded((current) => !current)}
-        >
-          {optionsExpanded ? 'Hide options' : 'Show options'}
-        </Button>
-      </div>
-      <p className={`mt-1 text-xs ${status === 'ready' ? 'hidden md:block' : ''}`} role="status">
-        {status === 'waiting-for-terrain'
-          ? 'Waiting for terrain at the camera. Playback is held.'
-          : status === 'invalid-camera'
-            ? 'This camera pose is invalid. Reset the view or return to the map.'
-            : 'Drag to look around. Arrow keys turn; R resets; Escape exits.'}
-      </p>
-      {props.onSeek && (
-        <label className="mt-2 block text-xs">
-          Route position · {(props.seekMeters / 1000).toFixed(2)} / {((props.routeLengthMeters ?? 0) / 1000).toFixed(2)}{' '}
-          km
-          <input
-            aria-label="Route position"
-            className="mt-1 block w-full accent-primary"
-            type="range"
-            min={0}
-            max={props.routeLengthMeters ?? 1}
-            step={5}
-            value={props.seekMeters}
-            onChange={(e) => props.onSeek?.(Number(e.target.value))}
-          />
-        </label>
-      )}
-      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-        {optionsExpanded && (
-          <Button variant="outline" size="sm" className="touch:h-10" onClick={() => setView({ yaw: 0, tilt: 0 })}>
-            Reset look
-          </Button>
-        )}
-        <Button
-          size="sm"
-          className="font-semibold touch:h-10"
-          disabled={
-            props.stations.length < 2 || (!props.playing && (status !== 'ready' || props.forestReady === false))
-          }
-          onClick={() => (props.playing ? props.onPause?.() : props.onPlay?.())}
-        >
-          {props.playing ? 'Pause' : 'Play'}
-        </Button>
-        {props.onSpeedChange && (
-          <NativeSelect
-            aria-label="Driving speed"
-            className="rounded border bg-background py-1"
-            value={props.speedKmh}
-            onChange={(e) => props.onSpeedChange?.(Number(e.target.value))}
-          >
-            {DRIVE_SPEEDS_KMH.map((speed) => (
-              <option key={speed} value={speed}>
-                {speed} km/h
-              </option>
-            ))}
-          </NativeSelect>
-        )}
-        <Button variant="outline" size="sm" className="touch:h-10" onClick={props.onExit}>
-          Return to map
-        </Button>
-      </div>
-      {props.onSeek && optionsExpanded && (
-        <div className="mt-2 flex items-center gap-2 text-xs">
+      {/* Row 1: the player. Nothing to drive at a single spot. */}
+      {!props.spot && (
+        <div className="flex items-center gap-1.5">
           <Button
-            variant="outline"
             size="sm"
-            className="touch:h-10"
-            disabled={props.seekMeters <= 0}
-            onClick={() => {
-              props.onPause?.()
-              props.onSeek?.(Math.max(0, props.seekMeters - 10))
-            }}
+            className="h-8 shrink-0 px-3 font-semibold touch:h-10"
+            disabled={
+              props.stations.length < 2 || (!props.playing && (status !== 'ready' || props.forestReady === false))
+            }
+            onClick={() => (props.playing ? props.onPause?.() : props.onPlay?.())}
           >
-            Back 10 m
+            {props.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+            {props.playing ? 'Pause' : 'Play'}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="touch:h-10"
-            disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)}
-            onClick={() => {
-              props.onPause?.()
-              props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10))
-            }}
-          >
-            Forward 10 m
-          </Button>
+          {props.onSeek && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Back 10 m"
+                title="Back 10 m"
+                className="h-8 w-8 shrink-0 p-0 max-sm:hidden touch:h-10 touch:w-10"
+                disabled={props.seekMeters <= 0}
+                onClick={() => {
+                  props.onPause?.()
+                  props.onSeek?.(Math.max(0, props.seekMeters - 10))
+                }}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <input
+                aria-label="Route position"
+                aria-valuetext={`${km(props.seekMeters)} of ${km(props.routeLengthMeters ?? 0)} km`}
+                className="min-w-0 flex-1 accent-primary"
+                type="range"
+                min={0}
+                max={props.routeLengthMeters ?? 1}
+                step={5}
+                value={props.seekMeters}
+                onChange={(e) => props.onSeek?.(Number(e.target.value))}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Forward 10 m"
+                title="Forward 10 m"
+                className="h-8 w-8 shrink-0 p-0 max-sm:hidden touch:h-10 touch:w-10"
+                disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)}
+                onClick={() => {
+                  props.onPause?.()
+                  props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10))
+                }}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {km(props.seekMeters)}
+                <span className="max-sm:hidden"> / {km(props.routeLengthMeters ?? 0)}</span> km
+              </span>
+            </>
+          )}
         </div>
       )}
-      <p className="mt-1 text-3xs text-muted-foreground" hidden={!optionsExpanded}>
-        Preview speed; posted limits are not loaded.{' '}
-        {props.speedKmh && props.routeLengthMeters
-          ? `${Math.ceil(Math.max(0, props.routeLengthMeters - props.seekMeters) / (props.speedKmh / 3.6))} s remaining at this speed.`
-          : ''}
-      </p>
-      <div className="mt-2" hidden={!optionsExpanded}>
-        {props.comparison}
+
+      {/* Row 2: the page's actions, then the look reset, the keys and the way out. */}
+      <div className={`${props.spot ? '' : 'mt-1.5 '}flex flex-wrap items-center gap-1.5`}>
+        {/* Not the `hidden` attribute: the flex class would override it. */}
+        {optionsExpanded && (
+          <div className="order-2 flex w-full flex-wrap items-center gap-1.5 sm:order-1 sm:w-auto sm:min-w-0 sm:flex-1">
+            {props.actions}
+          </div>
+        )}
+        <div className="order-1 ml-auto flex items-center gap-1 sm:order-2">
+          {props.onSpeedChange && !props.spot && (
+            <NativeSelect
+              aria-label="Driving speed"
+              title="Preview speed; posted limits are not loaded"
+              className="h-8 shrink-0 rounded border bg-background px-1 touch:h-10"
+              value={props.speedKmh}
+              onChange={(e) => props.onSpeedChange?.(Number(e.target.value))}
+            >
+              {DRIVE_SPEEDS_KMH.map((speed) => (
+                <option key={speed} value={speed}>
+                  {speed} km/h
+                </option>
+              ))}
+            </NativeSelect>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-2 md:hidden touch:h-10"
+            aria-expanded={optionsExpanded}
+            onClick={() => setOptionsExpanded((current) => !current)}
+          >
+            {optionsExpanded ? 'Hide options' : 'Show options'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Reset look"
+            title="Reset look (R)"
+            className="h-8 w-8 p-0 touch:h-10 touch:w-10"
+            onClick={() => setView({ yaw: 0, tilt: 0 })}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <InfoTip label="Keys and gestures">
+            Drag to look around. Arrow keys turn and tilt; R resets the look; Space plays or pauses; Escape returns to
+            the map. While paused, hold W A S D to walk off the road along where you look (Shift to hurry); the eye
+            stays on the same ground model, and stops where the loaded ground ends.
+          </InfoTip>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Return to map"
+            title="Return to map (Esc)"
+            className="h-8 w-8 p-0 touch:h-10 touch:w-10"
+            onClick={props.onExit}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
+
+      {/* Walking on a phone: the keyboard's job, as held buttons. */}
+      {!props.playing && !props.preliminary && (
+        <div className="mt-1.5 hidden touch:flex items-center gap-1" role="group" aria-label="Walk off the road">
+          {(
+            [
+              ['a', 'Step left', <ArrowLeft key="a" className="h-4 w-4" />],
+              ['w', 'Walk forward', <ArrowUp key="w" className="h-4 w-4" />],
+              ['s', 'Walk back', <ArrowDown key="s" className="h-4 w-4" />],
+              ['d', 'Step right', <ArrowRight key="d" className="h-4 w-4" />],
+            ] as const
+          ).map(([keyName, label, icon]) => (
+            <Button
+              key={keyName}
+              variant="outline"
+              size="sm"
+              aria-label={label}
+              className="h-10 w-10 p-0"
+              onPointerDown={(event) => {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                heldRef.current.add(keyName)
+              }}
+              onPointerUp={() => heldRef.current.delete(keyName)}
+              onPointerCancel={() => heldRef.current.delete(keyName)}
+              onLostPointerCapture={() => heldRef.current.delete(keyName)}
+            >
+              {icon}
+            </Button>
+          ))}
+          <span className="ml-1 text-2xs text-muted-foreground">Walk</span>
+        </div>
+      )}
+
+      {(statusText || offRoadMeters > 0 || props.status) && (
+        <div className="mt-1.5 space-y-1 border-t border-border/60 pt-1.5 text-2xs leading-4" role="status">
+          {statusText && <p>{statusText}</p>}
+          {offRoadMeters > 0 && (
+            <p className="flex flex-wrap items-center gap-x-2 text-amber-800 dark:text-amber-200">
+              <span>
+                {offRoadMeters} m off the road{walkHeld ? ' · the loaded ground ends here' : ''} · red ground is still
+                the nearest road station's view
+              </span>
+              <button
+                type="button"
+                className="underline"
+                onClick={() => {
+                  walkRef.current = NO_WALK
+                  setOffRoadMeters(0)
+                  setWalkHeld(false)
+                }}
+              >
+                Back to the road
+              </button>
+            </p>
+          )}
+          {props.status}
+        </div>
+      )}
     </div>
   )
 }

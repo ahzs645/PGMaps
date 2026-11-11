@@ -114,6 +114,22 @@ describe('canopy in the sightline', () => {
     expect(result.blockedAtMeters).toBeGreaterThan(1000)
   })
 
+  it('tells timber screening from terrain', () => {
+    const grid = buildCanopyGrid([stand(box(0.015, -0.005, 0.025, 0.005), 25, 70)], BOUNDS)
+    expect(testSightline(FLAT, observer, target, DEFAULT_SIGHTLINE_OPTIONS, grid).occludedBy).toBe('canopy')
+    // A 60 m ridge behind the stand: the ground alone hides it too.
+    const ridge: ElevationSource = { elevationAt: (lng) => (lng > 0.03 && lng < 0.032 ? 60 : 0) }
+    const both = testSightline(ridge, observer, target, DEFAULT_SIGHTLINE_OPTIONS, grid)
+    expect(both.occludedBy).toBe('terrain')
+    // The first obstruction is still where it is reported blocked.
+    expect(both.blockedAtMeters).toBeLessThan(3000)
+    // Terrain that did not load beyond the stand cannot be called screening.
+    const gap: ElevationSource = { elevationAt: (lng) => (lng > 0.03 && lng < 0.032 ? NaN : 0) }
+    const unknown = testSightline(gap, observer, target, DEFAULT_SIGHTLINE_OPTIONS, grid)
+    expect(unknown.status).toBe('occluded')
+    expect(unknown.occludedBy).toBeUndefined()
+  })
+
   it('opens the same view once that ground is harvested', () => {
     const screen = box(0.015, -0.005, 0.025, 0.005)
     const cleared = buildCanopyGrid([stand(screen, 25, 70)], BOUNDS, [screen])

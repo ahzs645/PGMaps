@@ -186,6 +186,8 @@ export function targetsToGeoJson(targets: TargetPolygon[], role: TargetRole): Ge
           name: target.name,
           role: target.role,
           areaHectares: targetAreaHectares(target),
+          // Only set when chosen, so a `coalesce` falls back to the layer's own colour.
+          ...(target.displayColor ? { color: target.displayColor } : {}),
         },
       })),
   }
@@ -418,6 +420,20 @@ function parseThresholds(raw: unknown): VisualQualityThresholds {
  * A saved scene outliving a change to the settings shape should cost the user
  * the setting, not the scene.
  */
+/** Planning identifiers are labels: kept only as short strings. */
+function parsePlanning(value: unknown): { planning?: TargetPolygon['planning'] } {
+  if (!value || typeof value !== 'object') return {}
+  const raw = value as Record<string, unknown>
+  const pick = (key: string) => (typeof raw[key] === 'string' && raw[key] ? (raw[key] as string).slice(0, 80) : null)
+  const planning = {
+    blockId: pick('blockId'),
+    licenceId: pick('licenceId'),
+    permitId: pick('permitId'),
+    openingId: pick('openingId'),
+  }
+  return Object.values(planning).some(Boolean) ? { planning } : {}
+}
+
 function percentOrNull(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : null
 }
@@ -472,6 +488,10 @@ export function parseScene(input: unknown): ForestryScene | null {
                 : null,
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
+            ...parsePlanning(target.planning),
+            ...(typeof target.displayColor === 'string' && /^#[0-9a-f]{6}$/i.test(target.displayColor)
+              ? { displayColor: target.displayColor.toLowerCase() }
+              : {}),
           },
         ]
       })

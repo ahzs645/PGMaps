@@ -26,6 +26,14 @@ export type SightlineResult = {
   distanceMeters: number
   blockedAtMeters: number | null
   status: 'visible' | 'occluded' | 'unknown' | 'out-of-range'
+  /**
+   * What hides an occluded target: `terrain` when the bare ground alone crosses
+   * the sightline, `canopy` when only the timber on it does and the rest of the
+   * ray is known. Absent when the cause cannot be told (an unknown stretch).
+   * It lets a hidden sample be reported as screened by timber rather than by
+   * the shape of the ground, which is the distinction a planning note makes.
+   */
+  occludedBy?: 'terrain' | 'canopy'
 }
 export function earthCurvatureDropMeters(distance: number, refraction = 0.13): number {
   return ((1 - refraction) * distance * distance) / (2 * EARTH_RADIUS_METERS)
@@ -80,7 +88,9 @@ export function testSightline(
     end = lngLatToMercator(target.lng, target.lat)
   const slope =
     (targetHeight - earthCurvatureDropMeters(distanceMeters, options.refractionCoefficient) - eye) / distanceMeters
-  let unknown = false
+  let unknown = false,
+    terrainUnknown = false,
+    screenedAt: number | null = null
   for (let i = 1; i < steps; i++) {
     const f = i / steps,
       distance = distanceMeters * f
@@ -88,8 +98,13 @@ export function testSightline(
       y = start[1] + (end[1] - start[1]) * f
     const ll = source.elevationAtMercator ? null : mercatorToLngLat(x, y)
     const ground = source.elevationAtMercator ? source.elevationAtMercator(x, y) : source.elevationAt(ll![0], ll![1])
-    const height = canopy ? canopy.heightAtMercator(x, y) : 0
-    if (!Number.isFinite(ground) || !Number.isFinite(height)) {
+    const height = canopy && screenedAt === null ? canopy.heightAtMercator(x, y) : 0
+    if (!Number.isFinite(ground)) {
+      unknown = true
+      terrainUnknown = true
+      continue
+    }
+    if (!Number.isFinite(height)) {
       unknown = true
       continue
     }
@@ -99,8 +114,13 @@ export function testSightline(
       earthCurvatureDropMeters(distance, options.refractionCoefficient) +
       options.clearanceMeters
     // A known obstruction establishes occlusion even if another part of the profile is unknown.
-    if (ground + height > limit) return answer('occluded', distance)
+    if (ground > limit) return { ...answer('occluded', screenedAt ?? distance), occludedBy: 'terrain' }
+    // Timber hides it here. Keep walking the bare ground, which no longer
+    // samples the canopy, to tell screening from terrain.
+    if (screenedAt === null && ground + height > limit) screenedAt = distance
   }
+  if (screenedAt !== null)
+    return terrainUnknown ? answer('occluded', screenedAt) : { ...answer('occluded', screenedAt), occludedBy: 'canopy' }
   return answer(unknown ? 'unknown' : 'visible')
 }
 export type CorridorStation = GeoPoint & { distanceAlongMeters: number }
