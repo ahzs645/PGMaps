@@ -70,6 +70,7 @@ import { RegrowthControls } from './dev-forestry/RegrowthControls'
 import { buildRegrowthStands, DEFAULT_REGROWTH, type ForestHistoryRecord } from './dev-forestry/regrowth'
 import { useDriveTerrain } from './dev-forestry/useDriveTerrain'
 import type { ForestStatus } from './dev-forestry/ForestOverlay'
+import type { TreeInstance } from './dev-forestry/forest'
 import { blockThinning, bufferLine, speciesFromCode, type InventoryStand } from './dev-forestry/forest'
 import type { BasemapContext } from './dev-forestry/BasemapContextProbe'
 import { FieldPhotoPanel, PhotoOverlay, StreetPhotoInset } from './dev-forestry/FieldPhoto'
@@ -2368,6 +2369,11 @@ function DevForestryVisuals() {
           if (distance !== null) updateDrive({ positionMeters: distance, playing: false })
         }
       : undefined
+  // The road view's map unmounts when it closes; the stand it placed outlives it, so reopening reuses it.
+  const forestPatches = useMemo(() => {
+    void forestConfiguration
+    return new globalThis.Map<string, TreeInstance[]>()
+  }, [forestConfiguration])
   const layerData: SceneLayerData = {
     drive,
     scene,
@@ -2383,6 +2389,7 @@ function DevForestryVisuals() {
     routeViewshed,
     routeOutline,
     forestConfiguration,
+    forestPatches,
     facedArrowGeometry,
     previewTerrainMessage: previewTerrain.message,
     forestGround,

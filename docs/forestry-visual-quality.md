@@ -998,7 +998,12 @@ opened.
 **Until the road view opens, its pane is withheld** and the map takes its
 space; the summary waits for a run. The road view's map is mounted only while it
 is open and on screen, so a closed road view costs no second WebGL context, and
-reopening it builds its map afresh. Opening the road view shows its pane
+reopening it builds its map afresh. The stand's placed patches are kept by the
+page (`ForestOverlay`'s `patches`), so a reopened road view reuses the timber it
+already placed rather than placing it again. Closing it unmounts its contents
+first and the map one commit later: React runs a removed tree's cleanups parent
+first, and removing both at once left `MapTerrain` and `ForestOverlay` cleaning
+up against a removed map, which took the page down. Opening the road view shows its pane
 whatever the layout last hid; picking a layout without it (or unticking it)
 closes the road view, since it has no life off screen. On a phone one pane
 shows at a time behind a tab bar, the road view takes the screen when it opens,

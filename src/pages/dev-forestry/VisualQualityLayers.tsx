@@ -52,6 +52,8 @@ export type SceneLayerData = {
   routeViewshed: ReturnType<typeof useRouteViewshed>
   routeOutline: Collection
   forestConfiguration: ComponentProps<typeof ForestOverlay>['configuration']
+  /** The stand's placed patches, kept across the road view's map closing and reopening. */
+  forestPatches: ComponentProps<typeof ForestOverlay>['patches']
   facedArrowGeometry: GeoJSON.Polygon | null
   previewTerrainMessage: string | null
   forestGround: { floor: Collection; soil: Collection; water: Collection }
@@ -123,6 +125,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     routeViewshed,
     routeOutline,
     forestConfiguration,
+    forestPatches,
     facedArrowGeometry,
     forestGround,
     previewRoad,
@@ -235,6 +238,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           <ForestOverlay
             active={drive.forest}
             configuration={forestConfiguration}
+            patches={forestPatches}
             centre={driveEye}
             gapTarget={
               !drive.viewingGap

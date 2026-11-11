@@ -41,6 +41,12 @@ export type ForestOverlayProps = {
   gapTarget?: PolygonGeometry | null
   terrainMessage?: string | null
   onStatus?: (status: ForestStatus) => void
+  /**
+   * Placed patches kept by the caller, so an overlay remounted with its map (the road view's map
+   * mounts only while it is open) reuses the stand it already placed. Make a new one whenever
+   * `configuration` changes; without it the overlay keeps its own.
+   */
+  patches?: Map<string, TreeInstance[]>
 }
 const LAYER_ID = 'forestry-trees'
 export function ForestOverlay(props: ForestOverlayProps) {
@@ -66,7 +72,8 @@ export function ForestOverlay(props: ForestOverlayProps) {
   } = configuration
   // Placement and readiness share an identity. A source/geometry change must
   // invalidate readiness during render, before the replacement effect runs.
-  const patches = useMemo(() => ({ configuration, tiles: new Map<string, TreeInstance[]>() }), [configuration]).tiles
+  const ownPatches = useMemo(() => ({ configuration, tiles: new Map<string, TreeInstance[]>() }), [configuration]).tiles
+  const patches = props.patches ?? ownPatches
   const atlas = useMemo(() => (style !== 'solid' ? buildImpostorAtlas() : undefined), [style])
   const clumpAtlas = useMemo(() => (style !== 'solid' ? buildImpostorAtlas(128, 'clump') : undefined), [style])
   useEffect(() => {
