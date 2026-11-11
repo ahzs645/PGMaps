@@ -33,9 +33,7 @@ export function historyShortcutLabels(apple: boolean) {
     : { undo: 'Ctrl+Z', redo: 'Ctrl+Y', undoAria: 'Control+Z', redoAria: 'Control+Y Control+Shift+Z' }
 }
 
-export function isApplePlatform(nav: { platform?: string; userAgentData?: { platform?: string } } = navigator) {
-  return /mac|iphone|ipad|ipod/i.test(nav.userAgentData?.platform || nav.platform || '')
-}
+export { isApplePlatform } from '@/lib/platform'
 
 /** Text fields keep their own undo; the shortcut is the road's only outside them. */
 export function keepsNativeUndo(target: EventTarget | null) {

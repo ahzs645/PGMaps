@@ -43,9 +43,34 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 | Label/value details                               | `KeyValueRows` (`variant="stack" \| "divided" \| "grid"`, `size`), falsy rows skipped                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Selected item card                                | `SelectedItemCard` (hover follows `tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | Search field                                      | `SearchInput` (`icon`, `onClear`, forwards `ref`); 16px on phones so iOS does not zoom. It marks itself as the target of the map search shortcut; pass `data-map-search-input="false"` on secondary search fields in the same sidebar.                                                                                                                                                                                                                                                                                                                                                                      |
+| Search with a result list (combobox)              | `useSearchCombobox`, `SearchComboboxInput`, `SearchResultList` (`search-combobox.tsx`). Use these before hand-rolling a combobox; see **Search comboboxes** below.                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | Small link-style actions                          | `TextButton` (`tone`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | Tags and counts                                   | `Badge` (`badge.tsx`: `tone`, `variant`, `pill`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | "View source" links                               | `ExternalLink` (`variant="link" \| "button"`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+
+### Search comboboxes
+
+A text box that drives a result list through `aria-activedescendant` (focus stays in the box) is
+`useSearchCombobox` plus its two renderers in `search-combobox.tsx`. The ribbon tool finder, the
+site search, Flatten's place boxes and the searchable `AppSelect` are built on it.
+
+- The hook takes the shown `items` and `onPick`. Arrows wrap (`loop={false}` stops at the ends),
+  `homeEnd` claims Home/End, Enter picks, and keys pressed while an input method is composing are
+  left alone. `isDisabled` options are never picked and are skipped unless `skipDisabled={false}`
+  (the ribbon finder keeps them reachable so "Unavailable" is read out). `resetKey`, usually the
+  query, returns the highlight to the first option. Only keyboard moves scroll the list, so it
+  never chases a moving pointer; `scrollIntoView="always"` follows every change.
+  `activateOnHover` highlights under the pointer.
+- `SearchComboboxInput variant="field"` is the sidebar `SearchInput`, which takes the map search
+  shortcut; `variant="bare"` is a borderless palette row (`boxClassName`, a leading `icon`,
+  `onClear` and `onClose` buttons) that never takes it. The page's own `onKeyDown` (Escape, a blur
+  after a pick) runs after the list's keys; `event.defaultPrevented` tells it a key was used.
+- `SearchResultList` renders each option through `renderOption` (`SearchResultContent` gives an
+  icon, a title and a secondary line), groups consecutive options under named headings
+  (`getGroup`), and shows `empty` inside the list when nothing matches. `keepInputFocus` keeps a
+  click from blurring a box whose list closes on blur; `isSelected` marks a select's chosen value
+  rather than the highlight.
+- Markup the renderers cannot express spreads `inputProps`, `listProps` and `getOptionProps`.
 
 ## Form fields and ranges
 

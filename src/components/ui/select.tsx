@@ -5,6 +5,7 @@ import * as PopoverPrimitive from '@radix-ui/react-popover'
 import * as SelectPrimitive from '@radix-ui/react-select'
 import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 
+import { SearchResultList, useSearchCombobox } from '@/components/ui/search-combobox'
 import { cn } from '@/lib/utils'
 
 const Select = SelectPrimitive.Root
@@ -428,47 +429,35 @@ function SearchableSelect({
   triggerRef,
   plainTrigger,
 }: Omit<AppSelectProps, 'className' | 'searchable' | 'name' | 'required'>) {
-  const listId = React.useId()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState('')
-  const [active, setActive] = React.useState(0)
-  // Only keyboard moves scroll the list; scrolling under a moving pointer would chase it.
-  const scrollToActive = React.useRef(false)
   const selected = options.find((option) => option.value === value)
   const needle = query.trim().toLowerCase()
   const shown = needle ? options.filter((option) => optionText(option).toLowerCase().includes(needle)) : options
+  // Only keyboard moves scroll the list; scrolling under a moving pointer would chase it.
+  const combobox = useSearchCombobox({
+    items: shown,
+    isDisabled: (option) => Boolean(option.disabled),
+    homeEnd: true,
+    activateOnHover: true,
+    onPick: (option) => {
+      onValueChange(option.value)
+      setOpen(false)
+    },
+  })
+  const listId = combobox.listId
   const changeOpen = (next: boolean) => {
     if (next) {
       setQuery('')
-      scrollToActive.current = true
-      setActive(
+      combobox.setActiveIndex(
         Math.max(
           0,
           options.findIndex((option) => option.value === value),
         ),
+        { scroll: true },
       )
     }
     setOpen(next)
-  }
-  React.useEffect(() => {
-    if (!open || !scrollToActive.current) return
-    scrollToActive.current = false
-    document.getElementById(`${listId}-${active}`)?.scrollIntoView({ block: 'nearest' })
-  }, [active, listId, open])
-  const pick = (option: SelectOption | undefined) => {
-    if (!option || option.disabled) return
-    onValueChange(option.value)
-    setOpen(false)
-  }
-  const move = (step: number) => {
-    if (!shown.length) return
-    scrollToActive.current = true
-    let next = active
-    for (let tries = 0; tries < shown.length; tries++) {
-      next = (next + step + shown.length) % shown.length
-      if (!shown[next].disabled) break
-    }
-    setActive(next)
   }
   return (
     <PopoverPrimitive.Root open={open} onOpenChange={changeOpen}>
@@ -521,70 +510,40 @@ function SearchableSelect({
           )}
         >
           <input
-            role="combobox"
+            {...combobox.inputProps}
             aria-label={`Search ${triggerAriaLabel ?? 'options'}`}
-            aria-expanded="true"
-            aria-controls={listId}
-            aria-autocomplete="list"
-            aria-activedescendant={shown[active] ? `${listId}-${active}` : undefined}
             placeholder={searchPlaceholder}
             value={query}
             onChange={(event) => {
               setQuery(event.target.value)
-              setActive(0)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'ArrowDown') move(1)
-              else if (event.key === 'ArrowUp') move(-1)
-              else if (event.key === 'Home') {
-                scrollToActive.current = true
-                setActive(0)
-              } else if (event.key === 'End') {
-                scrollToActive.current = true
-                setActive(Math.max(0, shown.length - 1))
-              } else if (event.key === 'Enter') pick(shown[active])
-              else return
-              event.preventDefault()
+              combobox.resetActive()
             }}
             className="mb-1 h-8 w-full shrink-0 rounded-sm border border-input bg-background px-2 text-base outline-none focus:ring-1 focus:ring-ring md:text-sm"
           />
-          <div id={listId} role="listbox" aria-label={triggerAriaLabel} className="min-h-0 overflow-y-auto">
-            {groupRuns(shown.map((option, index) => ({ option, index }))).map((run, runIndex) => {
-              const rows = run.entries.map(({ option, index }) => (
-                <div
-                  key={`${index}:${option.value}`}
-                  id={`${listId}-${index}`}
-                  role="option"
-                  aria-selected={option.value === value}
-                  aria-disabled={option.disabled || undefined}
-                  data-value={option.value}
-                  data-active={index === active || undefined}
-                  title={option.title}
-                  onPointerMove={() => !option.disabled && index !== active && setActive(index)}
-                  onClick={() => pick(option)}
-                  className={cn(
-                    'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8',
-                    index === active && 'bg-accent text-accent-foreground',
-                    option.disabled && 'pointer-events-none opacity-50',
-                  )}
-                >
-                  {option.label}
-                  {option.value === value && <Check className="absolute right-2 h-4 w-4" aria-hidden="true" />}
-                </div>
-              ))
-              if (run.group === undefined) return rows
-              const headingId = `${listId}-group-${runIndex}`
-              return (
-                <div key={headingId} role="group" aria-labelledby={headingId}>
-                  <div id={headingId} className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                    {run.group}
-                  </div>
-                  {rows}
-                </div>
+          <SearchResultList
+            combobox={combobox}
+            aria-label={triggerAriaLabel}
+            className="min-h-0 overflow-y-auto"
+            getKey={(option, index) => `${index}:${option.value}`}
+            getGroup={(option) => option.group}
+            groupHeadingClassName="px-2 py-1.5 text-xs font-semibold text-muted-foreground"
+            isSelected={(option) => option.value === value}
+            optionAttributes={(option) => ({ 'data-value': option.value, title: option.title })}
+            optionClassName={({ active, disabled }) =>
+              cn(
+                'relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8',
+                active && 'bg-accent text-accent-foreground',
+                disabled && 'pointer-events-none opacity-50',
               )
-            })}
-            {!shown.length && <p className="px-2 py-1.5 text-muted-foreground">No matches</p>}
-          </div>
+            }
+            renderOption={(option) => (
+              <>
+                {option.label}
+                {option.value === value && <Check className="absolute right-2 h-4 w-4" aria-hidden="true" />}
+              </>
+            )}
+            empty={<p className="px-2 py-1.5 text-muted-foreground">No matches</p>}
+          />
         </PopoverPrimitive.Content>
       </PopoverPrimitive.Portal>
     </PopoverPrimitive.Root>

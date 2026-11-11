@@ -1,6 +1,7 @@
 import { Search, Settings2, X, type LucideIcon } from 'lucide-react'
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { isApplePlatform } from '@/pages/dev-forestry-roads/historyShortcut'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { SearchComboboxInput, SearchResultList, useSearchCombobox } from '@/components/ui/search-combobox'
+import { isApplePlatform } from '@/lib/platform'
 import type { WorkspaceCommand } from './workspaceCommands'
 import type { WorkspaceWidget } from './workspaceLayouts'
 
@@ -26,9 +27,7 @@ function ToolSearch({
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const input = useRef<HTMLInputElement>(null)
-  const listId = useId()
   const [query, setQuery] = useState('')
-  const [index, setIndex] = useState(0)
   const terms = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
   const results = entries.filter(({ label, id, tab, section, inSettings }) => {
     const words = [label, id.replace(/([a-z])([A-Z])/g, '$1 $2'), tab, section, inSettings && 'settings']
@@ -37,8 +36,20 @@ function ToolSearch({
       .toLowerCase()
     return terms.every((term) => words.includes(term))
   })
-  const active = Math.min(index, results.length - 1)
-  const activeId = active >= 0 ? `${listId}-${active}` : undefined
+  const combobox = useSearchCombobox({
+    items: results,
+    isDisabled: (entry) => entry.disabled,
+    // An unavailable tool stays reachable so its "Unavailable" note is read out.
+    skipDisabled: false,
+    resetKey: query,
+    scrollIntoView: 'always',
+    onPick: (entry) => {
+      // Close synchronously so a result that opens a file picker keeps the user's activation.
+      dialog.current?.close()
+      onClose()
+      onPick(entry)
+    },
+  })
 
   useLayoutEffect(() => {
     const node = dialog.current!
@@ -46,17 +57,7 @@ function ToolSearch({
     input.current?.focus()
     return () => node.close()
   }, [])
-  useLayoutEffect(() => {
-    if (activeId) document.getElementById(activeId)?.scrollIntoView({ block: 'nearest' })
-  }, [activeId, query])
 
-  function pick(entry: RibbonResult) {
-    if (entry.disabled) return
-    // Close synchronously so a result that opens a file picker keeps the user's activation.
-    dialog.current?.close()
-    onClose()
-    onPick(entry)
-  }
   return (
     <dialog
       ref={dialog}
@@ -71,61 +72,39 @@ function ToolSearch({
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className="lp-search-box">
-        <Search size={18} aria-hidden="true" />
-        <input
-          ref={input}
-          type="text"
-          role="combobox"
-          aria-label="Search ribbon tools"
-          aria-expanded="true"
-          aria-autocomplete="list"
-          aria-controls={listId}
-          aria-activedescendant={activeId}
-          placeholder="Search tools and settings"
-          autoComplete="off"
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value)
-            setIndex(0)
-          }}
-          onKeyDown={(event) => {
-            if (event.nativeEvent.isComposing || !results.length) return
-            if (event.key === 'Enter') {
-              event.preventDefault()
-              pick(results[active])
-            } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-              event.preventDefault()
-              setIndex((active + (event.key === 'ArrowUp' ? -1 : 1) + results.length) % results.length)
-            }
-          }}
-        />
-        <button type="button" aria-label="Close tool search" onClick={onClose}>
-          <X size={18} />
-        </button>
-      </div>
-      <div id={listId} role="listbox" aria-label="Matching ribbon tools" className="lp-search-results">
-        {results.map((entry, i) => {
+      <SearchComboboxInput
+        ref={input}
+        combobox={combobox}
+        variant="bare"
+        boxClassName="lp-search-box"
+        icon={<Search size={18} aria-hidden="true" />}
+        aria-label="Search ribbon tools"
+        placeholder="Search tools and settings"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        onClose={onClose}
+        closeLabel="Close tool search"
+        buttonIcon={<X size={18} />}
+      />
+      <SearchResultList
+        combobox={combobox}
+        aria-label="Matching ribbon tools"
+        className="lp-search-results"
+        getKey={(entry, i) => [entry.tab, entry.section, entry.id, i].join('/')}
+        renderOption={(entry) => {
           const Icon = entry.icon ?? Settings2
           return (
-            <div
-              key={[entry.tab, entry.section, entry.id, i].join('/')}
-              id={`${listId}-${i}`}
-              role="option"
-              aria-selected={active === i}
-              aria-disabled={entry.disabled || undefined}
-              onClick={() => pick(entry)}
-            >
+            <>
               <Icon size={17} strokeWidth={1.65} aria-hidden="true" />
               <span>
                 <strong>{entry.label}</strong>
                 <small>{[entry.tab, entry.section, entry.inSettings && 'Settings'].filter(Boolean).join(' › ')}</small>
               </span>
               {entry.disabled && <small>Unavailable</small>}
-            </div>
+            </>
           )
-        })}
-      </div>
+        }}
+      />
       {!results.length && <p role="status">No matching ribbon tools.</p>}
     </dialog>
   )
