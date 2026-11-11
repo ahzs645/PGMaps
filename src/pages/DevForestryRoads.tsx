@@ -88,7 +88,6 @@ import {
   Spline,
   Waves,
   Waypoints,
-  X,
   Maximize,
   Minimize,
   type LucideIcon,
@@ -123,6 +122,7 @@ import { roadSummaryMetrics } from './dev-forestry-roads/roadSummaryMetrics'
 import { parseRoadReportSettings } from './dev-forestry-roads/reportSettings'
 import { useSummaryPreferences } from './dev-forestry-roads/summaryPreferences'
 import { MetricSummaryLayout } from '@/components/ui/metric-summary'
+import { TilePaneClose } from '@/components/ui/tiled-workspace'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { PanelCorner } from '@/components/ui/panel-corner'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -475,17 +475,11 @@ export default function DevForestryRoads({
     ...(['engineering', 'pegging'].includes(layout) ? ['data'] : []),
   ].filter((id) => !hiddenPanels.includes(id as RoadPaneId)).length
   const closePanel = (id: RoadPaneId) => (
-    <Button
-      size="icon"
-      variant="ghost"
-      className="size-8"
-      aria-label={`Close ${id === 'detail' ? 'detail view' : id} panel`}
+    <TilePaneClose
+      label={id === 'detail' ? 'detail view' : id}
       disabled={visiblePanelCount <= 1}
-      title="Close panel · restore in Screen presets & panels"
-      onClick={() => setHiddenPanels([...hiddenPanels, id])}
-    >
-      <X className="size-3.5" />
-    </Button>
+      onClose={() => setHiddenPanels([...hiddenPanels, id])}
+    />
   )
   const [overlay, setOverlay] = useState<GeoJSON.FeatureCollection>({ type: 'FeatureCollection', features: [] })
   const [networkPreview, setNetworkPreview] = useState<{
