@@ -34,7 +34,7 @@ import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeomet
 import { ToolSourcesPanel } from './dev-forestry/ToolSourcesPanel'
 import { LandformDesignPanel } from './dev-forestry/LandformDesignPanel'
 import { LandformSuggestions } from './dev-forestry/LandformSuggestions'
-import { TerrainLandformFinder, type TerrainCandidate } from './dev-forestry/TerrainLandformFinder'
+import { TerrainLandformFinder, type LandformMethod, type TerrainCandidate } from './dev-forestry/TerrainLandformFinder'
 import type { RidgeLayer } from './dev-forestry/ridgeLayers'
 import type { CanopyStand } from './dev-forestry/canopy'
 import { createRoadsideDriveScene, ROADSIDE_DEMO_ID, roadsideDriveCue } from './dev-forestry/driveScenario'
@@ -79,6 +79,7 @@ import { readShapeFile } from './dev-forestry/shapeImport'
 import { SatelliteImagery, SATELLITE_ATTRIBUTION } from './dev-forestry/SatelliteImagery'
 import {
   VIEWPOINT_ROAD_CLASSES,
+  arrowLabel,
   ViewpointFinderPanel,
   type ViewpointInventoryState,
 } from './dev-forestry/ViewpointFinderPanel'
@@ -97,6 +98,7 @@ import {
   PULLOUT_METERS,
   viewpointsNearBlock,
   VIEWPOINT_SEARCH_METERS,
+  type CandidateArrow,
   type ViewpointCandidate,
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, EVQO_COLORS, viewCaption, type ViewpointFinding } from './dev-forestry/visualsNarrative'
@@ -120,7 +122,7 @@ import {
   type ForestryScene,
 } from './dev-forestry/scene'
 import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
-import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
+import { DEFAULT_PLAN_SHOW, PlanMapLegend, type PlanShow } from './dev-forestry/PlanMapLegend'
 import {
   ASSESSMENT_VIEWPOINT_COLOR,
   EXPOSURE_RAMP,
@@ -132,6 +134,7 @@ import {
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLOR,
   TERRAIN_CANDIDATE_COLOR,
+  FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
   VISIBLE_COLOR,
 } from './dev-forestry/planMapStyle'
@@ -142,6 +145,9 @@ import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-fores
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+/** Lakes and rivers in the road view: a still-water blue, with a lighter shoreline. */
+const ROAD_VIEW_WATER_COLOR = '#3f6f99'
+const ROAD_VIEW_SHORE_COLOR = '#9cc0d8'
 const NO_TARGETS: TargetPolygon[] = []
 const NO_CANDIDATES: ViewpointCandidate[] = []
 
@@ -153,6 +159,7 @@ const DEFAULT_DRIVE: DriveState = {
   speedKmh: 60,
   positionMeters: 0,
   lookAtTargetId: null,
+  lookBearing: null,
   exaggeration: 1,
   forest: false,
   // The region's mature median (REGIONAL_STAND, from VRI).
@@ -308,6 +315,8 @@ function DevForestryVisuals() {
   // Timber is kept off mapped water, and the roadside clearing follows the
   // road's class until the reviewer sets a width of their own.
   const [basemap, setBasemap] = useState<BasemapContext>({ water: [], roadClass: null })
+  // The plan map's own Show switches (its legend); the road view keeps its set on `drive`.
+  const [planShow, setPlanShow] = useState<PlanShow>(DEFAULT_PLAN_SHOW)
   const [seenRoadClass, setSeenRoadClass] = useState<string | null>(null)
   const [autoClearing, setAutoClearing] = useState(DEFAULT_DRIVE.roadClearWidthMeters)
   if (basemap.roadClass !== seenRoadClass) {
@@ -386,7 +395,12 @@ function DevForestryVisuals() {
     (patch: Partial<DriveState>, preliminary = false) => {
       if (patch.active && !result && !preliminary) return
       if (patch.active) setPreliminaryDrive(preliminary)
-      if (patch.positionMeters !== undefined || patch.lookAtTargetId !== undefined || patch.active)
+      if (
+        patch.positionMeters !== undefined ||
+        patch.lookAtTargetId !== undefined ||
+        patch.lookBearing !== undefined ||
+        patch.active
+      )
         setRestoreLook({ yaw: 0, tilt: preliminary || preliminaryDrive ? -25 : 0 })
       if (patch.active) {
         setDrawMode('none')
@@ -397,6 +411,8 @@ function DevForestryVisuals() {
         return {
           ...current,
           ...patch,
+          // Facing a block replaces facing an arrow's bearing.
+          ...(patch.lookAtTargetId ? { lookBearing: null } : {}),
           exaggeration: 1,
           ...(entering && (result || preliminary)
             ? {
@@ -406,6 +422,7 @@ function DevForestryVisuals() {
                     ? 200
                     : (result?.stations[result.assessmentStationIndex]?.distanceAlongMeters ?? 0)),
                 lookAtTargetId: patch.lookAtTargetId ?? null,
+                lookBearing: patch.lookAtTargetId ? null : (patch.lookBearing ?? null),
                 // The note screenshot look draws no timber; entering keeps it that way.
                 forest: !preliminary && !current.reportLook,
               }
@@ -680,23 +697,41 @@ function DevForestryVisuals() {
     },
     [inventory.units, adoptCandidate],
   )
-  // A landform read from the terrain, shown dashed until the reviewer adopts it.
-  const [storedTerrainCandidate, setTerrainCandidate] = useState<TerrainCandidate | null>(null)
-  // Only while its block is still there as it was read: a candidate for a block
-  // since moved, edited or deleted is not one to adopt.
+  // Landforms read from the terrain — the ridge layer and the face, side by
+  // side — shown dashed until the reviewer adopts one. The one in front is
+  // drawn solid, with its ridge layers.
+  const [storedTerrainCandidates, setTerrainCandidates] = useState<TerrainCandidate[]>([])
+  const [terrainFocus, setTerrainFocus] = useState<LandformMethod>('ridge-layer')
+  // Only while their block is still there as it was read: a candidate for a
+  // block since moved, edited or deleted is not one to adopt.
+  const terrainCandidates = useMemo(
+    () =>
+      storedTerrainCandidates.filter(
+        (candidate) =>
+          scene.targets.find((target) => target.id === candidate.blockId)?.geometry === candidate.blockGeometry,
+      ),
+    [storedTerrainCandidates, scene.targets],
+  )
   const terrainCandidate =
-    storedTerrainCandidate &&
-    scene.targets.find((target) => target.id === storedTerrainCandidate.blockId)?.geometry ===
-      storedTerrainCandidate.blockGeometry
-      ? storedTerrainCandidate
-      : null
+    terrainCandidates.find((candidate) => (candidate.method ?? 'facing') === terrainFocus) ??
+    terrainCandidates[0] ??
+    null
   const terrainCandidateCollection = useMemo<GeoJSON.FeatureCollection>(
     () => ({
       type: 'FeatureCollection',
-      features: terrainCandidate ? [{ type: 'Feature', properties: {}, geometry: terrainCandidate.geometry }] : [],
+      features: terrainCandidates.map((candidate) => ({
+        type: 'Feature',
+        properties: {
+          method: candidate.method ?? 'facing',
+          selected: candidate === terrainCandidate ? 1 : 0,
+        },
+        geometry: candidate.geometry,
+      })),
     }),
-    [terrainCandidate],
+    [terrainCandidates, terrainCandidate],
   )
+  // One click on the map for a tool that asked for a point (the landform's vantage).
+  const [mapPick, setMapPick] = useState<{ onPoint: (point: [number, number]) => void } | null>(null)
   // The bands of an adopted ridge-layer landform, kept while that landform is
   // in the scene so the road view can drape them.
   const [adoptedRidge, setAdoptedRidge] = useState<{ landformId: string; layers: RidgeLayer[] } | null>(null)
@@ -740,8 +775,8 @@ function DevForestryVisuals() {
         geometry: candidate.geometry,
         source:
           candidate.method === 'ridge-layer'
-            ? 'Ridge layer seen from the road; review against the view'
-            : 'Suggested from terrain; review against the view',
+            ? `Ridge layer seen from ${candidate.vantageName ?? 'the road'}; review against the view`
+            : `Face turned to ${candidate.vantageName ?? 'the road'}, from terrain; review against the view`,
       }
       setScene((scene) => ({
         ...scene,
@@ -751,7 +786,7 @@ function DevForestryVisuals() {
       setSelectedTargetId(adopted.id)
       setAdoptedRidge(candidate.layers?.length ? { landformId: adopted.id, layers: candidate.layers } : null)
       setReplacedLandform(current ? { previous: current, adoptedId: adopted.id } : null)
-      setTerrainCandidate(null)
+      setTerrainCandidates([])
     },
     [setScene],
   )
@@ -968,6 +1003,8 @@ function DevForestryVisuals() {
     serial: number
     positionMeters: number
     lookAtTargetId: string | null
+    /** Face this bearing instead of a block: the inventory arrow chosen at a viewpoint. */
+    lookBearing?: number | null
   } | null>(null)
   const handledStand = useRef(0)
   useEffect(() => {
@@ -978,6 +1015,7 @@ function DevForestryVisuals() {
       name: 'Stand',
       positionMeters: standRequest.positionMeters,
       lookAtTargetId: standRequest.lookAtTargetId,
+      lookBearing: standRequest.lookBearing ?? null,
       yaw: 0,
       tilt: 0,
       treeHeightMeters: driveRef.current.treeHeightMeters,
@@ -1001,7 +1039,8 @@ function DevForestryVisuals() {
     [key, savedViews, shelvedViews, setScene],
   )
   const handleUseViewpoint = useCallback(
-    (candidate: ViewpointCandidate) => {
+    /** Stands at an inventory viewpoint, facing the block, or along one of its arrows when given. */
+    (candidate: ViewpointCandidate, arrow?: CandidateArrow | null) => {
       const block = viewpointBlock
       const centre = block ? polygonInteriorPoint(block.geometry) : null
       if (!block || !centre) return
@@ -1023,7 +1062,8 @@ function DevForestryVisuals() {
       setStandRequest((current) => ({
         serial: (current?.serial ?? 0) + 1,
         positionMeters: PULLOUT_METERS / 2,
-        lookAtTargetId: block.id,
+        lookAtTargetId: arrow ? null : block.id,
+        lookBearing: arrow ? arrow.bearing : null,
       }))
     },
     [viewpointBlock, standing, moveViewpoint],
@@ -1312,7 +1352,7 @@ function DevForestryVisuals() {
             ? createPurdenLakeScene()
             : createSampleScene()
       analysis.reset()
-      setTerrainCandidate(null)
+      setTerrainCandidates([])
       setReplacedLandform(null)
       setPendingPreview(null)
       setPreviewMessage(null)
@@ -1332,7 +1372,7 @@ function DevForestryVisuals() {
 
   const handleClearScene = useCallback(() => {
     analysis.reset()
-    setTerrainCandidate(null)
+    setTerrainCandidates([])
     setReplacedLandform(null)
     setPendingPreview(null)
     setPreviewMessage(null)
@@ -1358,13 +1398,15 @@ function DevForestryVisuals() {
   }, [hazeCentre])
   // The established VQO polygons around the scene, coloured by class when the
   // road view drapes them. Read from the inventory only once switched on.
+  const showImagery = drive.active ? drive.imagery : planShow.imagery
+  const showEvqo = drive.active ? drive.showEvqo : planShow.evqo
   const evqoKey = useMemo(() => {
-    if (!drive.showEvqo) return null
+    if (!showEvqo) return null
     const bounds = sceneBounds(scene)
     return bounds
       ? [bounds[0] - 0.08, bounds[1] - 0.05, bounds[2] + 0.08, bounds[3] + 0.05].map((v) => v.toFixed(3)).join(',')
       : null
-  }, [drive.showEvqo, scene])
+  }, [showEvqo, scene])
   const [evqoDisplay, setEvqoDisplay] = useState<{
     key: string
     collection: GeoJSON.FeatureCollection
@@ -1530,7 +1572,13 @@ function DevForestryVisuals() {
         features: data.arrows.map((arrow) => ({
           type: 'Feature' as const,
           id: `arrow:${arrow.id}`,
-          properties: { id: `arrow:${arrow.id}`, size: arrow.size, bearing: Math.round(arrow.bearing) },
+          properties: {
+            id: `arrow:${arrow.id}`,
+            arrowId: arrow.id,
+            viewpoint: `vli:${arrow.viewpointId}`,
+            size: arrow.size,
+            bearing: Math.round(arrow.bearing),
+          },
           geometry: arrow.geometry,
         })),
       } satisfies GeoJSON.FeatureCollection,
@@ -1545,6 +1593,31 @@ function DevForestryVisuals() {
       } satisfies GeoJSON.FeatureCollection,
     }
   }, [viewpointInventory.data])
+  // The inventory viewpoint stood at, if any: its arrows drape in the road
+  // view, the one faced drawn solid, and the sidebar offers each as a direction.
+  const standingCandidate = standingNow
+    ? (viewpointCandidates.find((candidate) => `stand-${candidate.key}` === scene.viewpoint.id) ?? null)
+    : null
+  const standingArrows = useMemo<GeoJSON.FeatureCollection>(() => {
+    if (!standingCandidate?.arrows.length) return EMPTY_COLLECTION
+    const faced = standingCandidate.arrows.find(
+      (arrow) => drive.lookBearing !== null && Math.abs(arrow.bearing - drive.lookBearing) < 0.5,
+    )
+    return {
+      type: 'FeatureCollection',
+      features: viewpointLayers.arrows.features
+        .filter((feature) => feature.properties?.viewpoint === standingCandidate.key)
+        .map((feature) => ({
+          ...feature,
+          properties: { ...feature.properties, faced: feature.properties?.arrowId === faced?.id ? 1 : 0 },
+        })),
+    }
+  }, [standingCandidate, viewpointLayers.arrows, drive.lookBearing])
+  // Facing an arrow, the viewing gap opens the timber along it, as it would toward a block.
+  const facedArrowGeometry =
+    (standingArrows.features.find((feature) => feature.properties?.faced === 1)?.geometry as
+      | GeoJSON.Polygon
+      | undefined) ?? null
   const viewpointHoverHtml = useCallback((properties: Record<string, unknown>) => {
     const kind = properties.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'
     return mapTooltipHtml({ title: String(properties.name ?? kind), subtitle: kind, footer: 'Click to stand here' })
@@ -1798,10 +1871,12 @@ function DevForestryVisuals() {
   // From across a valley the ground between crowns is shaded forest floor, not
   // the pale basemap. However far out the cards thin, the stand's ground is
   // drawn dark where the stand is, bare soil in its clearings, water as water.
+  // Water is drawn whenever the road view is open, timber or not: a lake is a
+  // lake. Floor and soil are the drawn stand's ground, so they go with it.
   const forestGround = useMemo(() => {
     const empty: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
     const bounds = sceneBounds(scene)
-    if (!drive.active || !drive.forest || !bounds) return { floor: empty, soil: empty, water: empty }
+    if (!drive.active || !bounds) return { floor: empty, soil: empty, water: empty }
     const padLat = previewTerrain.radius / 111_320
     const padLng = padLat / Math.max(0.2, Math.cos((((bounds[1] + bounds[3]) / 2) * Math.PI) / 180))
     const [w, s, e, n] = [bounds[0] - padLng, bounds[1] - padLat, bounds[2] + padLng, bounds[3] + padLat]
@@ -1829,7 +1904,7 @@ function DevForestryVisuals() {
       soil: { type: 'FeatureCollection', features: forestOpenings.map(feature) } as GeoJSON.FeatureCollection,
       water: { type: 'FeatureCollection', features: basemap.water.map(feature) } as GeoJSON.FeatureCollection,
     }
-  }, [drive.active, drive.forest, scene, previewTerrain.radius, forestOpenings, basemap.water])
+  }, [drive.active, scene, previewTerrain.radius, forestOpenings, basemap.water])
 
   // On the map, show what the whole road can see. Driving narrows it to the one
   // point the camera is standing at, which is the thing worth watching change.
@@ -1839,6 +1914,17 @@ function DevForestryVisuals() {
   )
 
   const lookAtTarget = useMemo(() => {
+    // Facing an arrow: a point 5 km out along its bearing, level with the eye.
+    if (!drive.lookAtTargetId && drive.lookBearing !== null && result?.stations.length) {
+      const station = result.stations[Math.min(driveStationIndex, result.stations.length - 1)]
+      const radians = (drive.lookBearing * Math.PI) / 180
+      const scale = metersPerDegree(station.lat)
+      return {
+        lng: station.lng + (Math.sin(radians) * 5000) / scale.lng,
+        lat: station.lat + (Math.cos(radians) * 5000) / scale.lat,
+        elevationMeters: station.groundElevationMeters + result.settings.observerHeightMeters,
+      }
+    }
     if (!drive.lookAtTargetId || !result) return null
     const target = result.targets.find((entry) => entry.targetId === drive.lookAtTargetId)
     if (!target || target.sampleCount === 0) return null
@@ -1862,7 +1948,7 @@ function DevForestryVisuals() {
       lat: latTotal / target.sampleCount,
       elevationMeters: counted > 0 ? elevationTotal / counted : 0,
     }
-  }, [drive.lookAtTargetId, result])
+  }, [drive.lookAtTargetId, drive.lookBearing, driveStationIndex, result])
 
   // A spot viewpoint has no direction of travel, so it faces the first block.
   const spotBearing = useMemo(() => {
@@ -2046,7 +2132,7 @@ function DevForestryVisuals() {
           canvas.width - 32,
         )
         ctx.fillText(
-          `Terrain: AWS Open Data / SRTM / CDEM. Basemap © CARTO, © OpenStreetMap contributors.${drive.imagery ? ` ${SATELLITE_ATTRIBUTION}.` : ''}`,
+          `Terrain: AWS Open Data / SRTM / CDEM. Basemap © CARTO, © OpenStreetMap contributors.${showImagery ? ` ${SATELLITE_ATTRIBUTION}.` : ''}`,
           16,
           source.height + 78,
           canvas.width - 32,
@@ -2151,11 +2237,24 @@ function DevForestryVisuals() {
               scene={scene}
               result={result}
               water={basemap.water}
-              candidate={terrainCandidate}
-              onCandidate={(candidate) => {
-                setTerrainCandidate(candidate)
-                if (candidate) fitBounds(polygonBounds(candidate.geometry))
+              candidates={terrainCandidates}
+              focused={terrainFocus}
+              onFocus={setTerrainFocus}
+              onCandidates={(candidates) => {
+                setTerrainCandidates(candidates)
+                // Frame both readings at once, so they can be compared.
+                if (candidates.length) {
+                  const boxes = candidates.map((candidate) => polygonBounds(candidate.geometry))
+                  fitBounds([
+                    Math.min(...boxes.map((box) => box[0])),
+                    Math.min(...boxes.map((box) => box[1])),
+                    Math.max(...boxes.map((box) => box[2])),
+                    Math.max(...boxes.map((box) => box[3])),
+                  ])
+                }
               }}
+              vantages={viewpointCandidates.map(({ key, name, lng, lat }) => ({ key, name, lng, lat }))}
+              onPickPoint={(onPoint) => setMapPick(onPoint ? { onPoint } : null)}
               onAdopt={adoptTerrainCandidate}
               replaced={
                 replacedLandform && scene.targets.some((target) => target.id === replacedLandform.adoptedId)
@@ -2366,6 +2465,11 @@ function DevForestryVisuals() {
       onExportReport={result ? handleExportReport : null}
       onAddRoadDisturbance={handleAddRoadDisturbance}
       roadClearing={{ roadClass: basemap.roadClass, widthMeters: autoClearing, waterPolygons: basemap.water.length }}
+      lookArrows={(standingCandidate?.arrows ?? []).map((arrow, index) => ({
+        id: arrow.id,
+        label: arrowLabel(arrow, index),
+        bearing: arrow.bearing,
+      }))}
     />
   )
 
@@ -2406,7 +2510,7 @@ function DevForestryVisuals() {
           hillshade
           hillshadeIntensity={drive.active ? 0.25 : 0.45}
         />
-        <SatelliteImagery visible={drive.imagery} />
+        <SatelliteImagery visible={showImagery} />
         {routeViewshed.enabled && routeViewshed.valid && (
           <>
             {routeViewshed.mode !== 'point' && (
@@ -2468,33 +2572,40 @@ function DevForestryVisuals() {
           configuration={forestConfiguration}
           centre={driveEye}
           gapTarget={
-            drive.viewingGap && drive.lookAtTargetId
-              ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
-              : null
+            !drive.viewingGap
+              ? null
+              : drive.lookAtTargetId
+                ? (scene.targets.find((target) => target.id === drive.lookAtTargetId)?.geometry ?? null)
+                : facedArrowGeometry
           }
           terrainMessage={previewTerrain.message}
           onStatus={setForestStatus}
         />
+        {/* Satellite imagery is the real ground, so the drawn floor and soil
+            stand aside for it rather than covering it at 82%. */}
         <MapFillLayer
           data={forestGround.floor}
           fillColor="#3a4f35"
           fillOpacity={0.82}
           lineWidth={0}
-          visible={drive.active && drive.forest}
+          visible={drive.active && drive.forest && !drive.imagery}
         />
         <MapFillLayer
           data={forestGround.soil}
           fillColor="#a7977d"
           fillOpacity={0.95}
           lineWidth={0}
-          visible={drive.active && drive.forest}
+          visible={drive.active && drive.forest && !drive.imagery}
         />
+        {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
         <MapFillLayer
           data={forestGround.water}
-          fillColor="#8fb0c4"
-          fillOpacity={1}
-          lineWidth={0}
-          visible={drive.active && drive.forest}
+          fillColor={ROAD_VIEW_WATER_COLOR}
+          fillOpacity={drive.imagery ? 0.35 : 0.92}
+          lineColor={ROAD_VIEW_SHORE_COLOR}
+          lineWidth={drive.imagery ? 0 : 1}
+          lineOpacity={0.8}
+          visible={drive.active}
         />
         <MapFillLayer
           data={previewRoad}
@@ -2518,6 +2629,14 @@ function DevForestryVisuals() {
           onPoint={handleMapPoint}
           onFinish={drawMode === 'spot' ? undefined : finishDraft}
         />
+        {/* A one-off point a sidebar tool asked for, such as where a landform is read from. */}
+        <MapDrawCapture
+          active={!!mapPick && drawMode === 'none'}
+          onPoint={(point) => {
+            mapPick?.onPoint(point)
+            setMapPick(null)
+          }}
+        />
 
         {/* Inventory polygons sit under the scene's own, and units with nothing
             established are drawn back so the ones that constrain harvesting read first. */}
@@ -2533,25 +2652,26 @@ function DevForestryVisuals() {
           onFeatureClick={(id) => handleAdoptUnit(id)}
           hoverHtml={inventoryHoverHtml}
         />
+        {/* Both terrain readings, coloured by reading; the one in front filled and drawn heavier. */}
         <MapFillLayer
           data={terrainCandidateCollection}
           visible={!drive.active}
-          fillColor={TERRAIN_CANDIDATE_COLOR}
-          fillOpacity={0.06}
+          fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+          fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
           lineWidth={0}
         />
         <MapLineLayer
           data={terrainCandidateCollection}
           visible={!drive.active}
-          color={TERRAIN_CANDIDATE_COLOR}
-          width={2}
+          color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+          width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
           dashArray={[2, 1.5]}
-          opacity={0.95}
+          opacity={['case', ['==', ['get', 'selected'], 1], 0.95, 0.7] as never}
         />
         {/* The other ridge layers a ridge-layer candidate found, as the road sees them stack. */}
         <MapLineLayer
           data={ridgeLayerCollection}
-          visible={!drive.active || drive.showLandform}
+          visible={drive.active ? drive.showLandform : planShow.landform}
           color={['case', ['==', ['get', 'own'], 1], TERRAIN_CANDIDATE_COLOR, OTHER_RIDGE_LAYER_COLOR]}
           width={['case', ['==', ['get', 'own'], 1], 0, drive.active ? 2.5 : 1.2]}
           opacity={0.75}
@@ -2568,13 +2688,19 @@ function DevForestryVisuals() {
           lineOpacity={0.6}
         />
         <MapFillLayer
-          data={viewpointLayers.arrows}
-          visible={!drive.active && showInventory}
+          data={drive.active ? standingArrows : viewpointLayers.arrows}
+          visible={drive.active ? standingArrows.features.length > 0 : showInventory}
           fillColor={INVENTORY_COLORS.viewpoint}
-          fillOpacity={['case', ['==', ['get', 'size'], 'large'], 0.45, 0.3]}
-          lineColor={INVENTORY_COLORS.arrowOutline}
-          lineWidth={0.8}
-          lineOpacity={0.8}
+          // Standing at the viewpoint puts its arrows under the eye, so in the
+          // road view they are outlines over a faint fill, the faced one heavier.
+          fillOpacity={
+            drive.active
+              ? (['case', ['==', ['get', 'faced'], 1], 0.18, 0.06] as never)
+              : ['case', ['==', ['get', 'size'], 'large'], 0.45, 0.3]
+          }
+          lineColor={drive.active ? INVENTORY_COLORS.viewpoint : INVENTORY_COLORS.arrowOutline}
+          lineWidth={drive.active ? (['case', ['==', ['get', 'faced'], 1], 3.5, 1.5] as never) : 0.8}
+          lineOpacity={drive.active ? 0.95 : 0.8}
         />
         <MapCircleLayer
           data={viewpointLayers.points}
@@ -2606,7 +2732,7 @@ function DevForestryVisuals() {
         />
         <MapFillLayer
           data={landscapeCollection}
-          visible={!drive.active || drive.showAnalysis || drive.showLandform}
+          visible={drive.active ? drive.showAnalysis || drive.showLandform : planShow.landform}
           fillColor={ROLE_COLORS.landscape}
           fillOpacity={drive.active && drive.showLandform ? 0.18 : 0.08}
           lineColor={ROLE_COLORS.landscape}
@@ -2620,7 +2746,7 @@ function DevForestryVisuals() {
         {/* The established VQO polygons draped under everything else in the road view. */}
         <MapFillLayer
           data={evqoDisplay?.collection ?? EMPTY_COLLECTION}
-          visible={drive.active && drive.showEvqo}
+          visible={showEvqo}
           fillColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
           fillOpacity={0.3}
           lineColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
@@ -2680,7 +2806,7 @@ function DevForestryVisuals() {
 
         <MapFillLayer
           data={maskCollection}
-          visible={!drive.active || drive.showAnalysis}
+          visible={drive.active ? drive.showAnalysis : planShow.analysis}
           fillColor={[
             'match',
             ['get', 'kind'],
@@ -2714,7 +2840,10 @@ function DevForestryVisuals() {
               drive.active ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
             )
           }
-          visible={!preliminaryDrive && (!drive.active || (drive.showAnalysis && drive.harvestPhase === 'after'))}
+          visible={
+            !preliminaryDrive &&
+            (drive.active ? drive.showAnalysis && drive.harvestPhase === 'after' : planShow.analysis)
+          }
           color={[
             'case',
             ['==', ['get', 'visible'], 2],
@@ -2986,7 +3115,7 @@ function DevForestryVisuals() {
           run={!!result}
           reverseRoads={reverseRoadCollection.features.length > 0}
           sensitivityUnits={showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []}
-          terrainCandidate={terrainCandidateCollection.features.length > 0}
+          terrainCandidates={[...new Set(terrainCandidates.map((candidate) => candidate.method ?? 'facing'))]}
           otherRidgeLayers={ridgeLayerCollection.features.some((feature) => feature.properties?.own === 0)}
           landformClues={landformClues.features.length > 0}
           inventory={
@@ -3000,6 +3129,10 @@ function DevForestryVisuals() {
               : null
           }
           masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
+          show={{
+            state: planShow,
+            onToggle: (key) => setPlanShow((current) => ({ ...current, [key]: !current[key] })),
+          }}
         />
       )}
 

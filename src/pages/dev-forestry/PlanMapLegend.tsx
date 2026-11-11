@@ -6,6 +6,7 @@ import { MASK_LABELS } from './assessmentMasks'
 import {
   ASSESSMENT_VIEWPOINT_COLOR,
   EXPOSURE_STOPS,
+  FACE_CANDIDATE_COLOR,
   INVENTORY_COLORS,
   LANDFORM_CLUE_COLORS,
   MASK_COLORS,
@@ -70,12 +71,26 @@ export type PlanMapLegendProps = {
   reverseRoads: boolean
   /** The objectives among the sensitivity units drawn (null: none established). */
   sensitivityUnits: ReadonlyArray<VisualQualityClassId | null>
-  terrainCandidate: boolean
+  /** The terrain readings drawn: the ridge layer, the face, or both. */
+  terrainCandidates: ReadonlyArray<'ridge-layer' | 'facing'>
   otherRidgeLayers: boolean
   landformClues: boolean
   inventory: { viewpoints: boolean; arrows: boolean; recSites: boolean; screenings: boolean } | null
   masks: ReadonlyArray<AssessmentMaskKind>
+  /** The plan map's own switches for what the road view's *Show* also offers. */
+  show?: { state: PlanShow; onToggle: (key: keyof PlanShow) => void }
 }
+
+/** What the plan map draws, switched from its legend; the road view keeps its own set. */
+export type PlanShow = { analysis: boolean; imagery: boolean; evqo: boolean; landform: boolean }
+export const DEFAULT_PLAN_SHOW: PlanShow = { analysis: true, imagery: false, evqo: false, landform: true }
+
+const PLAN_SHOW_ROWS: ReadonlyArray<{ key: keyof PlanShow; label: string; color: string }> = [
+  { key: 'analysis', label: 'Analysis points', color: VISIBLE_COLOR },
+  { key: 'imagery', label: 'Satellite imagery', color: '#4b6b3c' },
+  { key: 'evqo', label: 'EVQO polygons', color: '#a855f7' },
+  { key: 'landform', label: 'Landform', color: ROLE_COLORS.landscape },
+]
 
 /**
  * The plan map's legend: one row for each layer on the map now, grouped by
@@ -84,11 +99,12 @@ export type PlanMapLegendProps = {
 export function PlanMapLegend(props: PlanMapLegendProps) {
   const { blocks, landform, existingOpenings, road, run, reverseRoads, inventory, masks } = props
   const graded = run || reverseRoads
-  const terrain = props.terrainCandidate || props.otherRidgeLayers || props.landformClues
+  const terrain = props.terrainCandidates.length > 0 || props.otherRidgeLayers || props.landformClues
   const bc =
     props.sensitivityUnits.length > 0 ||
     (inventory && (inventory.viewpoints || inventory.arrows || inventory.recSites || inventory.screenings))
-  if (!blocks.count && !landform && !road && !graded && !terrain && !bc && !masks.length) return null
+  if (!blocks.count && !landform && !road && !graded && !terrain && !bc && !masks.length && !props.show) return null
+  const showRows = PLAN_SHOW_ROWS.filter(({ key }) => (key === 'analysis' ? run : key === 'landform' ? landform : true))
   return (
     <MapLegendPanel
       title="Legend"
@@ -99,6 +115,20 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
       contentClassName="max-h-72 overflow-y-auto overscroll-contain"
     >
       <div className="space-y-3">
+        {props.show && (
+          <MapLegendSection title="Show" data-legend-section="show">
+            {showRows.map(({ key, label, color }) => (
+              <LegendItem
+                key={key}
+                color={color}
+                label={label}
+                active={props.show!.state[key]}
+                onClick={() => props.show!.onToggle(key)}
+                data-plan-show={key}
+              />
+            ))}
+          </MapLegendSection>
+        )}
         {(blocks.count > 0 || landform || existingOpenings || masks.length > 0) && (
           <MapLegendSection title="Proposal" data-legend-section="proposal">
             {blocks.count > 0 && (
@@ -164,11 +194,18 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
 
         {terrain && (
           <MapLegendSection title="Read from the terrain" data-legend-section="terrain">
-            {props.terrainCandidate && (
+            {props.terrainCandidates.includes('ridge-layer') && (
               <Row
                 color={TERRAIN_CANDIDATE_COLOR}
                 swatch={<AreaSwatch color={TERRAIN_CANDIDATE_COLOR} dashed />}
-                label="Landform candidate"
+                label="Landform candidate · ridge layer seen"
+              />
+            )}
+            {props.terrainCandidates.includes('facing') && (
+              <Row
+                color={FACE_CANDIDATE_COLOR}
+                swatch={<AreaSwatch color={FACE_CANDIDATE_COLOR} dashed />}
+                label="Landform candidate · face turned to the view"
               />
             )}
             {props.otherRidgeLayers && (

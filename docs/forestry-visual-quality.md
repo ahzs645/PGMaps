@@ -58,6 +58,35 @@ in its own section, not also in a setup card; one *Look from the road* runs the
 simulation first if it needs to; and the header carries no icon buttons —
 *New site* and *Export the scene* are in steps 1 and 5.
 
+### Map layers, landform readings and viewpoint arrows
+
+- **Show, on both maps.** The road view's *Show* tiles (step 2) and the plan
+  map's legend (*Show* section, `PlanMapLegend` `show`) switch the same kinds
+  of layer: analysis points, satellite imagery, EVQO polygons, landform. Each
+  view keeps its own set — the plan map's in `planShow`, the road view's on
+  `DriveState` — because their defaults differ (the plan shows analysis points
+  from the start; the road view does not). Note screenshot look and distance
+  haze are road-view only.
+- **Both terrain readings at once.** *Find a landform from the terrain* reads
+  the ridge layer seen and the face turned to the view in one terrain load,
+  draws both (green and orange, `LANDFORM_METHOD_COLORS`), and compares them
+  in a table. The one in front is filled and the one *Use* adopts. **Read from**
+  takes the road (the ridge layer joins every station), an inventory viewpoint
+  or rec site, or a point picked on the map; from a point both readings use
+  that point alone, and the adopted landform's source names it.
+- **Viewpoint arrows.** Each inventory viewpoint keeps every arrow it carries
+  (`ViewpointCandidate.arrows`, nearest the block first). The list opens one
+  row at a time: pick which way to face — the block or one of its arrows — and
+  stand there. In the road view the stood-at viewpoint's arrows drape as
+  outlines (the faced one heavier), *Where to look* lists them, and facing one
+  sets `DriveState.lookBearing`, which a saved view keeps. *Viewing gap* then
+  opens the drawn timber along that arrow.
+- **Ground in the road view.** Mapped water is drawn as water whenever the road
+  view is open, timber or not; the drawn forest floor and soil stand aside when
+  satellite imagery is on, so the imagery is the ground.
+- **One hover card.** Where map layers with hover cards overlap, only the
+  topmost feature's card shows (the toolkit's `hover-arbiter.ts`).
+
 **The headline** shows the Table 7 rating once both measures exist, and until
 then the objective, the measured figure X, and the adjusted figure. It also
 carries the one "scene changed — rerun" notice.

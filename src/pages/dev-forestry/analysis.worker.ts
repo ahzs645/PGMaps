@@ -53,6 +53,29 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     progress: { phase: 'terrain', completed: 0, total: range.tileCount },
   })
 
+  // The vegetation query does not depend on the terrain, so it starts with it
+  // rather than after it: waiting cost about 2.5 s a run in a trace of the
+  // road view. Settled here, never rejected, so an early throw below cannot
+  // leave it unhandled; the timeout and abort still bound it.
+  const wantsGreenArea = input.targets.some((target) => target.role === 'landscape')
+  const wantsVegetation = input.settings.screeningEnabled || wantsGreenArea
+  const vegetationAbort = new AbortController()
+  const vegetationTimeout = wantsVegetation ? setTimeout(() => vegetationAbort.abort(), 30000) : undefined
+  const vegetationKey = JSON.stringify(bounds)
+  const vegetationRequest = wantsVegetation
+    ? (vegetationCache.has(vegetationKey)
+        ? Promise.resolve(vegetationCache.get(vegetationKey)!)
+        : fetchVegetationStands(bounds, { signal: vegetationAbort.signal }).then((response) => {
+            if (vegetationCache.size >= 3) vegetationCache.delete(vegetationCache.keys().next().value!)
+            vegetationCache.set(vegetationKey, response)
+            return response
+          })
+      ).then(
+        (response) => ({ response, failed: false as const }),
+        () => ({ response: null, failed: true as const }),
+      )
+    : null
+
   const { grid, missingTileCount } = localTerrain
     ? { grid: rasterSampler(localTerrain), missingTileCount: 0 }
     : await loadElevationGrid({
@@ -66,6 +89,8 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // mostly-absent tiles would report everything as visible. A stray hole is
   // worth a warning; this much of one is worth refusing to answer.
   if (missingTileCount > range.tileCount / 3) {
+    vegetationAbort.abort()
+    clearTimeout(vegetationTimeout)
     throw new Error(
       `Only ${range.tileCount - missingTileCount} of ${range.tileCount} terrain tiles loaded. ` +
         'Check the connection and run again.',
@@ -79,19 +104,12 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   let canopyStands: CanopyStand[] = []
   let forestedGround: PolygonGeometry[] = []
   let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
-  const wantsGreenArea = input.targets.some((target) => target.role === 'landscape')
-  if (input.settings.screeningEnabled || wantsGreenArea) {
+  if (vegetationRequest) {
     const queryBounds = clampVegetationBounds(bounds)
-    const abort = new AbortController()
-    const timeout = setTimeout(() => abort.abort(), 30000)
     try {
-      const cacheKey = JSON.stringify(bounds)
-      let response = vegetationCache.get(cacheKey)
-      if (!response) {
-        response = await fetchVegetationStands(bounds, { signal: abort.signal })
-        if (vegetationCache.size >= 3) vegetationCache.delete(vegetationCache.keys().next().value!)
-        vegetationCache.set(cacheKey, response)
-      }
+      const settled = await vegetationRequest
+      if (settled.failed) throw new Error('Vegetation query failed')
+      const response = settled.response
       const { stands } = response
       const limited = response.truncated || queryBounds.some((coordinate, i) => Math.abs(coordinate - bounds[i]) > 1e-8)
       const missingHeights =
@@ -126,7 +144,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
         source: 'BC VRI rank-1 WFS',
       }
     } finally {
-      clearTimeout(timeout)
+      clearTimeout(vegetationTimeout)
     }
   }
 

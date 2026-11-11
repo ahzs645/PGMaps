@@ -78,12 +78,12 @@ export function growForestPatch(
     maxTrees: 10000,
     seed: patch.band + 1,
     anchorLatitude,
+    // The patch is a square tile: grow only it, not the circle around it.
+    bounds: [west, south, east, north],
+  }).flatMap((tree) => {
+    const height = elevation.elevationAt(tree.lng, tree.lat)
+    return Number.isFinite(height) ? [{ ...tree, elevationMeters: height }] : []
   })
-    .filter((tree) => tree.lng >= west && tree.lng < east && tree.lat >= south && tree.lat < north)
-    .flatMap((tree) => {
-      const height = elevation.elevationAt(tree.lng, tree.lat)
-      return Number.isFinite(height) ? [{ ...tree, elevationMeters: height }] : []
-    })
 }
 
 /** Keep the same foreground representation all the way to the eye. */

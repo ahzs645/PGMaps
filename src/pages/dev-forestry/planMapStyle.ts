@@ -43,6 +43,9 @@ export const SENSITIVITY_UNIT_COLOR = [
 /** A landform read from the terrain, and the other ridge layers it found. */
 export const TERRAIN_CANDIDATE_COLOR = '#15803d'
 export const OTHER_RIDGE_LAYER_COLOR = '#7c3aed'
+/** The face turned to the view, beside the ridge layer, when both readings are on the map. */
+export const FACE_CANDIDATE_COLOR = '#c2410c'
+export const LANDFORM_METHOD_COLORS = { 'ridge-layer': TERRAIN_CANDIDATE_COLOR, facing: FACE_CANDIDATE_COLOR } as const
 /** Landform clues from the run: ridges, hollows and the rest. */
 export const LANDFORM_CLUE_COLORS = { ridge: '#ea580c', hollow: '#0284c7', other: '#9333ea' } as const
 

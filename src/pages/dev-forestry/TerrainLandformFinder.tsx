@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { formatPercentValue } from '@/lib/format'
+import { cn } from '@/lib/utils'
 
 import { loadElevationGrid } from './demLoader'
 import {
@@ -19,6 +20,7 @@ import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
 import { formatHa, formatKm } from './measureFormat'
+import { LANDFORM_METHOD_COLORS } from './planMapStyle'
 import { demTileRange } from './terrain'
 import type { AnalysisResult, TargetPolygon } from './types'
 import { metersPerDegree, polygonBounds, type PolygonGeometry } from './visibility'
@@ -50,37 +52,61 @@ export type TerrainCandidate = TerrainLandform & {
   layers?: RidgeLayer[]
   stationsSeeing?: number
   stationCount?: number
+  /** Where it was read from: "the road", an inventory viewpoint's name, or a picked point. */
+  vantageName?: string
 }
 
 export type LandformMethod = 'facing' | 'ridge-layer'
 
-const METHOD_OPTIONS = [
-  { value: 'ridge-layer', label: 'Ridge layer seen' },
-  { value: 'facing', label: 'Face turned to the road' },
-] as const satisfies ReadonlyArray<{ value: LandformMethod; label: string }>
+export const LANDFORM_METHOD_LABELS: Record<LandformMethod, string> = {
+  'ridge-layer': 'Ridge layer seen',
+  facing: 'Face turned to the view',
+}
+const METHODS: LandformMethod[] = ['ridge-layer', 'facing']
+
+/** A place to read the landform from other than the road: an inventory viewpoint or rec site. */
+export type LandformVantage = { key: string; name: string; lng: number; lat: number }
+
+type Vantage = { kind: 'road' } | { kind: 'viewpoint'; key: string } | { kind: 'pick'; point: [number, number] | null }
+
+const methodOf = (candidate: TerrainCandidate): LandformMethod => candidate.method ?? 'facing'
 
 /**
  * Step 1's other way to a landform: read the hillside the block sits on from
- * the terrain, as seen from the road (`landformFromTerrain.ts`). Like an
- * inventory unit it is a candidate — shown on the map, adopted only when the
- * reviewer says so.
+ * the terrain (`landformFromTerrain.ts`, `ridgeLayers.ts`). One read gives both
+ * readings — the ridge layer seen and the face turned to the view — side by
+ * side on the map, from the road, an inventory viewpoint, or a point the
+ * reviewer picks. Like an inventory unit each is a candidate: shown on the
+ * map, adopted only when the reviewer says so.
  */
 export function TerrainLandformFinder({
   scene,
   result,
   water,
-  candidate,
-  onCandidate,
+  candidates,
+  focused,
+  onCandidates,
+  onFocus,
   onAdopt,
+  vantages = [],
+  onPickPoint,
   replaced = null,
   onUndo,
 }: {
   scene: ForestryScene
   result: AnalysisResult | null
   water: ReadonlyArray<PolygonGeometry>
-  candidate: TerrainCandidate | null
-  onCandidate: (candidate: TerrainCandidate | null) => void
+  /** Both readings once read, each drawn on the map. */
+  candidates: TerrainCandidate[]
+  /** The reading in front: drawn solid, with its ridge layers, and the one *Use* adopts. */
+  focused: LandformMethod
+  onCandidates: (candidates: TerrainCandidate[]) => void
+  onFocus: (method: LandformMethod) => void
   onAdopt: (candidate: TerrainCandidate) => void
+  /** Inventory viewpoints and rec sites near the block, to read the landform from instead of the road. */
+  vantages?: ReadonlyArray<LandformVantage>
+  /** Asks the map for one click; the point comes back through `onPoint`. Null cancels. */
+  onPickPoint?: (onPoint: ((point: [number, number]) => void) | null) => void
   /** The name of the landform the last adoption replaced, while it can still be put back. */
   replaced?: string | null
   onUndo?: () => void
@@ -89,45 +115,81 @@ export function TerrainLandformFinder({
   const [blockId, setBlockId] = useState('')
   const block = blocks.find((entry) => entry.id === blockId) ?? blocks[0]
   const [status, setStatus] = useState<{ state: 'idle' | 'working' | 'failed'; message?: string }>({ state: 'idle' })
-  const [method, setMethod] = useState<LandformMethod>('ridge-layer')
+  const [vantage, setVantage] = useState<Vantage>({ kind: 'road' })
+  const [picking, setPicking] = useState(false)
   const controller = useRef<AbortController | null>(null)
-  // A read still loading when the step closes lands nowhere.
-  useEffect(() => () => controller.current?.abort(), [])
+  // A read still loading when the step closes lands nowhere, and a pick still open is cancelled.
+  useEffect(
+    () => () => {
+      controller.current?.abort()
+    },
+    [],
+  )
   const road = scene.viewpoint.coordinates
   const activeLandform = findSceneLandform(scene)
+  const chosenViewpoint = vantage.kind === 'viewpoint' ? vantages.find((entry) => entry.key === vantage.key) : null
+
+  const pick = () => {
+    if (!onPickPoint) return
+    setPicking(true)
+    onPickPoint((point) => {
+      setPicking(false)
+      setVantage({ kind: 'pick', point })
+      onCandidates([])
+    })
+  }
+  const cancelPick = () => {
+    setPicking(false)
+    onPickPoint?.(null)
+  }
 
   const suggest = async (target: TargetPolygon) => {
     controller.current?.abort()
     const abort = new AbortController()
     controller.current = abort
     setStatus({ state: 'working' })
-    onCandidate(null)
+    onCandidates([])
     try {
       const [west, south, east, north] = polygonBounds(target.geometry)
       const centre = { lng: (west + east) / 2, lat: (south + north) / 2 }
-      // Read from the station the run assessed from; before a run, the point
-      // on the road nearest the block.
+      // From the road: the station the run assessed from, or before a run the
+      // point on the road nearest the block; the ridge layer joins the views
+      // from every station along it. From a chosen point, both read from it alone.
       const station = result?.stations[result.assessmentStationIndex]
       const onRoad = road.length ? nearestPointOnLine(road, centre) : null
-      const viewpoint = station
-        ? { lng: station.lng, lat: station.lat }
-        : onRoad
-          ? { lng: onRoad.position[0], lat: onRoad.position[1] }
-          : null
+      const chosen =
+        vantage.kind === 'viewpoint'
+          ? chosenViewpoint
+            ? { lng: chosenViewpoint.lng, lat: chosenViewpoint.lat }
+            : null
+          : vantage.kind === 'pick'
+            ? vantage.point && { lng: vantage.point[0], lat: vantage.point[1] }
+            : null
+      if (vantage.kind !== 'road' && !chosen) throw new Error('Choose the point to read the landform from first.')
+      const viewpoint =
+        chosen ??
+        (station
+          ? { lng: station.lng, lat: station.lat }
+          : onRoad
+            ? { lng: onRoad.position[0], lat: onRoad.position[1] }
+            : null)
       if (!viewpoint) throw new Error('Draw the road or viewpoint first: a landform is the face seen from it.')
-      // Along a drive, every run station (up to MAX_RIDGE_STATIONS, spread
-      // evenly); before a run, the road's own vertices or the spot.
-      const stations =
-        method === 'ridge-layer'
-          ? result && result.stations.length > 1
-            ? result.stations.map((entry) => ({ lng: entry.lng, lat: entry.lat }))
-            : road.length > 1
-              ? road.map(([lng, lat]) => ({ lng, lat }))
-              : [viewpoint]
-          : [viewpoint]
+      const ridgeStations = chosen
+        ? [viewpoint]
+        : result && result.stations.length > 1
+          ? result.stations.map((entry) => ({ lng: entry.lng, lat: entry.lat }))
+          : road.length > 1
+            ? road.map(([lng, lat]) => ({ lng, lat }))
+            : [viewpoint]
+      const vantageName =
+        vantage.kind === 'viewpoint'
+          ? (chosenViewpoint?.name ?? 'a viewpoint')
+          : vantage.kind === 'pick'
+            ? 'a point on the map'
+            : 'the road'
       const scale = metersPerDegree(centre.lat)
-      const pad =
-        (method === 'ridge-layer' ? RIDGE_LAYER_DEFAULTS.radiusMeters : TERRAIN_LANDFORM_DEFAULTS.radiusMeters) + 500
+      // One terrain load serves both readings: the wider of their search areas.
+      const pad = Math.max(RIDGE_LAYER_DEFAULTS.radiusMeters, TERRAIN_LANDFORM_DEFAULTS.radiusMeters) + 500
       const box: [number, number, number, number] = [
         centre.lng - pad / scale.lng,
         centre.lat - pad / scale.lat,
@@ -135,52 +197,54 @@ export function TerrainLandformFinder({
         centre.lat + pad / scale.lat,
       ]
       // The rays run from the stations, so their ground has to be loaded too.
-      for (const station of stations) {
-        box[0] = Math.min(box[0], station.lng - 0.01)
-        box[1] = Math.min(box[1], station.lat - 0.01)
-        box[2] = Math.max(box[2], station.lng + 0.01)
-        box[3] = Math.max(box[3], station.lat + 0.01)
+      for (const entry of [...ridgeStations, viewpoint]) {
+        box[0] = Math.min(box[0], entry.lng - 0.01)
+        box[1] = Math.min(box[1], entry.lat - 0.01)
+        box[2] = Math.max(box[2], entry.lng + 0.01)
+        box[3] = Math.max(box[3], entry.lat + 0.01)
       }
       const range = demTileRange(box, TERRAIN_ZOOM)
       const { grid, missingTileCount } = await loadElevationGrid({ range, signal: abort.signal, concurrency: 4 })
       if (abort.signal.aborted) return
-      if (method === 'ridge-layer') {
-        const landform = ridgeLayerLandform(grid, target.geometry, stations, {
-          eyeHeightMeters: scene.settings.observerHeightMeters,
-        })
-        if (!landform)
-          throw new Error(
-            'No station on the road sees this block over the bare ground, so no ridge layer holds it. Check the road, or read the face turned to it instead.',
-          )
-        onCandidate({
-          ...landform,
-          blockId: target.id,
-          blockName: target.name,
-          blockGeometry: target.geometry,
-        })
-      } else {
-        const landform = landformFromTerrain(grid, target.geometry, viewpoint, { water })
-        if (!landform) throw new Error('No terrain under this block.')
-        onCandidate({
-          ...landform,
-          method: 'facing',
-          blockId: target.id,
-          blockName: target.name,
-          blockGeometry: target.geometry,
-        })
-      }
-      setStatus({
-        state: 'idle',
-        message: missingTileCount
-          ? `${missingTileCount} terrain tiles did not load; the outline may stop short.`
-          : undefined,
+      const base = { blockId: target.id, blockName: target.name, blockGeometry: target.geometry, vantageName }
+      const found: TerrainCandidate[] = []
+      const ridge = ridgeLayerLandform(grid, target.geometry, ridgeStations, {
+        eyeHeightMeters: scene.settings.observerHeightMeters,
       })
+      if (ridge) found.push({ ...ridge, ...base })
+      const face = landformFromTerrain(grid, target.geometry, viewpoint, { water })
+      if (face) found.push({ ...face, method: 'facing', ...base })
+      if (!found.length) throw new Error('No terrain under this block.')
+      onCandidates(found)
+      // Keep the reader's choice in front when it was found; otherwise the one that was.
+      if (!found.some((entry) => methodOf(entry) === focused)) onFocus(methodOf(found[0]))
+      const notes = [
+        !ridge &&
+          `No ${chosen ? 'view from there' : 'station on the road'} sees this block over the bare ground, so no ridge layer holds it.`,
+        missingTileCount ? `${missingTileCount} terrain tiles did not load; the outlines may stop short.` : null,
+      ].filter(Boolean)
+      setStatus({ state: 'idle', message: notes.length ? notes.join(' ') : undefined })
     } catch (error) {
       if (abort.signal.aborted) return
       setStatus({ state: 'failed', message: error instanceof Error ? error.message : String(error) })
     }
   }
 
+  const byMethod = (method: LandformMethod) => candidates.find((entry) => methodOf(entry) === method) ?? null
+  const candidate = byMethod(focused) ?? candidates[0] ?? null
+  const vantageValue = vantage.kind === 'road' ? 'road' : vantage.kind === 'pick' ? 'pick' : `viewpoint:${vantage.key}`
+  const edgeSummary = (entry: TerrainCandidate | null) => {
+    if (!entry) return '—'
+    const top = (Object.entries(entry.boundedBy) as Array<[LandformBoundary, number]>)
+      .filter(([, share]) => share >= 0.01)
+      .sort((a, b) => b[1] - a[1])[0]
+    return top ? `${BOUNDARY_LABELS[top[0]]} · ${formatPercentValue(top[1] * 100, { maximumFractionDigits: 0 })}` : '—'
+  }
+  const ridgeLayerOf = (entry: TerrainCandidate | null) => {
+    const layers = entry?.layers ?? []
+    const own = layers.findIndex((layer) => layer.containsBlock) + 1
+    return own ? `${own} of ${layers.length}` : '—'
+  }
   const bounded = candidate
     ? (Object.entries(candidate.boundedBy) as Array<[LandformBoundary, number]>)
         .filter(([, share]) => share >= 0.01)
@@ -191,42 +255,78 @@ export function TerrainLandformFinder({
     <ToolSection
       title="Find a landform from the terrain"
       summary={
-        candidate
-          ? `Candidate · ${formatHa(candidate.areaHectares * 10_000, 0)}`
-          : method === 'ridge-layer'
-            ? 'Ridge layer seen'
-            : 'Face turned to the road'
+        candidates.length
+          ? candidates
+              .map((entry) => `${LANDFORM_METHOD_LABELS[methodOf(entry)]} ${formatHa(entry.areaHectares * 10_000, 0)}`)
+              .join(' · ')
+          : 'Ridge layer and face, side by side'
       }
       help={
-        method === 'ridge-layer' ? (
-          <>
-            The layer of ridge the block sits in, as the road sees the hills stack up: the visible ground joined to the
-            block&apos;s, stopped where a nearer ridge hides what lies in front and where the ground drops out of view
-            behind. Read from up to {MAX_RIDGE_STATIONS} stations along the road and joined, as the block is seen
-            driving past.
-          </>
-        ) : (
-          <>
-            The hillside the block sits on, as seen from the road: grown out from the block until the ground turns away
-            (a ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
-            {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water.
-          </>
-        )
+        <>
+          Both readings at once, drawn on the map side by side. <b>Ridge layer seen</b>: the layer of ridge the block
+          sits in, as the view sees the hills stack up — the visible ground joined to the block&apos;s, stopped where a
+          nearer ridge hides what lies in front and where the ground drops out of view behind. From the road it is read
+          from up to {MAX_RIDGE_STATIONS} stations and joined, as the block is seen driving past.{' '}
+          <b>Face turned to the view</b>: the hillside the block sits on, grown out from the block until the ground
+          turns away (a ridge, skyline or flank), flattens onto the valley floor or the top, meets a drainage of over{' '}
+          {TERRAIN_LANDFORM_DEFAULTS.drainageAreaKm2} km², or reaches mapped water. Read from an inventory viewpoint or
+          a point you pick to see the landform as it reads from there.
+        </>
       }
       toggleProps={{ 'data-forestry-disclosure': 'terrain-landform' }}
-      defaultOpen={!!candidate}
+      defaultOpen={candidates.length > 0}
       className="text-xs"
     >
-      <SegmentedControl
-        label="How to read the landform"
-        size="sm"
-        value={method}
-        options={METHOD_OPTIONS}
-        onChange={(next) => {
-          setMethod(next)
-          onCandidate(null)
-        }}
-      />
+      <label className="block">
+        <span className="mb-1 block text-2xs font-medium text-muted-foreground">Read from</span>
+        <StyledSelect
+          aria-label="Read the landform from"
+          className="w-full rounded border bg-background p-1"
+          value={vantageValue}
+          onChange={(event) => {
+            const value = event.target.value
+            onCandidates([])
+            if (value === 'road') setVantage({ kind: 'road' })
+            else if (value === 'pick') {
+              setVantage({ kind: 'pick', point: null })
+              pick()
+            } else setVantage({ kind: 'viewpoint', key: value.slice('viewpoint:'.length) })
+          }}
+        >
+          <option value="road">The road</option>
+          {vantages.map((entry) => (
+            <option key={entry.key} value={`viewpoint:${entry.key}`}>
+              {entry.name}
+            </option>
+          ))}
+          {onPickPoint && <option value="pick">A point I pick on the map</option>}
+        </StyledSelect>
+      </label>
+      {vantage.kind === 'pick' && (
+        <div className="flex items-center gap-1.5">
+          <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground">
+            {picking
+              ? 'Click the map where the landform is seen from…'
+              : vantage.point
+                ? `${vantage.point[1].toFixed(4)}, ${vantage.point[0].toFixed(4)}`
+                : 'No point picked'}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-7 shrink-0 px-2 text-2xs"
+            onClick={picking ? cancelPick : pick}
+          >
+            {picking ? 'Cancel' : vantage.point ? 'Pick again' : 'Pick on map'}
+          </Button>
+        </div>
+      )}
+      {!vantages.length && (
+        <p className="text-3xs leading-4 text-muted-foreground">
+          Load the viewpoints and rec sites above to read the landform from one of them.
+        </p>
+      )}
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block to read the landform around"
@@ -246,17 +346,13 @@ export function TerrainLandformFinder({
         variant="outline"
         size="sm"
         className="w-full"
-        disabled={!block || status.state === 'working'}
+        disabled={!block || status.state === 'working' || (vantage.kind === 'pick' && !vantage.point)}
         onClick={() => block && void suggest(block)}
       >
-        {status.state === 'working'
-          ? 'Reading the terrain…'
-          : method === 'ridge-layer'
-            ? 'Suggest the ridge layer the block sits in'
-            : 'Suggest the landform from the terrain'}
+        {status.state === 'working' ? 'Reading the terrain…' : 'Suggest landforms from the terrain'}
       </Button>
       {!block && <p className="text-muted-foreground">Add a cutblock first.</p>}
-      {replaced && !candidate && (
+      {replaced && !candidates.length && (
         <InlineAlert tone="success">
           <span className="flex items-center justify-between gap-2">
             <span>Now assessing against the terrain landform. It replaced {replaced}.</span>
@@ -269,71 +365,119 @@ export function TerrainLandformFinder({
         </InlineAlert>
       )}
       {status.state === 'failed' && <InlineAlert tone="error">{status.message}</InlineAlert>}
-      {candidate && (
-        <div className="space-y-2" aria-label="Terrain landform candidate">
-          <KeyValueRows
-            variant="divided"
-            rows={[
-              { label: 'Around', value: candidate.blockName },
-              { label: 'Area', value: formatHa(candidate.areaHectares * 10_000, 0) },
-              ...(candidate.method === 'ridge-layer'
-                ? [
-                    {
-                      label: 'Seen from',
-                      value: `${candidate.stationsSeeing} of ${candidate.stationCount} road stations`,
-                    },
-                    {
-                      label: 'Ridge layer',
-                      value: (() => {
-                        const layers = candidate.layers ?? []
-                        const own = layers.findIndex((layer) => layer.containsBlock) + 1
-                        return own ? `Layer ${own} of ${layers.length} from the road` : '–'
-                      })(),
-                    },
-                  ]
-                : []),
-              ...bounded.map(([reason, share]) => ({
+      {candidates.length > 0 && candidate && (
+        <div className="space-y-2" aria-label="Terrain landform candidates">
+          {/* Both readings side by side; the one in front is drawn solid on the map. */}
+          <SegmentedControl
+            label="Landform in front"
+            size="sm"
+            value={methodOf(candidate)}
+            options={METHODS.map((method) => ({
+              value: method,
+              label: LANDFORM_METHOD_LABELS[method],
+              disabled: !byMethod(method),
+            }))}
+            onChange={onFocus}
+          />
+          <table className="w-full table-fixed text-2xs" aria-label="Landform readings compared">
+            <thead>
+              <tr className="text-muted-foreground">
+                <th className="w-1/3 py-1 text-left font-normal" scope="col">
+                  <span className="sr-only">Measure</span>
+                </th>
+                {METHODS.map((method) => (
+                  <th
+                    key={method}
+                    scope="col"
+                    className={cn(
+                      'py-1 text-left font-medium',
+                      methodOf(candidate) === method ? 'text-foreground' : 'text-muted-foreground',
+                    )}
+                  >
+                    <span
+                      className="mr-1 inline-block h-2 w-2 rounded-sm align-middle"
+                      style={{ backgroundColor: LANDFORM_METHOD_COLORS[method] }}
+                    />
+                    {LANDFORM_METHOD_LABELS[method]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/60">
+              {(
+                [
+                  ['Area', (entry) => (entry ? formatHa(entry.areaHectares * 10_000, 0) : 'Not found')],
+                  [
+                    'Seen from',
+                    (entry) =>
+                      entry?.stationCount
+                        ? `${entry.stationsSeeing} of ${entry.stationCount} stations`
+                        : (entry?.vantageName ?? '—'),
+                  ],
+                  ['Ridge layer', (entry) => (entry ? ridgeLayerOf(entry) : '—')],
+                  ['Main edge', edgeSummary],
+                ] as Array<[string, (entry: TerrainCandidate | null) => string]>
+              ).map(([label, read]) => (
+                <tr key={label}>
+                  <th scope="row" className="py-1 pr-2 text-left font-normal text-muted-foreground">
+                    {label}
+                  </th>
+                  {METHODS.map((method) => (
+                    <td key={method} className="py-1 pr-1 align-top">
+                      {read(byMethod(method))}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {bounded.length > 1 && (
+            <KeyValueRows
+              variant="divided"
+              rows={bounded.map(([reason, share]) => ({
                 label: BOUNDARY_LABELS[reason],
                 value: `${formatPercentValue(share * 100, { maximumFractionDigits: 0 })} of the edge`,
-              })),
-            ]}
-          />
+              }))}
+            />
+          )}
           {candidate.blockOnly && (
             <InlineAlert tone="warning">
               The terrain finds little hillside beyond the block itself — it sits on a valley floor or a narrow bank. A
-              share of a landform means little here; judge the opening from the road, or draw the landform by hand.
+              share of a landform means little here; judge the opening from the view, or draw the landform by hand.
             </InlineAlert>
           )}
           {candidate.viewerClose && (
             <InlineAlert tone="info">
-              The road is within {formatKm(TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters, 1)} of the block, so the face
-              was read as the ground turned toward the road as a whole, not toward each point of it. From a road across
-              the face much of that ground cannot be seen: trim the landform by hand to what reads as one hillside.
+              The view is within {formatKm(TERRAIN_LANDFORM_DEFAULTS.closeViewerMeters, 1)} of the block, so the face
+              was read as the ground turned toward it as a whole, not toward each point of it. Much of that ground may
+              not be seen: trim the landform by hand to what reads as one hillside.
             </InlineAlert>
           )}
           {candidate.areaHectares > 1500 && (
             <InlineAlert tone="warning">
-              Over 1,500 ha: a face this large usually runs past what reads as one landform from the road. Check its
+              Over 1,500 ha: a face this large usually runs past what reads as one landform from the view. Check its
               ends against the view before using it.
             </InlineAlert>
           )}
           {candidate.reachedLimit && (
             <InlineAlert tone="warning">
               The face runs past the {formatKm(TERRAIN_LANDFORM_DEFAULTS.radiusMeters, 0)} search area, so this outline
-              is cut off there. Draw the landform's far end by hand if it matters.
+              is cut off there. Draw the landform&apos;s far end by hand if it matters.
             </InlineAlert>
           )}
           {status.message && <InlineAlert tone="warning">{status.message}</InlineAlert>}
-          <p className="text-muted-foreground">
-            Shown dashed on the map{candidate.method === 'ridge-layer' ? ', with the other ridge layers outlined' : ''}.
-            A reading of the terrain, not a checked delineation: compare it with the view from the road before using it.
-            {activeLandform ? ` Using it replaces ${activeLandform.name}; you can undo that.` : ''}
+          <p className="text-3xs leading-4 text-muted-foreground">
+            Both are drawn dashed on the map, the one in front solid
+            {methodOf(candidate) === 'ridge-layer' ? ', with the other ridge layers outlined' : ''}. Readings of the
+            terrain from {candidate.vantageName ?? 'the road'}, not checked delineations: compare them with the view
+            before using one.
+            {activeLandform ? ` Using one replaces ${activeLandform.name}; you can undo that.` : ''}
           </p>
           <div className="flex gap-2">
             <Button type="button" size="sm" disabled={candidate.blockOnly} onClick={() => onAdopt(candidate)}>
-              Use this landform
+              Use the {LANDFORM_METHOD_LABELS[methodOf(candidate)].toLowerCase()}
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => onCandidate(null)}>
+            <Button type="button" variant="ghost" size="sm" onClick={() => onCandidates([])}>
               Clear
             </Button>
           </div>

@@ -14,7 +14,7 @@
  * MapLibre's terrain.
  */
 
-import { pointInPolygon, polygonBounds, type PolygonGeometry } from './visibility'
+import { pointInPolygon, preparePolygons, type PolygonGeometry } from './visibility'
 import type { TargetPolygon } from './types'
 
 /** The species a BC interior stand is actually made of. */
@@ -370,6 +370,13 @@ export type TreePlacementOptions = {
   seed?: number
   /** Fixed for a preview, including when it crosses a latitude band. */
   anchorLatitude?: number
+  /**
+   * Only grow stems inside this [west, south, east, north] box (west and south
+   * inclusive), as a square patch wants. Cells are seeded by their own
+   * coordinates, so the stems kept are exactly the ones a full patch would
+   * grow there; the rest are never placed or tested.
+   */
+  bounds?: [number, number, number, number]
 }
 
 export type Thinning = { geometry: PolygonGeometry; keepFraction: number; heightMeters?: number | null }
@@ -444,6 +451,7 @@ export function placeTrees({
   thinnings = [],
   seed = 1,
   anchorLatitude,
+  bounds,
 }: TreePlacementOptions): TreeInstance[] {
   if (radiusMeters <= 0 || spacingMeters <= 0) return []
   const mixRatio = meanCrownRatio(speciesMix)
@@ -474,39 +482,30 @@ export function placeTrees({
   const firstCellY = Math.floor((centre.lat - halfLat) / stepLat)
   const lastCellY = Math.ceil((centre.lat + halfLat) / stepLat)
 
-  // Bounding boxes first: a point-in-polygon test per stem per polygon is the
-  // one thing here that gets expensive.
-  const standBoxes = stands.map((stand) => polygonBounds(stand))
-  const clearingBoxes = clearings.map((clearing) => polygonBounds(clearing))
-  const inventoryBoxes = inventory.map((stand) => polygonBounds(stand.geometry))
-  const thinningBoxes = thinnings.map((thinning) => polygonBounds(thinning.geometry))
-  const thinnedAt = (lng: number, lat: number): Thinning | null => {
-    for (let index = 0; index < thinnings.length; index += 1) {
-      const box = thinningBoxes[index]
-      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) continue
-      if (pointInPolygon(thinnings[index].geometry, lng, lat)) return thinnings[index]
-    }
-    return null
-  }
-  const surveyedAt = (lng: number, lat: number): InventoryStand | null => {
-    for (let index = 0; index < inventory.length; index += 1) {
-      const box = inventoryBoxes[index]
-      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) continue
-      if (pointInPolygon(inventory[index].geometry, lng, lat)) return inventory[index]
-    }
-    return null
-  }
-  const inside = (
-    polygons: PolygonGeometry[],
-    boxes: Array<[number, number, number, number]>,
-    lng: number,
-    lat: number,
-  ) =>
-    polygons.some((polygon, index) => {
-      const box = boxes[index]
-      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) return false
-      return pointInPolygon(polygon, lng, lat)
-    })
+  // A point-in-polygon test per stem per polygon is the one thing here that
+  // gets expensive. Prepared once per patch: only the polygon parts that reach
+  // the patch, each with its own box, long rings banded by latitude. Basemap
+  // water arrives as tile-sized multipolygons, and tested whole it cost about
+  // 870 ms a patch (a trace of the road view, November 2026).
+  const patchBox: [number, number, number, number] = bounds ?? [
+    centre.lng - halfLng,
+    centre.lat - halfLat,
+    centre.lng + halfLng,
+    centre.lat + halfLat,
+  ]
+  const standsAt = preparePolygons(stands, patchBox)
+  const clearingsAt = preparePolygons(clearings, patchBox)
+  const inventoryAt = preparePolygons(
+    inventory.map((stand) => stand.geometry),
+    patchBox,
+  )
+  const thinningsAt = preparePolygons(
+    thinnings.map((thinning) => thinning.geometry),
+    patchBox,
+  )
+  const thinnedAt = (lng: number, lat: number): Thinning | null => thinnings[thinningsAt.indexAt(lng, lat)] ?? null
+  const surveyedAt = (lng: number, lat: number): InventoryStand | null =>
+    inventory[inventoryAt.indexAt(lng, lat)] ?? null
 
   const trees: TreeInstance[] = []
   const radiusLatSquared = halfLat * halfLat
@@ -525,9 +524,10 @@ export function placeTrees({
       const deltaLng = ((lng - centre.lng) * metersPerDegreeLng) / METERS_PER_DEGREE_LAT
       const distanceSquared = deltaLat * deltaLat + deltaLng * deltaLng
       if (distanceSquared > radiusLatSquared || distanceSquared < innerLatSquared) continue
+      if (bounds && (lng < bounds[0] || lng >= bounds[2] || lat < bounds[1] || lat >= bounds[3])) continue
 
-      if (stands.length > 0 && !inside(stands, standBoxes, lng, lat)) continue
-      if (inside(clearings, clearingBoxes, lng, lat)) continue
+      if (stands.length > 0 && !standsAt.contains(lng, lat)) continue
+      if (clearingsAt.contains(lng, lat)) continue
 
       // Where the province has surveyed this ground, draw what it recorded.
       const surveyed = inventory.length > 0 ? surveyedAt(lng, lat) : null

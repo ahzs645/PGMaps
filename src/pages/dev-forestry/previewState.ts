@@ -8,6 +8,8 @@ export type SavedDriveView = {
   name: string
   positionMeters: number
   lookAtTargetId: string | null
+  /** A compass bearing faced instead of a block, as an inventory arrow points; absent or null for none. */
+  lookBearing?: number | null
   yaw: number
   tilt: number
   treeHeightMeters: number
@@ -134,6 +136,9 @@ export function parsePreview(input: unknown): { scene: ForestryScene; views: Sav
         lookAtTargetId: scene.targets.some((t) => t.role === 'block' && t.id === v.lookAtTargetId)
           ? v.lookAtTargetId
           : null,
+        ...(typeof v.lookBearing === 'number' && Number.isFinite(v.lookBearing)
+          ? { lookBearing: ((v.lookBearing % 360) + 360) % 360 }
+          : {}),
         treeHeightMeters: v.treeHeightMeters,
         roadClearWidthMeters: v.roadClearWidthMeters,
         harvestPhase: v.harvestPhase === 'before' ? 'before' : 'after',

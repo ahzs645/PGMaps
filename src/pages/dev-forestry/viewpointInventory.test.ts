@@ -235,6 +235,46 @@ describe('ranking near a block', () => {
     expect(rows.find((row) => row.key === 'vli:b')?.arrow).toBeNull()
   })
 
+  it('keeps every arrow of a viewpoint, the one aimed at the block first', () => {
+    const viewpoints = [
+      {
+        id: 'a',
+        number: 1,
+        typeCode: 'MINVP',
+        typeLabel: 'Minor viewpoint',
+        lng: -122.99134,
+        lat: 54.956582,
+        expiry: null,
+      },
+    ]
+    // The same arrow, and a second one turned to point the other way from the viewpoint.
+    const [vpLng, vpLat] = ARROWS[0].vp
+    const turned = ARROWS[0].arrow.map(([lng, lat]) => [2 * vpLng - lng, 2 * vpLat - lat])
+    const arrows = parseArrows(
+      {
+        features: [
+          {
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [turned] },
+            properties: { VIEWING_DIRECTION_ID: 2, VIEWPOINT_ID: 'a' },
+          },
+          {
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [ARROWS[0].arrow] },
+            properties: { VIEWING_DIRECTION_ID: 1, VIEWPOINT_ID: 'a' },
+          },
+        ],
+      },
+      viewpoints,
+    )
+    const [row] = viewpointsNearBlock(block, { viewpoints, arrows, recSites: [] })
+    expect(row.arrows).toHaveLength(2)
+    expect(row.arrows[0].aims).toBe(true)
+    expect(row.arrows[1].aims).toBe(false)
+    expect(row.arrows[1].offsetDegrees).toBeGreaterThan(150)
+    expect(row.arrow).toEqual(row.arrows[0])
+  })
+
   it('lists active roads by distance from the boundary', () => {
     const roads = [
       {

@@ -106,6 +106,11 @@ export type DriveState = {
   positionMeters: number
   /** Block to face, or null to look along the road. */
   lookAtTargetId: string | null
+  /**
+   * A compass bearing to face when no block is: an inventory viewpoint's arrow,
+   * standing at that viewpoint. Null looks along the road.
+   */
+  lookBearing: number | null
   exaggeration: number
   /** Whether standing timber is drawn around the camera. */
   forest: boolean
@@ -464,6 +469,9 @@ type SidebarProps = {
   /** Step 5: the block's planning-note summary and Visuals paragraph. */
   visualsParagraph?: ReactNode
 
+  /** Standing at an inventory viewpoint: its arrows, each a direction the road view can face. */
+  lookArrows?: ReadonlyArray<{ id: string; label: string; bearing: number }>
+
   /** What the basemap said about the road and water, for the drive panel's clearing note. */
   roadClearing?: { roadClass: string | null; widthMeters: number; waterPolygons: number }
 }
@@ -522,6 +530,7 @@ export function Sidebar({
   roadViewJump,
   roadViewForest,
   visualsParagraph,
+  lookArrows = [],
   roadClearing,
 }: SidebarProps) {
   // Which scale the threshold editor is showing. Purely a view concern — both
@@ -1178,14 +1187,34 @@ export function Sidebar({
                 <Field label="Where to look">
                   <StyledSelect
                     className={cn(SELECT_CLASS, 'w-full')}
-                    value={drive.lookAtTargetId ?? ''}
-                    onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
+                    value={
+                      drive.lookAtTargetId ??
+                      (drive.lookBearing !== null
+                        ? `arrow:${lookArrows.find((arrow) => Math.abs(arrow.bearing - drive.lookBearing!) < 0.5)?.id ?? ''}`
+                        : '')
+                    }
+                    onChange={(event) => {
+                      const value = event.target.value
+                      const arrow = value.startsWith('arrow:')
+                        ? lookArrows.find((entry) => `arrow:${entry.id}` === value)
+                        : null
+                      onDriveChange(
+                        arrow
+                          ? { lookAtTargetId: null, lookBearing: arrow.bearing }
+                          : { lookAtTargetId: value || null, lookBearing: null },
+                      )
+                    }}
                     aria-label="Where to look"
                   >
                     <option value="">Along the road</option>
                     {blocks.map((block) => (
                       <option key={block.id} value={block.id}>
                         Face {block.name}
+                      </option>
+                    ))}
+                    {lookArrows.map((arrow) => (
+                      <option key={arrow.id} value={`arrow:${arrow.id}`}>
+                        {arrow.label}
                       </option>
                     ))}
                   </StyledSelect>
@@ -1368,12 +1397,12 @@ export function Sidebar({
                         },
                       ]}
                     />
-                    {drive.lookAtTargetId && (
+                    {(drive.lookAtTargetId || drive.lookBearing !== null) && (
                       <ToggleRow
                         layout="tile"
                         tone="primary"
-                        label="Viewing gap to the block"
-                        title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
+                        label={drive.lookAtTargetId ? 'Viewing gap to the block' : 'Viewing gap along the arrow'}
+                        title="Leaves the drawn timber out of the line of sight, as a pullout or a gap in the roadside trees would"
                         active={drive.viewingGap}
                         onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
                       />

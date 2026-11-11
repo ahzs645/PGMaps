@@ -187,6 +187,136 @@ export function pointInPolygon(geometry: PolygonGeometry, lng: number, lat: numb
     (rings) => !!rings[0] && inRing(rings[0], lng, lat) && !rings.slice(1).some((ring) => inRing(ring, lng, lat)),
   )
 }
+/**
+ * One ring's edges, bucketed into horizontal bands so a test at latitude `y`
+ * walks only the edges whose span holds `y`. The crossing test is `inRing`'s,
+ * on the same vertices in the same order, so the answer is identical: an edge
+ * can only flip the parity when `min(yi, yj) <= y < max(yi, yj)`, and every
+ * such edge sits in the band that holds `y`.
+ */
+type PreparedRing = {
+  /** Flat [xi, yi, xj, yj] per edge, where j is the vertex before i, as in `inRing`. */
+  edges: Float64Array
+  minY: number
+  maxY: number
+  bandHeight: number
+  /** Edge indices per band; null for a ring small enough to walk whole. */
+  bands: Uint32Array[] | null
+}
+type PreparedPart = { bounds: Bounds; outer: PreparedRing; holes: PreparedRing[] }
+
+/** Rings with fewer edges than this are walked whole: banding them saves nothing. */
+const BANDED_RING_EDGES = 48
+
+function prepareRing(ring: GeoJSON.Position[]): PreparedRing {
+  const count = ring.length
+  const edges = new Float64Array(count * 4)
+  let minY = Infinity,
+    maxY = -Infinity
+  for (let i = 0, j = count - 1; i < count; j = i++) {
+    const [xi, yi] = ring[i],
+      [xj, yj] = ring[j]
+    edges.set([xi, yi, xj, yj], i * 4)
+    if (yi < minY) minY = yi
+    if (yi > maxY) maxY = yi
+  }
+  if (count < BANDED_RING_EDGES || !(maxY > minY)) return { edges, minY, maxY, bandHeight: 1, bands: null }
+  const bandCount = Math.min(1024, Math.ceil(count / 8))
+  const bandHeight = (maxY - minY) / bandCount
+  const lists: number[][] = Array.from({ length: bandCount }, () => [])
+  const bandOf = (y: number) => Math.min(bandCount - 1, Math.max(0, Math.floor((y - minY) / bandHeight)))
+  for (let edge = 0; edge < count; edge += 1) {
+    const yi = edges[edge * 4 + 1],
+      yj = edges[edge * 4 + 3]
+    const last = bandOf(Math.max(yi, yj))
+    for (let band = bandOf(Math.min(yi, yj)); band <= last; band += 1) lists[band].push(edge)
+  }
+  return { edges, minY, maxY, bandHeight, bands: lists.map((list) => Uint32Array.from(list)) }
+}
+
+function inPreparedRing(ring: PreparedRing, x: number, y: number): boolean {
+  // No edge spans a latitude outside the ring's own range.
+  if (y < ring.minY || y >= ring.maxY) return false
+  const { edges } = ring
+  let inside = false
+  const crosses = (edge: number) => {
+    const xi = edges[edge * 4],
+      yi = edges[edge * 4 + 1],
+      xj = edges[edge * 4 + 2],
+      yj = edges[edge * 4 + 3]
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside
+  }
+  if (!ring.bands) {
+    for (let edge = 0; edge < edges.length / 4; edge += 1) crosses(edge)
+    return inside
+  }
+  const band = ring.bands[Math.min(ring.bands.length - 1, Math.max(0, Math.floor((y - ring.minY) / ring.bandHeight)))]
+  for (let index = 0; index < band.length; index += 1) crosses(band[index])
+  return inside
+}
+
+/** Each geometry's parts, prepared once and kept while the geometry object lives. */
+const preparedParts = new WeakMap<PolygonGeometry, PreparedPart[]>()
+
+function partsOf(geometry: PolygonGeometry): PreparedPart[] {
+  let parts = preparedParts.get(geometry)
+  if (!parts) {
+    parts = ringsOf(geometry)
+      .filter((rings) => rings[0]?.length)
+      .map((rings) => {
+        const bounds: Bounds = [Infinity, Infinity, -Infinity, -Infinity]
+        for (const [x, y] of rings[0]) {
+          bounds[0] = Math.min(bounds[0], x)
+          bounds[1] = Math.min(bounds[1], y)
+          bounds[2] = Math.max(bounds[2], x)
+          bounds[3] = Math.max(bounds[3], y)
+        }
+        return { bounds, outer: prepareRing(rings[0]), holes: rings.slice(1).map(prepareRing) }
+      })
+    preparedParts.set(geometry, parts)
+  }
+  return parts
+}
+
+/** A set of polygons to test many points against, as `pointInPolygon` on any of them answers. */
+export type PreparedPolygons = {
+  contains: (lng: number, lat: number) => boolean
+  /** The index of the first polygon holding the point, or -1. */
+  indexAt: (lng: number, lat: number) => number
+  /** Polygon parts kept after the `within` filter. */
+  partCount: number
+}
+
+/**
+ * Prepares polygons for many point tests: each multipolygon is split into its
+ * parts, each part keeps its own bounding box (a lake no longer carries the
+ * box of a whole basemap tile), and long rings are banded by latitude. With
+ * `within`, parts whose box misses it are left out, for a run of points that
+ * all fall inside it. Answers match `pointInPolygon` exactly.
+ */
+export function preparePolygons(polygons: ReadonlyArray<PolygonGeometry>, within?: Bounds): PreparedPolygons {
+  const parts: Array<PreparedPart & { polygon: number }> = []
+  polygons.forEach((geometry, polygon) => {
+    for (const part of partsOf(geometry)) {
+      const box = part.bounds
+      if (within && (box[2] < within[0] || box[0] > within[2] || box[3] < within[1] || box[1] > within[3])) continue
+      parts.push({ ...part, polygon })
+    }
+  })
+  const indexAt = (lng: number, lat: number) => {
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index]
+      const box = part.bounds
+      if (lng < box[0] || lng > box[2] || lat < box[1] || lat > box[3]) continue
+      if (!inPreparedRing(part.outer, lng, lat)) continue
+      if (part.holes.some((hole) => inPreparedRing(hole, lng, lat))) continue
+      return part.polygon
+    }
+    return -1
+  }
+  return { contains: (lng, lat) => indexAt(lng, lat) >= 0, indexAt, partCount: parts.length }
+}
+
 export function polygonBounds(geometry: PolygonGeometry): Bounds {
   const box: Bounds = [Infinity, Infinity, -Infinity, -Infinity]
   for (const rings of ringsOf(geometry))

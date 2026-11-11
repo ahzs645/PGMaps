@@ -413,6 +413,17 @@ export const ARROW_AIM_DEGREES = 30
 /** Viewpoints and sites farther than this are not offered for a block, metres. */
 export const VIEWPOINT_SEARCH_METERS = 12_000
 
+export type CandidateArrow = {
+  id: string
+  /** Degrees clockwise from north, viewpoint to tip. */
+  bearing: number
+  /** Degrees between the arrow and the direction to the block. */
+  offsetDegrees: number
+  lengthMeters: number
+  /** Within `ARROW_AIM_DEGREES` of the block. */
+  aims: boolean
+}
+
 export type ViewpointCandidate = {
   key: string
   kind: 'vli' | 'rec-site'
@@ -422,7 +433,13 @@ export type ViewpointCandidate = {
   distanceMeters: number
   bearingToBlock: number
   /** The viewpoint's arrow nearest the block's direction. */
-  arrow: { id: string; bearing: number; offsetDegrees: number; lengthMeters: number; aims: boolean } | null
+  arrow: CandidateArrow | null
+  /**
+   * Every arrow the viewpoint carries, nearest the block's direction first. A
+   * viewpoint often has several, one per view the inventory recorded from it;
+   * the road view can face any of them. Empty for a rec site.
+   */
+  arrows: CandidateArrow[]
   /** Sort key: nearer and aimed at the block first. Not a visibility figure. */
   weight: number
 }
@@ -461,10 +478,20 @@ export function viewpointsNearBlock(
     const distance = distanceTo(viewpoint)
     if (distance > maxDistanceMeters) continue
     const toBlock = bearingDegrees(viewpoint, centre)
-    const arrow = (arrowsByViewpoint.get(viewpoint.id) ?? [])
-      .map((entry) => ({ entry, offset: angleBetween(entry.bearing, toBlock) }))
-      .sort((x, y) => x.offset - y.offset)[0]
-    const aims = !!arrow && arrow.offset <= ARROW_AIM_DEGREES
+    const arrows: CandidateArrow[] = (arrowsByViewpoint.get(viewpoint.id) ?? [])
+      .map((entry) => {
+        const offset = angleBetween(entry.bearing, toBlock)
+        return {
+          id: entry.id,
+          bearing: entry.bearing,
+          offsetDegrees: offset,
+          lengthMeters: entry.lengthMeters,
+          aims: offset <= ARROW_AIM_DEGREES,
+        }
+      })
+      .sort((x, y) => x.offsetDegrees - y.offsetDegrees)
+    const arrow = arrows[0] ?? null
+    const aims = !!arrow?.aims
     rows.push({
       key: `vli:${viewpoint.id}`,
       kind: 'vli',
@@ -473,15 +500,8 @@ export function viewpointsNearBlock(
       lat: viewpoint.lat,
       distanceMeters: distance,
       bearingToBlock: toBlock,
-      arrow: arrow
-        ? {
-            id: arrow.entry.id,
-            bearing: arrow.entry.bearing,
-            offsetDegrees: arrow.offset,
-            lengthMeters: arrow.entry.lengthMeters,
-            aims,
-          }
-        : null,
+      arrow,
+      arrows,
       weight: distance / (aims ? 2 : 1) / (viewpoint.typeCode === 'MAJVP' ? 1.5 : 1),
     })
   }
@@ -497,6 +517,7 @@ export function viewpointsNearBlock(
       distanceMeters: distance,
       bearingToBlock: bearingDegrees(site, centre),
       arrow: null,
+      arrows: [],
       // A campsite is lived in, not driven past: weigh it as a major viewpoint.
       weight: distance / 1.5,
     })
