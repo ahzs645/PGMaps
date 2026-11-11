@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -62,7 +63,7 @@ export function JointOptimizationControls({
     workspace.setBusy(REFINEMENT_BUSY)
     workspace.setError('')
     try {
-      if (project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      if (roadLimitReached(project)) throw Error(ROAD_LIMIT_MESSAGE)
       const result = await refinePlanAndProfile(alignment, source, project.settings, project.context, {
         stepM,
         rounds,

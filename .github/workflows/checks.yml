@@ -21,7 +21,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      # Several unit tests read deployed snapshots, so the scraper data is synced first.
+      # Five unit tests read synced scraper files (acknowledgement, indigenous, native-land and
+      # boundaries under public/data), so the scraper data is copied first. It takes seconds. The
+      # UI search files (`data:build-ui`) feed no test, so the checks skip them.
       - uses: actions/checkout@v4
         with:
           submodules: recursive
@@ -31,13 +33,37 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run ci:prepare
-      - run: npm run data:sync-from-bcdatamapper
+      - run: node scripts/sync-bcdatamapper-data.mjs
       - run: npx tsc -b
       - run: npm run lint -- --max-warnings=0
       - run: npm run format:check
       - run: npx vitest run
 
+  # The wasm only changes with these files, so cable-wasm runs when one of them does (or by hand).
+  # A job skipped by `if:` reports Skipped, which counts as passing, so this stays safe if cable-wasm
+  # is a required check.
+  cable-changes:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      cable: ${{ steps.filter.outputs.cable }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            cable:
+              - 'crates/cable-layout/**'
+              - 'scripts/build-cable-wasm.mjs'
+              - 'src/pages/dev-forestry-roads/cableLayout/cable_layout.wasm'
+              - '.github/workflows/checks.yml'
+
   cable-wasm:
+    needs: cable-changes
+    if: github.event_name == 'workflow_dispatch' || needs.cable-changes.outputs.cable == 'true'
     # The cable-layout optimizer is Rust compiled to WebAssembly. The built file is committed beside
     # its loader so Vite, Vitest and the Pages build need no Rust; this job runs the crate's tests,
     # rebuilds it with the pinned toolchain and fails when the committed bytes differ. The rebuilt

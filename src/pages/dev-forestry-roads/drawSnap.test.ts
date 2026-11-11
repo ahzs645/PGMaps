@@ -53,6 +53,18 @@ describe('roadSnapLines', () => {
           geometry: { type: 'LineString', coordinates: [at(0, 5), at(9, 5)] },
         },
         {
+          id: 'parts',
+          name: 'Two-part road',
+          kind: 'existing-road',
+          geometry: {
+            type: 'MultiLineString',
+            coordinates: [
+              [at(0, 7), at(3, 7)],
+              [at(5, 7), at(9, 7)],
+            ],
+          },
+        },
+        {
           id: 'creek',
           name: 'Creek',
           kind: 'stream',
@@ -66,6 +78,8 @@ describe('roadSnapLines', () => {
       ['drawn', 'design'],
       ['unanalysed', 'design'],
       ['fsr', 'existing'],
+      ['parts', 'existing'],
+      ['parts', 'existing'],
     ])
     expect(lines[0].coordinates).toBe(curve)
     expect(lines[1].coordinates).toEqual([at(0, 0), at(100, 0)])

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { ROAD_LIMIT_MESSAGE, roadLimitReached } from './roadLimits'
 import { derivedRoadName } from './mappedRoad'
 import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -101,7 +102,7 @@ export function DesignSidebar(props: SidebarProps) {
   const adopt = () => {
     if (!review || stale || w.busy) return
     try {
-      if (w.project.alignments.length >= 20) throw Error('The project already has 20 road alternatives.')
+      if (roadLimitReached(w.project)) throw Error(ROAD_LIMIT_MESSAGE)
       const next = parseProject({
         ...w.project,
         alignments: [...w.project.alignments, review.candidate],

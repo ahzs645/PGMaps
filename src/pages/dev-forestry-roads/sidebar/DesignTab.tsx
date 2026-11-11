@@ -1,7 +1,8 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { roadLimitReached } from '../roadLimits'
 import { RoadNameField } from '../SharedRoadFields'
 import { useEffect, useMemo, useState } from 'react'
-import { Layers, Plus, SquareArrowOutUpRight, Trash2, Upload, Waypoints, type LucideIcon } from 'lucide-react'
+import { Plus, SquareArrowOutUpRight, Trash2, Upload, Waypoints, type LucideIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { CommandButton, type CommandPresentation } from '@/components/interfaces/CommandButton'
 import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
@@ -38,22 +39,19 @@ import { ProfileGeometryPanel } from '../ProfileGeometryPanel'
 import { awaitingFirstRoad } from '../investigationWorkspace'
 
 const id = () => crypto.randomUUID()
-const MAX_ALIGNMENTS = 20
 /** Why a search waits while a road is being pegged: it would run on the saved road, not the line on the plan. */
 const DRAWING_REASON = 'Finish the road being drawn on the plan first'
 
 export function DesignTab(p: SidebarProps) {
   const { project, alignment } = p.workspace
-  const full = project.alignments.length >= MAX_ALIGNMENTS
+  const full = roadLimitReached(project)
   if (awaitingFirstRoad(project))
     return (
       <FirstRoadPanel
         context={project.context}
-        onPeg={() => p.onMode('road')}
-        onSketch={() => p.onMode('sketch')}
-        onImport={() => p.onFile('alignment')}
+        commandStates={p.commandStates}
+        onCommand={(id) => p.onCommand?.(id)}
         onLoadMappedRoad={(id) => p.onLoadMappedRoad?.(id)}
-        onLoadAllInView={p.onLoadMappedRoadsInView}
       />
     )
   const mapped = !!alignment.mappedRoad
@@ -134,17 +132,19 @@ export function DesignTab(p: SidebarProps) {
               />
             ))}
           </div>
-          {hasMappedRoads && p.onLoadMappedRoadsInView && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="w-full gap-1"
-              title="Load every mapped road in the plan's view as its own road, each in its own colour"
-              onClick={p.onLoadMappedRoadsInView}
-              disabled={full}
-            >
-              <Layers className="size-3" /> Load mapped roads in view
-            </Button>
+          {hasMappedRoads && (
+            <div className="grid">
+              <CommandButton
+                id="loadMapped"
+                surface="sidebar"
+                state={p.commandStates?.loadMapped}
+                presentation={{
+                  caption: 'Load mapped roads in view',
+                  title: "Load every mapped road in the plan's view as its own road, each in its own colour",
+                }}
+                onRun={(command) => p.onCommand?.(command)}
+              />
+            </div>
           )}
         </div>
       </RoadSection>

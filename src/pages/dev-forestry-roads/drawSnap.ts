@@ -137,18 +137,23 @@ export function roadSnapLines(
         kind: 'design' as const,
         coordinates: centrelines.get(a.id)?.centerline ?? a.points.map((point) => point.coordinate),
       })),
-    ...project.context.flatMap((feature) =>
-      feature.kind === 'existing-road' && feature.geometry.type === 'LineString'
-        ? [
-            {
-              id: feature.id,
-              name: feature.name,
-              kind: 'existing' as const,
-              coordinates: feature.geometry.coordinates as Coordinate[],
-            },
-          ]
-        : [],
-    ),
+    // An existing road may be one line or several parts (a MultiLineString); each part snaps.
+    ...project.context.flatMap((feature) => {
+      if (feature.kind !== 'existing-road') return []
+      const geometry = feature.geometry as GeoJSON.Geometry
+      const parts =
+        geometry.type === 'LineString'
+          ? [geometry.coordinates]
+          : geometry.type === 'MultiLineString'
+            ? geometry.coordinates
+            : []
+      return parts.map((coordinates) => ({
+        id: feature.id,
+        name: feature.name,
+        kind: 'existing' as const,
+        coordinates: coordinates as Coordinate[],
+      }))
+    }),
   ]
 }
 
