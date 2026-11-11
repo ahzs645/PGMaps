@@ -48,6 +48,9 @@ async function chooseOption(page: Page, label: string, option: string) {
 }
 
 async function openCosts(page: Page) {
+  // On a phone the road summary starts folded.
+  const showSummary = page.getByRole('button', { name: 'Show road summary', exact: true })
+  if (await showSummary.isVisible()) await showSummary.click()
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Covered estimate', exact: true })
   await expect(dialog).toBeVisible()
@@ -205,7 +208,7 @@ test('rate presets preserve shrink and BC comparisons leave the itemized estimat
   })
 
   // Quote conversions use their explicit volume basis and remain temporary comparison inputs.
-  await page.getByRole('button', { name: 'Convert quotes and calculate unit rates', exact: true }).click()
+  await page.getByTestId('road-bc-cost-references').getByRole('tab', { name: 'Unit rates', exact: true }).click()
   await chooseOption(page, 'Material quote unit', 'CAD per tonne')
   await page.getByRole('spinbutton', { name: 'Quoted price (CAD/tonne)', exact: true }).fill('13')
   await page.getByRole('spinbutton', { name: 'Tonnes required per compacted m³', exact: true }).fill('2')

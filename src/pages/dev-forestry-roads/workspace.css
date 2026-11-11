@@ -176,11 +176,6 @@
   display: none;
 }
 
-.road-workspace[data-tiny-height]:has(.lp-ribbon[data-compact-ribbon]) [data-testid='pegging-feedback'] {
-  gap: 0.25rem;
-  padding: 0.25rem 0.5rem;
-}
-
 /* From the tablet width up, the road switcher and the buttons share the header line with the
    title. The project's name and its save state keep a floor there, so neither collapses beside
    the switcher; the page heading gives way first. A wrapping flex line breaks on these floors, not

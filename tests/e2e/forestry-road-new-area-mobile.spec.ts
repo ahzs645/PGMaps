@@ -286,7 +286,7 @@ test('new-area real DEM mobile journey uses visible terrain, road editing, optim
       expect(p.y).toBeGreaterThan(state.rect.y + 65)
       expect(p.y).toBeLessThan(state.rect.bottom - 45)
       await page.touchscreen.tap(p.x, p.y)
-      await expect(page.getByTestId('pegging-feedback')).toContainText(`${index + 1} points`)
+      await expect(page.getByTestId('pegging-readout')).toContainText(`Points:${index + 1}`)
     }
     await page.getByRole('button', { name: 'Finish road', exact: true }).tap()
     await controls(page, 'Design')

@@ -7,6 +7,17 @@ import { expect, type Locator, type Page } from '@playwright/test'
  */
 const quote = (value: string) => JSON.stringify(value)
 
+/**
+ * Closes an open list with Escape. The menu takes focus a moment after it mounts, and an Escape sent
+ * before that lands on the trigger and leaves the list open, so send it again until the list closes.
+ */
+async function closeList(page: Page, list: Locator) {
+  await expect(async () => {
+    if (await list.isVisible()) await page.keyboard.press('Escape')
+    await expect(list).toBeHidden({ timeout: 1_000 })
+  }).toPass()
+}
+
 /** Opens a dropdown and picks an option by value, by exact label, or by `{ label }` / `{ value }`. */
 export async function choose(
   select: Locator,
@@ -51,8 +62,7 @@ export async function optionLabels(select: Locator) {
   const list = page.getByRole('listbox').last()
   await expect(list).toBeVisible()
   const labels = (await list.getByRole('option').allTextContents()).map((label) => label.trim())
-  await page.keyboard.press('Escape')
-  await expect(list).toBeHidden()
+  await closeList(page, list)
   return labels
 }
 
@@ -68,8 +78,7 @@ export async function optionDisabled(select: Locator, label: string) {
   // handoff before sending Escape, or the keystroke can land on the trigger.
   const filter = page.getByRole('combobox', { name: `Search ${await select.getAttribute('aria-label')}`, exact: true })
   if (await filter.isVisible()) await expect(filter).toBeFocused()
-  await page.keyboard.press('Escape')
-  await expect(list).toBeHidden()
+  await closeList(page, list)
   return disabled
 }
 
@@ -86,7 +95,6 @@ export async function optionEntries(select: Locator) {
       disabled: option.getAttribute('aria-disabled') === 'true' || option.hasAttribute('data-disabled'),
     })),
   )
-  await page.keyboard.press('Escape')
-  await expect(list).toBeHidden()
+  await closeList(page, list)
   return entries
 }

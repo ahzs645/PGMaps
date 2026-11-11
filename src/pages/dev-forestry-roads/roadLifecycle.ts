@@ -12,34 +12,68 @@ export interface RemovedRoad {
   shownId: string
 }
 
+type RoadList = Pick<RoadProject, 'alignments' | 'activeAlignmentId' | 'designPlaceholderId' | 'workspaceMode'>
+
 /**
  * Removes one road and shows its neighbour: the road before it, or the next one when it was first.
- * Returns null when it is the only road, since a project always holds one.
+ * The last road leaves an empty design: a project file always holds one alignment, so a bare hidden
+ * placeholder (`designPlaceholderId`) takes its place, as in a new project, and keeps only its
+ * template so the next road starts from the same standards. Nothing of the deleted road's line stays
+ * in the file. Returns null for a missing road, an access investigation, or a design already empty.
  */
-export function removeRoad<P extends Pick<RoadProject, 'alignments' | 'activeAlignmentId'>>(
-  project: P,
-  id: string,
-): { project: P; removed: RemovedRoad } | null {
+export function removeRoad<P extends RoadList>(project: P, id: string): { project: P; removed: RemovedRoad } | null {
   const index = project.alignments.findIndex((road) => road.id === id)
-  if (index < 0 || project.alignments.length < 2) return null
-  const alignments = project.alignments.filter((road) => road.id !== id)
+  if (index < 0 || project.workspaceMode === 'access-investigation' || project.designPlaceholderId) return null
+  const road = project.alignments[index]
+  if (project.alignments.length < 2) {
+    const placeholder = placeholderFor(road)
+    return {
+      project: {
+        ...project,
+        alignments: [placeholder],
+        activeAlignmentId: placeholder.id,
+        workspaceMode: 'design',
+        designPlaceholderId: placeholder.id,
+      },
+      removed: { road, index, shownId: placeholder.id },
+    }
+  }
+  const alignments = project.alignments.filter((r) => r.id !== id)
   const shownId = project.activeAlignmentId === id ? alignments[Math.max(0, index - 1)].id : project.activeAlignmentId
   return {
     project: { ...project, alignments, activeAlignmentId: shownId },
-    removed: { road: project.alignments[index], index, shownId },
+    removed: { road, index, shownId },
   }
 }
 
-/** Puts a removed road back where it was and shows it. A road already back is only shown. */
-export function restoreRoad<P extends Pick<RoadProject, 'alignments' | 'activeAlignmentId'>>(
-  project: P,
-  removed: RemovedRoad,
-): P {
+/** The hidden stand-in for a design with no road: two points at the deleted road's ends, its template. */
+function placeholderFor(road: Alignment): Alignment {
+  const id = `placeholder-${road.id}`
+  const ends = [road.points[0], road.points[road.points.length - 1]]
+  return {
+    id,
+    name: 'No road yet',
+    color: road.color,
+    points: ends.map((point, i) => ({ id: `${id}-p${i}`, coordinate: point.coordinate, radiusM: 0 })),
+    vertical: [],
+    template: road.template,
+    overrides: [],
+  }
+}
+
+/**
+ * Puts a removed road back where it was and shows it, dropping the placeholder of a design it left
+ * empty. A road already back is only shown.
+ */
+export function restoreRoad<P extends RoadList>(project: P, removed: RemovedRoad): P {
   if (project.alignments.some((road) => road.id === removed.road.id))
     return { ...project, activeAlignmentId: removed.road.id }
-  const alignments = [...project.alignments]
+  const { designPlaceholderId, ...rest } = project
+  const alignments = designPlaceholderId
+    ? project.alignments.filter((road) => road.id !== designPlaceholderId)
+    : [...project.alignments]
   alignments.splice(Math.min(removed.index, alignments.length), 0, removed.road)
-  return { ...project, alignments, activeAlignmentId: removed.road.id }
+  return { ...(rest as P), alignments, activeAlignmentId: removed.road.id }
 }
 
 /** "Block 12 spur (2)": the first numbered name no saved project already has. */

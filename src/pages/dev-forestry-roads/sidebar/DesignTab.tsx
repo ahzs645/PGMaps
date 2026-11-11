@@ -69,7 +69,6 @@ export function DesignTab(p: SidebarProps) {
             aria-label="Delete active alignment"
             title="Delete this road"
             onClick={p.onRemoveAlignment}
-            disabled={project.alignments.length <= 1}
           >
             <Trash2 className="size-3" />
           </Button>

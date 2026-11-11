@@ -17,8 +17,13 @@ const text = (renderer: ReactTestRenderer) => JSON.stringify(renderer.toJSON())
 type Node = ReactTestRenderer['root']
 const textOf = (node: Node | string): string =>
   typeof node === 'string' ? node : node.children.map((child) => textOf(child as Node | string)).join('')
-/** The input of the field labelled `label`, by the label's `htmlFor`. */
+/**
+ * The input of the field labelled `label`: by its own name where the unit sits inside the box
+ * ("Step (m)" shows "Step" and "m"), else by the label's `htmlFor`.
+ */
 const field = (renderer: ReactTestRenderer, label: string) => {
+  const named = renderer.root.findAll((node) => node.type === 'input' && node.props['aria-label'] === label)
+  if (named.length === 1) return named[0]
   const id = renderer.root.find((node) => node.type === 'label' && textOf(node).trim().startsWith(label)).props.htmlFor
   return renderer.root.find((node) => node.type === 'input' && node.props.id === id)
 }

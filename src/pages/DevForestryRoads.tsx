@@ -74,7 +74,27 @@ import {
   type CSSProperties,
   type ReactNode,
 } from 'react'
-import { Download, PanelLeftClose, PanelLeftOpen, Pause, Play, X, Maximize, Minimize } from 'lucide-react'
+import {
+  ChartNoAxesCombined,
+  Download,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pause,
+  PencilLine,
+  Play,
+  Plus,
+  Route,
+  Shapes,
+  Spline,
+  Waves,
+  Waypoints,
+  X,
+  Maximize,
+  Minimize,
+  type LucideIcon,
+} from 'lucide-react'
+import { MapToolPanel } from '@/components/ui/map-tool-panel'
+import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { FilesDialog, type RoadExport } from './dev-forestry-roads/FilesDialog'
@@ -214,6 +234,7 @@ import {
   type TerrainImportAnswers,
   type TerrainImportNeeds,
 } from './dev-forestry-roads/terrain'
+import { terrainCellLabel, terrainDisplayName } from './dev-forestry-roads/terrainName'
 import { ProjectsDialog, type NewProject } from './dev-forestry-roads/ProjectsDialog'
 import { loadRoadScenario, type RoadScenarioId } from './dev-forestry-roads/scenarios'
 import type { AccessHistorySelection } from './dev-forestry-roads/AccessHistorySelection'
@@ -325,6 +346,17 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
 
 /** The sidebar skips the page's renders that change only the station (a hover along the road); see roadStation.tsx. */
 const StationIndependentSidebar = memoWithLatestHandlers(DesignSidebar, { bags: ['workspace'] })
+
+/** The ribbon's icon for each drawing mode, on the drawing card. */
+const DRAW_MODE_ICONS: Partial<Record<DrawMode, LucideIcon>> = {
+  road: Plus,
+  extend: Waypoints,
+  trace: Route,
+  profile: ChartNoAxesCombined,
+  cable: Spline,
+  stream: Waves,
+  avoid: Shapes,
+}
 
 export default function DevForestryRoads({
   initialInterface,
@@ -1828,23 +1860,29 @@ export default function DevForestryRoads({
       setFitRevision((n) => n + 1)
       w.setStation(0)
     })
-  /** A new project on `terrain`, with one straight road at `centre` to drag or replace. */
   /** The standards entered in New project, written into the project it creates. */
   const withNewProjectStandards = (created: RoadProject) => {
     const job = pendingStandards.current
     pendingStandards.current = null
     return job ? parseProject(applyJobStandardsToNewProject(created, job)) : created
   }
+  /**
+   * A new project on `terrain` with no road. A project file always holds one alignment, so the
+   * design keeps a hidden placeholder at `centre` (`designPlaceholderId`) until the first road is
+   * pegged, sketched or loaded; it is never drawn, analysed or counted.
+   */
   const startOn = (name: string, terrain: RoadProject['terrain'], terrainSource: TerrainSource, centre: Coordinate) => {
-    const road = starterAlignment(centre)
+    const placeholder = starterAlignment(centre)
     w.startProject(
       withNewProjectStandards(
         parseProject({
           ...createDemoProject(),
           name,
           terrain,
-          alignments: [road],
-          activeAlignmentId: road.id,
+          alignments: [placeholder],
+          activeAlignmentId: placeholder.id,
+          workspaceMode: 'design',
+          designPlaceholderId: placeholder.id,
           context: [],
           cables: [],
           profiles: [],
@@ -1853,7 +1891,7 @@ export default function DevForestryRoads({
       ),
       terrainSource,
     )
-    setMode('edit')
+    setMode('inspect')
   }
   const createProject = (start: NewProject) => {
     pendingStandards.current = start.standards ?? null
@@ -1883,7 +1921,7 @@ export default function DevForestryRoads({
       }
       w.setNotice(
         start.kind === 'regional'
-          ? `Started ${start.name}. Drag the ends of the first road, or use Peg road to draw your own.`
+          ? `Started ${start.name}. Peg or sketch the first road, or load a mapped road.`
           : `Started ${start.name}.`,
       )
       setActiveProfile(null)
@@ -2018,7 +2056,7 @@ export default function DevForestryRoads({
           await w.flush()
           startOn(name, loaded.metadata, loaded.source, [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2])
           w.setNotice(
-            `${loaded.summary ? `${loaded.summary} ` : ''}New project on ${label}. Drag the ends of the first road, or use Peg road to draw your own.`,
+            `${loaded.summary ? `${loaded.summary} ` : ''}New project on ${label}. Peg or sketch the first road, or load a mapped road.`,
           )
           w.enablePersistence()
           setFitRevision((n) => n + 1)
@@ -2752,6 +2790,87 @@ export default function DevForestryRoads({
   // ⌘Z / Ctrl+Z undo outside text fields; while drawing they take back the last point first.
   const [applePlatform] = useState(isApplePlatform)
   const shortcutKeys = historyShortcutLabels(applePlatform)
+  // The tool in hand draws its card on the plan (`MapToolPanel`), so starting one moves nothing.
+  const overGradeLimit = pegGrade !== null && Math.abs(pegGrade) > project.settings.maxGradePercent
+  const drawToolPanel: ReactNode = investigation ? null : mode === 'sketch' ? (
+    <MapToolPanel
+      title="Sketch road"
+      icon={PencilLine}
+      aria-label="Sketch road"
+      data-testid="sketch-feedback"
+      hint="Press and drag on the plan."
+      help={
+        <>
+          A stroke that starts or ends at the active road&apos;s end continues it; corners take the{' '}
+          {project.settings.minRadius} m minimum radius where they fit.
+        </>
+      }
+      helpLabel="About sketching a road"
+      onClose={() => beginMode('inspect')}
+      closeLabel="Done sketching"
+    />
+  ) : isDrawing ? (
+    <MapToolPanel
+      title={
+        mode === 'road'
+          ? 'Peg road'
+          : mode === 'trace'
+            ? 'Trace road'
+            : mode === 'extend'
+              ? `Extend ${alignment.name}`
+              : mode === 'avoid'
+                ? `Draw ${drawnArea}`
+                : `Draw ${mode}`
+      }
+      icon={DRAW_MODE_ICONS[mode] ?? PencilLine}
+      aria-label="Drawing"
+      data-testid="pegging-feedback"
+      hint={
+        draft.length
+          ? undefined
+          : `${shortRibbon ? 'Tap' : 'Click'} the plan to add points${mode === 'extend' ? ' from the nearer road end' : ''}.`
+      }
+      onClose={() => beginMode('inspect')}
+      closeLabel="Cancel drawing"
+      actions={
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mr-auto h-7"
+            disabled={!draft.length}
+            title={`Undo point (${shortcutKeys.undo})`}
+            aria-keyshortcuts={shortcutKeys.undoAria}
+            onClick={() => setDraft((p) => p.slice(0, -1))}
+          >
+            Undo point
+          </Button>
+          <Button size="sm" className="h-7" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
+            {mode === 'extend'
+              ? 'Finish extension'
+              : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
+          </Button>
+        </>
+      }
+    >
+      {mode === 'trace' && <TraceFeedback trace={trace} />}
+      <ReadoutGrid
+        data-testid="pegging-readout"
+        minColumnWidth="6.5rem"
+        items={[
+          { label: 'Points', value: draft.length },
+          draft.length > 0 && { label: 'Leg', value: `${number(leg)} m` },
+          draft.length > 0 && { label: 'Ground', value: `${number(zb)} m` },
+          draft.length > 0 && {
+            label: 'Grade',
+            value: `${number(pegGrade)}%`,
+            tone: overGradeLimit ? 'warning' : 'default',
+            title: overGradeLimit ? `Over the ${project.settings.maxGradePercent}% grade limit` : undefined,
+          },
+        ]}
+      />
+    </MapToolPanel>
+  ) : null
   // Delete removes the point selected for editing, as the sidebar's Remove selected point does.
   const removablePoint =
     mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
@@ -2940,6 +3059,16 @@ export default function DevForestryRoads({
     setNewProjectRequest((n) => n + 1)
     setProjectsOpen(true)
   }
+  /** Deletes the active road; the neighbour is shown, or an empty design after the last one, with Undo. */
+  function deleteRoad() {
+    if (mode !== 'inspect' && mode !== 'edit') beginMode('inspect')
+    const result = removeRoad(project, alignment.id)
+    if (!result) return
+    w.update(() => result.project)
+    setRemovedRoad({ removed: result.removed, opened: w.openedCount })
+    setSelectedPoint(null)
+    if (awaitingFirstRoad(result.project)) setMode('inspect')
+  }
   function duplicateRoad() {
     if (isMappedRoad(alignment)) return copyMappedRoad()
     const copy = structuredClone(alignment)
@@ -3010,6 +3139,7 @@ export default function DevForestryRoads({
     drawProfile: () => drawFromRibbon('profile'),
     importAlignment: () => requestFile('alignment'),
     duplicateRoad,
+    deleteRoad,
     traceRoad: () => drawFromRibbon('trace'),
     inspect: () => drawFromRibbon('inspect'),
     crossSection: () => showDetailPane('section'),
@@ -3079,6 +3209,7 @@ export default function DevForestryRoads({
       disabled: editLocked || noRoad || roadLimitReached,
       label: isMappedRoad(alignment) ? 'Copy as design' : undefined,
     },
+    deleteRoad: { disabled: editLocked || investigation || noRoad },
     importAlignment: { disabled: editLocked || roadLimitReached },
     fitRoad: { disabled: noRoad },
     fitTerrain: { disabled: !terrainBounds(project.terrain) },
@@ -3253,13 +3384,21 @@ export default function DevForestryRoads({
     ),
     presets: investigation ? null : presetPicker,
     terrainSource: (
-      <div className="lp-source-field" title={planningBasis}>
-        <strong>{project.terrain.name}</strong>
-        <span>
-          {project.terrain.kind === 'demo'
-            ? 'Synthetic training surface'
-            : `${project.terrain.resolutionM} m resolution`}
-        </span>
+      <div className="lp-source-field" title={`${project.terrain.name}\n\n${planningBasis}`}>
+        {(() => {
+          // "Regional Terrarium DEM · coarse screening" reads as a name, then what it is good for.
+          const [name, ...qualifiers] = terrainDisplayName(project.terrain.name).split(' · ')
+          const detail =
+            project.terrain.kind === 'demo'
+              ? 'Synthetic training surface'
+              : terrainCellLabel(project.terrain.resolutionM)
+          return (
+            <>
+              <strong>{name}</strong>
+              <span>{[...qualifiers, detail].join(' · ')}</span>
+            </>
+          )
+        })()}
       </div>
     ),
     interfaceSwitch: interfaceSwitcher,
@@ -3671,7 +3810,11 @@ export default function DevForestryRoads({
       <SessionRestoredNotice restored={w.sessionRestored} onDismiss={w.dismissSessionRestored} />
       <RoadRemovedNotice
         removed={removedHere}
-        shownName={project.alignments.find((road) => road.id === removedHere?.shownId)?.name ?? alignment.name}
+        shownName={
+          removedHere?.shownId === project.designPlaceholderId
+            ? null
+            : (project.alignments.find((road) => road.id === removedHere?.shownId)?.name ?? alignment.name)
+        }
         onDismiss={() => setRemovedRoad(null)}
         onUndo={() => {
           if (removedHere) w.update((p) => parseProject(restoreRoad(p, removedHere)))
@@ -3827,13 +3970,7 @@ export default function DevForestryRoads({
                             onProfile={selectProfile}
                             commandStates={commandStates}
                             onCommand={runCommand}
-                            onRemoveAlignment={() => {
-                              // The neighbouring road is shown, and a notice names the deleted one with a way back.
-                              const result = removeRoad(project, alignment.id)
-                              if (!result) return
-                              w.update(() => result.project)
-                              setRemovedRoad({ removed: result.removed, opened: w.openedCount })
-                            }}
+                            onRemoveAlignment={deleteRoad}
                             onSuggest={suggest}
                             onLoadMappedRoad={loadMappedRoad}
                             onLoadMappedRoadsInView={loadMappedRoadsInView}
@@ -3985,79 +4122,6 @@ export default function DevForestryRoads({
                         </div>
                       </div>
                     )}
-                    {!investigation && mode === 'sketch' && (
-                      <div
-                        className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
-                        data-testid="sketch-feedback"
-                      >
-                        <strong>Sketch road</strong>
-                        <span>
-                          Press and drag on the plan. A stroke that starts or ends at the active road&apos;s end
-                          continues it; corners take the {project.settings.minRadius} m minimum radius where they fit.
-                        </span>
-                        <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
-                          Done sketching
-                        </Button>
-                      </div>
-                    )}
-                    {!investigation && isDrawing && mode !== 'sketch' && (
-                      <div
-                        className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
-                        data-testid="pegging-feedback"
-                      >
-                        <strong>
-                          {mode === 'road'
-                            ? 'Peg road'
-                            : mode === 'trace'
-                              ? 'Trace road'
-                              : mode === 'extend'
-                                ? `Extend ${alignment.name}`
-                                : mode === 'avoid'
-                                  ? `Draw ${drawnArea}`
-                                  : `Draw ${mode}`}
-                        </strong>
-                        <span>
-                          {shortRibbon
-                            ? 'Tap plan'
-                            : mode === 'extend'
-                              ? 'Add points from the nearer road end'
-                              : 'Add points on the plan'}
-                          {' · '}
-                          {draft.length} points
-                        </span>
-                        {mode === 'trace' && <TraceFeedback trace={trace} />}
-                        <span className="font-mono">
-                          Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
-                          <strong
-                            className={
-                              pegGrade !== null && Math.abs(pegGrade) > project.settings.maxGradePercent
-                                ? 'text-red-600'
-                                : ''
-                            }
-                          >
-                            {number(pegGrade)}%
-                          </strong>
-                        </span>
-                        <Button size="sm" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
-                          {mode === 'extend'
-                            ? 'Finish extension'
-                            : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          disabled={!draft.length}
-                          title={`Undo point (${shortcutKeys.undo})`}
-                          aria-keyshortcuts={shortcutKeys.undoAria}
-                          onClick={() => setDraft((p) => p.slice(0, -1))}
-                        >
-                          Undo point
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
-                          Cancel drawing
-                        </Button>
-                      </div>
-                    )}
                     {terrainProfile && (
                       <div className="flex items-center justify-between rounded border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
                         <span>Terrain profile: {terrainProfile.name} · ground elevations and slopes only</span>
@@ -4156,6 +4220,7 @@ export default function DevForestryRoads({
                             <div className="min-h-0 flex-1">
                               <PlanView
                                 display={planDisplay}
+                                toolPanel={drawToolPanel}
                                 selectedRange={investigation || terrainProfile ? undefined : selectedRange}
                                 onMapReady={onPlanReady}
                                 selectedCulvertId={currentCulvertId}
@@ -4879,10 +4944,14 @@ export default function DevForestryRoads({
                             {typedNote}
                           </span>
                         )}
-                        <output className="font-mono text-xs" data-testid="road-selected-station">
+                        {/* A fixed width (28ch fits "9+999.9 · Z 9999.9 m · -99.9%") keeps the slider still while the readout changes. */}
+                        <output
+                          className="min-w-[28ch] text-right font-mono text-xs tabular-nums"
+                          data-testid="road-selected-station"
+                        >
                           {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
                             <span
-                              className="font-sans text-amber-800 dark:text-amber-300"
+                              className="block text-left font-sans text-amber-800 dark:text-amber-300"
                               data-testid="road-station-terrain-gap"
                               title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
                             >

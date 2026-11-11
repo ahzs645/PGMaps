@@ -492,6 +492,13 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
   collections use this worker-tiled renderer with their original GeoJSON.
   The raster comparison mode does not alter native vector data.
 
+- Tool cards: `MapToolPanel` (`map-tool-panel.tsx`) is the card a map tool shows while it
+  is in hand (pegging, extending, sketching, measuring a point). It floats over the map, so
+  starting a tool moves nothing: a header with the tool's name, its explanation behind an (i)
+  (`help`) and a close button naming its key; an optional one-line `hint` (what to click); the
+  tool's fields and readouts (`ReadoutGrid`) as children; a `status` line; and `actions` in a
+  footer with the primary action last. Don't put a tool's live state in a banner above the map
+  or repeat it in a sidebar with a second Finish button. The host positions the card.
 - Overlays: `MapOverlay` (`position`). Pass `clearChrome` rather than writing
   your own `calc(…)` offsets: it keeps clear of the phone toolbar above, the
   bottom sheet, safe area and timeline below, and the corner controls and

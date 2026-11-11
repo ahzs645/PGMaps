@@ -246,7 +246,7 @@ test('station, real map layers, profile, section, schedule and terrain remain li
   const beforeRotate = await firstFace.getAttribute('points')
   await page.getByRole('button', { name: 'Rotate terrain right', exact: true }).click()
   await expect(firstFace).not.toHaveAttribute('points', beforeRotate!)
-  await page.getByRole('button', { name: 'Follow station', exact: true }).click()
+  await page.getByRole('button', { name: 'Around station', exact: true }).click()
   await fillNumber(page, 'Selected station metres', 700)
   await linkedStation(page, 700)
   await expect(terrain).toHaveAttribute('data-station', '700')
@@ -276,13 +276,16 @@ test('pegging uses real map points with live leg grade and an undoable new road'
   })
   await page.getByRole('button', { name: 'Peg road', exact: true }).click()
   const feedback = page.getByTestId('pegging-feedback')
-  await expect(feedback).toContainText('0 points')
+  await expect(feedback.getByTestId('pegging-readout')).toContainText('Points:0')
   await expect(page.getByRole('button', { name: 'Finish road', exact: true })).toBeDisabled()
   const box = (await page.locator('[data-testid="road-plan-view"] .maplibregl-canvas').boundingBox())!
-  await page.mouse.click(box.x + box.width * 0.28, box.y + box.height * 0.65)
+  // The tool card floats over the plan's lower left, so peg above it.
+  await page.mouse.click(box.x + box.width * 0.28, box.y + box.height * 0.3)
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5)
-  await expect(feedback).toContainText('1 points')
-  await expect(feedback).toContainText(/Leg [\d,.]+ m · ground [\d,.]+ m · grade -?[\d,.]+%/)
+  await expect(feedback.getByTestId('pegging-readout')).toContainText('Points:1')
+  await expect(feedback.getByTestId('pegging-readout')).toContainText(
+    /Leg:[\d,.]+ m.*Ground:[\d,.]+ m.*Grade:-?[\d,.]+%/,
+  )
   await expect(page.getByTestId('road-pegging-editor').locator('tbody tr')).toHaveCount(2)
   const movingLength = Number(await page.getByTestId('road-profile-chart').getAttribute('data-range-end'))
   await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.43)
@@ -298,7 +301,7 @@ test('pegging uses real map points with live leg grade and an undoable new road'
     .poll(async () => (await mapState(page))?.draft?.features[0]?.geometry)
     .toMatchObject({ type: 'LineString' })
   await page.mouse.click(box.x + box.width * 0.72, box.y + box.height * 0.36)
-  await expect(feedback).toContainText('3 points')
+  await expect(feedback.getByTestId('pegging-readout')).toContainText('Points:3')
   expect((await saveProject(page)).project).toEqual(beforeDrawing)
   await page.getByRole('button', { name: 'Finish road', exact: true }).click()
   await expect(feedback).toHaveCount(0)

@@ -16,8 +16,8 @@ import type { Coordinate } from './types'
 import { ROAD_SCENARIOS, type RoadScenarioId, type ScenarioContent } from './scenarios'
 
 /**
- * How a new project gets its terrain, and the design standards entered for it. Every kind but the
- * BC sample starts with one straight road.
+ * How a new project gets its terrain, and the design standards entered for it. Regional and imported
+ * terrain start with no road; the BC sample and the training example bring their example roads.
  */
 export type NewProject = { name: string; standards?: JobStandards } & (
   | { kind: 'lidar' }
@@ -220,6 +220,19 @@ export function ProjectsDialog({
     <PanelDialog
       open={open}
       onOpenChange={close}
+      // Each sub-view goes back from the header, above its title, rather than from a button in the body.
+      eyebrow={
+        view === 'list' ? undefined : (
+          <button
+            type="button"
+            className="-ml-1 inline-flex items-center gap-1 rounded px-1 py-0.5 normal-case tracking-normal hover:bg-accent hover:text-foreground touch:min-h-10"
+            onClick={() => setView('list')}
+          >
+            <ArrowLeft className="size-3.5" aria-hidden="true" />
+            All projects
+          </button>
+        )
+      }
       title={
         view === 'list'
           ? 'Projects & scenarios'
@@ -401,10 +414,6 @@ export function ProjectsDialog({
           </>
         ) : view === 'scenarios' ? (
           <>
-            <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
-              <ArrowLeft className="size-4" />
-              All projects
-            </Button>
             <Field label="Search example scenarios">
               <input
                 className={roadFieldClass}
@@ -532,18 +541,10 @@ export function ProjectsDialog({
           </>
         ) : view === 'discover' ? (
           <>
-            <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
-              <ArrowLeft className="size-4" />
-              All projects
-            </Button>
             <BcAccessDiscoveryPanel onOpenStudy={openBcStudy} disabled={busy} active={open} />
           </>
         ) : (
           <>
-            <Button variant="ghost" size="sm" className="-ml-2" onClick={() => setView('list')}>
-              <ArrowLeft className="size-4" />
-              All projects
-            </Button>
             <Field label="Project name">
               <input
                 className={roadFieldClass}
@@ -612,8 +613,8 @@ export function ProjectsDialog({
                   <NumberField label="Area (km)" value={sizeKm} min={1} max={10} step={1} onChange={setSizeKm} />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  A {sizeKm} × {sizeKm} km square around this point. The project starts with a straight 300 m road at
-                  its centre: drag its ends, or use Peg road to draw your own.
+                  A {sizeKm} × {sizeKm} km square around this point. The project starts with no road: peg or sketch one,
+                  or load a mapped road.
                 </p>
               </div>
             )}

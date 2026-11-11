@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { BookOpenText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { PanelDialog } from '@/components/ui/dialog-shell'
-import { CollapsibleSection } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { TabBar } from '@/components/ui/tab-bar'
 import {
   BC_COST_REGIONS,
   BC_COST_REVIEWED_DATE,
@@ -11,15 +13,23 @@ import {
 } from './bcCostReferences'
 import { BCInteriorBenchmark } from './BCInteriorBenchmark'
 import { BCCoastBenchmark } from './BCCoastBenchmark'
-import { ReferenceLink, ReferenceSelect } from './CostReferenceControls'
+import { ReferenceHeading, ReferenceLink, ReferenceSelect } from './CostReferenceControls'
 import { CostRateTools } from './CostRateToolsPanel'
+
+type ReferenceTab = 'appraisal' | 'rates' | 'sources'
+const TABS = [
+  { value: 'appraisal', label: 'Appraisal' },
+  { value: 'rates', label: 'Unit rates' },
+  { value: 'sources', label: 'Sources' },
+] as const
 
 /**
  * Source evidence and independent benchmarks, in their own dialog beside the rate preset. They
- * never write the project's unit rates.
+ * never write the project's unit rates. Every tab stays mounted, so typed inputs survive a switch.
  */
 export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLElement | null }) {
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<ReferenceTab>('appraisal')
   const [regionId, setRegionId] = useState('unselected')
   const [method, setMethod] = useState<'interior' | 'coast'>('interior')
   const region = BC_COST_REGIONS.find((item) => item.id === regionId)
@@ -40,18 +50,30 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
         open={open}
         onOpenChange={setOpen}
         title="BC regional cost references"
-        subtitle={`8 regions · reviewed ${BC_COST_REVIEWED_DATE} · comparisons never change the estimate`}
+        subtitle={`${BC_COST_REGIONS.length} regions · reviewed ${BC_COST_REVIEWED_DATE} · comparisons never change the estimate`}
+        toolbar={
+          <TabBar
+            value={tab}
+            options={TABS}
+            onChange={setTab}
+            label="Cost reference sections"
+            idPrefix="road-bc-cost"
+            stretch
+          />
+        }
         size="lg"
         portalContainer={portalContainer}
         // Opened from the cost dialog, so it sits one layer above it.
         className="z-menu"
         contentProps={{ 'data-testid': 'road-bc-cost-references' }}
       >
-        <div className="space-y-3 text-xs">
-          <p className="text-2xs leading-4 text-muted-foreground">
-            Appraisal allowances, supplier material lists and equipment rates have different scopes. Keep their units
-            and inclusions when building an estimate.
-          </p>
+        <div
+          role="tabpanel"
+          id="road-bc-cost-panel-appraisal"
+          aria-labelledby="road-bc-cost-tab-appraisal"
+          hidden={tab !== 'appraisal'}
+          className="space-y-4 text-xs"
+        >
           <ReferenceSelect
             label="BC natural resource region"
             value={regionId}
@@ -64,73 +86,123 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
               const next = BC_COST_REGIONS.find((item) => item.id === value)
               setMethod(next?.method === 'coast' ? 'coast' : 'interior')
             }}
+            hint={
+              <>
+                A region sets the starting comparison method and local evidence; it does not determine an appraisal road
+                group. <ReferenceLink href={BC_REGION_SOURCE}>Official region and district list</ReferenceLink>
+              </>
+            }
           />
-          {region && (
-            <div className="space-y-3" data-testid="road-bc-region-reference">
-              <div className="space-y-1 text-2xs leading-4 text-muted-foreground">
+          {!region ? (
+            <p className="text-2xs leading-4 text-muted-foreground">
+              Choose a region to see its appraisal road groups, local material prices and the matching comparison.
+            </p>
+          ) : (
+            <div className="space-y-4" data-testid="road-bc-region-reference">
+              <div className="space-y-1.5 text-2xs leading-4 text-muted-foreground">
                 <p>{region.geography}</p>
-                <p>{region.review}</p>
                 {region.groups.length > 0 && (
-                  <p>
-                    Candidate Interior road groups: {region.groups.join(', ')}. These are a lookup guide; confirm the
-                    district, timber supply area and supply block in IAM Table 4-2.
+                  <p className="flex items-center gap-1 text-foreground">
+                    <span>
+                      Candidate Interior road groups:{' '}
+                      <span className="font-medium tabular-nums">{region.groups.join(', ')}</span>
+                    </span>
+                    <InfoTip label="About candidate road groups">
+                      A lookup guide only. Confirm the district, timber supply area and supply block in IAM Table 4-2.
+                    </InfoTip>
                   </p>
                 )}
-                <ReferenceLink href={BC_REGION_SOURCE}>Official region and district list</ReferenceLink>
+                <p>{region.review}</p>
               </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">Local material-price evidence</h3>
+
+              <section className="space-y-2" aria-label="Local material-price evidence">
+                <ReferenceHeading info="Supplier lists are checked by hand on the review date. Keep each price's unit and inclusions; a missing price is not a zero-cost material.">
+                  Local material prices
+                </ReferenceHeading>
                 {region.suppliers.length ? (
-                  region.suppliers.map((supplier) => (
-                    <div key={supplier.url} className="space-y-1 rounded border p-2 text-2xs leading-4">
-                      <p>
-                        <ReferenceLink href={supplier.url}>{supplier.supplier}</ReferenceLink> · {supplier.location}
-                      </p>
-                      <p className="font-medium">{supplier.price}</p>
-                      <p className="text-muted-foreground">
-                        {supplier.effectiveDate ? 'Effective ' + supplier.effectiveDate : 'No effective date published'}
-                        {' · checked ' + BC_COST_REVIEWED_DATE}
-                      </p>
-                      <p className="text-muted-foreground">{supplier.limits}</p>
-                    </div>
-                  ))
+                  <ul className="divide-y rounded-md border">
+                    {region.suppliers.map((supplier) => (
+                      <li key={supplier.url} className="space-y-0.5 p-2 text-2xs leading-4">
+                        <div className="flex items-start gap-1">
+                          <p className="min-w-0 flex-1">
+                            <ReferenceLink href={supplier.url}>{supplier.supplier}</ReferenceLink>
+                            <span className="text-muted-foreground"> · {supplier.location}</span>
+                          </p>
+                          <InfoTip label={`About ${supplier.supplier}`}>{supplier.limits}</InfoTip>
+                        </div>
+                        <p className="font-medium text-foreground">{supplier.price}</p>
+                        <p className="text-muted-foreground">
+                          {supplier.effectiveDate ? 'Effective ' + supplier.effectiveDate : 'No effective date'}
+                          {' · checked ' + BC_COST_REVIEWED_DATE}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
                 ) : (
-                  <p className="text-2xs text-muted-foreground">
-                    No applicable public numeric list has been verified here. Use a dated local quote; a missing price
-                    is not a zero-cost material or a reason to copy another region’s rate.
+                  <p className="text-2xs leading-4 text-muted-foreground">
+                    No public numeric list verified for this region. Use a dated local quote; don't copy another
+                    region's rate.
                   </p>
                 )}
-              </div>
-              <ReferenceSelect
-                label="Appraisal comparison method"
-                value={method}
-                options={[
-                  { value: 'interior', label: 'Interior · subgrade only' },
-                  { value: 'coast', label: 'Coast · bundled road construction' },
-                ]}
-                onChange={(value) => setMethod(value as 'interior' | 'coast')}
-              />
-              <p className="text-2xs leading-4 text-muted-foreground">
-                Both 2026 manuals use a 2024 cost base. These are separate CAD/km comparisons, with no automatic
-                regional multiplier or escalation. They are not added to the covered estimate. Inputs are temporary;
-                download a comparison record to keep its assumptions and source.
-              </p>
-              {method === 'interior' ? (
-                <BCInteriorBenchmark key={regionId} regionName={region.name} />
-              ) : (
-                <BCCoastBenchmark key={regionId} />
-              )}
+              </section>
+
+              <section className="space-y-2 border-t pt-4" aria-label="Appraisal comparison">
+                <ReferenceHeading info="Both 2026 manuals use a 2024 cost base. Each is a separate CAD/km comparison with no regional multiplier or escalation, and neither is added to the covered estimate. Inputs are temporary; download a comparison record to keep its assumptions and source.">
+                  Appraisal comparison
+                </ReferenceHeading>
+                <SegmentedControl
+                  label="Appraisal comparison method"
+                  value={method}
+                  options={[
+                    { value: 'interior', label: 'Interior · subgrade only' },
+                    { value: 'coast', label: 'Coast · bundled construction' },
+                  ]}
+                  onChange={setMethod}
+                />
+                {method === 'interior' ? (
+                  <BCInteriorBenchmark key={regionId} regionName={region.name} />
+                ) : (
+                  <BCCoastBenchmark key={regionId} />
+                )}
+              </section>
             </div>
           )}
+        </div>
+
+        <div
+          role="tabpanel"
+          id="road-bc-cost-panel-rates"
+          aria-labelledby="road-bc-cost-tab-rates"
+          hidden={tab !== 'rates'}
+          className="text-xs"
+        >
           <CostRateTools />
-          <CollapsibleSection label="Equipment, fuel and engineering sources" contentClassName="space-y-2 px-2 pb-2">
-            {BC_SUPPORTING_COST_SOURCES.map((source) => (
-              <p key={source.url} className="text-2xs leading-4 text-muted-foreground">
-                <ReferenceLink href={source.url}>{source.title}</ReferenceLink>
-                {' — ' + source.detail}
-              </p>
+        </div>
+
+        <div
+          role="tabpanel"
+          id="road-bc-cost-panel-sources"
+          aria-labelledby="road-bc-cost-tab-sources"
+          hidden={tab !== 'sources'}
+          className="text-xs"
+        >
+          <ul className="divide-y">
+            {[
+              {
+                url: BC_REGION_SOURCE,
+                title: 'BC natural resource regions and districts',
+                detail: 'The official region and district list the region picker follows.',
+              },
+              ...BC_SUPPORTING_COST_SOURCES,
+            ].map((source) => (
+              <li key={source.url} className="space-y-0.5 py-2.5 first:pt-0">
+                <p className="font-medium">
+                  <ReferenceLink href={source.url}>{source.title}</ReferenceLink>
+                </p>
+                <p className="text-2xs leading-4 text-muted-foreground">{source.detail}</p>
+              </li>
             ))}
-          </CollapsibleSection>
+          </ul>
         </div>
       </PanelDialog>
     </>
