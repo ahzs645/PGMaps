@@ -9,6 +9,7 @@ import {
   FileJson,
   FileUp,
   Hexagon,
+  Anchor,
   Layers,
   Link2,
   MapPin,
@@ -20,6 +21,9 @@ import {
   Sparkles,
   TrainTrack,
   Trash2,
+  Trees,
+  Truck,
+  Waves,
   X,
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
@@ -39,11 +43,17 @@ import { downloadText } from '@/lib/download'
 import { escapeHtml } from '@/lib/escapeHtml'
 import { fetchJson } from '@/lib/fetchJson'
 import {
+  BASE_LAYER_KEYS,
   DEFAULT_BASE_LAYERS,
   OutdoorsBaseLayers,
+  PLAN_LAYER_ORDER,
   type BaseLayerChoices,
-  type RailLayerStatus,
+  type BaseLayerKey,
+  type DataLayerKey,
+  type LayerStatus,
+  type LayerStatuses,
 } from '@/maps/outdoors/BaseLayers'
+import { CUTBLOCK_AGE_COLORS, CUTBLOCK_AGE_LABELS, type CutblockAge } from '@/maps/outdoors/bcLayers'
 import {
   AREA_KINDS,
   AREA_KIND_LABELS,
@@ -83,33 +93,46 @@ function readBaseLayerChoices(): BaseLayerChoices {
     const stored: unknown = JSON.parse(window.localStorage.getItem(BASE_LAYERS_STORAGE_KEY) ?? 'null')
     if (typeof stored !== 'object' || stored == null) return DEFAULT_BASE_LAYERS
     const record = stored as Record<string, unknown>
-    return {
-      satellite: record.satellite === true,
-      relief: record.relief === true,
-      rail: record.rail === true,
-    }
+    const choices = { ...DEFAULT_BASE_LAYERS }
+    for (const key of BASE_LAYER_KEYS) choices[key] = record[key] === true
+    return choices
   } catch {
     return DEFAULT_BASE_LAYERS
   }
 }
 
-function railStatusText(status: RailLayerStatus): string {
+/** What each data layer counts, for its status line. */
+const LAYER_NOUNS: Record<DataLayerKey, [singular: string, plural: string]> = {
+  forestRoads: ['road section', 'road sections'],
+  rail: ['rail segment', 'rail segments'],
+  cutblocks: ['cutblock', 'cutblocks'],
+  launches: ['launch', 'launches'],
+  lakeDepth: ['depth chart', 'depth charts'],
+}
+
+function layerStatusText(layer: DataLayerKey, status: LayerStatus | undefined, idle: string): string {
+  if (!status) return idle
+  const [singular, plural] = LAYER_NOUNS[layer]
   switch (status.state) {
     case 'zoom-in':
-      return 'Zoom in to load rail lines'
+      return 'Zoom in to load'
     case 'loading':
       return 'Loading…'
     case 'error':
       return `Could not load: ${status.message}`
-    case 'ready':
-      if (status.segments === 0) return 'No rail lines in this view'
-      return status.truncated
-        ? `${status.segments.toLocaleString()} segments shown; zoom in for all`
-        : `${status.segments.toLocaleString()} segments in this view`
+    case 'ready': {
+      if (status.count === 0) return `No ${plural} here`
+      const counted = `${status.count.toLocaleString()} ${status.count === 1 ? singular : plural}`
+      // Whole-province layers are not "in this view"; only say so for the ones that follow the map.
+      const where = layer === 'launches' ? 'in BC' : 'in this view'
+      return status.truncated ? `${counted} shown; zoom in for all` : `${counted} ${where}`
+    }
     default:
-      return 'Mapped track, with its recorded status'
+      return idle
   }
 }
+
+const CUTBLOCK_LEGEND = (Object.keys(CUTBLOCK_AGE_LABELS) as CutblockAge[]).filter((age) => age !== 'unknown')
 
 const ACTIVITY_LABELS: Record<PlanActivity, string> = {
   hunt: 'Hunting',
@@ -427,8 +450,11 @@ function DevOutdoors() {
   const [planReady, setPlanReady] = useState(() => !initialShareTokenValue)
   const [activeStage, setActiveStage] = useState<PlanStage>('eligibility')
   const [baseLayers, setBaseLayers] = useState<BaseLayerChoices>(readBaseLayerChoices)
-  const [railStatus, setRailStatus] = useState<RailLayerStatus>({ state: 'off' })
-  const toggleBaseLayer = useCallback((layer: keyof BaseLayerChoices) => {
+  const [layerStatuses, setLayerStatuses] = useState<LayerStatuses>({})
+  const handleLayerStatus = useCallback((layer: DataLayerKey, status: LayerStatus) => {
+    setLayerStatuses((current) => ({ ...current, [layer]: status }))
+  }, [])
+  const toggleBaseLayer = useCallback((layer: BaseLayerKey) => {
     setBaseLayers((current) => {
       const next = { ...current, [layer]: !current[layer] }
       try {
@@ -1305,19 +1331,86 @@ function DevOutdoors() {
             tone="amber"
           />
           <ToggleRow
+            active={baseLayers.forestRoads}
+            onClick={() => toggleBaseLayer('forestRoads')}
+            icon={Truck}
+            label="Forest roads"
+            description={
+              baseLayers.forestRoads
+                ? layerStatusText('forestRoads', layerStatuses.forestRoads, 'Loading…')
+                : 'Forest Service Roads and permit roads'
+            }
+            tone="orange"
+          />
+          <ToggleRow
             active={baseLayers.rail}
             onClick={() => toggleBaseLayer('rail')}
             icon={TrainTrack}
             label="Rail lines"
-            description={baseLayers.rail ? railStatusText(railStatus) : 'Mapped track, with its recorded status'}
+            description={
+              baseLayers.rail
+                ? layerStatusText('rail', layerStatuses.rail, 'Loading…')
+                : 'Mapped track, with its recorded status'
+            }
             tone="violet"
+          />
+          <ToggleRow
+            active={baseLayers.cutblocks}
+            onClick={() => toggleBaseLayer('cutblocks')}
+            icon={Trees}
+            label="Cutblocks"
+            description={
+              baseLayers.cutblocks
+                ? layerStatusText('cutblocks', layerStatuses.cutblocks, 'Loading…')
+                : 'Harvested areas, coloured by years since harvest'
+            }
+            tone="lime"
+          />
+          {baseLayers.cutblocks && (
+            <ul className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-2xs text-muted-foreground">
+              {CUTBLOCK_LEGEND.map((age) => (
+                <li key={age} className="flex items-center gap-1">
+                  <span
+                    className="h-2.5 w-2.5 rounded-sm"
+                    style={{ backgroundColor: CUTBLOCK_AGE_COLORS[age] }}
+                    aria-hidden="true"
+                  />
+                  {CUTBLOCK_AGE_LABELS[age]}
+                </li>
+              ))}
+            </ul>
+          )}
+          <ToggleRow
+            active={baseLayers.launches}
+            onClick={() => toggleBaseLayer('launches')}
+            icon={Anchor}
+            label="Boat launches"
+            description={
+              baseLayers.launches
+                ? layerStatusText('launches', layerStatuses.launches, 'Loading…')
+                : 'Recreation sites with a launch, and coastal launches'
+            }
+            tone="teal"
+          />
+          <ToggleRow
+            active={baseLayers.lakeDepth}
+            onClick={() => toggleBaseLayer('lakeDepth')}
+            icon={Waves}
+            label="Lake depth charts"
+            description={
+              baseLayers.lakeDepth
+                ? layerStatusText('lakeDepth', layerStatuses.lakeDepth, 'Loading…')
+                : 'Surveyed lakes; click a lake for its chart'
+            }
+            tone="sky"
           />
         </div>
         <p className="mt-2 flex gap-1.5 text-2xs leading-4 text-muted-foreground">
           <Layers className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
           <span>
-            Rail lines come from the provincial inventory, which lists nearly every line as operational as of 2017.
-            Judge a line's condition from the imagery and relief, not from its recorded status.
+            These layers are provincial records, some decades old. A road or rail line shown here may be washed out,
+            overgrown or gone, and a boat launch may no longer exist. Judge condition from the imagery, and confirm on
+            the ground.
           </span>
         </p>
       </SidebarSection>
@@ -1412,7 +1505,7 @@ function DevOutdoors() {
       >
         <MapTableBridge table={table} />
         <MapClickCapture active={drawMode != null} onMapClick={handleDrawClick} />
-        <OutdoorsBaseLayers choices={baseLayers} onRailStatus={setRailStatus} />
+        <OutdoorsBaseLayers choices={baseLayers} onStatus={handleLayerStatus} />
         {wmuLayer && (
           <MapPmtilesFillLayer
             url={wmuLayer.pmtilesUrl}
@@ -1432,6 +1525,7 @@ function DevOutdoors() {
         )}
         <MapFillLayer
           data={areaCollection}
+          layerOrder={PLAN_LAYER_ORDER + 0}
           fillColor={AREA_COLOR_EXPRESSION}
           fillOpacity={0.18}
           lineColor={AREA_COLOR_EXPRESSION}
@@ -1445,6 +1539,7 @@ function DevOutdoors() {
         />
         <MapLineLayer
           data={routeCollection}
+          layerOrder={PLAN_LAYER_ORDER + 1}
           color={ROUTE_COLOR_EXPRESSION}
           width={2.2}
           opacity={0.85}
@@ -1453,9 +1548,17 @@ function DevOutdoors() {
           selectionColor="#111827"
           onFeatureClick={(id) => selectFeature('route', id)}
         />
-        <MapLineLayer data={draftCollection} color="#111827" width={2} dashArray={[2, 1.5]} opacity={0.9} />
+        <MapLineLayer
+          data={draftCollection}
+          layerOrder={PLAN_LAYER_ORDER + 2}
+          color="#111827"
+          width={2}
+          dashArray={[2, 1.5]}
+          opacity={0.9}
+        />
         <MapCircleLayer
           data={draftVertexCollection}
+          layerOrder={PLAN_LAYER_ORDER + 3}
           color="#111827"
           radius={4}
           strokeColor="#ffffff"
@@ -1463,6 +1566,7 @@ function DevOutdoors() {
         />
         <MapCircleLayer
           data={waypointCollection}
+          layerOrder={PLAN_LAYER_ORDER + 4}
           color={WAYPOINT_COLOR_EXPRESSION}
           radius={6}
           strokeColor="#ffffff"
