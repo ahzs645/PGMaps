@@ -1,6 +1,15 @@
-import { NativeSelect } from '@/components/ui/form-field'
-import { cloneElement, isValidElement, useRef, useState, type ReactElement } from 'react'
+import {
+  CheckboxField,
+  FORM_INPUT_CLASS,
+  FormField,
+  NativeSelect,
+  NullableNumberField,
+  NumberField,
+} from '@/components/ui/form-field'
+import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { FileButton } from '@/components/ui/file-button'
+import { TextButton } from '@/components/ui/text-button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { Camera } from 'lucide-react'
@@ -12,18 +21,18 @@ import { maskAt } from './assessmentMasks'
 import { haversineMeters } from './visibility'
 import type { FieldRecord, ToolsDocument } from './assessmentTools'
 import type { AnalysisResult, Viewpoint } from './types'
+import { formatKm } from './measureFormat'
 
-export const TOOL_INPUT = 'w-full rounded border bg-background px-2 py-1.5 text-xs touch:min-h-10'
-export function ToolField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="block space-y-1 text-xs">
-      <span>{label}</span>
-      {isValidElement(children)
-        ? cloneElement(children as ReactElement<{ 'aria-label'?: string }>, { 'aria-label': label })
-        : children}
-    </label>
-  )
-}
+/** The camera record's coordinates and angles; a blank pitch or roll means level (0). */
+const CAMERA_FIELDS = [
+  { key: 'lng', label: 'Longitude', step: 0.0001 },
+  { key: 'lat', label: 'Latitude', step: 0.0001 },
+  { key: 'altitude', label: 'Camera elevation above sea level (m)', step: 1 },
+  { key: 'bearing', label: 'True-north bearing (°)', step: 0.1 },
+  { key: 'hfov', label: 'Horizontal field of view (°)', step: 0.1 },
+  { key: 'pitch', label: 'Pitch above horizon (°)', step: 0.1 },
+  { key: 'roll', label: 'Roll (°)', step: 0.1 },
+] as const
 type Props = {
   document: ToolsDocument
   onChange: (next: ToolsDocument | ((current: ToolsDocument) => ToolsDocument)) => void
@@ -49,7 +58,6 @@ export function ToolFieldPanel({
     [error, setError] = useState<string | null>(null),
     [busy, setBusy] = useState(false),
     [annotation, setAnnotation] = useState('Ridge')
-  const input = useRef<HTMLInputElement>(null)
   const field = d.fields.find((f) => f.id === selected) ?? null
   const change = (patch: Partial<FieldRecord>) => {
     if (field)
@@ -76,7 +84,7 @@ export function ToolFieldPanel({
       : mode === 'station' && station
         ? {
             id: createId('viewpoint'),
-            name: name.trim() || `Station ${(station.distanceAlongMeters / 1000).toFixed(2)} km`,
+            name: name.trim() || `Station ${formatKm(station.distanceAlongMeters)}`,
             mode: 'spot' as const,
             coordinates: [[station.lng, station.lat] as [number, number]],
           }
@@ -169,15 +177,15 @@ export function ToolFieldPanel({
       }
     >
       <div className="space-y-2">
-        <ToolField label="Viewpoint name">
-          <input className={TOOL_INPUT} value={name} onChange={(e) => setName(e.target.value)} />
-        </ToolField>
-        <ToolField label="Save viewpoint from">
-          <NativeSelect className={TOOL_INPUT} value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+        <FormField label="Viewpoint name">
+          <input className={FORM_INPUT_CLASS} value={name} onChange={(e) => setName(e.target.value)} />
+        </FormField>
+        <FormField label="Save viewpoint from">
+          <NativeSelect value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
             <option value="station">Current sampled station</option>
             <option value="route">Entire current road or spot</option>
           </NativeSelect>
-        </ToolField>
+        </FormField>
         <Button size="sm" variant="outline" onClick={() => addView()} disabled={mode === 'station' && !result}>
           Record assessment viewpoint
         </Button>
@@ -186,18 +194,19 @@ export function ToolFieldPanel({
             <p className="text-xs font-medium">
               {v.name} · {v.viewpoint.mode === 'spot' ? 'spot' : 'route'}
             </p>
-            <textarea
-              aria-label={`Significance of ${v.name}`}
-              className={TOOL_INPUT}
-              value={v.notes}
-              placeholder="Public use, viewing opportunity, field visit or engagement evidence"
-              onChange={(e) =>
-                onChange((current) => ({
-                  ...current,
-                  views: current.views.map((x) => (x.id === v.id ? { ...x, notes: e.target.value } : x)),
-                }))
-              }
-            />
+            <FormField label={`Significance of ${v.name}`} hideLabel>
+              <textarea
+                className={FORM_INPUT_CLASS}
+                value={v.notes}
+                placeholder="Public use, viewing opportunity, field visit or engagement evidence"
+                onChange={(e) =>
+                  onChange((current) => ({
+                    ...current,
+                    views: current.views.map((x) => (x.id === v.id ? { ...x, notes: e.target.value } : x)),
+                  }))
+                }
+              />
+            </FormField>
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={() => onUseView(v.viewpoint)}>
                 Use viewpoint
@@ -218,29 +227,22 @@ export function ToolFieldPanel({
             </div>
           </div>
         ))}
-        <ToolField label="Attachment type">
-          <NativeSelect className={TOOL_INPUT} value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+        <FormField label="Attachment type">
+          <NativeSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
             <option value="photo">Reference field photo</option>
             <option value="simulation">Simulation image</option>
             <option value="map">Topographic map</option>
             <option value="design">Design analysis</option>
           </NativeSelect>
-        </ToolField>
-        <input
-          ref={input}
-          className="hidden"
-          type="file"
+        </FormField>
+        <FileButton
+          label="Import field attachment"
           accept="image/jpeg,image/png,image/webp"
-          aria-label="Import field attachment"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            e.target.value = ''
-            if (f) void upload(f)
-          }}
-        />
-        <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
+          disabled={busy}
+          onFiles={([file]) => void upload(file)}
+        >
           {busy ? 'Reading image…' : 'Import photograph or evidence image'}
-        </Button>
+        </FileButton>
         <InfoTip label="About imported photographs" showLabel>
           A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
           Verify position, date, true-north heading and field of view; panoramas and edited or cropped photos need
@@ -248,9 +250,11 @@ export function ToolFieldPanel({
         </InfoTip>
         {d.fields.map((f) => (
           <div key={f.id} className="flex items-center justify-between gap-2">
-            <button className="truncate text-xs underline" onClick={() => setSelected(f.id)}>
-              {f.name} · {f.kind}
-            </button>
+            <TextButton className="min-w-0" onClick={() => setSelected(f.id)}>
+              <span className="truncate">
+                {f.name} · {f.kind}
+              </span>
+            </TextButton>
             <Button
               size="sm"
               variant="ghost"
@@ -316,9 +320,13 @@ export function ToolFieldPanel({
                 Projected proposal ground samples, hidden ground included: an alignment aid. It does not mask terrain or
                 canopy and is not a photographic percent-alteration measurement.
               </InfoTip>
-              <ToolField label="Annotation to place on image">
-                <input className={TOOL_INPUT} value={annotation} onChange={(e) => setAnnotation(e.target.value)} />
-              </ToolField>
+              <FormField label="Annotation to place on image">
+                <input
+                  className={FORM_INPUT_CLASS}
+                  value={annotation}
+                  onChange={(e) => setAnnotation(e.target.value)}
+                />
+              </FormField>
               <p className="text-xs">
                 Click the image to label a ridge, drainage, skyline, natural pattern or design issue.
               </p>
@@ -337,15 +345,15 @@ export function ToolFieldPanel({
               )}
             </div>
             <div className="space-y-3">
-              <ToolField label="Evidence name">
-                <input className={TOOL_INPUT} value={field.name} onChange={(e) => change({ name: e.target.value })} />
-              </ToolField>
-              <ToolField label="Evidence viewpoint">
-                <NativeSelect
-                  className={TOOL_INPUT}
-                  value={field.viewId ?? ''}
-                  onChange={(e) => change({ viewId: e.target.value || null })}
-                >
+              <FormField label="Evidence name">
+                <input
+                  className={FORM_INPUT_CLASS}
+                  value={field.name}
+                  onChange={(e) => change({ name: e.target.value })}
+                />
+              </FormField>
+              <FormField label="Evidence viewpoint">
+                <NativeSelect value={field.viewId ?? ''} onChange={(e) => change({ viewId: e.target.value || null })}>
                   <option value="">Not linked</option>
                   {d.views.map((v) => (
                     <option key={v.id} value={v.id}>
@@ -353,72 +361,59 @@ export function ToolFieldPanel({
                     </option>
                   ))}
                 </NativeSelect>
-              </ToolField>
-              <ToolField label="Field date">
+              </FormField>
+              <FormField label="Field date">
                 <input
                   type="date"
-                  className={TOOL_INPUT}
+                  className={FORM_INPUT_CLASS}
                   value={field.captured}
                   onChange={(e) => change({ captured: e.target.value })}
                 />
-              </ToolField>
+              </FormField>
               <CollapsibleSection toggleProps={{ 'data-forestry-disclosure': '' }} label="Camera record" defaultOpen>
                 <div className="space-y-2 py-2">
-                  {(
-                    [
-                      ['lng', 'Longitude'],
-                      ['lat', 'Latitude'],
-                      ['altitude', 'Camera elevation above sea level (m)'],
-                      ['bearing', 'True-north bearing (°)'],
-                      ['hfov', 'Horizontal field of view (°)'],
-                      ['pitch', 'Pitch above horizon (°)'],
-                      ['roll', 'Roll (°)'],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <ToolField label={label} key={key}>
-                      <input
-                        type="number"
-                        step="any"
-                        className={TOOL_INPUT}
-                        value={field[key] ?? ''}
-                        onChange={(e) =>
-                          change({
-                            [key]:
-                              e.target.value === ''
-                                ? key === 'pitch' || key === 'roll'
-                                  ? 0
-                                  : null
-                                : Number(e.target.value),
-                          })
-                        }
+                  {CAMERA_FIELDS.map(({ key, label, step }) =>
+                    key === 'pitch' || key === 'roll' ? (
+                      <NumberField
+                        key={key}
+                        label={label}
+                        step={step}
+                        blankValue="zero"
+                        value={field[key]}
+                        onValueChange={(value) => change({ [key]: value })}
                       />
-                    </ToolField>
-                  ))}
+                    ) : (
+                      <NullableNumberField
+                        key={key}
+                        label={label}
+                        step={step}
+                        value={field[key]}
+                        onValueChange={(value) => change({ [key]: value })}
+                      />
+                    ),
+                  )}
                 </div>
               </CollapsibleSection>
-              <ToolField label="Camera elevation reference">
+              <FormField label="Camera elevation reference">
                 <input
-                  className={TOOL_INPUT}
+                  className={FORM_INPUT_CLASS}
                   value={field.verticalReference ?? ''}
                   placeholder="Datum; verify EXIF altitude against terrain"
                   onChange={(e) => change({ verticalReference: e.target.value })}
                 />
-              </ToolField>
-              <ToolField label="Field and design notes">
+              </FormField>
+              <FormField label="Field and design notes">
                 <textarea
-                  className={TOOL_INPUT}
+                  className={FORM_INPUT_CLASS}
                   value={field.notes}
                   onChange={(e) => change({ notes: e.target.value })}
                 />
-              </ToolField>
-              <label className="flex gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={field.alignmentChecked}
-                  onChange={(e) => change({ alignmentChecked: e.target.checked })}
-                />
-                I checked the camera record and image alignment against field evidence.
-              </label>
+              </FormField>
+              <CheckboxField
+                label="I checked the camera record and image alignment against field evidence."
+                checked={field.alignmentChecked}
+                onCheckedChange={(alignmentChecked) => change({ alignmentChecked })}
+              />
               <Button
                 size="sm"
                 variant="outline"
