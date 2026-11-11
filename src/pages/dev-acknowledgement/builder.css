@@ -2,7 +2,7 @@
   outline: 2px solid #0f766e;
   outline-offset: 3px;
 }
-.ack-builder :is(input, textarea, select) {
+.ack-builder :is(input, textarea, select, [data-select-trigger]) {
   color: #0f172a;
 }
 .ack-builder button:disabled {

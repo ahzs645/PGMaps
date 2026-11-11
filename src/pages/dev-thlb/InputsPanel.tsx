@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { FileDropField } from '@/components/ui/file-drop-field'
-import { FormField, NativeSelect } from '@/components/ui/form-field'
+import { FormField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { ExternalLink } from '@/components/ui/text-button'
 import { formatNumber } from '@/lib/format'
@@ -50,7 +50,7 @@ function Entry({ entry, inputs, disabled }: { entry: InputEntry; inputs: Inputs;
   const fields = layer?.fields.map((field) => field.name) ?? []
   const select = (field: keyof Fields, label: string, required = false) => (
     <FormField label={label} key={field}>
-      <NativeSelect
+      <StyledSelect
         value={entry.fields[field]}
         disabled={disabled}
         onChange={(event) =>
@@ -63,7 +63,7 @@ function Entry({ entry, inputs, disabled }: { entry: InputEntry; inputs: Inputs;
             {name}
           </option>
         ))}
-      </NativeSelect>
+      </StyledSelect>
     </FormField>
   )
   return (
@@ -86,7 +86,7 @@ function Entry({ entry, inputs, disabled }: { entry: InputEntry; inputs: Inputs;
       {entry.status === 'ready' && (
         <>
           <FormField label="Layer">
-            <NativeSelect
+            <StyledSelect
               value={entry.layer}
               disabled={disabled}
               onChange={(event) => inputs.setLayer(entry, event.target.value)}
@@ -96,7 +96,7 @@ function Entry({ entry, inputs, disabled }: { entry: InputEntry; inputs: Inputs;
                   {item.name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </FormField>
           <p className="text-xs text-muted-foreground">
             {formatNumber(layer?.featureCount)} features · {layer?.crs || 'CRS checked when reading'}

@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useState, type ReactNode } from 'react'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -50,7 +50,7 @@ function FieldSelect({
     <label className={LABEL_CLASS}>
       {label}
       {required && <span className="text-red-600"> *</span>}
-      <NativeSelect
+      <StyledSelect
         className={FIELD_CLASS}
         value={value ?? ''}
         onChange={(event) => onChange(event.target.value || null)}
@@ -62,7 +62,7 @@ function FieldSelect({
             {field}
           </option>
         ))}
-      </NativeSelect>
+      </StyledSelect>
     </label>
   )
 }
@@ -125,7 +125,7 @@ function EntryCard({
           {entry.layers.length > 1 && (
             <label className={LABEL_CLASS}>
               Layer
-              <NativeSelect
+              <StyledSelect
                 className={FIELD_CLASS}
                 value={entry.layer}
                 onChange={(event) => onLayer(event.target.value)}
@@ -135,7 +135,7 @@ function EntryCard({
                     {item.name} ({item.featureCount.toLocaleString('en-CA')})
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           )}
           {layer && !layer.epsg && (

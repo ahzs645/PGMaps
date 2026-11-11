@@ -32,7 +32,7 @@ vi.mock('react-router-dom', () => ({ Link: ({ children }: { children: ReactNode 
 vi.mock('@/components/ui/tool-page-header', () => ({ ToolPageHeader: () => <h1>Georeference a map</h1> }))
 vi.mock('@/components/ui/file-drop-field', () => ({ FileDropField: () => <div /> }))
 vi.mock('@/components/ui/form-field', () => ({
-  NativeSelect: (props: SelectHTMLAttributes<HTMLSelectElement>) => <select {...props} />,
+  StyledSelect: (props: SelectHTMLAttributes<HTMLSelectElement>) => <select {...props} />,
 }))
 vi.mock('@/components/ui/map-panels', () => ({
   SearchInput: (props: InputHTMLAttributes<HTMLInputElement>) => <input {...props} />,

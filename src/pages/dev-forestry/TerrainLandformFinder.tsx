@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
@@ -213,7 +213,7 @@ export function TerrainLandformFinder({
         </p>
       )}
       {blocks.length > 1 && (
-        <NativeSelect
+        <StyledSelect
           aria-label="Block to read the landform around"
           className="w-full rounded border bg-background p-1"
           value={block?.id}
@@ -224,7 +224,7 @@ export function TerrainLandformFinder({
               {entry.name}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       )}
       <Button
         type="button"

@@ -1,5 +1,5 @@
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useRouteViewshed } from './dev-forestry/useRouteViewshed'
 import { RouteViewshedPanel } from './dev-forestry/RouteViewshedPanel'
 import { ViewshedOverlay, visibilityOutline, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
@@ -2271,7 +2271,7 @@ function DevForestryVisuals() {
                 Trees in the foreground can still hide the opening.
               </InfoTip>
             </span>
-            <NativeSelect
+            <StyledSelect
               aria-label="Candidate viewpoint"
               className="h-7 w-full rounded-md border border-border bg-background px-1.5 text-2xs"
               value=""
@@ -2288,7 +2288,7 @@ function DevForestryVisuals() {
                   {(stop.positionMeters / 1000).toFixed(2)} km · {Math.round(stop.visiblePercent)}% of the block in view
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
         )
       }

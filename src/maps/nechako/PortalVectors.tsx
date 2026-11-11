@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import area from '@turf/area'
 import buffer from '@turf/buffer'
@@ -341,7 +341,7 @@ export function PortalVectors({
       <div className="mt-3 flex flex-wrap gap-2">
         <label className="text-sm">
           Draw
-          <NativeSelect
+          <StyledSelect
             aria-label="Drawing mode"
             value={draw}
             className="ml-2 rounded-md border bg-background p-2"
@@ -355,7 +355,7 @@ export function PortalVectors({
             <option value="Point">Point</option>
             <option value="LineString">Line</option>
             <option value="Polygon">Polygon</option>
-          </NativeSelect>
+          </StyledSelect>
         </label>
         {draw !== 'off' && (
           <>
@@ -416,7 +416,7 @@ export function PortalVectors({
             <div hidden={!!item.style}>
               <label className="block">
                 Color categories by field
-                <NativeSelect
+                <StyledSelect
                   className="ml-2 max-w-full rounded border bg-background p-2"
                   aria-label={`Category field for ${item.name}`}
                   value={item.categories?.property ?? ''}
@@ -438,7 +438,7 @@ export function PortalVectors({
                     .map((field) => (
                       <option key={field}>{field}</option>
                     ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
               {item.categories?.rules.map((rule, index) => (
                 <label key={index} className="mt-1 flex items-center gap-2">
@@ -536,7 +536,7 @@ export function PortalVectors({
         <>
           <label className="mt-3 block text-sm">
             Primary vector
-            <NativeSelect
+            <StyledSelect
               aria-label="Primary vector"
               value={selected.id}
               className="ml-2 max-w-full rounded-md border bg-background p-2"
@@ -550,7 +550,7 @@ export function PortalVectors({
                   {item.name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="block text-sm">
             Primary feature
@@ -594,7 +594,7 @@ export function PortalVectors({
             >
               Export vector attributes
             </Button>
-            <NativeSelect
+            <StyledSelect
               aria-label="Vector export format"
               value={format}
               onChange={(event) => setFormat(event.target.value)}
@@ -608,7 +608,7 @@ export function PortalVectors({
               <option value="kml">KML</option>
               <option value="kmz">KMZ</option>
               <option value="gpx">GPX (points/lines)</option>
-            </NativeSelect>
+            </StyledSelect>
             <Button
               size="sm"
               variant="outline"
@@ -711,7 +711,7 @@ export function PortalVectors({
             </Button>
           </details>
           <div className="flex flex-wrap gap-2">
-            <NativeSelect
+            <StyledSelect
               aria-label="Geometry operation"
               value={operation}
               onChange={(event) => setOperation(event.target.value as Operation)}
@@ -720,7 +720,7 @@ export function PortalVectors({
               {['buffer', 'union', 'intersection', 'difference', 'clip', 'split-line', 'split-polygon'].map((item) => (
                 <option key={item}>{item}</option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
             {operation === 'buffer' ? (
               <label className="text-sm">
                 Metres
@@ -734,7 +734,7 @@ export function PortalVectors({
               </label>
             ) : (
               <>
-                <NativeSelect
+                <StyledSelect
                   aria-label="Secondary vector"
                   value={secondaryId}
                   onChange={(event) => {
@@ -749,7 +749,7 @@ export function PortalVectors({
                       {item.name}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
                 <input
                   aria-label="Secondary feature index"
                   type="number"

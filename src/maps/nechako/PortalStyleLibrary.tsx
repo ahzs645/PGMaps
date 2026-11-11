@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
@@ -79,7 +79,7 @@ export function PortalStyleLibrary({
       <fieldset disabled={busy} className="space-y-3">
         <label className="block text-sm">
           Target map layer
-          <NativeSelect
+          <StyledSelect
             aria-label="Style library target layer"
             className="mt-1 w-full rounded border bg-background p-2 text-base"
             value={target?.id ?? ''}
@@ -91,7 +91,7 @@ export function PortalStyleLibrary({
                 {vector.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         <label className="block text-sm">
           Import SLD or style JSON
@@ -206,7 +206,7 @@ export function PortalStyleLibrary({
         />
         <label className="block text-xs">
           SLD geometry for styles covering all geometries
-          <NativeSelect
+          <StyledSelect
             aria-label="Library SLD export geometry"
             className="mt-1 w-full rounded border bg-background p-2 text-base"
             value={exportGeometry}
@@ -215,7 +215,7 @@ export function PortalStyleLibrary({
             <option value="point">Points</option>
             <option value="line">Lines</option>
             <option value="polygon">Polygons</option>
-          </NativeSelect>
+          </StyledSelect>
         </label>
         {library.loading && <p className="text-xs">Loading local styles…</p>}
         {(library.error || defaults.error) && <InlineAlert tone="error">{library.error || defaults.error}</InlineAlert>}

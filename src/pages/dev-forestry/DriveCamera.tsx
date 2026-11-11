@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -367,7 +367,7 @@ export function DriveCamera(props: Props) {
         )}
         <div className="order-1 ml-auto flex items-center gap-1 sm:order-2">
           {props.onSpeedChange && !props.spot && (
-            <NativeSelect
+            <StyledSelect
               aria-label="Driving speed"
               title="Preview speed; posted limits are not loaded"
               className="h-8 shrink-0 rounded border bg-background px-1 touch:h-10"
@@ -379,7 +379,7 @@ export function DriveCamera(props: Props) {
                   {speed} km/h
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           )}
 
           <Button

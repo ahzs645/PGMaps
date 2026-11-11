@@ -1,15 +1,13 @@
-import {
-  Children,
-  isValidElement,
-  useState,
-  type FormEvent,
-  type OptionHTMLAttributes,
-  type ReactNode,
-  type Ref,
-} from 'react'
+import { useState, type FormEvent, type ReactNode, type Ref } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { FormField, NumberField as SharedNumberField, NullableNumberField } from '@/components/ui/form-field'
 import { AppSelect, compactSelectTriggerClass, workspaceSelectContentClass } from '@/components/ui/select'
+import {
+  SEARCHABLE_FROM,
+  optionsFromChildren,
+  splitSelectClasses,
+  type StyledSelectOption,
+} from '@/components/ui/styled-select'
 import { engineeringCellInputClass } from '@/components/ui/engineering-table'
 import { cn } from '@/lib/utils'
 
@@ -20,41 +18,7 @@ import { cn } from '@/lib/utils'
 export const roadFieldClass =
   'w-full min-w-0 rounded-md border border-input bg-background px-2 py-1.5 text-base md:text-xs md:[&:not(textarea)]:h-8'
 
-export interface RoadSelectOption {
-  value: string
-  label: ReactNode
-  /** What the closed trigger shows, when it should be shorter than the list's label. */
-  selectedLabel?: ReactNode
-  disabled?: boolean
-  title?: string
-  /** Text a searchable select matches when the label is not plain text. */
-  searchText?: string
-}
-
-/** Lists longer than this get a filter box. */
-const SEARCHABLE_FROM = 10
-/** Width and flex classes size the wrapper; everything else styles the trigger. */
-const LAYOUT_CLASS = /^(?:[\w-]+:)*(?:w-|min-w-|max-w-|flex-|basis-|shrink|grow|order-|self-|col-|row-)/
-const textOf = (node: ReactNode): string =>
-  Children.toArray(node)
-    .map((part) => (typeof part === 'string' || typeof part === 'number' ? String(part) : ''))
-    .join('')
-
-/** Reads `<option>` children, so a former native select can keep its option markup. */
-function optionsFromChildren(children: ReactNode): RoadSelectOption[] {
-  return Children.toArray(children).flatMap((child) => {
-    if (!isValidElement<OptionHTMLAttributes<HTMLOptionElement>>(child) || child.type !== 'option') return []
-    const label = textOf(child.props.children)
-    return [
-      {
-        value: child.props.value === undefined ? label : String(child.props.value),
-        label,
-        disabled: child.props.disabled,
-        title: child.props.title,
-      },
-    ]
-  })
-}
+export type RoadSelectOption = Omit<StyledSelectOption, 'group'>
 
 /**
  * The road page's dropdown: the shared styled select, sized like the other road fields and layered
@@ -89,20 +53,14 @@ export function RoadSelect({
   /** The trigger button, e.g. for a pane's initial focus. */
   triggerRef?: Ref<HTMLButtonElement>
 }) {
-  const tokens = (className ?? '').split(/\s+/).filter(Boolean)
+  const { layout, trigger } = splitSelectClasses(className)
   const list = [...(options ?? optionsFromChildren(children))]
   return (
     <AppSelect
       id={id}
       title={title}
-      className={cn(
-        'min-w-0',
-        tokens.filter((token) => LAYOUT_CLASS.test(token)),
-      )}
-      triggerClassName={cn(
-        compactSelectTriggerClass,
-        tokens.filter((token) => !LAYOUT_CLASS.test(token)),
-      )}
+      className={cn('min-w-0', layout)}
+      triggerClassName={cn(compactSelectTriggerClass, trigger)}
       contentClassName={workspaceSelectContentClass}
       triggerAriaLabel={ariaLabel}
       value={value}

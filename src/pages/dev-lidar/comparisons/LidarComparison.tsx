@@ -1,6 +1,6 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { DEFAULT_LOCALE } from '@/lib/format'
-import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -64,7 +64,7 @@ export function LidarComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           Source plot
-          <NativeSelect
+          <StyledSelect
             aria-label="Comparison LiDAR plot"
             className="ml-1 max-w-[170px] rounded border bg-background p-1.5"
             value={plot.id}
@@ -73,7 +73,7 @@ export function LidarComparison({
             {data.benchmark.plots.map((p) => (
               <option key={p.id}>{p.id}</option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         {[
           [a, setAId, 'A'],
@@ -81,7 +81,7 @@ export function LidarComparison({
         ].map(([method, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <NativeSelect
+            <StyledSelect
               aria-label={`LiDAR model ${label}`}
               className="ml-1 max-w-[190px] rounded border bg-background p-1.5"
               value={(method as typeof a).id}
@@ -92,7 +92,7 @@ export function LidarComparison({
                   {m.name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
         ))}
         <SegmentedControl

@@ -13,6 +13,7 @@ import type { ControlPair, Coordinate } from './model'
 import type { LoadedSource } from './sources'
 import type { WarpedPreview } from './preview'
 import type { FittedTransformation } from './transforms'
+import { StyledSelect } from '@/components/ui/styled-select'
 
 const protocol = new Protocol()
 maplibregl.addProtocol('pmtiles', protocol.tile)
@@ -232,7 +233,7 @@ export function ReferencePane({
                 : 'Drag a numbered marker to refine its target'}
           </p>
         </div>
-        <select
+        <StyledSelect
           aria-label="Reference basemap"
           className="max-w-32 rounded border bg-background px-2 py-1 text-xs"
           value={base}
@@ -240,7 +241,7 @@ export function ReferencePane({
         >
           <option value="satellite">Satellite</option>
           <option value="street">Street map</option>
-        </select>
+        </StyledSelect>
       </div>
       <div className="flex flex-wrap items-center gap-2 border-b p-2">
         <SegmentedControl

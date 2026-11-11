@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -177,7 +177,7 @@ export function PortalLocalWorkbench({
           </p>
           <label className="block text-sm">
             Local project
-            <NativeSelect
+            <StyledSelect
               aria-label="Local project"
               className={inputClass}
               value={projectId}
@@ -193,7 +193,7 @@ export function PortalLocalWorkbench({
                   {record.name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="block text-sm">
             Project name
@@ -286,7 +286,7 @@ export function PortalLocalWorkbench({
             </label>
             <label className="text-sm">
               Item kind
-              <NativeSelect
+              <StyledSelect
                 className={inputClass}
                 value={kind}
                 onChange={(event) => {
@@ -298,7 +298,7 @@ export function PortalLocalWorkbench({
                 {[...new Set(cache.records.map((record) => record.kind))].sort().map((value) => (
                   <option key={value}>{value}</option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           </div>
           <p className="text-sm" role="status">
@@ -493,7 +493,7 @@ export function PortalLocalWorkbench({
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm">
                 GIS output format
-                <NativeSelect
+                <StyledSelect
                   aria-label="Workbench GIS output format"
                   className={inputClass}
                   value={gisFormat}
@@ -505,11 +505,11 @@ export function PortalLocalWorkbench({
                   <option value="kml">KML (.kml)</option>
                   <option value="gpx">GPX points and tracks (.gpx)</option>
                   <option value="geojson">GeoJSON (.geojson)</option>
-                </NativeSelect>
+                </StyledSelect>
               </label>
               <label className="text-sm">
                 Convert these layers
-                <NativeSelect
+                <StyledSelect
                   aria-label="Workbench GIS export scope"
                   className={inputClass}
                   value={gisScope}
@@ -518,7 +518,7 @@ export function PortalLocalWorkbench({
                 >
                   <option value="workspace">Current map vector layers</option>
                   <option value="all">Current map and all saved materialized layers/projects</option>
-                </NativeSelect>
+                </StyledSelect>
               </label>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -723,7 +723,7 @@ export function PortalLocalWorkbench({
           </p>
           <label className="block text-sm">
             Saved schema
-            <NativeSelect
+            <StyledSelect
               aria-label="Saved schema"
               className={inputClass}
               value={schemaId}
@@ -735,7 +735,7 @@ export function PortalLocalWorkbench({
                   {record.name}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="block text-sm">
             Schema name

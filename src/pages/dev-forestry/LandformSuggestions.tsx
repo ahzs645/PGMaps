@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -105,7 +105,7 @@ export function LandformSuggestions({
       {road.length > 1 && (
         <label className="block">
           Search area
-          <NativeSelect
+          <StyledSelect
             aria-label="Landform search area"
             className="my-1 w-full rounded border bg-background p-1"
             value={searchMode}
@@ -113,13 +113,13 @@ export function LandformSuggestions({
           >
             <option value="road">Whole road corridor</option>
             <option value="block">Selected cutblock centre</option>
-          </NativeSelect>
+          </StyledSelect>
         </label>
       )}
       {!useRoad && blocks.length > 1 && (
         <label className="block">
           Search near cutblock
-          <NativeSelect
+          <StyledSelect
             aria-label="Landform search cutblock"
             className="my-1 w-full rounded border bg-background p-1"
             value={selected?.id}
@@ -130,7 +130,7 @@ export function LandformSuggestions({
                 {block.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
       )}
       {!hasAnchor ? (

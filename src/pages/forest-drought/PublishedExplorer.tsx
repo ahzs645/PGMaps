@@ -7,7 +7,7 @@ import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
-import { FormField, NativeSelect, SelectField } from '@/components/ui/form-field'
+import { FormField, StyledSelect, SelectField } from '@/components/ui/form-field'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { ExternalLink } from '@/components/ui/text-button'
@@ -194,7 +194,7 @@ export function PublishedExplorer({ active }: { active: boolean }) {
                 label="BGC unit (BEC v11)"
                 description={`${matchingBgc.length} matching units. Search does not change a selected unit.`}
               >
-                <NativeSelect value={bgc} onChange={(event) => setBgc(event.target.value)}>
+                <StyledSelect value={bgc} onChange={(event) => setBgc(event.target.value)}>
                   <option value="">Select a BGC unit…</option>
                   {bgc && !matchingBgc.includes(bgc) && <option value={bgc}>{bgc} (selected)</option>}
                   {matchingBgc.map((unit) => (
@@ -202,7 +202,7 @@ export function PublishedExplorer({ active }: { active: boolean }) {
                       {unit}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </FormField>
               <SelectField
                 label="Soil moisture regime"
