@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose } from './styled-select'
 
 // Real prepared CCISS analysis files are served unchanged; only the unrelated external basemap is stubbed.
 test.beforeEach(async ({ page }) => {
@@ -28,9 +29,9 @@ test('compares frozen legacy results for Prince George and Victoria with real so
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()
   await dialog.getByRole('button', { name: 'Open comparisons (2)', exact: true }).click()
   await expect(dialog.getByRole('heading', { name: 'CCISS comparison', exact: true })).toBeVisible()
-  await expect(dialog.getByLabel('Comparison A').locator('option:checked')).toHaveText('Prince George · C4 · ACCESS')
-  await expect(dialog.getByLabel('Comparison B').locator('option:checked')).toHaveText('Victoria · C4 · ACCESS')
-  await dialog.getByLabel('Comparison measure').selectOption('bgc')
+  await expect(dialog.getByLabel('Comparison A')).toHaveText('Prince George · C4 · ACCESS')
+  await expect(dialog.getByLabel('Comparison B')).toHaveText('Victoria · C4 · ACCESS')
+  await choose(dialog.getByLabel('Comparison measure'), 'bgc')
   const baseline = dialog
     .getByRole('table', { name: 'CCISS aligned comparison' })
     .getByRole('row')
@@ -71,13 +72,13 @@ test('compares different actual models and site conditions without changing an e
   const firstRating = await table.getByRole('row').filter({ hasText: 'Pl ·' }).getByRole('cell').nth(3).innerText()
   await dialog.getByLabel('Comparison label').fill('ACCESS · C4')
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()
-  await dialog.getByLabel('Climate model').selectOption({ label: 'EC-Earth3 · r4i1p1f1' })
-  await dialog.getByLabel('Analysis site condition').selectOption('B2')
+  await choose(dialog.getByLabel('Climate model'), { label: 'EC-Earth3 · r4i1p1f1' })
+  await choose(dialog.getByLabel('Analysis site condition'), 'B2')
   const secondRating = await table.getByRole('row').filter({ hasText: 'Pl ·' }).getByRole('cell').nth(3).innerText()
   await dialog.getByLabel('Comparison label').fill('EC-Earth3 · B2')
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()
   await dialog.getByRole('button', { name: 'Open comparisons (2)', exact: true }).click()
-  await dialog.getByLabel('Comparison measure').selectOption('species-suitability')
+  await choose(dialog.getByLabel('Comparison measure'), 'species-suitability')
   await dialog.getByLabel('Search comparison').fill('Pl')
   await expect(dialog.getByRole('table', { name: 'CCISS aligned comparison' })).toContainText('2001_2020')
   const downloaded = page.waitForEvent('download')

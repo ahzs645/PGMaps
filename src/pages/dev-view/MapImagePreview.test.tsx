@@ -3,6 +3,11 @@ import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MapImagePreview } from './MapImagePreview'
 import type { ImageVariant, RasterRecord } from './catalogue'
+// Radix's menu needs a DOM; the double is a plain <select> with the same props.
+vi.mock('@/components/ui/styled-select', async (actual) => ({
+  ...(await actual<typeof import('@/components/ui/styled-select')>()),
+  StyledSelect: (await import('@/components/ui/styledSelectTestDouble')).StyledSelectTestDouble,
+}))
 
 const io = vi.hoisted(() => ({ raster: vi.fn() }))
 vi.mock('./rasterPreview', () => ({ rasterPreview: io.raster }))

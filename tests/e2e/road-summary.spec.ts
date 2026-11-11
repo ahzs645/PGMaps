@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 async function open(page: Page, id = 'ribbon') {
   await page.goto(`/dev/forestry/road-design?interface=${id}&example=training`)

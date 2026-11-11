@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -21,7 +21,7 @@ function ClauseEditor({
     <div className="space-y-2 rounded-lg border p-3">
       <label className="flex flex-wrap items-center gap-2 text-sm">
         Rule type
-        <NativeSelect
+        <StyledSelect
           className={input}
           aria-label="Expression rule type"
           value={clause.kind}
@@ -38,7 +38,7 @@ function ClauseEditor({
           <option value="term">Text term</option>
           <option value="field">Field comparison</option>
           {depth < 8 && <option value="group">Nested group</option>}
-        </NativeSelect>
+        </StyledSelect>
       </label>
       {clause.kind === 'term' && (
         <input
@@ -54,7 +54,7 @@ function ClauseEditor({
             <>
               <label className="grid gap-1 text-sm">
                 Field group
-                <NativeSelect
+                <StyledSelect
                   className={input}
                   aria-label="Expression field group"
                   value={group?.id ?? ''}
@@ -65,11 +65,11 @@ function ClauseEditor({
                       {item.label}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
               <label className="grid gap-1 text-sm">
                 Available field
-                <NativeSelect
+                <StyledSelect
                   className={input}
                   aria-label="Expression available field"
                   value={
@@ -102,7 +102,7 @@ function ClauseEditor({
                       {field.label}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
               {clause.scopeFormId && (
                 <p className="text-xs text-muted-foreground sm:col-span-2">
@@ -123,7 +123,7 @@ function ClauseEditor({
           </label>
           <label className="grid gap-1 text-sm">
             Operator
-            <NativeSelect
+            <StyledSelect
               className={input}
               aria-label="Expression operator"
               value={clause.operator}
@@ -132,11 +132,11 @@ function ClauseEditor({
               {['=', '!=', '~', '>', '>=', '<', '<='].map((op) => (
                 <option key={op}>{op}</option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="grid gap-1 text-sm">
             Value type
-            <NativeSelect
+            <StyledSelect
               className={input}
               aria-label="Expression value type"
               value={clause.valueType}
@@ -145,7 +145,7 @@ function ClauseEditor({
               <option value="text">Text</option>
               <option value="number">Number</option>
               <option value="boolean">Boolean</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="grid gap-1 text-sm">
             Value
@@ -162,7 +162,7 @@ function ClauseEditor({
         <>
           <label className="flex items-center gap-2 text-sm">
             Match
-            <NativeSelect
+            <StyledSelect
               className={input}
               aria-label="Expression group operator"
               value={clause.operator}
@@ -170,7 +170,7 @@ function ClauseEditor({
             >
               <option value="AND">Every rule (AND)</option>
               <option value="OR">Any rule (OR)</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           {clause.clauses.map((child, i) => (
             <div key={i} className="space-y-1">

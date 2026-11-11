@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { encode } from 'fast-png'
 import { openMission as open, readMission as read } from './mmgis-helpers'
+import { choose } from './styled-select'
 
 const nav = (page: Page, name: string) =>
   page.getByRole('navigation', { name: 'Workbench tools' }).getByRole('button', { name, exact: true }).click()
@@ -171,7 +172,7 @@ test.describe('mission workbench desktop', () => {
     })
     const errors = await open(page)
     await nav(page, 'Rasters')
-    await page.getByLabel('Source type').selectOption('cog')
+    await choose(page.getByLabel('Source type'), 'cog')
     await page.getByLabel('Layer name', { exact: true }).fill('Numerical COG')
     await page.getByLabel('COG URL', { exact: true }).fill('https://data-test.invalid/dem.tif')
     await page.getByLabel('TiTiler service').fill('https://raster-test.invalid')
@@ -388,7 +389,7 @@ test.describe('mission workbench desktop', () => {
     await page.route('https://raster-failure.invalid/**', (r) => r.fulfill({ status: 503, body: 'unavailable' }))
     const errors = await open(page)
     await nav(page, 'Rasters')
-    await page.getByLabel('Source type').selectOption('cog')
+    await choose(page.getByLabel('Source type'), 'cog')
     await page.getByLabel('COG URL', { exact: true }).fill('https://example.invalid/dem.tif')
     await page.getByLabel('TiTiler service').fill('https://raster-failure.invalid')
     await page.getByRole('button', { name: 'Add raster', exact: true }).click()

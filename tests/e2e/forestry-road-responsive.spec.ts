@@ -1,6 +1,6 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(180000)

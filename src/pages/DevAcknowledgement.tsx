@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   buildFallbackAcknowledgement,
@@ -548,7 +548,7 @@ export default function DevAcknowledgement() {
                     {locations.length > 0 && (
                       <label className="mt-3 block text-sm font-medium">
                         Reviewing location
-                        <NativeSelect
+                        <StyledSelect
                           value={active?.id ?? ''}
                           onChange={(event) => setActiveId(event.target.value)}
                           className="mt-1 min-h-12 w-full min-w-0 rounded-lg border bg-white px-2 text-base"
@@ -558,7 +558,7 @@ export default function DevAcknowledgement() {
                               {index + 1}. {item.result.fullAddress}
                             </option>
                           ))}
-                        </NativeSelect>
+                        </StyledSelect>
                       </label>
                     )}
                   </div>
@@ -725,7 +725,7 @@ export default function DevAcknowledgement() {
                       <div className="space-y-3 rounded-lg border p-3">
                         <label className="block text-sm font-medium">
                           What is this acknowledgment for?
-                          <NativeSelect
+                          <StyledSelect
                             aria-label="Acknowledgment purpose"
                             value={purpose}
                             onChange={(event) => setPurpose(event.target.value as AcknowledgementPurpose)}
@@ -734,12 +734,12 @@ export default function DevAcknowledgement() {
                             <option value="venue">One event venue</option>
                             <option value="operations">Work or operations at these locations</option>
                             <option value="distributed">Participants joining from different locations</option>
-                          </NativeSelect>
+                          </StyledSelect>
                         </label>
                         {purpose === 'venue' && locations.length > 1 && (
                           <label className="block text-sm font-medium">
                             Event venue
-                            <NativeSelect
+                            <StyledSelect
                               aria-label="Event venue"
                               value={venueId ?? locations[0]?.id ?? ''}
                               onChange={(event) => setVenueId(event.target.value)}
@@ -753,7 +753,7 @@ export default function DevAcknowledgement() {
                                   {location.result.fullAddress}
                                 </option>
                               ))}
-                            </NativeSelect>
+                            </StyledSelect>
                           </label>
                         )}
                         <p className="text-sm text-slate-600">

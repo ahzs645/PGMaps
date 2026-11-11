@@ -2,7 +2,7 @@ import { openWorkbench } from './road-workbench'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose, optionLabels } from './road-select'
+import { choose, optionLabels } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })
 test.setTimeout(180_000)

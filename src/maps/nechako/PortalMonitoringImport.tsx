@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { Button } from '@/components/ui/button'
 import { PaginationControls } from '@/components/ui/pagination-controls'
 import { usePagination } from '@/hooks/usePagination'
@@ -132,7 +132,7 @@ export function PortalMonitoringImport() {
             ).map(([key, label]) => (
               <label key={key} className="block text-sm">
                 {label}
-                <NativeSelect
+                <StyledSelect
                   aria-label={`Ingestion ${label}`}
                   value={mapping[key] ?? ''}
                   className="mt-1 block w-full rounded border bg-background p-2"
@@ -142,12 +142,12 @@ export function PortalMonitoringImport() {
                   {table.headers.map((header) => (
                     <option key={header}>{header}</option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
             ))}
             <label className="block text-sm">
               Date format
-              <NativeSelect
+              <StyledSelect
                 aria-label="Ingestion date format"
                 value={mapping.dateFormat}
                 className="mt-1 block w-full rounded border bg-background p-2"
@@ -157,7 +157,7 @@ export function PortalMonitoringImport() {
                 <option value="ymd">Daily YYYY-MM-DD</option>
                 <option value="dmy">Daily DD/MM/YYYY</option>
                 <option value="mdy">Daily MM/DD/YYYY</option>
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <label className="block text-sm">
               Timezone / UTC offset

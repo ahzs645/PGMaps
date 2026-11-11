@@ -1,4 +1,4 @@
-import { FORM_INPUT_CLASS, FormField, NativeSelect } from '@/components/ui/form-field'
+import { FORM_INPUT_CLASS, FormField, StyledSelect } from '@/components/ui/form-field'
 import { useRef, useState } from 'react'
 import { Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -82,13 +82,13 @@ export function ToolSourcesPanel({
             removed from the proposal geometrically.
           </p>
           <FormField label="Assessment mask classification">
-            <NativeSelect value={kind} onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}>
+            <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as AssessmentMaskKind)}>
               {Object.entries(MASK_LABELS).map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </FormField>
           <div className="flex flex-wrap gap-2">
             <FileButton
@@ -131,7 +131,7 @@ export function ToolSourcesPanel({
           {(scene.masks ?? []).map((m) => (
             <div key={m.id} className="space-y-1 border-b py-2">
               <p className="font-medium">{m.name}</p>
-              <NativeSelect
+              <StyledSelect
                 aria-label={`Classification of ${m.name}`}
                 value={m.kind}
                 onChange={(e) =>
@@ -148,7 +148,7 @@ export function ToolSourcesPanel({
                     {label}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
               <FormField label={`Source for ${m.name}`} hideLabel>
                 <input
                   className={FORM_INPUT_CLASS}
@@ -179,10 +179,10 @@ export function ToolSourcesPanel({
             coordinates: WGS84, Web Mercator, BC Albers and NAD83/WGS84 UTM zones 7–11.
           </p>
           <FormField label="Local surface type">
-            <NativeSelect value={rasterKind} onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}>
+            <StyledSelect value={rasterKind} onChange={(e) => setRasterKind(e.target.value as LocalRaster['kind'])}>
               <option value="terrain">Bare-earth terrain elevation</option>
               <option value="canopy">Canopy height above ground</option>
-            </NativeSelect>
+            </StyledSelect>
           </FormField>
           <FormField label="Surface acquisition date">
             <input type="date" className={FORM_INPUT_CLASS} value={date} onChange={(e) => setDate(e.target.value)} />

@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import JSZip from 'jszip'
 import { csvFormat, csvParse } from 'd3'
+import { choose } from './styled-select'
 
 const fixtures = 'vendor/bcdatamapper/datascrapers/bc/cciss/fixtures/'
 test.setTimeout(90_000)
@@ -36,8 +37,8 @@ const count = (dialog: Locator, label: string) =>
     .locator('..')
     .locator('dd')
 async function chooseReference(dialog: Locator, site = '990000001') {
-  await dialog.getByRole('combobox', { name: 'Shiny reference site', exact: true }).selectOption(site)
-  await dialog.getByRole('combobox', { name: 'Shiny reference site series', exact: true }).selectOption('TESTalpha/01')
+  await choose(dialog.getByRole('combobox', { name: 'Shiny reference site', exact: true }), site)
+  await choose(dialog.getByRole('combobox', { name: 'Shiny reference site series', exact: true }), 'TESTalpha/01')
 }
 
 test('independent synthetic reference fields agree, keep provenance unverified, and export exact scoped results', async ({
@@ -94,7 +95,7 @@ test('probability tolerance is explicit while category comparisons stay exact', 
   })
   await chooseReference(dialog)
   await expect(count(dialog, 'Different')).toHaveText('3')
-  await dialog.getByLabel('Reference row status').selectOption('different')
+  await choose(dialog.getByLabel('Reference row status'), 'different')
   const table = dialog.getByRole('table', { name: 'Shiny reference field differences' })
   await expect(table.getByRole('row')).toHaveCount(4)
   await expect(table).toContainText('-0.05 pp')
@@ -136,7 +137,7 @@ test('ZIP reference aliases require explicit site confirmation and reset when th
     result.comparison.rows.every((row: { referenceSite: string }) => row.referenceSite === 'client-site-label'),
   ).toBe(true)
   expect(result.comparison.scientificParityVerified).toBe(false)
-  await dialog.getByRole('combobox', { name: 'Assessment site', exact: true }).selectOption('990000002')
+  await choose(dialog.getByRole('combobox', { name: 'Assessment site', exact: true }), '990000002')
   await expect(alias).not.toBeChecked()
   await expect(count(dialog, 'Fields with both values')).toHaveText('0')
 })

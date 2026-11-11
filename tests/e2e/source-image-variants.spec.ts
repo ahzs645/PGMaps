@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import type { ImageVariant, RasterRecord } from '../../src/pages/dev-view/catalogue'
+import { choose, expectSelected } from './styled-select'
 
 test.use({ serviceWorkers: 'block', hasTouch: true, viewport: { width: 320, height: 844 } })
 
@@ -140,7 +141,7 @@ test('reads original detail on a phone, switches source images and compares the 
   ).toBeVisible()
   await dialog.getByRole('button', { name: 'Fit sheet', exact: true }).click()
 
-  await dialog.getByRole('combobox', { name: 'Source image', exact: true }).selectOption('small-edit-image')
+  await choose(dialog.getByRole('combobox', { name: 'Source image', exact: true }), 'small-edit-image')
   await expect(viewport).toHaveCount(0)
   await expect(dialog.getByRole('link', { name: /Download edit source/ })).toHaveAttribute(
     'href',
@@ -148,7 +149,7 @@ test('reads original detail on a phone, switches source images and compares the 
   )
   await expect(dialog.locator('img[data-image-tile]')).toHaveCount(0)
   await dialog.getByRole('button', { name: 'Compare', exact: true }).click()
-  await expect(dialog.getByRole('combobox', { name: 'Source image', exact: true })).toHaveValue('small-edit-image')
+  await expectSelected(dialog.getByRole('combobox', { name: 'Source image', exact: true }), 'small-edit-image')
   await expect(dialog.getByRole('link', { name: /Download edit source/ })).toHaveAttribute(
     'href',
     `${host}/preview.webp`,
@@ -156,8 +157,8 @@ test('reads original detail on a phone, switches source images and compares the 
   await expect.poll(() => dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
   await dialog.getByRole('button', { name: 'Map overlay', exact: true }).click()
   await dialog.getByRole('button', { name: 'Edit source', exact: true }).click()
-  await expect(dialog.getByRole('combobox', { name: 'Source image', exact: true })).toHaveValue('small-edit-image')
-  await dialog.getByRole('combobox', { name: 'Source image', exact: true }).selectOption('synthetic-original')
+  await expectSelected(dialog.getByRole('combobox', { name: 'Source image', exact: true }), 'small-edit-image')
+  await choose(dialog.getByRole('combobox', { name: 'Source image', exact: true }), 'synthetic-original')
 
   await page.setViewportSize({ width: 1280, height: 900 })
   await dialog.getByRole('button', { name: 'Compare', exact: true }).click()

@@ -1,6 +1,7 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { decode } from 'fast-png'
+import { choose, expectSelected } from './styled-select'
 
 const layerName = 'Typed style fixture'
 const fixtureData = {
@@ -108,21 +109,21 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
     await page.getByText('Style ' + layerName, { exact: true }).click()
     const editor = page.getByRole('region', { name: 'Advanced style for ' + layerName, exact: true })
-    await editor.getByLabel('Style geometry for ' + layerName, { exact: true }).selectOption('point')
+    await choose(editor.getByLabel('Style geometry for ' + layerName, { exact: true }), 'point')
     await editor.getByLabel('Base style for ' + layerName + ' fillColor', { exact: true }).fill('#ffff00')
     await editor.getByLabel('Base style for ' + layerName + ' pointRadius', { exact: true }).fill('18')
     await editor.getByLabel('Base style for ' + layerName + ' pointOpacity', { exact: true }).fill('1')
     await editor.getByLabel('Base style for ' + layerName + ' pointStrokeWidth', { exact: true }).fill('0')
-    await editor.getByLabel('Style mode for ' + layerName, { exact: true }).selectOption('rules')
+    await choose(editor.getByLabel('Style mode for ' + layerName, { exact: true }), 'rules')
     for (const [index, color] of ['#ff0000', '#0000ff', '#00ff00'].entries()) {
       await editor.getByRole('button', { name: 'Add comparison rule', exact: true }).click()
       const fieldset = editor.getByRole('group', { name: 'Rule ' + (index + 1), exact: true })
       if (index === 1) {
-        await fieldset.getByLabel('Rule 2 type for ' + layerName, { exact: true }).selectOption('string')
+        await choose(fieldset.getByLabel('Rule 2 type for ' + layerName, { exact: true }), 'string')
         await fieldset.getByLabel('Rule 2 value for ' + layerName, { exact: true }).fill('0')
       }
       if (index === 2) {
-        await fieldset.getByLabel('Rule 3 operator for ' + layerName, { exact: true }).selectOption('between')
+        await choose(fieldset.getByLabel('Rule 3 operator for ' + layerName, { exact: true }), 'between')
         await fieldset.getByLabel('Rule 3 value for ' + layerName, { exact: true }).fill('5')
         await fieldset.getByLabel('Rule 3 upper for ' + layerName, { exact: true }).fill('10')
       }
@@ -179,12 +180,12 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
     await library.locator('summary').first().click()
     await expect(library).toContainText('Default: point')
-    await page.getByLabel('Drawing mode', { exact: true }).selectOption('Point')
+    await choose(page.getByLabel('Drawing mode', { exact: true }), 'Point')
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await page.locator('[data-nechako-portal-map] canvas').click({ position: { x: 180, y: 120 } })
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
     await page.getByRole('button', { name: 'Finish drawing', exact: true }).click()
-    await expect(page.getByLabel('Drawing mode', { exact: true })).toHaveValue('off')
+    await expectSelected(page.getByLabel('Drawing mode', { exact: true }), 'off')
     await library.getByRole('button', { name: 'Delete saved style', exact: true }).click()
     await expect(library).toContainText('0 matching saved styles')
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
@@ -195,7 +196,7 @@ for (const width of [1440, 390]) {
 
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
     await page.getByText('Style ' + layerName, { exact: true }).click()
-    await editor.getByLabel('Style mode for ' + layerName, { exact: true }).selectOption('gradient')
+    await choose(editor.getByLabel('Style mode for ' + layerName, { exact: true }), 'gradient')
     await editor.getByLabel('Gradient stop 1 value for ' + layerName, { exact: true }).fill('0')
     await editor.getByLabel('Gradient stop 1 color for ' + layerName, { exact: true }).fill('#ff0000')
     await editor.getByLabel('Gradient stop 2 value for ' + layerName, { exact: true }).fill('10')

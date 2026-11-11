@@ -1,7 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { openRoadPanel } from './road-sidebar'
 import {
   createAccessHistoryTrainingProject,

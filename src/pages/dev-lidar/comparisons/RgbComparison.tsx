@@ -1,4 +1,4 @@
-import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useCallback, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -66,7 +66,7 @@ export function RgbComparison({
       <div className="flex shrink-0 flex-wrap items-end gap-2 border-b p-2 text-xs">
         <label>
           RGB sample
-          <NativeSelect
+          <StyledSelect
             aria-label="RGB comparison sample"
             className="ml-1 rounded border bg-background p-1.5"
             value={sample.id}
@@ -80,7 +80,7 @@ export function RgbComparison({
                 {s.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         {[
           [a, setA, 'A'],
@@ -88,7 +88,7 @@ export function RgbComparison({
         ].map(([id, set, label]) => (
           <label key={String(label)}>
             {String(label)}
-            <NativeSelect
+            <StyledSelect
               aria-label={`RGB model ${label}`}
               className="ml-1 max-w-[185px] rounded border bg-background p-1.5"
               value={String(id)}
@@ -99,7 +99,7 @@ export function RgbComparison({
                   {modelById(id)?.name ?? id}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
         ))}
         <NumericRangeField

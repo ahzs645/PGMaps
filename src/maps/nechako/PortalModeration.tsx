@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -87,7 +87,7 @@ export function PortalModeration({
       </div>
       <label className="grid gap-1 text-sm">
         Review action
-        <NativeSelect
+        <StyledSelect
           aria-label="Layer moderation action"
           disabled={!canWrite || busy}
           value={mode}
@@ -100,7 +100,7 @@ export function PortalModeration({
         >
           <option value="allow">Grant shared-layer approval</option>
           <option value="toggle">Toggle original active state</option>
-        </NativeSelect>
+        </StyledSelect>
       </label>
       <Button
         variant="outline"

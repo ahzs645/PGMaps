@@ -6,7 +6,7 @@ import {
   FormField,
   NumberField as SharedNumberField,
   NullableNumberField,
-  NativeSelect,
+  StyledSelect,
 } from '@/components/ui/form-field'
 import {
   Camera,
@@ -352,7 +352,7 @@ function BlockHarvestFields({
   const system = target.harvestSystem ?? 'clearcut'
   return (
     <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-      <NativeSelect
+      <StyledSelect
         className={SELECT_CLASS}
         value={system}
         onChange={(event) => onChange({ harvestSystem: event.target.value as HarvestSystem })}
@@ -363,7 +363,7 @@ function BlockHarvestFields({
             {entry.label}
           </option>
         ))}
-      </NativeSelect>
+      </StyledSelect>
       {system === 'retention' && (
         <OptionalNumber
           label={`Stand retained in ${target.name}`}
@@ -724,7 +724,7 @@ export function Sidebar({
         </div>
         <Detail className="pl-7">
           <div className="flex flex-wrap items-center gap-1.5">
-            <NativeSelect
+            <StyledSelect
               className={SELECT_CLASS}
               value={target.role}
               onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
@@ -732,8 +732,8 @@ export function Sidebar({
             >
               <option value="block">Block</option>
               <option value="landscape">Landform</option>
-            </NativeSelect>
-            <NativeSelect
+            </StyledSelect>
+            <StyledSelect
               className={SELECT_CLASS}
               value={target.objectiveId}
               onChange={(event) =>
@@ -748,11 +748,11 @@ export function Sidebar({
                   {entry.label} ≤ {thresholds.perspective[entry.id]}%
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
             {/* Visual absorption capability rates a landform's capacity
                       to hide alteration, so it only means anything on one. */}
             {target.role === 'landscape' && (
-              <NativeSelect
+              <StyledSelect
                 className={SELECT_CLASS}
                 value={target.vac ?? ''}
                 onChange={(event) =>
@@ -766,7 +766,7 @@ export function Sidebar({
                     VAC {VAC_LABELS[rating]}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             )}
           </div>
           {target.role === 'block' && (
@@ -1249,7 +1249,7 @@ export function Sidebar({
             <SidebarSection title="Road view" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
               <div className="space-y-3">
                 <Field label="Where to look">
-                  <NativeSelect
+                  <StyledSelect
                     className={cn(SELECT_CLASS, 'w-full')}
                     value={drive.lookAtTargetId ?? ''}
                     onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
@@ -1261,7 +1261,7 @@ export function Sidebar({
                         Face {block.name}
                       </option>
                     ))}
-                  </NativeSelect>
+                  </StyledSelect>
                 </Field>
                 {roadViewJump}
                 <div>
@@ -1469,7 +1469,7 @@ export function Sidebar({
                 {roadViewForest}
                 <label className="flex items-center justify-between gap-2 text-xs">
                   Display quality
-                  <NativeSelect
+                  <StyledSelect
                     aria-label="Display quality"
                     className={SELECT_CLASS}
                     value={drive.quality}
@@ -1478,7 +1478,7 @@ export function Sidebar({
                     <option value="auto">Default</option>
                     <option value="detailed">Detailed</option>
                     <option value="fast">Faster</option>
-                  </NativeSelect>
+                  </StyledSelect>
                 </label>
               </div>
             </SidebarSection>
@@ -1624,7 +1624,7 @@ export function Sidebar({
                   label="Terrain detail"
                   hint={`${formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom), 'm', { maximumFractionDigits: 0 })} between elevation samples. Finer detail means many more tiles to fetch.`}
                 >
-                  <NativeSelect
+                  <StyledSelect
                     className={FORM_INPUT_CLASS}
                     value={settings.demZoom}
                     onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
@@ -1640,7 +1640,7 @@ export function Sidebar({
                         </option>
                       )
                     })}
-                  </NativeSelect>
+                  </StyledSelect>
                 </Field>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">

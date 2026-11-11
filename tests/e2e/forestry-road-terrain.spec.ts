@@ -4,7 +4,7 @@ import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { positionAt } from '../../src/pages/dev-forestry-roads/engine'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 } })
 test.setTimeout(120_000)

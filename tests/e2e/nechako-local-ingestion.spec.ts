@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
+import { choose, expectSelected, optionEntries } from './styled-select'
 
 async function prepare(page: Page) {
   const applicationWrites: string[] = []
@@ -137,12 +138,8 @@ for (const width of [1440, 390])
       .setInputFiles({ name: 'field-note.txt', mimeType: 'text/plain', buffer: Buffer.from('Original zero: 0\n') })
     await page.getByLabel('Attachment description', { exact: true }).fill('Field attachment with zero')
     await page.getByLabel('Attachment tags', { exact: true }).fill('field, original')
-    const firstDraft = await page
-      .getByLabel('Attachment local draft', { exact: true })
-      .locator('option')
-      .nth(1)
-      .getAttribute('value')
-    await page.getByLabel('Attachment local draft', { exact: true }).selectOption(firstDraft!)
+    const firstDraft = (await optionEntries(page.getByLabel('Attachment local draft', { exact: true })))[1].value
+    await choose(page.getByLabel('Attachment local draft', { exact: true }), { value: firstDraft })
     await page.getByRole('button', { name: 'Stage attachment locally', exact: true }).click()
     await expect(page.getByText('Attachment staged in this browser', { exact: false })).toBeVisible()
     await page.getByLabel('Monitoring ingestion CSV', { exact: true }).setInputFiles({
@@ -152,7 +149,7 @@ for (const width of [1440, 390])
         'time,station,value,keep\n2026-01-01T00:00:00Z,0,0,false\n2026-01-01T00:00:00Z,0,2,second\nbad,0,3,original\n',
       ),
     })
-    await page.getByLabel('Ingestion Primary measurement column', { exact: true }).selectOption('value')
+    await choose(page.getByLabel('Ingestion Primary measurement column', { exact: true }), 'value')
     await expect(
       page.getByText(
         '3 original rows · 2 valid observations · 1 rows with issues · 1 repeated station/timestamp pairs.',
@@ -196,18 +193,18 @@ for (const width of [1440, 390])
     })
     await page.getByRole('button', { name: 'Edit drafts.csv — row 1', exact: true }).click()
     await page.getByLabel('Local draft title', { exact: true }).fill('Reviewed zero draft')
-    await page.getByLabel('Local draft review status', { exact: true }).selectOption('reviewed')
-    await page.getByLabel('Local draft type local:count', { exact: true }).selectOption('number')
-    await page.getByLabel('Local draft type local:original', { exact: true }).selectOption('boolean')
+    await choose(page.getByLabel('Local draft review status', { exact: true }), 'reviewed')
+    await choose(page.getByLabel('Local draft type local:count', { exact: true }), 'number')
+    await choose(page.getByLabel('Local draft type local:original', { exact: true }), 'boolean')
     await page.getByText('Edit WGS84 geometry', { exact: true }).click()
     await page.getByLabel('Local draft geometry', { exact: true }).fill('{"type":"Point","coordinates":[0,0,0]}')
     await page.getByRole('button', { name: 'Save local draft edits', exact: true }).click()
     await expect(page.getByText('Saved local draft edits.', { exact: false })).toBeVisible()
     await page.reload()
     await page.getByRole('button', { name: 'Edit Reviewed zero draft', exact: true }).click()
-    await expect(page.getByLabel('Local draft review status', { exact: true })).toHaveValue('reviewed')
+    await expectSelected(page.getByLabel('Local draft review status', { exact: true }), 'reviewed')
     await expect(page.getByLabel('Local draft value local:count', { exact: true })).toHaveValue('0')
-    await expect(page.getByLabel('Local draft value local:original', { exact: true })).toHaveValue('false')
+    await expectSelected(page.getByLabel('Local draft value local:original', { exact: true }), 'false')
     const edited = await page.evaluate(async () => {
       const { listLocalWorkbench } = await import('/src/maps/nechako/data/localWorkbench.ts')
       return (await listLocalWorkbench('submission')).find((record) => record.name === 'Reviewed zero draft')?.data
@@ -228,18 +225,22 @@ for (const width of [1440, 390])
         data: { id: 0, fields: [{ id: 'count', label: 'Count', type: 'integer', required: true, default: 5 }] },
       })
     })
-    await expect(
-      page.getByLabel('New local draft schema', { exact: true }).locator('option[value="schema:blank"]'),
-    ).toHaveCount(1)
-    await page.getByLabel('New local draft schema', { exact: true }).selectOption('schema:blank')
+    await expect
+      .poll(async () =>
+        (await optionEntries(page.getByLabel('New local draft schema', { exact: true }))).filter(
+          (option) => option.value === 'schema:blank',
+        ),
+      )
+      .toHaveLength(1)
+    await choose(page.getByLabel('New local draft schema', { exact: true }), 'schema:blank')
     await page.getByRole('button', { name: 'Create local draft', exact: true }).click()
     await expect(
       page.getByText('Created a blank draft in this browser from the cached schema.', { exact: true }),
     ).toBeVisible()
-    await expect(page.getByLabel('Local draft type count', { exact: true })).toHaveValue('null')
+    await expectSelected(page.getByLabel('Local draft type count', { exact: true }), 'null')
     await page.reload()
     await page.getByRole('button', { name: 'Edit New Blank field schema', exact: true }).click()
-    await expect(page.getByLabel('Local draft type count', { exact: true })).toHaveValue('null')
+    await expectSelected(page.getByLabel('Local draft type count', { exact: true }), 'null')
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     expect(writes).toEqual([])
     expect(errors).toEqual([])

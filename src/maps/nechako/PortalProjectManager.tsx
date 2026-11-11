@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { PortalProjectWrites } from './PortalProjectWrites'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -119,7 +119,7 @@ export function PortalProjectManager({
       {notice && <InlineAlert>{notice}</InlineAlert>}
       <label className="block text-sm">
         Browser project
-        <NativeSelect
+        <StyledSelect
           className="mt-1 w-full rounded border bg-background p-2"
           value={id}
           onChange={(event) => {
@@ -134,7 +134,7 @@ export function PortalProjectManager({
               {project.id === library.defaultId ? ' · default' : ''}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       </label>
       <label className="block text-sm">
         Project name
@@ -243,7 +243,7 @@ export function PortalProjectManager({
           <>
             <label className="mt-2 block">
               Portal project
-              <NativeSelect
+              <StyledSelect
                 className="mt-1 w-full rounded border bg-background p-2"
                 value={remoteId}
                 onChange={(event) => {
@@ -258,7 +258,7 @@ export function PortalProjectManager({
                     {project.name}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <p className="text-xs">
               {remote.projects.length} accessible projects ·{' '}

@@ -19,7 +19,7 @@ import {
 } from '@/components/ui/map-panels'
 import { ListHeader, ListState, ResultRow } from '@/components/ui/result-list'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { ExternalLink } from '@/components/ui/text-button'
 import { useFetchData } from '@/hooks/useFetchData'
 import { escapeHtml } from '@/lib/escapeHtml'
@@ -234,7 +234,7 @@ export default function DevEarlyLearning() {
           <SidebarSection title="Choose a version">
             <label className="block text-sm">
               EDI source release
-              <NativeSelect
+              <StyledSelect
                 aria-label="EDI source release"
                 className={selectClass}
                 value={dataset?.id}
@@ -245,12 +245,12 @@ export default function DevEarlyLearning() {
                     {d.label}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <div className="mt-3 grid grid-cols-[1fr_90px] gap-2">
               <label className="text-sm">
                 Geography
-                <NativeSelect
+                <StyledSelect
                   aria-label="Geography"
                   className={selectClass}
                   value={family}
@@ -265,11 +265,11 @@ export default function DevEarlyLearning() {
                       {manifest.families[c]}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
               <label className="text-sm">
                 EDI wave
-                <NativeSelect
+                <StyledSelect
                   aria-label="EDI wave"
                   className={selectClass}
                   value={wave}
@@ -280,7 +280,7 @@ export default function DevEarlyLearning() {
                       {w}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
@@ -288,7 +288,7 @@ export default function DevEarlyLearning() {
             </p>
             <label className="mt-3 block text-sm">
               Boundary edition
-              <NativeSelect
+              <StyledSelect
                 aria-label="Boundary edition"
                 className={selectClass}
                 value={boundary?.id ?? ''}
@@ -300,7 +300,7 @@ export default function DevEarlyLearning() {
                     {b.label}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
               {join.kind === 'publisher'
@@ -321,7 +321,7 @@ export default function DevEarlyLearning() {
             )}
             <label className="mt-3 block text-sm">
               Measure
-              <NativeSelect
+              <StyledSelect
                 aria-label="Measure"
                 className={selectClass}
                 value={measure?.id}
@@ -332,7 +332,7 @@ export default function DevEarlyLearning() {
                     {m.label} · {m.unit === 'percent' ? '%' : m.unit === 'count' ? 'count' : 'score'}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
             <p className="mt-2 text-xs text-muted-foreground">
               {unitLabel}. Missing and suppressed values are never treated as zero.{' '}

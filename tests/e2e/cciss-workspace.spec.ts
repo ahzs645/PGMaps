@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { choose, expectSelected } from './styled-select'
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -19,9 +20,9 @@ test('a shared workspace restores map controls and keeps the assessment point se
   await expect(dialog.getByRole('table', { name: 'Legacy species suitability' })).toBeVisible()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page).not.toHaveURL(/analysis=/)
-  await expect(page.getByRole('combobox', { name: 'Display', exact: true })).toHaveValue('bgc')
-  await expect(page.getByRole('combobox', { name: 'Time period', exact: true })).toHaveValue('2081_2100')
-  await expect(page.getByRole('combobox', { name: 'Climate model', exact: true })).toHaveValue('Ensemble')
+  await expectSelected(page.getByRole('combobox', { name: 'Display', exact: true }), 'bgc')
+  await expectSelected(page.getByRole('combobox', { name: 'Time period', exact: true }), '2081_2100')
+  await expectSelected(page.getByRole('combobox', { name: 'Climate model', exact: true }), 'Ensemble')
   await expect(page.getByLabel('Group by zone', { exact: true })).toBeChecked()
   expect(new URL(page.url()).searchParams.get('lng')).toBe('-125')
   await page.getByRole('button', { name: 'Open current data analysis', exact: true }).click()
@@ -42,8 +43,8 @@ test('local raster values remain inspectable when published options change and c
     .locator('..')
   await expect(local).toContainText('Numeric raster cell: 20')
   await expect(local).not.toContainText('Moderate')
-  await page.getByRole('combobox', { name: 'Species', exact: true }).selectOption('Fd')
-  await page.getByRole('combobox', { name: 'Time period', exact: true }).selectOption('2081_2100')
+  await choose(page.getByRole('combobox', { name: 'Species', exact: true }), 'Fd')
+  await choose(page.getByRole('combobox', { name: 'Time period', exact: true }), '2081_2100')
   await expect(page.getByRole('button', { name: 'Direct GeoTIFF', exact: true })).toBeEnabled()
   await expect(local).toContainText('Numeric raster cell: 20')
   await expect(

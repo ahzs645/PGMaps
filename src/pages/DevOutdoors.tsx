@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useClipboardText } from '@/hooks/useClipboardText'
 import type MapLibreGL from 'maplibre-gl'
 import {
@@ -343,7 +343,7 @@ function FeatureRow({
         </button>
       </div>
       <div className="mt-1.5 flex items-center gap-2">
-        <NativeSelect
+        <StyledSelect
           className={KIND_SELECT_CLASS}
           value={kind}
           aria-label="Feature kind"
@@ -354,7 +354,7 @@ function FeatureRow({
               {kindLabels[option]}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
         <span className="text-2xs tabular-nums text-muted-foreground">{detail}</span>
       </div>
       {selected && (
@@ -985,7 +985,7 @@ function DevOutdoors() {
                 onChange={(event) => setPlan((current) => ({ ...current, name: event.target.value }))}
               />
               <div className="grid grid-cols-2 gap-2">
-                <NativeSelect
+                <StyledSelect
                   className={INPUT_CLASS}
                   value={plan.activity}
                   aria-label="Activity"
@@ -998,7 +998,7 @@ function DevOutdoors() {
                       {label}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
                 <input
                   className={INPUT_CLASS}
                   placeholder="Species, e.g. Elk"

@@ -262,6 +262,7 @@
 }
 .mm-field input,
 .mm-field select,
+.mm-field [data-select-trigger],
 .mm-field textarea {
   width: 100%;
   min-width: 0;
@@ -278,6 +279,7 @@
 }
 .mm-field input:focus,
 .mm-field select:focus,
+.mm-field [data-select-trigger]:focus-visible,
 .mm-field textarea:focus {
   outline: 2px solid #168b8050;
   outline-offset: 1px;
@@ -613,7 +615,8 @@
   }
   .mm-workbench .mm-field input,
   .mm-workbench .mm-field textarea,
-  .mm-workbench .mm-field select {
+  .mm-workbench .mm-field select,
+  .mm-workbench .mm-field [data-select-trigger] {
     font-size: 16px;
   }
   .mm-timebar {

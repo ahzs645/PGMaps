@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -49,7 +49,7 @@ export function PortalAdminSubmissions() {
           </p>
           <label className="grid max-w-sm gap-1 text-sm">
             Source state
-            <NativeSelect
+            <StyledSelect
               aria-label="Submission manager state"
               className="rounded border bg-background p-2 text-base"
               value={state}
@@ -61,7 +61,7 @@ export function PortalAdminSubmissions() {
                   {value}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <AdminDataTable
             key={state}

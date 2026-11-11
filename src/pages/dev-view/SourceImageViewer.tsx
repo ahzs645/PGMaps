@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { Maximize, ZoomIn, ZoomOut } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ExternalLink } from '@/components/ui/text-button'
 import { formatBytes } from '@/lib/format'
@@ -380,7 +380,7 @@ export function OriginalImagePanel({
       {choices.length > 1 && (
         <label className="flex flex-wrap items-center gap-2 text-sm">
           Source image
-          <NativeSelect
+          <StyledSelect
             className="min-w-0 max-w-full rounded border bg-background p-2 text-base sm:text-sm"
             aria-label="Source image"
             value={selected?.id || ''}
@@ -391,7 +391,7 @@ export function OriginalImagePanel({
                 {choice.label} · {sourceImageRoleLabel(choice.role)}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
       )}
       {selected ? (

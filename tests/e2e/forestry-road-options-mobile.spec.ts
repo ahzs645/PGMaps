@@ -5,7 +5,7 @@ import { analyzeRoad } from '../../src/pages/dev-forestry-roads/engine'
 import { terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 const baselinePath = process.env.PGMAPS_ROAD_OPTIONS_PROJECT
 test.skip(!baselinePath, 'Supply an exported horizontal baseline project for the opt-in mobile options comparison.')

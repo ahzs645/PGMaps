@@ -5,6 +5,7 @@ import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import JSZip from 'jszip'
 import initSqlJs from 'sql.js'
+import { choose } from './styled-select'
 
 const fixtureName = 'Synthetic field project — browser regression fixture'
 const workspace = {
@@ -220,7 +221,7 @@ async function start(page: Page) {
     { fixture: workspace, name: fixtureName, gpap: originalGpap.toString('base64') },
   )
   const panel = await openWorkbench(page)
-  await panel.getByLabel('Local project', { exact: true }).selectOption('fixture-project')
+  await choose(panel.getByLabel('Local project', { exact: true }), 'fixture-project')
   await panel.getByRole('button', { name: 'Open local project', exact: true }).click()
   await expect(panel).not.toBeVisible()
   return { writes, errors, unexpected }
@@ -253,7 +254,7 @@ for (const width of [1440, 390])
     await page.setViewportSize({ width, height: 920 })
     const observed = await start(page)
     let panel = await openWorkbench(page)
-    await panel.getByLabel('Local project', { exact: true }).selectOption('fixture-project')
+    await choose(panel.getByLabel('Local project', { exact: true }), 'fixture-project')
     await panel.getByRole('button', { name: 'Save current map locally', exact: true }).click()
     await expect(panel.getByText(`Saved “${fixtureName}” on this device.`, { exact: false })).toBeVisible()
     await expect(panel.getByText('1 previous local saves', { exact: true })).toBeVisible()
@@ -373,7 +374,7 @@ test('GIS and SMASH project ZIPs contain real GeoPackages and a native SQLite GP
   const observed = await start(page)
   const panel = await openWorkbench(page)
   await panel.getByRole('tab', { name: 'Backups', exact: true }).click()
-  await panel.getByLabel('Workbench GIS output format', { exact: true }).selectOption('gpkg')
+  await choose(panel.getByLabel('Workbench GIS output format', { exact: true }), 'gpkg')
   const gisEvent = page.waitForEvent('download', { timeout: 120000 })
   await panel.getByRole('button', { name: 'Download GIS project ZIP', exact: true }).click()
   const gisDownload = await gisEvent

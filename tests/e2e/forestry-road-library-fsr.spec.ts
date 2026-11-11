@@ -1,7 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose, optionEntries, optionLabels } from './road-select'
+import { choose, optionEntries, optionLabels } from './styled-select'
 import { compareAndAddFirst, fromThisRoad, startFromChosenRoad } from './road-access'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 20_000, viewport: { width: 1512, height: 982 } })

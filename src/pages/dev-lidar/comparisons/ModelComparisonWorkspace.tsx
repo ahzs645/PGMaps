@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { ExternalLink } from '@/components/ui/text-button'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { Basemap } from '../basemaps'
 import { LidarToolLayout } from '../LidarToolLayout'
@@ -77,7 +77,7 @@ export function ModelComparisonWorkspace({
               </InfoTip>
             }
           >
-            <NativeSelect
+            <StyledSelect
               aria-label="Comparison dataset family"
               value={family}
               onChange={(event) => switchFamily(event.target.value)}
@@ -87,7 +87,7 @@ export function ModelComparisonWorkspace({
                   {item.label}
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </SidebarSection>
           <SidebarSection title="Models & execution" subtitle="Select a model to inspect its output or run status.">
             <div className="space-y-1" id="model-catalogue" aria-label="Model catalogue">

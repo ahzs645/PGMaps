@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
+import { choose, expectSelected } from './styled-select'
 
 const source = 'https://nechakowatershed-portal.ca/'
 const records = Array.from({ length: 26 }, (_, index) => ({
@@ -124,11 +125,11 @@ test('captured hierarchy preserves search paging and form-scoped field queries k
 
   await page.getByRole('button', { name: 'Expression Builder', exact: true }).click()
   // Replace the root group with a single typed field rule.
-  await page.getByLabel('Expression rule type', { exact: true }).first().selectOption('field')
-  await page.getByLabel('Expression field group', { exact: true }).selectOption('form:3')
-  await page.getByLabel('Expression available field', { exact: true }).selectOption('form:3:field:35')
-  await page.getByLabel('Expression operator', { exact: true }).selectOption('=')
-  await expect(page.getByLabel('Expression value type', { exact: true })).toHaveValue('boolean')
+  await choose(page.getByLabel('Expression rule type', { exact: true }).first(), 'field')
+  await choose(page.getByLabel('Expression field group', { exact: true }), 'form:3')
+  await choose(page.getByLabel('Expression available field', { exact: true }), 'form:3:field:35')
+  await choose(page.getByLabel('Expression operator', { exact: true }), '=')
+  await expectSelected(page.getByLabel('Expression value type', { exact: true }), 'boolean')
   await expect(page.getByLabel('Expression value', { exact: true })).toHaveValue('false')
   await page.getByRole('button', { name: 'Use built expression', exact: true }).click()
   await expect(page.getByLabel('Submission search expression', { exact: true })).toHaveValue(
@@ -165,8 +166,8 @@ test('source spatial IDs restrict local content and failures do not silently bro
   })
   await page.goto('/dev/nechako/portal?panel=search')
   await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toBeVisible()
-  await page.getByLabel('Submission selection type', { exact: true }).selectOption('area')
-  await page.getByLabel('Submission selection layer', { exact: true }).selectOption('nechako-watershed-boundary')
+  await choose(page.getByLabel('Submission selection type', { exact: true }), 'area')
+  await choose(page.getByLabel('Submission selection layer', { exact: true }), 'nechako-watershed-boundary')
   await page.getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Public fixture 2', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toHaveCount(0)
@@ -177,7 +178,7 @@ test('source spatial IDs restrict local content and failures do not silently bro
   await page.getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('Fixture spatial access unavailable')
   await expect(page.getByRole('button', { name: 'Public fixture 2', exact: true })).toHaveCount(0)
-  await page.getByLabel('Submission selection type', { exact: true }).selectOption('normal')
+  await choose(page.getByLabel('Submission selection type', { exact: true }), 'normal')
   await page.getByRole('button', { name: 'Search', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toBeVisible()
   expect(errors).toEqual([])
@@ -317,7 +318,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByRole('button', { name: 'Public fixture 26', exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'Simple Expression Builder', exact: true }).click()
     await page.getByLabel('Simple expression words', { exact: true }).fill('Fieldonlyquartz absentword')
-    await page.getByLabel('Simple expression match', { exact: true }).selectOption('OR')
+    await choose(page.getByLabel('Simple expression match', { exact: true }), 'OR')
     await page.getByRole('button', { name: 'Use simple expression', exact: true }).click()
     await page.getByRole('button', { name: 'Search', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Public fixture 1', exact: true })).toBeVisible()

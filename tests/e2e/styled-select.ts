@@ -1,8 +1,9 @@
-import { expect, type Locator } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 /**
- * Road-page dropdowns are styled comboboxes, not native selects: `selectOption`, `toHaveValue` and
- * `option` locators do not apply. Each trigger and option carries its value in `data-value`.
+ * The app's dropdowns are styled comboboxes (`StyledSelect`, `RoadSelect`), not native selects:
+ * `selectOption`, `toHaveValue` and `option` locators do not apply. Each trigger and option carries its
+ * value in `data-value`, and every trigger carries `data-select-trigger`.
  */
 const quote = (value: string) => JSON.stringify(value)
 
@@ -31,7 +32,17 @@ export async function choose(
 }
 
 /** The selected value, as `inputValue()` gave it for a native select. */
-export const selectedValue = (select: Locator) => select.getAttribute('data-value')
+export const selectedValue = async (select: Locator) => (await select.getAttribute('data-value')) ?? ''
+
+/** `expect(select).toHaveValue(value)` for a styled dropdown. */
+export const expectSelected = (select: Locator, value: string | RegExp, options?: { timeout?: number }) =>
+  expect(select).toHaveAttribute('data-value', value, options)
+
+/** Every styled dropdown trigger inside `scope`, as `scope.locator('select')` found native ones. */
+export const selectTriggers = (scope: Page | Locator) => scope.locator('[data-select-trigger]')
+
+/** The label of the option currently shown on the trigger. */
+export const selectedLabel = async (select: Locator) => ((await select.textContent()) ?? '').trim()
 
 /** The option labels, read by opening the list and closing it again. */
 export async function optionLabels(select: Locator) {

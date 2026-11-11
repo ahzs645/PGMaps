@@ -6,7 +6,7 @@ import { FileDropField } from '@/components/ui/file-drop-field'
 import { InlineAlert, SearchInput } from '@/components/ui/map-panels'
 import { Button } from '@/components/ui/button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import {
   loadCatalogue,
   shareLink,
@@ -818,7 +818,7 @@ export default function DevGeoreference() {
             />
             {!!localDrafts.length && (
               <div className="mt-3 flex flex-wrap gap-2">
-                <NativeSelect
+                <StyledSelect
                   aria-label="Local draft to resume"
                   value={selectedDraft?.key || ''}
                   onChange={(e) => setChosenDraft(e.target.value)}
@@ -831,7 +831,7 @@ export default function DevGeoreference() {
                       {draft.savedAt ? ` · ${new Date(draft.savedAt).toLocaleString()}` : ' · earlier draft'}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
                 <Button
                   size="sm"
                   variant="outline"
@@ -888,7 +888,7 @@ export default function DevGeoreference() {
                 onChange={(e) => setMapSearch(e.target.value)}
                 onClear={() => setMapSearch('')}
               />
-              <NativeSelect
+              <StyledSelect
                 aria-label="Map to edit"
                 value={selectedMap?.id || ''}
                 onChange={(e) => setChosenMap(e.target.value)}
@@ -901,7 +901,7 @@ export default function DevGeoreference() {
                     {record.title} · {record.subtitle || record.id}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
               <Button
                 variant="outline"
                 size="sm"
@@ -1192,7 +1192,7 @@ export default function DevGeoreference() {
                   />
                   Use pair
                 </label>
-                <select
+                <StyledSelect
                   aria-label="Selected point role"
                   value={selected.role}
                   onChange={(e) => changePoint(selected.id, { role: e.target.value as 'control' | 'check' })}
@@ -1200,7 +1200,7 @@ export default function DevGeoreference() {
                 >
                   <option value="control">Control (fit)</option>
                   <option value="check">Check (withheld)</option>
-                </select>
+                </StyledSelect>
                 <Button variant="ghost" size="sm" onClick={() => remove(selected.id)}>
                   <Trash2 className="size-4" />
                   Delete

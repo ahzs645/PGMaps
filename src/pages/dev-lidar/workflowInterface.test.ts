@@ -16,6 +16,11 @@ import {
   type WorkflowData,
 } from './analysisWorkflows'
 vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
+// A closed styled dropdown renders no options to static markup; the double lists them.
+vi.mock('@/components/ui/styled-select', async (actual) => ({
+  ...(await actual<typeof import('@/components/ui/styled-select')>()),
+  StyledSelect: (await import('@/components/ui/styledSelectTestDouble')).StyledSelectTestDouble,
+}))
 
 // SSR does not have a scroll viewport; render a bounded set of real result rows.
 vi.mock('@/components/ui/virtual-result-list', () => ({

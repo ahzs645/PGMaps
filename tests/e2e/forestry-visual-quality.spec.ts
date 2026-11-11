@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import zlib from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
+import { choose, expectSelected, optionLabels } from './styled-select'
 
 // Production-preview caching would serve around the stubbed sources below.
 test.use({ serviceWorkers: 'block' })
@@ -362,9 +363,7 @@ test.describe('forestry visual quality', () => {
     await expect(page.getByRole('button', { name: /^Block B — over the height of land/ })).toBeVisible()
     await expect(page.getByRole('button', { name: /^Tabor Mountain landform/ })).toBeVisible()
     // The scene's one landform is the active assessment unit without being asked.
-    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
-      'Tabor Mountain landform',
-    )
+    await expect(page.getByLabel('Active assessment landform')).toHaveText('Tabor Mountain landform')
     // The sample viewpoint is a driven length of road, not a single spot.
     await expect(page.getByText(/5 points · 9\.\d+ km/)).toBeVisible()
     await showStep(page, 'design')
@@ -454,9 +453,9 @@ test.describe('forestry visual quality', () => {
     // and geometric is maximum modification, which cannot achieve partial
     // retention whatever the measured percentage.
     await showStep(page, 'assess')
-    await page.getByLabel('Ease of seeing').selectOption('very-easy')
-    await page.getByLabel('Scale relative to the landform').selectOption('very-large')
-    await page.getByLabel('Shape', { exact: true }).selectOption('geometric')
+    await choose(page.getByLabel('Ease of seeing'), 'very-easy')
+    await choose(page.getByLabel('Scale relative to the landform'), 'very-large')
+    await choose(page.getByLabel('Shape', { exact: true }), 'geometric')
     for (const label of [
       'Response to visual force lines',
       'Borrows from natural character',
@@ -464,17 +463,17 @@ test.describe('forestry visual quality', () => {
       'Position on the landform',
       'Number, size and spacing',
     ]) {
-      await page.getByLabel(label, { exact: true }).selectOption('0')
+      await choose(page.getByLabel(label, { exact: true }), '0')
     }
-    await page.getByLabel('Roads, landings and sidecast').selectOption('0')
-    await page.getByLabel('Tree retention', { exact: true }).selectOption('low')
+    await choose(page.getByLabel('Roads, landings and sidecast'), '0')
+    await choose(page.getByLabel('Tree retention', { exact: true }), 'low')
     await expect(rating).toHaveAttribute('data-via-rating', /^(not-met|clearly-not-met)$/)
     await expect(headline.getByText('Definition not achieved', { exact: true })).toBeVisible()
 
     // Placed on the class boundary, Table 7 calls it inconclusive.
-    await page.getByLabel('Ease of seeing').selectOption('easy')
-    await page.getByLabel('Scale relative to the landform').selectOption('medium')
-    await page.getByLabel('Shape', { exact: true }).selectOption('natural')
+    await choose(page.getByLabel('Ease of seeing'), 'easy')
+    await choose(page.getByLabel('Scale relative to the landform'), 'medium')
+    await choose(page.getByLabel('Shape', { exact: true }), 'natural')
     await page.getByRole('checkbox', { name: 'On the class boundary' }).check()
     await expect(rating).toHaveAttribute('data-via-rating', 'inconclusive')
 
@@ -510,17 +509,19 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Run visibility' }).click()
     await expect(page.getByText('Scenario numerical fields available')).toBeVisible({ timeout: 120_000 })
     await showStep(page, 'identify')
-    await system.selectOption('retention')
+    await choose(system, 'retention')
     // Area-weighted with the sample's clearcut blocks, so well over 22% here.
     await page.getByLabel(`Stand retained in ${name}`).fill('80')
     await expect(page.getByText(/Scene changed — rerun the analysis/)).toHaveCount(0)
-    await expect(page.getByLabel('Tree retention', { exact: true }).locator('option').first()).toHaveText(
-      /^From the blocks: .*retained \([−-]2\)$/,
-    )
+    // The menu opens only on its own step.
+    await showStep(page, 'assess')
+    await expect
+      .poll(async () => (await optionLabels(page.getByLabel('Tree retention', { exact: true })))[0])
+      .toMatch(/^From the blocks: .*retained \([−-]2\)$/)
 
     // A partial cut changes what the run counts as cleared, so it does stale it.
     await showStep(page, 'identify')
-    await system.selectOption('partial')
+    await choose(system, 'partial')
     await expect(page.getByText(/Scene changed — rerun the analysis/).first()).toBeVisible()
     await showStep(page, 'design')
     await page.getByRole('button', { name: 'Run visibility' }).click()
@@ -694,12 +695,10 @@ test.describe('forestry visual quality', () => {
     const adopted = page.locator('li').filter({ hasText: 'VLI 1668 · R (established)' })
     await expect(adopted).toBeVisible()
     await expect(page.getByText('BC visual landscape inventory', { exact: false })).toBeVisible()
-    await expect(adopted.locator('select[aria-label*="objective"]')).toHaveValue('retention')
-    await expect(adopted.locator('select[aria-label*="absorption"]')).toHaveValue('low')
+    await expectSelected(adopted.locator('[data-select-trigger][aria-label*="objective"]'), 'retention')
+    await expectSelected(adopted.locator('[data-select-trigger][aria-label*="absorption"]'), 'low')
     // Adopting it makes it the active assessment landform, displacing the sample's.
-    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
-      'VLI 1668 · R (established)',
-    )
+    await expect(page.getByLabel('Active assessment landform')).toHaveText('VLI 1668 · R (established)')
   })
 
   test('automatically suggests and downloads nearby full-resolution boundaries without a live VLI query', async ({
@@ -717,14 +716,12 @@ test.describe('forestry visual quality', () => {
     const suggestions = page.locator('section:has(> div > [data-forestry-disclosure="inventory-landforms"])')
     await showStep(page, 'identify')
     await expect(suggestions.getByText('VLI 1668 · intersects road')).toBeVisible()
-    await suggestions.getByLabel('Landform search area').selectOption('block')
+    await choose(suggestions.getByLabel('Landform search area'), 'block')
     await showStep(page, 'identify')
     await expect(suggestions.getByText('VLI 1668 · contains search point')).toBeVisible()
-    await suggestions.getByLabel('Landform search area').selectOption('road')
+    await choose(suggestions.getByLabel('Landform search area'), 'road')
     await suggestions.getByRole('button', { name: 'Show boundary' }).first().click()
-    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
-      'Tabor Mountain landform',
-    )
+    await expect(page.getByLabel('Active assessment landform')).toHaveText('Tabor Mountain landform')
     const pending = page.waitForEvent('download')
     await suggestions.getByRole('button', { name: 'Download nearby inventory (GeoJSON)' }).click()
     const download = await pending
@@ -732,13 +729,14 @@ test.describe('forestry visual quality', () => {
     expect(contents.features).toHaveLength(2)
     expect(contents.features[0].geometry.coordinates[0][0]).toEqual([-122.6, 53.86])
     await suggestions.getByRole('button', { name: 'Use candidate' }).first().click()
-    await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
-      'VLI 1668 · R (established)',
-    )
+    await expect(page.getByLabel('Active assessment landform')).toHaveText('VLI 1668 · R (established)')
     await suggestions.getByRole('button', { name: 'Use candidate' }).first().click()
-    await expect(
-      page.getByLabel('Active assessment landform').locator('option', { hasText: 'VLI 1668 · R (established)' }),
-    ).toHaveCount(1)
+    await showStep(page, 'design')
+    expect(
+      (await optionLabels(page.getByLabel('Active assessment landform'))).filter((label) =>
+        label.includes('VLI 1668 · R (established)'),
+      ),
+    ).toHaveLength(1)
     expect(liveVliCalls).toBe(0)
   })
 
@@ -865,7 +863,7 @@ test.describe('forestry visual quality', () => {
     await showStep(page, 'visit')
     await page.getByRole('button', { name: 'Look from the road' }).click()
     await showStep(page, 'visit')
-    await expect(page.getByLabel('Where to look')).toHaveValue('')
+    await expectSelected(page.getByLabel('Where to look'), '')
     await expect(page.getByRole('button', { name: 'Stable silhouettes' })).toBeVisible()
     // The region's mature median height from VRI (REGIONAL_STAND).
     await expect(page.getByLabel(/Stand height/)).toHaveValue('25')
@@ -945,7 +943,7 @@ test.describe('forestry visual quality', () => {
     await page.getByRole('button', { name: 'Replay approach', exact: true }).click()
     await expect(controls.getByRole('button', { name: 'Pause', exact: true })).toBeVisible()
     await showStep(page, 'visit')
-    await expect(page.getByLabel('Where to look')).toHaveValue('')
+    await expectSelected(page.getByLabel('Where to look'), '')
     await controls.getByRole('button', { name: 'Pause', exact: true }).click()
     await expect(page.getByText(/Opening on your right in/)).toBeVisible()
   })
@@ -962,8 +960,8 @@ test.describe('forestry visual quality', () => {
     const controls = page.getByRole('region', { name: 'Road view controls' })
     await expect(controls).toBeVisible({ timeout: 60000 })
     await expect(controls.getByRole('button', { name: 'Play', exact: true })).toBeEnabled({ timeout: 60000 })
-    await controls.getByLabel('Driving speed').selectOption('5')
-    await expect(controls.getByLabel('Driving speed')).toHaveValue('5')
+    await choose(controls.getByLabel('Driving speed'), '5')
+    await expectSelected(controls.getByLabel('Driving speed'), '5')
     const previousPosition = Number(await controls.getByLabel('Route position').inputValue())
     await controls.getByRole('button', { name: 'Forward 10 m', exact: true }).click()
     await expect(controls.getByLabel('Route position')).toHaveValue(String(previousPosition + 10))
@@ -1114,7 +1112,7 @@ test.describe('forestry visual quality', () => {
       expect((await readMapState(page))?.terrain).toBe(true)
       expect((await readMapState(page))?.treeCount).toBeGreaterThan(0)
       await expect(controls.getByRole('button', { name: 'Save viewpoint', exact: true })).toBeDisabled()
-      await controls.getByLabel('Driving speed').selectOption('5')
+      await choose(controls.getByLabel('Driving speed'), '5')
       await controls.getByRole('button', { name: 'Play', exact: true }).click()
       release()
       await expect(controls.getByText('New forest records are ready. Pause to apply them.')).toBeVisible()
@@ -1520,16 +1518,14 @@ test.describe('forestry assessment workspace tools', () => {
     await page.getByLabel('I checked the camera record and image alignment against field evidence.').check()
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await showStep(page, 'design')
-    // By role: a label wrapping a select reads its options as label text, so exact getByLabel misses it.
-    await page.getByRole('combobox', { name: 'Sightline target', exact: true }).selectOption('tool-block')
+    // By role: a label around the trigger also reads its selected option, so an exact label match misses it.
+    await choose(page.getByRole('combobox', { name: /^Sightline target/ }), 'tool-block')
     await page.getByRole('button', { name: 'Trace selected sightline', exact: true }).click()
     await expect(
       page.getByRole('img', { name: 'Sightline profile: elevation in metres by distance from the viewing station' }),
     ).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')
-    await page
-      .getByRole('combobox', { name: 'Assessment evidence viewpoint', exact: true })
-      .selectOption({ label: 'Public road turnout' })
+    await choose(page.getByRole('combobox', { name: /^Assessment evidence viewpoint/ }), { label: 'Public road turnout' })
     await page.getByRole('button', { name: 'Record current assessment', exact: true }).click()
     const workspaceDownload = page.waitForEvent('download')
     await page.getByRole('button', { name: 'Export assessment workspace', exact: true }).click()
@@ -1601,7 +1597,7 @@ test.describe('forestry assessment workspace tools', () => {
     await page.reload()
     await openAllSteps(page)
     await expect(page.getByText('survey-dem.tif · terrain', { exact: true })).toBeVisible()
-    await page.getByRole('combobox', { name: 'Assessment mask classification', exact: true }).selectOption('retained')
+    await choose(page.getByRole('combobox', { name: /^Assessment mask classification/ }), 'retained')
     const mask = {
       type: 'FeatureCollection',
       features: [
@@ -1628,7 +1624,7 @@ test.describe('forestry assessment workspace tools', () => {
       mimeType: 'application/json',
       buffer: Buffer.from(JSON.stringify(mask)),
     })
-    await expect(page.getByLabel('Classification of Retained patch')).toHaveValue('retained')
+    await expectSelected(page.getByLabel('Classification of Retained patch'), 'retained')
     await page.getByRole('button', { name: 'Run visibility', exact: true }).click()
     await expect(page.getByText('Scenario numerical fields available')).toBeVisible({ timeout: 60_000 })
     await showStep(page, 'rate')

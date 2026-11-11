@@ -5,7 +5,7 @@ import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { dismissExampleNoticeWhenShown, savedActiveRoadId } from './road-files'
 
 const demPath = process.env.PGMAPS_ROAD_NEW_AREA_DEM

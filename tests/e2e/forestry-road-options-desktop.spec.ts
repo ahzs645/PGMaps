@@ -12,7 +12,7 @@ import { terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { RoadOptimizationResult } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { Alignment, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { replaceSavedProjectWhenAsked } from './road-files'
 
 test.skip(

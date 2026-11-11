@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { InfoTip } from '@/components/ui/info-tip'
 import { SidebarSection } from '@/components/ui/map-panels'
 import { Button, buttonVariants } from '@/components/ui/button'
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { cn } from '@/lib/utils'
 import { downloadBlob, downloadText } from '@/lib/download'
 import type { Basemap } from '../basemaps'
@@ -308,7 +308,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
             </div>
             <label className="mt-3 block text-xs font-medium">
               Layer CRS
-              <NativeSelect
+              <StyledSelect
                 aria-label="Imported layer CRS"
                 value={crs}
                 onChange={(e) => setCrs(e.target.value)}
@@ -324,7 +324,7 @@ export function ImportWorkspace({ basemap, cloudBase }: { basemap: Basemap; clou
                     ))}
                   </optgroup>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
             </label>
           </SidebarSection>
           {large && (

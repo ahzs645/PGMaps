@@ -4,7 +4,7 @@ import { createEngineeringDesign } from '../../src/pages/dev-forestry-roads/engi
 import { createTrainingScenario } from '../../src/pages/dev-forestry-roads/scenarios'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.setTimeout(180_000)
 

@@ -1,4 +1,4 @@
-import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
@@ -175,7 +175,7 @@ export function NeuralViews({
             <>
               <label>
                 Matched chunk{' '}
-                <NativeSelect
+                <StyledSelect
                   aria-label="Neural point sample"
                   className="rounded border bg-background p-1.5"
                   value={sample.id}
@@ -190,7 +190,7 @@ export function NeuralViews({
                       {s.id} · {s.original_returns.toLocaleString(DEFAULT_LOCALE)} returns
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </label>
               <SegmentedControl
                 label="Neural point colours"

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 
 // Every portal request is intercepted, including the write adapter. These tests
 // exercise the review UI and outgoing contracts without changing source records.
@@ -242,7 +243,7 @@ for (const width of [1440, 390]) {
     await page.getByText('Visual expression builder', { exact: true }).click()
     await page.getByLabel('Expression term', { exact: true }).fill('salmon')
     await page.getByRole('button', { name: 'Add expression rule', exact: true }).click()
-    await page.getByLabel('Expression rule type', { exact: true }).nth(2).selectOption('field')
+    await choose(page.getByLabel('Expression rule type', { exact: true }).nth(2), 'field')
     await page.getByLabel('Expression value', { exact: true }).fill('100')
     await page.getByRole('button', { name: 'Use built expression', exact: true }).click()
     const expression = '("salmon" AND {Submission ID} >= 100)'
@@ -337,7 +338,7 @@ for (const width of [1440, 390]) {
     await expect(page.getByLabel('Read form 39', { exact: true })).toBeChecked()
     await page.getByRole('tab', { name: 'Groups', exact: true }).click()
     await page.getByRole('button', { name: 'Load original groups', exact: true }).click()
-    await page.getByLabel('Administration group', { exact: true }).selectOption('2')
+    await choose(page.getByLabel('Administration group', { exact: true }), '2')
     await page.getByRole('button', { name: 'Load group membership', exact: true }).click()
     await page.getByLabel('member user 8', { exact: true }).check()
     await page.getByRole('button', { name: 'Review group membership changes', exact: true }).click()

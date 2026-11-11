@@ -5,6 +5,7 @@ const overlapFeatures = JSON.parse(
   readFileSync(new URL('../fixtures/mmgis-overlap.geojson', import.meta.url), 'utf8'),
 ).features
 import { collapsePanel, expectFits, mapTap, openMission, press, readMission } from './mmgis-helpers'
+import { choose } from './styled-select'
 
 // Keyboard expansion is a portable accessibility path; Chromium's existing
 // responsive suite separately exercises native touch drags and pinches.
@@ -125,12 +126,12 @@ test('inserts and removes vertices in another geometry part and keeps undo rever
   await panel(page, 'Search')
   const geometry = () => readMission(page).then((s) => s.selectedFeature!.geometry)
   const original = await geometry()
-  await page.getByRole('combobox', { name: 'Selected vertex', exact: true }).selectOption('3')
+  await choose(page.getByRole('combobox', { name: 'Selected vertex', exact: true }), { value: '3' })
   await press(page, button(page, 'Insert midpoint after vertex'))
   await expect.poll(async () => JSON.stringify(await geometry())).not.toBe(JSON.stringify(original))
   const inserted = await geometry()
   expect(inserted.type === 'MultiLineString' && inserted.coordinates.map((l) => l.length)).toEqual([3, 4])
-  await page.getByRole('combobox', { name: 'Selected vertex', exact: true }).selectOption('4')
+  await choose(page.getByRole('combobox', { name: 'Selected vertex', exact: true }), { value: '4' })
   await press(page, button(page, 'Remove selected vertex'))
   await expect.poll(geometry).toEqual(original)
   await collapsePanel(page)

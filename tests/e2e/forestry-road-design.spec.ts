@@ -2,7 +2,7 @@ import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
-import { choose, optionDisabled, optionEntries, optionLabels } from './road-select'
+import { choose, optionDisabled, optionEntries, optionLabels } from './styled-select'
 import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })

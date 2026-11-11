@@ -1,7 +1,7 @@
 import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { openRoadPanel } from './road-sidebar'
-import { choose, optionLabels } from './road-select'
+import { choose, optionLabels } from './styled-select'
 
 for (const device of [
   { name: 'desktop', width: 1512, height: 982, touch: false },

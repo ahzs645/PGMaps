@@ -5,7 +5,7 @@ import { createDemoProject, DEMO_ORIGIN } from '../../src/pages/dev-forestry-roa
 import { localRasterResolution } from '../../src/pages/dev-forestry/localRaster'
 import type { LocalRaster } from '../../src/pages/dev-forestry/types'
 import { openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000 })
 test.setTimeout(120_000)

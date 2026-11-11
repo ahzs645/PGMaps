@@ -9,6 +9,11 @@ import type { CviData } from './climate-vulnerability/data'
 import DevHealthMsp from './DevHealthMsp'
 import DevClimateVulnerability from './DevClimateVulnerability'
 import DevEarlyLearning from './DevEarlyLearning'
+// Radix's menu needs a DOM; the double is a plain <select> with the same props.
+vi.mock('@/components/ui/styled-select', async (actual) => ({
+  ...(await actual<typeof import('@/components/ui/styled-select')>()),
+  StyledSelect: (await import('@/components/ui/styledSelectTestDouble')).StyledSelectTestDouble,
+}))
 
 const fixtures = vi.hoisted(() => ({ regions: [] as unknown[] }))
 vi.mock('@/lib/studyArea', () => ({ loadStudyAreaRegions: async () => fixtures.regions }))

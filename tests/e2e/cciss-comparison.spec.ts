@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import type { ComparisonSnapshot } from '../../src/pages/cciss/comparison'
+import { choose } from './styled-select'
 
 test.setTimeout(90_000)
 test.beforeEach(async ({ page }) => {
@@ -104,7 +105,7 @@ test('saved-result imports compare probabilities, categories and missing fields 
 
   await dialog.getByLabel('Changed or unmatched only').check()
   await expect(table.getByRole('row').filter({ hasText: 'Stable probability' })).toHaveCount(0)
-  await dialog.getByLabel('Comparison measure').selectOption('species.vote')
+  await choose(dialog.getByLabel('Comparison measure'), 'species.vote')
   await expect(table.getByRole('row').filter({ hasText: 'Establishment category' })).toHaveCount(0)
   await dialog.getByLabel('Search comparison').fill('TESTa')
   await expect(table.getByRole('row')).toHaveCount(2)
@@ -140,14 +141,14 @@ test('captures freeze model settings and preserve results after another live ana
     .getByLabel('Import current CCISS JSON')
     .setInputFiles('vendor/bcdatamapper/datascrapers/bc/cciss/fixtures/synthetic-current-analysis.json')
   await withoutNovelty(dialog)
-  await dialog.getByLabel('Climate models').selectOption('TESTmodel1')
+  await choose(dialog.getByLabel('Climate models'), 'TESTmodel1')
   await dialog.getByLabel('Comparison name').fill('Model one capture')
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()
   await expect(dialog.getByRole('status')).toContainText('Model one capture')
-  await dialog.getByLabel('Climate models').selectOption('TESTmodel2')
+  await choose(dialog.getByLabel('Climate models'), 'TESTmodel2')
   await dialog.getByLabel('Comparison name').fill('Model two capture')
   await dialog.getByRole('button', { name: 'Save for comparison', exact: true }).click()
-  await dialog.getByLabel('Climate models').selectOption('__all__')
+  await choose(dialog.getByLabel('Climate models'), '__all__')
   await dialog.getByRole('button', { name: 'View comparisons (2)', exact: true }).click()
   dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('combobox', { name: 'Comparison A', exact: true })).toContainText('Model one capture')

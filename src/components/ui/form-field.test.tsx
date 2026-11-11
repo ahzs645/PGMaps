@@ -1,6 +1,7 @@
 import { act, create } from 'react-test-renderer'
 import { describe, expect, it, vi } from 'vitest'
-import { FormField, NativeSelect, NullableNumberField, NumberField, SelectField } from './form-field'
+import { FormField, NullableNumberField, NumberField, SelectField, StyledSelect } from './form-field'
+import { AppSelect } from './select'
 
 describe('shared field interactions', () => {
   it('keeps a unitless numeric input directly inside its label and deduplicates its help reference', () => {
@@ -177,7 +178,7 @@ describe('shared field interactions', () => {
     act(() => view!.unmount())
   })
 
-  it('retains native select props, option children and explicit label associations', () => {
+  it('passes select props, option children and explicit label associations to the styled dropdown', () => {
     const change = vi.fn()
     let view: ReturnType<typeof create>
     act(() => {
@@ -187,11 +188,13 @@ describe('shared field interactions', () => {
         </SelectField>,
       )
     })
-    const select = view!.root.findByType('select')
+    const select = view!.root.findByType(AppSelect)
     expect(select.props.disabled).toBe(true)
+    expect(select.props.id).toBe('source')
+    expect(select.props.options).toEqual([expect.objectContaining({ value: 'a', label: 'A' })])
     expect(view!.root.findByType('label').props.htmlFor).toBe('source')
-    expect(select.props['aria-describedby']).toBe('source-description')
-    expect(view!.root.findByType(NativeSelect).props.onChange).toBe(change)
+    expect(select.props.triggerAriaDescribedBy).toBe('source-description')
+    expect(view!.root.findByType(StyledSelect).props.onChange).toBe(change)
     act(() => view!.unmount())
   })
 })

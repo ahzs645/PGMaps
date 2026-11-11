@@ -1,4 +1,4 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { Map as MapLibreMap } from 'maplibre-gl'
 import { Button } from '@/components/ui/button'
@@ -90,7 +90,7 @@ export function PortalMapExport({
           </label>
           <label className="block text-sm font-medium">
             Image size
-            <NativeSelect
+            <StyledSelect
               aria-label="Map image size"
               className={inputClass}
               value={customSize ? 'custom' : (preset?.label ?? 'custom')}
@@ -110,7 +110,7 @@ export function PortalMapExport({
                 </option>
               ))}
               <option value="custom">Custom dimensions</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-sm font-medium">
@@ -164,7 +164,7 @@ export function PortalMapExport({
           </p>
           <label className="block text-sm font-medium">
             North arrow
-            <NativeSelect
+            <StyledSelect
               aria-label="Map image north arrow"
               className={inputClass}
               value={options.northArrow ? options.northArrowStyle : 'none'}
@@ -179,7 +179,7 @@ export function PortalMapExport({
               <option value="none">No Arrow</option>
               <option value="arrow">Arrow Style 1 · simple</option>
               <option value="compass">Arrow Style 2 · compass</option>
-            </NativeSelect>
+            </StyledSelect>
           </label>
           <label className="flex items-center gap-2 text-sm">
             <input

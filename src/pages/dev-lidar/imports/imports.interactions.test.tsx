@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ImportWorkspace } from './ImportWorkspace'
 import { getImportSession, resetImportSession } from './session'
 import { downloadText } from '@/lib/download'
+// Radix's menu needs a DOM; the double is a plain <select> with the same props.
+vi.mock('@/components/ui/styled-select', async (actual) => ({
+  ...(await actual<typeof import('@/components/ui/styled-select')>()),
+  StyledSelect: (await import('@/components/ui/styledSelectTestDouble')).StyledSelectTestDouble,
+}))
 vi.mock('@/components/layout/MapSectionLayout', () => import('@/pages/dev-lidar/testing/mapSectionLayoutStub'))
 // The InfoTip popover needs a browser window.
 vi.mock('@/components/ui/info-tip', () => ({

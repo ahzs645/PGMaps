@@ -1,4 +1,4 @@
-import { CheckboxField, NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { NumericRangeField } from '@/components/ui/numeric-range-field'
 import { useEffect, useMemo, useState } from 'react'
@@ -161,7 +161,7 @@ export function NeuralTreeViews({
         />
         <label>
           Chunk{' '}
-          <NativeSelect
+          <StyledSelect
             aria-label="Individual tree chunk"
             className="rounded border bg-background p-1"
             value={activeChunk}
@@ -174,11 +174,11 @@ export function NeuralTreeViews({
             {chunks.map((id) => (
               <option key={id}>{id}</option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         <label>
           Tree candidate{' '}
-          <NativeSelect
+          <StyledSelect
             aria-label="Individual tree candidate"
             className="max-w-[230px] rounded border bg-background p-1"
             value={tree.id}
@@ -189,7 +189,7 @@ export function NeuralTreeViews({
                 #{t.instance} · {t.height_max_m.toFixed(1)} m · {t.core_returns.toLocaleString(DEFAULT_LOCALE)} points
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         <Button
           size="sm"

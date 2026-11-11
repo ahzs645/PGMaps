@@ -2,7 +2,7 @@ import {
   CheckboxField,
   FORM_INPUT_CLASS,
   FormField,
-  NativeSelect,
+  StyledSelect,
   NullableNumberField,
   NumberField,
 } from '@/components/ui/form-field'
@@ -108,7 +108,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
       <section className="space-y-3 text-xs" aria-label="Assessment landform">
         <label className="block">
           Active landform
-          <NativeSelect
+          <StyledSelect
             aria-label="Active assessment landform"
             className="mt-1 w-full rounded border bg-background p-2"
             value={landform?.id ?? ''}
@@ -120,7 +120,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                 {t.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </label>
         <p className="text-muted-foreground">
           An inventory sensitivity unit is only a candidate. A landform is what one viewpoint sees as a single hillside,
@@ -240,7 +240,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
               appendix follow. The form has five design rows; number, size and spacing stays on the step 4 record.
             </p>
             <div className="flex gap-2">
-              <NativeSelect
+              <StyledSelect
                 className="min-w-0 flex-1 rounded border bg-background p-1"
                 aria-label="Report viewpoint"
                 value={pick}
@@ -252,7 +252,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                     {result.assessmentStationIndex === i ? ' · highest estimated ratio' : ''}
                   </option>
                 ))}
-              </NativeSelect>
+              </StyledSelect>
               <Button
                 variant="outline"
                 size="sm"
@@ -317,7 +317,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                           {designLabels.map((label, i) => (
                             <label className="flex items-center justify-between gap-2" key={label}>
                               <span>{label}</span>
-                              <NativeSelect
+                              <StyledSelect
                                 className="rounded border bg-background"
                                 value={reviews[index]?.design?.[i] ?? ''}
                                 onChange={(e) => {
@@ -330,12 +330,12 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                                 <option value="-1">Good (-1)</option>
                                 <option value="0">Moderate (0)</option>
                                 <option value="1">Poor (+1)</option>
-                              </NativeSelect>
+                              </StyledSelect>
                             </label>
                           ))}
                           <label className="flex justify-between">
                             Roads/sidecast within openings
-                            <NativeSelect
+                            <StyledSelect
                               className="rounded border bg-background"
                               value={reviews[index]?.roads ?? ''}
                               onChange={(e) =>
@@ -349,11 +349,11 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                               <option value="1">Subordinate (+1)</option>
                               <option value="2">Significant (+2)</option>
                               <option value="3">Dominant (+3)</option>
-                            </NativeSelect>
+                            </StyledSelect>
                           </label>
                           <label className="flex justify-between">
                             Dispersed retention
-                            <NativeSelect
+                            <StyledSelect
                               className="rounded border bg-background"
                               value={reviews[index]?.retention ?? ''}
                               onChange={(e) =>
@@ -366,7 +366,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                               <option value="-2">High, over 22% (-2)</option>
                               <option value="-1">Moderate, 15–22% (-1)</option>
                               <option value="0">Low, under 15% (0)</option>
-                            </NativeSelect>
+                            </StyledSelect>
                           </label>
                           <CheckboxField
                             label="Retained patches were already netted from the geometry"
