@@ -9,10 +9,10 @@ import { mercatorMetresPerPixel, snapIndex, snapToRoads, type DrawSnap, type Sna
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { MapMouseEvent } from 'maplibre-gl'
-import { X } from 'lucide-react'
+import { Footprints } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
-import { InfoTip } from '@/components/ui/info-tip'
+import { MapToolPanel } from '@/components/ui/map-tool-panel'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { NumberField, OptionalNumberField } from './Controls'
 import { distance, offsetCoordinate } from './engine'
@@ -346,14 +346,14 @@ export function PegToolPanel(props: {
 }) {
   const { settings, onSettings } = props
   return (
-    <section
-      className="space-y-2 rounded-md border bg-background/95 p-2 text-2xs shadow"
+    <MapToolPanel
+      title="Peg at grade"
+      icon={Footprints}
       aria-label="Peg at grade"
       data-testid="road-peg-tool"
-    >
-      <div className="flex items-center gap-1">
-        <h3 className="text-xs font-semibold">Peg at grade</h3>
-        <InfoTip label="About pegging at grade">
+      helpLabel="About pegging at grade"
+      help={
+        <>
           Move the cursor to aim. The next peg lands one step from the last at the target ground grade, on the heading
           nearest the cursor. A click adds the leg; Alt-click (Option-click) adds a straight leg to the point clicked,
           whatever its grade. Right-click or Backspace removes the last leg. Enter or a double-click adds the legs to
@@ -363,18 +363,48 @@ export function PegToolPanel(props: {
           {props.windowM > 0 ? ` (${props.windowM} m window)` : ''}, as the route searches read them; the profile and
           sections use the terrain itself. Legs are coloured up, down, or red over the {props.limitPercent} % limit. New
           pegs are angle points: give them radii in the pegging table or with curve fitting.
-        </InfoTip>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="ml-auto size-6"
-          aria-label="Cancel pegging"
-          title="Cancel pegging · Esc"
-          onClick={props.onCancel}
-        >
-          <X className="size-3" />
-        </Button>
-      </div>
+        </>
+      }
+      onClose={props.onCancel}
+      closeLabel="Cancel pegging"
+      actions={
+        <>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="mr-auto h-7"
+            disabled={!props.legs}
+            onClick={props.onUndo}
+            title="Remove the last leg · right-click or Backspace"
+          >
+            Undo leg
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7"
+            disabled={props.aimBearing === null}
+            onClick={props.onAdd}
+            title={
+              props.aimBearing === null
+                ? 'Aim first: move the cursor over the plan, or enter an aim'
+                : 'Add this leg · click or Space'
+            }
+          >
+            Add leg
+          </Button>
+          <Button
+            size="sm"
+            className="h-7"
+            disabled={!props.legs}
+            onClick={props.onFinish}
+            title="Add the legs to the road · Enter or double-click"
+          >
+            Finish
+          </Button>
+        </>
+      }
+    >
       <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
         <NumberField
           label="Grade (%)"
@@ -411,14 +441,6 @@ export function PegToolPanel(props: {
         />
       </div>
       <div className="grid grid-cols-2 items-end gap-2">
-        <label className="flex h-8 items-center gap-1.5 text-xs">
-          <input
-            type="checkbox"
-            checked={settings.straight}
-            onChange={(event) => onSettings({ ...settings, straight: event.target.checked })}
-          />
-          Straight legs
-        </label>
         {/* Blank until there is an aim: a 0 here read as an aim due north the tool did not hold. */}
         <OptionalNumberField
           label="Aim (°)"
@@ -429,55 +451,30 @@ export function PegToolPanel(props: {
           placeholder="none"
           onChange={(bearing) => bearing !== null && props.onAimBearing(bearing % 360)}
         />
+        <label className="flex h-8 items-center gap-1.5 text-xs">
+          <input
+            type="checkbox"
+            checked={settings.straight}
+            onChange={(event) => onSettings({ ...settings, straight: event.target.checked })}
+          />
+          Straight legs
+        </label>
       </div>
-      <p
-        role="status"
-        aria-live="polite"
-        className={props.statusOk ? 'text-foreground' : 'text-amber-800 dark:text-amber-300'}
-        data-testid="road-peg-tool-status"
-      >
-        {props.note || `Next leg: ${props.status}`}
-      </p>
-      <p className="tabular-nums text-muted-foreground" data-testid="road-peg-tool-summary">
-        {props.legs
-          ? `${props.legs} ${props.legs === 1 ? 'leg' : 'legs'} · ${fixed(props.lengthM)} m · overall ${signedPercent(props.gradePercent)}`
-          : 'No legs yet'}
-      </p>
-      <div className="flex flex-wrap gap-1">
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7"
-          disabled={props.aimBearing === null}
-          onClick={props.onAdd}
-          title={
-            props.aimBearing === null
-              ? 'Aim first: move the cursor over the plan, or enter an aim'
-              : 'Add this leg · click or Space'
-          }
+      <div className="space-y-0.5 border-t pt-2">
+        <p
+          role="status"
+          aria-live="polite"
+          className={props.statusOk ? 'text-foreground' : 'text-amber-800 dark:text-amber-300'}
+          data-testid="road-peg-tool-status"
         >
-          Add leg
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-7"
-          disabled={!props.legs}
-          onClick={props.onUndo}
-          title="Remove the last leg · right-click or Backspace"
-        >
-          Undo leg
-        </Button>
-        <Button
-          size="sm"
-          className="h-7"
-          disabled={!props.legs}
-          onClick={props.onFinish}
-          title="Add the legs to the road · Enter or double-click"
-        >
-          Finish
-        </Button>
+          {props.note || `Next leg: ${props.status}`}
+        </p>
+        <p className="tabular-nums text-muted-foreground" data-testid="road-peg-tool-summary">
+          {props.legs
+            ? `${props.legs} ${props.legs === 1 ? 'leg' : 'legs'} · ${fixed(props.lengthM)} m · overall ${signedPercent(props.gradePercent)}`
+            : 'No legs yet'}
+        </p>
       </div>
-    </section>
+    </MapToolPanel>
   )
 }

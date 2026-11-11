@@ -7,10 +7,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { MapMouseEvent } from 'maplibre-gl'
-import { X } from 'lucide-react'
+import { ScanSearch } from 'lucide-react'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import { Button } from '@/components/ui/button'
-import { InfoTip } from '@/components/ui/info-tip'
+import { MapToolPanel } from '@/components/ui/map-tool-panel'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { formatRoadStation } from './Charts'
 import { NumberField } from './Controls'
@@ -207,32 +207,26 @@ export function PointQueryPanel({
       ].filter((text): text is string => !!text)
     : []
   return (
-    <section
-      className="space-y-2 rounded-md border bg-background/95 p-2 text-2xs shadow"
+    <MapToolPanel
+      title="Point query"
+      icon={ScanSearch}
       aria-label="Point query"
       data-testid="road-point-query"
-    >
-      <div className="flex items-center gap-1">
-        <h3 className="text-xs font-semibold">Point query</h3>
-        <InfoTip label="About point query">
+      helpLabel="About point query"
+      help={
+        <>
           Click the plan to measure that point against the nearest road: its station and offset (negative to the left
           looking up-station), the ground there, the design surface at that station and offset (formation, ditch or
           batter) and the cut or fill depth between them. Beyond the catch points there is no design, so no depth. Go to
           locates a station and offset on the active road, evaluated where you typed it, and selects that station in the
           profile and section.
-        </InfoTip>
-        <Button
-          size="icon"
-          variant="ghost"
-          className="ml-auto size-6"
-          aria-label="Close point query"
-          title="Close point query · Esc"
-          onClick={onClose}
-        >
-          <X className="size-3" />
-        </Button>
-      </div>
-      {result ? (
+        </>
+      }
+      onClose={onClose}
+      closeLabel="Close point query"
+      hint={result ? undefined : 'Click the plan to measure a point.'}
+    >
+      {result && (
         <ReadoutGrid
           data-testid="road-point-query-result"
           items={[
@@ -248,8 +242,6 @@ export function PointQueryPanel({
             },
           ]}
         />
-      ) : (
-        <p className="text-muted-foreground">Click the plan to measure a point.</p>
       )}
       {(note || notes.length > 0) && (
         <p role="status" className="text-amber-800 dark:text-amber-300" data-testid="road-point-query-note">
@@ -258,7 +250,7 @@ export function PointQueryPanel({
       )}
       {/* noValidate: the fields' step is for the arrow keys; a typed station or offset is used as typed. */}
       <form
-        className="grid grid-cols-[1fr_1fr_auto] items-end gap-2"
+        className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 border-t pt-2"
         onSubmit={submit}
         aria-label="Go to station"
         noValidate
@@ -277,6 +269,6 @@ export function PointQueryPanel({
           Go to
         </Button>
       </form>
-    </section>
+    </MapToolPanel>
   )
 }

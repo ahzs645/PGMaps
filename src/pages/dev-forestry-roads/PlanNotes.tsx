@@ -463,7 +463,6 @@ export function NotesToolbar({
   onClose: () => void
   disabled?: boolean
 }) {
-  const active = TOOLS.find((entry) => entry.tool === tool)
   return (
     <div
       role="toolbar"
@@ -471,12 +470,14 @@ export function NotesToolbar({
       className="pointer-events-auto flex max-w-full flex-wrap items-center gap-1 rounded-md border bg-background/95 p-1 text-xs shadow-sm backdrop-blur-sm"
       data-map-export-ignore
     >
-      {TOOLS.map(({ tool: entry, label, icon: Icon }) => (
+      {/* How to use a tool is its button's title, so picking one does not grow the bar a line. */}
+      {TOOLS.map(({ tool: entry, label, hint, icon: Icon }) => (
         <Button
           key={entry}
           size="sm"
           variant="ghost"
           className={cn('h-7 gap-1 px-2 text-xs', tool === entry && 'bg-accent text-accent-foreground')}
+          title={`${label} · ${hint} Esc to stop.`}
           aria-pressed={tool === entry}
           disabled={disabled}
           onClick={() => onTool(tool === entry ? null : entry)}
@@ -508,7 +509,6 @@ export function NotesToolbar({
       <Button size="icon" variant="ghost" className="size-7" aria-label="Close notes bar" onClick={onClose}>
         <X className="size-3.5" />
       </Button>
-      {active && <p className="basis-full px-1 pb-0.5 text-2xs text-muted-foreground">{active.hint} Esc to stop.</p>}
     </div>
   )
 }

@@ -16,7 +16,8 @@ export function RoadRemovedNotice({
   onDismiss,
 }: {
   removed: RemovedRoad | null
-  shownName: string
+  /** The road shown now; null when the last road went and the design is empty. */
+  shownName: string | null
   onUndo: () => void
   onDismiss: () => void
 }) {
@@ -30,7 +31,7 @@ export function RoadRemovedNotice({
       // so Undo cannot vanish from under the pointer.
       duration={ROAD_REMOVED_NOTICE_MS}
       title={`Deleted ${removed.road.name}`}
-      message={`Now showing ${shownName}.`}
+      message={shownName === null ? 'No roads left: peg or sketch one.' : `Now showing ${shownName}.`}
       action={
         <Button size="sm" variant="outline" className="h-7 shrink-0 px-2 text-xs" onClick={onUndo}>
           Undo

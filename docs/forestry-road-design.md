@@ -359,11 +359,33 @@ The grid uses fixed local coordinates and discrete spacing, so moving the follow
 window does not move missing cells across the ground. Up to 65,536 sampled vertices
 (including missing values) are cached. Ground and batters paint onto one canvas;
 formation and structure overlays retain SVG selection. Camera-only redraws reuse
-the terrain geometry. Orbit and follow-station modes, camera rotation, zoom, pan
-and vertical exaggeration change the presentation only. Scroll or use +/− to zoom,
-drag to rotate, Shift-drag or right-drag to pan, and Fit/Home to reset.
-The follow window spans 240 m around the selected station. Neither the mesh nor
-vertical exaggeration changes profile elevations or quantities. Plan, profile,
+the terrain geometry. **Whole road** and **Around station** modes, camera rotation,
+zoom, pan and vertical exaggeration change the presentation only.
+
+The 3D camera works like the plan beside it: drag to pan, right-drag, Ctrl-drag or
+Alt-drag to rotate and tilt, scroll or pinch to zoom toward the pointer, and
+double-click to zoom in on a point (Shift-double-click zooms out). Arrow keys pan,
+Shift+arrows rotate and tilt, +/− zoom and Home fits. Zoom, rotation and pan all
+work around one focus point on the ground, held at the same place on screen
+(`previewCamera.ts`), so a zoom or a turn never throws what you are looking at off
+the pane. A press that moves less than 3 px is a click, so a click on the road still
+selects its station while a drag that starts on the road pans. The camera stack at
+the top right holds zoom, a compass (click to turn north up), rotate buttons and
+**Centre on selected station**; **Fit** in the toolbar resets the view. The scale
+bar is measured at the focus, and perspective shortens distances beyond it.
+
+Zoomed in past 2×, the ground around the focus is meshed again at finer spacing,
+covering about twice the visible width and snapped to the coarse cells, and every
+road station inside it is drawn. The camera fit, colour range and median elevation
+keep the coarse mesh, so the finer patch never moves the view. Vertical
+exaggeration defaults to **Auto**: the smallest of ×1, ×2 and ×4 that draws the
+road's ground relief at least a tenth of its extent. Hill shading follows the drawn
+exaggeration; slope colours always use true metres, and the legend says when
+heights are exaggerated.
+
+The Around station window spans 240 m around the selected station and recentres
+when the station changes. Neither the mesh nor vertical exaggeration changes
+profile elevations or quantities. Plan, profile,
 section, mass curve and station schedule share the selected horizontal chainage.
 
 ## Workspace layout and readouts

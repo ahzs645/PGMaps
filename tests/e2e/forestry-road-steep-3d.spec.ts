@@ -128,7 +128,7 @@ for (const viewport of [
     await expect(preview.locator('[data-unfinished-batter="reach"]')).not.toHaveCount(0)
     await expectFitted(preview)
     await expect.poll(() => fillPixels(preview)).toBeGreaterThan(20)
-    await preview.getByRole('button', { name: 'Follow station', exact: true }).click()
+    await preview.getByRole('button', { name: 'Around station', exact: true }).click()
     await expectFitted(preview)
     await page.screenshot({ path: testInfo.outputPath('steep-high-fill-follow.png') })
     await preview.getByRole('button', { name: 'Rotate terrain right', exact: true }).click()

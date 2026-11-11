@@ -1,7 +1,7 @@
 import { RoadSelect } from './Controls'
 import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
 import { CircleHelp, LocateFixed, Mountain, Plus, Settings2, StickyNote, Table2, Waves, X } from 'lucide-react'
 import { Map, MapControls, MapMarker, MapScaleBar, MarkerContent, useMap } from '@/components/ui/map'
@@ -107,6 +107,8 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   avoid: 'Review areas',
 }
 interface PlanProps {
+  /** A drawing tool's card (`MapToolPanel`), shown in the corner the plan tools use. */
+  toolPanel?: ReactNode
   display: ReturnType<typeof usePlanDisplay>
   selectedRange?: RoadSelectionRange
   onMapReady?: (map: MapLibreMap | null) => void
@@ -234,7 +236,7 @@ function Layers(
     referenceVisible: boolean
     onPointDragStart: (id: string) => void
     onBendPreview: (afterId: string, coordinate: Coordinate | null) => void
-    /** The road without any drag preview. A handle in use has to stay mounted, so handles follow this. */
+    /** The road with a point drag but without a bend preview. A handle in use has to stay mounted, so handles follow this. */
     savedAlignment: Alignment
     onPointDragEnd: (id: string, coordinate: Coordinate) => void
     fitRequest: FitRequest
@@ -2008,6 +2010,9 @@ export function PlanView(input: PlanProps) {
       }
     return null
   }, [drag, bend, props.alignment, props.mode, newPointRadius])
+  // Bend handles follow a point drag, which keeps every point id and so every handle's key, but
+  // never a bend preview: its extra point re-keys the handle in use, and remounting it loses the drop.
+  const handleAlignment = (drag && previewAlignment) || props.alignment
   const previewAnalyses = useMemo(() => {
     if (!previewAlignment) return props.analyses
     const analyses = new globalThis.Map(props.analyses)
@@ -2226,7 +2231,7 @@ export function PlanView(input: PlanProps) {
           {...props}
           onContextSelect={selectContext}
           alignment={previewAlignment ?? props.alignment}
-          savedAlignment={props.alignment}
+          savedAlignment={handleAlignment}
           analyses={previewAnalyses}
           onPointDragStart={(id) => props.onSelectPoint(id)}
           onBendPreview={(afterId, coordinate) =>
@@ -2478,6 +2483,14 @@ export function PlanView(input: PlanProps) {
         </div>
       )}
       {tools.panelSlot}
+      {props.toolPanel && (
+        <div
+          className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
+          data-map-export-ignore
+        >
+          {props.toolPanel}
+        </div>
+      )}
       {props.mode === 'edit' &&
         !notesOpen &&
         (editHelpVisible ? (

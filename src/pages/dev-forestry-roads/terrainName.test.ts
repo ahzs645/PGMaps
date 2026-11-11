@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { terrainDisplayName } from './terrainName'
+import { terrainCellLabel, terrainDisplayName } from './terrainName'
 
 describe('terrainDisplayName', () => {
   it('drops an appended bounding box and keeps the rest', () => {
@@ -13,5 +13,14 @@ describe('terrainDisplayName', () => {
     expect(terrainDisplayName('Synthetic training hillside near Prince George')).toBe(
       'Synthetic training hillside near Prince George',
     )
+  })
+})
+
+describe('terrainCellLabel', () => {
+  it('rounds a cell size to what a reader needs', () => {
+    expect(terrainCellLabel(22.522023480917692)).toBe('23 m cells')
+    expect(terrainCellLabel(1)).toBe('1 m cells')
+    expect(terrainCellLabel(0.5)).toBe('0.5 m cells')
+    expect(terrainCellLabel(2.4999)).toBe('2.5 m cells')
   })
 })

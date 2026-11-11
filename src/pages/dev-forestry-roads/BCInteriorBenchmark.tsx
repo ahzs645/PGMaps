@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { CollapsibleSection, InlineAlert } from '@/components/ui/map-panels'
+import { InfoTip } from '@/components/ui/info-tip'
+import { InlineAlert } from '@/components/ui/map-panels'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { downloadText } from '@/lib/download'
 import { OptionalNumberField } from './Controls'
-import { ReferenceLink, ReferenceSelect, referenceMoney } from './CostReferenceControls'
+import { ReferenceHeading, ReferenceLink, ReferenceSelect, referenceMoney } from './CostReferenceControls'
 import {
   BC_INTERIOR_COST_SOURCE,
   INTERIOR_ROAD_GROUPS,
@@ -67,86 +68,97 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
   }
 
   return (
-    <div className="space-y-3 rounded border p-3">
-      <h3 className="text-xs font-semibold">Interior subgrade comparison</h3>
-      <p className="text-2xs leading-4 text-muted-foreground">
-        <ReferenceLink href={BC_INTERIOR_COST_SOURCE.url}>2026 Interior Appraisal Manual</ReferenceLink>
-        {' · effective ' + BC_INTERIOR_COST_SOURCE.effectiveDate}
-        {' · ' + BC_INTERIOR_COST_SOURCE.costBaseYear + ' cost base. '}
-        Sections 4.3.2.2–4.3.2.4 and Table 4-2. This covers subgrade only.
+    <div className="space-y-4">
+      <p className="flex items-center gap-1 text-2xs leading-4 text-muted-foreground">
+        <span>
+          <ReferenceLink href={BC_INTERIOR_COST_SOURCE.url}>2026 Interior Appraisal Manual</ReferenceLink>
+          {' · effective ' + BC_INTERIOR_COST_SOURCE.effectiveDate}
+          {' · ' + BC_INTERIOR_COST_SOURCE.costBaseYear + ' cost base'}
+        </span>
+        <InfoTip label="About the Interior subgrade comparison">
+          IAM sections 4.3.2.2–4.3.2.4 and Table 4-2. The equation prices subgrade only.
+        </InfoTip>
       </p>
-      <ReferenceSelect
-        label="Interior road group"
-        value={inputs.roadGroup?.toString() ?? choose.value}
-        options={[choose, ...INTERIOR_ROAD_GROUPS.map(({ id, label }) => ({ value: String(id), label }))]}
-        onChange={(value) => update({ roadGroup: value === choose.value ? null : Number(value) })}
-      />
-      {group && <p className="text-2xs leading-4 text-muted-foreground">{group.boundaries}</p>}
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <OptionalNumberField
-          label="Uphill side slope (%)"
-          value={inputs.sideSlopePercent}
-          onChange={(sideSlopePercent) => update({ sideSlopePercent })}
-          min={0}
-          max={500}
-          placeholder="Not checked"
-        />
-        <OptionalNumberField
-          label="Section rock (%)"
-          value={inputs.rockPercent}
-          onChange={(rockPercent) => update({ rockPercent })}
-          min={0}
-          max={100}
-          placeholder="Not checked"
-        />
+
+      <div className="space-y-2">
         <ReferenceSelect
-          label="Interior road type"
-          value={inputs.roadType ?? choose.value}
-          options={[
-            choose,
-            { value: 'long-term', label: 'Long-term · raised subgrade and ditch' },
-            { value: 'short-term', label: 'Short-term · bladed surface' },
-            { value: 'snow-ice', label: 'Snow/ice · separate method' },
-          ]}
-          onChange={(value) => update({ roadType: value === choose.value ? null : (value as InteriorRoadType) })}
+          label="Interior road group"
+          value={inputs.roadGroup?.toString() ?? choose.value}
+          options={[choose, ...INTERIOR_ROAD_GROUPS.map(({ id, label }) => ({ value: String(id), label }))]}
+          onChange={(value) => update({ roadGroup: value === choose.value ? null : Number(value) })}
         />
-        <ReferenceSelect
-          label="Verified BEC zone"
-          value={inputs.becZone ?? choose.value}
-          options={[
-            choose,
-            ...['ESSF', 'ICH', 'CWH', 'SBS', 'MS'].map((value) => ({ value, label: value })),
-            { value: 'other', label: 'Other verified BEC zone' },
-          ]}
-          onChange={(value) => update({ becZone: value === choose.value ? null : (value as InteriorBecZone) })}
-        />
-        <ReferenceSelect
-          label="Absolute soil moisture"
-          value={inputs.soilMoisture ?? choose.value}
-          options={[
-            choose,
-            { value: 'wet', label: 'Wet' },
-            { value: 'moist', label: 'Moist' },
-            { value: 'dry', label: 'Dry' },
-          ]}
-          onChange={(value) =>
-            update({ soilMoisture: value === choose.value ? null : (value as InteriorSoilMoisture) })
-          }
-        />
-        <OptionalNumberField
-          label="Homogeneous section length (m, optional)"
-          value={inputs.lengthM ?? null}
-          onChange={(lengthM) => update({ lengthM })}
-          min={0}
-          max={100000}
-          placeholder="Unit comparison only"
-        />
+        {group && <p className="text-2xs leading-4 text-muted-foreground">{group.boundaries}</p>}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <OptionalNumberField
+            label="Uphill side slope (%)"
+            value={inputs.sideSlopePercent}
+            onChange={(sideSlopePercent) => update({ sideSlopePercent })}
+            min={0}
+            max={500}
+            placeholder="Not checked"
+            hint="Measured across the hillside, perpendicular to the centreline. It is not road grade."
+          />
+          <OptionalNumberField
+            label="Section rock (%)"
+            value={inputs.rockPercent}
+            onChange={(rockPercent) => update({ rockPercent })}
+            min={0}
+            max={100}
+            placeholder="Not checked"
+            hint="Needs supporting field evidence."
+          />
+          <ReferenceSelect
+            label="Interior road type"
+            value={inputs.roadType ?? choose.value}
+            options={[
+              choose,
+              { value: 'long-term', label: 'Long-term · raised subgrade and ditch' },
+              { value: 'short-term', label: 'Short-term · bladed surface' },
+              { value: 'snow-ice', label: 'Snow/ice · separate method' },
+            ]}
+            onChange={(value) => update({ roadType: value === choose.value ? null : (value as InteriorRoadType) })}
+          />
+          <ReferenceSelect
+            label="Verified BEC zone"
+            value={inputs.becZone ?? choose.value}
+            options={[
+              choose,
+              ...['ESSF', 'ICH', 'CWH', 'SBS', 'MS'].map((value) => ({ value, label: value })),
+              { value: 'other', label: 'Other verified BEC zone' },
+            ]}
+            onChange={(value) => update({ becZone: value === choose.value ? null : (value as InteriorBecZone) })}
+            hint="Needs supporting evidence. Unknown does not mean other."
+          />
+          <ReferenceSelect
+            label="Absolute soil moisture"
+            value={inputs.soilMoisture ?? choose.value}
+            options={[
+              choose,
+              { value: 'wet', label: 'Wet' },
+              { value: 'moist', label: 'Moist' },
+              { value: 'dry', label: 'Dry' },
+            ]}
+            onChange={(value) =>
+              update({ soilMoisture: value === choose.value ? null : (value as InteriorSoilMoisture) })
+            }
+            hint="Follows the manual's Appendix III classification."
+          />
+          <OptionalNumberField
+            label="Homogeneous section length (m, optional)"
+            value={inputs.lengthM ?? null}
+            onChange={(lengthM) => update({ lengthM })}
+            min={0}
+            max={100000}
+            placeholder="Unit comparison only"
+            hint="Scales the comparison total. Formal appraisal sections are recorded to the nearest 100 m, normally at least 1 km."
+          />
+        </div>
       </div>
-      <p className="text-2xs leading-4 text-muted-foreground">
-        Side slope is measured across the hillside, perpendicular to the centreline; it is not road grade. Soil moisture
-        follows the manual’s Appendix III classification. Rock and BEC need supporting evidence.
-      </p>
-      <CollapsibleSection label="Applicability and exclusions" defaultOpen contentClassName="space-y-2 px-2 pb-2">
+
+      <section className="space-y-2 border-t pt-4" aria-label="Applicability and exclusions">
+        <ReferenceHeading info="Unknown conditions need review before you confirm. The equation does not certify ECE eligibility, survey quality or engineering approval.">
+          Applicability
+        </ReferenceHeading>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
           <OptionalNumberField
             label="Running surface width (m, optional)"
@@ -176,25 +188,29 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             }
           />
         </div>
-        {scopeFlags.map(([key, label]) => (
-          <ToggleRow
-            key={key}
-            active={inputs.conditions?.[key] === true}
-            label={label}
-            onClick={() => update({ conditions: { ...inputs.conditions, [key]: !inputs.conditions?.[key] } })}
-          />
-        ))}
-        <p className="text-2xs leading-4 text-muted-foreground">
-          Confirm: {scopeStatement} Unknown conditions need review before confirming.
-        </p>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+          {scopeFlags.map(([key, label]) => (
+            <ToggleRow
+              key={key}
+              layout="tile"
+              active={inputs.conditions?.[key] === true}
+              label={label}
+              tone="amber"
+              onClick={() => update({ conditions: { ...inputs.conditions, [key]: !inputs.conditions?.[key] } })}
+            />
+          ))}
+        </div>
+        <p className="text-2xs leading-4 text-muted-foreground">Confirm: {scopeStatement}</p>
         <ToggleRow
           active={reviewed}
           label="Applicability reviewed"
+          tone="primary"
           aria-label="Confirm Interior benchmark applicability reviewed"
           onClick={() => setReviewed((value) => !value)}
         />
-      </CollapsibleSection>
-      <div data-testid="road-interior-benchmark-result" aria-live="polite">
+      </section>
+
+      <div data-testid="road-interior-benchmark-result" aria-live="polite" className="border-t pt-4">
         {result.status === 'not-applicable' ? (
           <InlineAlert tone="warning" title="Separate cost method required">
             {result.errors.map((error) => (
@@ -202,30 +218,47 @@ export function BCInteriorBenchmark({ regionName }: { regionName?: string }) {
             ))}
           </InlineAlert>
         ) : result.status === 'needs-input' ? (
-          <p className="text-2xs text-muted-foreground">{result.errors.join(' ')}</p>
+          <div className="text-2xs leading-4 text-muted-foreground">
+            <p className="font-medium text-foreground">Still needed</p>
+            <ul className="mt-1 list-disc space-y-0.5 pl-4">
+              {result.errors.map((error) => (
+                <li key={error}>{error}</li>
+              ))}
+            </ul>
+          </div>
         ) : !reviewed ? (
           <InlineAlert>Review applicability to show the comparison.</InlineAlert>
         ) : (
           <div className="space-y-1 text-xs">
-            <p className="text-base font-semibold">{referenceMoney(result.subgradePerKm!)} CAD/km · subgrade</p>
-            <p className="text-muted-foreground">2024 cost base · side slope used: {result.slopeUsedPercent}%.</p>
+            <p className="text-base font-semibold tabular-nums">
+              {referenceMoney(result.subgradePerKm!)} CAD/km · subgrade
+            </p>
+            <p className="text-muted-foreground">
+              {BC_INTERIOR_COST_SOURCE.costBaseYear} cost base · side slope used: {result.slopeUsedPercent}%
+            </p>
             {result.subgradeTotal !== null && (
-              <p>{referenceMoney(result.subgradeTotal)} CAD for the entered section length, before any escalation.</p>
+              <p className="tabular-nums">
+                {referenceMoney(result.subgradeTotal)} CAD for the entered length, before escalation
+              </p>
             )}
-            <p className="text-muted-foreground">This comparison is not added to the covered estimate.</p>
           </div>
         )}
       </div>
-      <CollapsibleSection label="What this allowance includes" contentClassName="space-y-2 px-2 pb-2">
-        {result.cautions.map((caution) => (
-          <p key={caution} className="text-2xs leading-4 text-muted-foreground">
-            {caution}
-          </p>
-        ))}
-      </CollapsibleSection>
-      <Button type="button" variant="outline" size="sm" disabled={!ready} onClick={download}>
-        Download Interior comparison JSON
-      </Button>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="outline" size="sm" disabled={!ready} onClick={download}>
+          Download Interior comparison JSON
+        </Button>
+        <InfoTip label="What this allowance includes" showLabel bubbleClassName="w-96">
+          <span className="block space-y-2">
+            {result.cautions.map((caution) => (
+              <span key={caution} className="block">
+                {caution}
+              </span>
+            ))}
+          </span>
+        </InfoTip>
+      </div>
     </div>
   )
 }

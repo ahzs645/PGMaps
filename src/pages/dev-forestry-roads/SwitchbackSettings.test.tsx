@@ -38,15 +38,18 @@ describe('switchback settings', () => {
       renderer = create(createElement(Host, { saved }))
     })
     expect(text(renderer!)).toContain('Off')
-    expect(text(renderer!)).not.toContain('Radius (m)')
+    expect(renderer!.root.findAll((n) => n.props['aria-label'] === 'Radius (m)')).toHaveLength(0)
     const allow = renderer!.root.findByProps({ 'data-testid': 'road-route-allow-switchbacks' })
     act(() => allow.props.onChange({ target: { checked: true } }))
     expect(saved.at(-1)!.switchbacks).toMatchObject({ allow: true, radiusM: null, platformSlopePercent: 55 })
     const shown = text(renderer!)
     // The summary states the values in force: the road's 25 m minimum radius, 3 R apart.
     expect(shown).toContain('R 25 m · ≥ 75 m apart · platform ≤ 25% over 55%')
+    // A unit in brackets is shown inside the field ("Radius" … "m"); the input keeps the whole label as its name.
     for (const label of ['Radius (m)', 'Spacing (× R)', 'Platform over %', 'Minimum grade %', 'Pass points within (m)'])
-      expect(shown).toContain(label)
+      expect(shown.includes(label) || renderer!.root.findAll((n) => n.props['aria-label'] === label).length > 0).toBe(
+        true,
+      )
     // The sharpest stackable turn for 12 % at R 25 m, in the explanation.
     expect(shown).toContain('164.3°')
   })

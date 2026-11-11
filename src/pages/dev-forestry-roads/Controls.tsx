@@ -76,10 +76,41 @@ export function RoadSelect({
 
 function hintAction(label: string, hint?: ReactNode) {
   return hint ? (
-    <InfoTip label={`About ${label}`} className="absolute -top-0.5 right-0">
+    <InfoTip label={`About ${label}`} className="road-field-hint absolute -top-0.5 right-0">
       {hint}
     </InfoTip>
   ) : undefined
+}
+
+/**
+ * A label that ends in a short unit, "Grade limit (%)" or "Cut ($/m³)", shows the unit inside the
+ * field's box instead. The input keeps the whole label as its name, so assistive technology and
+ * `getByLabel` read it unchanged. Bracketed words such as "(optional)" are not units.
+ */
+export function splitUnit(label: string): { text: string; unit: string } | null {
+  const match = /^(.*\S)\s*\(([^\s()]{1,6})\)$/.exec(label)
+  return match ? { text: match[1], unit: match[2] } : null
+}
+
+/** The bordered box, its borderless input and the unit inside it (`splitUnit`). */
+const unitRowClass =
+  'road-unit-field flex w-full min-w-0 items-center rounded-md border border-input bg-background focus-within:ring-1 focus-within:ring-ring md:h-8'
+const unitInputClass =
+  'w-full min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-base outline-none md:h-full md:text-xs'
+const unitClass = 'pointer-events-none shrink-0 pr-2 text-xs text-muted-foreground'
+
+/** Label, name and box props for a road number field, with the unit inside the box when it has one. */
+function unitProps(label: string, ariaLabel: string | undefined, hideLabel: boolean, inputClassName: string) {
+  const split = !hideLabel && inputClassName === roadFieldClass ? splitUnit(label) : null
+  if (!split) return { label, 'aria-label': ariaLabel, inputClassName }
+  return {
+    label: split.text,
+    'aria-label': ariaLabel ?? label,
+    unit: split.unit,
+    rowClassName: unitRowClass,
+    inputClassName: unitInputClass,
+    unitClassName: unitClass,
+  }
 }
 
 export function Field({
@@ -173,8 +204,7 @@ export function NumberField({
   const note = useRangeNote(value, min, max)
   return (
     <SharedNumberField
-      label={label}
-      aria-label={ariaLabel}
+      {...unitProps(label, ariaLabel, hideLabel, inputClassName)}
       value={value}
       onValueChange={onChange}
       updateOn={updateOn}
@@ -188,7 +218,6 @@ export function NumberField({
       clampOn={clampOn}
       disabled={disabled}
       hideLabel={hideLabel}
-      inputClassName={inputClassName}
       hintAction={hintAction(label, hint)}
       error={error ?? note.outOfRange}
       description={note.adjusted && <span role="status">{note.adjusted}</span>}
@@ -273,7 +302,7 @@ export function OptionalNumberField({
   const note = useRangeNote(value, min, max)
   return (
     <NullableNumberField
-      label={label}
+      {...unitProps(label, undefined, hideLabel, roadFieldClass)}
       value={value}
       onValueChange={onChange}
       updateOn={updateOn}
@@ -288,7 +317,6 @@ export function OptionalNumberField({
       placeholder={placeholder}
       hideLabel={hideLabel}
       disabled={disabled}
-      inputClassName={roadFieldClass}
       hintAction={hintAction(label, hint)}
     />
   )

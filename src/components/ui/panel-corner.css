@@ -33,6 +33,14 @@
   ):not([data-fullscreen]) {
   padding-block-end: 4px;
 }
+/* The plan's map fills its frame, so its bottom margin matches the sides (p-3) and the grip sits over the
+   map's rounded corner. A touch grip is larger and would cover the legend, so it keeps the reserve. */
+@media not (pointer: coarse) {
+  .road-workspace[data-interface]
+    section:has(> .lp-panel-grip):has([data-testid='road-plan-view']):not([data-fullscreen]) {
+    padding-block-end: 0.75rem;
+  }
+}
 .lp-guide-window {
   position: relative;
   display: flex;

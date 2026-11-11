@@ -17,10 +17,44 @@ describe('removeRoad', () => {
     expect(removeRoad(project('starter'), 'starter')!.project.activeAlignmentId).toBe('spur')
   })
 
-  it('keeps the road on screen when another one is removed, and never removes the last road', () => {
+  it('keeps the road on screen when another one is removed', () => {
     expect(removeRoad(project('spur'), 'starter')!.project.activeAlignmentId).toBe('spur')
-    expect(removeRoad({ alignments: [road('only')], activeAlignmentId: 'only' }, 'only')).toBeNull()
     expect(removeRoad(project('spur'), 'missing')).toBeNull()
+  })
+
+  it('leaves an empty design when the last road goes, keeping none of its line', () => {
+    const only = {
+      ...road('only'),
+      points: [
+        { id: 'a', coordinate: [-122.8, 53.9], radiusM: 0 },
+        { id: 'b', coordinate: [-122.79, 53.9], radiusM: 25 },
+        { id: 'c', coordinate: [-122.78, 53.91], radiusM: 0 },
+      ],
+      vertical: [{ id: 'v', chainage: 10, elevation: 700 }],
+      template: { leftWidth: 2.5 },
+    } as unknown as Alignment
+    const result = removeRoad({ alignments: [only], activeAlignmentId: 'only' }, 'only')!
+    const [placeholder] = result.project.alignments
+    expect(result.project).toMatchObject({ workspaceMode: 'design', designPlaceholderId: placeholder.id })
+    expect(result.project.activeAlignmentId).toBe(placeholder.id)
+    expect(placeholder.id).not.toBe('only')
+    expect(placeholder.points.map((p) => p.coordinate)).toEqual([
+      [-122.8, 53.9],
+      [-122.78, 53.91],
+    ])
+    expect(placeholder.vertical).toEqual([])
+    // The next road copies the active road's template, so the standards carry over.
+    expect(placeholder.template).toBe(only.template)
+    // An empty design has nothing left to delete, and an investigation's draft is not a road.
+    expect(removeRoad(result.project, placeholder.id)).toBeNull()
+    expect(
+      removeRoad({ alignments: [only], activeAlignmentId: 'only', workspaceMode: 'access-investigation' }, 'only'),
+    ).toBeNull()
+
+    const restored = restoreRoad(result.project, result.removed)
+    expect(restored.alignments).toEqual([only])
+    expect(restored.activeAlignmentId).toBe('only')
+    expect(restored).not.toHaveProperty('designPlaceholderId')
   })
 })
 

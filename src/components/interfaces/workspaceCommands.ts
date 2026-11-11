@@ -51,6 +51,7 @@ import {
   Spline,
   Table2,
   LayoutTemplate,
+  Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { WorkflowEditor } from './workspaceLayoutSchema'
@@ -89,6 +90,7 @@ export const workspaceCommands = {
   drawAvoid: { label: 'Mark avoidance area', icon: Shapes },
   importAlignment: { label: 'Import road line', icon: FileUp },
   duplicateRoad: { label: 'Duplicate road', icon: Copy },
+  deleteRoad: { label: 'Delete road', icon: Trash2 },
   traceRoad: { label: 'Trace existing road', icon: Route },
   inspect: { label: 'Inspect map', icon: MousePointer2 },
   crossSection: { label: 'Cross-section', icon: ScanLine },

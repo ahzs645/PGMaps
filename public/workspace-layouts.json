@@ -81,7 +81,7 @@
             {
               "label": "Edit alignment",
               "rows": 2,
-              "items": ["editPoints", "extend", "undo", "redo"],
+              "items": ["editPoints", "extend", "undo", "redo", "deleteRoad"],
               "more": ["inspect"]
             }
           ]

@@ -391,25 +391,15 @@ export function RouteFinder({
             onChange={(minRadius) => w.update((x) => ({ ...x, settings: { ...x.settings, minRadius } }))}
           />
         </div>
+        {/* The drawing's own card on the plan counts its points and finishes it; this only says why
+            the search waits. */}
         {drawing && (
-          <InlineAlert tone="warning" className="flex items-center gap-2">
-            <span className="min-w-0 flex-1" data-testid="road-route-drawing">
+          <InlineAlert tone="info">
+            <span data-testid="road-route-drawing">
               {drawing.kind === 'extend'
-                ? `You are extending this road (${plural(drawing.points, 'new point')}). Finish the extension to search between its ends.`
-                : `You are pegging a new road (${plural(drawing.points, 'point')}). Finish it to search between its ends.`}
+                ? 'Finish the extension on the plan to search between its ends.'
+                : 'Finish the new road on the plan to search between its ends.'}
             </span>
-            <Button
-              size="sm"
-              className="h-7 shrink-0 px-2 text-xs"
-              disabled={!drawing.canFinish}
-              title={drawing.canFinish ? undefined : 'Click the plan to add points first'}
-              onClick={drawing.onFinish}
-              data-testid="road-route-finish-drawing"
-            >
-              {/* The plan's own button carries the full name; two buttons called "Finish road" on
-                  one screen cannot be told apart by name. */}
-              Finish
-            </Button>
           </InlineAlert>
         )}
         <Button

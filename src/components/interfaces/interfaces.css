@@ -591,6 +591,24 @@
 .lp-quick-setting > div:has(button[aria-label^='About']) {
   padding-right: 18px;
 }
+/* The (i) sits on the field's row, centred on the input rather than above it. */
+.lp-quick-setting > div > .road-field-hint {
+  top: 0;
+  height: 24px;
+  align-items: center;
+}
+/* A unit inside the box (`splitUnit`, Controls.tsx): the box takes the input's ribbon size. */
+.lp-quick-setting .road-unit-field {
+  width: auto;
+  height: 24px;
+}
+.lp-quick-setting .road-unit-field input[type='number'] {
+  height: 100%;
+  padding-block: 0;
+}
+.road-unit-field input:focus-visible {
+  outline: none;
+}
 .lp-ribbon[data-compact-ribbon] .lp-group-items > .lp-command {
   min-width: 50px;
   min-height: 44px;
@@ -609,6 +627,15 @@
   .lp-quick-setting [role='combobox'] {
     min-height: 30px;
     font-size: 16px;
+  }
+  .lp-quick-setting .road-unit-field {
+    height: 30px;
+  }
+  .lp-quick-setting .road-unit-field input[type='number'] {
+    min-height: 0;
+  }
+  .lp-quick-setting > div > .road-field-hint {
+    height: 30px;
   }
 }
 

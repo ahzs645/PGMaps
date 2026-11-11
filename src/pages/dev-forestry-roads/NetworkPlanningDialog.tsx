@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { ExternalLink } from '@/components/ui/text-button'
-import { InlineAlert } from '@/components/ui/map-panels'
+import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
+import { CheckboxField } from '@/components/ui/form-field'
+import { StatGroup } from '@/components/ui/stat-group'
 import { TabBar } from '@/components/ui/tab-bar'
 import { downloadText } from '@/lib/download'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
@@ -364,10 +366,20 @@ export function NetworkPlanningDialog({
     }
   }
   if (!open) return null
+  const existingRoads = w.project.context.filter((feature) => feature.kind === 'existing-road')
+  const hasHarvest = w.project.context.some((feature) => feature.kind === 'harvest')
+  const example = ROADS_EXAMPLES.find((entry) => entry.id === planning.exampleId)
+  const methodSummary = [
+    methodLabel(planning.options.method),
+    planning.mode === 'project' ? `${fmt(planning.cellM)} m cells` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  const exportDisabled = stale || running
   return (
     <DialogShell
       title="Road network planning"
-      subtitle="Multiple landings · existing access · browser calculations"
+      subtitle="Connect landings to existing access"
       size="xl"
       portalContainer={portalContainer}
       onClose={close}
@@ -392,30 +404,47 @@ export function NetworkPlanningDialog({
       }
     >
       <div className="space-y-4">
-        <TabBar
-          label="Network planning view"
-          value={tab}
-          onChange={setTab}
-          options={[
-            { value: 'setup', label: 'Inputs & scenarios' },
-            { value: 'results', label: 'Results & utilities' },
-          ]}
-        />
+        <div className="flex items-center gap-2">
+          <TabBar
+            className="min-w-0 flex-1"
+            label="Network planning view"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'setup', label: 'Setup' },
+              { value: 'results', label: 'Results', disabled: !review },
+            ]}
+          />
+          <InfoTip label="About the method and source">
+            Browser adaptation of{' '}
+            <ExternalLink
+              href="https://github.com/LandSciTech/roads"
+              hideIcon
+              className="inline font-normal text-inherit underline dark:text-inherit"
+            >
+              LandSciTech/roads
+            </ExternalLink>{' '}
+            (Apache-2.0, attributed in the code), run in a browser worker. Methods can produce different networks; a
+            minimum spanning tree of terminal paths is not a globally optimal engineered network. Raster cells
+            approximate road placement, missing terrain stays blocked, and every projection needs field review and
+            detailed design before it is built.
+          </InfoTip>
+        </div>
         {error && <InlineAlert tone="error">{error}</InlineAlert>}
         {note && (
-          <p className="text-sm" role="status">
-            {note}
-          </p>
+          <div role="status">
+            <InlineAlert>{note}</InlineAlert>
+          </div>
         )}
         {stale && (
           <InlineAlert tone="warning">
-            The project or inputs changed. Recalculate before map inspection, adoption or exporting a current result.
-            The previous result remains visible for reference.
+            The project or inputs changed. Recalculate before inspecting, adopting or exporting; the previous result
+            stays visible for reference.
           </InlineAlert>
         )}
         <div hidden={tab !== 'setup'}>
-          <fieldset disabled={running || !!w.busy} className="min-w-0 space-y-4">
-            <div className="grid gap-3 md:grid-cols-2">
+          <fieldset disabled={running || !!w.busy} className="min-w-0 space-y-3">
+            <div className="grid items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <Field label="Network input source">
                 <RoadSelect
                   ariaLabel="Network input source"
@@ -436,25 +465,26 @@ export function NetworkPlanningDialog({
                   <option value="example">Example or imported raster scenario</option>
                 </RoadSelect>
               </Field>
-              <div className="flex items-end gap-2">
-                <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
-                  Import network scenario JSON
-                </Button>
-                <input
-                  ref={fileInput}
-                  className="hidden"
-                  type="file"
-                  accept=".json,application/json"
-                  aria-label="Network scenario file"
-                  onChange={(event) => {
-                    void importScenario(event.target.files?.[0])
-                    event.target.value = ''
-                  }}
-                />
-              </div>
+              <Button variant="outline" size="sm" onClick={() => fileInput.current?.click()}>
+                Import scenario…
+              </Button>
+              <input
+                ref={fileInput}
+                className="hidden"
+                type="file"
+                accept=".json,application/json"
+                aria-label="Network scenario file"
+                onChange={(event) => {
+                  void importScenario(event.target.files?.[0])
+                  event.target.value = ''
+                }}
+              />
             </div>
             {planning.mode === 'example' ? (
-              <div className="space-y-2 rounded-lg border p-3">
+              <Panel
+                title="Example scenario"
+                tip={`${example?.focus ? `${example.focus} ` : ''}Examples use a local grid and show in the result preview. Switch to current project inputs to create georeferenced roads.`}
+              >
                 <Field label="Network example">
                   <RoadSelect
                     ariaLabel="Network example"
@@ -462,173 +492,90 @@ export function NetworkPlanningDialog({
                     value={planning.exampleId}
                     onValueChange={(value) => chooseExample(value)}
                   >
-                    {ROADS_EXAMPLES.map((example) => (
-                      <option key={example.id} value={example.id}>
-                        {example.name}
+                    {ROADS_EXAMPLES.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
                       </option>
                     ))}
                     {planning.exampleId === 'imported' && <option value="imported">Imported raster scenario</option>}
                   </RoadSelect>
                 </Field>
-                <p className="text-sm">
-                  {ROADS_EXAMPLES.find((example) => example.id === planning.exampleId)?.description ??
-                    'Your imported grid, road seeds and target cells are preserved.'}
-                </p>
                 <p className="text-xs text-muted-foreground">
-                  {ROADS_EXAMPLES.find((example) => example.id === planning.exampleId)?.focus} Examples use a local grid
-                  and appear in the result preview. Switch to current project inputs to create georeferenced roads.
+                  {example?.description ?? 'Your imported grid, road seeds and target cells are preserved.'}
                 </p>
-              </div>
+              </Panel>
             ) : (
               <>
-                <div className="rounded-lg border p-3">
-                  <div className="mb-2 flex items-center gap-1">
-                    <h3 className="text-sm font-semibold">Existing roads to connect to</h3>
-                    <InfoTip label="About existing roads">
-                      Select road sections explicitly. Review their reuse, access and condition inputs under Terrain →
-                      Review existing roads before including them.
-                    </InfoTip>
-                  </div>
-                  <div className="max-h-44 space-y-2 overflow-y-auto overscroll-none">
-                    {w.project.context
-                      .filter((feature) => feature.kind === 'existing-road')
-                      .map((road) => {
-                        const reason = networkSeedReason(road),
-                          eligible = reason === null
+                <Panel
+                  title={`Existing roads${existingRoads.length ? ` (${planning.roadIds.length} of ${existingRoads.length})` : ''}`}
+                  tip="Select the road sections to connect to. Review their reuse, access and condition under Terrain → Review existing roads before including them."
+                >
+                  {existingRoads.length ? (
+                    <div className="max-h-44 space-y-1 overflow-y-auto overscroll-none">
+                      {existingRoads.map((road) => {
+                        const reason = networkSeedReason(road)
                         return (
-                          <label key={road.id} className="flex items-start gap-2 text-sm" data-network-road={road.id}>
-                            <input
-                              type="checkbox"
-                              className="mt-1"
-                              disabled={!eligible}
+                          <div key={road.id} className="flex items-start gap-2" data-network-road={road.id}>
+                            <CheckboxField
+                              className="min-w-0 flex-1 text-sm"
+                              label={road.name}
+                              description={reason ?? undefined}
+                              disabled={reason !== null}
                               checked={planning.roadIds.includes(road.id)}
-                              onChange={(event) =>
+                              onCheckedChange={(checked) =>
                                 patch({
-                                  roadIds: event.target.checked
+                                  roadIds: checked
                                     ? [...planning.roadIds, road.id]
                                     : planning.roadIds.filter((id) => id !== road.id),
                                 })
                               }
                             />
-                            <span>
-                              {road.name}
-                              {reason && <span className="block text-xs text-muted-foreground">{reason}</span>}
-                            </span>
                             {reason && onReviewRoad && (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="ml-auto h-7 shrink-0 text-xs"
-                                onClick={(event) => {
-                                  event.preventDefault()
-                                  onReviewRoad(road.id)
-                                }}
+                                className="h-7 shrink-0 text-xs"
+                                onClick={() => onReviewRoad(road.id)}
                               >
                                 Review road
                               </Button>
                             )}
-                          </label>
+                          </div>
                         )
                       })}
-                    {!w.project.context.some((feature) => feature.kind === 'existing-road') && (
-                      <p className="text-sm">
-                        Import road context or open a training project to select existing access.
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="space-y-3 rounded-lg border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h3 className="flex items-center gap-1 text-sm font-semibold">
-                      Landing targets ({planning.targets.length})
-                      <InfoTip label="About landing targets">
-                        Targets in stage 1 are connected first, and later stages reuse the network before them. Every
-                        rejected or unreachable target is reported. A run supports up to {MAX_NETWORK_TARGETS} targets
-                        across {MAX_NETWORK_STAGES} stages.
-                      </InfoTip>
-                    </h3>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={!planning.targets.length}
-                      onClick={() => patch({ targets: [] })}
-                    >
-                      Clear targets
-                    </Button>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="New target name">
-                      <input
-                        className={roadFieldClass}
-                        value={targetName}
-                        maxLength={200}
-                        onChange={(event) => setTargetName(event.target.value)}
-                      />
-                    </Field>
-                    <NumberField
-                      label="New target stage"
-                      value={targetStage}
-                      min={1}
-                      max={MAX_NETWORK_STAGES}
-                      step={1}
-                      onChange={(value) => setTargetStage(Math.round(value))}
-                    />
-                  </div>
-                  <PlanningCoordinateField label="New target" value={targetCoordinate} onChange={setTargetCoordinate} />
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTargetCoordinate([...w.alignment.points.at(-1)!.coordinate])}
-                    >
-                      Use active road end
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setTargetCoordinate([...w.alignment.points[0].coordinate])}
-                    >
-                      Use active road start
-                    </Button>
-                    <Button
-                      size="sm"
-                      disabled={
-                        !targetCoordinate || !targetName.trim() || planning.targets.length >= MAX_NETWORK_TARGETS
-                      }
-                      onClick={() => {
-                        if (targetCoordinate) {
-                          patch({
-                            targets: [
-                              ...planning.targets,
-                              {
-                                id: crypto.randomUUID(),
-                                name: targetName.trim(),
-                                coordinate: [...targetCoordinate],
-                                stage: targetStage,
-                              },
-                            ],
-                          })
-                          setTargetName(`Landing ${planning.targets.length + 2}`)
-                        }
-                      }}
-                    >
-                      Add landing target
-                    </Button>
-                  </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      No existing roads loaded. Import road context or open a training project.
+                    </p>
+                  )}
+                </Panel>
+                <Panel
+                  title={`Landing targets (${planning.targets.length})`}
+                  tip={`Stage 1 targets connect first; later stages reuse the network before them. Every rejected or unreachable target is reported. Up to ${MAX_NETWORK_TARGETS} targets across ${MAX_NETWORK_STAGES} stages.`}
+                  actions={
+                    planning.targets.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={() => patch({ targets: [] })}>
+                        Clear targets
+                      </Button>
+                    )
+                  }
+                >
                   {planning.targets.length > 0 && (
-                    <div
-                      className="max-h-72 space-y-3 overflow-y-auto overscroll-none rounded border p-2"
+                    <ol
+                      className="max-h-72 divide-y divide-border overflow-y-auto overscroll-none rounded-md border"
                       aria-label="Landing target editor"
                     >
                       {planning.targets.map((target, index) => (
-                        <div key={target.id} className="space-y-2 border-b pb-2 last:border-0">
+                        <li key={target.id} className="space-y-2 p-2">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm font-medium">
+                            <span className="truncate text-sm font-medium">
                               {index + 1}. {target.name}
                             </span>
                             <Button
                               variant="ghost"
                               size="sm"
+                              className="h-7 shrink-0 text-xs"
                               aria-label={`Remove target ${target.name}`}
                               onClick={() =>
                                 patch({ targets: planning.targets.filter((item) => item.id !== target.id) })
@@ -637,39 +584,114 @@ export function NetworkPlanningDialog({
                               Remove
                             </Button>
                           </div>
-                          <PlanningCoordinateField
-                            label={`Target ${index + 1}`}
-                            value={target.coordinate}
-                            onChange={(coordinate) => {
-                              if (coordinate)
+                          <div className="grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                            <PlanningCoordinateField
+                              label={`Target ${index + 1}`}
+                              value={target.coordinate}
+                              onChange={(coordinate) => {
+                                if (coordinate)
+                                  patch({
+                                    targets: planning.targets.map((item) =>
+                                      item.id === target.id ? { ...item, coordinate } : item,
+                                    ),
+                                  })
+                              }}
+                            />
+                            <NumberField
+                              label={`Target ${index + 1} stage`}
+                              value={target.stage}
+                              min={1}
+                              max={MAX_NETWORK_STAGES}
+                              step={1}
+                              onChange={(stage) =>
                                 patch({
                                   targets: planning.targets.map((item) =>
-                                    item.id === target.id ? { ...item, coordinate } : item,
+                                    item.id === target.id ? { ...item, stage: Math.round(stage) } : item,
                                   ),
                                 })
-                            }}
-                          />
-                          <NumberField
-                            label={`Target ${index + 1} stage`}
-                            value={target.stage}
-                            min={1}
-                            max={MAX_NETWORK_STAGES}
-                            step={1}
-                            onChange={(stage) =>
-                              patch({
-                                targets: planning.targets.map((item) =>
-                                  item.id === target.id ? { ...item, stage: Math.round(stage) } : item,
-                                ),
-                              })
-                            }
-                          />
-                        </div>
+                              }
+                            />
+                          </div>
+                        </li>
                       ))}
-                    </div>
+                    </ol>
                   )}
-                  <details className="rounded border p-2 text-sm">
-                    <summary className="cursor-pointer font-medium">Generate targets from harvest polygons</summary>
-                    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  <div className="space-y-2 rounded-md bg-muted/40 p-2">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                      <Field label="New target name">
+                        <input
+                          className={roadFieldClass}
+                          value={targetName}
+                          maxLength={200}
+                          onChange={(event) => setTargetName(event.target.value)}
+                        />
+                      </Field>
+                      <NumberField
+                        label="New target stage"
+                        value={targetStage}
+                        min={1}
+                        max={MAX_NETWORK_STAGES}
+                        step={1}
+                        onChange={(value) => setTargetStage(Math.round(value))}
+                      />
+                    </div>
+                    <PlanningCoordinateField
+                      label="New target"
+                      value={targetCoordinate}
+                      onChange={setTargetCoordinate}
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Place at:</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Use active road start"
+                        onClick={() => setTargetCoordinate([...w.alignment.points[0].coordinate])}
+                      >
+                        Road start
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-label="Use active road end"
+                        onClick={() => setTargetCoordinate([...w.alignment.points.at(-1)!.coordinate])}
+                      >
+                        Road end
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="ml-auto"
+                        disabled={
+                          !targetCoordinate || !targetName.trim() || planning.targets.length >= MAX_NETWORK_TARGETS
+                        }
+                        onClick={() => {
+                          if (targetCoordinate) {
+                            patch({
+                              targets: [
+                                ...planning.targets,
+                                {
+                                  id: crypto.randomUUID(),
+                                  name: targetName.trim(),
+                                  coordinate: [...targetCoordinate],
+                                  stage: targetStage,
+                                },
+                              ],
+                            })
+                            setTargetName(`Landing ${planning.targets.length + 2}`)
+                          }
+                        }}
+                      >
+                        Add landing target
+                      </Button>
+                    </div>
+                  </div>
+                  <CollapsibleSection
+                    label="Generate from harvest polygons"
+                    summary={hasHarvest ? undefined : 'No harvest polygons loaded'}
+                    className="rounded-md border"
+                    contentClassName="space-y-3 px-3 pb-3"
+                  >
+                    <div className="grid gap-3 sm:grid-cols-3">
                       <Field label="Landing sampling">
                         <RoadSelect
                           ariaLabel="Landing sampling"
@@ -699,13 +721,8 @@ export function NetworkPlanningDialog({
                         onChange={(seed) => patch({ randomSeed: Math.round(seed) })}
                       />
                     </div>
-                    <div className="mt-2 flex items-center gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void generate()}
-                        disabled={!w.project.context.some((feature) => feature.kind === 'harvest')}
-                      >
+                    <div className="flex items-center gap-1">
+                      <Button variant="outline" size="sm" onClick={() => void generate()} disabled={!hasHarvest}>
                         Generate polygon landing candidates
                       </Button>
                       <InfoTip label="About generated landings">
@@ -713,35 +730,30 @@ export function NetworkPlanningDialog({
                         candidates; access and landing suitability need review. Generation replaces the target list.
                       </InfoTip>
                     </div>
-                  </details>
-                </div>
+                  </CollapsibleSection>
+                </Panel>
               </>
             )}
-            <div className="flex items-start gap-1">
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1"
+            <Panel title="Method">
+              <div className="flex items-start gap-1">
+                <CheckboxField
+                  className="text-sm"
+                  label="Compare all four methods"
                   checked={compare}
-                  onChange={(event) => setCompare(event.target.checked)}
+                  onCheckedChange={setCompare}
                 />
-                <span>Compare all four methods using the same inputs and stages</span>
-              </label>
-              <InfoTip label="About network objectives">
-                Objectives are relative network weights. They do not include engineered cut/fill, culverts,
-                rehabilitation, loaded haul or construction quantities. Use Complete route cost comparison for those
-                entered costs.
-              </InfoTip>
-            </div>
-            <details className="rounded-lg border p-3" data-testid="network-method-settings">
-              <summary className="cursor-pointer text-sm font-semibold">
-                Method & grid
-                <span className="ml-2 font-normal text-muted-foreground">
-                  {NETWORK_METHODS.find((method) => method.value === planning.options.method)!.label}
-                  {planning.mode === 'project' ? ` · ${planning.cellM} m cells` : ''}
-                </span>
-              </summary>
-              <div className="mt-3 space-y-3">
+                <InfoTip label="About network objectives">
+                  Each method runs on the same inputs and stages; pick one in the results. Objectives are relative
+                  network weights. They do not include engineered cut/fill, culverts, rehabilitation, loaded haul or
+                  construction quantities. Use Complete route cost comparison for those entered costs.
+                </InfoTip>
+              </div>
+              <CollapsibleSection
+                label="Settings"
+                summary={methodSummary}
+                className="rounded-md border"
+                contentClassName="space-y-3 px-3 pb-3"
+              >
                 {planning.mode === 'project' && (
                   <div className="grid gap-3 sm:grid-cols-3">
                     <NumberField
@@ -773,20 +785,18 @@ export function NetworkPlanningDialog({
                   </div>
                 )}
                 <NetworkOptions value={planning.options} projectMode={planning.mode === 'project'} onChange={options} />
-              </div>
-            </details>
+              </CollapsibleSection>
+            </Panel>
           </fieldset>
         </div>
-        <div hidden={tab !== 'results'} className="space-y-4">
+        <div hidden={tab !== 'results'} className="space-y-3">
           {!review || !activeResult ? (
-            <p className="py-8 text-center text-sm text-muted-foreground">
-              Choose project inputs or a scenario, then project the network.
-            </p>
+            <p className="py-8 text-center text-sm text-muted-foreground">Project the network to see results here.</p>
           ) : (
             <>
               <p className="text-xs text-muted-foreground">{review.prepared.provenance}</p>
               {review.results.length > 1 && (
-                <div className="overflow-x-auto overscroll-none rounded border">
+                <div className="overflow-x-auto overscroll-none rounded-lg border bg-background">
                   <EngineeringTable rowHeaders>
                     <caption className="whitespace-normal p-2 text-left text-xs font-semibold">
                       Method comparison · relative objective, unique edge lengths
@@ -834,19 +844,18 @@ export function NetworkPlanningDialog({
                 </div>
               )}
               <NetworkResultPreview prepared={review.prepared} result={activeResult} selectedPathId={activePath?.id} />
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                {[
-                  ['New road', `${fmt(activeResult.newLengthM)} m`],
-                  ['Reused', `${fmt(activeResult.reusedLengthM)} m`],
-                  ['Relative objective', fmt(activeResult.objective, 2)],
-                  ['Stages completed', fmt(activeResult.simulation.stage, 0)],
-                ].map(([label, value]) => (
-                  <div key={label} className="rounded border p-3">
-                    <span className="block text-xs text-muted-foreground">{label}</span>
-                    <strong className="text-lg">{value}</strong>
-                  </div>
-                ))}
-              </div>
+              <StatGroup
+                variant="tiles"
+                size="md"
+                columns={4}
+                aria-label="Network totals"
+                items={[
+                  { label: 'New road', value: `${fmt(activeResult.newLengthM)} m` },
+                  { label: 'Reused', value: `${fmt(activeResult.reusedLengthM)} m` },
+                  { label: 'Relative objective', value: fmt(activeResult.objective, 2) },
+                  { label: 'Stages completed', value: fmt(activeResult.simulation.stage, 0) },
+                ]}
+              />
               {review.prepared.warnings.length + activeResult.warnings.length > 0 && (
                 <InlineAlert tone="warning">
                   <ul className="list-disc space-y-1 pl-4">
@@ -856,7 +865,7 @@ export function NetworkPlanningDialog({
                   </ul>
                 </InlineAlert>
               )}
-              <div className="overflow-x-auto overscroll-none rounded border">
+              <div className="overflow-x-auto overscroll-none rounded-lg border bg-background">
                 <EngineeringTable variant="text" rowHeaders aria-label="Network target outcomes">
                   <thead>
                     <tr>
@@ -881,8 +890,11 @@ export function NetworkPlanningDialog({
                 </EngineeringTable>
               </div>
               {activeResult.paths.length > 0 && (
-                <div className="space-y-2 rounded border p-3">
-                  <Field label="Projected branch">
+                <Panel title="Use a branch">
+                  <Field
+                    label="Projected branch"
+                    hint="A raster branch has sharp cell-to-cell corners. Adoption creates an editable road with no fitted curves or designed vertical profile. Existing seed-road runs at its ends are trimmed; a path with an interior seed-road run needs splitting first. Branches can share portions, so review overlap before adding quantities across roads. Refine it with the curve, switchback, profile and section tools."
+                  >
                     <RoadSelect
                       ariaLabel="Projected branch"
                       className={roadFieldClass}
@@ -891,18 +903,14 @@ export function NetworkPlanningDialog({
                     >
                       {activeResult.paths.map((path, i) => (
                         <option key={path.id} value={path.id}>
-                          Branch {i + 1} · {fmt(path.lengthM)} m · {path.targetIds.join(', ') || 'network connector'}
+                          Branch {i + 1} · {fmt(path.lengthM)} m ·{' '}
+                          {path.targetIds
+                            .map((id) => activeResult.targets.find((target) => target.id === id)?.name ?? id)
+                            .join(', ') || 'network connector'}
                         </option>
                       ))}
                     </RoadSelect>
                   </Field>
-                  <p className="text-xs text-muted-foreground">
-                    A raster branch has sharp cell-to-cell corners. Adoption creates an editable road with no fitted
-                    curves or designed vertical profile. Existing seed-road runs at its ends are trimmed; a path with an
-                    interior seed-road run needs splitting before adoption. Previously projected branches can share
-                    portions, so review overlap before adding construction quantities across roads. Use the curve,
-                    switchback, profile and section tools to refine it.
-                  </p>
                   <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
@@ -922,19 +930,21 @@ export function NetworkPlanningDialog({
                   </div>
                   {!review.prepared.canAdopt && (
                     <p className="text-xs text-muted-foreground">
-                      This local raster scenario has no verified map projection. Run against current project terrain to
-                      adopt a branch.
+                      This local raster scenario has no verified map projection. Run against the current project terrain
+                      to adopt a branch.
                     </p>
                   )}
-                </div>
+                </Panel>
               )}
-              <div className="space-y-2 rounded border p-3">
-                <h3 className="text-sm font-semibold">Exports and raster utilities</h3>
+              <Panel
+                title="Exports"
+                tip="Grid coordinates and cell IDs refer to the recorded analysis grid. Road proximity is straight-line distance from seed cells, not haul distance or accumulated route cost."
+              >
                 <div className="flex flex-wrap gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={stale || running}
+                    disabled={exportDisabled}
                     onClick={() =>
                       downloadText(
                         serializeNetworkScenario(review.prepared, review.results),
@@ -948,7 +958,7 @@ export function NetworkPlanningDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={stale || running}
+                    disabled={exportDisabled}
                     onClick={() =>
                       downloadText(networkResultsCsv(activeResult), 'road-network-results.csv', 'text/csv')
                     }
@@ -958,7 +968,7 @@ export function NetworkPlanningDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={stale || running}
+                    disabled={exportDisabled}
                     onClick={() =>
                       downloadText(networkGridCsv(review.prepared, activeResult), 'road-network-grid.csv', 'text/csv')
                     }
@@ -968,7 +978,7 @@ export function NetworkPlanningDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={stale || running}
+                    disabled={exportDisabled}
                     onClick={() => {
                       try {
                         downloadText(networkDistanceCsv(review.prepared), 'road-network-proximity.csv', 'text/csv')
@@ -982,7 +992,7 @@ export function NetworkPlanningDialog({
                   <Button
                     variant="outline"
                     size="sm"
-                    disabled={stale || running || !review.prepared.canAdopt}
+                    disabled={exportDisabled || !review.prepared.canAdopt}
                     onClick={() =>
                       downloadText(
                         JSON.stringify(networkOverlay(review.prepared, activeResult), null, 2),
@@ -994,13 +1004,12 @@ export function NetworkPlanningDialog({
                     Network GeoJSON
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Grid coordinates and cell IDs refer to the recorded analysis grid. Road proximity is straight-line
-                  Euclidean distance from seed cells, not haul distance or accumulated route cost.
-                </p>
-                <details className="rounded border p-2">
-                  <summary className="cursor-pointer text-sm font-medium">Reconstruct raster road lines</summary>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <CollapsibleSection
+                  label="Reconstruct raster road lines"
+                  className="rounded-md border"
+                  contentClassName="space-y-3 px-3 pb-3"
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Raster road line method">
                       <RoadSelect
                         ariaLabel="Raster road line method"
@@ -1026,42 +1035,53 @@ export function NetworkPlanningDialog({
                       </RoadSelect>
                     </Field>
                   </div>
-                  <p className="my-2 text-xs text-muted-foreground">
-                    Reconstruction approximates linework from occupied cells. It can infer connections across gaps and
-                    cannot establish junctions or grade-separated crossings. The exported JSON retains every warning and
-                    inferred cell. It is not adopted as a designed road. Limit: 512 road cells and the documented
-                    computation budget.
-                  </p>
-                  <Button variant="outline" size="sm" disabled={stale || running} onClick={() => void reconstruct()}>
-                    Export reconstructed raster lines
-                  </Button>
-                </details>
-              </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" disabled={exportDisabled} onClick={() => void reconstruct()}>
+                      Export reconstructed raster lines
+                    </Button>
+                    <InfoTip label="About raster reconstruction">
+                      Reconstruction approximates linework from occupied cells. It can infer connections across gaps and
+                      cannot establish junctions or grade-separated crossings. The exported JSON keeps every warning and
+                      inferred cell, and is not adopted as a designed road. Limit: 512 road cells and the documented
+                      computation budget.
+                    </InfoTip>
+                  </div>
+                </CollapsibleSection>
+              </Panel>
             </>
           )}
         </div>
-        <details className="rounded border p-3 text-xs text-muted-foreground">
-          <summary className="cursor-pointer font-medium">Methods and source</summary>
-          <p className="mt-2">
-            Browser adaptation of{' '}
-            <ExternalLink
-              href="https://github.com/LandSciTech/roads"
-              hideIcon
-              className="inline font-normal text-inherit underline dark:text-inherit"
-            >
-              LandSciTech/roads
-            </ExternalLink>
-            , with Apache-2.0 attribution included in the code. Network projection runs in a browser worker. Method
-            choices can produce different networks; a minimum spanning tree of terminal paths does not establish a
-            globally optimal engineered road network.
-          </p>
-          <p className="mt-2">
-            Raster cells approximate road placement and constraints. Missing terrain remains blocked. Network
-            projections require field review and detailed geometric design before use as constructed access.
-          </p>
-        </details>
       </div>
     </DialogShell>
+  )
+}
+
+/** One titled card in the dialog body: a heading with an optional explanation tip and actions on its row. */
+function Panel({
+  title,
+  tip,
+  actions,
+  children,
+}: {
+  title: string
+  tip?: ReactNode
+  actions?: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <SidebarSection
+      headingLevel={3}
+      className="rounded-lg border bg-background p-3"
+      title={
+        <span className="inline-flex items-center gap-1">
+          {title}
+          {tip && <InfoTip label={`About ${title.replace(/\s*\(.*\)$/, '').toLowerCase()}`}>{tip}</InfoTip>}
+        </span>
+      }
+      actions={actions || undefined}
+    >
+      <div className="space-y-3">{children}</div>
+    </SidebarSection>
   )
 }
 
@@ -1215,36 +1235,24 @@ function NetworkOptions({
           )}
         </div>
       )}
-      <label className="flex items-start gap-2 text-xs">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={value.roadsInWeight}
-          onChange={(event) => onChange({ roadsInWeight: event.target.checked })}
-        />
-        <span>Preserve supplied weights on road cells (otherwise burn selected road cells to zero)</span>
-      </label>
-      <label className="flex items-start gap-2 text-xs">
-        <input
-          type="checkbox"
-          className="mt-0.5"
-          checked={value.roadsConnected}
-          onChange={(event) => onChange({ roadsConnected: event.target.checked })}
-        />
-        <span>
-          Treat seed roads as one network connected at zero cost (MST option; zero-cost connectivity is checked)
-        </span>
-      </label>
+      <CheckboxField
+        label="Keep supplied weights on road cells"
+        description="Off: selected road cells cost nothing to cross."
+        checked={value.roadsInWeight}
+        onCheckedChange={(roadsInWeight) => onChange({ roadsInWeight })}
+      />
+      <CheckboxField
+        label="Treat existing roads as one connected network"
+        description="Minimum spanning tree method; zero-cost connectivity is checked."
+        checked={value.roadsConnected}
+        onCheckedChange={(roadsConnected) => onChange({ roadsConnected })}
+      />
       {!projectMode && (
-        <label className="flex items-start gap-2 text-xs">
-          <input
-            type="checkbox"
-            className="mt-0.5"
-            checked={value.preventCornerCutting}
-            onChange={(event) => onChange({ preventCornerCutting: event.target.checked })}
-          />
-          <span>Prevent diagonal paths cutting blocked-cell corners</span>
-        </label>
+        <CheckboxField
+          label="Stop diagonal paths cutting blocked-cell corners"
+          checked={value.preventCornerCutting}
+          onCheckedChange={(preventCornerCutting) => onChange({ preventCornerCutting })}
+        />
       )}
     </div>
   )

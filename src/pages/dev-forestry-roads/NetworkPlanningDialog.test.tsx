@@ -23,6 +23,10 @@ vi.mock('@/components/ui/dialog-shell', () => ({
 vi.mock('@/components/ui/info-tip', () => ({ InfoTip: () => null }))
 vi.mock('@/components/ui/map-panels', () => ({
   InlineAlert: ({ children }: { children: ReactNode }) => createElement('div', {}, children),
+  SidebarSection: ({ title, actions, children }: { title: ReactNode; actions?: ReactNode; children: ReactNode }) =>
+    createElement('section', {}, title, actions, children),
+  CollapsibleSection: ({ label, children }: { label: ReactNode; children: ReactNode }) =>
+    createElement('section', {}, label, children),
 }))
 vi.mock('@/components/ui/tab-bar', () => ({
   TabBar: ({ options, onChange }: { options: { value: string; label: string }[]; onChange: (value: string) => void }) =>

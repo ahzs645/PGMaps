@@ -160,7 +160,7 @@ test('source gaps remain visible across station selection, charts and the terrai
   await expect(warning).toContainText('No ground elevation at 0+600.0')
   const preview = page.getByTestId('road-terrain-preview')
   const canvas = page.getByTestId('road-ground-canvas')
-  await page.getByRole('button', { name: 'Follow station', exact: true }).click()
+  await page.getByRole('button', { name: 'Around station', exact: true }).click()
   await expect(preview).toHaveAttribute('data-infilled-cells', /^[1-9][0-9]*$/)
   await expect(page.getByTestId('road-terrain-infill-note')).toHaveText('Estimated patches · display only')
   await expect(canvas).toHaveAttribute('data-estimated-face-count', /^[1-9][0-9]*$/)

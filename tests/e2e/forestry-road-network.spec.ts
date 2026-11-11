@@ -104,9 +104,7 @@ for (const viewport of [
     const dialog = await openNetwork(page)
     await choose(dialog.getByRole('combobox', { name: 'Network input source', exact: true }), 'example')
     await choose(dialog.getByRole('combobox', { name: 'Network example', exact: true }), 'clus-reference')
-    await dialog
-      .getByRole('checkbox', { name: 'Compare all four methods using the same inputs and stages', exact: true })
-      .check()
+    await dialog.getByRole('checkbox', { name: 'Compare all four methods', exact: true }).check()
     await calculate(dialog, true)
     const bundle = await downloadText(page, dialog.getByRole('button', { name: 'Network scenario JSON', exact: true }))
     const saved = JSON.parse(bundle.text)
@@ -132,16 +130,14 @@ for (const viewport of [
     expect(JSON.parse(reconstructed.text).status).toContain('not proposed or surveyed roads')
     expect(JSON.parse(reconstructed.text).warnings.length).toBeGreaterThan(0)
     await page.screenshot({ path: info.outputPath('network-example.png') })
-    await tab(dialog, 'Inputs & scenarios')
+    await tab(dialog, 'Setup')
     await choose(dialog.getByRole('combobox', { name: 'Network example', exact: true }), 'isolated-target')
-    await dialog
-      .getByRole('checkbox', { name: 'Compare all four methods using the same inputs and stages', exact: true })
-      .uncheck()
+    await dialog.getByRole('checkbox', { name: 'Compare all four methods', exact: true }).uncheck()
     await calculate(dialog)
     await expect(dialog.getByRole('table', { name: 'Network target outcomes', exact: true })).toContainText(
       'unreachable',
     )
-    await tab(dialog, 'Inputs & scenarios')
+    await tab(dialog, 'Setup')
     await dialog
       .getByLabel('Network scenario file', { exact: true })
       .setInputFiles({ name: 'network-roundtrip.json', mimeType: 'application/json', buffer: Buffer.from(bundle.text) })
