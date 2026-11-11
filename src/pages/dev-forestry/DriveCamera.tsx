@@ -2,22 +2,13 @@ import { StyledSelect } from '@/components/ui/form-field'
 import type { ReactNode } from 'react'
 import type { ElevationSource } from './terrain'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowRight,
-  ArrowUp,
-  ChevronLeft,
-  ChevronRight,
-  Pause,
-  Play,
-  RotateCcw,
-  X,
-} from 'lucide-react'
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { useMap } from '@/components/ui/map'
-import { MAP_OVERLAY_Z } from '@/components/ui/map-overlay'
+import { MapOverlay } from '@/components/ui/map-panels'
+import { PlaybackControls } from '@/components/ui/playback-controls'
+import { TextButton } from '@/components/ui/text-button'
 import { DriveController, type DriveMap, type DriveOptions, type DrivePose, type DriveStatus } from './driveController'
 import { PreviewFrameBudget } from './previewState'
 import {
@@ -288,73 +279,41 @@ export function DriveCamera(props: Props) {
         ? 'This camera pose is invalid. Reset the look or return to the map.'
         : null
   return (
-    <div
-      className={`absolute left-3 right-3 ${MAP_OVERLAY_Z.controls} bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] rounded-lg border bg-background/95 px-2.5 py-2 text-xs shadow-lg md:bottom-3 md:left-1/2 md:right-auto md:w-[min(46rem,calc(100%-6rem))] md:-translate-x-1/2`}
+    <MapOverlay
+      position="bottom-center"
+      clearChrome
+      // Full width on a phone; a centred bar on wider screens.
+      className="left-3 right-3 translate-x-0 rounded-lg bg-background/95 px-2.5 py-2 text-xs shadow-lg md:left-1/2 md:right-auto md:w-[min(46rem,calc(100%-6rem))] md:-translate-x-1/2"
       role="region"
       aria-label="Road view controls"
     >
       {/* Row 1: the player. Nothing to drive at a single spot. */}
       {!props.spot && (
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            className="h-8 shrink-0 px-3 font-semibold touch:h-10"
-            disabled={
-              props.stations.length < 2 || (!props.playing && (status !== 'ready' || props.forestReady === false))
-            }
-            onClick={() => (props.playing ? props.onPause?.() : props.onPlay?.())}
-          >
-            {props.playing ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            {props.playing ? 'Pause' : 'Play'}
-          </Button>
-          {props.onSeek && (
+        <PlaybackControls
+          mode="continuous"
+          label="Playback"
+          value={props.seekMeters}
+          max={props.routeLengthMeters ?? 0}
+          step={5}
+          onValueChange={(metres) => props.onSeek?.(metres)}
+          disabled={!props.onSeek && props.stations.length < 2}
+          playing={props.playing}
+          onPlayingChange={(play) => (play ? props.onPlay?.() : props.onPause?.())}
+          canPlay={props.stations.length >= 2 && status === 'ready' && props.forestReady !== false}
+          skip={props.onSeek ? 10 : undefined}
+          skipLabel="10 m"
+          seekLabel="Route position"
+          pauseOnScrub={false}
+          playButton="labelled"
+          formatValue={km}
+          valueText={`${km(props.seekMeters)} of ${km(props.routeLengthMeters ?? 0)} km`}
+          valueLabel={
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Back 10 m"
-                title="Back 10 m"
-                className="h-8 w-8 shrink-0 p-0 max-sm:hidden touch:h-10 touch:w-10"
-                disabled={props.seekMeters <= 0}
-                onClick={() => {
-                  props.onPause?.()
-                  props.onSeek?.(Math.max(0, props.seekMeters - 10))
-                }}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <input
-                aria-label="Route position"
-                aria-valuetext={`${km(props.seekMeters)} of ${km(props.routeLengthMeters ?? 0)} km`}
-                className="min-w-0 flex-1 accent-primary"
-                type="range"
-                min={0}
-                max={props.routeLengthMeters ?? 1}
-                step={5}
-                value={props.seekMeters}
-                onChange={(e) => props.onSeek?.(Number(e.target.value))}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Forward 10 m"
-                title="Forward 10 m"
-                className="h-8 w-8 shrink-0 p-0 max-sm:hidden touch:h-10 touch:w-10"
-                disabled={props.seekMeters >= (props.routeLengthMeters ?? 0)}
-                onClick={() => {
-                  props.onPause?.()
-                  props.onSeek?.(Math.min(props.routeLengthMeters ?? 0, props.seekMeters + 10))
-                }}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
-                {km(props.seekMeters)}
-                <span className="max-sm:hidden"> / {km(props.routeLengthMeters ?? 0)}</span> km
-              </span>
+              {km(props.seekMeters)}
+              <span className="max-sm:hidden"> / {km(props.routeLengthMeters ?? 0)}</span> km
             </>
-          )}
-        </div>
+          }
+        />
       )}
 
       {/* Row 2: the page's actions, then the look reset, the keys and the way out. */}
@@ -460,9 +419,7 @@ export function DriveCamera(props: Props) {
                 {offRoadMeters} m off the road{walkHeld ? ' · the loaded ground ends here' : ''} · red ground is still
                 the nearest road station's view
               </span>
-              <button
-                type="button"
-                className="underline"
+              <TextButton
                 onClick={() => {
                   walkRef.current = NO_WALK
                   setOffRoadMeters(0)
@@ -470,12 +427,12 @@ export function DriveCamera(props: Props) {
                 }}
               >
                 Back to the road
-              </button>
+              </TextButton>
             </p>
           )}
           {props.status}
         </div>
       )}
-    </div>
+    </MapOverlay>
   )
 }

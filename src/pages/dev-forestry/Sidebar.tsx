@@ -38,6 +38,7 @@ import { useRef, useState, type ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ColorField } from '@/components/ui/color-field'
 import { FileButton } from '@/components/ui/file-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { ListHeader, ResultRow, ResultRowDetail } from '@/components/ui/result-list'
@@ -144,9 +145,6 @@ export type DriveState = {
   /** Stronger distance haze, so ridge layers separate as they do in real air. Display only. */
   haze: boolean
 }
-
-/** A titled block inside a step: a hairline above, and no rule of its own below. */
-const SUBSECTION_CLASS = 'border-b-0 border-t border-border/60 px-4 py-3'
 
 const VIA_CLASS_CODES = {
   preservation: 'P',
@@ -285,50 +283,18 @@ const BLOCK_COLOR_PRESETS = ['#ffffff', '#facc15', '#f97316', '#d946ef', '#22d3e
  * note screenshot look); the (×) puts it back.
  */
 function BlockColorSwatch({ target, onChange }: { target: TargetPolygon; onChange: (color: string | null) => void }) {
-  const listId = `block-colours-${target.id}`
   return (
-    <span className="relative mt-0.5 flex shrink-0 items-center">
-      <label
-        className="relative block h-3.5 w-3.5 cursor-pointer overflow-hidden rounded-sm border border-border"
-        // Unset reads as "default" (cleared ground, or white in the screenshot look), not as a colour.
-        style={
-          target.displayColor
-            ? { backgroundColor: target.displayColor }
-            : {
-                backgroundImage: 'repeating-linear-gradient(45deg, #e5e7eb 0 2px, #ffffff 2px 4px)',
-                borderStyle: 'dashed',
-              }
-        }
-        title={target.displayColor ? 'Block colour' : 'Default colour: choose one'}
-      >
-        <input
-          type="color"
-          aria-label={`Colour for ${target.name}`}
-          list={listId}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-          value={target.displayColor ?? '#ffffff'}
-          onChange={(event) => onChange(event.target.value.toLowerCase())}
-        />
-        <datalist id={listId}>
-          {BLOCK_COLOR_PRESETS.map((color) => (
-            <option key={color} value={color} />
-          ))}
-        </datalist>
-      </label>
-      {target.displayColor && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="ml-0.5 h-5 w-5 text-muted-foreground touch:h-9 touch:w-9"
-          aria-label={`Reset colour of ${target.name}`}
-          title="Back to the default colour"
-          onClick={() => onChange(null)}
-        >
-          <X className="h-3 w-3" />
-        </Button>
-      )}
-    </span>
+    <ColorField
+      size="sm"
+      className="mt-0.5 shrink-0"
+      label={`Colour for ${target.name}`}
+      resetLabel={`Reset colour of ${target.name}`}
+      title="Block colour"
+      value={target.displayColor ?? null}
+      onChange={onChange}
+      presets={BLOCK_COLOR_PRESETS}
+      presetDisplay="picker"
+    />
   )
 }
 
@@ -869,7 +835,7 @@ export function Sidebar({
             </div>
           </div>
 
-          <SidebarSection title="Road or viewpoint" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
+          <SidebarSection title="Road or viewpoint" icon={Route} variant="subsection">
             {(drawMode === 'corridor' || drawMode === 'spot') && <div className="mb-3">{setup}</div>}
             <SegmentedControl
               className="mb-3"
@@ -1047,8 +1013,7 @@ export function Sidebar({
           <SidebarSection
             title="Cutblocks"
             icon={TreePine}
-            headingLevel={3}
-            className={SUBSECTION_CLASS}
+            variant="subsection"
             actions={
               <FileButton
                 label="Cutblock or landform file"
@@ -1091,8 +1056,7 @@ export function Sidebar({
           <SidebarSection
             title="Landform and objective"
             icon={Mountain}
-            headingLevel={3}
-            className={SUBSECTION_CLASS}
+            variant="subsection"
             subtitle="Handbook 3.1.1: the objective comes from the visual landscape inventory, and is judged against one landform."
           >
             <div className="mb-3">
@@ -1246,7 +1210,7 @@ export function Sidebar({
           {/* The map's bar plays, saves and exits; everything about how the view
             looks is here, once. */}
           {result && drive.active && (
-            <SidebarSection title="Road view" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
+            <SidebarSection title="Road view" icon={Route} variant="subsection">
               <div className="space-y-3">
                 <Field label="Where to look">
                   <StyledSelect
@@ -1485,7 +1449,7 @@ export function Sidebar({
           )}
           <div className="px-4 pb-4">{visit}</div>
           {fieldPhoto && (
-            <SidebarSection title="Field photo" icon={Camera} headingLevel={3} className={SUBSECTION_CLASS}>
+            <SidebarSection title="Field photo" icon={Camera} variant="subsection">
               {fieldPhoto}
             </SidebarSection>
           )}
@@ -1507,8 +1471,7 @@ export function Sidebar({
           <SidebarSection
             title="Run assumptions"
             icon={Mountain}
-            headingLevel={3}
-            className={SUBSECTION_CLASS}
+            variant="subsection"
             subtitle="Handbook 3.3.2: the proposal is measured against the landform it sits on."
           >
             {landformScope}
@@ -1516,8 +1479,7 @@ export function Sidebar({
           <SidebarSection
             title="Simulation"
             icon={Sparkles}
-            headingLevel={3}
-            className={SUBSECTION_CLASS}
+            variant="subsection"
             subtitle="Handbook 3.3.4: terrain sightlines from each station on the road."
           >
             <div className="flex gap-1.5">
@@ -1786,7 +1748,7 @@ export function Sidebar({
             </div>
           </CollapsibleSection>
           {result && (
-            <SidebarSection title="Simulation results" icon={Gauge} headingLevel={3} className={SUBSECTION_CLASS}>
+            <SidebarSection title="Simulation results" icon={Gauge} variant="subsection">
               <ResultsPanel
                 result={result}
                 targets={targets}
@@ -1813,8 +1775,7 @@ export function Sidebar({
               <SidebarSection
                 title="Ocular assessment"
                 icon={Eye}
-                headingLevel={3}
-                className={SUBSECTION_CLASS}
+                variant="subsection"
                 subtitle="Handbook 3.4.1 · Table 1"
               >
                 <OcularAssessmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
@@ -1822,8 +1783,7 @@ export function Sidebar({
               <SidebarSection
                 title="Percent alteration"
                 icon={Ruler}
-                headingLevel={3}
-                className={SUBSECTION_CLASS}
+                variant="subsection"
                 subtitle="Handbook 3.4.2 · Table 2"
               >
                 <NumericalAssessmentSummary assessment={assessment} result={result} />
@@ -1831,8 +1791,7 @@ export function Sidebar({
               <SidebarSection
                 title="Design adjustments"
                 icon={Waypoints}
-                headingLevel={3}
-                className={SUBSECTION_CLASS}
+                variant="subsection"
                 subtitle="Handbook 3.4.3 · Tables 3–5"
               >
                 <AdjustmentFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
@@ -1853,13 +1812,7 @@ export function Sidebar({
         <StepSection {...stepProps('rate')} summary={summaries.rate}>
           {stepPurpose('rate')}
           {assessment && (
-            <SidebarSection
-              title="Final rating"
-              icon={Gauge}
-              headingLevel={3}
-              className={SUBSECTION_CLASS}
-              subtitle="Handbook 3.5 · Table 7"
-            >
+            <SidebarSection title="Final rating" icon={Gauge} variant="subsection" subtitle="Handbook 3.5 · Table 7">
               <FinalRatingFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
             </SidebarSection>
           )}
@@ -1867,8 +1820,7 @@ export function Sidebar({
             <SidebarSection
               title="Planning note · Visuals"
               icon={FileText}
-              headingLevel={3}
-              className={SUBSECTION_CLASS}
+              variant="subsection"
               subtitle="The block summary and the Visuals paragraph, drafted from the run."
             >
               {visualsParagraph}
@@ -1877,8 +1829,7 @@ export function Sidebar({
           <SidebarSection
             title="Package"
             icon={FileText}
-            headingLevel={3}
-            className={SUBSECTION_CLASS}
+            variant="subsection"
             subtitle="Handbook 4.0: map, views, simulation, design analysis, and a summary per viewpoint."
           >
             {report}
