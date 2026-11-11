@@ -11,14 +11,17 @@ export function GradeHoldPicker({
   value,
   onChange,
   disabled,
+  compact = false,
 }: {
   value: GradeHold
   onChange: (hold: GradeHold) => void
   disabled?: boolean
+  /** Leaves out the visible caption; the control keeps it as its name and the info tip says it. */
+  compact?: boolean
 }) {
   return (
-    <div className="flex items-center gap-1 text-2xs text-muted-foreground">
-      <span>Typed grade moves</span>
+    <div className="flex shrink-0 items-center gap-1 text-2xs text-muted-foreground">
+      {!compact && <span>Typed grade moves</span>}
       <SegmentedControl
         label="Typed grade moves"
         size="sm"
@@ -31,8 +34,9 @@ export function GradeHoldPicker({
         ]}
       />
       <InfoTip label="Typed grades">
-        A typed grade moves one PVI of that tangent and holds the other; the moved PVI&apos;s grade on its far side
-        changes with it. A PVI sitting on an elevation control it meets is not moved: hold it instead.
+        {compact && 'These choose which PVI a typed grade moves. '}A typed grade moves one PVI of that tangent and holds
+        the other; the moved PVI&apos;s grade on its far side changes with it. A PVI sitting on an elevation control it
+        meets is not moved: hold it instead.
       </InfoTip>
     </div>
   )

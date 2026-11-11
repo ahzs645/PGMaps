@@ -31,6 +31,8 @@ export interface JunctionProfileRoad {
   designed: boolean
   /** A design road of the project rather than a mapped one; two design roads from one start are alternatives. */
   design: boolean
+  /** The context features a mapped road was loaded from; absent for a design road. */
+  contextIds?: readonly string[]
 }
 
 export interface ProfileJunction {
@@ -51,6 +53,8 @@ export interface ProfileJunction {
   groundHere: number | null
   /** `level` − this road's formation; null when either is unknown. */
   difference: number | null
+  /** The context features the other road was loaded from, so its context crossing is not drawn twice. */
+  otherContextIds?: readonly string[]
 }
 
 type XY = [number, number]
@@ -215,6 +219,7 @@ export function findProfileJunctions(
         designHere,
         groundHere,
         difference: level !== null && designHere !== null ? level - designHere : null,
+        ...(other.contextIds?.length ? { otherContextIds: other.contextIds } : {}),
       })
     }
   }
@@ -233,6 +238,7 @@ export function junctionProfileRoad(alignment: Alignment, analysis: RoadAnalysis
     stations: analysis.stations,
     designed: !alignment.mappedRoad && alignment.vertical.length >= 2,
     design: !alignment.mappedRoad,
+    ...(alignment.mappedRoad ? { contextIds: alignment.mappedRoad.contextIds } : {}),
   }
 }
 

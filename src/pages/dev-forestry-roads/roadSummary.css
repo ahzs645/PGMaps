@@ -56,7 +56,7 @@
 .road-summary {
   min-height: 0;
   overflow: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: none;
 }
 .road-summary dl > div {
   border: 0;

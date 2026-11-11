@@ -220,7 +220,7 @@ export function VerticalAlternativesEditor({
           </svg>
         )}
         {alternatives.length > 0 && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-none">
             <EngineeringTable>
               <thead>
                 <tr>

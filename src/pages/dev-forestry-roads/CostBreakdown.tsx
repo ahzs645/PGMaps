@@ -444,7 +444,7 @@ export function CostBreakdown({
             </InlineAlert>
           </div>
         )}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overscroll-none">
           <EngineeringTable data-testid="road-cost-calculation">
             <thead>
               <tr>

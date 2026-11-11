@@ -190,6 +190,38 @@ describe('the as-mapped road', () => {
   })
 })
 
+describe('a mapped road and its own record', () => {
+  it('does not cross the record it was loaded from, but still crosses a stream', () => {
+    // The record zig-zags a metre either side of north; thinned to a 1 m grid it weaves across it.
+    const record = road(
+      'own',
+      Array.from({ length: 41 }, (_, i) => at(i % 2 ? 1.5 : -1.5, i * 10)),
+    )
+    const stream = {
+      id: 'creek',
+      name: 'Creek',
+      kind: 'stream',
+      geometry: { type: 'LineString', coordinates: [at(-50, 200), at(50, 200)] },
+    } as ContextFeature
+    const alignment = mappedRoadAlignment({
+      seed: record,
+      context: [record],
+      id: 'mapped-own',
+      template: DEFAULT_TEMPLATE,
+      terrainResolutionM: 1,
+      pointBudget: 6,
+    })
+    const flat: TerrainSource = { elevationAt: () => 800 }
+    const crossings = analyzeRoad(alignment, flat, settings, [record, stream]).crossings
+    expect(crossings.map((c) => c.featureId)).toEqual(['creek'])
+    // The same line as a design road, with no record attached, still reads the record's crossings.
+    const design = { ...alignment, mappedRoad: undefined }
+    expect(analyzeRoad(design, flat, settings, [record, stream]).crossings.some((c) => c.featureId === 'own')).toBe(
+      true,
+    )
+  })
+})
+
 describe('reviewing a mapped road against the project limits', () => {
   // A road due north for 400 m: flat for 200 m, then climbing at 20% for 200 m.
   const climb: TerrainSource = {

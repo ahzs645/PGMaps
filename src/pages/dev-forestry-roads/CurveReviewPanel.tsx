@@ -1,4 +1,4 @@
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Download } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
@@ -15,6 +15,7 @@ import {
 import type { SweptPathResult } from './sweptPath'
 import type { Alignment, RoadAnalysis, TerrainMetadata } from './types'
 import { InfoTip } from '@/components/ui/info-tip'
+import { ScheduleToolbar } from './scheduleToolbar'
 
 const number = (value: number | null | undefined, digits = 2) =>
   value == null || !Number.isFinite(value) ? '—' : value.toLocaleString('en-CA', { maximumFractionDigits: digits })
@@ -122,21 +123,22 @@ export function CurveReviewPanel({
     rows.find((c) => c.id === selectedId) ??
     rows[0]
   return (
-    <div className="h-full space-y-2 overflow-auto" data-testid="road-curve-review">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span>Fitted curves · linked station review</span>
+    <div className="h-full space-y-2 overflow-auto overscroll-none" data-testid="road-curve-review">
+      <ScheduleToolbar>
         <Button
-          size="sm"
+          size="icon"
           variant="outline"
-          className="h-7 px-2"
+          className="size-8 shrink-0"
+          aria-label="Curve CSV"
+          title="Download the fitted curves and their station review as CSV"
           disabled={!rows.length}
           onClick={() => downloadText(curveReviewCsv(alignment, rows, terrain), 'road-curve-review.csv', 'text/csv')}
         >
-          Curve CSV
+          <Download className="size-3.5" />
         </Button>
-      </div>
+      </ScheduleToolbar>
       {/* The table scrolls in its own box so its sticky header stays visible above the review. */}
-      <div className="max-h-48 overflow-auto rounded-md border" data-testid="road-curve-table-scroll">
+      <div className="max-h-48 overflow-auto overscroll-none rounded-md border" data-testid="road-curve-table-scroll">
         <EngineeringTable data-testid="road-horizontal-curve-table">
           <thead className="sticky top-0 z-10">
             <tr>

@@ -1,3 +1,4 @@
+import { useLiveStation } from './roadStation'
 import { useEffect, useMemo, useState } from 'react'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -34,6 +35,7 @@ const m = (value: number | null, digits = 0) =>
 
 export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) {
   const { project, alignment, analysis, updateAlignment, setStation } = workspace
+  const station = useLiveStation(workspace)
   const [open, setOpen] = useState(false)
   const basis = useMemo(() => sightBasis(alignment, project.standards), [alignment, project.standards])
   // Looking along the road costs up to a few hundred milliseconds on a long road: only while open.
@@ -52,9 +54,8 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
   // The selected station's two looks and the turnout pairs, drawn on the plan while open.
   const [showOnPlan, setShowOnPlan] = useState(true)
   const stationView = useMemo(
-    () =>
-      open ? sightAtStation({ analysis, alignment, standards: project.standards, chainage: workspace.station }) : null,
-    [open, analysis, alignment, project.standards, workspace.station],
+    () => (open ? sightAtStation({ analysis, alignment, standards: project.standards, chainage: station }) : null),
+    [open, analysis, alignment, project.standards, station],
   )
   const turnouts = useMemo(
     () => (open ? reviewTurnoutSight({ analysis, alignment }) : null),
@@ -217,7 +218,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
       )}
       {stationView && <SightStationLooks view={stationView} />}
       {worst.length > 0 && (
-        <div className="max-h-40 overflow-auto">
+        <div className="max-h-40 overflow-auto overscroll-none">
           <EngineeringTable>
             <thead className="sticky top-0">
               <tr>
@@ -234,7 +235,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
                   key={`${eye.chainage}-${eye.direction}`}
                   className="cursor-pointer"
                   {...stationRowProps(() => setStation(eye.chainage))}
-                  aria-selected={Math.abs(workspace.station - eye.chainage) < 1e-6}
+                  aria-selected={Math.abs(station - eye.chainage) < 1e-6}
                   data-testid="road-sight-short-row"
                 >
                   <td>{formatRoadStation(eye.chainage)}</td>
@@ -249,7 +250,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
         </div>
       )}
       {clearings.length > 0 && (
-        <div className="max-h-40 overflow-auto" data-testid="road-sight-curve-clearing">
+        <div className="max-h-40 overflow-auto overscroll-none" data-testid="road-sight-curve-clearing">
           <EngineeringTable>
             <thead className="sticky top-0">
               <tr>
@@ -276,7 +277,7 @@ export function SightDistancePanel({ workspace }: { workspace: RoadWorkspace }) 
           </EngineeringTable>
         </div>
       )}
-      {turnouts && <TurnoutSightTable review={turnouts} station={workspace.station} onStation={setStation} />}
+      {turnouts && <TurnoutSightTable review={turnouts} station={station} onStation={setStation} />}
     </RoadSection>
   )
 }

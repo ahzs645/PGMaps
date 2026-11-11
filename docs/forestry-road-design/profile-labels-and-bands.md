@@ -84,20 +84,50 @@ Labels are placed by `placeLabels`: in order of importance (a flagged sag, then 
 points, then curve ends), each label is kept only if no label already kept is closer than the gap.
 Zoomed out, BVC and EVC labels go first and their ticks thin; a flagged sag keeps its label longest.
 The tooltip always has the full text. They are placed apart from each other only: a curve-point
-label can still cross a tangent's grade label or a PVI callout, which have their own thinning.
+label can still cross a grade label or a PVI callout, which the pass above places separately.
+
+## What the profile has room to show
+
+`profileLabelLayout.ts` decides what fits; the chart only draws it.
+
+- **Ground grades split where the ground bends.** A road with no design profile is cut into about
+  one piece per 110 px of plot, counted over the whole road at the current zoom, so zooming in adds
+  pieces and panning keeps them still. Each split goes where the ground is furthest from its
+  piece's chord, largest first, and stops when no bend reaches 0.5 m: straight ground stays one
+  piece. A piece with a terrain gap splits at the gap's edge, so the gap reads Unknown on its own.
+  The Ground band row uses the same breaks at the same width. Design tangents still run PVI to PVI.
+- **One placement pass for the plot's text labels.** The station flag goes first, then red grade
+  labels, junctions whose level differs by 0.05 m or more, other grade labels, then other
+  junctions. Each takes the first spot that stays inside the plot and clears every label placed
+  before it, every junction diamond and every PVI handle: a grade label above its line, then below,
+  then grade only; a junction label right of its diamond, then left, then with a shorter name. A
+  label with no room is left out and its tooltip keeps the text. Curve-point labels and PVI
+  callouts keep their own thinning (below).
+- **Crossings share a tick.** Context crossings within 6 px of each other draw one thicker line;
+  its tooltip lists them and a click selects the first. A crossing that a project road already
+  marks as a junction (the other road was loaded from that feature, within 10 m) is drawn once, as
+  the junction.
+- **A mapped road does not cross its own record.** The engine leaves the features a mapped road
+  was loaded from (`mappedRoad.contextIds`) out of its crossings. Thinned to the terrain, the road
+  weaves across its own record, and each weave used to count as a crossing, a station and a
+  profile line: one 3 km road showed 55.
 
 ## Limits and budgets
 
-| Limit                                        | Value                                                                           | Enforced by                                                                   |
-| -------------------------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Culvert distance that drains a sag low point | 15 m along the road                                                             | `SAG_CULVERT_SEARCH_M` = `DEFAULT_CULVERT_SEARCH_M`                           |
-| Gap between band values                      | 46 screen px; 60 on sheets                                                      | `BAND_VALUE_MIN_GAP_PX`, `profileBands.ts`; `SHEET_BAND_VALUE_GAP_PX`         |
-| Band area on screen                          | at most 45 % of the chart; the plot keeps min(160 px, half the chart)           | `ChartSlot`, `Charts.tsx`                                                     |
-| Values per band across one window            | 400                                                                             | `MAX_BAND_VALUES`, `profileBands.ts`                                          |
-| Gap between rotated curve-point labels       | 13 screen px; 15 on sheets                                                      | `ROTATED_LABEL_GAP_PX`, `ProfileOverlays.tsx`; `SHEET_LABEL_GAP_PX`           |
-| Gap between curve-point markers              | 5 screen px                                                                     | `MARKER_GAP_PX`, `ProfileOverlays.tsx`                                        |
-| Sheet band rows and curvature diagram        | 6 × 17 px + 30 px; the profile is 232 px tall and the plan 320 px with bands on | `SHEET_BANDS_HEIGHT`, `plotBookProfile.ts`; `planProfileSheet`, `plotBook.ts` |
-| Subview values in a saved file               | true or false; absent is off                                                    | `parseRoadReportSettings`                                                     |
+| Limit                                        | Value                                                                           | Enforced by                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Culvert distance that drains a sag low point | 15 m along the road                                                             | `SAG_CULVERT_SEARCH_M` = `DEFAULT_CULVERT_SEARCH_M`                             |
+| Gap between band values                      | 46 screen px; 60 on sheets                                                      | `BAND_VALUE_MIN_GAP_PX`, `profileBands.ts`; `SHEET_BAND_VALUE_GAP_PX`           |
+| Band area on screen                          | at most 45 % of the chart; the plot keeps min(160 px, half the chart)           | `ChartSlot`, `Charts.tsx`                                                       |
+| Values per band across one window            | 400                                                                             | `MAX_BAND_VALUES`, `profileBands.ts`                                            |
+| Gap between rotated curve-point labels       | 13 screen px; 15 on sheets                                                      | `ROTATED_LABEL_GAP_PX`, `ProfileOverlays.tsx`; `SHEET_LABEL_GAP_PX`             |
+| Gap between curve-point markers              | 5 screen px                                                                     | `MARKER_GAP_PX`, `ProfileOverlays.tsx`                                          |
+| Sheet band rows and curvature diagram        | 6 × 17 px + 30 px; the profile is 232 px tall and the plan 320 px with bands on | `SHEET_BANDS_HEIGHT`, `plotBookProfile.ts`; `planProfileSheet`, `plotBook.ts`   |
+| Subview values in a saved file               | true or false; absent is off                                                    | `parseRoadReportSettings`                                                       |
+| Ground-grade pieces                          | about 1 per 110 px; at least 50 px each; at most 64 per road                    | `GROUND_GRADE_PIECE_PX`, `GROUND_GRADE_MIN_PIECE_PX`, `GROUND_GRADE_MAX_PIECES` |
+| Ground bend that splits a grade              | 0.5 m off the piece's chord                                                     | `GROUND_GRADE_BEND_M`, `profileLabelLayout.ts`                                  |
+| Crossings sharing one tick                   | within 6 screen px                                                              | `CROSSING_CLUSTER_PX`                                                           |
+| Junction level difference printed            | 0.05 m or more; the tooltip always has it                                       | `JUNCTION_LEVEL_SHOWN_M`                                                        |
 
 ## Failure modes
 

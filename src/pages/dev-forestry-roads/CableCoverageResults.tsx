@@ -133,7 +133,7 @@ export function CableCoverageResults({
           </p>
         )}
         {chosen.length > 0 && (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-none">
             <EngineeringTable rowHeaders compact data-testid="cable-line-table">
               <thead>
                 <tr>

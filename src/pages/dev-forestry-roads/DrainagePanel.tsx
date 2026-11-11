@@ -108,7 +108,7 @@ export function DrainagePanel({
     </button>
   )
   return (
-    <div className="h-full space-y-3 overflow-auto text-xs" data-testid="road-drainage">
+    <div className="h-full space-y-3 overflow-auto overscroll-none text-xs" data-testid="road-drainage">
       {/* Run first, then the inputs in three groups; each select's options say what they do. */}
       <div className="space-y-3 rounded-md border bg-muted/20 p-3">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">

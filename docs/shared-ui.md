@@ -68,6 +68,21 @@ throughout through `RoadSelect` (`dev-forestry-roads/Controls.tsx`), which also 
 children; its e2e specs pick options with `tests/e2e/road-select.ts`, since `selectOption` and
 `toHaveValue` only work on native selects.
 
+Radix renders a closed dropdown's whole option list on every render. `AppSelect` therefore keeps
+its handler stable and reuses the option list while the options read the same (text labels, value,
+disabled, title), so a page that re-renders often skips its menus. A list with a non-text label is
+rebuilt each render; on a hot path, give it text labels.
+
+To skip a large subtree whose parent rebuilds its props each render (inline handlers, object
+literals), wrap it with `memoWithLatestHandlers` (`src/lib/memoWithLatestHandlers.ts`). Function
+props become stable proxies to the latest handler; name an object the parent spreads afresh each
+render (a workspace) in `bags` to proxy its functions too. Top-level objects compare by content, a
+bag's fields by identity. Nothing else is copied, because subtrees compare objects by identity: a
+first version copied every object holding a function, and the road template editor, which checks
+`candidate.source === workspace.source`, discarded its edits on every render. A value the subtree
+shows must arrive as data, never through a function's identity. The road design sidebar is the
+reference.
+
 Numeric fields take `value` / `onValueChange` and retain partial drafts. Choose
 `updateOn="change" | "commit"` and `clampOn="change" | "commit" | "never"`
 explicitly when adapting an existing editor. Required blank input restores the

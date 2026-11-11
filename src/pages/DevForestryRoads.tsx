@@ -122,6 +122,8 @@ import { dLineExtras } from './dev-forestry-roads/dline/outputs'
 import { dLineSheetUnavailable } from './dev-forestry-roads/dline/sheetExport'
 import { dLineSupportPlanFeatures, supportStakeoutCsv } from './dev-forestry-roads/dline/supports'
 import { DesignSidebar, type FileKind } from './dev-forestry-roads/DesignSidebar'
+import { RoadStationProvider } from './dev-forestry-roads/roadStation'
+import { memoWithLatestHandlers } from '@/lib/memoWithLatestHandlers'
 import { SpatialImportDialog } from './dev-forestry-roads/SpatialImportDialog'
 import { TerrainImportDialog } from './dev-forestry-roads/TerrainImportDialog'
 import {
@@ -321,6 +323,9 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
   DEFAULT_ROAD_SETTINGS,
   DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
 )
+
+/** The sidebar skips the page's renders that change only the station (a hover along the road); see roadStation.tsx. */
+const StationIndependentSidebar = memoWithLatestHandlers(DesignSidebar, { bags: ['workspace'] })
 
 export default function DevForestryRoads({
   initialInterface,
@@ -1046,6 +1051,13 @@ export default function DevForestryRoads({
     [displayedAnalysis, w.station, stationSampler],
   )
   const station = at?.chainage ?? 0
+  // The memoized sidebar reads the station through RoadStationProvider: live for what it shows,
+  // and through this reader for what a click does.
+  const committedStation = useRef(station)
+  useLayoutEffect(() => {
+    committedStation.current = station
+  }, [station])
+  const readStation = useCallback(() => committedStation.current, [])
   // The header subtitle shows the latest notice briefly, in place of a status row.
   const { notice, setNotice } = w
   useEffect(() => {
@@ -3247,9 +3259,9 @@ export default function DevForestryRoads({
       <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
         <ForestryBackLink />
         <div className="road-workspace-title min-w-0">
-          {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
+          {/* The project's name is the line's title; the tool's name stays a heading for screen readers. */}
           <div className="flex min-w-0 items-center gap-1">
-            <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">{workspaceTitle}</h1>
+            <h1 className="sr-only">{workspaceTitle}</h1>
             {projectNameControl}
           </div>
           {projectStatus}
@@ -3745,7 +3757,7 @@ export default function DevForestryRoads({
                 <div className={panelFrame?.resizeCorners && !inlineWorkflow ? 'lp-controls-window' : 'contents'}>
                   {investigation ? (
                     <div
-                      className="h-full min-h-0 overflow-y-auto rounded-lg border bg-card p-3"
+                      className="h-full min-h-0 overflow-y-auto overscroll-none rounded-lg border bg-card p-3"
                       data-testid="access-investigation-sidebar"
                     >
                       <AccessHistoryPanel
@@ -3762,106 +3774,109 @@ export default function DevForestryRoads({
                     <>
                       {!inlineWorkflow && <div className="contents" ref={attachEditor} />}
                       {createPortal(
-                        <DesignSidebar
-                          embedded={inlineWorkflow}
-                          workspace={{ ...w, station }}
-                          workflowTab={workflowTab}
-                          onWorkflowTabChange={showControls}
-                          roadReviewRequest={roadReviewRequest}
-                          onCompareCompleteCosts={openCompleteCosts}
-                          onPlanNetwork={() => setNetworkOpen(true)}
-                          readOnlyPreview={!!costPreview}
-                          mode={mode}
-                          onMode={(next) => {
-                            beginMode(next)
-                            if (inlineWorkflow) showPane('plan')
-                            if (focusMode) setControlsOpen(false)
-                          }}
-                          drawing={
-                            mode === 'road' || mode === 'extend'
-                              ? {
-                                  kind: mode,
-                                  points: draft.length,
-                                  canFinish: draft.length >= minimumDraftPoints(mode),
-                                  onFinish: finishDraw,
-                                }
-                              : null
-                          }
-                          onFile={requestFile}
-                          onTerrain={loadTerrain}
-                          verticalReference={verticalReference}
-                          onVerticalReference={setVerticalReference}
-                          pointCloud={pointCloud}
-                          onPointCloud={setPointCloud}
-                          breaklines={breaklines?.name ?? null}
-                          onClearBreaklines={() => setBreaklines(null)}
-                          selectedPoint={selectedPoint}
-                          onPoint={setSelectedPoint}
-                          onProfile={selectProfile}
-                          activeProfile={activeProfile}
-                          onDuplicate={duplicateRoad}
-                          commandStates={commandStates}
-                          onCommand={runCommand}
-                          onRemoveAlignment={() => {
-                            // The neighbouring road is shown, and a notice names the deleted one with a way back.
-                            const result = removeRoad(project, alignment.id)
-                            if (!result) return
-                            w.update(() => result.project)
-                            setRemovedRoad({ removed: result.removed, opened: w.openedCount })
-                          }}
-                          onSuggest={suggest}
-                          onLoadMappedRoad={loadMappedRoad}
-                          onLoadMappedRoadsInView={loadMappedRoadsInView}
-                          onCopyMappedRoad={copyMappedRoad}
-                          onPreviewTerrainRoad={setTerrainRoadOverlay}
-                          onPreviewTerrainRoads={setTerrainRoadsOverlay}
-                          onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
-                          onLoadTerrainAroundRoad={() => loadTerrain('regional')}
-                          onLocateRoad={locateRoad}
-                          onOpenRoadHistory={openRoadReview}
-                          onLocateConstraint={locateConstraint}
-                          onLocateHistory={locateHistory}
-                          historySelection={historySelection}
-                          onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
-                          onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
-                          focusedConstraintId={focusedConstraintId}
-                          onImportSpatial={importSpatial}
-                          onAskTerrain={askTerrain}
-                          focusedReferenceId={focusedReferenceId}
-                          onLocateReference={locateReference}
-                          onPegAt={pegAt}
-                          onRoadEndAt={moveRoadEnd}
-                          cutblockReviewRequest={cutblockReviewRequest}
-                          onReviewRoad={reviewRoad}
-                          onPreviewRoute={previewRoute}
-                          onPreviewRoutes={setRouteLines}
-                          onPickOnPlan={pickOnPlan}
-                          onLoadFsrsNear={loadFsrsNear}
-                          onPreviewAccessMarks={setAccessMarks}
-                          onPreviewSkidReach={setSkidReachFeatures}
-                          onDrawBlock={() => drawArea('harvest')}
-                          onShowCompare={() => showDetailPane('compare')}
-                          onShowDrainage={() => showDetailPane('drainage')}
-                          onSelectRoad={selectAlignment}
-                          onShowCulverts={showCulverts}
-                          onShowSwept={() => showDetailPane('swept')}
-                          vehicleFit={vehicleFitOnRoad}
-                          engineeringRequest={engineeringRequest}
-                          engineeringInputsRequest={engineeringInputsRequest}
-                          onEngineeringInputs={showEngineeringInputs}
-                          drainageStale={drainageStale}
-                          templatePreviewActive={!!templatePreview}
-                          onPreviewTemplate={(template, name) => {
-                            setPegPreview(null)
-                            setTemplatePreview({ template: structuredClone(template), name })
-                            setActiveProfile(null)
-                            setDetail('section')
-                            setMode('inspect')
-                            setDraft([])
-                          }}
-                          onCloseTemplatePreview={() => setTemplatePreview(null)}
-                          onQuantities={() => showDetailPane('engineering')}
-                        />,
+                        <RoadStationProvider station={station} read={readStation}>
+                          <StationIndependentSidebar
+                            embedded={inlineWorkflow}
+                            // NaN, not the station: a sidebar part that read it here would go stale.
+                            workspace={{ ...w, station: Number.NaN }}
+                            workflowTab={workflowTab}
+                            onWorkflowTabChange={showControls}
+                            roadReviewRequest={roadReviewRequest}
+                            onCompareCompleteCosts={openCompleteCosts}
+                            onPlanNetwork={() => setNetworkOpen(true)}
+                            readOnlyPreview={!!costPreview}
+                            mode={mode}
+                            onMode={(next) => {
+                              beginMode(next)
+                              if (inlineWorkflow) showPane('plan')
+                              if (focusMode) setControlsOpen(false)
+                            }}
+                            drawing={
+                              mode === 'road' || mode === 'extend'
+                                ? {
+                                    kind: mode,
+                                    points: draft.length,
+                                    canFinish: draft.length >= minimumDraftPoints(mode),
+                                    onFinish: finishDraw,
+                                  }
+                                : null
+                            }
+                            onFile={requestFile}
+                            onTerrain={loadTerrain}
+                            verticalReference={verticalReference}
+                            onVerticalReference={setVerticalReference}
+                            pointCloud={pointCloud}
+                            onPointCloud={setPointCloud}
+                            breaklines={breaklines?.name ?? null}
+                            onClearBreaklines={() => setBreaklines(null)}
+                            selectedPoint={selectedPoint}
+                            onPoint={setSelectedPoint}
+                            onProfile={selectProfile}
+                            activeProfile={activeProfile}
+                            onDuplicate={duplicateRoad}
+                            commandStates={commandStates}
+                            onCommand={runCommand}
+                            onRemoveAlignment={() => {
+                              // The neighbouring road is shown, and a notice names the deleted one with a way back.
+                              const result = removeRoad(project, alignment.id)
+                              if (!result) return
+                              w.update(() => result.project)
+                              setRemovedRoad({ removed: result.removed, opened: w.openedCount })
+                            }}
+                            onSuggest={suggest}
+                            onLoadMappedRoad={loadMappedRoad}
+                            onLoadMappedRoadsInView={loadMappedRoadsInView}
+                            onCopyMappedRoad={copyMappedRoad}
+                            onPreviewTerrainRoad={setTerrainRoadOverlay}
+                            onPreviewTerrainRoads={setTerrainRoadsOverlay}
+                            onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
+                            onLoadTerrainAroundRoad={() => loadTerrain('regional')}
+                            onLocateRoad={locateRoad}
+                            onOpenRoadHistory={openRoadReview}
+                            onLocateConstraint={locateConstraint}
+                            onLocateHistory={locateHistory}
+                            historySelection={historySelection}
+                            onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
+                            onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
+                            focusedConstraintId={focusedConstraintId}
+                            onImportSpatial={importSpatial}
+                            onAskTerrain={askTerrain}
+                            focusedReferenceId={focusedReferenceId}
+                            onLocateReference={locateReference}
+                            onPegAt={pegAt}
+                            onRoadEndAt={moveRoadEnd}
+                            cutblockReviewRequest={cutblockReviewRequest}
+                            onReviewRoad={reviewRoad}
+                            onPreviewRoute={previewRoute}
+                            onPreviewRoutes={setRouteLines}
+                            onPickOnPlan={pickOnPlan}
+                            onLoadFsrsNear={loadFsrsNear}
+                            onPreviewAccessMarks={setAccessMarks}
+                            onPreviewSkidReach={setSkidReachFeatures}
+                            onDrawBlock={() => drawArea('harvest')}
+                            onShowCompare={() => showDetailPane('compare')}
+                            onShowDrainage={() => showDetailPane('drainage')}
+                            onSelectRoad={selectAlignment}
+                            onShowCulverts={showCulverts}
+                            onShowSwept={() => showDetailPane('swept')}
+                            vehicleFit={vehicleFitOnRoad}
+                            engineeringRequest={engineeringRequest}
+                            engineeringInputsRequest={engineeringInputsRequest}
+                            onEngineeringInputs={showEngineeringInputs}
+                            drainageStale={drainageStale}
+                            templatePreviewActive={!!templatePreview}
+                            onPreviewTemplate={(template, name) => {
+                              setPegPreview(null)
+                              setTemplatePreview({ template: structuredClone(template), name })
+                              setActiveProfile(null)
+                              setDetail('section')
+                              setMode('inspect')
+                              setDraft([])
+                            }}
+                            onCloseTemplatePreview={() => setTemplatePreview(null)}
+                            onQuantities={() => showDetailPane('engineering')}
+                          />
+                        </RoadStationProvider>,
                         editorHost,
                       )}
                     </>
@@ -4574,7 +4589,7 @@ export default function DevForestryRoads({
                                       />
                                     )}
                                     {detail === 'swept' && !terrainProfile && (
-                                      <div className="h-full overflow-auto overscroll-contain">
+                                      <div className="h-full overflow-auto overscroll-none">
                                         <SweptPathPanel
                                           check={displayedAlignment.vehicleCheck}
                                           result={sweptState.result}

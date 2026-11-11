@@ -131,6 +131,22 @@ test('the station table keeps one toolbar row and its popovers open above a full
   await expect(page.getByRole('button', { name: 'Filter stations, 1 active', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Show all stations', exact: true }).click()
   expect(Math.abs((await filter.boundingBox())!.y - (await columns.boundingBox())!.y)).toBeLessThan(1)
+  // The table's buttons share the schedule tabs' row rather than taking one of their own.
+  const middle = (box: { y: number; height: number } | null) => box!.y + box!.height / 2
+  const tabs = page.getByRole('tablist', { name: 'Road data schedule', exact: true })
+  expect(Math.abs(middle(await tabs.boundingBox()) - middle(await filter.boundingBox()))).toBeLessThan(2)
+  // No footer line under the table: the row count and totals note are gone.
+  await expect(page.getByText(/rows · totals are the sum/)).toHaveCount(0)
+  // The other views put their buttons in the same row.
+  await page.getByRole('tab', { name: 'Horizontal curves', exact: true }).click()
+  const curveCsv = page.getByRole('button', { name: 'Curve CSV', exact: true })
+  expect(Math.abs(middle(await tabs.boundingBox()) - middle(await curveCsv.boundingBox()))).toBeLessThan(2)
+  await page.getByRole('tab', { name: 'Vertical controls', exact: true }).click()
+  const addControl = page.getByRole('button', { name: 'Add control at selected station', exact: true })
+  const hold = page.getByRole('group', { name: 'Typed grade moves', exact: true })
+  expect(Math.abs(middle(await tabs.boundingBox()) - middle(await addControl.boundingBox()))).toBeLessThan(2)
+  expect(Math.abs(middle(await tabs.boundingBox()) - middle(await hold.boundingBox()))).toBeLessThan(2)
+  await page.getByRole('tab', { name: 'Samples', exact: true }).click()
 
   await page.getByRole('button', { name: /^Fullscreen Station data/ }).click()
   await columns.click()

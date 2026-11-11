@@ -1,3 +1,4 @@
+import { useStationReader } from '../roadStation'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -118,6 +119,7 @@ export function SectionTab(
 
 function Widenings(p: SidebarProps) {
   const { alignment, analysis, updateAlignment } = p.workspace
+  const readStation = useStationReader(p.workspace)
   const [open, setOpen] = useState(false)
   // A taper the range could not carry: what it was held to, shown until that value changes.
   const [limited, setLimited] = useState<{ id: string; side: 'entry' | 'exit'; taperM: number; note: string } | null>(
@@ -129,7 +131,7 @@ function Widenings(p: SidebarProps) {
     updateAlignment((a) => ({ ...a, overrides: a.overrides.map((x) => (x.id === key ? { ...x, ...changes } : x)) }))
   const add = (kind: WidthOverride['kind']) =>
     updateAlignment((a) => {
-      const start = Math.min(p.workspace.station, Math.max(0, analysis.length - 60))
+      const start = Math.min(readStation(), Math.max(0, analysis.length - 60))
       return {
         ...a,
         overrides: [

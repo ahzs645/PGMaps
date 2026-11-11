@@ -1,3 +1,4 @@
+import { useStationReader } from '../roadStation'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { RoadNameField } from '../SharedRoadFields'
 import { useEffect, useMemo, useState } from 'react'
@@ -749,7 +750,7 @@ function HorizontalPoints(p: SidebarProps) {
       <CurveTools workspace={p.workspace} />
       <details className="mt-2">
         <summary className="cursor-pointer text-xs">Segment distances & ground grades</summary>
-        <div className="mt-2 max-h-48 overflow-auto">
+        <div className="mt-2 max-h-48 overflow-auto overscroll-none">
           <EngineeringTable>
             <thead>
               <tr>
@@ -791,6 +792,7 @@ function HorizontalPoints(p: SidebarProps) {
 
 function VerticalAlignment(p: SidebarProps) {
   const { alignment, analysis, updateAlignment } = p.workspace
+  const readStation = useStationReader(p.workspace)
   // Why an entered vertical curve was not applied, by PVI.
   const fitNotes = useMemo(() => {
     try {
@@ -801,9 +803,9 @@ function VerticalAlignment(p: SidebarProps) {
     }
   }, [alignment])
   const addPvi = () => {
+    const station = readStation()
     const at = analysis.stations.reduce(
-      (best, s) =>
-        Math.abs(s.chainage - p.workspace.station) < Math.abs(best.chainage - p.workspace.station) ? s : best,
+      (best, s) => (Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
       analysis.stations[0],
     )
     if (!at || at.groundElevation === null) return

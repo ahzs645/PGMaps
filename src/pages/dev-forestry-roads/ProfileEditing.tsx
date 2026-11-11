@@ -27,6 +27,7 @@ import {
 } from './gradeEdit'
 import { signedValue } from './profileAnnotations'
 import { controlForJunction, junctionControl, MAX_VERTICAL_CONTROLS, type ProfileJunction } from './profileJunctions'
+import { junctionDifferenceShown, junctionLabelNames } from './profileLabelLayout'
 import { formatStation } from './verticalStandards'
 import type { VerticalControl, VerticalPoint } from './types'
 import { isRemoveKey } from './historyShortcut'
@@ -55,6 +56,28 @@ const SNAP_STORAGE_KEY = 'pgmaps-road-profile-grade-snap'
 const pct = (value: number) => signedValue(value, 2, ' %')
 const metres = (value: number | null, digits = 2) => (value === null ? 'unknown' : `${value.toFixed(digits)} m`)
 const signedMetres = (value: number) => signedValue(value, 2, ' m')
+
+export const JUNCTION_LABEL_FONT_PX = 9
+/** Where a junction's label goes, as the chart placed it. */
+export interface JunctionLabelPlacement {
+  x: number
+  y: number
+  anchor: 'start' | 'end'
+  text: string
+}
+/** The diamond's y: on the other road's level when it is on the plot, else pinned to the top. */
+export function junctionMarkerY(
+  f: Pick<ProfileFrame, 'y' | 'top'>,
+  j: ProfileJunction,
+  height: number,
+  bottom: number,
+) {
+  const levelY = j.level !== null && Number.isFinite(j.level) ? f.y(j.level) : null
+  return levelY !== null && levelY >= f.top && levelY <= height - bottom ? levelY : f.top + 6
+}
+/** "name", with the level difference only when it is worth reading (`junctionDifferenceShown`). */
+export const junctionLabelText = (j: ProfileJunction, name: string) =>
+  junctionDifferenceShown(j.difference) ? `${name} ${signedMetres(j.difference!)}` : name
 const finite = (n: number | null | undefined): n is number => n != null && Number.isFinite(n)
 
 /** Focus is in a popover or nowhere, so closing it may hand focus back; a press elsewhere keeps its own. */
@@ -378,8 +401,17 @@ export function useProfileEditing(options: ProfileEditingOptions) {
     setOpenJunction(junction.id)
   }
 
-  /** Grips, junction markers: drawn under the PVI handles. */
-  const layers = (f: ProfileFrame, height: number, bottom: number, domain: ChartDomain) => (
+  /**
+   * Grips, junction markers: drawn under the PVI handles. `labels` are the junction labels the chart
+   * placed (`profileLabelLayout.ts`); a junction left out of it shows no label, only its tooltip.
+   */
+  const layers = (
+    f: ProfileFrame,
+    height: number,
+    bottom: number,
+    domain: ChartDomain,
+    labels?: ReadonlyMap<string, JunctionLabelPlacement>,
+  ) => (
     <>
       {(options.junctions ?? [])
         .filter((j) => j.chainage >= domain[0] && j.chainage <= domain[1])
@@ -387,7 +419,14 @@ export function useProfileEditing(options: ProfileEditingOptions) {
           const x = f.x(j.chainage)
           const levelY = finite(j.level) ? f.y(j.level) : null
           const shownY = levelY !== null && levelY >= f.top && levelY <= height - bottom ? levelY : null
-          const name = j.otherRoadName.length > 16 ? `${j.otherRoadName.slice(0, 15)}…` : j.otherRoadName
+          const label: JunctionLabelPlacement | undefined = labels
+            ? labels.get(j.id)
+            : {
+                x: x + 8,
+                y: junctionMarkerY(f, j, height, bottom) + 3,
+                anchor: 'start',
+                text: junctionLabelText(j, junctionLabelNames(j.otherRoadName)[0]),
+              }
           return (
             <g
               key={j.id}
@@ -431,18 +470,21 @@ export function useProfileEditing(options: ProfileEditingOptions) {
                 stroke={JUNCTION_COLOR}
                 strokeWidth={1.5}
               />
-              <text
-                x={x + 8}
-                y={(shownY ?? f.top + 6) + 3}
-                fontSize="9"
-                fill={JUNCTION_COLOR}
-                stroke="hsl(var(--background))"
-                strokeWidth={3}
-                paintOrder="stroke"
-              >
-                {name}
-                {j.difference !== null ? ` ${signedMetres(j.difference)}` : ''}
-              </text>
+              {label && (
+                <text
+                  x={label.x}
+                  y={label.y}
+                  textAnchor={label.anchor}
+                  fontSize={JUNCTION_LABEL_FONT_PX}
+                  fill={JUNCTION_COLOR}
+                  stroke="hsl(var(--background))"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  data-junction-label
+                >
+                  {label.text}
+                </text>
+              )}
               <title>
                 {j.otherRoadName} {j.kind} at {formatStation(j.chainage)} ·{' '}
                 {j.levelKind === 'design' ? 'formation' : 'ground'} {metres(j.level)}

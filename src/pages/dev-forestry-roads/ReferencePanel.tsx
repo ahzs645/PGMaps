@@ -83,7 +83,7 @@ export function ReferencePanel({
         </Button>
         {features.length > 0 && (
           // An import can hold 500 features: only the rows in view are mounted, in a list of bounded height.
-          <div className="max-h-80 overflow-y-auto rounded border" data-map-sidebar-scroll="true">
+          <div className="max-h-80 overflow-y-auto overscroll-none rounded border" data-map-sidebar-scroll="true">
             <VirtualResultList
               items={features}
               getKey={(feature) => feature.id}

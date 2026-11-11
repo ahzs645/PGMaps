@@ -22,6 +22,7 @@ import { createRoadConditionPolicy } from './roadCondition'
 import { createTotalCostPlanningDefaults } from './fullCostPlanning'
 import { RoadNetworkEditor } from './RoadNetworkEditor'
 import { RoadBatchFinder } from './RoadBatchFinder'
+import { roadFindingTerrainProblem } from './roadLikeness'
 import { RoadDeactivationEditor } from './RoadDeactivationEditor'
 import {
   deactivatedRoadNeedsReview,
@@ -244,7 +245,10 @@ export function ExistingRoadsPanel({
             BC source
           </a>
         </p>
-        {roads.length > 0 && <RoadBatchFinder workspace={w} onPreview={onPreviewFoundRoads} />}
+        {/* The batch finder only runs on terrain fine enough to show a road bench; on coarser terrain it is hidden. */}
+        {roads.length > 0 && !roadFindingTerrainProblem(w.project.terrain.resolutionM) && (
+          <RoadBatchFinder workspace={w} onPreview={onPreviewFoundRoads} />
+        )}
         {road && (
           <>
             {/* Picking a road highlights it on the plan; the locate button also brings the plan to it. */}

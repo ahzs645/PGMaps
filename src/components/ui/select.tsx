@@ -168,6 +168,36 @@ const workspaceSelectContentClass = 'z-workspace-popover text-base md:text-xs'
 
 const EMPTY_SELECT_VALUE = '__app_select_empty__'
 
+/**
+ * What a list of options draws, as a key: equal keys draw the same menu. Null when a label is not
+ * plain text, which only the option list itself can stand for.
+ */
+function optionsKey(options: readonly SelectOption[], contentClassName: string | undefined): string | null {
+  const parts: unknown[] = [contentClassName ?? '']
+  for (const option of options) {
+    if (typeof option.label !== 'string' && typeof option.label !== 'number') return null
+    parts.push(option.value, option.label, !!option.disabled, option.title ?? '')
+  }
+  return JSON.stringify(parts)
+}
+
+/**
+ * The options the menu was last drawn from while they draw the same menu. Radix renders a closed
+ * select's whole item list on every render (it reads the items for the trigger's typeahead), and
+ * callers build `options` afresh each render, so without this a page that re-renders often (the
+ * road designer's station hover) re-renders thousands of menu items it cannot show.
+ */
+function useHeldOptions(options: SelectOption[], contentClassName: string | undefined) {
+  const key = optionsKey(options, contentClassName)
+  const [held, setHeld] = React.useState({ key, options, contentClassName })
+  if (key === null) return { options, contentClassName }
+  if (held.key !== key) {
+    setHeld({ key, options, contentClassName })
+    return { options, contentClassName }
+  }
+  return held
+}
+
 function AppSelect({
   value,
   onValueChange,
@@ -202,42 +232,83 @@ function AppSelect({
         />
       </div>
     )
+  return (
+    <div className={className} {...props}>
+      <PlainSelect
+        value={value}
+        onValueChange={onValueChange}
+        options={options}
+        placeholder={placeholder}
+        triggerClassName={triggerClassName}
+        contentClassName={contentClassName}
+        triggerAriaLabel={triggerAriaLabel}
+        id={id}
+        disabled={disabled}
+        triggerRef={triggerRef}
+      />
+    </div>
+  )
+}
+
+function PlainSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+  triggerClassName,
+  contentClassName,
+  triggerAriaLabel,
+  id,
+  disabled,
+  triggerRef,
+}: Omit<AppSelectProps, 'className' | 'searchable' | 'searchPlaceholder'>) {
   const hasEmptyOption = options.some((option) => option.value === '')
   const radixValue = hasEmptyOption && value === '' ? EMPTY_SELECT_VALUE : value
   const selectedOption = options.find((option) => option.value === value)
   const selectedLabel = selectedOption?.selectedLabel ?? selectedOption?.label
+  // A stable handler keeps Radix's select context unchanged across renders, so the held menu
+  // below is skipped rather than re-rendered; it always calls the caller's latest handler.
+  const latestChange = React.useRef(onValueChange)
+  React.useLayoutEffect(() => {
+    latestChange.current = onValueChange
+  })
+  const change = React.useCallback(
+    (nextValue: string) => latestChange.current(nextValue === EMPTY_SELECT_VALUE ? '' : nextValue),
+    [],
+  )
+  const menu = useHeldOptions(options, contentClassName)
+  const content = React.useMemo(
+    () => (
+      <SelectContent className={menu.contentClassName}>
+        {menu.options.map((option) => (
+          <SelectItem
+            key={option.value || EMPTY_SELECT_VALUE}
+            value={option.value === '' ? EMPTY_SELECT_VALUE : option.value}
+            disabled={option.disabled}
+            title={option.title}
+            data-value={option.value}
+          >
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    ),
+    [menu.options, menu.contentClassName],
+  )
 
   return (
-    <div className={className} {...props}>
-      <Select
-        value={radixValue}
-        onValueChange={(nextValue) => onValueChange(nextValue === EMPTY_SELECT_VALUE ? '' : nextValue)}
-        disabled={disabled}
+    <Select value={radixValue} onValueChange={change} disabled={disabled}>
+      <SelectTrigger
+        ref={triggerRef}
+        id={id}
+        className={triggerClassName}
+        aria-label={triggerAriaLabel}
+        data-value={value}
       >
-        <SelectTrigger
-          ref={triggerRef}
-          id={id}
-          className={triggerClassName}
-          aria-label={triggerAriaLabel}
-          data-value={value}
-        >
-          <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
-        </SelectTrigger>
-        <SelectContent className={contentClassName}>
-          {options.map((option) => (
-            <SelectItem
-              key={option.value || EMPTY_SELECT_VALUE}
-              value={option.value === '' ? EMPTY_SELECT_VALUE : option.value}
-              disabled={option.disabled}
-              title={option.title}
-              data-value={option.value}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+        <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
+      </SelectTrigger>
+      {content}
+    </Select>
   )
 }
 

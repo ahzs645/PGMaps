@@ -25,7 +25,7 @@ export function LandingCatchmentResults({ catchments }: { catchments: LandingCat
             : 'Without landings set, the counted roads are the catchments.'}
         </InfoTip>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-none">
         <EngineeringTable rowHeaders compact data-testid="landing-catchment-table">
           <thead>
             <tr>

@@ -32,7 +32,25 @@ import { SightDistanceBand } from './SightDistanceBand'
 import { verticalCurveSummary } from './engine'
 import { templateAt } from './templates'
 import { constrainPviDrag, MIN_PVI_GAP_M } from './verticalTools'
-import { useProfileEditing } from './ProfileEditing'
+import {
+  JUNCTION_LABEL_FONT_PX,
+  junctionLabelText,
+  junctionMarkerY,
+  useProfileEditing,
+  type JunctionLabelPlacement,
+} from './ProfileEditing'
+import {
+  CROSSING_CLUSTER_PX,
+  clusterByPixels,
+  junctionDifferenceShown,
+  junctionLabelNames,
+  placeLabels,
+  rotatedTextBox,
+  textBox,
+  type LabelBox,
+  type LabelCandidate,
+} from './profileLabelLayout'
+import { JUNCTION_SNAP_M } from './junctionTurn'
 import type { ProfileJunction } from './profileJunctions'
 import { classifySectionOffset, sectionCodePoints, sectionSampleAt } from './sectionGeometry'
 import { massHaulDiagram, ordinateAt, type HaulClassBand } from './massHaul'
@@ -280,6 +298,7 @@ function Grid({
   yLabel,
   stationTicks = false,
   top = 24,
+  yFloor,
 }: {
   width: number
   height: number
@@ -288,6 +307,8 @@ function Grid({
   yLabel: string
   stationTicks?: boolean
   top?: number
+  /** No y tick below this value: the plot below it holds something other than the axis's quantity. */
+  yFloor?: number
 }) {
   const f = chartFrame(width, height, domain, top)
   const bottom = height - f.bottom
@@ -336,7 +357,7 @@ function Grid({
           />
         ))}
       {yTicks.major
-        .filter((v) => inside(v, domain[2], domain[3]))
+        .filter((v) => inside(v, yFloor ?? domain[2], domain[3]))
         .map((value) => (
           <g key={`y${value}`}>
             <line
@@ -358,7 +379,7 @@ function Grid({
           </g>
         ))}
       {yTicks.minor
-        .filter((v) => inside(v, domain[2], domain[3]))
+        .filter((v) => inside(v, yFloor ?? domain[2], domain[3]))
         .map((value) => (
           <line
             key={`ym${value}`}
@@ -563,6 +584,8 @@ function ChartSlot({
       data-chart-slot
       data-compact={compact || undefined}
       data-chart-view={view}
+      // Nothing under the plot: its axis title is the slot's last row, which can share the resize grip's.
+      data-axis-at-bottom={(!bandsShown && !showDetails) || undefined}
     >
       {switcher &&
         (header?.target ? (
@@ -581,7 +604,7 @@ function ChartSlot({
       </div>
       {/* Both band sets share one capped scroller, so a short panel keeps its plot; the bands scroll instead. */}
       {bandsShown && (
-        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
+        <div className="max-h-[45%] min-h-0 shrink overflow-y-auto overscroll-none [scrollbar-gutter:stable]">
           {bands && bandsOpen && <div className="border-t">{bands.content}</div>}
           {valueBands && valueBandsOpen && <div className="border-t">{valueBands.content}</div>}
         </div>
@@ -592,7 +615,7 @@ function ChartSlot({
             showDetails ? `flex min-h-0 shrink flex-col border-t ${compact ? 'max-h-[45%]' : 'max-h-[50%]'}` : 'hidden'
           }
         >
-          <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain px-3 py-2">{footer}</div>
+          <div className="min-h-0 space-y-1 overflow-y-auto overscroll-none px-3 py-2">{footer}</div>
         </div>
       )}
     </div>
@@ -822,7 +845,6 @@ export function ProfileChart({
     onAddControl: editable ? onAddControl : undefined,
     onEditGesture,
   })
-  const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly)
   const curves = terrainOnly
     ? []
     : (() => {
@@ -1136,6 +1158,156 @@ export function ProfileChart({
           lastCalloutX = x
         }
         const handleRadius = typicalGap < 18 ? 3.5 : typicalGap < 30 ? 4.5 : 6
+        // Ground grades split by the room on screen; design tangents stay PVI to PVI.
+        const gradeSpans = profileGradeSpans(analysis, alignment, terrainOnly, {
+          range: [displayedDomain[0], displayedDomain[1]],
+          plotWidthPx: f.plotWidth,
+        })
+        // One placement pass for every text label on the plot (`profileLabelLayout.ts`): the station
+        // flag first, then red grades, junctions whose level differs, other grades, other junctions.
+        // A label that would cover a higher one is left to its tooltip.
+        const plotBox: LabelBox = { left: f.left, top: f.top, right: width - f.right, bottom: height - f.bottom }
+        const stationFlipped = f.x(station) > width - f.right - 70
+        const stationText = formatRoadStation(active?.chainage ?? station)
+        const shownJunctions = (terrainOnly ? [] : (junctions ?? [])).filter(
+          (j) => j.chainage >= displayedDomain[0] && j.chainage <= displayedDomain[1],
+        )
+        const junctionMarks = shownJunctions.map((j) => ({
+          j,
+          x: f.x(j.chainage),
+          y: junctionMarkerY(f, j, height, f.bottom),
+        }))
+        type PlacedLabel =
+          | { kind: 'station' }
+          | { kind: 'grade'; x: number; y: number; angle: number; text: string }
+          | { kind: 'junction'; placement: JunctionLabelPlacement }
+        const labelCandidates: LabelCandidate<PlacedLabel>[] = [
+          {
+            id: 'station',
+            priority: 100,
+            options: [
+              {
+                box: textBox(
+                  f.x(station) + (stationFlipped ? -4 : 4),
+                  f.top + 10,
+                  stationText,
+                  9.5,
+                  stationFlipped ? 'end' : 'start',
+                ),
+                value: { kind: 'station' },
+              },
+            ],
+          },
+        ]
+        for (const span of gradeSpans) {
+          // Label the part of the span on screen, so a long tangent keeps its grade when zoomed in.
+          const from = Math.max(span.start, displayedDomain[0]),
+            to = Math.min(span.end, displayedDomain[1])
+          const spanPx = f.x(to) - f.x(from)
+          // A tangent too short on screen for "grade · length" still shows its grade.
+          if (spanPx <= GRADE_ONLY_LABEL_PX) continue
+          const level = (chainage: number) => {
+            const nearest = nearestOf(analysis.stations, chainage)
+            return terrainOnly ? nearest?.groundElevation : nearest?.designElevation
+          }
+          const midpoint = (from + to) / 2
+          const elevation = level(midpoint),
+            a = level(from + (to - from) * 0.25),
+            b = level(from + (to - from) * 0.75)
+          if (!finite(elevation)) continue
+          // Label along the drawn tangent, as on a plotted profile sheet.
+          const angle =
+            finite(a) && finite(b)
+              ? clamp(
+                  (Math.atan2(f.y(b) - f.y(a), f.x(from + (to - from) * 0.75) - f.x(from + (to - from) * 0.25)) * 180) /
+                    Math.PI,
+                  -60,
+                  60,
+                )
+              : 0
+          const x = f.x(midpoint)
+          const above = Math.max(f.top + 10, f.y(elevation) - 7),
+            below = Math.min(height - f.bottom - 4, f.y(elevation) + 15)
+          const short = span.label.split(' · ')[0]
+          const texts = spanPx > FULL_GRADE_LABEL_PX && short !== span.label ? [span.label, short] : [short]
+          labelCandidates.push({
+            id: span.id,
+            priority: troubleIds.has(span.id) ? 90 : 70,
+            options: texts.flatMap((text) =>
+              [above, below].map((y) => ({
+                box: rotatedTextBox(x, y, text, 9, angle),
+                value: { kind: 'grade' as const, x, y, angle, text },
+              })),
+            ),
+          })
+        }
+        for (const { j, x, y } of junctionMarks) {
+          const baseline = y + 3
+          labelCandidates.push({
+            id: `junction-${j.id}`,
+            priority: junctionDifferenceShown(j.difference) ? 80 : 60,
+            // Beside the diamond, then over or under it and further out in tiers (the ground line
+            // beside it is where grade labels sit), each with the full name before the short one.
+            options: junctionLabelNames(j.otherRoadName).flatMap((name) => {
+              const text = junctionLabelText(j, name)
+              return (
+                [
+                  [x + 8, baseline, 'start'],
+                  [x - 8, baseline, 'end'],
+                  [x + 3, y - 9, 'start'],
+                  [x - 3, y - 9, 'end'],
+                  [x + 3, y + 16, 'start'],
+                  [x - 3, y + 16, 'end'],
+                  [x + 3, y - 21, 'start'],
+                  [x - 3, y - 21, 'end'],
+                  [x + 3, y + 28, 'start'],
+                  [x - 3, y + 28, 'end'],
+                  [x + 3, y - 33, 'start'],
+                  [x - 3, y - 33, 'end'],
+                ] as const
+              ).map(([labelX, labelY, anchor]) => ({
+                box: textBox(labelX, labelY, text, JUNCTION_LABEL_FONT_PX, anchor),
+                value: { kind: 'junction' as const, placement: { x: labelX, y: labelY, anchor, text } },
+              }))
+            }),
+          })
+        }
+        const placedLabels = placeLabels(labelCandidates, {
+          bounds: plotBox,
+          obstacles: [
+            // The diamond's own extent: its label starts 8 px out, clear of it by the placement gap.
+            ...junctionMarks.map(({ x, y }) => ({ left: x - 6, top: y - 6, right: x + 6, bottom: y + 6 })),
+            ...sorted
+              .filter((p) => p.chainage >= displayedDomain[0] && p.chainage <= displayedDomain[1])
+              .map((p) => {
+                const x = f.x(p.chainage),
+                  y = f.y(p.elevation),
+                  r = handleRadius + 1
+                return { left: x - r, top: y - r, right: x + r, bottom: y + r }
+              }),
+          ],
+        })
+        const junctionLabels = new Map<string, JunctionLabelPlacement>()
+        for (const { j } of junctionMarks) {
+          const placed = placedLabels.get(`junction-${j.id}`)
+          if (placed?.kind === 'junction') junctionLabels.set(j.id, placed.placement)
+        }
+        // Crossings a project road already marks as a junction are drawn once, as the junction; the
+        // rest share a tick where they fall within a few pixels of each other.
+        const crossingGroups = clusterByPixels(
+          analysis.crossings.filter(
+            (crossing) =>
+              crossing.chainage >= displayedDomain[0] &&
+              crossing.chainage <= displayedDomain[1] &&
+              !shownJunctions.some(
+                (j) =>
+                  j.otherContextIds?.includes(crossing.featureId) &&
+                  Math.abs(j.chainage - crossing.chainage) <= 2 * JUNCTION_SNAP_M,
+              ),
+          ),
+          (crossing) => f.x(crossing.chainage),
+          CROSSING_CLUSTER_PX,
+        )
         const annotationFrame = {
           x: f.x,
           y: f.y,
@@ -1316,46 +1488,55 @@ export function ProfileChart({
                     </title>
                   </path>
                 ))}
-                {analysis.crossings.map((crossing) => (
-                  <g
-                    key={crossing.id}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Inspect ${crossing.name} crossing at ${formatRoadStation(crossing.chainage)}`}
-                    className="cursor-pointer"
-                    onPointerDown={(event) => {
-                      event.stopPropagation()
-                      onStation(crossing.chainage)
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ' ') {
-                        event.preventDefault()
+                {crossingGroups.map((group) => {
+                  const [crossing] = group
+                  const x = f.x(crossing.chainage)
+                  const names =
+                    group.length === 1
+                      ? `${crossing.name} at ${formatRoadStation(crossing.chainage)}`
+                      : `${group.length} crossings, ${formatRoadStation(crossing.chainage)} to ${formatRoadStation(group[group.length - 1].chainage)}: ${group
+                          .slice(0, 8)
+                          .map((c) => `${c.name} at ${formatRoadStation(c.chainage)}`)
+                          .join('; ')}${group.length > 8 ? `; and ${group.length - 8} more` : ''}`
+                  return (
+                    <g
+                      key={crossing.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={
+                        group.length === 1
+                          ? `Inspect ${crossing.name} crossing at ${formatRoadStation(crossing.chainage)}`
+                          : `Inspect ${group.length} crossings from ${formatRoadStation(crossing.chainage)}`
+                      }
+                      data-crossing-count={group.length}
+                      className="cursor-pointer"
+                      onPointerDown={(event) => {
                         event.stopPropagation()
                         onStation(crossing.chainage)
-                      }
-                    }}
-                  >
-                    <rect
-                      x={f.x(crossing.chainage) - 5}
-                      y={f.top}
-                      width={10}
-                      height={f.plotHeight}
-                      fill="transparent"
-                    />
-                    <line
-                      x1={f.x(crossing.chainage)}
-                      x2={f.x(crossing.chainage)}
-                      y1={f.top}
-                      y2={height - f.bottom}
-                      stroke={crossing.kind === 'stream' ? ROAD_CHART_COLORS.fill : ROAD_CHART_COLORS.cut}
-                      strokeDasharray="3 3"
-                      opacity={0.6}
-                    />
-                    <title>
-                      {crossing.name} at {formatRoadStation(crossing.chainage)}
-                    </title>
-                  </g>
-                ))}
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          event.stopPropagation()
+                          onStation(crossing.chainage)
+                        }
+                      }}
+                    >
+                      <rect x={x - 5} y={f.top} width={10} height={f.plotHeight} fill="transparent" />
+                      <line
+                        x1={x}
+                        x2={x}
+                        y1={f.top}
+                        y2={height - f.bottom}
+                        stroke={group.some((c) => c.kind === 'stream') ? ROAD_CHART_COLORS.fill : ROAD_CHART_COLORS.cut}
+                        strokeWidth={group.length > 1 ? 1.8 : 1}
+                        strokeDasharray="3 3"
+                        opacity={0.6}
+                      />
+                      <title>{names}</title>
+                    </g>
+                  )
+                })}
                 {!terrainOnly &&
                   analysis.engineering?.culverts.map((culvert, culvertIndex, culverts) => {
                     const s = analysis.stations.reduce<RoadStation | undefined>(
@@ -1446,7 +1627,7 @@ export function ProfileChart({
                   pointerEvents="none"
                   data-testid="road-profile-cursor-label"
                 >
-                  {formatRoadStation(active?.chainage ?? station)}
+                  {stationText}
                 </text>
                 {active && finite(terrainOnly ? active.groundElevation : active.designElevation) && (
                   <circle
@@ -1456,60 +1637,31 @@ export function ProfileChart({
                     fill={ROAD_CHART_COLORS.selected}
                   />
                 )}
-                {gradeSpans
-                  // A tangent too short on screen for "grade · length" still shows its grade.
-                  .filter((span) => f.x(span.end) - f.x(span.start) > GRADE_ONLY_LABEL_PX)
-                  .map((span) => {
-                    const level = (chainage: number) => {
-                      const nearest = nearestOf(analysis.stations, chainage)
-                      return terrainOnly ? nearest?.groundElevation : nearest?.designElevation
-                    }
-                    const midpoint = (span.start + span.end) / 2
-                    const elevation = level(midpoint),
-                      a = level(span.start + (span.end - span.start) * 0.25),
-                      b = level(span.start + (span.end - span.start) * 0.75)
-                    if (!finite(elevation)) return null
-                    // Label along the drawn tangent, as on a plotted profile sheet.
-                    const angle =
-                      finite(a) && finite(b)
-                        ? clamp(
-                            (Math.atan2(
-                              f.y(b) - f.y(a),
-                              f.x(span.start + (span.end - span.start) * 0.75) -
-                                f.x(span.start + (span.end - span.start) * 0.25),
-                            ) *
-                              180) /
-                              Math.PI,
-                            -60,
-                            60,
-                          )
-                        : 0
-                    const x = f.x(midpoint),
-                      y = Math.max(f.top + 10, f.y(elevation) - 7)
-                    return (
-                      <text
-                        key={span.id}
-                        x={x}
-                        y={y}
-                        transform={`rotate(${angle.toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`}
-                        fontSize="9"
-                        fill={troubleIds.has(span.id) ? GRADE_TROUBLE_COLOR : 'hsl(var(--foreground))'}
-                        fontWeight={troubleIds.has(span.id) ? 700 : undefined}
-                        stroke="hsl(var(--background))"
-                        strokeWidth={3}
-                        paintOrder="stroke"
-                        textAnchor="middle"
-                        pointerEvents="none"
-                        data-grade-label
-                        data-grade-trouble={troubleIds.has(span.id) || undefined}
-                      >
-                        {f.x(span.end) - f.x(span.start) > FULL_GRADE_LABEL_PX
-                          ? span.label
-                          : span.label.split(' · ')[0]}
-                        <title>{span.detail}</title>
-                      </text>
-                    )
-                  })}
+                {gradeSpans.map((span) => {
+                  const label = placedLabels.get(span.id)
+                  if (label?.kind !== 'grade') return null
+                  return (
+                    <text
+                      key={span.id}
+                      x={label.x}
+                      y={label.y}
+                      transform={`rotate(${label.angle.toFixed(1)} ${label.x.toFixed(1)} ${label.y.toFixed(1)})`}
+                      fontSize="9"
+                      fill={troubleIds.has(span.id) ? GRADE_TROUBLE_COLOR : 'hsl(var(--foreground))'}
+                      fontWeight={troubleIds.has(span.id) ? 700 : undefined}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                      textAnchor="middle"
+                      pointerEvents="none"
+                      data-grade-label
+                      data-grade-trouble={troubleIds.has(span.id) || undefined}
+                    >
+                      {label.text}
+                      <title>{span.detail}</title>
+                    </text>
+                  )
+                })}
                 <ProfileCurvePoints
                   points={curvePointList}
                   frame={annotationFrame}
@@ -1608,7 +1760,7 @@ export function ProfileChart({
                       </g>
                     )
                   })}
-              {editing.layers(f, height, f.bottom, displayedDomain)}
+              {editing.layers(f, height, f.bottom, displayedDomain, junctionLabels)}
               {sorted
                 .map((p, index) => ({ p, index }))
                 .filter(
@@ -2601,8 +2753,14 @@ export function MassHaulChart({
           (p[0] > rangeEnd && line[i - 1]?.[0] < rangeEnd),
       )
       .map((p) => p[1])
-  const [valueLow, high] = extent([0, ...inView(diagram.balance), ...inView(afterSites ?? [])], 10)
-  // The class bands take the foot of the plot, so the curve is kept clear of them.
+  const values = [0, ...inView(diagram.balance), ...inView(afterSites ?? [])]
+  const [paddedLow, paddedHigh] = extent(values, 10)
+  // Zero is a real edge of the balance: a line that never goes negative starts the axis at 0 rather
+  // than padding into a deficit it never has, and one that never goes positive ends it there.
+  const valueLow = Math.min(...values) >= 0 ? 0 : paddedLow
+  const high = Math.max(...values) <= 0 && valueLow < 0 ? 0 : paddedHigh
+  // The class bands take the foot of the plot, so the curve is kept clear of them; that strip is
+  // not balance, so the axis gives it no ticks.
   const low = classBands.length ? valueLow - (high - valueLow) * 0.12 : valueLow
   const domain: Domain = [rangeStart, rangeEnd, low, high]
   const classRange = (band: HaulClassBand) =>
@@ -2854,6 +3012,7 @@ export function MassHaulChart({
               xLabel="Chainage (m)"
               yLabel="Cumulative balance (m³)"
               stationTicks
+              yFloor={classBands.length ? valueLow : undefined}
             />
             <g clipPath={`url(#mass-${id})`}>
               <SelectionBand range={selectedRange} frame={f} />

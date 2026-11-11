@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
 import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
-import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { CollapsibleSection, KeyValueRows } from '@/components/ui/map-panels'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
 import { ReferencePanel } from '../ReferencePanel'
@@ -15,15 +14,8 @@ import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
 import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
+import { TerrainCaveats } from '../TerrainCaveats'
 import { pointCloudImportSummary } from '../terrain'
-
-const LIDAR_LINKS = [
-  ['/dev/forestry/road-restoration', 'Local LiDAR restoration metrics'],
-  ['/dev/lidar/forestry/', 'Forest structure & plots'],
-  ['/dev/lidar/canopy/', 'Canopy heights & density'],
-  ['/dev/lidar/trees/', 'Individual-tree inspection'],
-  ['/dev/lidar/transects/', 'Source point-cloud transects'],
-] as const
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
 /** A cell size people read at a glance: whole metres when coarse, decimals only when they matter. */
@@ -69,11 +61,11 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             <p className="min-w-0 flex-1 text-sm font-medium leading-5" title={project.terrain.name}>
               {terrainSourceName(project.terrain.name)}
             </p>
-            {project.terrain.kind === 'regional' && (
-              <InfoTip label="Screening terrain" tone="warning" className="mt-0.5">
-                Screening terrain. Use bare-earth LiDAR or your own DEM before relying on quantities.
-              </InfoTip>
-            )}
+            <TerrainCaveats
+              screening={project.terrain.kind === 'regional'}
+              warnings={project.scenario?.contextWarnings ?? []}
+              className="mt-0.5"
+            />
           </div>
           <p className="mt-0.5 text-2xs leading-4 text-muted-foreground">
             {terrainCellSize(project.terrain.resolutionM)} cells ·{' '}
@@ -100,11 +92,6 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             </div>
           )}
         </div>
-        {project.scenario?.contextWarnings.map((warning, index) => (
-          <InlineAlert key={index} tone="warning" className="mt-2">
-            {warning}
-          </InlineAlert>
-        ))}
         <div className="mt-2 grid grid-cols-3 gap-1">
           <Button
             size="sm"
@@ -248,19 +235,6 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         onAskTerrain={p.onAskTerrain}
       />
       {existingRoads}
-      <RoadSection
-        title="Related LiDAR workspaces"
-        summary="5 tools"
-        help="These open the published BC sample's canopy and tree products in a new tab; the road project stays open here. The ground DEM cannot provide DBH, species or merchantable volume, and an imported DEM is not relabelled as an inventory dataset."
-      >
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-          {LIDAR_LINKS.map(([to, label]) => (
-            <Link key={to} className="truncate text-primary underline" to={to} target="_blank" title={label}>
-              {label}
-            </Link>
-          ))}
-        </div>
-      </RoadSection>
     </>
   )
 }

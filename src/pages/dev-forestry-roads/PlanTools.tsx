@@ -114,7 +114,7 @@ export function usePlanTools(input: PlanToolsInput) {
   const panelSlot: ReactNode = active ? (
     <div
       ref={setPanelHost}
-      className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-contain"
+      className="absolute bottom-9 left-2 z-30 max-h-[calc(100%-5.5rem)] w-80 max-w-[calc(100%-1rem)] overflow-y-auto overscroll-none"
       data-map-export-ignore
     />
   ) : null

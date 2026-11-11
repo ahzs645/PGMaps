@@ -109,7 +109,7 @@ export function PinnedRunResults({
               </>
             )}
           </dl>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-none">
             <EngineeringTable rowHeaders compact data-testid="pinned-state-table">
               <thead>
                 <tr>

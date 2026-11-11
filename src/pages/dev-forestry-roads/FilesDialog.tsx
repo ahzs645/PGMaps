@@ -223,7 +223,7 @@ export function FilesDialog({
         <div className="grid min-w-0 sm:h-full sm:min-h-[24rem] sm:grid-cols-[15rem_minmax(0,1fr)]">
           <nav
             aria-label="Files"
-            className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto sm:border-b-0 sm:border-r"
+            className="border-b border-border py-1 sm:min-h-0 sm:overflow-y-auto overscroll-none sm:border-b-0 sm:border-r"
           >
             {GROUPS.map((group) => (
               <div key={group}>
@@ -323,7 +323,7 @@ export function FilesDialog({
               </p>
             )}
             {/* Side by side the preview scrolls in its pane; stacked on a phone it flows with the dialog. */}
-            <div className="min-h-0 flex-1 sm:overflow-y-auto">
+            <div className="min-h-0 flex-1 sm:overflow-y-auto overscroll-none">
               {shownView === 'issue' && onIssue ? (
                 <IssueStampEditor value={issue} onChange={onIssue} today={stamp.date} />
               ) : shownView === 'setup' && setupView ? (

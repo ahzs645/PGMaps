@@ -282,7 +282,7 @@ export function MaxReachPanel({
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(170px,0.75fr)_minmax(0,1fr)]">
-            <div className="max-h-64 overflow-auto rounded border">
+            <div className="max-h-64 overflow-auto overscroll-none rounded border">
               <EngineeringTable className="whitespace-normal" data-testid="radial-reach-table">
                 <thead className="sticky top-0">
                   <tr>

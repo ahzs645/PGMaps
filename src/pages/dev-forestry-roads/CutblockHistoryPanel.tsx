@@ -424,7 +424,7 @@ export function CutblockHistoryPanel({
                           <p className="text-2xs text-muted-foreground">
                             {candidates.length} within 1 km · proximity only
                           </p>
-                          <div className="max-h-48 overflow-y-auto overscroll-contain rounded-md border">
+                          <div className="max-h-48 overflow-y-auto overscroll-none rounded-md border">
                             {candidates.map(({ road, distanceM }) => {
                               const style = roadHistoryStyle(road.roadEvidence)
                               return (

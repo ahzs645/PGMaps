@@ -1,3 +1,4 @@
+import { StationValue, useStationReader } from './roadStation'
 import { useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { formatRoadStation } from './Charts'
@@ -63,6 +64,8 @@ export function TerrainPreparationPanel({
   /** Asks for a CRS or vertical datum the chosen files do not state; null when cancelled. */
   onAskTerrain?: (needs: TerrainImportNeeds) => Promise<TerrainImportAnswers | null>
 }) {
+  // The sidebar is memoized: a click reads the station as it is now (see roadStation.tsx).
+  const readStation = useStationReader(w)
   const { project, alignment } = w,
     metadata = project.terrain,
     raster = metadata.raster
@@ -151,8 +154,9 @@ export function TerrainPreparationPanel({
     w.setNotice(`Using ${loaded.metadata.name}. The preparation and source evidence are saved in this project.`)
   }
   const center = () => {
+    const station = readStation()
     const at = w.analysis?.stations.reduce(
-      (best, s) => (Math.abs(s.chainage - w.station) < Math.abs(best.chainage - w.station) ? s : best),
+      (best, s) => (Math.abs(s.chainage - station) < Math.abs(best.chainage - station) ? s : best),
       w.analysis.stations[0],
     )
     if (!at) throw Error('Select a road station to locate the grading pad.')
@@ -652,7 +656,7 @@ export function TerrainPreparationPanel({
               }
             }}
           >
-            Fill start from station {formatRoadStation(w.station)}
+            Fill start from station <StationValue workspace={w}>{(station) => formatRoadStation(station)}</StationValue>
           </Button>
           <Field
             label="Horizontal distances are"

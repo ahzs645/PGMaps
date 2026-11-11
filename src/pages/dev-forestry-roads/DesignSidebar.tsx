@@ -180,7 +180,7 @@ export function DesignSidebar(props: SidebarProps) {
             </InlineAlert>
           )}
           <CorridorPreview review={review} />
-          <div className="mt-4 overflow-x-auto">
+          <div className="mt-4 overflow-x-auto overscroll-none">
             <EngineeringTable rowHeaders>
               <caption className="whitespace-normal pb-2 text-left text-sm font-medium">Ground along each line</caption>
               <thead>

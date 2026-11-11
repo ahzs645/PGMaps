@@ -32,7 +32,7 @@ export function AccessHistoryEvidence({
       </summary>
       <details>
         <summary className="cursor-pointer">Source records and block identities</summary>
-        <div className="mt-2 max-h-72 space-y-3 overflow-y-auto">
+        <div className="mt-2 max-h-72 space-y-3 overflow-y-auto overscroll-none">
           {history.sources.length === 0 && <p>No source records saved.</p>}
           {history.sources.map((source) => (
             <div key={source.id} className="space-y-1 border-t pt-2">
@@ -77,7 +77,7 @@ export function AccessHistoryEvidence({
       </details>
       <details>
         <summary className="cursor-pointer">Physical road chronology</summary>
-        <ul className="mt-2 max-h-72 space-y-2 overflow-y-auto">
+        <ul className="mt-2 max-h-72 space-y-2 overflow-y-auto overscroll-none">
           {history.events.length === 0 && (
             <li>No physical road events saved. Permit dates alone do not establish construction.</li>
           )}
@@ -96,7 +96,7 @@ export function AccessHistoryEvidence({
       </details>
       <details>
         <summary className="cursor-pointer">Structure identities, dates and source reports</summary>
-        <div className="mt-2 max-h-96 space-y-3 overflow-y-auto">
+        <div className="mt-2 max-h-96 space-y-3 overflow-y-auto overscroll-none">
           {history.structures.length === 0 && <p>No structure records saved; crossing completeness is unknown.</p>}
           {history.structures.map((structure) => (
             <div key={structure.id} className="space-y-1 border-t pt-2">

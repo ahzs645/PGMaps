@@ -489,7 +489,7 @@ export function NetworkPlanningDialog({
                       Review existing roads before including them.
                     </InfoTip>
                   </div>
-                  <div className="max-h-44 space-y-2 overflow-y-auto">
+                  <div className="max-h-44 space-y-2 overflow-y-auto overscroll-none">
                     {w.project.context
                       .filter((feature) => feature.kind === 'existing-road')
                       .map((road) => {
@@ -617,7 +617,7 @@ export function NetworkPlanningDialog({
                   </div>
                   {planning.targets.length > 0 && (
                     <div
-                      className="max-h-72 space-y-3 overflow-y-auto rounded border p-2"
+                      className="max-h-72 space-y-3 overflow-y-auto overscroll-none rounded border p-2"
                       aria-label="Landing target editor"
                     >
                       {planning.targets.map((target, index) => (
@@ -786,7 +786,7 @@ export function NetworkPlanningDialog({
             <>
               <p className="text-xs text-muted-foreground">{review.prepared.provenance}</p>
               {review.results.length > 1 && (
-                <div className="overflow-x-auto rounded border">
+                <div className="overflow-x-auto overscroll-none rounded border">
                   <EngineeringTable rowHeaders>
                     <caption className="whitespace-normal p-2 text-left text-xs font-semibold">
                       Method comparison · relative objective, unique edge lengths
@@ -856,7 +856,7 @@ export function NetworkPlanningDialog({
                   </ul>
                 </InlineAlert>
               )}
-              <div className="overflow-x-auto rounded border">
+              <div className="overflow-x-auto overscroll-none rounded border">
                 <EngineeringTable variant="text" rowHeaders aria-label="Network target outcomes">
                   <thead>
                     <tr>

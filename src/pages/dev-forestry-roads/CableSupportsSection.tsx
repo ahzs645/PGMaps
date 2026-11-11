@@ -392,7 +392,7 @@ export function CableSupportsSection({
               ))}
             </tbody>
           </EngineeringTable>
-          <div className="max-h-56 overflow-auto rounded border">
+          <div className="max-h-56 overflow-auto overscroll-none rounded border">
             <EngineeringTable data-testid="cable-supports-table">
               <thead className="sticky top-0">
                 <tr>
@@ -423,7 +423,7 @@ export function CableSupportsSection({
               </tbody>
             </EngineeringTable>
           </div>
-          <div className="max-h-40 overflow-auto rounded border">
+          <div className="max-h-40 overflow-auto overscroll-none rounded border">
             <EngineeringTable compact data-testid="cable-spans-table">
               <SpanColumns />
               <tbody>

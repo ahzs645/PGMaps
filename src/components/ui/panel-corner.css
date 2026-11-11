@@ -24,6 +24,15 @@
   height: clamp(min(100%, 10rem), var(--corner-height, 100%), 100%);
   padding-block-end: 20px;
 }
+/* A chart that ends at its axis title puts that title in the grip's row rather than above it: the title is
+   centred under the plot and the grip sits in the corner, so they share a line. The section view keeps the
+   reserve, because its tools sit under the chart. 4px lines the title's middle up with the grip's. */
+.road-workspace[data-interface]
+  section:has(> .lp-panel-grip):has([data-chart-slot][data-axis-at-bottom]):not(
+    :has([data-testid='road-section-tools'])
+  ):not([data-fullscreen]) {
+  padding-block-end: 4px;
+}
 .lp-guide-window {
   position: relative;
   display: flex;
@@ -71,16 +80,35 @@
     max-height: 100%;
   }
 }
+/* The grip sits 2px in from the visible card's outer edge (its 1px border plus 1px), so its outer corner must
+   be the card's radius less 2px to follow the card's curve; a smaller radius pokes its hover square through
+   the rounded corner. A host whose card carries the border sets --lp-grip-corner to that card's radius; a
+   window wrapping a bordered card also sets --lp-grip-inset: 2px, because the grip is then outside the border. */
+.road-workspace[data-interface] section:has(> .lp-panel-grip) {
+  --lp-grip-corner: 0.75rem;
+}
+.lp-controls-window {
+  --lp-grip-corner: 0.75rem;
+  --lp-grip-inset: 2px;
+}
+.lp-guide-window {
+  --lp-grip-corner: var(--radius);
+  --lp-grip-inset: 2px;
+}
+.lp-task-pane:has(> .lp-panel-grip) {
+  --lp-grip-corner: calc(var(--radius) - 2px);
+}
 .lp-panel-grip {
   position: absolute;
-  right: 1px;
-  bottom: 1px;
+  right: var(--lp-grip-inset, 1px);
+  bottom: var(--lp-grip-inset, 1px);
   display: grid;
   place-items: center;
   width: 22px;
   height: 19px;
   color: hsl(var(--muted-foreground));
   border-radius: calc(var(--radius) - 4px);
+  border-end-end-radius: max(calc(var(--radius) - 4px), calc(var(--lp-grip-corner, 0px) - 2px));
   background: hsl(var(--card));
   cursor: nwse-resize;
   user-select: none;
@@ -92,8 +120,13 @@
   content: '';
   width: 13px;
   height: 13px;
-  background: radial-gradient(circle, currentColor 1px, transparent 1.3px) 1px 1px / 4px 4px;
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  /* Six whole dots, each drawn on its own. A clipped dot grid cut the diagonal dots in half, and any diagonal
+     cut leaves the neighbouring row within a tenth of a pixel of showing through. */
+  --dot: currentColor 1px, transparent 1.3px;
+  background:
+    radial-gradient(circle at 11px 3px, var(--dot)), radial-gradient(circle at 7px 7px, var(--dot)),
+    radial-gradient(circle at 11px 7px, var(--dot)), radial-gradient(circle at 3px 11px, var(--dot)),
+    radial-gradient(circle at 7px 11px, var(--dot)), radial-gradient(circle at 11px 11px, var(--dot));
 }
 .lp-panel-grip:hover,
 .lp-panel-grip:focus-visible {
@@ -108,5 +141,11 @@
   .road-workspace[data-interface] section:has(> .lp-panel-grip):not([data-fullscreen]),
   .lp-guide-window > .lp-guide {
     padding-block-end: 28px;
+  }
+  .road-workspace[data-interface]
+    section:has(> .lp-panel-grip):has([data-chart-slot][data-axis-at-bottom]):not(
+      :has([data-testid='road-section-tools'])
+    ):not([data-fullscreen]) {
+    padding-block-end: 9px;
   }
 }

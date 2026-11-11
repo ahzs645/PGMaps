@@ -14,6 +14,7 @@ import { verticalFitNote } from './curveFit'
 import { CurveReviewPanel } from './CurveReviewPanel'
 import { SweptPathPanel, type VehicleToolsProps } from './SweptPathPanel'
 import { GradeCell, GradeHoldPicker } from './GradeScheduleFields'
+import { ScheduleToolbar, ScheduleToolbarContext } from './scheduleToolbar'
 import type { GradeHold } from './gradeEdit'
 import type { SweptManeuver, SweptPathResult } from './sweptPath'
 import type { JunctionTurnProps } from './JunctionTurnPanel'
@@ -61,6 +62,7 @@ export function DesignSchedules({
 }) {
   const [tab, setTab] = useState<'sampled' | 'horizontal' | 'vertical' | 'swept'>('sampled')
   const [gradeHold, setGradeHold] = useState<GradeHold>('back')
+  const [toolbar, setToolbar] = useState<HTMLElement | null>(null)
   const failingTurns = new Set(swept?.result?.maneuvers.filter((t) => !t.fits).map((t) => t.id)).size
   let vertical: ReturnType<typeof verticalCurveSummary> = []
   try {
@@ -75,206 +77,213 @@ export function DesignSchedules({
     )
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <TabBar
-        label="Road data schedule"
-        stretch
-        value={terrainOnly ? 'sampled' : tab}
-        onChange={setTab}
-        // Short labels keep all four tabs on one row at phone widths; names stay descriptive.
-        options={[
-          { value: 'sampled', label: 'Samples' },
-          { value: 'horizontal', label: 'Curves', ariaLabel: 'Horizontal curves', disabled: terrainOnly },
-          { value: 'vertical', label: 'Vertical', ariaLabel: 'Vertical controls', disabled: terrainOnly },
-          ...(swept
-            ? [
-                {
-                  value: 'swept' as const,
-                  label: 'Swept path',
-                  ariaLabel: failingTurns
-                    ? `Swept path, ${failingTurns} turn${failingTurns === 1 ? ' needs' : 's need'} widening`
-                    : 'Swept path',
-                  badge: failingTurns ? (
-                    <span className="rounded-full bg-red-600 px-1.5 text-3xs text-white">{failingTurns}</span>
-                  ) : undefined,
-                  disabled: terrainOnly,
-                },
-              ]
-            : []),
-        ]}
-      />
+      {/* The tabs and the shown view's toolbar share one row; the slot is empty for views without one. */}
+      <div className="flex min-w-0 items-center gap-1.5">
+        <TabBar
+          label="Road data schedule"
+          stretch
+          className="min-w-0 flex-1"
+          value={terrainOnly ? 'sampled' : tab}
+          onChange={setTab}
+          // Short labels keep all four tabs on one row at phone widths; names stay descriptive.
+          options={[
+            { value: 'sampled', label: 'Samples' },
+            { value: 'horizontal', label: 'Curves', ariaLabel: 'Horizontal curves', disabled: terrainOnly },
+            { value: 'vertical', label: 'Vertical', ariaLabel: 'Vertical controls', disabled: terrainOnly },
+            ...(swept
+              ? [
+                  {
+                    value: 'swept' as const,
+                    label: 'Swept path',
+                    ariaLabel: failingTurns
+                      ? `Swept path, ${failingTurns} turn${failingTurns === 1 ? ' needs' : 's need'} widening`
+                      : 'Swept path',
+                    badge: failingTurns ? (
+                      <span className="rounded-full bg-red-600 px-1.5 text-3xs text-white">{failingTurns}</span>
+                    ) : undefined,
+                    disabled: terrainOnly,
+                  },
+                ]
+              : []),
+          ]}
+        />
+        <div ref={setToolbar} className="flex shrink-0 items-center gap-1 empty:hidden" />
+      </div>
       <div className="min-h-0 flex-1">
-        {(tab === 'sampled' || terrainOnly) && children}
-        {tab === 'horizontal' && !terrainOnly && (
-          <CurveReviewPanel
-            alignment={alignment}
-            analysis={analysis}
-            station={station}
-            onStation={onStation}
-            terrain={terrain}
-            swept={swept?.result ?? null}
-            onOpenSwept={swept ? () => setTab('swept') : undefined}
-          />
-        )}
-        {tab === 'swept' && swept && !terrainOnly && (
-          <div className="h-full overflow-auto overscroll-contain">
-            <SweptPathPanel
-              check={alignment.vehicleCheck}
-              result={swept.result}
-              error={swept.error}
-              onChange={swept.onChange}
-              onStation={onStation}
-              showOnPlan={swept.showOnPlan}
-              onShowOnPlan={swept.onShowOnPlan}
-              onFocus={swept.onFocus}
+        <ScheduleToolbarContext.Provider value={toolbar}>
+          {(tab === 'sampled' || terrainOnly) && children}
+          {tab === 'horizontal' && !terrainOnly && (
+            <CurveReviewPanel
               alignment={alignment}
-              junctions={swept.junctions}
-              tools={swept.tools}
+              analysis={analysis}
+              station={station}
+              onStation={onStation}
+              terrain={terrain}
+              swept={swept?.result ?? null}
+              onOpenSwept={swept ? () => setTab('swept') : undefined}
             />
-          </div>
-        )}
-        {tab === 'vertical' && !terrainOnly && (
-          <div className="flex h-full min-h-0 flex-col gap-2">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-7 w-fit px-2"
-                disabled={!onVerticalChange || at?.designElevation == null || alignment.vertical.length >= 500}
-                onClick={() => {
-                  if (at?.designElevation == null) return
-                  onVerticalChange?.(
-                    [
-                      ...alignment.vertical.filter((v) => Math.abs(v.chainage - at.chainage) > 0.001),
-                      {
-                        id: crypto.randomUUID(),
-                        chainage: at.chainage,
-                        elevation: at.designElevation,
-                        curveLength: 0,
-                      },
-                    ].sort((a, b) => a.chainage - b.chainage),
-                  )
-                }}
-              >
-                <Plus aria-hidden="true" />
-                Add control at selected station
-              </Button>
-              <GradeHoldPicker value={gradeHold} onChange={setGradeHold} disabled={!onVerticalChange} />
-              <span className="shrink-0 text-2xs text-muted-foreground">
-                {alignment.vertical.length} control{alignment.vertical.length === 1 ? '' : 's'}
-              </span>
+          )}
+          {tab === 'swept' && swept && !terrainOnly && (
+            <div className="h-full overflow-auto overscroll-none">
+              <SweptPathPanel
+                check={alignment.vehicleCheck}
+                result={swept.result}
+                error={swept.error}
+                onChange={swept.onChange}
+                onStation={onStation}
+                showOnPlan={swept.showOnPlan}
+                onShowOnPlan={swept.onShowOnPlan}
+                onFocus={swept.onFocus}
+                alignment={alignment}
+                junctions={swept.junctions}
+                tools={swept.tools}
+              />
             </div>
-            <div className="min-h-0 flex-1 overflow-auto">
-              <EngineeringTable data-testid="road-vertical-control-table">
-                <thead className="sticky top-0 z-10">
-                  <tr>
-                    {[
-                      ['PVI', ''],
-                      ['L-Stn', 'm'],
-                      ['Elevation', 'm'],
-                      ['VC length', 'm'],
-                      ['Grade in', '%'],
-                      ['Grade out', '%'],
-                      ['K', 'm/%'],
-                      ['Status', ''],
-                      ['', ''],
-                    ].map(([label, unit], i) => (
-                      <ColumnHeader
-                        key={i}
-                        label={label}
-                        unit={unit}
-                        className={i === 0 ? `${pinned} z-20 text-left` : undefined}
-                      />
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {alignment.vertical.map((v, index) => {
-                    const curve = vertical.find((c) => c.pviId === v.id)
-                    const previous = alignment.vertical[index - 1],
-                      next = alignment.vertical[index + 1]
-                    const incoming = previous
-                      ? (100 * (v.elevation - previous.elevation)) / (v.chainage - previous.chainage)
-                      : null
-                    const outgoing = next ? (100 * (next.elevation - v.elevation)) / (next.chainage - v.chainage) : null
-                    const status = curve?.valid ? 'Fitted' : v.curveLength > 0 ? 'Unfitted' : 'Tangent'
-                    return (
-                      <tr key={v.id} className="group" aria-selected={Math.abs(v.chainage - station) < 0.001}>
-                        <td
-                          className={`${pinned} bg-background text-left group-aria-selected:bg-rose-100 dark:group-aria-selected:bg-rose-950`}
-                        >
-                          <button
-                            className="font-mono underline decoration-dotted"
-                            onClick={() => onStation(v.chainage)}
-                          >
-                            V{index + 1}
-                          </button>
-                        </td>
-                        {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
-                          <td key={key} className="min-w-20 !p-0.5">
-                            <NumberField
-                              label={`Schedule PVI ${index + 1} ${key === 'curveLength' ? 'curve length' : key}`}
-                              hideLabel
-                              value={v[key]}
-                              min={key === 'elevation' ? -12000 : 0}
-                              max={key === 'elevation' ? 12000 : key === 'curveLength' ? 10000 : 100000}
-                              precision={2}
-                              fixedDecimals
-                              inputClassName={cellInput}
-                              disabled={!onVerticalChange}
-                              onChange={(value) => update(v.id, { [key]: value })}
-                            />
-                          </td>
-                        ))}
-                        {(
-                          [
-                            ['in', incoming, previous?.id ?? null],
-                            ['out', outgoing, next ? v.id : null],
-                          ] as const
-                        ).map(([side, grade, backId]) => (
-                          <td key={side} className="min-w-20 !p-0.5">
-                            <GradeCell
-                              label={`Schedule PVI ${index + 1} grade ${side}`}
-                              value={grade}
-                              points={alignment.vertical}
-                              backId={backId}
-                              hold={gradeHold}
-                              controls={alignment.verticalControls}
-                              onVerticalChange={onVerticalChange}
-                            />
-                          </td>
-                        ))}
-                        <td>{fmt(curve?.k)}</td>
-                        <td
-                          className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
-                          title={
-                            status === 'Tangent'
-                              ? 'Tangent break: no vertical curve'
-                              : (verticalFitNote(curve) ?? undefined)
-                          }
-                        >
-                          {status}
-                        </td>
-                        <td className="!p-0.5 text-center">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="size-6 text-muted-foreground hover:text-destructive [&_svg]:size-3.5"
-                            disabled={!onVerticalChange}
-                            aria-label={`Remove schedule PVI ${index + 1}`}
-                            title={`Remove V${index + 1}`}
-                            onClick={() => onVerticalChange?.(alignment.vertical.filter((p) => p.id !== v.id))}
-                          >
-                            <X aria-hidden="true" />
-                          </Button>
-                        </td>
-                      </tr>
+          )}
+          {tab === 'vertical' && !terrainOnly && (
+            <div className="flex h-full min-h-0 flex-col gap-2">
+              <ScheduleToolbar>
+                <GradeHoldPicker value={gradeHold} onChange={setGradeHold} disabled={!onVerticalChange} compact />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  className="size-8 shrink-0"
+                  aria-label="Add control at selected station"
+                  title={`Add a vertical control at the selected station · ${alignment.vertical.length} control${alignment.vertical.length === 1 ? '' : 's'} now`}
+                  disabled={!onVerticalChange || at?.designElevation == null || alignment.vertical.length >= 500}
+                  onClick={() => {
+                    if (at?.designElevation == null) return
+                    onVerticalChange?.(
+                      [
+                        ...alignment.vertical.filter((v) => Math.abs(v.chainage - at.chainage) > 0.001),
+                        {
+                          id: crypto.randomUUID(),
+                          chainage: at.chainage,
+                          elevation: at.designElevation,
+                          curveLength: 0,
+                        },
+                      ].sort((a, b) => a.chainage - b.chainage),
                     )
-                  })}
-                </tbody>
-              </EngineeringTable>
+                  }}
+                >
+                  <Plus aria-hidden="true" />
+                </Button>
+              </ScheduleToolbar>
+              <div className="min-h-0 flex-1 overflow-auto overscroll-none">
+                <EngineeringTable data-testid="road-vertical-control-table">
+                  <thead className="sticky top-0 z-10">
+                    <tr>
+                      {[
+                        ['PVI', ''],
+                        ['L-Stn', 'm'],
+                        ['Elevation', 'm'],
+                        ['VC length', 'm'],
+                        ['Grade in', '%'],
+                        ['Grade out', '%'],
+                        ['K', 'm/%'],
+                        ['Status', ''],
+                        ['', ''],
+                      ].map(([label, unit], i) => (
+                        <ColumnHeader
+                          key={i}
+                          label={label}
+                          unit={unit}
+                          className={i === 0 ? `${pinned} z-20 text-left` : undefined}
+                        />
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alignment.vertical.map((v, index) => {
+                      const curve = vertical.find((c) => c.pviId === v.id)
+                      const previous = alignment.vertical[index - 1],
+                        next = alignment.vertical[index + 1]
+                      const incoming = previous
+                        ? (100 * (v.elevation - previous.elevation)) / (v.chainage - previous.chainage)
+                        : null
+                      const outgoing = next
+                        ? (100 * (next.elevation - v.elevation)) / (next.chainage - v.chainage)
+                        : null
+                      const status = curve?.valid ? 'Fitted' : v.curveLength > 0 ? 'Unfitted' : 'Tangent'
+                      return (
+                        <tr key={v.id} className="group" aria-selected={Math.abs(v.chainage - station) < 0.001}>
+                          <td
+                            className={`${pinned} bg-background text-left group-aria-selected:bg-rose-100 dark:group-aria-selected:bg-rose-950`}
+                          >
+                            <button
+                              className="font-mono underline decoration-dotted"
+                              onClick={() => onStation(v.chainage)}
+                            >
+                              V{index + 1}
+                            </button>
+                          </td>
+                          {(['chainage', 'elevation', 'curveLength'] as const).map((key) => (
+                            <td key={key} className="min-w-20 !p-0.5">
+                              <NumberField
+                                label={`Schedule PVI ${index + 1} ${key === 'curveLength' ? 'curve length' : key}`}
+                                hideLabel
+                                value={v[key]}
+                                min={key === 'elevation' ? -12000 : 0}
+                                max={key === 'elevation' ? 12000 : key === 'curveLength' ? 10000 : 100000}
+                                precision={2}
+                                fixedDecimals
+                                inputClassName={cellInput}
+                                disabled={!onVerticalChange}
+                                onChange={(value) => update(v.id, { [key]: value })}
+                              />
+                            </td>
+                          ))}
+                          {(
+                            [
+                              ['in', incoming, previous?.id ?? null],
+                              ['out', outgoing, next ? v.id : null],
+                            ] as const
+                          ).map(([side, grade, backId]) => (
+                            <td key={side} className="min-w-20 !p-0.5">
+                              <GradeCell
+                                label={`Schedule PVI ${index + 1} grade ${side}`}
+                                value={grade}
+                                points={alignment.vertical}
+                                backId={backId}
+                                hold={gradeHold}
+                                controls={alignment.verticalControls}
+                                onVerticalChange={onVerticalChange}
+                              />
+                            </td>
+                          ))}
+                          <td>{fmt(curve?.k)}</td>
+                          <td
+                            className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                            title={
+                              status === 'Tangent'
+                                ? 'Tangent break: no vertical curve'
+                                : (verticalFitNote(curve) ?? undefined)
+                            }
+                          >
+                            {status}
+                          </td>
+                          <td className="!p-0.5 text-center">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="size-6 text-muted-foreground hover:text-destructive [&_svg]:size-3.5"
+                              disabled={!onVerticalChange}
+                              aria-label={`Remove schedule PVI ${index + 1}`}
+                              title={`Remove V${index + 1}`}
+                              onClick={() => onVerticalChange?.(alignment.vertical.filter((p) => p.id !== v.id))}
+                            >
+                              <X aria-hidden="true" />
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </EngineeringTable>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </ScheduleToolbarContext.Provider>
       </div>
     </div>
   )

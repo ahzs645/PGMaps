@@ -125,7 +125,7 @@ export function AccessHistoryCandidates({
               )}
             </div>
           </Field>
-          <div className="max-h-72 overflow-y-auto rounded border" data-map-sidebar-scroll="true">
+          <div className="max-h-72 overflow-y-auto overscroll-none rounded border" data-map-sidebar-scroll="true">
             <ListHeader
               count={filtered.length}
               noun={['candidate within 1 km', 'candidates within 1 km']}

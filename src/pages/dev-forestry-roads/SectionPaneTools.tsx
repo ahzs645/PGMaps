@@ -247,7 +247,7 @@ export function SectionPaneTools({
         </InfoTip>
       </div>
       {(formOpen || applied) && (
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-contain" data-testid="road-section-tools-body">
+        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-none" data-testid="road-section-tools-body">
           {range?.open && source && (
             <div
               role="group"

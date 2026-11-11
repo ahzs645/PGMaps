@@ -9,6 +9,7 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { ActiveFilterChip, ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { formatRoadStation, useChartHeaderControls } from './Charts'
 import { nearestStation } from './engine'
+import { useScheduleToolbar } from './scheduleToolbar'
 import {
   availableStationColumns,
   reportingRows,
@@ -92,10 +93,15 @@ export function StationTable({
   const clearRange = () => setRange({ start: 0, end: null })
   const field = 'w-full min-w-0 rounded border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
   // In a panel the two buttons join its header; only active filters take a row above the table.
-  const headerControls = useChartHeaderControls()
-  const popover = headerControls
+  // Inside the road data schedule they join its tab row instead.
+  const panelHeader = useChartHeaderControls()
+  const scheduleRow = useScheduleToolbar()
+  const headerControls = panelHeader ?? scheduleRow
+  const popover = panelHeader
     ? ({ variant: 'ghost', buttonClassName: 'size-8', align: 'end' } as const)
-    : ({} as const)
+    : scheduleRow
+      ? ({ buttonClassName: 'size-8', align: 'end' } as const)
+      : ({} as const)
   const toolbarButtons = (
     <>
       <ToolbarPopover
@@ -109,7 +115,7 @@ export function StationTable({
             <input type="checkbox" checked={flagged} onChange={(e) => setFlagged(e.target.checked)} />
             Flagged only
           </label>
-          <FormField label="Report every">
+          <FormField label="Report every" hint={every ? 'Volumes are summed since the previous row.' : undefined}>
             <RoadSelect
               ariaLabel="Station table reporting interval"
               className={field}
@@ -169,7 +175,7 @@ export function StationTable({
       </ToolbarPopover>
       <Button
         size="icon"
-        variant={headerControls ? 'ghost' : 'outline'}
+        variant={panelHeader ? 'ghost' : 'outline'}
         className="size-8 shrink-0"
         aria-label="Download table as CSV"
         title={
@@ -202,7 +208,7 @@ export function StationTable({
       {(!headerControls || filtered) && (
         <div className="mb-2 flex min-w-0 items-center gap-1.5">
           {!headerControls && toolbarButtons}
-          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
+          <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto overscroll-none [scrollbar-width:none]">
             {flagged && (
               <ActiveFilterChip label="Flagged" clearLabel="Show all stations" onClear={() => setFlagged(false)} />
             )}
@@ -223,7 +229,7 @@ export function StationTable({
           </div>
         </div>
       )}
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto overscroll-contain">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-auto overscroll-none">
         <EngineeringTable data-testid="road-station-table">
           <thead className="sticky top-0 z-10">
             <tr>
@@ -283,13 +289,6 @@ export function StationTable({
           )}
         </EngineeringTable>
       </div>
-      <p className="mt-1 text-2xs text-muted-foreground">
-        {rows.length === reported.length ? `${rows.length} rows` : `${rows.length} of ${reported.length} rows shown`}
-        {every ? ` every ${every} m; volumes are summed since the previous row` : ''}
-        {terrainOnly
-          ? ' · Ground elevations and sampled interval slopes only; no road quantities assigned.'
-          : ` · totals are the sum of ${rows.length === reported.length ? 'the' : 'all'} rows.`}
-      </p>
     </div>
   )
 }

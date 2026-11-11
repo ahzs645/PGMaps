@@ -1,3 +1,4 @@
+import { StationValue } from '../roadStation'
 import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
@@ -119,7 +120,9 @@ export function ReviewTab(
         help={`Every place water crosses the active road, listed once. Mapped crossings are where the road meets a stream line in the project. Modelled crossings are where the drainage check's flow routing over the terrain enters the road. A mapped stream and a modelled flow line within ${register.matchDistanceM} m along the road are one crossing; anything else is listed as unmatched. Route comparison prices crossings from its own coarser flow model, so its stream and drain counts are a pricing allowance, not this register.`}
         data-testid="road-crossing-register-section"
       >
-        <CrossingRegisterList register={register} station={p.workspace.station} onStation={setStation} />
+        <StationValue workspace={p.workspace}>
+          {(station) => <CrossingRegisterList register={register} station={station} onStation={setStation} />}
+        </StationValue>
         {register.drainage !== 'current' && (
           <Button size="sm" variant="outline" className="w-full" onClick={() => p.onShowDrainage?.()}>
             {register.drainage === 'stale' ? 'Run the drainage check again' : 'Run the drainage check'} for modelled

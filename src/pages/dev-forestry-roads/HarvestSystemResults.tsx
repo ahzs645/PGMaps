@@ -47,7 +47,7 @@ export function HarvestSystemResults({
       {map && stale && <p className="text-2xs text-muted-foreground">The settings changed since these suggestions.</p>}
       {map && (
         <>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto overscroll-none">
             <EngineeringTable rowHeaders compact data-testid="harvest-system-table">
               <thead>
                 <tr>

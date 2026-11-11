@@ -73,7 +73,7 @@ export function ExtractionReachResults({
           </>
         )}
       </dl>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-none">
         <EngineeringTable rowHeaders compact data-testid="extraction-area-table">
           <thead>
             <tr>
@@ -109,7 +109,7 @@ export function ExtractionReachResults({
           </tbody>
         </EngineeringTable>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-none">
         <EngineeringTable rowHeaders compact data-testid="extraction-class-table">
           <thead>
             <tr>

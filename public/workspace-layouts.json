@@ -8,7 +8,7 @@
     "preset": "split",
     "sidebar": "collapsed",
     "summary": { "visible": true, "placement": "left" },
-    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "top",
       "fullWidth": true,
@@ -191,7 +191,7 @@
     "preset": "linked",
     "view": "focused",
     "summary": { "visible": true, "placement": "left" },
-    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "toolbar": {
       "dock": "side",
       "title": "Road layout",
@@ -234,7 +234,7 @@
     "preview": "workbench.webp",
     "preset": "linked",
     "summary": { "visible": true, "placement": "left" },
-    "panelFrame": { "background": "white", "inset": 24, "gap": 14, "resizeCorners": true }
+    "panelFrame": { "background": "white", "inset": 12, "gap": 14, "resizeCorners": true }
   },
   {
     "id": "dashboard",
@@ -257,7 +257,7 @@
         "coverage": "detailed"
       }
     },
-    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 24, "gap": 14, "resizeCorners": true },
+    "panelFrame": { "background": "gray", "grayPercent": 19, "inset": 12, "gap": 14, "resizeCorners": true },
     "headerTools": ["interfaceSwitch", "history", "summarySettings", "presets", "saveState", "controls", "undo", "redo", "projects", "export", "fullscreen"]
   }
 ]

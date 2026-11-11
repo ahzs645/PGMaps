@@ -1,3 +1,4 @@
+import { StationValue, useStationReader } from './roadStation'
 import { RoadSection } from './SidebarParts'
 import { RoadSettingsDialog } from './RoadSettingsDialog'
 import { useRef, useState } from 'react'
@@ -282,6 +283,8 @@ export function EngineeringControls({
   /** Opens the drainage check (streams, ponds, catchments) beside the culvert inputs. */
   onShowDrainage?: () => void
 }) {
+  // The sidebar is memoized: a click reads the station as it is now (see roadStation.tsx).
+  const readStation = useStationReader(w)
   const [tab, setTab] = useState<'templates' | 'materials' | 'culverts' | 'haul'>('templates')
   // The sidebar closes the aggregate view itself when it makes either request: calling its setter
   // here, during this component's render, is a React error.
@@ -447,10 +450,8 @@ export function EngineeringControls({
     }))
     onClosePreview?.()
   }
-  // A new range takes road that no assignment covers yet, from the selected station where that is free.
-  const assignmentRange = freeStationRange(design.assignments, analysis.length, w.station, 100)
   const newCulvert = (
-    chainage = w.station,
+    chainage = readStation(),
     name = `Culvert ${design.culverts.length + 1}`,
     sourceFeatureId?: string,
   ) => {
@@ -863,29 +864,39 @@ export function EngineeringControls({
             title="Template station assignments"
             help="Ranges on the same side must not overlap. Transitions blend from the base section within each end of the range. Landings/turnouts remain additional width overrides."
           >
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={!selected || templateDirty || design.assignments.length >= 200 || !assignmentRange}
-              onClick={() =>
-                selected &&
-                assignmentRange &&
-                edit((e) => ({
-                  ...e,
-                  assignments: [
-                    ...e.assignments,
-                    { id: uid(), ...assignmentRange, templateId: selected.id, side: 'both', transitionM: 0 },
-                  ],
-                }))
-              }
-            >
-              Assign selected template
-            </Button>
-            {selected && !templateDirty && !assignmentRange && (
-              <p className="mt-2 text-2xs text-muted-foreground">
-                Every station already has a template range. Shorten one, or change its side, to add another.
-              </p>
-            )}
+            <StationValue workspace={w}>
+              {(station) => {
+                // A new range takes road that no assignment covers yet, from the selected station where that is free.
+                const assignmentRange = freeStationRange(design.assignments, analysis.length, station, 100)
+                return (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={!selected || templateDirty || design.assignments.length >= 200 || !assignmentRange}
+                      onClick={() =>
+                        selected &&
+                        assignmentRange &&
+                        edit((e) => ({
+                          ...e,
+                          assignments: [
+                            ...e.assignments,
+                            { id: uid(), ...assignmentRange, templateId: selected.id, side: 'both', transitionM: 0 },
+                          ],
+                        }))
+                      }
+                    >
+                      Assign selected template
+                    </Button>
+                    {selected && !templateDirty && !assignmentRange && (
+                      <p className="mt-2 text-2xs text-muted-foreground">
+                        Every station already has a template range. Shorten one, or change its side, to add another.
+                      </p>
+                    )}
+                  </>
+                )
+              }}
+            </StationValue>
             {templateDirty && (
               <p className="mt-2 text-2xs text-muted-foreground">
                 Save or discard template changes before adding a station assignment.
@@ -1110,13 +1121,17 @@ export function EngineeringControls({
               </div>
             ))}
           </RoadSection>
-          <SitePreparationEditor
-            design={design}
-            length={analysis.length}
-            station={w.station}
-            problem={problem}
-            onChange={(value) => edit(() => value)}
-          />
+          <StationValue workspace={w}>
+            {(station) => (
+              <SitePreparationEditor
+                design={design}
+                length={analysis.length}
+                station={station}
+                problem={problem}
+                onChange={(value) => edit(() => value)}
+              />
+            )}
+          </StationValue>
           <RoadSection
             title="Station ranges & ground horizons"
             help="Depths are vertical below original ground. Where two horizons overlap in station and depth, the later one in this list replaces the earlier, so a whole-road layer can be entered first and a local one after it. Excavated stripping is reported separately and never reused. Use pre-construction stripping to remove ground beneath fills."
@@ -1544,7 +1559,7 @@ export function EngineeringControls({
                             id: uid(),
                             name: `${kind === 'borrow' ? 'Borrow pit' : 'Waste site'} ${e.sites.length + 1}`,
                             kind,
-                            chainage: w.station,
+                            chainage: readStation(),
                             accessDistanceM: 0,
                             capacityM3: null,
                             unitRate: kind === 'borrow' ? e.haul.borrowRate : e.haul.wasteRate,

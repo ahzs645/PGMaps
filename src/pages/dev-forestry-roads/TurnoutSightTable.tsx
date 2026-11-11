@@ -32,7 +32,7 @@ export function TurnoutSightTable({
       </p>
     ) : null
   return (
-    <div className="max-h-40 overflow-auto" data-testid="road-turnout-sight">
+    <div className="max-h-40 overflow-auto overscroll-none" data-testid="road-turnout-sight">
       <EngineeringTable>
         <caption className="text-left text-2xs text-muted-foreground">
           Turnouts intervisible, at most {TURNOUT_MAX_SPACING_M} m apart (BC Engineering Manual §3.5.2.6)

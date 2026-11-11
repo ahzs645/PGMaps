@@ -89,7 +89,7 @@ export function CompareAlternatives({
     return !!result && result.stations.length > 0 && !hasCompleteCoverage(result)
   })
   return (
-    <div className="h-full space-y-2 overflow-auto" data-testid="road-compare">
+    <div className="h-full space-y-2 overflow-auto overscroll-none" data-testid="road-compare">
       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs">
         <label className="flex min-w-0 items-center gap-2">
           Compared with

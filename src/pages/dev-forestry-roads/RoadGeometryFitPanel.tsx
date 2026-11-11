@@ -110,7 +110,7 @@ export function RoadGeometryFitPanel({
             the line.
           </p>
           {fit.bends.length > 0 && (
-            <div className="max-h-48 overflow-auto">
+            <div className="max-h-48 overflow-auto overscroll-none">
               <EngineeringTable>
                 <thead className="sticky top-0">
                   <tr>

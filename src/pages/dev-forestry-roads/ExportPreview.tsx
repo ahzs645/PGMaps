@@ -114,7 +114,7 @@ export function ExportPreviewView({
     case 'table':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <div className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-md border bg-background">
+          <div className="min-h-0 flex-1 overflow-auto overscroll-none rounded-md border bg-background">
             <EngineeringTable variant="text" className="min-w-full whitespace-nowrap text-2xs tabular-nums">
               <thead className="sticky top-0 z-10">
                 <tr>
@@ -209,7 +209,7 @@ export function ExportPreviewView({
     case 'text':
       return (
         <div className="flex h-full min-h-0 flex-col gap-1.5">
-          <pre className="min-h-0 flex-1 overflow-auto rounded-md border bg-background p-2 font-mono text-3xs leading-4">
+          <pre className="min-h-0 flex-1 overflow-auto overscroll-none rounded-md border bg-background p-2 font-mono text-3xs leading-4">
             {preview.text}
           </pre>
           <p className="shrink-0 text-2xs tabular-nums text-muted-foreground">

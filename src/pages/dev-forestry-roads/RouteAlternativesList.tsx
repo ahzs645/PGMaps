@@ -40,7 +40,7 @@ export function RouteAlternativesList({
           is kept.
         </InfoTip>
       </div>
-      <div className="overflow-x-auto text-2xs">
+      <div className="overflow-x-auto overscroll-none text-2xs">
         <EngineeringTable>
           <thead>
             <tr>

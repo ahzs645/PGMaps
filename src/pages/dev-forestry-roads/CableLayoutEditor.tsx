@@ -520,7 +520,7 @@ export function CableLayoutEditor({
         </Button>
       </div>
       {shown && (
-        <div className="max-h-40 overflow-auto rounded border">
+        <div className="max-h-40 overflow-auto overscroll-none rounded border">
           <EngineeringTable compact data-testid="cable-edit-spans">
             <SpanColumns />
             <tbody>

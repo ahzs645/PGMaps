@@ -50,7 +50,7 @@ export function UndoHistoryPanel({
         {list.length <= 1 ? (
           <p className="text-muted-foreground">No edits to undo yet.</p>
         ) : (
-          <ol className="max-h-64 divide-y overflow-y-auto overscroll-contain rounded-md border bg-background">
+          <ol className="max-h-64 divide-y overflow-y-auto overscroll-none rounded-md border bg-background">
             {list.map((row) => {
               const now = row.offset === 0
               const { change, road } = splitHistoryLabel(row.label)

@@ -1396,13 +1396,23 @@ function avoidanceLookup(features: ReturnType<typeof projectedContext>) {
       .map((f) => f.feature.name)
 }
 
-function contextGeometry(context: ContextFeature[], path: Path, flat: ReturnType<typeof flattened>) {
+/**
+ * Where the road crosses the context, and what it must avoid. `ownIds` are the context features a
+ * mapped road was loaded from: the thinned road weaves across its own record, and each weave is not
+ * a crossing (one mapped road counted 55 crossings of itself, each a station and a profile line).
+ */
+function contextGeometry(
+  context: ContextFeature[],
+  path: Path,
+  flat: ReturnType<typeof flattened>,
+  ownIds: ReadonlySet<string> = new Set(),
+) {
   const features = projectedContext(context, path)
   const crossings: Crossing[] = []
   const index = segmentIndex(flat.slice(1).map((b, i) => ({ a: flat[i], b, box: segmentBox(flat[i].xy, b.xy) })))
   let comparisons = 0
   for (const { feature, rings } of features)
-    for (const ring of rings)
+    for (const ring of ownIds.has(feature.id) ? [] : rings)
       for (let j = 1; j < ring.length; j++) {
         const c = ring[j - 1],
           d = ring[j],
@@ -1601,7 +1611,7 @@ export function analyzeRoad(
   }
   const profile = verticalProfile(alignment.vertical, warnings),
     flat = flattened(path),
-    { crossings, avoidAt } = contextGeometry(context, path, flat)
+    { crossings, avoidAt } = contextGeometry(context, path, flat, new Set(alignment.mappedRoad?.contextIds ?? []))
   if (!alignment.vertical.length)
     warnings.push('No vertical alignment: formation follows the sampled ground at the centreline.')
   if (alignment.vertical.some((p) => p.chainage > path.length + EPS))

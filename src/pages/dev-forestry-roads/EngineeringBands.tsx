@@ -3,6 +3,12 @@ import { SizedChart } from '@pgmaps/geo-toolkit/visualizations/react'
 import { horizontalCurveSummary, verticalCurveSummary } from './engine'
 import { horizontalCurveEvents } from './planAnnotations'
 import { signedValue } from './profileAnnotations'
+import {
+  GROUND_GRADE_MIN_PIECE_PX,
+  groundGradeBreaks,
+  groundGradePieceCount,
+  STATION_MATCH_M,
+} from './profileLabelLayout'
 import { reviewRoadSight } from './sightDistance'
 import type { Alignment, RoadAnalysis } from './types'
 
@@ -24,13 +30,52 @@ interface BandRow {
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const number = (value: number, digits = 1) => value.toLocaleString('en-CA', { maximumFractionDigits: digits })
 
-export function profileGradeSpans(analysis: RoadAnalysis, alignment: Alignment, terrainOnly = false): BandSpan[] {
+/** How a ground profile is split for its grades: as many pieces as the plot has room for. */
+export interface GroundGradeView {
+  /** Visible station range, m. */
+  range: readonly [number, number]
+  /** Plot width, px. */
+  plotWidthPx: number
+}
+
+const groundBreakCache = new WeakMap<RoadAnalysis, Map<string, number[]>>()
+/** Ground-grade breaks for a view, kept per analysis so a hover does not search again. */
+function groundCuts(analysis: RoadAnalysis, view: GroundGradeView): number[] {
+  const length = analysis.length
+  const span = Math.max(1e-6, view.range[1] - view.range[0])
+  const pieces = groundGradePieceCount(length, span, view.plotWidthPx)
+  const minPieceM = (GROUND_GRADE_MIN_PIECE_PX * span) / Math.max(1, view.plotWidthPx)
+  const key = `${pieces}:${minPieceM.toFixed(3)}`
+  let cache = groundBreakCache.get(analysis)
+  if (!cache) groundBreakCache.set(analysis, (cache = new Map()))
+  let cuts = cache.get(key)
+  if (!cuts) {
+    cuts = groundGradeBreaks(analysis.stations, length, pieces, minPieceM)
+    if (cache.size > 32) cache.clear()
+    cache.set(key, cuts)
+  }
+  return cuts
+}
+
+/**
+ * Grade spans for the profile: PVI to PVI on a designed road, else the sampled ground. Given a
+ * `ground` view, the ground splits where it bends, about one piece per 110 px
+ * (`profileLabelLayout.ts`); without one it is eight equal pieces.
+ */
+export function profileGradeSpans(
+  analysis: RoadAnalysis,
+  alignment: Alignment,
+  terrainOnly = false,
+  ground?: GroundGradeView,
+): BandSpan[] {
   const length = analysis.length
   const vertical = [...alignment.vertical].sort((a, b) => a.chainage - b.chainage)
   const designGrades = !terrainOnly && vertical.length > 0
   const cuts = designGrades
     ? [0, ...(vertical.length > 1 ? vertical.map((p) => p.chainage).filter((s) => s > 0 && s < length) : []), length]
-    : Array.from({ length: 9 }, (_, i) => (length * i) / 8)
+    : ground && length > 0
+      ? groundCuts(analysis, ground)
+      : Array.from({ length: 9 }, (_, i) => (length * i) / 8)
   const gradeSpans: BandSpan[] = cuts.slice(1).flatMap((end, i) => {
     const start = cuts[i]
     if (end - start < 0.001) return []
@@ -48,7 +93,8 @@ export function profileGradeSpans(analysis: RoadAnalysis, alignment: Alignment, 
     } else {
       const candidates = analysis.stations.filter((s) => s.chainage >= start - 0.001 && s.chainage <= end + 0.001)
       const groundAt = (target: number): number | null => {
-        const exact = analysis.stations.find((s) => Math.abs(s.chainage - target) < 1e-7)
+        // Stations are stored to 1e-5 m: a road end can sit a hair past its last station.
+        const exact = analysis.stations.find((s) => Math.abs(s.chainage - target) < STATION_MATCH_M)
         if (exact) return finite(exact.groundElevation) ? exact.groundElevation : null
         for (let j = 1; j < analysis.stations.length; j++) {
           const a = analysis.stations[j - 1],
@@ -348,6 +394,21 @@ export function EngineeringBands({
               right = 16
             const x = (value: number) =>
               left + Math.max(0, Math.min(1, (value - start) / (end - start))) * Math.max(1, width - left - right)
+            // A ground row splits as the profile above it does at this width, so their grades agree.
+            const shown =
+              terrainOnly || alignment.vertical.length === 0
+                ? rows.map((row, index) =>
+                    index === 0
+                      ? {
+                          ...row,
+                          spans: profileGradeSpans(analysis, alignment, terrainOnly, {
+                            range: [start, end],
+                            plotWidthPx: Math.max(1, width - left - right),
+                          }),
+                        }
+                      : row,
+                  )
+                : rows
             return (
               <svg
                 width={width}
@@ -406,7 +467,7 @@ export function EngineeringBands({
                   )
                 }}
               >
-                {rows.map((row, index) => (
+                {shown.map((row, index) => (
                   <g key={row.name}>
                     <text x={3} y={index * 22 + 14} fontSize="9" fill="hsl(var(--muted-foreground))">
                       {row.name}

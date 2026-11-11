@@ -113,10 +113,22 @@ the profile, a chart, the slider or playback. It pans only when the station come
 an edge, at most four times a second. It holds still while the pointer is over the plan, because a
 hover there moves the station, and for 1.5 s after you pan or zoom it yourself.
 
+## Hovering the road
+
+In Inspect and Edit, the pointer does not have to sit on the road's few pixels to move the
+station (`planHover.ts`). It picks the road up within 16 px (`HOVER_CAPTURE_PX`) and then follows
+it until the pointer is more than 48 px away (`HOVER_RELEASE_PX`), so a hand that drifts off the
+line is not dropped. Farther away the station stays where it was. A quick swipe across the road
+selects the station where the swipe crossed it, even when no pointer event landed near the line.
+The cursor turns to a pointer while the hover is following the road. The station is always a
+calculated station, the one nearer the pointer's foot on the road. A press (pan or bend-handle
+drag) never scrubs, and a radial spoke under the pointer still takes precedence.
+
 ## Limits and budgets
 
 | Limit                                  | Value                                  | Enforced in                                                          | When exceeded                            |
 | -------------------------------------- | -------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------- |
+| Hover pick-up / let-go distance        | 16 px / 48 px                          | `planHover.ts` `HOVER_CAPTURE_PX`, `HOVER_RELEASE_PX`                | Station stays where it was               |
 | Peg step                               | 1–500 m                                | `pegCursor.ts` `MIN_PEG_STEP_M`, `MAX_PEG_STEP_M`, `pegStepError`    | Field keeps it, shows the limits; no leg |
 | Target grade                           | 0–30 % either way                      | `pegCursor.ts` `MAX_PEG_TARGET_GRADE`, `pegGradeError`               | Field keeps it, shows the limits; no leg |
 | Headings searched                      | ±90° of the aim, 2° brackets           | `pegCursor.ts` `PEG_SEARCH_HALF_ANGLE`, `findGradePeg`               | "No leg at …"                            |

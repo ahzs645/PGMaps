@@ -183,7 +183,7 @@ export function RadialDeflectionPanel({
   if (mode === 'reach')
     return (
       <section
-        className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
+        className="h-full min-h-0 overflow-y-auto overscroll-none p-1 [scrollbar-gutter:stable]"
         data-testid="radial-deflection-panel"
       >
         {header}
@@ -199,7 +199,7 @@ export function RadialDeflectionPanel({
     )
   return (
     <section
-      className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 [scrollbar-gutter:stable]"
+      className="h-full min-h-0 overflow-y-auto overscroll-none p-1 [scrollbar-gutter:stable]"
       data-testid="radial-deflection-panel"
     >
       {header}
@@ -283,7 +283,7 @@ export function RadialDeflectionPanel({
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(130px,0.65fr)_minmax(0,1fr)]">
-            <div className="max-h-64 overflow-auto rounded border">
+            <div className="max-h-64 overflow-auto overscroll-none rounded border">
               <EngineeringTable className="whitespace-normal" data-testid="radial-spoke-table">
                 <thead className="sticky top-0">
                   <tr>

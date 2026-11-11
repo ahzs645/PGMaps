@@ -158,7 +158,7 @@ export function EngineeringSummary({
           CSV
         </Button>
       </div>
-      <div className="min-h-0 flex-1 space-y-3 overflow-auto">
+      <div className="min-h-0 flex-1 space-y-3 overflow-auto overscroll-none">
         {result && !result.complete && hasCompleteCoverage(analysis) && (
           <InlineAlert tone="warning">
             Terrain sections are covered; engineering checks remain incomplete. Review structure inputs, station ranges

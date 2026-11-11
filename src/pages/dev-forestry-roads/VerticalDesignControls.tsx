@@ -1,3 +1,4 @@
+import { StationValue } from './roadStation'
 import { derivedRoadName } from './roadNames'
 import { useEffect, useRef, useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
@@ -26,7 +27,7 @@ const uid = () => crypto.randomUUID()
 
 /** Vertical standards, control points and the bulk curve tool, after the PVI list. */
 export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace }) {
-  const { alignment, analysis, station, setStation, updateAlignment } = workspace
+  const { alignment, analysis, setStation, updateAlignment } = workspace
   const standards = alignment.verticalStandards ?? EMPTY_VERTICAL_STANDARDS
   const controls = alignment.verticalControls ?? []
   const [k, setK] = useState(4)
@@ -621,33 +622,37 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
               </div>
             </div>
           ))}
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={!designed && !nearestStation(analysis.stations, station)?.groundElevation}
-            onClick={() => {
-              const at = nearestStation(analysis.stations, station)
-              const target = fromAlignment(at?.chainage ?? station)
-              updateAlignment((a) => ({
-                ...a,
-                verticalControls: [
-                  ...(a.verticalControls ?? []),
-                  {
-                    id: uid(),
-                    chainage: Math.round((at?.chainage ?? station) * 100) / 100,
-                    elevation: target.elevation ?? at?.groundElevation ?? null,
-                    toleranceAboveM: 0,
-                    toleranceBelowM: 0,
-                    gradePercent: null,
-                    gradeTolerancePercent: 0,
-                  },
-                ].sort((x, y) => x.chainage - y.chainage),
-              }))
-            }}
-          >
-            <Plus className="mr-1 size-3" />
-            Control at selected station
-          </Button>
+          <StationValue workspace={workspace}>
+            {(station) => (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={!designed && !nearestStation(analysis.stations, station)?.groundElevation}
+                onClick={() => {
+                  const at = nearestStation(analysis.stations, station)
+                  const target = fromAlignment(at?.chainage ?? station)
+                  updateAlignment((a) => ({
+                    ...a,
+                    verticalControls: [
+                      ...(a.verticalControls ?? []),
+                      {
+                        id: uid(),
+                        chainage: Math.round((at?.chainage ?? station) * 100) / 100,
+                        elevation: target.elevation ?? at?.groundElevation ?? null,
+                        toleranceAboveM: 0,
+                        toleranceBelowM: 0,
+                        gradePercent: null,
+                        gradeTolerancePercent: 0,
+                      },
+                    ].sort((x, y) => x.chainage - y.chainage),
+                  }))
+                }}
+              >
+                <Plus className="mr-1 size-3" />
+                Control at selected station
+              </Button>
+            )}
+          </StationValue>
         </div>
         {!designed && (standards.gradeRanges.length > 0 || controls.length > 0) && (
           <InlineAlert tone="warning">

@@ -280,7 +280,7 @@ export function BalanceWhatIfPanel({
         {ends.length > 0 && ` · ${ends.join(', ')}`}
       </p>
       {loops.length > 0 && (
-        <ul className="max-h-24 space-y-0.5 overflow-auto" data-testid="road-mass-whatif-loops">
+        <ul className="max-h-24 space-y-0.5 overflow-auto overscroll-none" data-testid="road-mass-whatif-loops">
           {loops.map((loop) => (
             <li key={`${loop.start}-${loop.end}`}>
               <button

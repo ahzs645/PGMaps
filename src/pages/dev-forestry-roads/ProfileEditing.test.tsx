@@ -5,8 +5,10 @@ import { GradeCell } from './GradeScheduleFields'
 import {
   focusAfterRemoval,
   junctionDifferenceText,
+  junctionLabelText,
   useProfileEditing,
   type ChartDomain,
+  type JunctionLabelPlacement,
   type ProfileFrame,
 } from './ProfileEditing'
 import type { ProfileJunction } from './profileJunctions'
@@ -151,6 +153,42 @@ describe('profile grade editing', () => {
     expect(marker.props['aria-label']).toMatch(/^Spur 2 meets this road at 0\+150\.0; formation 105\.00 m/)
     const text = marker.findByType('text').children.join('')
     expect(text).toBe('Spur 2 +1.00 m')
+  })
+})
+
+describe('junction labels the chart placed', () => {
+  function draw(labels: Map<string, JunctionLabelPlacement>, difference: number | null = 1) {
+    function Labelled() {
+      const editing = useProfileEditing({
+        sorted: start(),
+        editable: false,
+        roadLength: 200,
+        onStation: () => {},
+        freezeDomain: () => {},
+        junctions: [{ ...junction, difference }],
+      })
+      return createElement('svg', null, editing.layers(frame, 360, 40, domain, labels))
+    }
+    let renderer!: ReactTestRenderer
+    act(() => {
+      renderer = create(createElement(Labelled))
+    })
+    return renderer.root.findAll((n) => n.type === 'text' && n.props['data-junction-label'])
+  }
+
+  it('draws the label where the chart put it', () => {
+    const [text] = draw(new Map([[junction.id, { x: 120, y: 60, anchor: 'end', text: 'Spur 2 +1.00 m' }]]))
+    expect(text.props).toMatchObject({ x: 120, y: 60, textAnchor: 'end' })
+    expect(text.children.join('')).toBe('Spur 2 +1.00 m')
+  })
+
+  it('leaves a label the chart had no room for to the tooltip', () => {
+    expect(draw(new Map())).toHaveLength(0)
+  })
+
+  it('prints no difference too small to read', () => {
+    expect(junctionLabelText({ ...junction, difference: 0.004 }, 'Spur 2')).toBe('Spur 2')
+    expect(junctionLabelText({ ...junction, difference: -0.3 }, 'Spur 2')).toBe('Spur 2 −0.30 m')
   })
 })
 

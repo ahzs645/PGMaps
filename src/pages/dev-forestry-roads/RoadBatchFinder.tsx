@@ -309,7 +309,7 @@ export function RoadBatchFinder({
         )}
         {current && network && (
           <>
-            <div className="max-h-64 overflow-auto rounded border">
+            <div className="max-h-64 overflow-auto overscroll-none rounded border">
               <EngineeringTable rowHeaders compact data-testid="road-batch-table">
                 <thead className="sticky top-0">
                   <tr>

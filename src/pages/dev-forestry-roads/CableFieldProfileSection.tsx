@@ -245,7 +245,7 @@ export function CableFieldProfileSection({
               line; the terrain is read outside them.
             </p>
           )}
-          <div className="max-h-40 overflow-auto rounded border">
+          <div className="max-h-40 overflow-auto overscroll-none rounded border">
             <EngineeringTable compact data-testid="cable-field-table">
               <thead className="sticky top-0">
                 <tr>

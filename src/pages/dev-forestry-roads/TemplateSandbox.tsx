@@ -101,7 +101,7 @@ export function TemplateSandbox({
           Four condition previews
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-h-[90dvh] max-w-5xl overflow-auto">
+      <DialogContent className="max-h-[90dvh] max-w-5xl overflow-auto overscroll-none">
         <DialogHeader>
           <DialogTitle>{name} · section conditions</DialogTitle>
         </DialogHeader>

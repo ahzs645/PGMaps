@@ -26,6 +26,7 @@ import { ExistingRoadCard } from './ExistingRoadCard'
 import { MAP_NOTE_COLORS, type MapNote } from './mapNotes'
 import { buildPlanLegend, PLAN_CONTEXT_STYLES, PLAN_DRAINAGE_STYLES, PLAN_LINE_DASHES } from './planLegendModel'
 import { distinctRoadColors } from './roadColors'
+import { planHover, type ScreenStation } from './planHover'
 import { ROAD_HISTORY_STYLES } from './roadHistory'
 import { contextHistoryProperties, historyTableSources } from './historyPresentation'
 import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
@@ -728,6 +729,12 @@ function Layers(
   const [stroke, setStroke] = useState<Coordinate[]>([])
   const sketchLine = useMemo(() => fc(stroke.length > 1 ? [line(stroke)] : []), [stroke])
   const latestSketch = useRef(sketchLine)
+  /** Whether a plan hover is following the road, and where the pointer last was (planHover.ts). */
+  const hoverState = useRef<{ engaged: boolean; lastPointer: { x: number; y: number } | null; alignmentId: string }>({
+    engaged: false,
+    lastPointer: null,
+    alignmentId: '',
+  })
   useLayoutEffect(() => {
     latestSketch.current = sketchLine
   }, [sketchLine])
@@ -1444,35 +1451,77 @@ function Layers(
         onStation(nearest.chainage)
       }
     }
+    // The active road's stations on screen, re-projected only after the view moves.
+    let screenStations: ScreenStation[] | null = null
+    const stationsOnScreen = () =>
+      (screenStations ??= analysis.stations.map((s) => {
+        const p = map.project(s.coordinate as [number, number])
+        return { x: p.x, y: p.y, chainage: s.chainage }
+      }))
+    const viewMoved = () => {
+      screenStations = null
+    }
+    // Hover near the road, not exactly on it: see planHover.ts. The hover's state lives in a ref,
+    // because this effect re-runs on most page renders, a station change among them.
+    const hover = hoverState.current
+    const hoverMode = ['inspect', 'edit'].includes(mode) && !noteTool && !planToolActive && !pourPointPicking
+    if (!hoverMode || investigation || hover.alignmentId !== activeAlignmentId) {
+      hover.engaged = false
+      hover.lastPointer = null
+    }
+    hover.alignmentId = activeAlignmentId
+    const setHoverCursor = (engaged: boolean) => {
+      hover.engaged = engaged
+      map.getCanvas().style.cursor = engaged ? 'pointer' : ''
+    }
+    const leave = () => {
+      hover.lastPointer = null
+      if (hoverMode) setHoverCursor(false)
+    }
     const move = (e: MapMouseEvent) => {
       if (pourPointPicking || noteTool || planToolActive) return
       if (!['inspect', 'edit'].includes(mode)) onHover(snapAt(e)?.coordinate ?? [e.lngLat.lng, e.lngLat.lat])
       else {
+        const previous = hover.lastPointer
+        hover.lastPointer = { x: e.point.x, y: e.point.y }
+        // A press is a pan (or a bend-handle drag); the station is not scrubbed under it.
+        if (e.originalEvent.buttons) return
         // Match click precedence: hovering a spoke above the road must not
         // move the landing station and invalidate the fan before its click.
         if (
           onOverlaySelect &&
           map.queryRenderedFeatures(e.point, { layers: ['road-exploration-line', 'road-exploration-point'] }).length
-        )
+        ) {
+          setHoverCursor(false)
           return
-        const hit = map.queryRenderedFeatures(e.point, { layers: ['road-alignments'] })[0]?.properties
-        if (hit?.id === activeAlignmentId && hit.chainage !== undefined) onStation(Number(hit.chainage))
+        }
+        // An access investigation draws no road to follow.
+        if (investigation) return
+        const next = planHover(stationsOnScreen(), e.point, previous, hover.engaged)
+        if (next.engaged !== hover.engaged) setHoverCursor(next.engaged)
+        if (next.chainage !== null) onStation(next.chainage)
       }
     }
     if (!noteTool && !planToolActive)
-      map.getCanvas().style.cursor = pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : ''
+      map.getCanvas().style.cursor =
+        pourPointPicking || !['inspect', 'edit'].includes(mode) ? 'crosshair' : hover.engaged ? 'pointer' : ''
     map.doubleClickZoom.disable()
     map.on('click', click)
     map.on('mousemove', move)
+    map.on('mouseout', leave)
+    map.on('move', viewMoved)
     return () => {
       map.off('click', click)
       map.off('mousemove', move)
+      map.off('mouseout', leave)
+      map.off('move', viewMoved)
       map.getCanvas().style.cursor = ''
     }
   }, [
     map,
     isLoaded,
     mode,
+    investigation,
     onDraw,
     snapLines,
     onSnap,

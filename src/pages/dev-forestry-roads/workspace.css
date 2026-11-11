@@ -1,3 +1,11 @@
+/* No pane in the designer bounces or chains its scroll at an edge. `contain` still lets
+   macOS rubber-band a table past its sticky header; `none` stops that in every direction.
+   Toolkit pieces carry their own `overscroll-contain`, so this has to outrank them. */
+.road-workspace,
+.road-workspace * {
+  overscroll-behavior: none !important;
+}
+
 /* A bounded engineering workspace: shrink chrome before sacrificing the plots. */
 .road-workspace .road-design-sidebar fieldset {
   min-width: 0;

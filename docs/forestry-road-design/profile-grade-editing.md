@@ -33,8 +33,11 @@ plumbing.
   however long it pauses, and a drag cancelled with Escape leaves no step (`editGesture`,
   `useRoadWorkspace.ts`).
 - **Junction markers.** A dashed magenta line marks each station where another road of the project
-  meets or crosses this one. The diamond sits at that road's level, with the road's name and the
-  difference from this road's formation. Click it (or focus it and press Enter) for both stations,
+  meets or crosses this one. The diamond sits at that road's level, with the road's name (without
+  "as mapped") and the difference from this road's formation when it is 0.05 m or more. The label
+  goes right of the diamond, else left, else as the road's last name part; with no room it is left
+  to the tooltip ([label placement](profile-labels-and-bands.md#what-the-profile-has-room-to-show)).
+  Click it (or focus it and press Enter) for both stations,
   both levels and **Add control here**, which adds a vertical control at that station and level
   (elevation only, no tolerance) through the same controls as **Design → Vertical standards**.
 
