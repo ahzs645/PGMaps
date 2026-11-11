@@ -279,7 +279,8 @@ test('pegging uses real map points with live leg grade and an undoable new road'
   await expect(feedback.getByTestId('pegging-readout')).toContainText('Points:0')
   await expect(page.getByRole('button', { name: 'Finish road', exact: true })).toBeDisabled()
   const box = (await page.locator('[data-testid="road-plan-view"] .maplibregl-canvas').boundingBox())!
-  await page.mouse.click(box.x + box.width * 0.28, box.y + box.height * 0.65)
+  // The tool card floats over the plan's lower left, so peg above it.
+  await page.mouse.click(box.x + box.width * 0.28, box.y + box.height * 0.3)
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5)
   await expect(feedback.getByTestId('pegging-readout')).toContainText('Points:1')
   await expect(feedback.getByTestId('pegging-readout')).toContainText(

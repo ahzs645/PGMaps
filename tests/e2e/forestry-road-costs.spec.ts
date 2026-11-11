@@ -48,6 +48,9 @@ async function chooseOption(page: Page, label: string, option: string) {
 }
 
 async function openCosts(page: Page) {
+  // On a phone the road summary starts folded.
+  const showSummary = page.getByRole('button', { name: 'Show road summary', exact: true })
+  if (await showSummary.isVisible()) await showSummary.click()
   await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Covered estimate', exact: true })
   await expect(dialog).toBeVisible()
