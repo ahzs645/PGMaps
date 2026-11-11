@@ -162,7 +162,12 @@
           "label": "View",
           "sections": [
             { "label": "Map extent", "primary": "fitRoad", "rows": 2, "items": ["fitRoad", "fitAll", "fitTerrain"] },
-            { "label": "Map layers", "rows": 2, "items": ["contours", "stationLabels"], "more": ["earthworks"] },
+            {
+              "label": "Map layers",
+              "rows": 2,
+              "items": ["contours", "stationLabels", "sentinel2"],
+              "more": ["earthworks"]
+            },
             {
               "label": "Drawing views",
               "primary": "plan",

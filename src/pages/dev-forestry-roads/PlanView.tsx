@@ -56,6 +56,9 @@ import { cableCoordinateAtDistance, resolvedCableLine } from './cableGeometry'
 import { sectionCodePoints } from './sectionGeometry'
 import { safeAnalyzeRoad } from './analysisResult'
 import { TerrainRasterLayers } from './TerrainRasterLayers'
+import { Sentinel2Layer } from './sentinel/Sentinel2Layer'
+import { Sentinel2Panel } from './sentinel/Sentinel2Panel'
+import { useSentinel2 } from './sentinel/useSentinel2'
 import { ProvincialStreamLayers } from './ProvincialStreamLayers'
 import { SightlinePlanLayers } from './SightlinePlanLayers'
 import { AccessHistoryLayers } from './AccessHistoryLayers'
@@ -2056,7 +2059,8 @@ export function PlanView(input: PlanProps) {
   // Reference features: imported points, lines and areas that only the plan draws.
   const reference = props.project.reference ?? NO_REFERENCE
   const [referenceVisible, setReferenceVisible] = useState(true)
-  const { notesOpen, setNotesOpen } = props.display
+  const { notesOpen, setNotesOpen, showSentinel, setShowSentinel } = props.display
+  const sentinel = useSentinel2({ visible: showSentinel, bounds: terrainBounds(props.project.terrain) })
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
   const [noteArrow, setNoteArrow] = useState(true)
@@ -2227,6 +2231,7 @@ export function PlanView(input: PlanProps) {
         showLoadingOverlay={false}
       >
         <MapTableBridge table={table} />
+        {showSentinel && <Sentinel2Layer image={sentinel.image} credit={sentinel.credit} />}
         <Layers
           {...props}
           onContextSelect={selectContext}
@@ -2400,6 +2405,7 @@ export function PlanView(input: PlanProps) {
               [
                 ['Contours', showContours, setShowContours],
                 ['Labels', showLabels, setShowLabels],
+                ['Sentinel-2 imagery', showSentinel, setShowSentinel],
                 ...(notes.length ? [['Map notes', notesVisible, setNotesVisible] as const] : []),
                 ...(reference.length ? [['Reference layers', referenceVisible, setReferenceVisible] as const] : []),
                 ...(!props.terrainOnly ? [['Earthworks', showEarthwork, setShowEarthwork] as const] : []),
@@ -2480,6 +2486,11 @@ export function PlanView(input: PlanProps) {
             disabled={!props.onNotesChange}
             onClose={() => setNotesOpen(false)}
           />
+        </div>
+      )}
+      {showSentinel && (
+        <div className="absolute right-12 top-12 z-30 max-h-[calc(100%-6rem)] max-w-[calc(100%-4rem)] overflow-hidden">
+          <Sentinel2Panel state={sentinel} onClose={() => setShowSentinel(false)} />
         </div>
       )}
       {tools.panelSlot}
