@@ -358,9 +358,9 @@ test.describe('forestry visual quality', () => {
     await openPage(page)
 
     await showStep(page, 'identify')
-    await expect(page.getByRole('button', { name: /Block A — west face/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Block B — over the height of land/ })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Tabor Mountain landform/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Block A — west face/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Block B — over the height of land/ })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Tabor Mountain landform/ })).toBeVisible()
     // The scene's one landform is the active assessment unit without being asked.
     await expect(page.getByLabel('Active assessment landform').locator('option:checked')).toHaveText(
       'Tabor Mountain landform',
