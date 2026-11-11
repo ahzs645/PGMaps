@@ -20,6 +20,8 @@ import { SwitchbackTools } from '../SwitchbackTools'
 import { VerticalDesignControls } from '../VerticalDesignControls'
 import { horizontalFitNote, limitedRadius, verticalFitNote } from '../curveFit'
 import { distance, horizontalCurveFits, verticalCurveSummary } from '../engine'
+import { checkPlanEdit } from '../planEditCheck'
+import type { Alignment } from '../types'
 import { DEFAULT_ROUTE_OPTIONS, type RouteSearchOptions } from '../routing'
 import { MAX_GROUND_WINDOW_M, resolvedGroundWindow } from '../groundTrend'
 import { MAX_SEARCH_RADIUS_M, MIN_SEARCH_RADIUS_M, type RoadOptimizationObjective } from '../corridorOptimizer'
@@ -577,12 +579,19 @@ function HorizontalPoints(p: SidebarProps) {
     if (point) setOpen(true)
   }
   const movePoint = (axis: 0 | 1, value: number) => {
-    updateAlignment((a) => ({
+    const moved = (a: Alignment): Alignment => ({
       ...a,
       points: a.points.map((x) =>
         x.id === point?.id ? { ...x, coordinate: axis === 0 ? [value, x.coordinate[1]] : [x.coordinate[0], value] } : x,
       ),
-    }))
+    })
+    // The same limits as a drag on the plan: no crossing, and every new corner fits at the minimum radius.
+    const refusal = checkPlanEdit(alignment, moved(alignment), project.settings.minRadius)
+    if (refusal) {
+      p.workspace.setNotice(refusal.message)
+      return
+    }
+    updateAlignment(moved)
     const kept = profileKeptNotice(alignment.vertical.length)
     if (kept) p.workspace.setNotice(kept)
   }

@@ -32,12 +32,14 @@ import { contextHistoryProperties, historyTableSources } from './historyPresenta
 import { MapTableBridge, useMapTable } from '@/components/map/useMapTable'
 import {
   distance,
+  horizontalCurveFits,
   horizontalCurveSummary,
   isBeyondReachFlag,
   nearestStation,
   offsetCoordinate,
   positionAt,
 } from './engine'
+import { checkPlanEdit } from './planEditCheck'
 import {
   horizontalCurveEvents,
   labelChainages,
@@ -242,6 +244,8 @@ function Layers(
     fitRequest: FitRequest
     /** A plan tool is in hand (`PlanTools.tsx`): the plan's own clicks stand aside. */
     planToolActive?: boolean
+    /** The previewed edit would be refused on drop (`planEditCheck.ts`): draw the road as refused. */
+    refusedEdit?: boolean
     /** Colour the active road by grade class. */
     gradeColours?: boolean
   },
@@ -433,6 +437,22 @@ function Layers(
   const [bendRevision, setBendRevision] = useState(0)
   /** The browser still sends a click when a drag ends on its handle. */
   const bendDragged = useRef(false)
+  // The tangent each end curve already takes from a leg, so a bend handle only shows where one fits.
+  const bendTangents = useMemo(() => {
+    try {
+      return new globalThis.Map(
+        horizontalCurveFits(props.savedAlignment).map((fit) => [
+          fit.point - 1,
+          fit.status === 'fitted' ? fit.tangentM : 0,
+        ]),
+      )
+    } catch {
+      return new globalThis.Map<number, number>()
+    }
+  }, [props.savedAlignment])
+  const bendRoom = (legStart: number, length: number) =>
+    length - (bendTangents.get(legStart) ?? 0) - (bendTangents.get(legStart + 1) ?? 0) >=
+    MIN_BEND_ROOM_RADII * props.project.settings.minRadius
   const pixelMetres =
     view && analysis.stations.length ? metresPerPixel(view.zoom, analysis.stations[0].coordinate[1]) : null
   const labelInterval = pixelMetres === null ? null : stationLabelInterval(pixelMetres)
@@ -525,13 +545,27 @@ function Layers(
     props.alignment.id,
     props.terrainOnly,
   ])
-  const roadLines = useMemo(
-    () =>
+  const roadLines = useMemo(() => {
+    const lines =
       props.gradeColours && !props.terrainOnly
         ? gradeClassRoadLines(allLines, analysis.stations, props.project.settings.maxGradePercent)
-        : allLines,
-    [allLines, analysis.stations, props.gradeColours, props.terrainOnly, props.project.settings.maxGradePercent],
-  )
+        : allLines
+    if (!props.refusedEdit) return lines
+    return fc(
+      lines.features.map((feature) =>
+        feature.properties?.selected
+          ? { ...feature, properties: { ...feature.properties, color: REFUSED_EDIT_COLOR } }
+          : feature,
+      ),
+    )
+  }, [
+    allLines,
+    analysis.stations,
+    props.gradeColours,
+    props.terrainOnly,
+    props.project.settings.maxGradePercent,
+    props.refusedEdit,
+  ])
   const corridor = useMemo(() => {
     const reach = props.project.settings.crossSectionHalfWidth
     // A side whose batter ran past the section reach is drawn out to the reach, in red, rather
@@ -1740,6 +1774,8 @@ function Layers(
           if (length <= 0.4) return null
           // A handle needs room beside its neighbours: zoom in to bend a short segment.
           if (pixelMetres !== null && length / pixelMetres < MIN_BEND_SEGMENT_PX) return null
+          // Nor on a leg whose straight, after its end curves, is too short for a bend to fit.
+          if (!bendRoom(index, length)) return null
           const coordinate = positionAt({ ...props.savedAlignment, points: [start, end] }, length / 2).coordinate
           return (
             <MapMarker
@@ -1953,6 +1989,13 @@ const LABEL_ABOVE_PX: [number, number] = [0, -20]
 
 /** On-screen length a segment needs before it offers a bend handle. */
 const MIN_BEND_SEGMENT_PX = 48
+/**
+ * A bend handle shows only on a leg with this many minimum radii of straight left after its end
+ * curves: less, and almost any bend placed there is refused (`planEditCheck.ts`).
+ */
+const MIN_BEND_ROOM_RADII = 1
+/** The active road's colour while a dragged edit would be refused. */
+const REFUSED_EDIT_COLOR = '#e11d48'
 /** Numbered handles are 28 px; closer than this to a neighbour, a point shows as a dot. */
 const MIN_HANDLE_SPACING_PX = 34
 /** A handle moved less than this was a slip, so no point is added. */
@@ -2010,6 +2053,12 @@ export function PlanView(input: PlanProps) {
       }
     return null
   }, [drag, bend, props.alignment, props.mode, newPointRadius])
+  // The edit the drag would make is checked as it moves, so a refusal shows before the drop.
+  const previewRefusal = useMemo(
+    () => (previewAlignment ? checkPlanEdit(props.alignment, previewAlignment, newPointRadius) : null),
+    [previewAlignment, props.alignment, newPointRadius],
+  )
+  const dragAt = drag?.coordinate ?? bend?.coordinate
   // Bend handles follow a point drag, which keeps every point id and so every handle's key, but
   // never a bend preview: its extra point re-keys the handle in use, and remounting it loses the drop.
   const handleAlignment = (drag && previewAlignment) || props.alignment
@@ -2253,7 +2302,41 @@ export function PlanView(input: PlanProps) {
           noteTool={noteTool}
           planToolActive={!!tools.tool}
           gradeColours={tools.gradeColours}
+          refusedEdit={!!previewRefusal}
         />
+        {previewRefusal && dragAt && (
+          <>
+            <MapMarker
+              longitude={previewRefusal.at[0]}
+              latitude={previewRefusal.at[1]}
+              className="pointer-events-none z-20"
+            >
+              <MarkerContent>
+                <span
+                  aria-hidden="true"
+                  className="block size-5 rounded-full border-2 border-rose-600 bg-rose-500/20"
+                />
+              </MarkerContent>
+            </MapMarker>
+            <MapMarker
+              longitude={dragAt[0]}
+              latitude={dragAt[1]}
+              anchor="bottom"
+              offset={[0, -18]}
+              className="pointer-events-none z-30"
+            >
+              <MarkerContent>
+                <span
+                  role="status"
+                  data-plan-edit-refusal={previewRefusal.kind}
+                  className="whitespace-nowrap rounded border border-rose-300 bg-background px-1.5 py-0.5 text-2xs font-medium text-rose-700 shadow-sm"
+                >
+                  Not allowed · {previewRefusal.label}
+                </span>
+              </MarkerContent>
+            </MapMarker>
+          </>
+        )}
         {tools.mapLayer}
         <ReferenceLabels features={reference} visible={referenceVisible} />
         <NotesLayer

@@ -203,6 +203,7 @@ import {
 import type { PourPoint } from './dev-forestry-roads/drainageCatchments'
 import { cableSummary, cableProfileCsv, cableProfileHtml, crossSectionCsv } from './dev-forestry-roads/profileOutputs'
 import { analyzeCable, createRoadStationSampler, distance, offsetCoordinate } from './dev-forestry-roads/engine'
+import { checkPlanEdit } from './dev-forestry-roads/planEditCheck'
 import { roadStationAt, typedStationNote } from './dev-forestry-roads/stationAt'
 import { StationBox } from './dev-forestry-roads/StationBox'
 import { StationJumpMenu } from './dev-forestry-roads/StationJumpMenu'
@@ -1335,14 +1336,28 @@ export default function DevForestryRoads({
     },
     [setStation, setWorkflowTab],
   )
+  /** Refuses a plan edit that crosses the road or leaves a curve that cannot fit, and says why. */
+  const refusedPlanEdit = useCallback(
+    (next: Alignment) => {
+      const refusal = checkPlanEdit(alignment, next, project.settings.minRadius)
+      if (refusal) setNotice(refusal.message)
+      return !!refusal
+    },
+    [alignment, project.settings.minRadius, setNotice],
+  )
   const movePoint = useCallback(
     (id: string, coordinate: Coordinate) => {
       if (busy) return
-      updateAlignment((a) => ({ ...a, points: a.points.map((p) => (p.id === id ? { ...p, coordinate } : p)) }))
+      const moved = (a: Alignment) => ({
+        ...a,
+        points: a.points.map((p) => (p.id === id ? { ...p, coordinate } : p)),
+      })
+      if (refusedPlanEdit(moved(alignment))) return
+      updateAlignment(moved)
       const kept = profileKeptNotice(alignment.vertical.length)
       if (kept) setNotice(kept)
     },
-    [updateAlignment, busy, alignment.vertical.length, setNotice],
+    [updateAlignment, busy, alignment, refusedPlanEdit, setNotice],
   )
   const commitValidated = (next: RoadProject) => {
     if (busy) return false
@@ -1362,6 +1377,7 @@ export default function DevForestryRoads({
       ? undefined
       : (coordinates: Coordinate[]) => {
           const pegs = coordinates.map((coordinate) => ({ id: uid(), coordinate, radiusM: 0 }))
+          if (refusedPlanEdit({ ...alignment, points: [...alignment.points, ...pegs] })) return false
           const added = commitValidated({
             ...project,
             alignments: project.alignments.map((a) =>
@@ -2719,6 +2735,7 @@ export default function DevForestryRoads({
         ],
       }
       if (
+        !refusedPlanEdit(shifted) &&
         commitValidated({
           ...project,
           alignments: project.alignments.map((a) => (a.id === alignment.id ? shifted : a)),
@@ -4275,14 +4292,16 @@ export default function DevForestryRoads({
                                   const index = alignment.points.findIndex((point) => point.id === afterId)
                                   if (index < 0 || index === alignment.points.length - 1) return
                                   const point = { id: uid(), coordinate, radiusM: project.settings.minRadius }
-                                  updateAlignment((road) => ({
+                                  const bent = (road: Alignment) => ({
                                     ...road,
                                     points: [
                                       ...road.points.slice(0, index + 1),
                                       point,
                                       ...road.points.slice(index + 1),
                                     ],
-                                  }))
+                                  })
+                                  if (refusedPlanEdit(bent(alignment))) return
+                                  updateAlignment(bent)
                                   setSelectedPoint(point.id)
                                   setMode('edit')
                                   w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')

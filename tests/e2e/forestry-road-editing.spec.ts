@@ -29,7 +29,14 @@ async function open(page: Page, project: RoadProject) {
   ).setFiles({ name: 'editing.road.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) })
   await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId)
 }
-async function prepare(page: Page) {
+async function prepare(
+  page: Page,
+  xy: Array<[number, number]> = [
+    [0, 0],
+    [100, 15],
+    [200, 0],
+  ],
+) {
   const errors: string[] = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -42,11 +49,7 @@ async function prepare(page: Page) {
   const project = await save(page)
   const frame = corridorFrame([-122.72, 53.89])
   const alignment = project.alignments[0]
-  alignment.points = [
-    [0, 0],
-    [100, 15],
-    [200, 0],
-  ].map(([x, y], i) => ({ id: `edit-point-${i}`, coordinate: frame.fromXY([x, y]), radiusM: 0 }))
+  alignment.points = xy.map(([x, y], i) => ({ id: `edit-point-${i}`, coordinate: frame.fromXY([x, y]), radiusM: 0 }))
   alignment.name = 'Editable original'
   alignment.vertical = []
   alignment.overrides = []
@@ -172,7 +175,18 @@ test('dragging a handle bends the road with a curve, and a small slip adds nothi
   }
   await pull(3, 2)
   await expect(points).toHaveCount(before)
-  await pull(30, -30)
+  // Square off the road, so the bend opens a curve that fits: a pull back along the road can
+  // fold it past what the minimum radius allows, which is refused (`plan-edit-limits.md`).
+  const centre = async (locator: typeof handle) => {
+    const box = (await locator.boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+  const [from, to] = [
+    await centre(handle),
+    await centre(page.getByRole('button', { name: 'Horizontal point 2', exact: true })),
+  ]
+  const length = Math.hypot(to.x - from.x, to.y - from.y)
+  await pull(((from.y - to.y) / length) * 30, ((to.x - from.x) / length) * 30)
   // The status proves the drop was committed; a stuck drag preview would also draw one more point.
   await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('Bend added')
   await expect(points).toHaveCount(before + 1)
@@ -180,4 +194,35 @@ test('dragging a handle bends the road with a curve, and a small slip adds nothi
   expect(added.radiusM).toBeGreaterThan(0)
   await page.getByRole('button', { name: 'Undo road edit', exact: true }).click()
   await expect(points).toHaveCount(before)
+})
+
+test('a drag that would make the road cross itself is refused before and after the drop', async ({ page }) => {
+  const { errors, project } = await prepare(page, [
+    [0, 0],
+    [100, 15],
+    [200, 0],
+    [300, 15],
+  ])
+  const pointsOf = (p: RoadProject) => p.alignments.find((a) => a.id === p.activeAlignmentId)!.points
+  await openRoadPanel(page, 'Horizontal points')
+  await page.getByRole('button', { name: 'Select end', exact: true }).click()
+  const centre = async (index: number) => {
+    const box = (await page.getByRole('button', { name: `Horizontal point ${index}`, exact: true }).boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+  const [first, second, end] = [await centre(1), await centre(2), await centre(4)]
+  // Just north of the first leg's middle: the last leg, swung back to there, crosses the first.
+  const target = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 - 12 }
+  await page.mouse.move(end.x, end.y)
+  await page.mouse.down()
+  await page.mouse.move(target.x, target.y, { steps: 12 })
+  await expect(page.locator('[data-plan-edit-refusal="crossing"]')).toContainText('Not allowed')
+  await page.mouse.up()
+  await expect(page.locator('[data-plan-edit-refusal]')).toHaveCount(0)
+  await expect(page.getByTestId('road-workspace-header').getByRole('status')).toContainText('would cross itself')
+  expect(pointsOf(await save(page))).toEqual(pointsOf(project))
+  // The handle goes back to where the road still has it.
+  const back = await centre(4)
+  expect(Math.hypot(back.x - end.x, back.y - end.y)).toBeLessThan(3)
+  expect(errors).toEqual([])
 })
