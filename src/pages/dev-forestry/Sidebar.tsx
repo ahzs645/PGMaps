@@ -1,6 +1,8 @@
 import { MAP_SIDEBAR_CLASS } from '@/components/layout/MapSectionLayout'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import {
+  CheckboxField,
+  FORM_INPUT_CLASS,
   FormField,
   NumberField as SharedNumberField,
   NullableNumberField,
@@ -32,10 +34,18 @@ import {
   X,
   ZoomIn,
 } from 'lucide-react'
-import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { FileButton } from '@/components/ui/file-button'
+import { SegmentedControl } from '@/components/ui/segmented-control'
+import { ListHeader, ResultRow, ResultRowDetail } from '@/components/ui/result-list'
+import { TextButton } from '@/components/ui/text-button'
+import { ToggleRow } from '@/components/ui/toggle-row'
+import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
+import { Notification } from '@/components/ui/notification'
 import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
 import {
   CollapsibleSection,
@@ -57,6 +67,7 @@ import type { TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
 import { lineLengthMeters } from './visibility'
+import { SENSITIVITY_UNIT_COLORS } from './planMapStyle'
 import {
   AdjustmentFields,
   FinalRatingFields,
@@ -79,7 +90,6 @@ import {
   type VisualQualityClassId,
   type VisualQualityThresholds,
 } from './vqo'
-import { DEFAULT_LOCALE } from '@/lib/format'
 
 export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape'
 
@@ -155,9 +165,6 @@ const STEP_TAB_LABELS: Record<ViaStepId, string> = {
   rate: 'Rate',
 }
 
-const INPUT_CLASS =
-  'h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
-
 const SELECT_CLASS =
   'h-7 max-w-full rounded-md border border-border bg-background px-1.5 text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
 
@@ -217,7 +224,7 @@ function NumberField({
       suffix={suffix}
       clampOn="change"
       blankValue="zero"
-      inputClassName={INPUT_CLASS}
+      inputClassName={FORM_INPUT_CLASS}
       contentClassName="block"
       labelClassName="mb-1 block text-2xs font-medium text-muted-foreground"
       descriptionClassName="text-3xs leading-4"
@@ -254,10 +261,18 @@ function OptionalNumber({
       clampOn="change"
       hideLabel
       contentClassName="flex flex-row items-center gap-1 text-2xs text-muted-foreground"
-      inputClassName={`${SELECT_CLASS} w-16`}
+      inputClassName={cn(FORM_INPUT_CLASS, 'w-16')}
       unitClassName="text-2xs"
     />
   )
+}
+
+/** "Which roads see the block" lists this many before *Show all*. */
+const ROADS_SHOWN = 8
+
+/** A row's fields when it is not selected: `ResultRowDetail`'s layout without its tint. */
+function PlainRowDetail({ className, children }: { className?: string; children: ReactNode }) {
+  return <div className={cn('pb-3 pl-8 pr-3 text-xs', className)}>{children}</div>
 }
 
 /** Colours a planner would fill a block with in a screenshot; the picker offers them first. */
@@ -301,15 +316,17 @@ function BlockColorSwatch({ target, onChange }: { target: TargetPolygon; onChang
         </datalist>
       </label>
       {target.displayColor && (
-        <button
+        <Button
           type="button"
-          className="ml-0.5 text-3xs leading-none text-muted-foreground hover:text-foreground"
+          variant="ghost"
+          size="icon"
+          className="ml-0.5 h-5 w-5 text-muted-foreground touch:h-9 touch:w-9"
           aria-label={`Reset colour of ${target.name}`}
           title="Back to the default colour"
           onClick={() => onChange(null)}
         >
-          ×
-        </button>
+          <X className="h-3 w-3" />
+        </Button>
       )}
     </span>
   )
@@ -334,7 +351,7 @@ function BlockHarvestFields({
 }) {
   const system = target.harvestSystem ?? 'clearcut'
   return (
-    <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
+    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
       <NativeSelect
         className={SELECT_CLASS}
         value={system}
@@ -543,10 +560,11 @@ export function Sidebar({
   visualsParagraph,
   roadClearing,
 }: SidebarProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
   // Which scale the threshold editor is showing. Purely a view concern — both
   // sets are always in the scene and both are always reported.
   const [thresholdBasis, setThresholdBasis] = useState<AlterationBasis>('perspective')
+  // The roads list shows the first few; the rest are a click away, and the header says so.
+  const [showAllRoads, setShowAllRoads] = useState(false)
   const { viewpoint, targets, settings, thresholds } = scene
 
   const blocks = targets.filter((target) => target.role === 'block')
@@ -556,19 +574,6 @@ export function Sidebar({
   const running = analysis.status === 'running'
   const reverseRunning = reverse.status === 'running'
   const result = analysis.result
-
-  const roadFileRef = useRef<HTMLInputElement>(null)
-  const handleRoadFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) onImportRoad(file)
-    event.target.value = ''
-  }
-
-  const handleFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) onImportFile(file)
-    event.target.value = ''
-  }
 
   const inventorySummary = summariseUnits(inventory.units)
   // Unrated units stay on the map for context but would swamp a list.
@@ -626,7 +631,7 @@ export function Sidebar({
       blocks.length ? `${blocks.length} cutblock${blocks.length === 1 ? '' : 's'}` : 'No cutblocks',
       hasViewpoint
         ? viewpoint.mode === 'corridor'
-          ? `${(corridorLength / 1000).toFixed(1)} km of road`
+          ? `${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} of road`
           : 'Spot viewpoint'
         : 'No viewpoint',
       assessment ? `${assessment.objective.code} objective` : 'No landform',
@@ -643,7 +648,7 @@ export function Sidebar({
         ? `${numericalReady ? 'Run is current' : 'Provisional run'} · ${result.stations.length} station${result.stations.length === 1 ? '' : 's'}`
         : 'Not run yet',
     assess: assessment?.adjusted
-      ? `Ocular ${assessment.ocular ? VIA_CLASS_CODES[assessment.ocular.classId] : '—'} · adjusted ${assessment.adjusted.percent.toFixed(1)}%`
+      ? `Ocular ${assessment.ocular ? VIA_CLASS_CODES[assessment.ocular.classId] : '—'} · adjusted ${formatPercentValue(assessment.adjusted.percent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`
       : assessment?.ocular
         ? `Ocular ${VIA_CLASS_CODES[assessment.ocular.classId]} · adjustments to rate`
         : 'Ocular assessment to record',
@@ -658,116 +663,132 @@ export function Sidebar({
 
   // One polygon's row: name, area and source, zoom and remove, then its role,
   // objective and whichever of VAC or harvest system applies.
-  const renderTarget = (target: TargetPolygon) => (
-    <li
-      key={target.id}
-      className={cn(
-        'rounded-md border p-2',
-        selectedTargetId === target.id ? 'border-primary/60 bg-muted/30' : 'border-border',
-      )}
-    >
-      <div className="flex items-start gap-2">
-        {/* A marker showing a block's chosen colour; the colour is chosen in step 2's road view. */}
-        <span
-          className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm border border-border/60"
-          style={{ backgroundColor: (target.role === 'block' && target.displayColor) || ROLE_COLORS[target.role] }}
-        />
-        <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onSelectTarget(target.id)}>
-          <span className="flex items-center gap-1.5">
-            <span className="min-w-0 truncate text-xs font-medium text-foreground">{target.name}</span>
-            {target.role === 'landscape' && target.id === activeLandformId && (
-              <span className="shrink-0 rounded-full bg-primary/10 px-1.5 text-3xs font-medium leading-4 text-primary">
-                Active
+  const renderTarget = (target: TargetPolygon) => {
+    const selected = selectedTargetId === target.id
+    // Fields under the row, lined up with its title; tinted with it while selected.
+    const Detail = selected ? ResultRowDetail : PlainRowDetail
+    return (
+      <li key={target.id} className="overflow-hidden rounded-md border border-border">
+        <div className="flex items-start">
+          <ResultRow
+            className="min-w-0 flex-1 px-2 py-2"
+            selected={selected}
+            onClick={() => onSelectTarget(target.id)}
+            leading={
+              // A block's chosen colour; the colour is chosen in step 2's road view.
+              <span
+                className="mt-1 block h-2.5 w-2.5 rounded-sm border border-border/60"
+                style={{
+                  backgroundColor: (target.role === 'block' && target.displayColor) || ROLE_COLORS[target.role],
+                }}
+              />
+            }
+            title={
+              <span className="flex items-center gap-1.5 text-xs">
+                <span className="min-w-0 truncate">{target.name}</span>
+                {target.role === 'landscape' && target.id === activeLandformId && (
+                  <Badge tone="info" pill className="shrink-0">
+                    Active
+                  </Badge>
+                )}
               </span>
-            )}
-          </span>
-          <span className="text-2xs text-muted-foreground">
-            {targetAreaHectares(target).toLocaleString('en-CA', {
-              maximumFractionDigits: 1,
-            })}{' '}
-            ha · {target.source}
-          </span>
-        </button>
-        <button
-          type="button"
-          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          onClick={() => onZoomToTarget(target.id)}
-          title="Zoom to polygon"
-        >
-          <ZoomIn className="h-3.5 w-3.5" />
-        </button>
-        <button
-          type="button"
-          className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-destructive"
-          onClick={() => onRemoveTarget(target.id)}
-          title="Remove polygon"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5 pl-[18px]">
-        <NativeSelect
-          className={SELECT_CLASS}
-          value={target.role}
-          onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
-          aria-label={`Role for ${target.name}`}
-        >
-          <option value="block">Block</option>
-          <option value="landscape">Landform</option>
-        </NativeSelect>
-        <NativeSelect
-          className={SELECT_CLASS}
-          value={target.objectiveId}
-          onChange={(event) =>
-            onTargetChange(target.id, {
-              objectiveId: event.target.value as VisualQualityClassId,
-            })
-          }
-          aria-label={`Visual quality objective for ${target.name}`}
-        >
-          {VISUAL_QUALITY_CLASSES.map((entry) => (
-            <option key={entry.id} value={entry.id}>
-              {entry.label} ≤ {thresholds.perspective[entry.id]}%
-            </option>
-          ))}
-        </NativeSelect>
-        {/* Visual absorption capability rates a landform's capacity
-                      to hide alteration, so it only means anything on one. */}
-        {target.role === 'landscape' && (
-          <NativeSelect
-            className={SELECT_CLASS}
-            value={target.vac ?? ''}
-            onChange={(event) => onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })}
-            aria-label={`Visual absorption capability for ${target.name}`}
-          >
-            <option value="">VAC not rated</option>
-            {VAC_RATINGS.map((rating) => (
-              <option key={rating} value={rating}>
-                VAC {VAC_LABELS[rating]}
-              </option>
-            ))}
-          </NativeSelect>
-        )}
-      </div>
-      {target.role === 'block' && (
-        <BlockHarvestFields target={target} onChange={(patch) => onTargetChange(target.id, patch)} />
-      )}
-      {target.role === 'landscape' && target.id !== activeLandformId && (
-        <div className="mt-1.5 pl-[18px]">
+            }
+            subtitle={
+              <span className="text-2xs">
+                {formatMeasure(targetAreaHectares(target), 'ha', { maximumFractionDigits: 1 })} · {target.source}
+              </span>
+            }
+          />
           <Button
             type="button"
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-2xs"
-            onClick={() => onActivateLandform(target.id)}
+            variant="ghost"
+            size="icon"
+            className="mt-1 h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+            onClick={() => onZoomToTarget(target.id)}
+            aria-label={`Zoom to ${target.name}`}
+            title="Zoom to polygon"
           >
-            Assess against this landform
+            <ZoomIn className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="mr-1 mt-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
+            onClick={() => onRemoveTarget(target.id)}
+            aria-label={`Remove ${target.name}`}
+            title="Remove polygon"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-      )}
-    </li>
-  )
+        <Detail className="pl-7">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <NativeSelect
+              className={SELECT_CLASS}
+              value={target.role}
+              onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
+              aria-label={`Role for ${target.name}`}
+            >
+              <option value="block">Block</option>
+              <option value="landscape">Landform</option>
+            </NativeSelect>
+            <NativeSelect
+              className={SELECT_CLASS}
+              value={target.objectiveId}
+              onChange={(event) =>
+                onTargetChange(target.id, {
+                  objectiveId: event.target.value as VisualQualityClassId,
+                })
+              }
+              aria-label={`Visual quality objective for ${target.name}`}
+            >
+              {VISUAL_QUALITY_CLASSES.map((entry) => (
+                <option key={entry.id} value={entry.id}>
+                  {entry.label} ≤ {thresholds.perspective[entry.id]}%
+                </option>
+              ))}
+            </NativeSelect>
+            {/* Visual absorption capability rates a landform's capacity
+                      to hide alteration, so it only means anything on one. */}
+            {target.role === 'landscape' && (
+              <NativeSelect
+                className={SELECT_CLASS}
+                value={target.vac ?? ''}
+                onChange={(event) =>
+                  onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })
+                }
+                aria-label={`Visual absorption capability for ${target.name}`}
+              >
+                <option value="">VAC not rated</option>
+                {VAC_RATINGS.map((rating) => (
+                  <option key={rating} value={rating}>
+                    VAC {VAC_LABELS[rating]}
+                  </option>
+                ))}
+              </NativeSelect>
+            )}
+          </div>
+          {target.role === 'block' && (
+            <BlockHarvestFields target={target} onChange={(patch) => onTargetChange(target.id, patch)} />
+          )}
+          {target.role === 'landscape' && target.id !== activeLandformId && (
+            <div className="mt-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-7 px-2 text-2xs"
+                onClick={() => onActivateLandform(target.id)}
+              >
+                Assess against this landform
+              </Button>
+            </div>
+          )}
+        </Detail>
+      </li>
+    )
+  }
   const landforms = targets.filter((target) => target.role === 'landscape')
   const activeLandformId = findSceneLandform(scene)?.id ?? null
   const openings = targets.filter((target) => target.role === 'harvested')
@@ -847,35 +868,22 @@ export function Sidebar({
               </Button>
             </div>
           </div>
-          <input ref={fileInputRef} type="file" accept=".zip,.geojson,.json" className="hidden" onChange={handleFile} />
-          <input
-            ref={roadFileRef}
-            type="file"
-            accept=".zip,.geojson,.json"
-            className="hidden"
-            onChange={handleRoadFile}
-          />
 
           <SidebarSection title="Road or viewpoint" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
             {(drawMode === 'corridor' || drawMode === 'spot') && <div className="mb-3">{setup}</div>}
-            <div className="mb-3 flex gap-1.5">
-              <ToggleChip
-                active={viewpoint.mode === 'spot'}
-                onClick={() => onViewpointChange({ ...viewpoint, mode: 'spot', coordinates: [] })}
-              >
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> Spot
-                </span>
-              </ToggleChip>
-              <ToggleChip
-                active={viewpoint.mode === 'corridor'}
-                onClick={() => onViewpointChange({ ...viewpoint, mode: 'corridor', coordinates: [] })}
-              >
-                <span className="inline-flex items-center gap-1">
-                  <Route className="h-3 w-3" /> Length of road
-                </span>
-              </ToggleChip>
-            </div>
+            <SegmentedControl
+              className="mb-3"
+              size="sm"
+              label="Assess from"
+              value={viewpoint.mode}
+              options={[
+                { value: 'spot', label: 'Spot', icon: MapPin },
+                { value: 'corridor', label: 'Length of road', icon: Route },
+              ]}
+              onChange={(mode) => {
+                if (mode !== viewpoint.mode) onViewpointChange({ ...viewpoint, mode, coordinates: [] })
+              }}
+            />
 
             <Button
               type="button"
@@ -888,33 +896,36 @@ export function Sidebar({
               {viewpoint.mode === 'spot' ? 'Place the viewpoint' : 'Draw the road'}
             </Button>
             {viewpoint.mode === 'corridor' && (
-              <Button
-                type="button"
+              <FileButton
+                label="Road file"
+                accept=".zip,.geojson,.json"
                 variant="ghost"
-                size="sm"
                 className="-mt-2 mb-3 w-full text-2xs"
-                onClick={() => roadFileRef.current?.click()}
+                onFiles={([file]) => onImportRoad(file)}
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Import a road (GeoJSON or zipped shapefile)
-              </Button>
+              </FileButton>
             )}
 
             {hasViewpoint && (
               <div className="mb-3 flex items-center justify-between gap-2 rounded-md border border-border p-2 text-xs">
                 <span className="min-w-0 truncate text-muted-foreground">
                   {viewpoint.mode === 'spot'
-                    ? `${viewpoint.coordinates[0][1].toFixed(4)}, ${viewpoint.coordinates[0][0].toFixed(4)}`
-                    : `${viewpoint.coordinates.length} points · ${(corridorLength / 1000).toFixed(2)} km`}
+                    ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
+                    : `${viewpoint.coordinates.length} points · ${formatMeasure(corridorLength / 1000, 'km', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                 </span>
-                <button
+                <Button
                   type="button"
-                  className="shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
                   onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
+                  aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
                   title="Clear the viewpoint"
                 >
                   <X className="h-3.5 w-3.5" />
-                </button>
+                </Button>
               </div>
             )}
 
@@ -953,11 +964,11 @@ export function Sidebar({
               </p>
 
               {reverseRunning && reverse.progress && (
-                <p className="mt-2 text-2xs text-muted-foreground">
+                <InlineAlert className="mt-2" loading>
                   {reverse.progress.phase === 'terrain'
                     ? `Fetching terrain — ${reverse.progress.completed} of ${reverse.progress.total} tiles`
                     : 'Tracing sightlines…'}
-                </p>
+                </InlineAlert>
               )}
 
               {reverse.error && (
@@ -976,35 +987,51 @@ export function Sidebar({
               )}
 
               {reverse.result && reverse.result.roads.length > 0 && (
-                <ul className="mt-2 space-y-1.5">
-                  {reverse.result.roads.slice(0, 8).map((road) => (
-                    <li key={road.roadId}>
-                      <button
-                        type="button"
-                        className="w-full rounded-md border border-border p-2 text-left hover:bg-accent"
-                        onClick={() => onUseRoad(road.roadId)}
-                      >
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span className="min-w-0 truncate text-xs font-medium text-foreground">{road.name}</span>
-                          <span
-                            className={cn(
-                              'shrink-0 text-xs font-semibold tabular-nums',
-                              road.maxVisiblePercent > 0 ? 'text-rose-600' : 'text-muted-foreground',
-                            )}
-                          >
-                            {road.maxVisiblePercent.toFixed(0)}%
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">
-                          {road.seeingStationCount === 0
-                            ? 'Hidden from every point on it'
-                            : `Seen from ${(road.exposedLengthFraction * 100).toFixed(0)}% of its length · ` +
-                              `nearest ${(road.nearestDistanceMeters / 1000).toFixed(1)} km`}
-                        </p>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <div className="mt-2 overflow-hidden rounded-md border border-border">
+                  <ListHeader
+                    count={reverse.result.roads.length}
+                    noun={['road', 'roads']}
+                    shown={showAllRoads ? undefined : Math.min(ROADS_SHOWN, reverse.result.roads.length)}
+                    sticky={false}
+                    className="px-2 py-1.5 text-2xs"
+                    aside={
+                      reverse.result.roads.length > ROADS_SHOWN && (
+                        <TextButton className="text-2xs" onClick={() => setShowAllRoads((value) => !value)}>
+                          {showAllRoads ? 'Show fewer' : 'Show all'}
+                        </TextButton>
+                      )
+                    }
+                  />
+                  <ul className="divide-y divide-border" aria-label="Roads that see the block">
+                    {(showAllRoads ? reverse.result.roads : reverse.result.roads.slice(0, ROADS_SHOWN)).map((road) => (
+                      <li key={road.roadId}>
+                        <ResultRow
+                          className="px-2 py-2"
+                          onClick={() => onUseRoad(road.roadId)}
+                          title={<span className="text-xs">{road.name}</span>}
+                          subtitle={
+                            <span className="whitespace-normal text-3xs leading-4">
+                              {road.seeingStationCount === 0
+                                ? 'Hidden from every point on it'
+                                : `Seen from ${formatPercentValue(road.exposedLengthFraction * 100, { maximumFractionDigits: 0 })} of its length · ` +
+                                  `nearest ${formatMeasure(road.nearestDistanceMeters / 1000, 'km', { maximumFractionDigits: 1 })}`}
+                            </span>
+                          }
+                          trailing={
+                            <span
+                              className={cn(
+                                'text-xs',
+                                road.maxVisiblePercent > 0 ? 'text-rose-600' : 'font-normal text-muted-foreground',
+                              )}
+                            >
+                              {formatPercentValue(road.maxVisiblePercent, { maximumFractionDigits: 0 })}
+                            </span>
+                          }
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
 
               {reverse.result && reverse.result.roads.length > 0 && (
@@ -1023,16 +1050,16 @@ export function Sidebar({
             headingLevel={3}
             className={SUBSECTION_CLASS}
             actions={
-              <Button
-                type="button"
+              <FileButton
+                label="Cutblock or landform file"
+                accept=".zip,.geojson,.json"
                 variant="ghost"
-                size="sm"
                 className="h-7 px-2 text-2xs"
-                onClick={() => fileInputRef.current?.click()}
+                onFiles={([file]) => onImportFile(file)}
               >
                 <FileUp className="h-3.5 w-3.5" />
                 Import
-              </Button>
+              </FileButton>
             }
           >
             <div className="mb-3">
@@ -1140,8 +1167,8 @@ export function Sidebar({
                   {inventory.status === 'loading' ? 'Loading inventory…' : 'Look up this view'}
                 </Button>
                 <p className="mt-2 text-2xs leading-4 text-muted-foreground">
-                  Downloaded provincial sensitivity units, plus live harvest and forest-cover context. Boundaries are
-                  candidates: review the visible landform before adopting one.
+                  Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries
+                  are candidates: review the visible landform before adopting one.
                 </p>
 
                 {inventory.status === 'error' && (
@@ -1165,33 +1192,37 @@ export function Sidebar({
                         {inventory.harvestCount > 0 ? ` · ${inventory.harvestCount} existing openings` : ''}
                         {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
                       </p>
-                      <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                      <ul
+                        className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"
+                        aria-label="Inventory units in this view"
+                      >
                         {ratedUnits.map((unit) => (
                           <li key={unit.id}>
-                            <button
-                              type="button"
+                            <ResultRow
+                              className="px-2 py-1.5"
                               onClick={() => onAdoptUnit(unit.id)}
-                              className="flex w-full items-center gap-2 rounded-md border border-border px-2 py-1.5 text-left transition-colors hover:border-primary/50 hover:bg-muted/40"
-                            >
-                              <span
-                                className="h-2.5 w-2.5 shrink-0 rounded-sm"
-                                style={{
-                                  backgroundColor: unit.objectiveId
-                                    ? visualQualityClass(unit.objectiveId).color
-                                    : 'transparent',
-                                }}
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate text-xs font-medium text-foreground">{unit.name}</span>
-                                <span className="text-2xs text-muted-foreground">
+                              leading={
+                                // The unit's colour on the map: its objective's, grey with none.
+                                <span
+                                  className="mt-1 block h-2.5 w-2.5 rounded-sm"
+                                  style={{
+                                    backgroundColor: unit.objectiveId
+                                      ? visualQualityClass(unit.objectiveId).color
+                                      : SENSITIVITY_UNIT_COLORS.unrated,
+                                  }}
+                                />
+                              }
+                              title={<span className="text-xs">{unit.name}</span>}
+                              subtitle={
+                                <span className="text-2xs">
                                   {unit.objectiveId
                                     ? visualQualityClass(unit.objectiveId).label
                                     : 'No established objective'}
                                   {unit.vac ? ` · VAC ${VAC_LABELS[unit.vac]}` : ' · VAC not rated'}
                                   {unit.vsc ? ` · VSC ${unit.vsc}` : ''}
                                 </span>
-                              </span>
-                            </button>
+                              }
+                            />
                           </li>
                         ))}
                       </ul>
@@ -1248,17 +1279,29 @@ export function Sidebar({
                       what roadside trees would screen.
                     </InfoTip>
                   </p>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <ToggleChip
+                  <div
+                    className="grid grid-cols-2 gap-1.5 sm:grid-cols-3"
+                    role="group"
+                    aria-label="Show in the road view"
+                  >
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="Analysis points"
                       active={drive.showAnalysis}
                       onClick={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
-                    >
-                      Analysis points
-                    </ToggleChip>
-                    <ToggleChip active={drive.imagery} onClick={() => onDriveChange({ imagery: !drive.imagery })}>
-                      Satellite imagery
-                    </ToggleChip>
-                    <ToggleChip
+                    />
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="Satellite imagery"
+                      active={drive.imagery}
+                      onClick={() => onDriveChange({ imagery: !drive.imagery })}
+                    />
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="Note screenshot look"
                       active={drive.reportLook}
                       onClick={() =>
                         onDriveChange(
@@ -1273,21 +1316,28 @@ export function Sidebar({
                               },
                         )
                       }
-                    >
-                      Note screenshot look
-                    </ToggleChip>
-                    <ToggleChip active={drive.showEvqo} onClick={() => onDriveChange({ showEvqo: !drive.showEvqo })}>
-                      EVQO polygons
-                    </ToggleChip>
-                    <ToggleChip
+                    />
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="EVQO polygons"
+                      active={drive.showEvqo}
+                      onClick={() => onDriveChange({ showEvqo: !drive.showEvqo })}
+                    />
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="Landform"
                       active={drive.showLandform}
                       onClick={() => onDriveChange({ showLandform: !drive.showLandform })}
-                    >
-                      Landform
-                    </ToggleChip>
-                    <ToggleChip active={drive.haze} onClick={() => onDriveChange({ haze: !drive.haze })}>
-                      Distance haze
-                    </ToggleChip>
+                    />
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      label="Distance haze"
+                      active={drive.haze}
+                      onClick={() => onDriveChange({ haze: !drive.haze })}
+                    />
                   </div>
                   {drive.showEvqo && (
                     <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-3xs text-muted-foreground">
@@ -1329,11 +1379,15 @@ export function Sidebar({
                   you can see it, which is what the objective is about. */}
                 <div className="rounded-md border border-border p-2">
                   <div className="flex items-center gap-1.5">
-                    <ToggleChip active={drive.forest} onClick={() => onDriveChange({ forest: !drive.forest })}>
-                      <span className="inline-flex items-center gap-1">
-                        <Trees className="h-3 w-3" /> Standing timber
-                      </span>
-                    </ToggleChip>
+                    <ToggleRow
+                      layout="tile"
+                      tone="primary"
+                      icon={Trees}
+                      label="Standing timber"
+                      className="flex-1"
+                      active={drive.forest}
+                      onClick={() => onDriveChange({ forest: !drive.forest })}
+                    />
                     <InfoTip label="About the drawn timber">
                       Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a
                       gap. It is a drawing: stand height, cleared width and stem style change only the picture, never
@@ -1367,48 +1421,42 @@ export function Sidebar({
                           onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
                         />
                       </div>
-                      <div
-                        className="flex flex-wrap items-center gap-1.5"
-                        role="group"
-                        aria-label="How a stem is drawn"
-                      >
-                        <ToggleChip
-                          active={drive.treeStyle === 'hybrid'}
-                          onClick={() => onDriveChange({ treeStyle: 'hybrid' })}
-                          title="Three fixed silhouette planes per near tree; distant instances stand for canopy groups"
-                        >
-                          Stable silhouettes
-                        </ToggleChip>
-                        <ToggleChip
-                          active={drive.treeStyle === 'billboard'}
-                          onClick={() => onDriveChange({ treeStyle: 'billboard' })}
-                          title="Two fixed planes per near tree; lighter"
-                        >
-                          Billboards
-                        </ToggleChip>
-                        <ToggleChip
-                          active={drive.treeStyle === 'solid'}
-                          onClick={() => onDriveChange({ treeStyle: 'solid' })}
-                          title="Real cone geometry: honest from any angle, about fifteen times the triangles"
-                        >
-                          Solid cones
-                        </ToggleChip>
-                      </div>
+                      <SegmentedControl
+                        size="sm"
+                        label="How a stem is drawn"
+                        value={drive.treeStyle}
+                        onChange={(treeStyle) => onDriveChange({ treeStyle })}
+                        options={[
+                          {
+                            value: 'hybrid',
+                            label: 'Stable silhouettes',
+                            title:
+                              'Three fixed silhouette planes per near tree; distant instances stand for canopy groups',
+                          },
+                          { value: 'billboard', label: 'Billboards', title: 'Two fixed planes per near tree; lighter' },
+                          {
+                            value: 'solid',
+                            label: 'Solid cones',
+                            title: 'Real cone geometry: honest from any angle, about fifteen times the triangles',
+                          },
+                        ]}
+                      />
                       {drive.lookAtTargetId && (
-                        <ToggleChip
+                        <ToggleRow
+                          layout="tile"
+                          tone="primary"
+                          label="Viewing gap to the block"
+                          title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
                           active={drive.viewingGap}
                           onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
-                          title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
-                        >
-                          Viewing gap to the block
-                        </ToggleChip>
+                        />
                       )}
                       {forestStatus?.error ? (
                         <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
                       ) : (
                         forestStatus !== null && (
                           <p className="text-3xs leading-4 text-muted-foreground">
-                            {forestStatus.treeCount.toLocaleString(DEFAULT_LOCALE)} stems ·{' '}
+                            {formatNumber(forestStatus.treeCount)} stems ·{' '}
                             {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
                               ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
                               : 'a regional mix; look up the BC inventory to draw what was recorded here'}
@@ -1483,27 +1531,30 @@ export function Sidebar({
                 {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 {running ? 'Working…' : 'Run visibility'}
               </Button>
-              {running && (
-                <Button type="button" variant="outline" size="sm" onClick={onCancel}>
-                  Stop
-                </Button>
-              )}
             </div>
 
+            {/* The run's progress joins the shared notification stack, with Stop beside it. */}
             {running && analysis.progress && (
-              <div className="mt-2">
-                <div className="h-1.5 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-[width] duration-150"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
-                <p className="mt-1 text-2xs text-muted-foreground">
-                  {analysis.progress.phase === 'terrain'
+              <Notification
+                id="visual-quality-run"
+                tone="loading"
+                title="Visibility run"
+                message={
+                  analysis.progress.phase === 'terrain'
                     ? `Fetching terrain — ${analysis.progress.completed} of ${analysis.progress.total} tiles`
-                    : `Tracing sightlines — ${progressPercent.toFixed(0)}%`}
-                </p>
-              </div>
+                    : 'Tracing sightlines'
+                }
+                progress={{
+                  value: Math.round(progressPercent),
+                  max: 100,
+                  valueText: formatPercentValue(progressPercent, { maximumFractionDigits: 0 }),
+                }}
+                action={
+                  <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+                    Stop
+                  </Button>
+                }
+              />
             )}
 
             {!hasViewpoint && <p className="mt-2 text-2xs text-muted-foreground">Place a viewpoint to run.</p>}
@@ -1539,7 +1590,7 @@ export function Sidebar({
           <CollapsibleSection
             label="Simulation settings"
             toggleProps={{ 'data-forestry-disclosure': 'simulation-settings' }}
-            summary={`${settings.observerHeightMeters} m eye · ${(settings.maxViewDistanceMeters / 1000).toFixed(1)} km range`}
+            summary={`${formatMeasure(settings.observerHeightMeters, 'm')} eye · ${formatMeasure(settings.maxViewDistanceMeters / 1000, 'km', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} range`}
             summaryWhenCollapsedOnly
             className="border-b-0 border-t border-border/60"
           >
@@ -1571,12 +1622,10 @@ export function Sidebar({
               <div className="mt-3">
                 <Field
                   label="Terrain detail"
-                  hint={`${demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom).toFixed(
-                    0,
-                  )} m between elevation samples. Finer detail means many more tiles to fetch.`}
+                  hint={`${formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, settings.demZoom), 'm', { maximumFractionDigits: 0 })} between elevation samples. Finer detail means many more tiles to fetch.`}
                 >
                   <NativeSelect
-                    className={INPUT_CLASS}
+                    className={FORM_INPUT_CLASS}
                     value={settings.demZoom}
                     onChange={(event) => onSettingsChange({ ...settings, demZoom: Number(event.target.value) })}
                   >
@@ -1584,7 +1633,10 @@ export function Sidebar({
                       const zoom = MIN_DEM_ZOOM + index
                       return (
                         <option key={zoom} value={zoom}>
-                          Zoom {zoom} · {demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, zoom).toFixed(0)} m
+                          Zoom {zoom} ·{' '}
+                          {formatMeasure(demResolutionMeters(viewpoint.coordinates[0]?.[1] ?? 54, zoom), 'm', {
+                            maximumFractionDigits: 0,
+                          })}
                         </option>
                       )
                     })}
@@ -1631,20 +1683,20 @@ export function Sidebar({
                     onChange={(value) => onSettingsChange({ ...settings, minCrownClosurePercent: value })}
                   />
                 </div>
-                <label className="mt-3 flex items-start gap-2">
-                  <input
-                    type="checkbox"
-                    className="mt-0.5 h-3.5 w-3.5"
-                    checked={settings.screeningEnabled}
-                    onChange={(event) => onSettingsChange({ ...settings, screeningEnabled: event.target.checked })}
-                  />
-                  <span className="text-2xs leading-4 text-muted-foreground">
-                    <span className="font-medium text-foreground">Screen with standing timber.</span> Adds VRI
-                    rank-1&apos;s projected stand height to the ground along each sightline, so a block behind mature
-                    timber reads as hidden. Openings and the proposal itself are treated as cleared. Full-landscape
-                    coverage, and a slow query — it fetches every inventory polygon over the run&apos;s extent.
-                  </span>
-                </label>
+                <CheckboxField
+                  className="mt-3"
+                  label={<span className="text-2xs font-medium">Screen with standing timber</span>}
+                  description={
+                    <span className="text-2xs leading-4">
+                      Adds VRI rank-1&apos;s projected stand height to the ground along each sightline, so a block
+                      behind mature timber reads as hidden. Openings and the proposal itself are treated as cleared.
+                      Full-landscape coverage, and a slow query — it fetches every inventory polygon over the run&apos;s
+                      extent.
+                    </span>
+                  }
+                  checked={settings.screeningEnabled}
+                  onCheckedChange={(screeningEnabled) => onSettingsChange({ ...settings, screeningEnabled })}
+                />
                 <div className="mt-3">
                   <NumberField
                     label="Sample points per polygon"
@@ -1667,18 +1719,17 @@ export function Sidebar({
             className="border-b-0 border-t border-border/60"
           >
             <div className="px-4 pb-4">
-              <div className="mb-2 flex gap-1.5">
-                {(['perspective', 'planimetric'] as AlterationBasis[]).map((basis) => (
-                  <ToggleChip
-                    key={basis}
-                    active={thresholdBasis === basis}
-                    tone={basis === 'perspective' ? 'sky' : 'amber'}
-                    onClick={() => setThresholdBasis(basis)}
-                  >
-                    {ALTERATION_BASIS_LABELS[basis]}
-                  </ToggleChip>
-                ))}
-              </div>
+              <SegmentedControl
+                className="mb-2"
+                size="sm"
+                label="Threshold scale"
+                value={thresholdBasis}
+                onChange={setThresholdBasis}
+                options={(['perspective', 'planimetric'] as AlterationBasis[]).map((basis) => ({
+                  value: basis,
+                  label: ALTERATION_BASIS_LABELS[basis],
+                }))}
+              />
               <p className="mb-2 text-2xs leading-4 text-muted-foreground">
                 {ALTERATION_BASIS_NOTES[thresholdBasis]} Defaults come from{' '}
                 {thresholdBasis === 'perspective'
@@ -1693,27 +1744,27 @@ export function Sidebar({
                     <span className="min-w-0 flex-1 truncate text-xs text-foreground" title={entry.description}>
                       {entry.label}
                     </span>
-                    <input
-                      type="number"
-                      className="h-7 w-16 rounded-md border border-border bg-background px-1.5 text-right text-2xs text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    {/* A cleared box keeps the threshold until a new number is typed. */}
+                    <SharedNumberField
+                      label={`${entry.label} ${thresholdBasis} threshold`}
+                      aria-label={`${entry.label} ${thresholdBasis} threshold`}
+                      hideLabel
                       value={thresholds[thresholdBasis][entry.id]}
                       min={0}
                       max={100}
                       step={0.5}
-                      aria-label={`${entry.label} ${thresholdBasis} threshold`}
-                      onChange={(event) => {
-                        const next = Number(event.target.value)
-                        if (!Number.isFinite(next)) return
+                      suffix="%"
+                      clampOn="commit"
+                      onValueChange={(next) =>
                         onThresholdsChange({
                           ...thresholds,
-                          [thresholdBasis]: {
-                            ...thresholds[thresholdBasis],
-                            [entry.id]: Math.max(0, Math.min(100, next)),
-                          },
+                          [thresholdBasis]: { ...thresholds[thresholdBasis], [entry.id]: next },
                         })
-                      }}
+                      }
+                      contentClassName="flex flex-row items-center gap-1 text-2xs text-muted-foreground"
+                      inputClassName={cn(FORM_INPUT_CLASS, 'w-16 text-right')}
+                      unitClassName="text-2xs"
                     />
-                    <span className="w-3 shrink-0 text-2xs text-muted-foreground">%</span>
                   </div>
                 ))}
               </div>

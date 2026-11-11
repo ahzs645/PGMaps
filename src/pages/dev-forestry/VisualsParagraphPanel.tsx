@@ -1,4 +1,5 @@
-import { NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, FORM_INPUT_CLASS, NativeSelect } from '@/components/ui/form-field'
+import { formatMeasure, formatPercentValue } from '@/lib/format'
 import { useEffect, useMemo, useState } from 'react'
 
 import { Button, buttonVariants } from '@/components/ui/button'
@@ -24,8 +25,8 @@ import {
   type ViewpointFinding,
 } from './visualsNarrative'
 
-const TEXTAREA_CLASS =
-  'min-h-32 w-full rounded-md border border-border bg-background p-2 text-xs leading-5 text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+/** The paragraph box: the shared input style, tall enough for a planner's paragraph. */
+const TEXTAREA_CLASS = `${FORM_INPUT_CLASS} min-h-32 leading-5`
 
 /** What the panel hands the page for the block note: its own text, before screenshots are added. */
 export type BlockNoteParts = {
@@ -165,7 +166,13 @@ export function VisualsParagraphPanel({
     ...(planning?.licenceId ? [{ label: 'Licence', value: planning.licenceId }] : []),
     ...(planning?.permitId ? [{ label: 'Cutting permit', value: planning.permitId }] : []),
     ...(planning?.openingId ? [{ label: 'Opening', value: planning.openingId }] : []),
-    { label: 'Area', value: `${(polygonAreaMeters(block.geometry) / 10_000).toFixed(1)} ha` },
+    {
+      label: 'Area',
+      value: formatMeasure(polygonAreaMeters(block.geometry) / 10_000, 'ha', {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      }),
+    },
     {
       label: 'EVQO under the block',
       value: !units
@@ -185,12 +192,12 @@ export function VisualsParagraphPanel({
     ? [
         {
           label: 'Landform',
-          value: `${landform.name} · ${(polygonAreaMeters(landform.geometry) / 10_000).toFixed(0)} ha · objective ${EVQO_NAMES[EVQO_CODE_FOR_CLASS[landform.objectiveId]]}`,
+          value: `${landform.name} · ${formatMeasure(polygonAreaMeters(landform.geometry) / 10_000, 'ha', { maximumFractionDigits: 0 })} · objective ${EVQO_NAMES[EVQO_CODE_FOR_CLASS[landform.objectiveId]]}`,
         },
         {
           label: 'Landform alteration',
           value: alteration
-            ? `${alteration.percent.toFixed(1)}% in perspective view (initial X) · ${alteration.objective} range ${alteration.rangeLabel}`
+            ? `${formatPercentValue(alteration.percent, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} in perspective view (initial X) · ${alteration.objective} range ${alteration.rangeLabel}`
             : 'Not measured: run the assessment with this landform',
         },
       ]
@@ -262,21 +269,20 @@ export function VisualsParagraphPanel({
         <fieldset className="space-y-1">
           <legend className="text-2xs font-medium text-muted-foreground">Also seen from</legend>
           {otherViewpoints.map((finding) => (
-            <label key={finding.name} className="flex items-center gap-2 text-2xs">
-              <input
-                type="checkbox"
-                checked={!excluded.has(finding.name)}
-                onChange={(event) =>
-                  setExcluded((current) => {
-                    const next = new Set(current)
-                    if (event.target.checked) next.delete(finding.name)
-                    else next.add(finding.name)
-                    return next
-                  })
-                }
-              />
-              {finding.name} · {Math.round(finding.shares.visible * 100)}% of the block, bare earth
-            </label>
+            <CheckboxField
+              key={finding.name}
+              className="text-2xs"
+              label={`${finding.name} · ${formatPercentValue(finding.shares.visible * 100, { maximumFractionDigits: 0 })} of the block, bare earth`}
+              checked={!excluded.has(finding.name)}
+              onCheckedChange={(checked) =>
+                setExcluded((current) => {
+                  const next = new Set(current)
+                  if (checked) next.delete(finding.name)
+                  else next.add(finding.name)
+                  return next
+                })
+              }
+            />
           ))}
         </fieldset>
       )}

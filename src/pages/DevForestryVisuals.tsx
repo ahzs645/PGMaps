@@ -7,11 +7,13 @@ import { sampleAlongLine } from './dev-forestry/visibility'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
+import { MapTableBridge } from '@/components/map/useMapTable'
 import { Button } from '@/components/ui/button'
-import { Map, MapControls, MapScaleBar, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
+import { Map, MapScaleBar, MapMarker, MarkerContent, WORKSPACE_MAP_CONTROLS, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapOverlay } from '@/components/ui/map-panels'
 import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
+import { TextButton } from '@/components/ui/text-button'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { downloadBlob, downloadText } from '@/lib/download'
@@ -128,17 +130,20 @@ import {
   OTHER_RIDGE_LAYER_COLOR,
   ROAD_COLOR,
   SCREENED_COLOR,
-  SENSITIVITY_UNIT_COLORS,
+  SENSITIVITY_UNIT_COLOR,
   TERRAIN_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
   VISIBLE_COLOR,
 } from './dev-forestry/planMapStyle'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
+import { useVisualQualityTable } from './dev-forestry/useVisualQualityTable'
 import { assessVia, fs1252ReviewFromVia, viaStepStatuses, type ViaReview } from './dev-forestry/via'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
+const NO_TARGETS: TargetPolygon[] = []
+const NO_CANDIDATES: ViewpointCandidate[] = []
 
 const DEFAULT_DRIVE: DriveState = {
   existingForest: true,
@@ -2117,6 +2122,17 @@ function DevForestryVisuals() {
       properties: { id: mask.id, name: mask.name, kind: mask.kind },
     })),
   }
+  // The shared table of what the plan map draws. Not in the road view, and not
+  // while drawing, when the corner it sits in belongs to the drawing controls.
+  const planTableShown = !drive.active && drawMode === 'none'
+  const table = useVisualQualityTable({
+    targets: planTableShown ? scene.targets : NO_TARGETS,
+    candidates: planTableShown && showInventory ? viewpointCandidates : NO_CANDIDATES,
+    checks: reverseViewpointRows,
+    result: planTableShown && !preliminaryDrive ? result : null,
+    selectedTargetId,
+    onSelectTarget: setSelectedTargetId,
+  })
   const sidebar = (
     <Sidebar
       via={{
@@ -2362,6 +2378,7 @@ function DevForestryVisuals() {
   return (
     <MapSectionLayout
       sidebar={sidebar}
+      table={table}
       desktopSidebarWidth={400}
       mobileInitialSheetState="full"
       // On a phone the sheet covers the map, so entering the road view with it
@@ -2369,16 +2386,26 @@ function DevForestryVisuals() {
       // hand the sidebar back on the way out.
       mobileSnapTo={drive.active || drawMode !== 'none' ? 'collapsed' : 'full'}
       mobileSnapKey={drive.active ? 'road-view' : drawMode !== 'none' ? 'drawing' : 'setup'}
-      selectedFeatureMobilePeek={{
-        title: 'Visual quality',
-        subtitle: viaAssessment?.rating
+      // The collapsed sheet's line on a phone. (selectedFeatureMobilePeek shows only
+      // while a feature card is open, which this page never opens.)
+      mobilePeekTitle="Visual quality"
+      mobilePeekSubtitle={
+        viaAssessment?.rating
           ? `${viaAssessment.rating.label} · ${viaAssessment.objective.code} objective`
           : result
             ? `${result.targets.filter((target) => target.role === 'block').length} block(s) simulated · not rated yet`
-            : 'Choose a road and cutblock',
-      }}
+            : 'Choose a road and cutblock'
+      }
     >
-      <Map ref={mapRef} center={PG_CENTER} zoom={9} maxPitch={85} controls={<MapControls position="top-right" />}>
+      <Map
+        ref={mapRef}
+        center={PG_CENTER}
+        zoom={9}
+        maxPitch={85}
+        controls={WORKSPACE_MAP_CONTROLS}
+        deferResize={table.deferResize}
+      >
+        <MapTableBridge table={table} />
         <TerrainSupport
           terrain={drive.active}
           exaggeration={1}
@@ -2483,9 +2510,9 @@ function DevForestryVisuals() {
           lineWidth={1}
           visible={drive.active}
         />
-        {/* Hectares and kilometres are the page's units; on a phone the corner
-            belongs to the zoom controls. Hides itself in the pitched road view. */}
-        <MapScaleBar position="bottom-right" className="max-md:hidden" />
+        {/* Hectares and kilometres are the page's units. It clears the phone sheet
+            and hides itself in the pitched road view. */}
+        <MapScaleBar position="bottom-right" />
         <BasemapContextProbe
           enabled={!drive.active}
           corridor={scene.viewpoint.coordinates}
@@ -2502,14 +2529,9 @@ function DevForestryVisuals() {
             established are drawn back so the ones that constrain harvesting read first. */}
         <MapFillLayer
           data={inventoryCollection}
-          fillColor={SENSITIVITY_UNIT_COLORS.fill}
-          fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.1, 0.03]}
-          lineColor={[
-            'case',
-            ['==', ['get', 'rated'], 1],
-            SENSITIVITY_UNIT_COLORS.rated,
-            SENSITIVITY_UNIT_COLORS.unrated,
-          ]}
+          fillColor={SENSITIVITY_UNIT_COLOR as never}
+          fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.12, 0.03]}
+          lineColor={SENSITIVITY_UNIT_COLOR as never}
           lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
           lineOpacity={0.9}
           idProperty="id"
@@ -2771,8 +2793,9 @@ function DevForestryVisuals() {
         )}
 
         {drawMode !== 'none' && (
-          <div
-            className="absolute top-3 left-3 right-14 z-10 rounded-lg border bg-background/95 p-3 shadow md:hidden"
+          <MapOverlay
+            position="top-left"
+            className="right-14 p-3 md:hidden"
             role="region"
             aria-label="Map drawing controls"
           >
@@ -2797,7 +2820,7 @@ function DevForestryVisuals() {
                 Cancel drawing
               </Button>
             </div>
-          </div>
+          </MapOverlay>
         )}
 
         {(result || preliminaryDrive) && (
@@ -2849,16 +2872,15 @@ function DevForestryVisuals() {
                       ? `Loading road terrain · ${previewTerrain.progress}%`
                       : previewTerrain.message}
                     {!previewTerrain.loading && previewTerrain.message && (
-                      <button
-                        type="button"
-                        className="ml-2 underline"
+                      <TextButton
+                        className="ml-2"
                         onClick={() => {
                           previewTerrain.retry()
                           routeViewshed.retry()
                         }}
                       >
                         Retry terrain
-                      </button>
+                      </TextButton>
                     )}
                   </p>
                 )
@@ -2883,9 +2905,9 @@ function DevForestryVisuals() {
                           currentForestStatus?.error ??
                           `Preparing forest${currentForestStatus?.totalPatches ? ` · ${Math.round((100 * (currentForestStatus.patchCount ?? 0)) / currentForestStatus.totalPatches)}%` : '…'}${currentForestStatus?.nearbyReady ? ' · nearby view ready' : ''}`)}
                       {!previewTerrain.loading && previewTerrain.message && (
-                        <button type="button" className="ml-2 underline" onClick={previewTerrain.retry}>
+                        <TextButton className="ml-2" onClick={previewTerrain.retry}>
                           Retry terrain
-                        </button>
+                        </TextButton>
                       )}
                     </p>
                   )}
@@ -2968,7 +2990,7 @@ function DevForestryVisuals() {
           road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
           run={!!result}
           reverseRoads={reverseRoadCollection.features.length > 0}
-          sensitivityUnits={showInventory && inventory.units.length > 0}
+          sensitivityUnits={showInventory ? [...new Set(inventory.units.map((unit) => unit.objectiveId ?? null))] : []}
           terrainCandidate={terrainCandidateCollection.features.length > 0}
           otherRidgeLayers={ridgeLayerCollection.features.some((feature) => feature.properties?.own === 0)}
           landformClues={landformClues.features.length > 0}
@@ -3038,9 +3060,7 @@ function DevForestryVisuals() {
           {standingNow && !preliminaryDrive && (
             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 whitespace-normal text-2xs text-muted-foreground">
               <span>Standing at {standingNow.name}</span>
-              <button type="button" className="underline hover:text-foreground" onClick={handleBackToRoad}>
-                Back to {standingNow.previous.name || 'the road'}
-              </button>
+              <TextButton onClick={handleBackToRoad}>Back to {standingNow.previous.name || 'the road'}</TextButton>
             </p>
           )}
           {scene.viewpoint.id === ROADSIDE_DEMO_ID && !preliminaryDrive && (

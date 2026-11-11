@@ -19,6 +19,7 @@ import {
 } from './planMapStyle'
 import { ROLE_COLORS } from './scene'
 import type { AssessmentMaskKind } from './types'
+import { VISUAL_QUALITY_CLASSES, type VisualQualityClassId } from './vqo'
 
 /** An outlined area swatch: a light fill inside the layer's line colour. */
 function AreaSwatch({ color, line = color, dashed = false }: { color: string; line?: string; dashed?: boolean }) {
@@ -67,7 +68,8 @@ export type PlanMapLegendProps = {
   run: boolean
   /** "Which roads see the block" drew graded roads. */
   reverseRoads: boolean
-  sensitivityUnits: boolean
+  /** The objectives among the sensitivity units drawn (null: none established). */
+  sensitivityUnits: ReadonlyArray<VisualQualityClassId | null>
   terrainCandidate: boolean
   otherRidgeLayers: boolean
   landformClues: boolean
@@ -84,7 +86,7 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
   const graded = run || reverseRoads
   const terrain = props.terrainCandidate || props.otherRidgeLayers || props.landformClues
   const bc =
-    props.sensitivityUnits ||
+    props.sensitivityUnits.length > 0 ||
     (inventory && (inventory.viewpoints || inventory.arrows || inventory.recSites || inventory.screenings))
   if (!blocks.count && !landform && !road && !graded && !terrain && !bc && !masks.length) return null
   return (
@@ -184,11 +186,19 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
 
         {bc && (
           <MapLegendSection title="BC inventories" data-legend-section="inventory">
-            {props.sensitivityUnits && (
+            {VISUAL_QUALITY_CLASSES.filter((entry) => props.sensitivityUnits.includes(entry.id)).map((entry) => (
               <Row
-                color={SENSITIVITY_UNIT_COLORS.fill}
-                swatch={<AreaSwatch color={SENSITIVITY_UNIT_COLORS.fill} line={SENSITIVITY_UNIT_COLORS.rated} />}
-                label="Visual sensitivity unit"
+                key={entry.id}
+                color={entry.color}
+                swatch={<AreaSwatch color={entry.color} />}
+                label={`Sensitivity unit · ${entry.label}`}
+              />
+            ))}
+            {props.sensitivityUnits.includes(null) && (
+              <Row
+                color={SENSITIVITY_UNIT_COLORS.unrated}
+                swatch={<AreaSwatch color={SENSITIVITY_UNIT_COLORS.unrated} />}
+                label="Sensitivity unit · no objective"
               />
             )}
             {inventory?.viewpoints && <Row color={INVENTORY_COLORS.viewpoint} label="VLI viewpoint" />}

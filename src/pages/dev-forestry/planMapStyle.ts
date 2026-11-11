@@ -1,4 +1,5 @@
 import type { AssessmentMaskKind } from './types'
+import { VISUAL_QUALITY_CLASSES } from './vqo'
 
 /**
  * The plan map's colours, read by both the layers in `DevForestryVisuals.tsx`
@@ -28,8 +29,17 @@ export const EXPOSURE_STOPS: ReadonlyArray<readonly [number, string]> = [
 ]
 export const EXPOSURE_RAMP = ['interpolate', ['linear'], ['get', 'visiblePercent'], ...EXPOSURE_STOPS.flat()] as const
 
-/** Visual sensitivity units from the inventory snapshot. */
-export const SENSITIVITY_UNIT_COLORS = { fill: '#0ea5e9', rated: '#0284c7', unrated: '#94a3b8' } as const
+/**
+ * Visual sensitivity units, in their established objective's colour (the
+ * colour the sidebar's unit rows use); a unit with none is grey.
+ */
+export const SENSITIVITY_UNIT_COLORS = { unrated: '#94a3b8' } as const
+export const SENSITIVITY_UNIT_COLOR = [
+  'match',
+  ['get', 'objectiveId'],
+  ...VISUAL_QUALITY_CLASSES.flatMap((entry) => [entry.id, entry.color]),
+  SENSITIVITY_UNIT_COLORS.unrated,
+] as const
 /** A landform read from the terrain, and the other ridge layers it found. */
 export const TERRAIN_CANDIDATE_COLOR = '#15803d'
 export const OTHER_RIDGE_LAYER_COLOR = '#7c3aed'

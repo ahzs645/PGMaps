@@ -475,7 +475,7 @@ test.describe('forestry visual quality', () => {
     await page.getByLabel('Ease of seeing').selectOption('easy')
     await page.getByLabel('Scale relative to the landform').selectOption('medium')
     await page.getByLabel('Shape', { exact: true }).selectOption('natural')
-    await page.locator('label', { hasText: 'On the class boundary.' }).locator('input[type="checkbox"]').check()
+    await page.getByRole('checkbox', { name: 'On the class boundary' }).check()
     await expect(rating).toHaveAttribute('data-via-rating', 'inconclusive')
 
     // A rating with its rationale finishes step 5.
