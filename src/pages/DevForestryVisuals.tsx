@@ -8,6 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { MapSectionLayout } from '@/components/layout/MapSectionLayout'
 import { TabBar } from '@/components/ui/tab-bar'
+import { MapViewerCone, type MapViewer } from '@/components/ui/map-viewer-cone'
+import { horizontalFov } from '@/lib/geo/viewerCone'
 import {
   TilePane,
   TilePaneClose,
@@ -111,7 +113,7 @@ import {
   type ViewpointCandidate,
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, viewCaption, type ViewpointFinding } from './dev-forestry/visualsNarrative'
-import { hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
+import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
 import { metersPerDegree, polygonInteriorPoint } from './dev-forestry/visibility'
 import {
   createEmptyScene,
@@ -1685,6 +1687,16 @@ function DevForestryVisuals() {
     fieldPhoto.setMatch(null)
   const photoLook = drive.active ? fieldPhoto.look : null
   const [lookBearing, setLookBearing] = useState(0)
+  const [viewerFov, setViewerFov] = useState(60)
+  // The road view's viewer on the plan: the viewing station (the pose's ground position, never the
+  // eye map's centre, which sits on the skyline), to about 10 m, so the plan redraws a few times a
+  // second while driving rather than every frame.
+  const viewerKey = drive.active && cameraEye ? `${cameraEye.lng.toFixed(4)},${cameraEye.lat.toFixed(4)}` : null
+  const planViewer = useMemo<MapViewer | null>(() => {
+    if (!viewerKey) return null
+    const [lng, lat] = viewerKey.split(',').map(Number)
+    return { lng, lat, bearing: lookBearing, fovDegrees: viewerFov }
+  }, [viewerKey, lookBearing, viewerFov])
   const lineUpPhoto = (image: MapillaryImage | null = fieldPhoto.image) => {
     const onRoad =
       image && scene.viewpoint.coordinates.length > 1 ? nearestPointOnLine(scene.viewpoint.coordinates, image) : null
@@ -2340,6 +2352,15 @@ function DevForestryVisuals() {
         onClose={() => changeHiddenPanes([...storedHiddenPanes, pane])}
       />
     )
+  // A click on the plan's road line takes the road view there; nothing to seek at a single spot.
+  const driveRoad = preliminaryDrive ? scene.viewpoint.coordinates : result?.inputSnapshot?.viewpoint.coordinates
+  const seekFromPlan =
+    drive.active && driveRoad && driveRoad.length > 1 && activeRouteLength > 2 * PULLOUT_METERS
+      ? (lngLat: [number, number]) => {
+          const distance = distanceAlongRoad(roadPath(driveRoad), { lng: lngLat[0], lat: lngLat[1] })
+          if (distance !== null) updateDrive({ positionMeters: distance, playing: false })
+        }
+      : undefined
   const layerData: SceneLayerData = {
     drive,
     scene,
@@ -2397,6 +2418,7 @@ function DevForestryVisuals() {
     handleAdoptUnit,
     handleUseViewpoint,
     onInspectSample: tools.inspect,
+    onRoadClick: seekFromPlan,
   }
   const sidebar = (
     <Sidebar
@@ -2727,6 +2749,7 @@ function DevForestryVisuals() {
                         <MapTableBridge table={table} />
                         <TerrainSupport terrain={false} exaggeration={1} hillshade hillshadeIntensity={0.45} />
                         <VisualQualityLayers mode="plan" data={layerData} />
+                        <MapViewerCone viewer={planViewer} />
                         {drawMode !== 'none' && (
                           <MapOverlay
                             position="top-left"
@@ -2991,6 +3014,18 @@ function DevForestryVisuals() {
                                   setCameraEye((current) =>
                                     current?.lng === lng && current?.lat === lat ? current : { lng, lat },
                                   )
+                                  // The plan's view cone is as wide as the road view's frame.
+                                  const eyeMap = eyeMapRef.current
+                                  if (eyeMap) {
+                                    const canvas = eyeMap.getCanvas()
+                                    const fov = Math.round(
+                                      horizontalFov(
+                                        eyeMap.getVerticalFieldOfView(),
+                                        canvas.clientWidth / Math.max(1, canvas.clientHeight),
+                                      ),
+                                    )
+                                    setViewerFov((current) => (current === fov ? current : fov))
+                                  }
                                   setDrive((current) =>
                                     Math.abs(current.positionMeters - distanceMeters) < 0.0001
                                       ? current

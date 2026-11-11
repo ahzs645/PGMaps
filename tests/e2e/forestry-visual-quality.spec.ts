@@ -763,8 +763,13 @@ test.describe('forestry visual quality', () => {
     // pass just as well with terrain switched off entirely.
     await expect.poll(async () => (await readMapState(page))?.terrain, { timeout: 60_000 }).toBe(true)
     expect((await readMapState(page))?.hillshade).toBe(true)
-    // The road view is a map of its own: the plan map beside it stays flat.
+    // The road view is a map of its own: the plan map beside it stays flat and marks where it looks.
     expect((await readMapState(page, 'plan'))?.terrain).toBe(false)
+    await expect.poll(async () => (await readMapState(page, 'plan'))?.viewerCone).toBe(true)
+    // The summary reads the road view's station, each share named by its scale.
+    const summary = page.getByRole('complementary', { name: 'Viewpoint summary', exact: true })
+    await expect(summary.locator('[data-metric="viewpoint"]')).toContainText('along')
+    await expect(summary.locator('[data-metric="perspective"]')).toContainText('perspective scale')
     // A horizon target kilometres away clips nearby trees even at the right altitude.
     await expect.poll(async () => (await readMapState(page))?.zoom, { timeout: 60000 }).toBeGreaterThan(18)
 

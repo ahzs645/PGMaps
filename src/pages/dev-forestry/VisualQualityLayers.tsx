@@ -95,6 +95,8 @@ export type SceneLayerData = {
   handleAdoptUnit: (id: string) => void
   handleUseViewpoint: (candidate: ViewpointCandidate) => void
   onInspectSample: (targetId: string, sampleIndex: number, stationIndex: number) => void
+  /** A click on the plan's road line, while the road view can seek along it. */
+  onRoadClick?: (lngLat: [number, number]) => void
 }
 
 /**
@@ -162,7 +164,13 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     handleAdoptUnit,
     handleUseViewpoint,
     onInspectSample,
+    onRoadClick,
   } = data
+  const roadClick = onRoadClick
+    ? (_id: string, event: { lngLat: [number, number] | null }) => {
+        if (event.lngLat) onRoadClick(event.lngLat)
+      }
+    : undefined
   return (
     <>
       <SatelliteImagery visible={eye ? drive.imagery : planShow.imagery} />
@@ -525,11 +533,18 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
 
           {/* From eye level the road is directly under the camera, where a line
         and its stations fill the frame instead of marking anything. */}
-          <MapLineLayer data={corridorCollection} color={ROAD_COLOR} width={3} opacity={0.9} />
+          <MapLineLayer
+            data={corridorCollection}
+            color={ROAD_COLOR}
+            width={3}
+            opacity={0.9}
+            onFeatureClick={roadClick}
+          />
           {/* Once a run exists the corridor carries its own answer: how much of
         the block each stretch of road sees, graded along it. */}
           <MapLineLayer
             data={corridorExposureCollection}
+            onFeatureClick={roadClick}
             color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
             width={5}
             opacity={0.95}
