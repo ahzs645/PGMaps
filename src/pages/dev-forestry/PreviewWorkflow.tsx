@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import type { ReactNode } from 'react'
 import { Button, type ButtonProps } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { cn } from '@/lib/utils'
 import type { ForestryScene } from './scene'
 import type { AnalysisState } from './useVisibilityAnalysis'
@@ -136,11 +137,15 @@ export function PreviewWorkflow(props: Props) {
       )}
       {props.children}
       <div className="rounded-lg border p-3 text-xs space-y-2">
-        <h4 className="font-semibold text-sm">Saved views</h4>
-        <p className="text-muted-foreground">
-          Your record of each viewpoint (handbook 3.2): save a view from the drive and download its image. Reopen it to
-          compare both harvest phases from the same spot.
-        </p>
+        <h4 className="flex items-center gap-1.5 text-sm font-semibold">
+          Saved views
+          <InfoTip label="About saved views">
+            Your record of each viewpoint (handbook 3.2). Save a view from the road view&rsquo;s bar; it is named with
+            its planning-note caption. Reopen one to compare both harvest phases from the same spot. The downloaded
+            preview holds the geometry and views; terrain and inventory need a connection when it is reopened.
+          </InfoTip>
+        </h4>
+        {!props.views.length && <p className="text-2xs text-muted-foreground">None yet.</p>}
         {props.onReopenPrevious && (
           <ActionButton onClick={props.onReopenPrevious}>Reopen previous saved preview</ActionButton>
         )}
@@ -167,9 +172,6 @@ export function PreviewWorkflow(props: Props) {
           </ActionButton>
         </div>
         {props.storageWarning && <p role="alert">{props.storageWarning}</p>}
-        <p className="text-2xs text-muted-foreground">
-          The file includes geometry and viewpoints. Terrain and inventory need an internet connection when reopened.
-        </p>
       </div>
     </section>
   )

@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { SegmentedControl } from '@/components/ui/segmented-control'
@@ -22,11 +23,17 @@ export function RouteViewshedPanel({
   const { analysis } = preview
   return (
     <section aria-label="Preliminary terrain preview" className="space-y-2 rounded-lg border p-3 text-xs">
-      <h4 className="font-semibold text-sm">Preliminary terrain preview</h4>
-      <p className="text-muted-foreground">
-        Explore terrain visibility along the drawn or snapped road before running a cutblock assessment. Red is visible
-        ground; purple is unknown terrain.
-      </p>
+      <h4 className="flex items-center gap-1.5 text-sm font-semibold">
+        Route preview
+        <InfoTip label="About the route preview">
+          Terrain visibility along the road before any cutblock is assessed: red is ground in view, purple is terrain
+          that did not load. It reads AWS overview terrain only — no trees, buildings, cutblock percentages or VQO
+          ratings. Current view follows one road position (pause for a detailed view); Whole stretch joins the views
+          from every sample on the blue stretch; As you move keeps adding views as you scrub or drive, through the
+          furthest point reached, and starts again when the stretch, radius or eye height changes. Between samples a
+          view is not guaranteed.
+        </InfoTip>
+      </h4>
       <ToggleRow label="Road viewshed" active={preview.enabled} onClick={() => preview.setEnabled(!preview.enabled)} />
       {!preview.valid && <p>Draw or import a road with at least two distinct points.</p>}
       {preview.enabled && preview.valid && (
@@ -44,9 +51,6 @@ export function RouteViewshedPanel({
           />
           {preview.mode !== 'point' && (
             <>
-              <p>
-                Red combines ground visible from at least one road sample. The blue line marks your selected stretch.
-              </p>
               <label className="block">
                 Stretch start · {(preview.selected.from / 1000).toFixed(2)} km
                 <input
@@ -84,7 +88,7 @@ export function RouteViewshedPanel({
                   }
                 />
               </label>
-              <p data-route-viewshed-samples>
+              <p data-route-viewshed-samples className="text-2xs text-muted-foreground">
                 {preview.sampleCount} {preview.sampleCount === 1 ? 'viewpoint' : 'viewpoints'} · samples up to{' '}
                 {Math.ceil(preview.selected.spacing)} m apart ·{' '}
                 {preview.analysis.overlayResult?.sourceResolutionMeters
@@ -93,11 +97,6 @@ export function RouteViewshedPanel({
               </p>
               {preview.mode === 'travel' && (
                 <>
-                  <p>
-                    Move the road sample or play the drive to add views. Coverage is kept through the furthest position
-                    reached, even when moving backwards. Changing the stretch, radius or eye height starts a new
-                    accumulation.
-                  </p>
                   <Button size="sm" variant="outline" onClick={preview.resetTravel}>
                     Reset accumulated views
                   </Button>
@@ -165,13 +164,6 @@ export function RouteViewshedPanel({
           )}
         </>
       )}
-      <p className="text-muted-foreground">
-        AWS overview terrain for preliminary screening. Trees, buildings, cutblock percentages and VQO ratings are not
-        assessed.{' '}
-        {preview.mode === 'point'
-          ? 'Pause for a detailed view at your position.'
-          : 'Combined coverage samples the road; visibility between samples is not guaranteed.'}
-      </p>
     </section>
   )
 }

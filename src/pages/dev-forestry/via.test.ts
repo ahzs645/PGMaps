@@ -323,8 +323,12 @@ describe('review storage and FS1252 hand-off', () => {
       retentionNetted: false,
       viewpointType: 4,
       rationale: '',
+      visualsNote: '',
     })
     expect(parseViaReview('nope')).toBeUndefined()
+    expect(parseViaReview({ visualsNote: 'Block overlaps EVQO Modification.' })?.visualsNote).toBe(
+      'Block overlaps EVQO Modification.',
+    )
   })
 
   it('fills the five FS1252 design rows and leaves number, size and spacing off the form', () => {

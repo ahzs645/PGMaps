@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { DialogShell } from '@/components/ui/dialog-shell'
 import { CollapsibleSection, InlineAlert, SidebarSection } from '@/components/ui/map-panels'
 import { Camera } from 'lucide-react'
+import { InfoTip } from '@/components/ui/info-tip'
 import { createId } from './scene'
 import { importFieldImage } from './toolImports'
 import { projectToPhoto, type PhotoPose } from './photoPose'
@@ -156,12 +157,18 @@ export function ToolFieldPanel({
           )
       : []
   return (
-    <SidebarSection title="Field records and assessment viewpoints" icon={Camera} headingLevel={3}>
-      <p className="text-xs text-muted-foreground">
-        Save significant views, photograph their actual locations, and record why each matters. These records stay on
-        this device and travel in the workspace export.
-      </p>
-      <div className="mt-3 space-y-2">
+    <SidebarSection
+      title="Field records"
+      icon={Camera}
+      headingLevel={3}
+      actions={
+        <InfoTip label="About field records">
+          Assessment viewpoints with their photographs and why each matters. They stay on this device and travel in the
+          workspace export.
+        </InfoTip>
+      }
+    >
+      <div className="space-y-2">
         <ToolField label="Viewpoint name">
           <input className={TOOL_INPUT} value={name} onChange={(e) => setName(e.target.value)} />
         </ToolField>
@@ -234,11 +241,11 @@ export function ToolFieldPanel({
         <Button size="sm" variant="outline" disabled={busy} onClick={() => input.current?.click()}>
           {busy ? 'Reading image…' : 'Import photograph or evidence image'}
         </Button>
-        <p className="text-2xs text-muted-foreground">
+        <InfoTip label="About imported photographs" showLabel>
           A resized evidence copy is stored; keep the original high-resolution photographs. EXIF values are suggestions.
-          Verify position, date, true-north heading and field of view; panoramas and edited/cropped photos need manual
-          calibration.
-        </p>
+          Verify position, date, true-north heading and field of view; panoramas and edited or cropped photos need
+          manual calibration.
+        </InfoTip>
         {d.fields.map((f) => (
           <div key={f.id} className="flex items-center justify-between gap-2">
             <button className="truncate text-xs underline" onClick={() => setSelected(f.id)}>
@@ -305,10 +312,10 @@ export function ToolFieldPanel({
                   ))}
                 </svg>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Red points show projected proposal ground samples, including hidden ground. This is an alignment aid; it
-                does not mask terrain or canopy and is not a photographic percent-alteration measurement.
-              </p>
+              <InfoTip label="What the red points are" showLabel>
+                Projected proposal ground samples, hidden ground included: an alignment aid. It does not mask terrain or
+                canopy and is not a photographic percent-alteration measurement.
+              </InfoTip>
               <ToolField label="Annotation to place on image">
                 <input className={TOOL_INPUT} value={annotation} onChange={(e) => setAnnotation(e.target.value)} />
               </ToolField>

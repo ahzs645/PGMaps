@@ -19,6 +19,8 @@ vi.mock('./visualInventorySnapshot', () => ({
   VISUAL_INVENTORY_PATH: '/inventory.json',
 }))
 vi.mock('@/components/ui/map', () => ({ useMap: () => ({ map: null, isLoaded: false }) }))
+// The road-view bar's (i) reads `window.matchMedia`; this renderer has no DOM, and the tip is not under test.
+vi.mock('@/components/ui/info-tip', () => ({ InfoTip: () => null }))
 
 const views: ReturnType<typeof create>[] = []
 const polygons: PolygonGeometry[] = []

@@ -161,6 +161,7 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     target.positions.buffer,
     target.elevations.buffer,
     target.anyVisible.buffer,
+    ...(target.anyBareEarthVisible ? [target.anyBareEarthVisible.buffer] : []),
     target.visibleByStation.buffer,
     target.visibleDistances.buffer,
   ]) as Transferable[]

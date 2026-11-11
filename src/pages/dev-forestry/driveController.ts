@@ -9,7 +9,9 @@ import {
   type DriveLookAt,
   type DriveStation,
   type RoadVertex,
+  type WalkOffset,
   horizonSafePitch,
+  offsetPosition,
 } from './driveMath'
 export type DrivePose = {
   distanceMeters: number
@@ -20,6 +22,8 @@ export type DrivePose = {
   eyeElevationMeters: number
   bearing: number
   pitch: number
+  /** How far the walker has stepped off the road, metres; 0 on it. */
+  offRoadMeters?: number
 }
 export type DriveStatus = 'waiting-for-terrain' | 'ready' | 'invalid-camera'
 export type DriveOptions = {
@@ -36,6 +40,11 @@ export type DriveOptions = {
    * still apply on top, so the view can be nudged into line.
    */
   fixedLook?: { bearing: number; pitch: number } | null
+  /**
+   * Stepped off the road while paused: the eye stands this far east and north
+   * of the road position, on the same fixed ground mosaic. Playback ignores it.
+   */
+  walk?: WalkOffset | null
   onPosition: (pose: DrivePose) => void
   onReachEnd?: () => void
   onStatus?: (status: DriveStatus) => void
@@ -187,8 +196,11 @@ export class DriveController {
       0,
       Math.min(total, this.distance + (options.playing ? Math.max(0, options.speedMetersPerSecond) * elapsed : 0)),
     )
-    const placement = roadPlacement(this.path, next)
-    if (!placement) return
+    const onRoad = roadPlacement(this.path, next)
+    if (!onRoad) return
+    const walk = options.playing ? null : (options.walk ?? null)
+    const placement = offsetPosition(onRoad, walk)
+    const offRoadMeters = walk ? Math.hypot(walk.east, walk.north) : 0
     const terrainAt = (point: { lng: number; lat: number }) =>
       this.elevation === undefined
         ? this.map.queryTerrainElevation([point.lng, point.lat])
@@ -229,7 +241,8 @@ export class DriveController {
           options.lookAt,
           this.path.length > 1 ? (ahead?.bearing ?? placement.travelBearing) : options.spotBearing,
           options.yaw,
-          options.tilt + (options.lookAt ? 0 : grade),
+          // Off the road the road's grade says nothing about the ground underfoot.
+          options.tilt + (options.lookAt || offRoadMeters > 0 ? 0 : grade),
         )
     // Damping the direction preserves the actual road position and eye clearance.
     // Paused look controls stay immediate; seek resets the filter completely.
@@ -277,6 +290,7 @@ export class DriveController {
         groundElevationMeters: ground,
         eyeElevationMeters: eye,
         ...rotation,
+        offRoadMeters,
       })
     }
     if (options.playing && next === total && total > 0 && !this.ended) {
@@ -284,6 +298,25 @@ export class DriveController {
       options.onReachEnd?.()
     }
     if (!options.playing && next < total) this.ended = false
+  }
+  /** The bearing the camera looks along now, for walking forward; null before the first frame. */
+  viewBearing(): number | null {
+    return this.rotation?.bearing ?? null
+  }
+  /**
+   * Whether the walker can stand at this offset from the current road position:
+   * the fixed ground mosaic must have the ground there. Walking off the loaded
+   * ground holds the walker rather than dropping the eye to sea level.
+   */
+  canStand(offset: WalkOffset): boolean {
+    const onRoad = roadPlacement(this.path, this.distance)
+    if (!onRoad) return false
+    const point = offsetPosition(onRoad, offset)
+    const ground =
+      this.elevation === undefined
+        ? this.map.queryTerrainElevation([point.lng, point.lat])
+        : (this.elevation?.elevationAt(point.lng, point.lat) ?? null)
+    return ground !== null && Number.isFinite(ground)
   }
   stop() {
     if (!this.started) return

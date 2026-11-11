@@ -35,6 +35,8 @@ import {
 import { useRef, useState, type ChangeEvent, type ReactNode } from 'react'
 
 import { Button } from '@/components/ui/button'
+import { InfoTip } from '@/components/ui/info-tip'
+import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
 import {
   CollapsibleSection,
   InlineAlert,
@@ -121,6 +123,16 @@ export type DriveState = {
   harvestPhase: 'before' | 'after'
   showAnalysis: boolean
   treeStyle: TreeStyle
+  /** Satellite imagery draped over the ground, as in a Google Earth screenshot. */
+  imagery: boolean
+  /** Draw proposed blocks solid white for a planning-note screenshot. */
+  reportLook: boolean
+  /** Drape the established VQO polygons over the ground, coloured by class. */
+  showEvqo: boolean
+  /** Drape the landform being assessed, and any ridge layers read for it, in the road view. */
+  showLandform: boolean
+  /** Stronger distance haze, so ridge layers separate as they do in real air. Display only. */
+  haze: boolean
 }
 
 /** A titled block inside a step: a hairline above, and no rule of its own below. */
@@ -245,6 +257,61 @@ function OptionalNumber({
       inputClassName={`${SELECT_CLASS} w-16`}
       unitClassName="text-2xs"
     />
+  )
+}
+
+/** Colours a planner would fill a block with in a screenshot; the picker offers them first. */
+const BLOCK_COLOR_PRESETS = ['#ffffff', '#facc15', '#f97316', '#d946ef', '#22d3ee', '#7c3aed', '#111827']
+
+/**
+ * A block's colour on the map, in the road view and in its screenshots: a
+ * colour picker with screenshot presets, in step 2's road view beside the note
+ * screenshot look. Unset, the block is drawn as cleared ground (white in the
+ * note screenshot look); the (×) puts it back.
+ */
+function BlockColorSwatch({ target, onChange }: { target: TargetPolygon; onChange: (color: string | null) => void }) {
+  const listId = `block-colours-${target.id}`
+  return (
+    <span className="relative mt-0.5 flex shrink-0 items-center">
+      <label
+        className="relative block h-3.5 w-3.5 cursor-pointer overflow-hidden rounded-sm border border-border"
+        // Unset reads as "default" (cleared ground, or white in the screenshot look), not as a colour.
+        style={
+          target.displayColor
+            ? { backgroundColor: target.displayColor }
+            : {
+                backgroundImage: 'repeating-linear-gradient(45deg, #e5e7eb 0 2px, #ffffff 2px 4px)',
+                borderStyle: 'dashed',
+              }
+        }
+        title={target.displayColor ? 'Block colour' : 'Default colour: choose one'}
+      >
+        <input
+          type="color"
+          aria-label={`Colour for ${target.name}`}
+          list={listId}
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          value={target.displayColor ?? '#ffffff'}
+          onChange={(event) => onChange(event.target.value.toLowerCase())}
+        />
+        <datalist id={listId}>
+          {BLOCK_COLOR_PRESETS.map((color) => (
+            <option key={color} value={color} />
+          ))}
+        </datalist>
+      </label>
+      {target.displayColor && (
+        <button
+          type="button"
+          className="ml-0.5 text-3xs leading-none text-muted-foreground hover:text-foreground"
+          aria-label={`Reset colour of ${target.name}`}
+          title="Back to the default colour"
+          onClick={() => onChange(null)}
+        >
+          ×
+        </button>
+      )}
+    </span>
   )
 }
 
@@ -407,6 +474,14 @@ type SidebarProps = {
   designReview: ReactNode
   /** Step 5: the FS1252 draft package. */
   report: ReactNode
+  /** Step 1: inventory viewpoints and rec sites near the block. */
+  viewpointFinder?: ReactNode
+  /** Step 2, in the road view: jump to a spot the block is seen from. */
+  roadViewJump?: ReactNode
+  /** Step 2, in the road view: the existing forest and regrowth records the timber is drawn from. */
+  roadViewForest?: ReactNode
+  /** Step 5: the block's planning-note summary and Visuals paragraph. */
+  visualsParagraph?: ReactNode
 
   /** What the basemap said about the road and water, for the drive panel's clearing note. */
   roadClearing?: { roadClass: string | null; widthMeters: number; waterPolygons: number }
@@ -459,6 +534,10 @@ export function Sidebar({
   landformScope,
   designReview,
   report,
+  viewpointFinder,
+  roadViewJump,
+  roadViewForest,
+  visualsParagraph,
   roadClearing,
 }: SidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -474,25 +553,6 @@ export function Sidebar({
   const running = analysis.status === 'running'
   const reverseRunning = reverse.status === 'running'
   const result = analysis.result
-
-  const driveStation =
-    result && drive.active
-      ? result.stations.reduce(
-          (closest, station, index) =>
-            Math.abs(station.distanceAlongMeters - drive.positionMeters) <
-            Math.abs(result.stations[closest].distanceAlongMeters - drive.positionMeters)
-              ? index
-              : closest,
-          0,
-        )
-      : null
-
-  const driveTarget = blocks.find((block) => block.id === (drive.lookAtTargetId ?? selectedTargetId)) ?? blocks[0]
-  const driveVisiblePercent =
-    result && driveStation !== null
-      ? (result.targets.find((target) => target.targetId === driveTarget?.id)?.stations[driveStation]?.visiblePercent ??
-        null)
-      : null
 
   const roadFileRef = useRef<HTMLInputElement>(null)
   const handleRoadFile = (event: ChangeEvent<HTMLInputElement>) => {
@@ -547,10 +607,13 @@ export function Sidebar({
     hidden: activeStep !== id,
     'data-via-panel': id,
   })
+  // One line, not a paragraph: the step's title and summary already say where you are.
   const stepPurpose = (id: ViaStepId) => (
-    <p className="px-4 pb-3 text-xs leading-5 text-muted-foreground">
-      {VIA_STEPS.find((step) => step.id === id)!.purpose}
-    </p>
+    <div className="px-4 pb-2 text-2xs text-muted-foreground">
+      <InfoTip label="What this step is for" showLabel>
+        {VIA_STEPS.find((step) => step.id === id)!.purpose}
+      </InfoTip>
+    </div>
   )
 
   const assessment = via.assessment
@@ -601,7 +664,11 @@ export function Sidebar({
       )}
     >
       <div className="flex items-start gap-2">
-        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm" style={{ backgroundColor: ROLE_COLORS[target.role] }} />
+        {/* A marker showing a block's chosen colour; the colour is chosen in step 2's road view. */}
+        <span
+          className="mt-1 h-2.5 w-2.5 shrink-0 rounded-sm border border-border/60"
+          style={{ backgroundColor: (target.role === 'block' && target.displayColor) || ROLE_COLORS[target.role] }}
+        />
         <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onSelectTarget(target.id)}>
           <span className="flex items-center gap-1.5">
             <span className="min-w-0 truncate text-xs font-medium text-foreground">{target.name}</span>
@@ -934,6 +1001,7 @@ export function Sidebar({
                 </p>
               )}
             </CollapsibleSection>
+            {viewpointFinder}
           </SidebarSection>
 
           <SidebarSection
@@ -1131,63 +1199,142 @@ export function Sidebar({
       <div {...stepPanelProps('visit')}>
         <StepSection {...stepProps('visit')} summary={summaries.visit}>
           {stepPurpose('visit')}
-          <div className="px-4 pb-4">{visit}</div>
-          {fieldPhoto && (
-            <SidebarSection title="Field photo" icon={Camera} headingLevel={3} className={SUBSECTION_CLASS}>
-              {fieldPhoto}
-            </SidebarSection>
-          )}
-          {/* Playback — play, speed, position — is on the road-view panel over
-            the map. The sidebar keeps what that panel does not: where to look,
-            what the analysis sees from here, and how the timber is drawn. */}
+          {/* The map's bar plays, saves and exits; everything about how the view
+            looks is here, once. */}
           {result && drive.active && (
             <SidebarSection title="Road view" icon={Route} headingLevel={3} className={SUBSECTION_CLASS}>
-              <p className="mb-3 text-2xs leading-4 text-muted-foreground">
-                Play, speed, position and the way back to the map are on the road-view panel over the map.
-              </p>
-              {
-                <div className="space-y-3">
-                  <Field label="Where to look">
-                    <NativeSelect
-                      className={cn(SELECT_CLASS, 'w-full')}
-                      value={drive.lookAtTargetId ?? ''}
-                      onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
-                      aria-label="Where to look"
+              <div className="space-y-3">
+                <Field label="Where to look">
+                  <NativeSelect
+                    className={cn(SELECT_CLASS, 'w-full')}
+                    value={drive.lookAtTargetId ?? ''}
+                    onChange={(event) => onDriveChange({ lookAtTargetId: event.target.value || null })}
+                    aria-label="Where to look"
+                  >
+                    <option value="">Along the road</option>
+                    {blocks.map((block) => (
+                      <option key={block.id} value={block.id}>
+                        Face {block.name}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                {roadViewJump}
+                <div>
+                  <p className="mb-1 flex items-center gap-1 text-2xs font-medium text-muted-foreground">
+                    Show
+                    <InfoTip label="About these views">
+                      Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery
+                      drapes the photo over the hills. EVQO polygons drape the established objectives over the ground,
+                      coloured by class, as a planner's Google Earth layer does; each block's own colour is set under
+                      Block colours below. Landform drapes the landform being assessed (light blue) and the other ridge
+                      layers read for it (purple), so you can see which band of the mountain the block takes a share of.
+                      Distance haze fades each ridge a little more than the one in front, as real air does; it changes
+                      only the picture. Note screenshot look is how planning-note screenshots are taken in Google Earth:
+                      imagery, the proposed blocks filled white, no drawn timber or points. Turn timber back on to see
+                      what roadside trees would screen.
+                    </InfoTip>
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <ToggleChip
+                      active={drive.showAnalysis}
+                      onClick={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
                     >
-                      <option value="">Along the road</option>
-                      {blocks.map((block) => (
-                        <option key={block.id} value={block.id}>
-                          Face {block.name}
-                        </option>
+                      Analysis points
+                    </ToggleChip>
+                    <ToggleChip active={drive.imagery} onClick={() => onDriveChange({ imagery: !drive.imagery })}>
+                      Satellite imagery
+                    </ToggleChip>
+                    <ToggleChip
+                      active={drive.reportLook}
+                      onClick={() =>
+                        onDriveChange(
+                          drive.reportLook
+                            ? { reportLook: false }
+                            : {
+                                reportLook: true,
+                                harvestPhase: 'after',
+                                showAnalysis: false,
+                                imagery: true,
+                                forest: false,
+                              },
+                        )
+                      }
+                    >
+                      Note screenshot look
+                    </ToggleChip>
+                    <ToggleChip active={drive.showEvqo} onClick={() => onDriveChange({ showEvqo: !drive.showEvqo })}>
+                      EVQO polygons
+                    </ToggleChip>
+                    <ToggleChip
+                      active={drive.showLandform}
+                      onClick={() => onDriveChange({ showLandform: !drive.showLandform })}
+                    >
+                      Landform
+                    </ToggleChip>
+                    <ToggleChip active={drive.haze} onClick={() => onDriveChange({ haze: !drive.haze })}>
+                      Distance haze
+                    </ToggleChip>
+                  </div>
+                  {drive.showEvqo && (
+                    <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-3xs text-muted-foreground">
+                      {(Object.entries(EVQO_COLORS) as Array<[EvqoCode, string]>).map(([code, color]) => (
+                        <span key={code} className="inline-flex items-center gap-1" title={EVQO_NAMES[code]}>
+                          <span className="h-2 w-2 rounded-sm" style={{ backgroundColor: color }} />
+                          {code}
+                        </span>
                       ))}
-                    </NativeSelect>
-                  </Field>
-
-                  {driveVisiblePercent !== null && (
-                    <div className="rounded-md border border-border bg-muted/20 p-2">
-                      <p className="text-2xs text-muted-foreground">Ground visible at nearest station</p>
-                      <p className="text-2xl font-bold tabular-nums text-foreground">
-                        {driveVisiblePercent.toFixed(0)}
-                        <span className="text-sm">%</span>
-                      </p>
-                      <p className="text-2xs text-muted-foreground">
-                        {driveTarget?.name}: share of cutblock ground visible in the analysis. This is not the share of
-                        your screen, and illustrated trees do not change this number.
-                      </p>
-                    </div>
+                    </p>
                   )}
+                </div>
+                {blocks.length > 0 && (
+                  <div>
+                    <p className="mb-1 flex items-center gap-1 text-2xs font-medium text-muted-foreground">
+                      Block colours
+                      <InfoTip label="About block colours">
+                        How each block is filled on the map, in the road view and in the screenshots taken from it:
+                        white for a planning-note screenshot, or any colour to tell blocks apart. Unset, a block is
+                        cleared ground (white in the note screenshot look). Display only: the run never changes. A saved
+                        screenshot keeps the colour it was taken with.
+                      </InfoTip>
+                    </p>
+                    <ul className="flex flex-wrap gap-x-3 gap-y-1" aria-label="Block colours">
+                      {blocks.map((block) => (
+                        <li key={block.id} className="flex items-center gap-1.5 text-2xs">
+                          <BlockColorSwatch
+                            target={block}
+                            onChange={(displayColor) => onTargetChange(block.id, { displayColor })}
+                          />
+                          <span className="max-w-[9rem] truncate">{block.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-                  {/* The block as a coloured polygon tells you where it is. The
-                  block as the gap where the trees stop tells you whether you
-                  can see it, which is the thing the objective is about. */}
-                  <div className="rounded-md border border-border p-2">
+                {/* The block as the gap where the trees stop tells you whether
+                  you can see it, which is what the objective is about. */}
+                <div className="rounded-md border border-border p-2">
+                  <div className="flex items-center gap-1.5">
                     <ToggleChip active={drive.forest} onClick={() => onDriveChange({ forest: !drive.forest })}>
                       <span className="inline-flex items-center gap-1">
-                        <Trees className="h-3 w-3" /> Standing timber: {drive.forest ? 'on' : 'off'}
+                        <Trees className="h-3 w-3" /> Standing timber
                       </span>
                     </ToggleChip>
-                    {drive.forest ? (
-                      <div className="mt-2">
+                    <InfoTip label="About the drawn timber">
+                      Timber fills the view, and the proposed and existing openings take it off, so a cut reads as a
+                      gap. It is a drawing: stand height, cleared width and stem style change only the picture, never
+                      the percentages. A 28 m tree 15 m away fills the sky, so widen the cleared strip to open the
+                      foreground
+                      {roadClearing?.roadClass
+                        ? `; it started at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass})`
+                        : ''}
+                      {roadClearing?.waterPolygons ? ', and mapped water is left open' : ''}.
+                    </InfoTip>
+                  </div>
+                  {drive.forest && (
+                    <div className="mt-2 space-y-2">
+                      <div className="grid grid-cols-2 gap-2">
                         <NumberField
                           label="Stand height"
                           value={drive.treeHeightMeters}
@@ -1195,93 +1342,90 @@ export function Sidebar({
                           max={60}
                           step={1}
                           suffix="m"
-                          hint="Timber fills the view and the block and any existing opening take it off, so the cut reads as a gap. A drawn picture, not an inventory."
                           onChange={(value) => onDriveChange({ treeHeightMeters: value })}
                         />
-                        <div className="mt-3">
-                          <NumberField
-                            label="Cleared width along the road"
-                            value={drive.roadClearWidthMeters}
-                            min={6}
-                            max={400}
-                            step={2}
-                            suffix="m"
-                            hint={`${
-                              roadClearing?.roadClass
-                                ? `Starts at ${roadClearing.widthMeters} m from the basemap's class for this road (${roadClearing.roadClass}). `
-                                : ''
-                            }${
-                              roadClearing?.waterPolygons ? 'Mapped water is left open. ' : ''
-                            }A 28 m tree standing 15 m away fills the sky, so from a narrow road you see timber and nothing else. Widen this to open the foreground. It changes only what is drawn; the percentages do not move.`}
-                            onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
-                          />
-                        </div>
-
-                        {/* Both are here to be compared: a card carrying a drawn
-                        tree against real cone geometry, at the same stem count. */}
-                        <div className="mt-3">
-                          <Field
-                            group
-                            label="How a stem is drawn"
-                            hint={
-                              drive.treeStyle === 'hybrid'
-                                ? 'Three fixed silhouette planes per foreground tree, unchanged as you approach. Distant instances represent canopy groups.'
-                                : drive.treeStyle === 'billboard'
-                                  ? 'Two fixed silhouette planes per foreground tree, with camera-facing canopy groups farther away.'
-                                  : 'Real geometry with real normals. Lights correctly from any angle and is honest from above, at about fifteen times the triangles.'
-                            }
-                          >
-                            <div className="flex flex-wrap gap-1.5">
-                              <ToggleChip
-                                active={drive.treeStyle === 'hybrid'}
-                                onClick={() => onDriveChange({ treeStyle: 'hybrid' })}
-                              >
-                                Stable silhouettes
-                              </ToggleChip>
-                              <ToggleChip
-                                active={drive.treeStyle === 'billboard'}
-                                onClick={() => onDriveChange({ treeStyle: 'billboard' })}
-                              >
-                                Billboards
-                              </ToggleChip>
-                              <ToggleChip
-                                active={drive.treeStyle === 'solid'}
-                                onClick={() => onDriveChange({ treeStyle: 'solid' })}
-                              >
-                                Solid cones
-                              </ToggleChip>
-                            </div>
-                          </Field>
-                        </div>
-                        {forestStatus?.error ? (
-                          <InlineAlert className="mt-2" tone="error">
-                            {forestStatus.error}
-                          </InlineAlert>
-                        ) : (
-                          forestStatus !== null && (
-                            <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
-                              {forestStatus.treeCount.toLocaleString(DEFAULT_LOCALE)} stems standing around the camera ·
-                              Distant instances represent canopy groups. Detail reduces with distance.
-                              {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
-                                ? ` Species and height come from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands where they cover the ground, and a regional mix elsewhere.`
-                                : ' Species and height are a regional mix — run the BC inventory lookup to draw what the province recorded here.'}
-                            </p>
-                          )
-                        )}
+                        <NumberField
+                          label="Cleared width"
+                          value={drive.roadClearWidthMeters}
+                          min={6}
+                          max={400}
+                          step={2}
+                          suffix="m"
+                          onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
+                        />
                       </div>
-                    ) : (
-                      <p className="mt-1.5 text-3xs leading-4 text-muted-foreground">
-                        Bare ground — the hillside as the terrain model has it.
-                      </p>
-                    )}
-                  </div>
-
-                  <p className="mt-3 text-3xs text-muted-foreground">
-                    Terrain is shown at true scale (1×). The road surface and forest are illustrative; changing them
-                    does not change the assessment.
-                  </p>
+                      <div
+                        className="flex flex-wrap items-center gap-1.5"
+                        role="group"
+                        aria-label="How a stem is drawn"
+                      >
+                        <ToggleChip
+                          active={drive.treeStyle === 'hybrid'}
+                          onClick={() => onDriveChange({ treeStyle: 'hybrid' })}
+                          title="Three fixed silhouette planes per near tree; distant instances stand for canopy groups"
+                        >
+                          Stable silhouettes
+                        </ToggleChip>
+                        <ToggleChip
+                          active={drive.treeStyle === 'billboard'}
+                          onClick={() => onDriveChange({ treeStyle: 'billboard' })}
+                          title="Two fixed planes per near tree; lighter"
+                        >
+                          Billboards
+                        </ToggleChip>
+                        <ToggleChip
+                          active={drive.treeStyle === 'solid'}
+                          onClick={() => onDriveChange({ treeStyle: 'solid' })}
+                          title="Real cone geometry: honest from any angle, about fifteen times the triangles"
+                        >
+                          Solid cones
+                        </ToggleChip>
+                      </div>
+                      {drive.lookAtTargetId && (
+                        <ToggleChip
+                          active={drive.viewingGap}
+                          onClick={() => onDriveChange({ viewingGap: !drive.viewingGap })}
+                          title="Leaves the drawn timber out of the line of sight to the block, as a pullout or a gap in the roadside trees would"
+                        >
+                          Viewing gap to the block
+                        </ToggleChip>
+                      )}
+                      {forestStatus?.error ? (
+                        <InlineAlert tone="error">{forestStatus.error}</InlineAlert>
+                      ) : (
+                        forestStatus !== null && (
+                          <p className="text-3xs leading-4 text-muted-foreground">
+                            {forestStatus.treeCount.toLocaleString(DEFAULT_LOCALE)} stems ·{' '}
+                            {(forestStatus.inventoryStandCount ?? inventory.stands.length) > 0
+                              ? `species and height from ${forestStatus.inventoryStandCount ?? inventory.stands.length} surveyed stands, a regional mix elsewhere`
+                              : 'a regional mix; look up the BC inventory to draw what was recorded here'}
+                          </p>
+                        )
+                      )}
+                    </div>
+                  )}
                 </div>
-              }
+                {roadViewForest}
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  Display quality
+                  <NativeSelect
+                    aria-label="Display quality"
+                    className={SELECT_CLASS}
+                    value={drive.quality}
+                    onChange={(event) => onDriveChange({ quality: event.target.value as DriveState['quality'] })}
+                  >
+                    <option value="auto">Default</option>
+                    <option value="detailed">Detailed</option>
+                    <option value="fast">Faster</option>
+                  </NativeSelect>
+                </label>
+              </div>
+            </SidebarSection>
+          )}
+          <div className="px-4 pb-4">{visit}</div>
+          {fieldPhoto && (
+            <SidebarSection title="Field photo" icon={Camera} headingLevel={3} className={SUBSECTION_CLASS}>
+              {fieldPhoto}
             </SidebarSection>
           )}
           <div className="border-t border-border/60 px-4 py-3">
@@ -1653,6 +1797,17 @@ export function Sidebar({
               subtitle="Handbook 3.5 · Table 7"
             >
               <FinalRatingFields assessment={assessment} review={via.review} onChange={via.onReviewChange} />
+            </SidebarSection>
+          )}
+          {visualsParagraph && (
+            <SidebarSection
+              title="Planning note · Visuals"
+              icon={FileText}
+              headingLevel={3}
+              className={SUBSECTION_CLASS}
+              subtitle="The block summary and the Visuals paragraph, drafted from the run."
+            >
+              {visualsParagraph}
             </SidebarSection>
           )}
           <SidebarSection
