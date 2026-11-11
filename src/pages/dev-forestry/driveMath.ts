@@ -37,6 +37,36 @@ export function roadPlacement(path: readonly RoadVertex[], distance: number) {
     travelBearing: bearingDegrees(a, b),
   }
 }
+/**
+ * How far along the road the point nearest to `point` lies, in metres: a click on the plan's road
+ * line seeks the road view there. Measured on a local flat projection per segment, which is ample
+ * for picking a place on a road a few kilometres long.
+ */
+export function distanceAlongRoad(path: readonly RoadVertex[], point: { lng: number; lat: number }): number | null {
+  if (!path.length || !Number.isFinite(point.lng) || !Number.isFinite(point.lat)) return null
+  const metresPerLng = 111_320 * Math.cos((point.lat * Math.PI) / 180),
+    metresPerLat = 110_574
+  let best = Infinity,
+    along = path[0].distanceAlongMeters
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1],
+      b = path[i]
+    const bx = (b.lng - a.lng) * metresPerLng,
+      by = (b.lat - a.lat) * metresPerLat,
+      px = (point.lng - a.lng) * metresPerLng,
+      py = (point.lat - a.lat) * metresPerLat
+    const lengthSquared = bx * bx + by * by
+    const t = lengthSquared > 0 ? Math.max(0, Math.min(1, (px * bx + py * by) / lengthSquared)) : 0
+    const dx = px - t * bx,
+      dy = py - t * by,
+      distance = dx * dx + dy * dy
+    if (distance < best) {
+      best = distance
+      along = a.distanceAlongMeters + t * (b.distanceAlongMeters - a.distanceAlongMeters)
+    }
+  }
+  return along
+}
 export function nearestStation(stations: readonly DriveStation[], distance: number): number {
   if (stations.length < 2) return 0
   let lo = 0,

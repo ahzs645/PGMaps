@@ -169,10 +169,10 @@
 .road-workspace[data-tiny-height] [data-pane] > section > .lp-panel-grip {
   display: none;
 }
-.road-workspace[data-tiny-height] .road-summary-layout[data-small] {
+.road-workspace[data-tiny-height] .metric-summary-layout[data-small] {
   flex-direction: row;
 }
-.road-workspace[data-tiny-height] .road-summary-label {
+.road-workspace[data-tiny-height] .metric-summary-label {
   display: none;
 }
 

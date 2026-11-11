@@ -420,6 +420,30 @@ track grows to the longest cell in any column.
   `workspaceLayoutSchema.ts` (pure, takes the ID vocabulary as an argument). `RibbonTaskPane` /
   `RibbonPaneHost` give a task pane beside the drawing, and `PanelCorner` (`panel-corner.tsx`) the
   dotted resize grip the panels share. `/dev/forestry/road-design` is the reference.
+- Tiled workspaces: `TiledWorkspace` (`tiled-workspace.tsx`) lays columns of panes out in nested
+  `ResizableSplit`s whose tree is the same in every preset, so a map in one pane stays mounted when
+  the layout changes. Describe the tool once as a `TiledWorkspaceConfig` (storage `namespace`, the
+  panel list, `TilePreset`s with the panes each hides and a two-by-two `thumbnail`) and its columns
+  as `TileColumnSpec`s; `useTilePanels` remembers the hidden panes per layout, `focusedPane` shows one
+  pane at a time on phones, and `tilePaneKey` names the stored sizes. `TileLayoutPicker`
+  (`tile-layout-picker.tsx`) is the preset dropdown with its `· edited` entry and the Screen presets
+  & panels dialog (panel checklist, saved layouts). Frame a pane with `TilePane` (the
+  `FullscreenPanel` title bar, optional `PanelCorner` grip) and `TilePaneClose`. The road designer
+  (`RoadPaneLayout.tsx`, `LayoutPicker.tsx`) and the visual-quality tool (`visualsWorkspace.ts`) are
+  the references.
+- Headline measurements beside a workspace: `MetricSummary` (`metric-summary.tsx`) is a titled stack
+  of keyed `StatItem` rows (`MetricSummaryItem`), each hidden, value, or value and detail; a
+  right-click or Shift+F10 on a row opens its settings, and on a small screen the heading collapses
+  it. `MetricSummaryLayout` puts it beside (`left`) or above (`top`) the views; `variant="pane"`
+  fills a tiled pane instead. `MetricSummarySettings` is the settings form for the tool's own frame
+  (ribbon task pane, dialog), with `MetricSummaryReset` as its footer and `children` for a tool's
+  own option; leave out `visibility`/`placement` where a preset decides them.
+  `useMetricSummaryPreferences(storageKey, defaults, parse?)` keeps the choices on this device. The
+  road designer's Road summary and the visual-quality Viewpoint summary are the references.
+- A viewer in another view, on a plan map: `MapViewerCone` (`map-viewer-cone.tsx`) draws a dot and a
+  field-of-view wedge from one GeoJSON source, so a moving viewer is one `setData`; the geometry is
+  `viewerConeFeatures` and `horizontalFov` in `src/lib/geo/viewerCone.ts`. Round the viewer before
+  passing it so the plan does not redraw every frame.
 
 ## Mobile sheets
 

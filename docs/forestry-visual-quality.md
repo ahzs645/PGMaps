@@ -500,8 +500,9 @@ resource network — chained together by shared endpoints.
 
 ## Drive the view
 
-"Look from the road" puts the camera at eye height on the corridor and turns on
-3D terrain. Play drives it along at a chosen speed; the profile chart doubles as
+"Look from the road" opens the road view, a map of its own beside the plan map
+(see **The workspace**), with the camera at eye height on the corridor and 3D
+terrain on. Play drives it along at a chosen speed; the profile chart doubles as
 the scrubber. Facing a block pitches the camera at it, and the sample points
 narrow to what *that* point on the road can see — red ground appears and
 disappears as ridges pass in front of it.
@@ -815,7 +816,11 @@ matrix that projected the ground under them.
 
 | Path | Role |
 | --- | --- |
-| `src/pages/DevForestryVisuals.tsx` | Page: scene state, map layers, drawing, import/export |
+| `src/pages/DevForestryVisuals.tsx` | Page: scene state, the tiled workspace and its two maps, drawing, import/export |
+| `src/pages/dev-forestry/VisualQualityLayers.tsx` | The scene's map layers, drawn in the plan map (`mode="plan"`) and the road view (`mode="eye"`) |
+| `src/pages/dev-forestry/visualsWorkspace.ts` | The workspace's panes, presets and which panes show before the road view opens |
+| `src/pages/dev-forestry/viewpointSummaryRows.ts` | The viewpoint summary's rows, read from the run |
+| `src/pages/dev-forestry/ViewpointSummary.tsx` | The summary pane and its settings dialog, on the shared `MetricSummary` |
 | `src/pages/dev-forestry/terrain.ts` | DEM tile maths and the elevation mosaic |
 | `src/pages/dev-forestry/visibility.ts` | Sightlines, sampling, areas, perspective weighting |
 | `src/pages/dev-forestry/analysis.ts` | The run itself — stations, grids, reduction |
@@ -968,6 +973,69 @@ first one. On the redesigned CHU_26_1 from Hwy 97 it found a 548 ha landform,
 layer 2 of 6 from the road, seen from 4 of 8 stations. Like the facing reading
 it is a candidate, adopted only on "Use this landform".
 
+## The workspace: plan map, road view and summary
+
+The page is a shared `TiledWorkspace` (`visualsWorkspace.ts`): the plan map in
+one column, the road view over the **Viewpoint summary** in the other. The
+layout picker over the panes offers four presets — *Map · road view*, *Map ·
+road view · summary* (the default), *Map only* and *Road view only* — plus the
+panel list and saved layouts, each remembering its pane sizes on this device.
+
+The plan map and the road view are **two MapLibre maps**. The scene's layers
+are `VisualQualityLayers`, drawn once in each with `mode="plan"` or
+`mode="eye"`: every layer that used to switch on whether the one map was in the
+road view now switches on the map it is in. The corridor, its stations,
+drawing, inventory points, terrain candidates, the scale bar and the basemap
+probe exist only in the plan; the drawn timber, ground cover, mapped water, the
+road surface and haze only in the road view. 3D terrain, `DriveCamera`, the
+tree stand, the photo overlay and inset, *Save viewpoint* and *Image* use the
+road view's map; the table bridge and the legend stay on the plan. The plan
+keeps the union of what every station sees while the road view shows its own
+station's red ground. The basemap probe still reads only while the road view is
+closed, so the road view's water and road class stay as they were when it
+opened.
+
+**Until the road view opens, its pane is withheld** and the map takes its
+space; the summary waits for a run. The road view's map is mounted only while it
+is open and on screen, so a closed road view costs no second WebGL context, and
+reopening it builds its map afresh. The stand's placed patches are kept by the
+page (`ForestOverlay`'s `patches`), so a reopened road view reuses the timber it
+already placed rather than placing it again. Closing it unmounts its contents
+first and the map one commit later: React runs a removed tree's cleanups parent
+first, and removing both at once left `MapTerrain` and `ForestOverlay` cleaning
+up against a removed map, which took the page down. Opening the road view shows its pane
+whatever the layout last hid; picking a layout without it (or unticking it)
+closes the road view, since it has no life off screen. On a phone one pane
+shows at a time behind a tab bar, the road view takes the screen when it opens,
+and leaving its tab pauses playback.
+
+While the road view is open the plan map marks the viewer with the shared
+`MapViewerCone`: a dot at the viewing station (the pose's ground position,
+never the eye map's centre) and a wedge along the look bearing, as wide as the
+road view's horizontal field of view (`horizontalFov`, from its vertical field
+of view and frame). Dot and wedge are one GeoJSON source updated by a single
+`setData`, rounded to about 10 m and 5° so the plan redraws a few times a
+second, not every frame. A click on the plan's road line seeks the road view to
+the nearest point along the road (`distanceAlongRoad`, `driveMath.ts`); at a
+single spot there is nothing to seek.
+
+The **Viewpoint summary** is the shared `MetricSummary` over
+`viewpointSummaryRows.ts`. It reads, never recomputes, what the run holds for
+the road view's station — or the assessment station while the road view is
+closed: the viewpoint (km along, ground elevation and eye height), the block's
+ground in view there or *terrain incomplete*, perspective alteration from that
+station against the objective's perspective range, planimetric denudation for
+the landform against the planimetric range, the objective and whether the
+inventory established (EVQO) or recommended it, nearest and farthest visible
+ground with their viewing zones, the VIA rating with X and the adjusted
+figure, mean slope with the run's slope-class green-up height, and whether the
+run is provisional. Every percentage names its scale, both alteration figures
+are withheld from a provisional run as the results panel does, and the visible
+distances, which the run holds only over the whole road, say so. Right-click a
+row (or Shift+F10) or use the gear for its settings: each row hidden, value, or
+value and detail. It is a readout; every control it describes stays in the
+sidebar.
+
 ## The road view's layout
 
 The bar over the map plays: play and pause, the route position with 10 m
@@ -1046,8 +1114,8 @@ Screenshots are taken when *Save viewpoint* is pressed (`captureMapImage`,
 JPEG, 1600 px on the long side), because the frame being saved is the one the
 reviewer chose; they are kept for the session, and a view saved without one is
 listed by caption instead. The plan map is captured at export from the plan
-view (`capturePlanMap`) and left out, with a note saying so, if the export runs
-while the road view is open. exceljs and jsPDF load on demand and are passed in,
+map (`capturePlanMap`), which is a map of its own and stays a plan whether or
+not the road view is open. exceljs and jsPDF load on demand and are passed in,
 so `blockNote.test.ts` writes and reads back real files.
 
 ## The Hwy 16 · Purden Lake sample
@@ -1087,7 +1155,8 @@ other ridge layers and landform clues; sensitivity units, VLI viewpoints,
 viewing directions, rec sites and screenings. Layers and rows read one set of
 colours, `planMapStyle.ts`; sensitivity units are drawn in their objective's
 colour, the colour their sidebar rows show. Map hovers are `mapTooltipHtml`
-cards. The road view keeps its own status panel and has no legend.
+cards. The road view keeps its own status panel and has no legend; the plan
+map beside it keeps its legend.
 
 The plan map also offers the shared table view (`useVisualQualityTable.ts`):
 the scene's polygons, the viewpoints and rec sites loaded around the block
