@@ -2,7 +2,7 @@ import {
   CheckboxField,
   FORM_INPUT_CLASS,
   FormField,
-  NativeSelect,
+  StyledSelect,
   NullableNumberField,
   NumberField,
 } from '@/components/ui/form-field'
@@ -461,7 +461,7 @@ export function useAssessmentTools({
             terrain and screening surface.
           </p>
           <FormField label="Sightline target">
-            <NativeSelect
+            <StyledSelect
               value={inspectTarget}
               onChange={(e) => {
                 setInspectTarget(e.target.value)
@@ -474,7 +474,7 @@ export function useAssessmentTools({
                   {scene.targets.find((v) => v.id === t.targetId)?.name ?? t.targetId} · {t.sampleCount} samples
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </FormField>
           <NumberField
             label="Sample index (zero based)"
@@ -484,13 +484,13 @@ export function useAssessmentTools({
             onValueChange={setInspectIndex}
           />
           <FormField label="Viewing station">
-            <NativeSelect value={inspectStation} onChange={(e) => setInspectStation(Number(e.target.value))}>
+            <StyledSelect value={inspectStation} onChange={(e) => setInspectStation(Number(e.target.value))}>
               {result?.stations.map((s, i) => (
                 <option key={i} value={i}>
                   Station {i + 1} · {s.distanceAlongMeters.toFixed(0)} m
                 </option>
               ))}
-            </NativeSelect>
+            </StyledSelect>
           </FormField>
           <Button
             size="sm"
@@ -576,14 +576,14 @@ export function useAssessmentTools({
       <div className="space-y-3 text-xs">
         {message}
         <FormField label="Assessment evidence viewpoint">
-          <NativeSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
+          <StyledSelect value={reportView} onChange={(e) => setReportView(e.target.value)}>
             <option value="">Not linked</option>
             {d.views.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>
             ))}
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
         <Button size="sm" variant="outline" disabled={busy || !result} onClick={() => perform(record)}>
           {openedRun ? 'Update reviewed assessment record' : 'Record current assessment'}

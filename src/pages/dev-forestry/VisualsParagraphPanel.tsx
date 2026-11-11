@@ -1,4 +1,4 @@
-import { CheckboxField, FORM_INPUT_CLASS, NativeSelect } from '@/components/ui/form-field'
+import { CheckboxField, FORM_INPUT_CLASS, StyledSelect } from '@/components/ui/form-field'
 import { formatMeasure, formatPercentValue } from '@/lib/format'
 import { useEffect, useMemo, useState } from 'react'
 
@@ -234,7 +234,7 @@ export function VisualsParagraphPanel({
   return (
     <div className="space-y-3 text-xs" aria-label="Visuals paragraph">
       {blocks.length > 1 && (
-        <NativeSelect
+        <StyledSelect
           aria-label="Block the paragraph is for"
           className="w-full rounded border bg-background p-1"
           value={block.id}
@@ -245,7 +245,7 @@ export function VisualsParagraphPanel({
               {entry.name}
             </option>
           ))}
-        </NativeSelect>
+        </StyledSelect>
       )}
       <KeyValueRows variant="divided" rows={headerRows} />
       {units?.status === 'error' && <InlineAlert tone="error">EVQO polygons unavailable: {units.error}</InlineAlert>}

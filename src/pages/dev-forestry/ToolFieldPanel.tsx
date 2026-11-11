@@ -2,7 +2,7 @@ import {
   CheckboxField,
   FORM_INPUT_CLASS,
   FormField,
-  NativeSelect,
+  StyledSelect,
   NullableNumberField,
   NumberField,
 } from '@/components/ui/form-field'
@@ -181,10 +181,10 @@ export function ToolFieldPanel({
           <input className={FORM_INPUT_CLASS} value={name} onChange={(e) => setName(e.target.value)} />
         </FormField>
         <FormField label="Save viewpoint from">
-          <NativeSelect value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
+          <StyledSelect value={mode} onChange={(e) => setMode(e.target.value as typeof mode)}>
             <option value="station">Current sampled station</option>
             <option value="route">Entire current road or spot</option>
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
         <Button size="sm" variant="outline" onClick={() => addView()} disabled={mode === 'station' && !result}>
           Record assessment viewpoint
@@ -228,12 +228,12 @@ export function ToolFieldPanel({
           </div>
         ))}
         <FormField label="Attachment type">
-          <NativeSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
+          <StyledSelect value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}>
             <option value="photo">Reference field photo</option>
             <option value="simulation">Simulation image</option>
             <option value="map">Topographic map</option>
             <option value="design">Design analysis</option>
-          </NativeSelect>
+          </StyledSelect>
         </FormField>
         <FileButton
           label="Import field attachment"
@@ -353,14 +353,14 @@ export function ToolFieldPanel({
                 />
               </FormField>
               <FormField label="Evidence viewpoint">
-                <NativeSelect value={field.viewId ?? ''} onChange={(e) => change({ viewId: e.target.value || null })}>
+                <StyledSelect value={field.viewId ?? ''} onChange={(e) => change({ viewId: e.target.value || null })}>
                   <option value="">Not linked</option>
                   {d.views.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.name}
                     </option>
                   ))}
-                </NativeSelect>
+                </StyledSelect>
               </FormField>
               <FormField label="Field date">
                 <input
