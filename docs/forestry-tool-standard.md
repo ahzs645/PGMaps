@@ -59,11 +59,16 @@ These remain on purpose:
   brings its own deck.gl 9.4, which must stay apart from the toolkit's.
   Relief uses `MapTerrain reliefOnly`, because that package owns the map's 3D terrain.
 
+## Shared since
+
+- Screen presets with saved layouts and the `<preset> · edited` pattern are `TiledWorkspace` and
+  `TileLayoutPicker` in `src/components/ui/` (app code, not the toolkit), used by road design and
+  visual quality. The road summary is `MetricSummary` there too. See `docs/shared-ui.md`,
+  **Workspaces and engineering data**.
+
 ## Candidates to share next
 
 Road design stays as it is, but these parts are general. Move one into the toolkit when
 a second tool needs it, not before:
 
-- Screen presets with saved layouts (`LayoutPicker.tsx`, `RoadPaneLayout.tsx`).
-- The `<preset> · edited` pattern, for any preset a person can adjust.
 - `planLegendModel.ts`'s split of legend data from legend rendering.
