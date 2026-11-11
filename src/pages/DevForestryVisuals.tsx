@@ -11,10 +11,10 @@ import { Button } from '@/components/ui/button'
 import { Map, MapControls, MapScaleBar, MapMarker, MarkerContent, type MapRef } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { MapOverlay } from '@/components/ui/map-panels'
+import { mapTooltipHtml } from '@/components/ui/map-tooltip-card'
 import { PG_CENTER } from '@/components/ui/map-styles'
 import { SegmentedControl } from '@/components/ui/segmented-control'
 import { downloadBlob, downloadText } from '@/lib/download'
-import { escapeHtml } from '@/lib/escapeHtml'
 import { Bookmark, ImageDown } from 'lucide-react'
 import { InfoTip } from '@/components/ui/info-tip'
 
@@ -117,35 +117,27 @@ import {
   type ForestryScene,
 } from './dev-forestry/scene'
 import type { ReverseInput, TargetPolygon, Viewpoint } from './dev-forestry/types'
+import { PlanMapLegend } from './dev-forestry/PlanMapLegend'
+import {
+  ASSESSMENT_VIEWPOINT_COLOR,
+  EXPOSURE_RAMP,
+  INVENTORY_COLORS,
+  LANDFORM_CLUE_COLORS,
+  MASK_COLORS,
+  OTHER_RIDGE_LAYER_COLOR,
+  ROAD_COLOR,
+  SCREENED_COLOR,
+  SENSITIVITY_UNIT_COLORS,
+  TERRAIN_CANDIDATE_COLOR,
+  UNKNOWN_COLOR,
+  VISIBLE_COLOR,
+} from './dev-forestry/planMapStyle'
 import { useVisibilityAnalysis } from './dev-forestry/useVisibilityAnalysis'
 import { assessVia, fs1252ReviewFromVia, viaStepStatuses, type ViaReview } from './dev-forestry/via'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
-const VISIBLE_COLOR = '#ef4444'
 const EMPTY_COLLECTION: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
-const SCREENED_COLOR = '#0f766e'
-
-/**
- * Exposure, cold to hot. Sequential in one hue family from slate through amber
- * to the same red the visible ground uses, so a hot road and red ground read as
- * the same thing.
- */
-const EXPOSURE_RAMP = [
-  'interpolate',
-  ['linear'],
-  ['get', 'visiblePercent'],
-  0,
-  '#94a3b8',
-  1,
-  '#fcd34d',
-  15,
-  '#f59e0b',
-  40,
-  '#ea580c',
-  70,
-  VISIBLE_COLOR,
-] as const
 
 const DEFAULT_DRIVE: DriveState = {
   existingForest: true,
@@ -1543,7 +1535,7 @@ function DevForestryVisuals() {
   }, [viewpointInventory.data])
   const viewpointHoverHtml = useCallback((properties: Record<string, unknown>) => {
     const kind = properties.kind === 'rec-site' ? 'Recreation site' : 'VLI viewpoint'
-    return `<strong>${escapeHtml(String(properties.name ?? kind))}</strong><br/>${kind}<br/><em>Click to assess from here</em>`
+    return mapTooltipHtml({ title: String(properties.name ?? kind), subtitle: kind, footer: 'Click to stand here' })
   }, [])
   const reverseRoadCollection = useMemo(
     () => reverseRoadsToGeoJson(analysis.reverseState.result),
@@ -1872,24 +1864,29 @@ function DevForestryVisuals() {
   }, [result])
 
   const inventoryHoverHtml = useCallback((properties: Record<string, unknown>) => {
-    const name = escapeHtml(String(properties.name ?? 'Sensitivity unit'))
     const objective = String(properties.objectiveId ?? '')
     const vac = String(properties.vac ?? '')
     const vsc = String(properties.vsc ?? '')
-    const rows = [
-      objective ? `Objective: ${escapeHtml(visualQualityClass(objective as never).label)}` : 'No established objective',
-      vac ? `VAC: ${escapeHtml(vac)}` : 'VAC not rated',
-      vsc ? `Sensitivity class ${escapeHtml(vsc)}` : null,
-      Number(properties.scenicArea) === 1 ? 'Scenic area' : null,
-    ].filter(Boolean)
-    return `<strong>${name}</strong><br/>${rows.join('<br/>')}<br/><em>Click to use as the landform</em>`
+    return mapTooltipHtml({
+      title: String(properties.name ?? 'Sensitivity unit'),
+      subtitle: Number(properties.scenicArea) === 1 ? 'Scenic area' : undefined,
+      rows: [
+        ['Objective', objective ? visualQualityClass(objective as never).label : 'None established'],
+        ['VAC', vac || 'Not rated'],
+        ['Sensitivity class', vsc || null],
+      ],
+      footer: 'Click to use as the landform',
+    })
   }, [])
 
-  const targetHoverHtml = useCallback((properties: Record<string, unknown>) => {
-    const name = escapeHtml(String(properties.name ?? 'Polygon'))
-    const area = Number(properties.areaHectares ?? 0).toFixed(1)
-    return `<strong>${name}</strong><br/>${area} ha`
-  }, [])
+  const targetHoverHtml = useCallback(
+    (properties: Record<string, unknown>) =>
+      mapTooltipHtml({
+        title: String(properties.name ?? 'Polygon'),
+        subtitle: `${Number(properties.areaHectares ?? 0).toFixed(1)} ha`,
+      }),
+    [],
+  )
 
   const handleTargetChange = useCallback(
     (targetId: string, patch: Partial<TargetPolygon>) => {
@@ -2497,9 +2494,14 @@ function DevForestryVisuals() {
             established are drawn back so the ones that constrain harvesting read first. */}
         <MapFillLayer
           data={inventoryCollection}
-          fillColor="#0ea5e9"
+          fillColor={SENSITIVITY_UNIT_COLORS.fill}
           fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.1, 0.03]}
-          lineColor={['case', ['==', ['get', 'rated'], 1], '#0284c7', '#94a3b8']}
+          lineColor={[
+            'case',
+            ['==', ['get', 'rated'], 1],
+            SENSITIVITY_UNIT_COLORS.rated,
+            SENSITIVITY_UNIT_COLORS.unrated,
+          ]}
           lineWidth={['case', ['==', ['get', 'rated'], 1], 1.6, 0.7]}
           lineOpacity={0.9}
           idProperty="id"
@@ -2510,14 +2512,14 @@ function DevForestryVisuals() {
         <MapFillLayer
           data={terrainCandidateCollection}
           visible={!drive.active}
-          fillColor="#16a34a"
+          fillColor={TERRAIN_CANDIDATE_COLOR}
           fillOpacity={0.06}
           lineWidth={0}
         />
         <MapLineLayer
           data={terrainCandidateCollection}
           visible={!drive.active}
-          color="#15803d"
+          color={TERRAIN_CANDIDATE_COLOR}
           width={2}
           dashArray={[2, 1.5]}
           opacity={0.95}
@@ -2526,7 +2528,7 @@ function DevForestryVisuals() {
         <MapLineLayer
           data={ridgeLayerCollection}
           visible={!drive.active || drive.showLandform}
-          color={['case', ['==', ['get', 'own'], 1], '#15803d', '#7c3aed']}
+          color={['case', ['==', ['get', 'own'], 1], TERRAIN_CANDIDATE_COLOR, OTHER_RIDGE_LAYER_COLOR]}
           width={['case', ['==', ['get', 'own'], 1], 0, drive.active ? 2.5 : 1.2]}
           opacity={0.75}
           interactive={false}
@@ -2535,18 +2537,18 @@ function DevForestryVisuals() {
         <MapFillLayer
           data={viewpointLayers.screenings}
           visible={!drive.active && showInventory}
-          fillColor="#0f766e"
+          fillColor={INVENTORY_COLORS.screening}
           fillOpacity={0.12}
-          lineColor="#0f766e"
+          lineColor={INVENTORY_COLORS.screening}
           lineWidth={0.8}
           lineOpacity={0.6}
         />
         <MapFillLayer
           data={viewpointLayers.arrows}
           visible={!drive.active && showInventory}
-          fillColor="#db2777"
+          fillColor={INVENTORY_COLORS.viewpoint}
           fillOpacity={['case', ['==', ['get', 'size'], 'large'], 0.45, 0.3]}
-          lineColor="#be185d"
+          lineColor={INVENTORY_COLORS.arrowOutline}
           lineWidth={0.8}
           lineOpacity={0.8}
         />
@@ -2554,7 +2556,7 @@ function DevForestryVisuals() {
           data={viewpointLayers.points}
           visible={!drive.active && showInventory}
           radius={5}
-          color={['case', ['==', ['get', 'kind'], 'rec-site'], '#16a34a', '#db2777']}
+          color={['case', ['==', ['get', 'kind'], 'rec-site'], INVENTORY_COLORS.recSite, INVENTORY_COLORS.viewpoint]}
           strokeColor="#ffffff"
           strokeWidth={1.5}
           idProperty="id"
@@ -2568,7 +2570,15 @@ function DevForestryVisuals() {
           data={landformClues}
           visible={!drive.active}
           radius={3}
-          color={['match', ['get', 'position'], 'ridge', '#ea580c', 'hollow', '#0284c7', '#9333ea']}
+          color={[
+            'match',
+            ['get', 'position'],
+            'ridge',
+            LANDFORM_CLUE_COLORS.ridge,
+            'hollow',
+            LANDFORM_CLUE_COLORS.hollow,
+            LANDFORM_CLUE_COLORS.other,
+          ]}
         />
         <MapFillLayer
           data={landscapeCollection}
@@ -2651,12 +2661,12 @@ function DevForestryVisuals() {
             'match',
             ['get', 'kind'],
             'natural',
-            '#64748b',
+            MASK_COLORS.natural,
             'private',
-            '#a855f7',
+            MASK_COLORS.private,
             'permanent',
-            '#eab308',
-            '#16a34a',
+            MASK_COLORS.permanent,
+            MASK_COLORS.retained,
           ]}
           fillOpacity={0.15}
           lineColor="#475569"
@@ -2684,7 +2694,7 @@ function DevForestryVisuals() {
           color={[
             'case',
             ['==', ['get', 'visible'], 2],
-            '#71717a',
+            UNKNOWN_COLOR,
             ['==', ['get', 'visible'], 1],
             VISIBLE_COLOR,
             SCREENED_COLOR,
@@ -2699,7 +2709,7 @@ function DevForestryVisuals() {
             Drawn as the road rather than as the points it was sampled at. */}
         <MapLineLayer
           data={reverseRoadCollection}
-          color={['case', ['==', ['get', 'unknown'], 1], '#71717a', EXPOSURE_RAMP] as never}
+          color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
           width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
           opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
           visible={!drive.active}
@@ -2707,12 +2717,12 @@ function DevForestryVisuals() {
 
         {/* From eye level the road is directly under the camera, where a line
             and its stations fill the frame instead of marking anything. */}
-        <MapLineLayer data={corridorCollection} color="#1d4ed8" width={3} opacity={0.9} visible={!drive.active} />
+        <MapLineLayer data={corridorCollection} color={ROAD_COLOR} width={3} opacity={0.9} visible={!drive.active} />
         {/* Once a run exists the corridor carries its own answer: how much of
             the block each stretch of road sees, graded along it. */}
         <MapLineLayer
           data={corridorExposureCollection}
-          color={['case', ['==', ['get', 'unknown'], 1], '#71717a', EXPOSURE_RAMP] as never}
+          color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
           width={5}
           opacity={0.95}
           visible={!drive.active}
@@ -2721,7 +2731,7 @@ function DevForestryVisuals() {
             not a sample of a continuum. */}
         <MapCircleLayer
           data={stationCollection}
-          color="#facc15"
+          color={ASSESSMENT_VIEWPOINT_COLOR}
           radius={['case', ['==', ['get', 'assessment'], 1], 6, 0]}
           strokeColor="#ffffff"
           strokeWidth={['case', ['==', ['get', 'assessment'], 1], 1.5, 0]}
@@ -2729,7 +2739,7 @@ function DevForestryVisuals() {
         />
         <MapCircleLayer
           data={spotCollection}
-          color="#1d4ed8"
+          color={ROAD_COLOR}
           radius={7}
           strokeColor="#ffffff"
           strokeWidth={2}
@@ -2939,40 +2949,33 @@ function DevForestryVisuals() {
         )}
       </Map>
 
-      {result && !drive.active && (
-        <MapOverlay
-          position="bottom-left"
-          className="bottom-[calc(var(--map-mobile-sheet-visible-height,0px)+var(--map-safe-bottom-offset,0px)+0.75rem)] max-w-[15rem] md:bottom-3"
-        >
-          <p className="mb-1.5 text-xs font-semibold text-foreground">Seen from the road</p>
-          <div className="space-y-1 text-2xs text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: VISIBLE_COLOR }} />
-              Visible ground
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full opacity-50" style={{ backgroundColor: SCREENED_COLOR }} />
-              Occluded / outside analysis range
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-zinc-500" />
-              Unknown (missing data)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-              Assessment viewpoint
-            </span>
-            {/* The ramp itself, so a grey stretch of road reads as "sees
-                nothing from here" rather than as an unstyled line. */}
-            <span className="flex items-center gap-1.5 pt-0.5">
-              <span
-                className="h-1.5 w-10 shrink-0 rounded-full"
-                style={{ backgroundImage: `linear-gradient(to right, #94a3b8, #fcd34d, #f59e0b, ${VISIBLE_COLOR})` }}
-              />
-              Road: none → most in view
-            </span>
-          </div>
-        </MapOverlay>
+      {!drive.active && (
+        <PlanMapLegend
+          blocks={{
+            count: blockCollection.features.length,
+            customColors: scene.targets.some((target) => target.role === 'block' && !!target.displayColor),
+          }}
+          landform={landscapeCollection.features.length > 0}
+          existingOpenings={harvestedCollection.features.length > 0}
+          road={scene.viewpoint.coordinates.length ? scene.viewpoint.mode : null}
+          run={!!result}
+          reverseRoads={reverseRoadCollection.features.length > 0}
+          sensitivityUnits={showInventory && inventory.units.length > 0}
+          terrainCandidate={terrainCandidateCollection.features.length > 0}
+          otherRidgeLayers={ridgeLayerCollection.features.some((feature) => feature.properties?.own === 0)}
+          landformClues={landformClues.features.length > 0}
+          inventory={
+            showInventory && viewpointInventory.data
+              ? {
+                  viewpoints: viewpointInventory.data.viewpoints.length > 0,
+                  arrows: viewpointInventory.data.arrows.length > 0,
+                  recSites: viewpointInventory.data.recSites.length > 0,
+                  screenings: viewpointInventory.data.screenings.length > 0,
+                }
+              : null
+          }
+          masks={[...new Set((scene.masks ?? []).map((mask) => mask.kind))]}
+        />
       )}
 
       {drive.active && (
