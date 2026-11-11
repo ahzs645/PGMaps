@@ -196,6 +196,74 @@ test('dragging a handle bends the road with a curve, and a small slip adds nothi
   await expect(points).toHaveCount(before)
 })
 
+test('a drag into an Excluded area, or to a corner no curve can round, is refused (plan-edit-limits.md)', async ({
+  page,
+}) => {
+  const { errors, project } = await prepare(page, [
+    [0, 0],
+    [100, 15],
+    [200, 0],
+    [300, 15],
+  ])
+  const frame = corridorFrame([-122.72, 53.89])
+  project.context = [
+    {
+      id: 'wtp',
+      name: 'Wildlife tree patch',
+      kind: 'avoid',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          (
+            [
+              [120, 40],
+              [180, 40],
+              [180, 100],
+              [120, 100],
+              [120, 40],
+            ] as Array<[number, number]>
+          ).map((xy) => frame.fromXY(xy)),
+        ],
+      },
+      constraint: { treatment: 'excluded' },
+    },
+  ]
+  await open(page, project)
+  const pointsOf = (p: RoadProject) => p.alignments.find((a) => a.id === p.activeAlignmentId)!.points
+  const saved = pointsOf(await save(page))
+  await openRoadPanel(page, 'Horizontal points')
+  await page.getByRole('button', { name: 'Select end', exact: true }).click()
+  const centre = async (index: number) => {
+    const box = (await page.getByRole('button', { name: `Horizontal point ${index}`, exact: true }).boundingBox())!
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+  }
+  // Screen position of a point in the corridor frame's metres, from the three points as drawn.
+  const [p1, p2, p3] = [await centre(1), await centre(2), await centre(3)]
+  const a = { x: (p3.x - p1.x) / 200, y: (p3.y - p1.y) / 200 }
+  const b = { x: (p2.x - p1.x - 100 * a.x) / 15, y: (p2.y - p1.y - 100 * a.y) / 15 }
+  const screen = (x: number, y: number) => ({ x: p1.x + a.x * x + b.x * y, y: p1.y + a.y * x + b.y * y })
+  const dragPoint3 = async (x: number, y: number, kind: string) => {
+    const target = screen(x, y)
+    await page.mouse.move(p3.x, p3.y)
+    await page.mouse.down()
+    await page.mouse.move(target.x, target.y, { steps: 12 })
+    await expect(page.locator(`[data-plan-edit-refusal="${kind}"]`)).toContainText('Not allowed')
+    await page.mouse.up()
+    await expect(page.locator('[data-plan-edit-refusal]')).toHaveCount(0)
+  }
+  const status = page.getByTestId('road-workspace-header').getByRole('status')
+  // Into the patch: the road would enter an area marked Excluded.
+  await dragPoint3(150, 70, 'excluded')
+  await expect(status).toContainText('Wildlife tree patch, an area marked Excluded')
+  expect(pointsOf(await save(page))).toEqual(saved)
+  // Back beside point 2: two corners entered with no curve, 14 m apart, too close for two curves at the
+  // minimum radius.
+  await dragPoint3(110, 5, 'curve')
+  await expect(status).toContainText('curves the road needs at points 2 and 3')
+  expect(pointsOf(await save(page))).toEqual(saved)
+  expect(errors).toEqual([])
+})
+
 test('a drag that would make the road cross itself is refused before and after the drop', async ({ page }) => {
   const { errors, project } = await prepare(page, [
     [0, 0],

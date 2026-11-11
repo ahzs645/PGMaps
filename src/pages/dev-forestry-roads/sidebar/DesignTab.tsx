@@ -585,8 +585,10 @@ function HorizontalPoints(p: SidebarProps) {
         x.id === point?.id ? { ...x, coordinate: axis === 0 ? [value, x.coordinate[1]] : [x.coordinate[0], value] } : x,
       ),
     })
-    // The same limits as a drag on the plan: no crossing, and every new corner fits at the minimum radius.
-    const refusal = checkPlanEdit(alignment, moved(alignment), project.settings.minRadius)
+    // The same limits as a drag on the plan (`planEditCheck.ts`).
+    const refusal = checkPlanEdit(alignment, moved(alignment), project.settings.minRadius, {
+      context: project.context,
+    })
     if (refusal) {
       p.workspace.setNotice(refusal.message)
       return

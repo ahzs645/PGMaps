@@ -2058,8 +2058,11 @@ export function PlanView(input: PlanProps) {
   }, [drag, bend, props.alignment, props.mode, newPointRadius])
   // The edit the drag would make is checked as it moves, so a refusal shows before the drop.
   const previewRefusal = useMemo(
-    () => (previewAlignment ? checkPlanEdit(props.alignment, previewAlignment, newPointRadius) : null),
-    [previewAlignment, props.alignment, newPointRadius],
+    () =>
+      previewAlignment
+        ? checkPlanEdit(props.alignment, previewAlignment, newPointRadius, { context: props.project.context })
+        : null,
+    [previewAlignment, props.alignment, newPointRadius, props.project.context],
   )
   const dragAt = drag?.coordinate ?? bend?.coordinate
   // Bend handles follow a point drag, which keeps every point id and so every handle's key, but
