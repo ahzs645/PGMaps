@@ -80,7 +80,7 @@ async function containment(page: Page) {
     inside('connected layout', layout, workspace)
     const station = document.querySelector('[data-testid="road-station-controller"]')!
     inside('station controls', station, workspace)
-    const summary = workspace.querySelector('.road-summary')!
+    const summary = workspace.querySelector('.metric-summary')!
     if (window.innerWidth < 768 && summary.getBoundingClientRect().height) {
       for (const [index, tile] of [...summary.children].entries()) {
         inside(`summary tile ${index + 1}`, tile, summary)

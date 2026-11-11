@@ -122,6 +122,7 @@ import { formatRoadNumber as number } from './dev-forestry-roads/roadFormat'
 import { roadSummaryMetrics } from './dev-forestry-roads/roadSummaryMetrics'
 import { parseRoadReportSettings } from './dev-forestry-roads/reportSettings'
 import { useSummaryPreferences } from './dev-forestry-roads/summaryPreferences'
+import { MetricSummaryLayout } from '@/components/ui/metric-summary'
 import { ResizableSplit } from '@/components/ui/resizable-split'
 import { PanelCorner } from '@/components/ui/panel-corner'
 import { TabBar } from '@/components/ui/tab-bar'
@@ -4041,11 +4042,7 @@ export default function DevForestryRoads({
               min: 480,
               stackedHeight: 'auto' as const,
               content: (
-                <div
-                  className="road-summary-layout"
-                  data-placement={summaryControls.preferences.placement}
-                  data-small={smallSummary || undefined}
-                >
+                <MetricSummaryLayout placement={summaryControls.preferences.placement} small={smallSummary}>
                   {summaryAvailable && (
                     <RoadSummary
                       metrics={summaryMetrics}
@@ -4970,7 +4967,7 @@ export default function DevForestryRoads({
                       </div>
                     )}
                   </main>
-                </div>
+                </MetricSummaryLayout>
               ),
             },
           ]}
