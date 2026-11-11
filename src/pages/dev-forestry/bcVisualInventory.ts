@@ -1,10 +1,10 @@
 /**
  * DataBC field parsing and live harvest/forest-cover queries. Visual sensitivity
- * units now come from visualInventorySnapshot.ts in the page workflow; the
- * live sensitivity query remains available for source checks and its tests.
- * A sensitivity unit is a candidate boundary, not an automatically verified
- * viewpoint-specific assessment landform. Province-wide snapshots are owned
- * by vendor/bcdatamapper (see AGENTS.md).
+ * units are read live from the WFS (`buildInventoryWfsUrl`, read by
+ * visualInventoryQuery.ts); the ArcGIS query below stops at 10,000 of the
+ * 60,499 polygons and remains only for source checks and its tests. A
+ * sensitivity unit is a candidate boundary, not an automatically verified
+ * viewpoint-specific assessment landform.
  */
 
 import type { CanopyStand } from './canopy'

@@ -27,7 +27,7 @@ import {
   unitsToGeoJson,
   type BcSensitivityUnit,
 } from './dev-forestry/bcVisualInventory'
-import { queryVisualInventory } from './dev-forestry/visualInventorySnapshot'
+import { queryVisualInventory } from './dev-forestry/visualInventoryQuery'
 import { usePersistentScene } from './dev-forestry/usePersistentScene'
 import { useAssessmentTools } from './dev-forestry/useAssessmentTools'
 import { assessmentAlterationClipper } from './dev-forestry/assessmentMaskGeometry'

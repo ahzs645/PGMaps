@@ -833,7 +833,7 @@ matrix that projected the ground under them.
 | `src/pages/dev-forestry/basemapContext.ts` | Water polygons and the road's class from the basemap, clearing width by class |
 | `src/pages/dev-forestry/scene.ts` | The page's document: persistence, export, map features |
 | `src/pages/dev-forestry/shapeImport.ts` | Zipped shapefile and GeoJSON import |
-| `src/pages/dev-forestry/bcVisualInventory.ts` | DataBC parsers and live harvest/forest-cover queries; VLI uses visualInventorySnapshot.ts |
+| `src/pages/dev-forestry/bcVisualInventory.ts` | DataBC parsers, the inventory WFS request, and live harvest/forest-cover queries; `visualInventoryQuery.ts` reads the inventory |
 | `src/pages/dev-forestry/DriveCamera.tsx` | Eye-level camera and playback |
 | `src/pages/dev-forestry/TerrainSupport.tsx` | Hillshade, 3D terrain, and sky |
 | `src/pages/dev-forestry/reverseViewshed.ts` | Working backwards: which roads can see a block |
@@ -1130,28 +1130,34 @@ the VQO polygons, and stand at the viewpoints.
 
 ## BC inventory lookup
 
-*Look up this view*, the Visuals paragraph's EVQO overlap and the road view's
-EVQO drape read the **Visual Landscape Inventory** live from DataBC's WFS
+Every part of the page that reads the **Visual Landscape Inventory** — *Look up
+this view*, *Find a landform*, the Visuals paragraph's EVQO overlap and the road
+view's EVQO drape — reads it live from DataBC's WFS
 (`WHSE_FOREST_VEGETATION.REC_VISUAL_LANDSCAPE_INVENTORY`, `queryVisualInventory`
-in `visualInventorySnapshot.ts`), for the area asked about, at full resolution.
-The box goes in `CQL_FILTER`, longitude first, and at most 3,000 polygons come
-back at once (reported as truncated past that).
+in `visualInventoryQuery.ts`), for the area asked about, at the recorded
+coordinates. The box goes in `CQL_FILTER`, longitude first, and at most 3,000
+polygons come back at once (reported as truncated past that). There is no stored
+copy and no fallback: when DataBC cannot be reached, each place says the
+inventory is unavailable and offers a retry.
 
-The downloaded snapshot (owned by `vendor/bcdatamapper`, synced to
-`public/data/forest/visual-inventory`) is now only the fallback when the WFS
-cannot be reached, and the source of *Find a landform*'s candidates. It was
-built from the ArcGIS layer (`MapServer/6`), which stops at **10,000 of the
-60,499** polygons: its count reports exactly 10,000, and Purden Lake on Hwy 16
-returns none. Read from the snapshot, a block there under Retention and Partial
-Retention was reported as overlapping no EVQO at all (checked 10 November 2026).
-A complete full-resolution snapshot would be about six times the current 75 MB
-gzipped, more than bcdatamapper's Pages site has room for; rebuilding it from
-the WFS, simplified, is open. Existing harvest, RESULTS forest cover and VRI
-remain live queries.
+Why there is no stored copy (checked 10–11 November 2026):
+
+- The ArcGIS layer (`MapServer/6`) stops at **10,000 of the 60,499** polygons
+  (its count reports exactly 10,000; Purden Lake on Hwy 16 returns none). The
+  bcdatamapper snapshot built from it missed most of BC, so falling back to it
+  read a block under Retention and Partial Retention as overlapping no EVQO.
+- A complete copy from the WFS at full resolution is 200–270 MB gzipped
+  (about 31 million vertices, 520 per polygon; rounding to 6 decimals, about
+  0.1 m, saves only 20%). bcdatamapper's Pages site has about 380 MB free.
+- Simplifying does not rescue it: at 1 m the largest change in a polygon's area
+  was 13%, at 2 m 21%, at 5 m 44%, on small slivers whose edges decide an EVQO
+  overlap (sampled from 3,000 polygons across the layer).
+
+Existing harvest, RESULTS forest cover and VRI are live queries too.
 
 `Find a landform` automatically ranks up to five candidate units within 25 km of the entire road polyline, including unrated units. A selector switches to the proposed block centre when desired. Proximity does not establish visibility. `Show boundary` previews a candidate; `Use candidate` adopts it explicitly. A VSU is not automatically the viewpoint-specific assessment landform. If no candidate is appropriate, draw or import the visible hillside. A nearby polygon does not establish coverage of the proposed block.
 
-`Look up this view` still loads existing harvest/forest-cover context and displays snapshot units whose bounding boxes intersect the map extent. The nearby GeoJSON download and snapshot manifest are available in the main workflow. See the integrity contract's **Appendix 5 landform review and downloaded visual inventory** section for methods, limits and tests.
+`Look up this view` also loads existing harvest and forest-cover context and draws the units intersecting the map extent. *Find a landform* offers the units it searched as a GeoJSON download, stamped with the WFS layer and the time it was read. See the integrity contract's **Appendix 5 landform review and downloaded visual inventory** section for methods, limits and tests.
 
 ### What the inventory actually contains
 

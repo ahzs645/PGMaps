@@ -98,9 +98,10 @@ The plan map's legend lists each of them (11 Nov).
 The EVQO overlap read nothing at Purden Lake, a block entirely under R and PR.
 The bcdatamapper snapshot holds 10,000 of the inventory's 60,499 polygons,
 because the ArcGIS layer it was built from stops there. The page now reads the
-inventory live from DataBC's WFS and keeps the snapshot as a fallback; see
-*BC inventory lookup* in the contract. *Find a landform* still reads the
-snapshot, and the snapshot itself needs rebuilding from the WFS.
+inventory live from DataBC's WFS everywhere, *Find a landform* included, with
+no stored copy (11 Nov): a complete one is 200–270 MB gzipped and does not fit
+the data site, and simplifying it distorts small units. See *BC inventory
+lookup* in the contract.
 
 ## Left to do
 

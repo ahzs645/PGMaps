@@ -13,7 +13,7 @@ import type { AnalysisResult, TargetPolygon } from './types'
 import type { ViaReview } from './via'
 import { PULLOUT_METERS, roadsNearBlock, type ViewpointInventory } from './viewpointInventory'
 import { lineLengthMeters, polygonAreaMeters, polygonBounds } from './visibility'
-import { queryVisualInventory } from './visualInventorySnapshot'
+import { queryVisualInventory } from './visualInventoryQuery'
 import {
   EVQO_CODE_FOR_CLASS,
   EVQO_NAMES,
