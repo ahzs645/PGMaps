@@ -1,3 +1,4 @@
+import { openWorkbench, selectWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './road-select'
@@ -55,7 +56,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   if ((page.viewportSize()?.width ?? 1512) < 768)
     await expect(page.getByRole('button', { name: 'Main menu', exact: true })).toHaveText('Road design')
   else await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
@@ -70,9 +71,10 @@ async function prepare(page: Page) {
 
 /** The layout picker is a combobox in the page header. */
 async function chooseLayout(page: Page, name: string) {
-  await choose(page
-    .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true }), { label: name })
+  await choose(
+    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout', exact: true }),
+    { label: name },
+  )
 }
 
 async function saveProject(page: Page): Promise<RoadProject> {
@@ -392,6 +394,7 @@ test('every pane boundary drags, and each layout keeps its own sizes', async ({ 
   const linkedProfileHeightShare = await profileHeightShare()
 
   await page.reload()
+  await selectWorkbench(page)
   await expect(page.getByTestId('road-profile-chart')).toBeVisible()
   await expect.poll(() => widthOf(plan)).toBeCloseTo(linkedPlanWidth, -1)
   // Reload clears the training autosave notice, so available height can change.
@@ -464,9 +467,7 @@ test('header picker, no footer or status row, profile controls on the chart, sec
 }, testInfo) => {
   const errors = await prepare(page)
   await expect(
-    page
-      .getByTestId('road-workspace-header')
-      .getByRole('combobox', { name: 'Road view layout', exact: true }),
+    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout', exact: true }),
   ).toHaveText(/Linked overview/)
   await expect(page.getByText(/Concept planning/)).toHaveCount(0)
   await expect(page.getByText(/average end areas/)).toHaveCount(0)
@@ -496,8 +497,7 @@ test('header picker, no footer or status row, profile controls on the chart, sec
   // Zoomed, the readout and reset join the bar and the pan arrows sit on the plot's edges.
   await toolbar.getByRole('button', { name: 'Zoom profile in', exact: true }).click()
   // The range readout shares the title row, so a narrow panel leaves it out.
-  if (chart.width >= 720)
-    await expect(page.getByTestId('road-profile-range')).toHaveText(/\d\+\d{3}\.\d–\d\+\d{3}\.\d/)
+  if (chart.width >= 720) await expect(page.getByTestId('road-profile-range')).toHaveText(/\d\+\d{3}\.\d–\d\+\d{3}\.\d/)
   else await expect(page.getByTestId('road-profile-range')).toHaveCount(0)
   await expect(toolbar.getByRole('button', { name: 'Fit full road profile', exact: true })).toBeVisible()
   const forward = (await page.getByRole('button', { name: 'Pan profile forward', exact: true }).boundingBox())!
@@ -580,9 +580,7 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
   const raised = money(await total.textContent())
   expect(raised).toBeGreaterThan(before)
   await expect(dialog.getByTestId('road-cost-change')).toContainText('since opened')
-  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(
-    /Custom/,
-  )
+  await expect(dialog.getByRole('combobox', { name: 'Rate preset', exact: true })).toHaveText(/Custom/)
   await page.screenshot({ path: testInfo.outputPath('cost-breakdown.png') })
   await page.keyboard.press('Escape')
   await expect.poll(headline).toBeCloseTo(raised, -1)
@@ -590,7 +588,9 @@ test('the covered estimate opens its calculation and rate edits recalculate the 
 
   // The preset restores every base rate.
   await tile.click()
-  await choose(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }), { label: 'PG Maps placeholder rates' })
+  await choose(dialog.getByRole('combobox', { name: 'Rate preset', exact: true }), {
+    label: 'PG Maps placeholder rates',
+  })
   await expect.poll(async () => money(await total.textContent())).toBeCloseTo(before, -1)
   await page.keyboard.press('Escape')
   await expect(dialog).toHaveCount(0)

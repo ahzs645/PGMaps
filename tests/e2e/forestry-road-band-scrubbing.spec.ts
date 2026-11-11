@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 
@@ -10,7 +11,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CURVE_LABELS, type CurveFieldId } from './roadFieldDefinitions'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -15,6 +16,7 @@ import {
 } from './polylineFit'
 import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import type { CurveDesign } from './types'
 
 /** Bulk curve tools for the horizontal points: one default radius, or a best fit within a tolerance. */
 /** Field height when the label fits; a narrow pane wraps the label and the button grows rather than clipping. */
@@ -161,9 +163,74 @@ export const CURVE_DESIGN_HELP =
   'Transitions run in before the circular arc. Leave the speed empty for none. The values are entries, not a ' +
   'road-class standard. Name the criteria and record its source. Conflicting speed/radius/e-max is flagged; widening tables are radius, deflection, inside, outside.'
 
+function updateCurveDesign(workspace: RoadWorkspace, patch: Partial<CurveDesign>) {
+  workspace.updateAlignment((a) => ({ ...a, curveDesign: { ...(a.curveDesign ?? CURVE_DESIGN_START), ...patch } }))
+}
+
+/** Switching a road's curve speed off also switches off its associated criteria. */
+export function CurveDesignField({
+  workspace,
+  field,
+  compact,
+}: {
+  workspace: RoadWorkspace
+  field: CurveFieldId
+  compact?: boolean
+}) {
+  const { alignment, updateAlignment } = workspace
+  const design = alignment.curveDesign
+  const set = (patch: Partial<CurveDesign>) => updateCurveDesign(workspace, patch)
+  if (field === 'curveDesignSpeedKmh') {
+    return (
+      <OptionalNumberField
+        label={compact ? CURVE_LABELS[field] : 'Design speed (km/h)'}
+        hint={
+          compact
+            ? 'Enter a speed to apply curve rotation and widening. Clearing it removes the active road’s curve criteria.'
+            : undefined
+        }
+        value={design?.designSpeedKmh ?? null}
+        updateOn="commit"
+        min={1}
+        max={150}
+        step={5}
+        onChange={(designSpeedKmh) =>
+          designSpeedKmh === null
+            ? updateAlignment((a) => {
+                const { curveDesign: _off, ...rest } = a
+                void _off
+                return rest
+              })
+            : set({ designSpeedKmh })
+        }
+      />
+    )
+  }
+  if (!design) return null
+  if (field === 'maxSuperelevationPercent') {
+    return (
+      <NumberField
+        label={CURVE_LABELS[field]}
+        value={design.maxSuperelevationPercent}
+        max={20}
+        onChange={(maxSuperelevationPercent) => set({ maxSuperelevationPercent })}
+      />
+    )
+  }
+  return (
+    <NumberField
+      label={CURVE_LABELS[field]}
+      value={design.runoffLengthM}
+      max={1000}
+      step={5}
+      onChange={(runoffLengthM) => set({ runoffLengthM })}
+    />
+  )
+}
+
 /** Design-speed superelevation and curve widening for the active road; an empty speed turns it off. */
 export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace }) {
-  const { alignment, updateAlignment } = workspace
+  const { alignment } = workspace
   const design = alignment.curveDesign
   const [tableText, setTableText] = useState('')
   const [tableError, setTableError] = useState('')
@@ -174,27 +241,11 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
       return []
     }
   })()
-  const set = (patch: Partial<NonNullable<typeof design>>) =>
-    updateAlignment((a) => ({ ...a, curveDesign: { ...(a.curveDesign ?? CURVE_DESIGN_START), ...patch } }))
+  const set = (patch: Partial<CurveDesign>) => updateCurveDesign(workspace, patch)
   return (
     <div className="space-y-2" data-testid="road-curve-design">
       <div className="grid grid-cols-2 gap-2">
-        <OptionalNumberField
-          label="Design speed (km/h)"
-          value={design?.designSpeedKmh ?? null}
-          min={1}
-          max={150}
-          step={5}
-          onChange={(designSpeedKmh) =>
-            designSpeedKmh === null
-              ? updateAlignment((a) => {
-                  const { curveDesign: _off, ...rest } = a
-                  void _off
-                  return rest
-                })
-              : set({ designSpeedKmh })
-          }
-        />
+        <CurveDesignField field="curveDesignSpeedKmh" workspace={workspace} />
         {design && (
           <>
             <label className="col-span-2 text-xs">
@@ -217,12 +268,7 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                 onChange={(e) => set({ criteriaSource: e.target.value })}
               />
             </label>
-            <NumberField
-              label="Max superelevation (%)"
-              value={design.maxSuperelevationPercent}
-              max={20}
-              onChange={(maxSuperelevationPercent) => set({ maxSuperelevationPercent })}
-            />
+            <CurveDesignField field="maxSuperelevationPercent" workspace={workspace} />
             <NumberField
               label="Side friction f"
               value={design.sideFrictionFactor}
@@ -230,13 +276,7 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
               step={0.01}
               onChange={(sideFrictionFactor) => set({ sideFrictionFactor })}
             />
-            <NumberField
-              label="Runoff (m)"
-              value={design.runoffLengthM}
-              max={1000}
-              step={5}
-              onChange={(runoffLengthM) => set({ runoffLengthM })}
-            />
+            <CurveDesignField field="runoffLengthM" workspace={workspace} />
             <OptionalNumberField
               label="Widening vehicle (m)"
               placeholder="none"

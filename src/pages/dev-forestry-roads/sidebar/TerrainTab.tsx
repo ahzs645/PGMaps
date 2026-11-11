@@ -4,26 +4,18 @@ import { ChevronRight, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
-import { Field, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection } from '../SidebarParts'
 import { ConstraintsPanel } from '../ConstraintsPanel'
 import { ReferencePanel } from '../ReferencePanel'
 import { StreamsPanel } from '../StreamsPanel'
 import { TerrainProfilesPanel } from '../TerrainProfilesPanel'
-import type { PointCloudChoice, SidebarProps } from '../DesignSidebarBody'
-import { NumberField } from '../Controls'
+import { SURFACES, TerrainImportField } from '../SharedRoadFields'
+import type { SidebarProps } from '../DesignSidebarBody'
 import { TerrainPreparationPanel } from '../TerrainPreparationPanel'
 import { CutblockHistoryPanel } from '../CutblockHistoryPanel'
 import { AccessHistoryPanel } from '../AccessHistoryPanel'
 import { terrainDisplayName } from '../terrainName'
 import { pointCloudImportSummary } from '../terrain'
-
-const SURFACES: Record<PointCloudChoice['surface'], string> = { mean: 'Ground cell mean', tin: 'TIN with breaklines' }
-const CLASSIFY: Record<string, string> = {
-  auto: "Use the file's; classify if none",
-  true: 'Re-classify here',
-  false: "Use the file's only",
-}
 
 const LIDAR_LINKS = [
   ['/dev/forestry/road-restoration', 'Local LiDAR restoration metrics'],
@@ -209,14 +201,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           </>
         }
       >
-        <Field label="Imported DEM vertical datum (metres)">
-          <input
-            className={roadFieldClass}
-            value={p.verticalReference}
-            placeholder="e.g. CGVD2013 / EPSG:6647"
-            onChange={(e) => p.onVerticalReference(e.target.value)}
-          />
-        </Field>
+        <TerrainImportField field="importDatum" {...p} />
         <details className="group rounded-md border" data-testid="road-point-cloud-options">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
@@ -227,44 +212,8 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
             </span>
           </summary>
           <div className="space-y-2 border-t p-2">
-            <Field label="Point-cloud surface">
-              <RoadSelect
-                ariaLabel="Point-cloud surface"
-                className={roadFieldClass}
-                value={p.pointCloud.surface}
-                onValueChange={(value) =>
-                  p.onPointCloud({ ...p.pointCloud, surface: value as PointCloudChoice['surface'] })
-                }
-              >
-                {Object.entries(SURFACES).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </RoadSelect>
-            </Field>
-            <Field
-              label="Ground classification"
-              hint="Unclassified clouds are classified in the browser with WhiteboxTools' ground point filter."
-            >
-              <RoadSelect
-                ariaLabel="Ground classification"
-                className={roadFieldClass}
-                value={String(p.pointCloud.classify)}
-                onValueChange={(value) =>
-                  p.onPointCloud({
-                    ...p.pointCloud,
-                    classify: value === 'auto' ? 'auto' : value === 'true',
-                  })
-                }
-              >
-                {Object.entries(CLASSIFY).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </RoadSelect>
-            </Field>
+            <TerrainImportField field="cloudSurface" {...p} />
+            <TerrainImportField field="cloudClass" {...p} />
             {p.pointCloud.surface === 'tin' && (
               <div className="flex items-center gap-2">
                 <Button
@@ -287,24 +236,8 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
                 )}
               </div>
             )}
-            <NumberField
-              label="Preserve road corridor each side (m; 0 disables)"
-              hint="Points inside the active road corridor keep full density. Outside it, thinning respects the worker's point budget; a corridor larger than the budget fails."
-              value={p.pointCloud.preserveCorridorM ?? 0}
-              min={0}
-              max={1000}
-              onChange={(v) => p.onPointCloud({ ...p.pointCloud, preserveCorridorM: v })}
-            />
-            {p.pointCloud.surface === 'tin' && (
-              <label className="flex items-center gap-2 text-xs">
-                <input
-                  type="checkbox"
-                  checked={p.pointCloud.retainTin ?? false}
-                  onChange={(e) => p.onPointCloud({ ...p.pointCloud, retainTin: e.target.checked })}
-                />
-                Retain source TIN for LandXML (250,000 vertices)
-              </label>
-            )}
+            <TerrainImportField field="preserveCorridorM" {...p} />
+            {p.pointCloud.surface === 'tin' && <TerrainImportField field="retainTin" {...p} />}
           </div>
         </details>
       </RoadSection>

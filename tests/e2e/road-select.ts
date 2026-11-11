@@ -49,10 +49,16 @@ export async function optionLabels(select: Locator) {
 export async function optionDisabled(select: Locator, label: string) {
   await select.click()
   const page = select.page()
-  const option = page.getByRole('listbox').last().getByRole('option', { name: label, exact: true })
+  const list = page.getByRole('listbox').last()
+  const option = list.getByRole('option', { name: label, exact: true })
   const disabled =
     (await option.getAttribute('aria-disabled')) === 'true' || (await option.getAttribute('data-disabled')) !== null
+  // Searchable menus move focus into their filter after mounting. Wait for that
+  // handoff before sending Escape, or the keystroke can land on the trigger.
+  const filter = page.getByRole('combobox', { name: `Search ${await select.getAttribute('aria-label')}`, exact: true })
+  if (await filter.isVisible()) await expect(filter).toBeFocused()
   await page.keyboard.press('Escape')
+  await expect(list).toBeHidden()
   return disabled
 }
 

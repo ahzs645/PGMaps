@@ -5,6 +5,7 @@ import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-tabl
 import { StatGroup } from '@/components/ui/stat-group'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Field, NumberField, RoadSelect } from './Controls'
+import { DrainageSettingField } from './SharedRoadFields'
 import { DEFAULT_DRAINAGE_SETTINGS, type DrainageRun, type DrainageSettings } from './drainageRun'
 import { formatRoadStation } from './Charts'
 import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEvidence } from './drainageEvidence'
@@ -135,51 +136,16 @@ export function DrainagePanel({
           <div role="group" aria-label="Design storm" className={groupRow}>
             <span className={groupHeading}>Design storm</span>
             <div className={groupGrid}>
-              <NumberField
-                label="Rainfall (mm/h)"
-                value={settings.rainfallMmPerHr}
-                min={1}
-                max={500}
-                step={1}
-                onChange={(v) => set({ rainfallMmPerHr: v })}
-              />
-              <NumberField
-                label="Runoff C"
-                value={settings.runoffCoefficient}
-                min={0.05}
-                max={1}
-                step={0.05}
-                onChange={(v) => set({ runoffCoefficient: v })}
-              />
-              <NumberField
-                label="Pipe Manning n"
-                value={settings.manningN}
-                min={0.009}
-                max={0.05}
-                step={0.001}
-                onChange={(v) => set({ manningN: v })}
-              />
+              <DrainageSettingField field="rainfallMmPerHr" settings={settings} onSettings={onSettings} />
+              <DrainageSettingField field="runoffCoefficient" settings={settings} onSettings={onSettings} />
+              <DrainageSettingField field="manningN" settings={settings} onSettings={onSettings} />
             </div>
           </div>
           <div role="group" aria-label="Flow network" className={groupRow}>
             <span className={groupHeading}>Flow network</span>
             <div className={groupGrid}>
-              <NumberField
-                label="Stream from (ha)"
-                value={settings.streamThresholdHa}
-                min={0.05}
-                max={500}
-                step={0.1}
-                onChange={(v) => set({ streamThresholdHa: v })}
-              />
-              <NumberField
-                label="Upslope buffer (m)"
-                value={settings.bufferM}
-                min={20}
-                max={2000}
-                step={10}
-                onChange={(v) => set({ bufferM: v })}
-              />
+              <DrainageSettingField field="streamThresholdHa" settings={settings} onSettings={onSettings} />
+              <DrainageSettingField field="bufferM" settings={settings} onSettings={onSettings} />
             </div>
           </div>
           <div role="group" aria-label="Terrain" className={groupRow}>

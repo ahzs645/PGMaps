@@ -1,0 +1,107 @@
+import { expect, test, type Page } from '@playwright/test'
+
+async function open(page: Page, name = 'Ribbon') {
+  await page.goto('/dev/forestry/road-design?example=training')
+  await page.getByRole('button', { name: `Open ${name}`, exact: true }).click()
+  await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
+}
+
+test.beforeEach(async ({ page }) => {
+  await page.route('https://basemaps.cartocdn.com/**', (route) =>
+    route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
+  )
+})
+
+test('customize the left stack from a metric and the View tab, then recover hidden measurements', async ({ page }) => {
+  await page.setViewportSize({ width: 1303, height: 954 })
+  await open(page)
+  const rail = page.getByRole('complementary', { name: 'Road summary', exact: true })
+  const length = rail.locator('[data-metric="length"]')
+  const elevation = rail.locator('[data-metric="elevation"]')
+  const bounds = (await rail.boundingBox())!
+  const map = page.getByTestId('road-plan-view')
+  const canvas = map.locator('.maplibregl-canvas')
+  const originalCanvas = await canvas.elementHandle()
+  expect(bounds.x + bounds.width).toBeLessThan((await map.boundingBox())!.x)
+  expect((await elevation.boundingBox())!.y).toBeGreaterThan((await length.boundingBox())!.y)
+  const ribbon = page.getByRole('region', { name: 'Command ribbon' })
+  const view = ribbon.getByRole('tab', { name: 'View', exact: true })
+  await length.focus()
+  await length.press('Shift+F10')
+  const contextAction = page.getByRole('menuitem', { name: 'Road summary settings' })
+  await expect(contextAction).toBeFocused()
+  await contextAction.press('Escape')
+  await expect(length).toBeFocused()
+  await length.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Road summary settings' }).click()
+  const settings = page.getByRole('complementary', { name: 'Road summary settings' })
+  await expect(view).toHaveAttribute('aria-selected', 'true')
+  const lengthLevel = settings.getByRole('combobox', { name: 'Display for Length', exact: true })
+  await expect(lengthLevel).toBeFocused()
+  await lengthLevel.selectOption('detailed')
+  await expect(length).toContainText('calculation stations')
+  await settings.getByRole('combobox', { name: 'Display for Ground elevation' }).selectOption('hidden')
+  await expect(elevation).toHaveCount(0)
+  await settings.getByLabel('Position').selectOption('top')
+  expect((await length.boundingBox())!.y).toBeCloseTo((await rail.locator('[data-metric="grade"]').boundingBox())!.y, 0)
+  await settings.getByLabel('Show road summary').uncheck()
+  await expect(rail).toHaveCount(0)
+  await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
+  expect(await canvas.evaluate((node, old) => node === old, originalCanvas)).toBe(true)
+
+  await open(page)
+  await expect(rail).toHaveCount(0)
+  const switcher = page.getByRole('button', { name: 'Switch workspace interface' })
+  await switcher.click()
+  await page.getByRole('button', { name: 'Open Guided map', exact: true }).click()
+  await expect(elevation).toBeVisible()
+  await switcher.click()
+  await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+  await expect(rail).toHaveCount(0)
+  await view.click()
+  await ribbon.getByRole('button', { name: 'Road summary settings', exact: true }).click()
+  await expect(lengthLevel).toHaveValue('detailed')
+  await settings.getByLabel('Show road summary').check()
+  await expect(length).toContainText('calculation stations')
+  await expect(elevation).toHaveCount(0)
+  for (const level of await settings.getByRole('combobox', { name: /^Display for / }).all())
+    await level.selectOption('hidden')
+  await expect(rail).toHaveCount(0)
+  await settings.getByRole('button', { name: 'Restore defaults' }).click()
+  await expect(rail.locator('[data-metric]')).toHaveCount(6)
+  await expect(length).not.toContainText('calculation stations')
+  await expect(settings.getByLabel('Position')).toHaveValue('left')
+  await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
+  await rail.getByRole('button', { name: 'Show how the covered estimate is calculated' }).click()
+  await expect(page.getByRole('dialog', { name: 'Covered estimate' })).toBeVisible()
+})
+
+test('mobile settings restore the configured defaults and the stack expands over the plan', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.route('**/workspace-layouts.json', async (route) => {
+    const layouts = await (await route.fetch()).json()
+    layouts.find((layout: { id: string }) => layout.id === 'workbench').summary = {
+      placement: 'left',
+      visible: false,
+      metrics: { grade: 'detailed', cost: 'hidden' },
+    }
+    await route.fulfill({ json: layouts })
+  })
+  await open(page, 'Engineering workbench')
+  const rail = page.getByRole('complementary', { name: 'Road summary', exact: true })
+  await expect(rail).toHaveCount(0)
+  await page.getByRole('button', { name: 'Road summary settings', exact: true }).click()
+  const settings = page.getByRole('dialog', { name: 'Road summary settings' })
+  await settings.getByLabel('Show road summary').check()
+  await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
+  await expect(rail.locator('[data-metric="grade"]')).toContainText('Design grade limit')
+  await expect(rail.locator('[data-metric="cost"]')).toHaveCount(0)
+  await rail.getByRole('button', { name: 'Hide road summary' }).click()
+  await expect(rail.locator('[data-metric="grade"]')).toBeHidden()
+  await rail.getByRole('button', { name: 'Show road summary' }).click()
+  await rail.getByRole('button', { name: 'Configure road summary' }).click()
+  await settings.getByRole('button', { name: 'Restore defaults' }).click()
+  await settings.getByRole('button', { name: 'Close Road summary settings' }).click()
+  await expect(rail).toHaveCount(0)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+})

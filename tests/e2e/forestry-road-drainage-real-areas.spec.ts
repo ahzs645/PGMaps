@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { analyzeRoad, nearestStation } from '../../src/pages/dev-forestry-roads/engine'
@@ -198,7 +199,7 @@ for (const area of ['kamloops-desktop', 'vernon-mobile'])
         await page.route('https://basemaps.cartocdn.com/**', (route) =>
           route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
         )
-        await page.goto('/dev/forestry/road-design?example=training')
+        await openWorkbench(page, '/dev/forestry/road-design?example=training')
         await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
         const chooser = page.waitForEvent('filechooser')
         await page.getByRole('button', { name: 'Open', exact: true }).click()

@@ -1,0 +1,106 @@
+/* Use a common baseline for group captions, whether or not they open more settings. */
+.lp-command-group > .lp-group-label {
+  min-height: 22px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  line-height: 1.15;
+}
+.lp-settings-launcher {
+  position: relative;
+  width: 100%;
+  padding-inline: 14px;
+  border-radius: 3px;
+}
+.lp-settings-launcher svg {
+  position: absolute;
+  inset-inline-end: 1px;
+  color: #366d9e;
+}
+.dark .lp-settings-launcher svg {
+  color: #93c8f7;
+}
+.lp-command-group > .lp-settings-launcher[data-standalone] {
+  flex: 1;
+  flex-direction: column-reverse;
+  padding: 5px 8px;
+  gap: 5px;
+  color: hsl(var(--foreground));
+  font-size: 12px;
+  font-weight: 550;
+}
+.lp-settings-launcher[data-standalone] svg {
+  position: static;
+}
+.lp-settings-launcher:hover,
+.lp-settings-launcher[aria-expanded='true'] {
+  background: hsl(var(--accent));
+  color: hsl(var(--foreground));
+}
+.lp-settings-launcher:focus-visible {
+  outline: 2px solid #3478b9;
+  outline-offset: -2px;
+}
+.lp-group-settings-list {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 14px 15px;
+}
+.lp-group-setting {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+.lp-group-setting label > span {
+  overflow-wrap: anywhere;
+}
+.lp-group-settings-list .lp-command {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 8px;
+  text-align: start;
+  border: 1px solid hsl(var(--border));
+  border-radius: 4px;
+  font-size: 13px;
+}
+.lp-group-settings-list .lp-command:not(:disabled):hover {
+  background: hsl(var(--accent));
+}
+.lp-group-settings-list .lp-command svg {
+  flex: none;
+  color: #366d9e;
+}
+.dark .lp-group-settings-list .lp-command svg {
+  color: #93c8f7;
+}
+.lp-group-settings-list .lp-command:disabled {
+  opacity: 0.48;
+}
+.lp-group-settings-list :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid #3478b9;
+  outline-offset: -2px;
+}
+.lp-pane-editor,
+.lp-pane-editor .lp-workflow-editor {
+  min-width: 0;
+  height: auto;
+}
+.lp-pane-editor [data-testid='road-sidebar-content'] {
+  height: auto;
+  overflow: visible;
+}
+.lp-pane-editor [data-workflow-editor]:not([hidden]) {
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (pointer: coarse) {
+  .lp-command-group > .lp-group-label {
+    min-height: 24px;
+  }
+  .lp-group-settings-list .lp-command,
+  .lp-group-settings-list [role='combobox'] {
+    min-height: 36px;
+  }
+}

@@ -1,3 +1,4 @@
+import { openWorkbench, selectWorkbench } from './road-workbench'
 import { inflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
 import { choose } from './road-select'
@@ -12,7 +13,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -362,6 +363,7 @@ test('a preset always shows its own panels, whichever control picks it', async (
   await pick('Map only')
   await expect(detail).toBeHidden()
   await page.reload()
+  await selectWorkbench(page)
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect(page.locator('[data-pane="detail"]')).toBeHidden()
   expect(errors).toEqual([])

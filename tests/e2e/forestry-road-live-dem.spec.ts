@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
 import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine'
@@ -93,7 +94,7 @@ for (const [site, u, v] of [
       [100, 0],
     ].map((p) => frame.fromXY([p[0], p[1]]))
 
-    await page.goto('/dev/forestry/road-design')
+    await openWorkbench(page, '/dev/forestry/road-design')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     await page.getByRole('tab', { name: 'Terrain', exact: true }).click()
     await openRoadPanel(page, 'Import options')
@@ -190,7 +191,7 @@ for (const [site, u, v] of [
         }),
       )
       .toBe(active.id)
-    await page.goto('/dev/forestry/road-design')
+    await openWorkbench(page, '/dev/forestry/road-design')
     await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', active.id)
     expect(await save(page)).toEqual(optimized)
     // A fresh browser context has no autosave and no network access. Reopen the actual downloaded project.
@@ -204,7 +205,7 @@ for (const [site, u, v] of [
       await reopened.route('https://**', (route) =>
         new URL(route.request().url()).origin === appOrigin ? route.continue() : route.abort(),
       )
-      await reopened.goto(new URL('/dev/forestry/road-design?example=training', page.url()).href)
+      await openWorkbench(reopened, new URL('/dev/forestry/road-design?example=training', page.url()).href)
       await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled()
       const open = reopened.waitForEvent('filechooser')
       await reopened.getByRole('button', { name: 'Open', exact: true }).click()

@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { ROAD_SCENARIOS } from '../../src/pages/dev-forestry-roads/scenarios'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
@@ -50,7 +51,7 @@ for (const scenario of ROAD_SCENARIOS) {
     await page.route('https://basemaps.cartocdn.com/**', (route) =>
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
     )
-    await page.goto('/dev/forestry/road-design?example=training')
+    await openWorkbench(page, '/dev/forestry/road-design?example=training')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
     await page.getByRole('button', { name: 'Projects', exact: true }).tap()
     await page.getByRole('button', { name: /Browse \d+ example scenarios/ }).tap()

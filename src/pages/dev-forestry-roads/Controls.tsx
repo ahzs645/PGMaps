@@ -163,6 +163,7 @@ export function NumberField({
   ariaLabel,
   value,
   onChange,
+  updateOn,
   min = 0,
   max = 100000,
   step = 0.1,
@@ -179,6 +180,7 @@ export function NumberField({
   ariaLabel?: string
   value: number
   onChange: (value: number) => void
+  updateOn?: 'change' | 'commit'
   min?: number
   max?: number
   step?: number
@@ -205,6 +207,7 @@ export function NumberField({
       aria-label={ariaLabel}
       value={value}
       onValueChange={onChange}
+      updateOn={updateOn}
       onInput={note.onInput}
       min={min}
       max={max}
@@ -271,11 +274,13 @@ export function OptionalNumberField({
   label,
   value,
   onChange,
+  updateOn,
   min = -100000,
   max = 100000,
   step = 0.1,
   placeholder = 'off',
   hideLabel = false,
+  disabled = false,
   hint,
   error,
   description,
@@ -283,11 +288,13 @@ export function OptionalNumberField({
   label: string
   value: number | null
   onChange: (value: number | null) => void
+  updateOn?: 'change' | 'commit'
   min?: number
   max?: number
   step?: number
   placeholder?: string
   hideLabel?: boolean
+  disabled?: boolean
   hint?: ReactNode
   error?: ReactNode
   /** A standing line under the field, such as what a blank value means. */
@@ -299,6 +306,7 @@ export function OptionalNumberField({
       label={label}
       value={value}
       onValueChange={onChange}
+      updateOn={updateOn}
       onInput={note.onInput}
       error={error ?? note.outOfRange}
       description={note.adjusted ? <span role="status">{note.adjusted}</span> : description}
@@ -309,6 +317,7 @@ export function OptionalNumberField({
       stepMode="increment"
       placeholder={placeholder}
       hideLabel={hideLabel}
+      disabled={disabled}
       inputClassName={roadFieldClass}
       hintAction={hintAction(label, hint)}
     />

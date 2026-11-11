@@ -1,3 +1,14 @@
+import { ribbonFields } from './dev-forestry-roads/SharedRoadFields'
+import { createPortal } from 'react-dom'
+import { useWorkflowPlacement } from '@/components/interfaces/useWorkflowPlacement'
+import { RibbonPaneHost } from '@/components/interfaces/RibbonTaskPane'
+import { CustomizeRibbonPane } from '@/components/interfaces/CustomizeRibbonPane'
+import { useRibbonPreferences } from '@/components/interfaces/ribbonPreferences'
+import { InterfaceChooser } from '@/components/interfaces/InterfaceChooser'
+import { useWorkspaceLayout } from '@/components/interfaces/useWorkspaceLayout'
+import { layoutIcons, type WorkspaceLayout } from '@/components/interfaces/workspaceLayouts'
+import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
+import { type CommandState, WorkspaceTools } from '@/components/interfaces/WorkspaceTools'
 import { RoadSelect } from './dev-forestry-roads/Controls'
 import { AccessHistoryPanel } from './dev-forestry-roads/AccessHistoryPanel'
 import { loadBcAccessPilotScenario } from './dev-forestry-roads/bcAccessPilotScenario'
@@ -41,7 +52,16 @@ import {
   SessionRestoredNotice,
 } from './dev-forestry-roads/ProjectHeader'
 import { saveStateText } from './dev-forestry-roads/saveState'
-import { useCallback, useDeferredValue, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import {
   BarChart3,
   Download,
@@ -77,7 +97,12 @@ import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStream
 import { FullscreenButton, FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
+import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
+import { formatRoadNumber as number } from './dev-forestry-roads/roadFormat'
+import { roadSummaryMetrics } from './dev-forestry-roads/roadSummaryMetrics'
+import { useSummaryPreferences } from './dev-forestry-roads/summaryPreferences'
 import { ResizableSplit } from '@/components/ui/resizable-split'
+import { PanelCorner } from '@/components/ui/panel-corner'
 import { TabBar } from '@/components/ui/tab-bar'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import './dev-forestry-roads/workspace.css'
@@ -111,13 +136,14 @@ import {
   type SpatialFile,
 } from './dev-forestry-roads/spatialImport'
 import { referenceBounds, type ReferenceFeature } from './dev-forestry-roads/referenceFeatures'
-import type { PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
+import type { EngineeringInputTab, PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
 import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
+import { usePlanDisplay, type FitRequest } from './dev-forestry-roads/usePlanDisplay'
 import { TerrainPreview } from './dev-forestry-roads/TerrainPreview'
 import { PeggingEditor } from './dev-forestry-roads/PeggingEditor'
 import { EngineeringSummary } from './dev-forestry-roads/EngineeringSummary'
@@ -126,7 +152,7 @@ import { DesignSchedules, type SweptPathProps } from './dev-forestry-roads/Desig
 import { analyzeSweptPath } from './dev-forestry-roads/sweptPath'
 import { withJunctionOverlay } from './dev-forestry-roads/junctionTurn'
 import { projectProfileJunctions, withVerticalControl } from './dev-forestry-roads/profileJunctions'
-import { gradeRule, isGradeBreachFlag } from './dev-forestry-roads/designStandards'
+import { gradeRule } from './dev-forestry-roads/designStandards'
 import {
   applyJobStandardsToNewProject,
   startingJobStandards,
@@ -200,13 +226,13 @@ import { fitHorizontalRadii, profileKeptNotice } from './dev-forestry-roads/hori
 import type { AccessMark } from './dev-forestry-roads/AccessReviewPanel'
 import { loadNearestBcFsrs } from './dev-forestry-roads/fsrNetwork'
 import { refreshExistingRoadFeature } from './dev-forestry-roads/existingRoadEvidence'
-import { calculatedAlignment, hasCompleteCoverage, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
+import { calculatedAlignment, safeAnalyzeRoad } from './dev-forestry-roads/analysisResult'
 import { invalidInputNotice, invalidInputRefusal, refuseInvalidResults } from './dev-forestry-roads/inputErrors'
-import { incompleteReasonSummary, incompleteReasonText } from './dev-forestry-roads/sectionCompleteness'
+import { incompleteReasonSummary } from './dev-forestry-roads/sectionCompleteness'
 import { unpricedQuantities } from './dev-forestry-roads/costReadiness'
 import { useRoadWorkspace } from './dev-forestry-roads/useRoadWorkspace'
 import { landXml, roadShapefileLayers, stakeoutCsv } from './dev-forestry-roads/designExports'
-import { RoadPaneLayout, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
+import { RoadPaneLayout, roadPaneKey, useRoadPanels, type RoadPaneId } from './dev-forestry-roads/RoadPaneLayout'
 import { useBlockSheet } from './dev-forestry-roads/BlockSheetSetup'
 import { LayoutPicker, readSavedLayouts, resolveLayout, type SavedLayout } from './dev-forestry-roads/LayoutPicker'
 import type {
@@ -235,23 +261,6 @@ const SPATIAL_INTENTS: Record<Exclude<FileKind, 'project' | 'terrain' | 'breakli
   'mapped-roads': 'mapped-road',
   reference: 'reference',
 }
-const number = (v: number | null | undefined, decimals = 1) =>
-  v == null || !Number.isFinite(v) ? '—' : v.toLocaleString('en-CA', { maximumFractionDigits: decimals })
-const compactNumber = new Intl.NumberFormat('en-CA', { notation: 'compact', maximumFractionDigits: 1 })
-const summaryLabel = (full: string, mobile: string) => (
-  <span title={full}>
-    <span className="md:hidden">{mobile}</span>
-    <span className="hidden md:inline">{full}</span>
-  </span>
-)
-const summaryValue = (full: string, mobile: string) => (
-  <span title={full}>
-    <span className="md:hidden" aria-hidden="true">
-      {mobile}
-    </span>
-    <span className="sr-only md:not-sr-only">{full}</span>
-  </span>
-)
 // Violet is left out: it marks a mapped road (MAPPED_ROAD_COLOR).
 const colors = ['#d97706', '#2563eb', '#0891b2', '#16a34a', '#db2777']
 function fitContextFeature(map: MapLibreMap, feature: ContextFeature) {
@@ -314,26 +323,53 @@ const STARTING_JOB_STANDARDS = startingJobStandards(
   DEFAULT_TEMPLATE.leftWidth + DEFAULT_TEMPLATE.rightWidth,
 )
 
-export default function DevForestryRoads() {
+export default function DevForestryRoads({
+  initialInterface,
+  layouts,
+}: {
+  initialInterface: WorkspaceLayout
+  layouts: WorkspaceLayout[]
+}) {
+  const {
+    active,
+    selectLayout,
+    layoutSelection,
+    setLayoutSelection,
+    focusMode,
+    collapsed,
+    setCollapsed,
+    controlsOpen,
+    setControlsOpen,
+    focusPane,
+    setFocusPane,
+  } = useWorkspaceLayout(initialInterface)
+  const [choosingInterface, setChoosingInterface] = useState(false)
+  const [customizingRibbon, setCustomizingRibbon] = useState(false)
+  const [paneHost, setPaneHost] = useState<HTMLDivElement | null>(null)
+  const ribbonPreferences = useRibbonPreferences(active)
+  const InterfaceIcon = layoutIcons[active.icon]
   const w = useRoadWorkspace()
   const { project, analysis, alignment, source, update, updateAlignment, setStation, busy } = w
   const investigation = isAccessInvestigation(project)
   const blockSheet = useBlockSheet(project, source)
   const { ref, fullscreen, toggle } = useElementFullscreen<HTMLDivElement>()
-  const [collapsed, setCollapsed] = useState(false)
-  const focusMode = useMediaQuery('(max-width: 1279px), (max-height: 620px)')
   const compact = useMediaQuery('(max-width: 767px), (max-height: 760px)')
   const wideHeader = useMediaQuery('(min-width: 1024px)')
   const tinyHeight = useMediaQuery('(max-height: 480px)')
+  const shortRibbon = tinyHeight && active.toolbar?.dock === 'top' && active.toolbar.compact
+  const shortPanePicker =
+    shortRibbon || (tinyHeight && active.toolbar?.dock === 'side' && active.panelFrame?.resizeCorners)
+  const smallSummary = useMediaQuery('(max-width: 767px), (max-height: 480px)')
   const [summaryOpen, setSummaryOpen] = useState(false)
-  const [controlsOpen, setControlsOpen] = useState(false)
+  const [summaryTarget, setSummaryTarget] = useState<string | null>(null)
+  const summaryControls = useSummaryPreferences(active)
   const controlsShown = focusMode ? controlsOpen : !collapsed
-  const [focusPane, setFocusPane] = useState<RoadPaneId>('plan')
   const [mode, setMode] = useState<DrawMode>('inspect')
   const [draft, setDraft] = useState<Coordinate[]>([])
   const [hover, setHover] = useState<Coordinate | null>(null)
   const [selectedPoint, setSelectedPoint] = useState<string | null>(null)
   const [fitRevision, setFitRevision] = useState(0)
+  const planDisplay = usePlanDisplay()
   const [verticalReference, setVerticalReference] = useState('')
   const [pointCloud, setPointCloud] = useState<PointCloudChoice>({ classify: 'auto', surface: 'mean' })
   const [breaklines, setBreaklines] = useState<{ name: string; data: unknown } | null>(null)
@@ -386,16 +422,13 @@ export default function DevForestryRoads() {
     >
   >(() => new Map())
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(readSavedLayouts)
-  const [layoutSelection, setLayoutSelection] = useState<string>(() => {
-    try {
-      return localStorage.getItem('pgmaps-road-layout') ?? 'linked'
-    } catch {
-      return 'linked'
-    }
-  })
   const savedLayout = resolveLayout(layoutSelection, savedLayouts)
   const layout = investigation ? 'plan' : savedLayout.base
   const layoutStorageId = investigation ? 'access-investigation' : savedLayout.storageId
+  const panelFrame = active.panelFrame
+  const cornerKey = (id: string) => roadPaneKey(layoutStorageId, `corner:${active.id}:${id}`)
+  const panelCorner = (id: RoadPaneId | 'guide' | 'controls', label: string) =>
+    panelFrame?.resizeCorners && <PanelCorner storageKey={cornerKey(id)} label={label} />
   const [savedHiddenPanels, setHiddenPanels, restorePreset] = useRoadPanels(layoutStorageId, layout)
   const hiddenPanels = useMemo<RoadPaneId[]>(
     () => (investigation ? ['profile', 'detail', 'data'] : savedHiddenPanels),
@@ -650,17 +683,33 @@ export default function DevForestryRoads() {
   const deferredHover = useDeferredValue(hover)
   const [playing, setPlaying] = useState(false)
   const [costOpen, setCostOpen] = useState(false)
-  const [filesOpen, setFilesOpen] = useState(false)
+  const [exportOutput, setExportOutput] = useState<RoadExport | null>(null)
   const [projectsOpen, setProjectsOpen] = useState(false)
   const [completeCostOpen, setCompleteCostOpen] = useState(false)
   const [networkOpen, setNetworkOpen] = useState(false)
-  const [workflowTab, setWorkflowTab] = useState<SidebarTab>('design')
-  const inspectHistoryEvidence = useCallback((selection: Omit<AccessHistorySelection, 'revision'>) => {
-    setHistorySelection((previous) => ({ ...selection, revision: (previous?.revision ?? 0) + 1 }))
-    setWorkflowTab('terrain')
-    setCollapsed(false)
-    setControlsOpen(true)
-  }, [])
+  const {
+    groupName,
+    workflow: workflowTab,
+    inRibbon: inlineWorkflow,
+    selectGroup,
+    folded,
+    toggleFold,
+    minimized,
+    toggleMinimized,
+    minimizeForCanvas,
+    selectWorkflow: setWorkflowTab,
+    editorHost,
+    attachEditor,
+  } = useWorkflowPlacement(active, investigation)
+  const inspectHistoryEvidence = useCallback(
+    (selection: Omit<AccessHistorySelection, 'revision'>) => {
+      setHistorySelection((previous) => ({ ...selection, revision: (previous?.revision ?? 0) + 1 }))
+      setWorkflowTab('terrain')
+      setCollapsed(false)
+      setControlsOpen(true)
+    },
+    [setWorkflowTab, setCollapsed, setControlsOpen],
+  )
   useEffect(() => {
     if (!investigation) return
     setMode('inspect')
@@ -671,7 +720,7 @@ export default function DevForestryRoads() {
     setControlsOpen(true)
     setFocusPane('plan')
     setCostOpen(false)
-    setFilesOpen(false)
+    setExportOutput(null)
     setCompleteCostOpen(false)
     setNetworkOpen(false)
     setTemplatePreview(null)
@@ -685,7 +734,7 @@ export default function DevForestryRoads() {
     setSelectedCulvertId(undefined)
     setProfileRange(null)
     setFitRevision((revision) => revision + 1)
-  }, [investigation, w.projectId])
+  }, [investigation, w.projectId, setCollapsed, setControlsOpen, setFocusPane])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
   const openCompleteCosts = () => {
     if (!project.totalCostPlanning)
@@ -734,7 +783,7 @@ export default function DevForestryRoads() {
         }
       })
     },
-    [hiddenPanels, setHiddenPanels, focusMode],
+    [hiddenPanels, setHiddenPanels, focusMode, setFocusPane, setControlsOpen],
   )
   const locateRoad = useCallback(
     (road: ContextFeature) => {
@@ -809,13 +858,6 @@ export default function DevForestryRoads() {
   const fileRef = useRef<HTMLInputElement>(null)
   const fileKind = useRef<FileKind>('project')
   const operation = useRef<AbortController | null>(null)
-  useEffect(() => {
-    try {
-      localStorage.setItem('pgmaps-road-layout', layoutSelection)
-    } catch {
-      /* View preferences are optional. */
-    }
-  }, [layoutSelection])
   useDocumentTitle(`${w.project.name} · Forest road design · PGMaps`)
   useEffect(() => () => operation.current?.abort(), [])
 
@@ -974,8 +1016,6 @@ export default function DevForestryRoads() {
     [w.analyses, displayedAlignment, displayedAnalysis],
   )
   const incompleteReasons = useMemo(() => incompleteReasonSummary(displayedAnalysis.stations), [displayedAnalysis])
-  /** The results on screen leave an invalid input out; every surface that shows a figure says so. */
-  const staleResults = displayedAnalysis.stations.length > 0 && !!displayedAnalysis.invalidInput
   const unpricedCount = useMemo(
     () =>
       displayedAnalysis.stations.length
@@ -1171,8 +1211,6 @@ export default function DevForestryRoads() {
     if (cableId !== cableLine?.id || detail !== 'cable') selectCable(cableId)
     if (x !== null) setCableDistance(x)
   })
-  const groundValues = displayedAnalysis.stations.map((s) => s.groundElevation).filter((x): x is number => x !== null)
-  const grades = displayedAnalysis.stations.map((s) => s.gradePercent).filter((x): x is number => x !== null)
   const selectProfile = (id: string) => {
     const context = project.context.find((feature) => feature.id === id)
     if (context?.geometry.type === 'LineString' && context.geometry.coordinates.length > 2000) {
@@ -1235,6 +1273,14 @@ export default function DevForestryRoads() {
     setRoadReviewRequest((previous) => ({ id, sequence: (previous?.sequence ?? 0) + 1 }))
   }
   const [engineeringRequest, setEngineeringRequest] = useState(0)
+  const [engineeringInputsRequest, setEngineeringInputsRequest] = useState<{
+    tab: EngineeringInputTab
+    sequence: number
+  }>()
+  function showEngineeringInputs(tab: EngineeringInputTab) {
+    showControls('engineering')
+    setEngineeringInputsRequest((previous) => ({ tab, sequence: (previous?.sequence ?? 0) + 1 }))
+  }
   /** Opens the culvert inputs, at a station when a crossing asked for it. */
   const showCulverts = useCallback(
     (chainage?: number) => {
@@ -1242,7 +1288,7 @@ export default function DevForestryRoads() {
       setEngineeringRequest((n) => n + 1)
       if (chainage !== undefined) setStation(chainage)
     },
-    [setStation],
+    [setStation, setWorkflowTab],
   )
   const movePoint = useCallback(
     (id: string, coordinate: Coordinate) => {
@@ -2662,6 +2708,10 @@ export default function DevForestryRoads() {
     zb = previewCoordinate ? source.elevationAt(...previewCoordinate) : NaN
   const pegGrade = leg > 0 && Number.isFinite(za + zb) ? ((zb - za) / leg) * 100 : null
   const isDrawing = !['inspect', 'edit'].includes(mode)
+  const hasDraftPoint = isDrawing && draft.length > 0
+  const undo = hasDraftPoint ? () => setDraft((points) => points.slice(0, -1)) : w.undo
+  const canUndo = !busy && (hasDraftPoint || w.canUndo)
+  const canRedo = !busy && !hasDraftPoint && w.canRedo
   // ⌘Z / Ctrl+Z undo outside text fields; while drawing they take back the last point first.
   const [applePlatform] = useState(isApplePlatform)
   const shortcutKeys = historyShortcutLabels(applePlatform)
@@ -2670,9 +2720,9 @@ export default function DevForestryRoads() {
     mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
       ? (selectedPoint ?? null)
       : null
-  const historyKeys = useRef({ w, busy, isDrawing, draftPoints: draft.length, removablePoint })
+  const historyKeys = useRef({ w, busy, undo, canUndo, canRedo, removablePoint })
   useEffect(() => {
-    historyKeys.current = { w, busy, isDrawing, draftPoints: draft.length, removablePoint }
+    historyKeys.current = { w, busy, undo, canUndo, canRedo, removablePoint }
   })
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -2695,13 +2745,8 @@ export default function DevForestryRoads() {
       if (!action || keepsNativeUndo(event.target)) return
       event.preventDefault()
       const state = historyKeys.current
-      if (state.isDrawing && state.draftPoints > 0) {
-        if (action === 'undo') setDraft((points) => points.slice(0, -1))
-        return
-      }
-      if (state.busy) return
-      if (action === 'undo' && state.w.canUndo) state.w.undo()
-      if (action === 'redo' && state.w.canRedo) state.w.redo()
+      if (action === 'undo' && state.canUndo) state.undo()
+      if (action === 'redo' && state.canRedo) state.w.redo()
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -2816,227 +2861,585 @@ export default function DevForestryRoads() {
       />
     </DesignSchedules>
   )
-  return (
+  function showPane(pane: RoadPaneId) {
+    if (hiddenPanels.includes(pane)) setHiddenPanels(hiddenPanels.filter((id) => id !== pane))
+    setFocusPane(pane)
+    if (focusMode) setControlsOpen(false)
+    if (shortRibbon) minimizeForCanvas()
+  }
+
+  function showControls(tab: SidebarTab) {
+    setWorkflowTab(tab)
+    setCollapsed(false)
+    setControlsOpen(true)
+  }
+
+  function showDetailPane(next: typeof detail) {
+    setDetail(next)
+    showPane('detail')
+  }
+  function drawFromRibbon(next: DrawMode) {
+    beginMode(next)
+    showPane('plan')
+  }
+  function drawArea(kind: typeof polygonKind) {
+    setPolygonKind(kind)
+    drawFromRibbon('avoid')
+  }
+  function fitPlan(target: FitRequest['target']) {
+    showPane('plan')
+    planDisplay.fit(target)
+  }
+  function togglePlanOption(set: (update: (shown: boolean) => boolean) => void) {
+    showPane('plan')
+    set((shown) => !shown)
+  }
+  function openExport(kind: RoadExport) {
+    setExportDay(isoDate(new Date()))
+    setExportOutput(kind)
+  }
+  function openNewProject() {
+    w.dismissExampleStart()
+    setNewProjectRequest((n) => n + 1)
+    setProjectsOpen(true)
+  }
+  function duplicateRoad() {
+    if (isMappedRoad(alignment)) return copyMappedRoad()
+    const copy = structuredClone(alignment)
+    copy.id = uid()
+    copy.name = `${copy.name} copy`
+    copy.color = colors[project.alignments.length % colors.length]
+    copy.points = copy.points.map((point) => ({ ...point, id: uid() }))
+    copy.vertical = copy.vertical.map((point) => ({ ...point, id: uid() }))
+    copy.overrides = copy.overrides.map((override) => ({ ...override, id: uid() }))
+    if (commitValidated(withAddedAlignments(project, [copy]))) setActiveProfile(null)
+  }
+  const toolbar = investigation && active.toolbar?.header !== 'controls' ? undefined : ribbonPreferences.toolbar
+  const noRoad = awaitingFirstRoad(project)
+  const summaryAvailable = !investigation && !noRoad
+  const summaryTab = toolbar?.groups.find(
+    (group) =>
+      group.commands?.includes('summarySettings') ||
+      group.sections?.some(
+        (section) => section.items.includes('summarySettings') || section.more?.includes('summarySettings'),
+      ),
+  )
+  const summaryMetrics = summaryAvailable
+    ? roadSummaryMetrics({
+        analysis: displayedAnalysis,
+        alignment: displayedAlignment,
+        settings: project.settings,
+        groundOnly,
+        preview: costPreview,
+        record: completeCostRecord,
+        recordCurrent: completeCostCurrent,
+        unpriced: unpricedCount,
+        incomplete: incompleteReasons,
+        costOpen: costPreview || completeCostRecord ? completeCostOpen : costOpen,
+        onCost: costPreview || completeCostRecord ? openCompleteCosts : () => setCostOpen((open) => !open),
+        onIncomplete: (chainage) => {
+          setStation(chainage)
+          setDetail('section')
+        },
+      })
+    : []
+  function showSummarySettings(key = '') {
+    if (toolbar?.dock === 'top' && summaryTab && (summaryTab.label !== groupName || minimized)) {
+      selectGroup(summaryTab.label)
+    }
+    setSummaryTarget(key)
+  }
+  const commands: Record<WorkspaceCommand, () => void> = {
+    customizeRibbon: () => setCustomizingRibbon(true),
+    newProject: openNewProject,
+    saveProject: () => save('project'),
+    plotbook: () => openExport('plotbook'),
+    stakeout: () => openExport('stakeout'),
+    reportPdf: () => openExport('report-pdf'),
+    exportGis: () => openExport('geojson'),
+    fieldNotes: () => togglePlanOption(planDisplay.setNotesOpen),
+    importReference: () => requestFile('reference'),
+    drawBlock: () => drawArea('harvest'),
+    drawStream: () => drawFromRibbon('stream'),
+    drawAvoid: () => drawArea('avoid'),
+    drawProfile: () => drawFromRibbon('profile'),
+    importAlignment: () => requestFile('alignment'),
+    duplicateRoad,
+    traceRoad: () => drawFromRibbon('trace'),
+    inspect: () => drawFromRibbon('inspect'),
+    crossSection: () => showDetailPane('section'),
+    sectionCsv: saveSection,
+    templates: () => showEngineeringInputs('templates'),
+    materials: () => showEngineeringInputs('materials'),
+    massHaul: () => showDetailPane('mass'),
+    fullCosts: openCompleteCosts,
+    network: () => setNetworkOpen(true),
+    sweptPath: () => showDetailPane('swept'),
+    cable: () => drawFromRibbon('cable'),
+    landing: () => showDetailPane('landing'),
+    fitRoad: () => fitPlan('active'),
+    fitAll: () => fitPlan('roads'),
+    fitTerrain: () => fitPlan('terrain'),
+    contours: () => togglePlanOption(planDisplay.setShowContours),
+    stationLabels: () => togglePlanOption(planDisplay.setShowLabels),
+    earthworks: () => togglePlanOption(planDisplay.setShowEarthwork),
+    lidar: () => loadTerrain('lidar'),
+    regional: () => loadTerrain('regional'),
+    peg: () => drawFromRibbon('road'),
+    extend: () => drawFromRibbon('extend'),
+    editPoints: () => drawFromRibbon('edit'),
+    culverts: () => showCulverts(),
+    startDesign: () => {
+      w.update((current) => startInvestigationDesign(current))
+      setWorkflowTab('design')
+      setCollapsed(false)
+      setControlsOpen(true)
+      w.setNotice('Design started with no road. Peg or sketch the first road, or load a mapped road.')
+    },
+    loadMapped: loadMappedRoadsInView,
+    undo,
+    redo: w.redo,
+    controls: () => (focusMode ? setControlsOpen(!controlsOpen) : setCollapsed(!collapsed)),
+    summary: () => {
+      summaryControls.change({ visible: !summaryControls.preferences.visible })
+      setSummaryOpen(!summaryControls.preferences.visible)
+    },
+    summarySettings: () => showSummarySettings(),
+    fullscreen: toggle,
+    engineering: () => showControls('engineering'),
+    plan: () => showPane('plan'),
+    terrain3d: () => showDetailPane('terrain'),
+    stations: () => showDetailPane('table'),
+    quantities: () => showDetailPane('engineering'),
+    drainage: () => showDetailPane('drainage'),
+    projects: () => setProjectsOpen(true),
+    open: () => requestFile('project'),
+    export: () => (investigation ? save('project') : openExport('project')),
+    import: () => requestFile('terrain'),
+    terrain: () => showControls('terrain'),
+    alignment: () => showControls('design'),
+    section: () => showControls('template'),
+    review: () => showControls('review'),
+    profile: () => showPane('profile'),
+    compare: () => showDetailPane('compare'),
+    sketch: () => drawFromRibbon('sketch'),
+  }
+  const distributed = toolbar?.header === 'controls'
+  const editLocked = !!busy || !!costPreview
+  const roadLimitReached = roadCount(project) >= MAX_PROJECT_ROADS
+  const designResultsUnavailable = editLocked || noRoad || !!terrainProfile
+  const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
+    customizeRibbon: { hidden: !toolbar?.groups.some((group) => group.sections?.length), disabled: false },
+    newProject: { disabled: !!busy },
+    saveProject: { disabled: !!busy },
+    duplicateRoad: {
+      disabled: editLocked || noRoad || roadLimitReached,
+      label: isMappedRoad(alignment) ? 'Copy as design' : undefined,
+    },
+    importAlignment: { disabled: editLocked || roadLimitReached },
+    fitRoad: { disabled: noRoad },
+    fitTerrain: { disabled: !terrainBounds(project.terrain) },
+    fitAll: { label: investigation ? 'Fit study records' : undefined },
+    contours: { disabled: false, pressed: planDisplay.showContours },
+    fieldNotes: { pressed: planDisplay.notesOpen },
+    stationLabels: { disabled: false, pressed: planDisplay.showLabels },
+    earthworks: { hidden: !!terrainProfile, disabled: false, pressed: planDisplay.showEarthwork },
+    drawBlock: { pressed: mode === 'avoid' && polygonKind === 'harvest' },
+    drawAvoid: { pressed: mode === 'avoid' && polygonKind === 'avoid' },
+    drawStream: { pressed: mode === 'stream' },
+    drawProfile: { pressed: mode === 'profile' },
+    cable: { pressed: mode === 'cable' },
+    traceRoad: { pressed: mode === 'trace' },
+    inspect: { pressed: mode === 'inspect' },
+    sectionCsv: {
+      disabled: designResultsUnavailable || !at || !!(draftAlignment || numericPegAlignment || templatePreview),
+    },
+    templates: { disabled: editLocked || noRoad },
+    materials: { disabled: editLocked || noRoad },
+    culverts: { disabled: editLocked || noRoad },
+    massHaul: { disabled: designResultsUnavailable },
+    sweptPath: { disabled: designResultsUnavailable },
+    peg: { disabled: editLocked || roadLimitReached, pressed: mode === 'road' },
+    sketch: { disabled: editLocked, pressed: mode === 'sketch' },
+    extend: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'extend' },
+    editPoints: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'edit' },
+    undo: { disabled: !canUndo, label: hasDraftPoint ? 'Undo point' : undefined },
+    redo: { disabled: !canRedo },
+    projects: { disabled: !!busy },
+    open: { disabled: !!busy },
+    export: { disabled: !!busy, label: investigation ? 'Save project' : undefined },
+    startDesign: { hidden: !investigation },
+    loadMapped: { hidden: !investigation && !project.context.some(isLoadableMappedRoad) },
+    controls: {
+      disabled: false,
+      hidden: inlineWorkflow,
+      pressed: controlsShown,
+      label: investigation ? 'Access evidence' : 'Road controls',
+    },
+    summary: { disabled: !summaryAvailable, pressed: summaryControls.preferences.visible },
+    summarySettings: { disabled: !summaryAvailable },
+    fullscreen: { disabled: false, pressed: fullscreen, label: fullscreen ? 'Exit full screen' : 'Full screen' },
+    drainage: { disabled: designResultsUnavailable },
+    quantities: { disabled: designResultsUnavailable },
+  }
+  if (investigation) {
+    const evidenceTools: WorkspaceCommand[] = [
+      'newProject',
+      'projects',
+      'open',
+      'export',
+      'undo',
+      'redo',
+      'startDesign',
+      'loadMapped',
+      'plan',
+      'fitAll',
+      'fitTerrain',
+      'contours',
+      'controls',
+      'fullscreen',
+      'fieldNotes',
+      'customizeRibbon',
+    ]
+    for (const id of Object.keys(commands) as WorkspaceCommand[]) {
+      if (!evidenceTools.includes(id)) commandStates[id] = { hidden: true }
+    }
+  }
+  const saveMark = (trainingSave || saveNotice) && (
+    <span
+      role="img"
+      aria-label={saveState.detail}
+      title={saveState.detail}
+      data-testid="road-save-mark"
+      className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
+    />
+  )
+  const interfaceSwitcher = (
+    <button
+      type="button"
+      className="lp-interface-switch"
+      aria-label="Switch workspace interface"
+      title={`Switch workspace · ${active.name}`}
+      onClick={() => setChoosingInterface(true)}
+    >
+      <InterfaceIcon size={16} aria-hidden="true" />
+      <span>{active.shortName ?? active.name}</span>
+    </button>
+  )
+  const projectNameControl = (
+    <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
+  )
+  const projectStatus = (
+    <HeaderStatus notice={w.notice} idle={w.ready && <SaveStateLine browser={w.browserSave} file={w.fileSave} />} />
+  )
+  const roadSwitcher = (
+    <RoadSwitcher
+      // It grows from a small basis to its full width, so the title keeps its floor beside it.
+      className={distributed ? 'w-44' : 'order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]'}
+      alignments={project.alignments}
+      analyses={w.analyses}
+      activeId={project.activeAlignmentId}
+      disabled={!!w.busy}
+      onSelect={selectAlignment}
+      onCompare={distributed ? undefined : commands.compare}
+    />
+  )
+  const presetPicker = (
+    <LayoutPicker
+      compact={!distributed && (compact || focusMode)}
+      showButtonLabel={distributed}
+      hiddenPanels={hiddenPanels}
+      onHiddenPanels={setHiddenPanels}
+      selection={layoutSelection}
+      onSelect={(value, saved = savedLayouts) => {
+        const next = resolveLayout(value, saved)
+        setLayoutSelection(value)
+        if (!value.startsWith('saved:')) restorePreset(next.base)
+        if (next.base !== 'linked') setDetail('section')
+      }}
+      saved={savedLayouts}
+      onSaved={setSavedLayouts}
+      portalContainer={ref.current}
+    />
+  )
+  const summarySettingsButton = summaryAvailable && (
+    <Button
+      variant="outline"
+      size="icon"
+      className="size-8"
+      aria-label="Road summary settings"
+      title="Road summary settings"
+      onClick={commands.summarySettings}
+    >
+      <BarChart3 className="size-4" />
+    </Button>
+  )
+  const undoHistory = (
+    <UndoHistoryButton
+      rows={w.historyRows}
+      onGo={w.goToHistory}
+      checkpoints={w.checkpoints}
+      onSaveCheckpoint={w.saveCheckpoint}
+      onRestoreCheckpoint={w.restoreCheckpoint}
+      onDeleteCheckpoint={w.deleteCheckpoint}
+      disabled={!!busy}
+    />
+  )
+  const projectHeader = (
+    <header className="flex shrink-0 flex-wrap items-center justify-between gap-2" data-testid="road-workspace-header">
+      <h1 className="text-sm font-semibold md:hidden">
+        {investigation ? 'Forest access investigation' : 'Forest road design'}
+      </h1>
+      <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
+        <ForestryBackLink />
+        <div className="road-workspace-title min-w-0">
+          {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
+          <div className="flex min-w-0 items-center gap-1">
+            <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">
+              {investigation ? 'Forest access investigation' : 'Forest road design'}
+            </h1>
+            {projectNameControl}
+          </div>
+          {projectStatus}
+        </div>
+        {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
+        {project.terrain.kind !== 'geotiff' && (
+          <span
+            title={planningBasis}
+            data-testid="road-planning-basis"
+            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
+          >
+            {/* One wording at a time, so the badge's text is what it shows: the short one on a
+                header narrower than a wide desktop. */}
+            {compact || !wideHeader
+              ? project.terrain.kind === 'demo'
+                ? 'SYNTHETIC'
+                : `${Math.round(project.terrain.resolutionM)} m terrain`
+              : project.terrain.kind === 'demo'
+                ? 'SYNTHETIC TRAINING'
+                : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
+          </span>
+        )}
+      </div>
+      {!investigation && !awaitingFirstRoad(project) && roadSwitcher}
+      <div className="flex flex-wrap items-center gap-1">
+        {interfaceSwitcher}
+        {investigation && (
+          <Button size="sm" variant="outline" disabled={!!busy} onClick={commands.startDesign}>
+            Start design
+          </Button>
+        )}
+        {undoHistory}
+        {investigation && (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={!!busy}
+            title="Load every mapped road in the plan's view as its own road, to read and compare their profiles"
+            onClick={loadMappedRoadsInView}
+          >
+            Load roads in view
+          </Button>
+        )}
+        {summarySettingsButton}
+        {!investigation && presetPicker}
+        {/* A routine autosave shows nothing here: only a session that will not be kept, or a failed save. */}
+        {saveMark}
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-8"
+          aria-label={
+            controlsShown
+              ? investigation
+                ? 'Hide access evidence'
+                : 'Hide road controls'
+              : investigation
+                ? 'Show access evidence'
+                : 'Show road controls'
+          }
+          aria-expanded={controlsShown}
+          onClick={commands.controls}
+        >
+          {controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-8"
+          aria-label="Undo road edit"
+          title={`Undo (${shortcutKeys.undo})`}
+          aria-keyshortcuts={shortcutKeys.undoAria}
+          disabled={!canUndo}
+          onClick={commands.undo}
+        >
+          <Undo2 className="size-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="size-8"
+          aria-label="Redo road edit"
+          title={`Redo (${shortcutKeys.redo})`}
+          aria-keyshortcuts={shortcutKeys.redoAria}
+          disabled={!canRedo}
+          onClick={commands.redo}
+        >
+          <Redo2 className="size-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
+          aria-label="Projects"
+          title={`Projects · ${project.name}`}
+          disabled={!!w.busy}
+          onClick={commands.projects}
+        >
+          <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
+          <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="size-8 px-0 lg:w-auto lg:px-3"
+          title="Open project"
+          disabled={!!w.busy}
+          onClick={commands.open}
+        >
+          <FolderOpen className="size-4 lg:mr-1 lg:size-3" />
+          <span className="sr-only lg:not-sr-only">Open</span>
+        </Button>
+        <Button
+          size="sm"
+          className="size-8 px-0 lg:w-auto lg:px-3"
+          title="Save & export"
+          disabled={!!w.busy}
+          onClick={commands.export}
+        >
+          <Download className="size-4 lg:mr-1 lg:size-3" />
+          <span className="sr-only lg:not-sr-only">Save</span>
+        </Button>
+        <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
+      </div>
+    </header>
+  )
+  const workspaceTools = toolbar && (
+    <>
+      <WorkspaceTools
+        key={active.id}
+        toolbar={toolbar}
+        groupName={groupName}
+        folded={folded}
+        onToggleFold={toggleFold}
+        minimized={minimized}
+        onToggleMinimized={toggleMinimized}
+        onGroupChange={selectGroup}
+        editorsAvailable={!investigation}
+        editorMount={inlineWorkflow ? attachEditor : undefined}
+        disabled={editLocked}
+        states={commandStates}
+        switcher={
+          distributed && (
+            <>
+              <ForestryBackLink />
+              {undoHistory}
+              {!summaryTab && summarySettingsButton}
+              {saveMark}
+              {interfaceSwitcher}
+            </>
+          )
+        }
+        widgets={{
+          ...ribbonFields(
+            w,
+            { verticalReference, onVerticalReference: setVerticalReference, pointCloud, onPointCloud: setPointCloud },
+            !noRoad,
+            investigation,
+            !terrainProfile && !noRoad ? { settings: drainageSettings, onSettings: changeDrainageSettings } : undefined,
+          ),
+          projectInfo: (
+            <div className="lp-project-field">
+              <h1>{investigation ? 'Forest access investigation' : 'Forest road design'}</h1>
+              {projectNameControl}
+              {projectStatus}
+            </div>
+          ),
+          roadSelector: investigation ? null : project.alignments.length >= 2 ? (
+            roadSwitcher
+          ) : (
+            <span>{awaitingFirstRoad(project) ? 'No road selected' : alignment.name}</span>
+          ),
+          presets: investigation ? null : presetPicker,
+          terrainSource: (
+            <div className="lp-source-field" title={planningBasis}>
+              <strong>{project.terrain.name}</strong>
+              <span>
+                {project.terrain.kind === 'demo'
+                  ? 'Synthetic training surface'
+                  : `${project.terrain.resolutionM} m resolution`}
+              </span>
+            </div>
+          ),
+        }}
+        onCommand={(id) => commands[id]()}
+      >
+        {toolbar.includeProjectHeader && projectHeader}
+      </WorkspaceTools>
+      {customizingRibbon && ribbonPreferences.defaults && (
+        <CustomizeRibbonPane
+          toolbar={toolbar}
+          defaults={ribbonPreferences.defaults}
+          currentTab={groupName}
+          onClose={() => setCustomizingRibbon(false)}
+          onApply={(draft) => {
+            const saved = ribbonPreferences.save(draft)
+            setCustomizingRibbon(false)
+            if (saved === false) w.setNotice('Ribbon updated for this session. Browser storage is unavailable.')
+          }}
+        />
+      )}
+    </>
+  )
+
+  const workspace = (
     <div
+      data-interface={active.id}
+      data-panel-background={panelFrame?.background}
+      data-panel-inset={panelFrame?.inset !== undefined || undefined}
+      style={
+        {
+          '--workspace-panel-gray': panelFrame?.grayPercent !== undefined ? `${panelFrame.grayPercent}%` : undefined,
+          '--workspace-panel-inset': panelFrame?.inset !== undefined ? `${panelFrame.inset}px` : undefined,
+          '--workspace-panel-gap': panelFrame?.gap !== undefined ? `${panelFrame.gap}px` : undefined,
+        } as CSSProperties
+      }
+      data-tool-dock={toolbar?.dock}
       ref={ref}
       data-fullscreen={fullscreen || undefined}
-      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 px-3 pb-3 pt-20 md:pt-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
+      className="road-workspace relative flex h-full min-h-0 flex-col gap-2 overflow-hidden bg-muted/20 py-3 [&[data-fullscreen]]:fixed [&[data-fullscreen]]:inset-0 [&[data-fullscreen]]:z-menu [&[data-fullscreen]]:h-dvh [&[data-fullscreen]]:bg-background [&[data-fullscreen]]:pt-3"
       data-testid="road-workspace"
       data-workspace-mode={investigation ? 'access-investigation' : 'design'}
       data-compact={compact || undefined}
       data-focus-mode={focusMode || undefined}
       data-tiny-height={tinyHeight || undefined}
-      data-summary-open={summaryOpen || undefined}
     >
-      <header
-        className="flex shrink-0 flex-wrap items-center justify-between gap-2"
-        data-testid="road-workspace-header"
-      >
-        <div className="road-workspace-heading hidden min-w-0 flex-1 items-center gap-2 md:flex">
-          <ForestryBackLink />
-          <div className="road-workspace-title min-w-0">
-            {/* The project's name shares the heading's line: a row of its own would fold the charts' legends. */}
-            <div className="flex min-w-0 items-center gap-1">
-              <h1 className="min-w-0 truncate text-lg font-semibold tracking-tight">
-                {investigation ? 'Forest access investigation' : 'Forest road design'}
-              </h1>
-              <ProjectName name={project.name} disabled={!!busy} onRename={(name) => update((p) => ({ ...p, name }))} />
-            </div>
-            <HeaderStatus
-              notice={w.notice}
-              idle={w.ready && <SaveStateLine browser={w.browserSave} file={w.fileSave} />}
-            />
-          </div>
-          {/* Only a warning earns header space: imported LiDAR or DEM terrain is listed in the Terrain tab. */}
-          {project.terrain.kind !== 'geotiff' && (
-            <span
-              title={planningBasis}
-              data-testid="road-planning-basis"
-              className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
-            >
-              {/* One wording at a time, so the badge's text is what it shows: the short one on a
-                  header narrower than a wide desktop. */}
-              {compact || !wideHeader
-                ? project.terrain.kind === 'demo'
-                  ? 'SYNTHETIC'
-                  : `${Math.round(project.terrain.resolutionM)} m terrain`
-                : project.terrain.kind === 'demo'
-                  ? 'SYNTHETIC TRAINING'
-                  : `Coarse terrain · ${Math.round(project.terrain.resolutionM)} m`}
-            </span>
-          )}
-        </div>
-        {!investigation && !awaitingFirstRoad(project) && (
-          <RoadSwitcher
-            // It grows from a small basis to its full width, so the title keeps its floor beside it.
-            className="order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]"
-            alignments={project.alignments}
-            analyses={w.analyses}
-            activeId={project.activeAlignmentId}
-            disabled={!!w.busy}
-            onSelect={selectAlignment}
-            onCompare={() => setDetail('compare')}
-          />
-        )}
-        <div className="flex flex-wrap items-center gap-1">
-          {investigation && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!busy}
-              onClick={() => {
-                w.update((current) => startInvestigationDesign(current))
-                setWorkflowTab('design')
-                setCollapsed(false)
-                setControlsOpen(true)
-                w.setNotice('Design started with no road. Peg or sketch the first road, or load a mapped road.')
-              }}
-            >
-              Start design
-            </Button>
-          )}
-          {investigation && (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!!busy}
-              title="Load every mapped road in the plan's view as its own road, to read and compare their profiles"
-              onClick={loadMappedRoadsInView}
-            >
-              Load roads in view
-            </Button>
-          )}
-          {tinyHeight && !investigation && (
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              aria-label={summaryOpen ? 'Hide road summary' : 'Show road summary'}
-              aria-expanded={summaryOpen}
-              title="Road summary and cost estimate"
-              onClick={() => setSummaryOpen(!summaryOpen)}
-            >
-              <BarChart3 className="size-4" />
-            </Button>
-          )}
-          {!investigation && (
-            <LayoutPicker
-              compact={compact || focusMode}
-              hiddenPanels={hiddenPanels}
-              onHiddenPanels={setHiddenPanels}
-              selection={layoutSelection}
-              onSelect={(value, saved = savedLayouts) => {
-                const next = resolveLayout(value, saved)
-                setLayoutSelection(value)
-                if (!value.startsWith('saved:')) restorePreset(next.base)
-                if (next.base !== 'linked') setDetail('section')
-              }}
-              saved={savedLayouts}
-              onSaved={setSavedLayouts}
-              portalContainer={ref.current}
-            />
-          )}
-          {/* A routine autosave shows nothing here: only a session that will not be kept, or a failed save. */}
-          {(trainingSave || saveNotice) && (
-            <span
-              role="img"
-              aria-label={saveState.detail}
-              title={saveState.detail}
-              data-testid="road-save-mark"
-              className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
-            />
-          )}
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label={
-              controlsShown
-                ? investigation
-                  ? 'Hide access evidence'
-                  : 'Hide road controls'
-                : investigation
-                  ? 'Show access evidence'
-                  : 'Show road controls'
-            }
-            aria-expanded={controlsShown}
-            onClick={() => (focusMode ? setControlsOpen(!controlsOpen) : setCollapsed(!collapsed))}
-          >
-            {controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Undo road edit"
-            title={`Undo (${shortcutKeys.undo})`}
-            aria-keyshortcuts={shortcutKeys.undoAria}
-            disabled={!!busy || !w.canUndo}
-            onClick={w.undo}
-          >
-            <Undo2 className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Redo road edit"
-            title={`Redo (${shortcutKeys.redo})`}
-            aria-keyshortcuts={shortcutKeys.redoAria}
-            disabled={!!busy || !w.canRedo}
-            onClick={w.redo}
-          >
-            <Redo2 className="size-4" />
-          </Button>
-          <UndoHistoryButton
-            rows={w.historyRows}
-            onGo={w.goToHistory}
-            checkpoints={w.checkpoints}
-            onSaveCheckpoint={w.saveCheckpoint}
-            onRestoreCheckpoint={w.restoreCheckpoint}
-            onDeleteCheckpoint={w.deleteCheckpoint}
-            disabled={!!busy}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            className="size-8 px-0 2xl:w-auto 2xl:max-w-[14rem] 2xl:px-3"
-            aria-label="Projects"
-            title={`Projects · ${project.name}`}
-            disabled={!!w.busy}
-            onClick={() => setProjectsOpen(true)}
-          >
-            <LibraryBig className="size-4 2xl:mr-1 2xl:size-3" />
-            <span className="hidden truncate 2xl:inline">{project.name || 'Projects'}</span>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="size-8 px-0 lg:w-auto lg:px-3"
-            title="Open project"
-            disabled={!!w.busy}
-            onClick={() => requestFile('project')}
-          >
-            <FolderOpen className="size-4 lg:mr-1 lg:size-3" />
-            <span className="sr-only lg:not-sr-only">Open</span>
-          </Button>
-          <Button
-            size="sm"
-            className="size-8 px-0 lg:w-auto lg:px-3"
-            title="Save & export"
-            disabled={!!w.busy}
-            onClick={() => {
-              if (investigation) return save('project')
-              setExportDay(isoDate(new Date()))
-              setFilesOpen(true)
-            }}
-          >
-            <Download className="size-4 lg:mr-1 lg:size-3" />
-            <span className="sr-only lg:not-sr-only">Save</span>
-          </Button>
-          <FullscreenButton title="Road workspace" fullscreen={fullscreen} onClick={toggle} compact />
-        </div>
-      </header>
+      {!distributed && !toolbar?.includeProjectHeader && projectHeader}
+      {toolbar?.dock === 'top' && workspaceTools}
+      {choosingInterface && (
+        <InterfaceChooser
+          layouts={layouts}
+          current={active}
+          onCancel={() => setChoosingInterface(false)}
+          onChoose={(next) => {
+            setChoosingInterface(false)
+            setCustomizingRibbon(false)
+            setSummaryTarget(null)
+            setSummaryOpen(false)
+            selectLayout(next, investigation)
+          }}
+        />
+      )}
       <ProjectsDialog
         open={projectsOpen}
         onOpenChange={setProjectsOpen}
@@ -3059,7 +3462,7 @@ export default function DevForestryRoads() {
             .removeProject(id)
             .catch((cause) => w.setError(cause instanceof Error ? cause.message : 'Could not delete the project.'))
         }
-        onOpenFile={() => requestFile('project')}
+        onOpenFile={commands.open}
         onCreate={createProject}
         onScenario={openScenario}
         onOpenBcOpening={openBcOpening}
@@ -3140,8 +3543,11 @@ export default function DevForestryRoads() {
         onReviewRoads={openRoadReview}
       />
       <FilesDialog
-        open={!investigation && filesOpen}
-        onOpenChange={setFilesOpen}
+        open={!investigation && exportOutput !== null}
+        initialOutput={exportOutput ?? 'project'}
+        onOpenChange={(open) => {
+          if (!open) setExportOutput(null)
+        }}
         name={project.name}
         onName={(name) => update((p) => ({ ...p, name }))}
         onFile={requestFile}
@@ -3275,11 +3681,7 @@ export default function DevForestryRoads() {
       <ExampleStartNotice
         show={w.exampleStart && !busy}
         onDismiss={w.dismissExampleStart}
-        onNewProject={() => {
-          w.dismissExampleStart()
-          setNewProjectRequest((n) => n + 1)
-          setProjectsOpen(true)
-        }}
+        onNewProject={openNewProject}
         onOpenFile={() => {
           w.dismissExampleStart()
           requestFile('project')
@@ -3314,7 +3716,7 @@ export default function DevForestryRoads() {
             : []),
         ]}
       />
-      {investigation ? (
+      {investigation && (
         <StatGroup
           variant="tiles"
           size="sm"
@@ -3334,847 +3736,1036 @@ export default function DevForestryRoads() {
             { key: 'routes', label: 'Saved access assertions', value: project.accessHistory?.paths.length ?? 0 },
           ]}
         />
-      ) : awaitingFirstRoad(project) ? null : (
-        <StatGroup
-          variant="tiles"
-          size="sm"
-          className="road-summary shrink-0"
-          items={[
-            { key: 'length', label: 'Length', value: `${number(displayedAnalysis.length, 0)} m` },
-            {
-              key: 'elevation',
-              label: summaryLabel('Ground elevation', 'Elevation (m)'),
-              value: groundValues.length
-                ? summaryValue(
-                    `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)} m`,
-                    `${number(Math.min(...groundValues), 0)}–${number(Math.max(...groundValues), 0)}`,
-                  )
-                : 'Missing',
-            },
-            {
-              key: 'grade',
-              label: summaryLabel(
-                groundOnly ? 'Max ground grade' : 'Max design grade',
-                groundOnly ? 'Ground grade' : 'Max grade',
-              ),
-              value: grades.length ? `${number(displayedAnalysis.maxGradePercent)}%` : 'Missing',
-              // A designed road warns where the grade standard is broken, so a permitted short pitch does not.
-              tone: (
-                groundOnly
-                  ? displayedAnalysis.maxGradePercent > project.settings.maxGradePercent
-                  : displayedAnalysis.stations.some((s) => s.flags.some(isGradeBreachFlag))
-              )
-                ? 'warning'
-                : 'default',
-            },
-            ...(groundOnly
-              ? [
-                  {
-                    key: 'grade-range',
-                    label: 'Grade range',
-                    value: grades.length
-                      ? `${number(Math.min(...grades))} to ${number(Math.max(...grades))}%`
-                      : 'Missing',
-                  },
-                ]
-              : [
-                  {
-                    key: 'earthworks',
-                    // While an input is invalid the figures leave it out, and each tile says so.
-                    tone: staleResults ? ('warning' as const) : ('default' as const),
-                    label: staleResults
-                      ? summaryLabel('Cut / fill · invalid input left out', 'C/F · input left out')
-                      : summaryLabel(
-                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Covered cut / fill' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve-corrected' : ''}`,
-                          `${!hasCompleteCoverage(displayedAnalysis) ? 'Partial C/F' : 'Cut / fill'}${displayedAnalysis.curvatureCorrection?.applied ? ' · curve' : ''} (m³)`,
-                        ),
-                    value: displayedAnalysis.stations.length
-                      ? summaryValue(
-                          `${number(displayedAnalysis.cutVolumeM3, 0)} / ${number(displayedAnalysis.fillVolumeM3, 0)} m³`,
-                          `${compactNumber.format(Math.round(displayedAnalysis.cutVolumeM3))}/${compactNumber.format(Math.round(displayedAnalysis.fillVolumeM3))}`,
-                        )
-                      : 'Unavailable',
-                  },
-                  {
-                    key: 'cost',
-                    tone:
-                      staleResults && !costPreview && !completeCostRecord ? ('warning' as const) : ('default' as const),
-                    label: costPreview
-                      ? 'Candidate complete cost'
-                      : completeCostRecord
-                        ? 'Complete access cost'
-                        : staleResults
-                          ? summaryLabel('Estimate · invalid input left out', 'Est. · input left out')
-                          : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible' ||
-                              displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
-                            ? 'Incomplete estimate'
-                            : unpricedCount
-                              ? // Work with no rate adds nothing, so the figure must not read as a finished price.
-                                summaryLabel(`Estimate · ${unpricedCount} unpriced`, `Est. · ${unpricedCount} unpriced`)
-                              : summaryLabel(
-                                  'Base engineering estimate',
-                                  hasCompleteCoverage(displayedAnalysis) ? 'Est. cost' : 'Partial est.',
-                                ),
-                    value: costPreview
-                      ? costPreview.totalCost === null
-                        ? costPreview.status === 'infeasible'
-                          ? 'Not feasible'
-                          : 'Unpriced'
-                        : `$${number(costPreview.totalCost, 0)}`
-                      : completeCostRecord
-                        ? completeCostCurrent
-                          ? `$${number(completeCostRecord.totalCost, 0)}`
-                          : 'Recalculate'
-                        : displayedAnalysis.engineering?.haul.optimizationStatus === 'infeasible'
-                          ? 'Material plan infeasible'
-                          : displayedAnalysis.engineering?.haul.optimizationStatus === 'unsolved'
-                            ? 'Material plan not solved'
-                            : displayedAnalysis.stations.length
-                              ? summaryValue(
-                                  `$${number(displayedAnalysis.estimatedCost, 0)}`,
-                                  `$${compactNumber.format(Math.round(displayedAnalysis.estimatedCost))}`,
-                                )
-                              : 'Unavailable',
-                    // Opens the calculation: quantities × editable rates.
-                    onToggle:
-                      costPreview || completeCostRecord
-                        ? openCompleteCosts
-                        : displayedAnalysis.stations.length
-                          ? () => setCostOpen((open) => !open)
-                          : undefined,
-                    pressed: costPreview || completeCostRecord ? completeCostOpen : costOpen,
-                    toggleLabel:
-                      costPreview || completeCostRecord
-                        ? 'Review complete route costs'
-                        : 'Show how the covered estimate is calculated',
-                  },
-                  {
-                    key: 'coverage',
-                    label: summaryLabel('Complete sections', 'Coverage'),
-                    value: `${number(displayedAnalysis.coveragePercent)}%`,
-                    tone: !hasCompleteCoverage(displayedAnalysis) ? ('warning' as const) : ('default' as const),
-                    // Below 100 %, the tile opens the first incomplete section, where its reason is stated.
-                    ...(incompleteReasons.length
-                      ? {
-                          onToggle: () => {
-                            setStation(incompleteReasons[0].firstChainage)
-                            setDetail('section')
-                          },
-                          pressed: false,
-                          toggleLabel: `Show the first incomplete section. ${incompleteReasonText(incompleteReasons)}`,
-                        }
-                      : {}),
-                  },
-                ]),
-          ]}
-        />
       )}
-      <ResizableSplit
-        direction="row"
-        splitQuery="(min-width: 0px)"
-        storageKey={investigation ? 'pgmaps-access-investigation:sidebar' : 'pgmaps-road-panes:sidebar'}
-        className={`relative min-h-0 flex-1 ${focusMode ? 'road-focus-split' : ''}`}
-        panes={[
-          {
-            id: 'sidebar',
-            hidden: !controlsShown,
-            label: investigation ? 'access evidence' : 'road controls',
-            size: investigation ? 0.34 : 0.22,
-            min: investigation ? 340 : 240,
-            max: 560,
-            stackedHeight: 'auto' as const,
-            className: focusMode ? 'absolute inset-y-0 left-0 z-40 w-[min(22rem,100%)] bg-card shadow-xl' : undefined,
-            content: investigation ? (
-              <div
-                className="h-full min-h-0 overflow-y-auto rounded-lg border bg-card p-3"
-                data-testid="access-investigation-sidebar"
-              >
-                <AccessHistoryPanel
-                  workspace={w}
-                  defaultOpen
-                  onLocate={locateHistory}
-                  selection={historySelection}
-                  onInspectRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
-                  onSelectBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
-                  onLoadAsRoad={loadMappedRoad}
-                />
-              </div>
-            ) : (
-              <DesignSidebar
-                workspace={{ ...w, station }}
-                workflowTab={workflowTab}
-                onWorkflowTabChange={setWorkflowTab}
-                roadReviewRequest={roadReviewRequest}
-                onCompareCompleteCosts={openCompleteCosts}
-                onPlanNetwork={() => setNetworkOpen(true)}
-                readOnlyPreview={!!costPreview}
-                mode={mode}
-                onMode={(next) => {
-                  beginMode(next)
-                  if (focusMode) setControlsOpen(false)
-                }}
-                drawing={
-                  mode === 'road' || mode === 'extend'
-                    ? {
-                        kind: mode,
-                        points: draft.length,
-                        canFinish: draft.length >= minimumDraftPoints(mode),
-                        onFinish: finishDraw,
-                      }
-                    : null
-                }
-                onFile={requestFile}
-                onTerrain={loadTerrain}
-                verticalReference={verticalReference}
-                onVerticalReference={setVerticalReference}
-                pointCloud={pointCloud}
-                onPointCloud={setPointCloud}
-                breaklines={breaklines?.name ?? null}
-                onClearBreaklines={() => setBreaklines(null)}
-                selectedPoint={selectedPoint}
-                onPoint={setSelectedPoint}
-                onProfile={selectProfile}
-                activeProfile={activeProfile}
-                onDuplicate={() => {
-                  const a = structuredClone(alignment)
-                  a.id = uid()
-                  a.name = `${a.name} copy`
-                  a.color = colors[project.alignments.length % colors.length]
-                  a.points = a.points.map((p) => ({ ...p, id: uid() }))
-                  a.vertical = a.vertical.map((p) => ({ ...p, id: uid() }))
-                  a.overrides = a.overrides.map((p) => ({ ...p, id: uid() }))
-                  if (
-                    !commitValidated({
-                      ...project,
-                      alignments: [...project.alignments, a],
-                      activeAlignmentId: a.id,
-                    })
-                  )
-                    return
-                  setActiveProfile(null)
-                }}
-                onRemoveAlignment={() => {
-                  // The neighbouring road is shown, and a notice names the deleted one with a way back.
-                  const result = removeRoad(project, alignment.id)
-                  if (!result) return
-                  w.update(() => result.project)
-                  setRemovedRoad({ removed: result.removed, opened: w.openedCount })
-                }}
-                onSuggest={suggest}
-                onLoadMappedRoad={loadMappedRoad}
-                onLoadMappedRoadsInView={loadMappedRoadsInView}
-                onCopyMappedRoad={copyMappedRoad}
-                onPreviewTerrainRoad={setTerrainRoadOverlay}
-                onPreviewTerrainRoads={setTerrainRoadsOverlay}
-                onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
-                onLoadTerrainAroundRoad={() => loadTerrain('regional')}
-                onLocateRoad={locateRoad}
-                onOpenRoadHistory={openRoadReview}
-                onLocateConstraint={locateConstraint}
-                onLocateHistory={locateHistory}
-                historySelection={historySelection}
-                onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
-                onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
-                focusedConstraintId={focusedConstraintId}
-                onImportSpatial={importSpatial}
-                onAskTerrain={askTerrain}
-                focusedReferenceId={focusedReferenceId}
-                onLocateReference={locateReference}
-                onPegAt={pegAt}
-                onRoadEndAt={moveRoadEnd}
-                cutblockReviewRequest={cutblockReviewRequest}
-                onReviewRoad={reviewRoad}
-                onPreviewRoute={previewRoute}
-                onPreviewRoutes={setRouteLines}
-                onPickOnPlan={pickOnPlan}
-                onLoadFsrsNear={loadFsrsNear}
-                onPreviewAccessMarks={setAccessMarks}
-                onPreviewSkidReach={setSkidReachFeatures}
-                onDrawBlock={() => {
-                  setPolygonKind('harvest')
-                  setMode('avoid')
-                }}
-                onShowCompare={() => setDetail('compare')}
-                onShowDrainage={() => setDetail('drainage')}
-                onSelectRoad={selectAlignment}
-                onShowCulverts={showCulverts}
-                onShowSwept={() => setDetail('swept')}
-                vehicleFit={vehicleFitOnRoad}
-                engineeringRequest={engineeringRequest}
-                drainageStale={drainageStale}
-                templatePreviewActive={!!templatePreview}
-                onPreviewTemplate={(template, name) => {
-                  setPegPreview(null)
-                  setTemplatePreview({ template: structuredClone(template), name })
-                  setActiveProfile(null)
-                  setDetail('section')
-                  setMode('inspect')
-                  setDraft([])
-                }}
-                onCloseTemplatePreview={() => setTemplatePreview(null)}
-                onQuantities={() => setDetail('engineering')}
-              />
-            ),
-          },
-          {
-            id: 'main',
-            label: 'connected views',
-            size: 0.78,
-            min: 480,
-            stackedHeight: 'auto' as const,
-            content: (
-              <main
-                className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
-                aria-label={investigation ? 'Access investigation map' : 'Connected road views'}
-              >
-                {focusMode && !investigation && (
-                  <TabBar
-                    label="Visible road pane"
-                    value={focusedPane ?? 'plan'}
-                    onChange={(value) => {
-                      setFocusPane(value as RoadPaneId)
-                      setControlsOpen(false)
-                    }}
-                    options={focusOptions}
-                    stretch
-                  />
-                )}
-                {!investigation && awaitingFirstRoad(project) && !isDrawing && (
-                  <InlineAlert tone="info">
-                    No road yet. Peg or sketch one from the Design tab, or click a mapped road and choose Load as road.
-                  </InlineAlert>
-                )}
-                {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
-                  <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
-                )}
-                {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
-                  <div data-testid="road-invalid-input">
-                    <InlineAlert tone="warning" title="The charts, quantities and cost leave out an invalid input">
-                      {invalidInputNotice(displayedAnalysis.invalidInput)} Correct it where it was typed; its field
-                      shows the message.
-                    </InlineAlert>
-                  </div>
-                )}
-                {!investigation && routePreview && (
-                  <div
-                    role="status"
-                    data-testid="road-live-route-preview"
-                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
-                  >
-                    <span>
-                      {routePreview.error
-                        ? `Live route preview: ${routePreview.error}`
-                        : `Live route preview · ${number(routePreview.route?.lengthM)} m · search score $${number(routePreview.route?.cost, 0)} · dashed pink on plan. Use Suggest to save an alternative; profile and quantities show the active road.`}
-                    </span>
-                  </div>
-                )}
-                {!investigation && costPreview && (
-                  <div
-                    className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
-                    data-testid="full-cost-map-preview"
-                  >
-                    <span>
-                      <strong>Complete-cost candidate preview: {costPreview.alignment.name}.</strong> Teal: reused
-                      access; gold: loaded supply haul; purple: empty return. Profile and sections show this exact
-                      connector.
-                    </span>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={openCompleteCosts}>
-                        Return to comparison
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setCompleteCostPreview(null)}>
-                        Close preview
-                      </Button>
-                    </div>
-                  </div>
-                )}
-                {!investigation && mode === 'sketch' && (
-                  <div
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
-                    data-testid="sketch-feedback"
-                  >
-                    <strong>Sketch road</strong>
-                    <span>
-                      Press and drag on the plan. A stroke that starts or ends at the active road&apos;s end continues
-                      it; corners take the {project.settings.minRadius} m minimum radius where they fit.
-                    </span>
-                    <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
-                      Done sketching
-                    </Button>
-                  </div>
-                )}
-                {!investigation && isDrawing && mode !== 'sketch' && (
-                  <div
-                    className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
-                    data-testid="pegging-feedback"
-                  >
-                    <strong>
-                      {mode === 'road'
-                        ? 'Peg road'
-                        : mode === 'trace'
-                          ? 'Trace road'
-                          : mode === 'extend'
-                            ? `Extend ${alignment.name}`
-                            : mode === 'avoid'
-                              ? `Draw ${drawnArea}`
-                              : `Draw ${mode}`}
-                    </strong>
-                    <span>
-                      {mode === 'extend' ? 'Click plan to peg on from the nearer road end' : 'Click plan to add points'}{' '}
-                      · {draft.length} points
-                    </span>
-                    {mode === 'trace' && <TraceFeedback trace={trace} />}
-                    <span className="font-mono">
-                      Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
-                      <strong
-                        className={
-                          pegGrade !== null && Math.abs(pegGrade) > project.settings.maxGradePercent
-                            ? 'text-red-600'
-                            : ''
-                        }
-                      >
-                        {number(pegGrade)}%
-                      </strong>
-                    </span>
-                    <Button size="sm" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
-                      {mode === 'extend'
-                        ? 'Finish extension'
-                        : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!draft.length}
-                      title={`Undo point (${shortcutKeys.undo})`}
-                      aria-keyshortcuts={shortcutKeys.undoAria}
-                      onClick={() => setDraft((p) => p.slice(0, -1))}
+      <div className={toolbar?.dock === 'side' ? 'lp-guided-frame' : 'lp-canvas-frame'}>
+        {toolbar?.dock === 'side' && (
+          <div className={panelFrame?.resizeCorners ? 'lp-guide-window' : 'contents'}>
+            {workspaceTools}
+            {panelCorner('guide', 'road guide')}
+          </div>
+        )}
+        <ResizableSplit
+          direction="row"
+          splitQuery="(min-width: 0px)"
+          storageKey={investigation ? 'pgmaps-access-investigation:sidebar' : 'pgmaps-road-panes:sidebar'}
+          className={`relative min-h-0 flex-1 ${focusMode ? 'road-focus-split' : ''}`}
+          panes={[
+            {
+              id: 'sidebar',
+              hidden: inlineWorkflow || !controlsShown,
+              label: investigation ? 'access evidence' : 'road controls',
+              size: investigation ? 0.34 : 0.22,
+              min: investigation ? 340 : 240,
+              max: 560,
+              stackedHeight: 'auto' as const,
+              className: focusMode ? 'absolute inset-y-0 left-0 z-40 w-[min(22rem,100%)] bg-card shadow-xl' : undefined,
+              content: (
+                <div className={panelFrame?.resizeCorners && !inlineWorkflow ? 'lp-controls-window' : 'contents'}>
+                  {investigation ? (
+                    <div
+                      className="h-full min-h-0 overflow-y-auto rounded-lg border bg-card p-3"
+                      data-testid="access-investigation-sidebar"
                     >
-                      Undo point
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
-                      Cancel drawing
-                    </Button>
-                  </div>
-                )}
-                {terrainProfile && (
-                  <div className="flex items-center justify-between rounded border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
-                    <span>Terrain profile: {terrainProfile.name} · ground elevations and slopes only</span>
-                    <Button size="sm" variant="outline" onClick={() => save('csv')}>
-                      Profile CSV
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => save('report')}>
-                      Profile report
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={() => selectProfile('')}>
-                      Return to road
-                    </Button>
-                  </div>
-                )}
-                {!investigation && numericPegAlignment && !draftAlignment && !terrainProfile && (
-                  <div role="status" className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
-                    Numeric peg preview · plan, profile, section and leg table use the proposed endpoint. Add peg to
-                    save it, or cancel the preview in the peg controls.
-                  </div>
-                )}
-                {!investigation && templatePreview && (
-                  <div className="flex flex-wrap items-center justify-between gap-1 rounded border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
-                    <span>
-                      Template preview: {templatePreview.name} · current terrain and station · assignments temporarily
-                      omitted
-                    </span>
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          if (
-                            commitValidated({
-                              ...project,
-                              alignments: project.alignments.map((a) =>
-                                a.id === alignment.id ? { ...a, template: templatePreview.template } : a,
-                              ),
-                            })
-                          )
-                            setTemplatePreview(null)
-                        }}
-                      >
-                        Set as base section
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setTemplatePreview(null)}>
-                        Close preview
-                      </Button>
+                      <AccessHistoryPanel
+                        workspace={w}
+                        defaultOpen
+                        onLocate={locateHistory}
+                        selection={historySelection}
+                        onInspectRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
+                        onSelectBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
+                        onLoadAsRoad={loadMappedRoad}
+                      />
                     </div>
-                  </div>
-                )}
-                {!investigation && selectedRange && !terrainProfile && (
-                  <div
-                    role="status"
-                    data-testid="road-feature-selection"
-                    className="flex items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
-                  >
-                    <span>
-                      {selectedRange.label} · {formatRoadStation(selectedRange.start)}
-                      {selectedRange.end !== selectedRange.start ? `–${formatRoadStation(selectedRange.end)}` : ''}
-                    </span>
-                    <Button variant="ghost" size="sm" onClick={() => w.setFeatureSelection(null)}>
-                      Clear selection
-                    </Button>
-                  </div>
-                )}
-                <RoadPaneLayout
-                  layout={layout}
-                  focusedPane={focusMode ? focusedPane : undefined}
-                  hidden={hiddenPanels}
-                  storageId={layoutStorageId}
-                  plan={
-                    <FullscreenPanel
-                      title={investigation ? 'Mapped blocks and road records' : 'Plan · alignment & terrain'}
-                      compact
-                      className="flex min-h-0 flex-1 flex-col"
-                      actions={
-                        <>
-                          {' '}
-                          <span className="road-plan-hint text-3xs text-muted-foreground">
-                            {investigation
-                              ? 'Mapped records · select a road to inspect its evidence'
-                              : drainageOnPlan
-                                ? 'Blue design streams · dashed existing · red redirected · amber low point'
-                                : drainageStale && !terrainProfile
-                                  ? 'Drainage out of date · re-run it to show flow'
-                                  : isMappedRoad(alignment)
-                                    ? 'Mapped road in its own colour · red over the grade limit'
-                                    : 'Active road · red over the grade limit'}
-                          </span>
-                          {!investigation && closePanel('plan')}
-                        </>
-                      }
-                    >
-                      {() => (
-                        <div className="min-h-0 flex-1">
-                          <PlanView
-                            selectedRange={investigation || terrainProfile ? undefined : selectedRange}
-                            onMapReady={onPlanReady}
-                            selectedCulvertId={currentCulvertId}
-                            onHistorySelect={inspectHistoryEvidence}
-                            historySelection={historySelection}
-                            onSelectCulvert={selectCulvert}
-                            onContextSelect={(feature) => {
-                              if (investigation)
-                                inspectHistoryEvidence({
-                                  kind: feature.kind === 'harvest' ? 'block' : 'road',
-                                  id: feature.id,
-                                })
-                              else if (feature.kind === 'existing-road') openRoadReview(feature.id)
-                              else if (feature.kind === 'harvest') {
-                                setFocusedConstraintId(feature.id)
-                                setCutblockReviewRequest((previous) => ({
-                                  id: feature.id,
-                                  sequence: (previous?.sequence ?? 0) + 1,
-                                }))
-                                setWorkflowTab('terrain')
-                                setCollapsed(false)
-                                setControlsOpen(true)
-                              }
-                            }}
-                            project={displayProject}
-                            // Notes are their own collection; a note edit is an ordinary, undoable project edit.
-                            onNotesChange={busy ? undefined : (notes) => update((p) => ({ ...p, notes }))}
-                            focusedReferenceId={focusedReferenceId}
-                            onHighlightRoad={(road) =>
-                              investigation
-                                ? inspectHistoryEvidence({ kind: 'road', id: road.id })
-                                : reviewRoad(road, true)
-                            }
-                            alignment={displayedAlignment}
-                            analyses={displayAnalyses}
-                            source={source}
-                            station={station}
-                            selectedStation={at}
-                            onStation={w.setStation}
-                            onSelectAlignment={selectAlignment}
-                            onMode={investigation || busy || costPreview ? undefined : beginMode}
-                            mode={investigation || costPreview ? 'inspect' : mode}
-                            draft={draft}
-                            onDraw={onDraw}
-                            onSketch={onSketch}
-                            onLoadMappedRoad={busy ? undefined : loadMappedRoad}
-                            onMovePoint={movePoint}
-                            onInsertPoint={(afterId, coordinate) => {
-                              if (busy || costPreview || alignment.points.length >= 2000) return
-                              const index = alignment.points.findIndex((point) => point.id === afterId)
-                              if (index < 0 || index === alignment.points.length - 1) return
-                              const point = { id: uid(), coordinate, radiusM: project.settings.minRadius }
-                              updateAlignment((road) => ({
-                                ...road,
-                                points: [...road.points.slice(0, index + 1), point, ...road.points.slice(index + 1)],
-                              }))
-                              setSelectedPoint(point.id)
-                              setMode('edit')
-                              w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
-                            }}
-                            onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
-                            onPeg={pegOnPlan}
-                            onTypeStation={terrainProfile ? undefined : selectTypedStation}
-                            onHover={setHover}
-                            onSelectPoint={setSelectedPoint}
-                            selectedPoint={selectedPoint}
-                            fitRevision={fitRevision}
-                            terrainOnly={investigation || !!terrainProfile}
-                            activeCableId={detail === 'cable' ? cableLine?.id : undefined}
-                            onSelectCable={selectCable}
-                            cableDistance={cableDistance}
-                            onCableDistance={setCableDistance}
-                            overlay={investigation ? undefined : planOverlay}
-                            drainage={investigation ? undefined : drainageOnPlan}
-                            swept={!investigation && showSwept ? sweptOnPlan : undefined}
-                            sightlines={investigation ? undefined : planSightlines}
-                            // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
-                            pourPointPicking={!!drainagePicking || !!planPick}
-                            onPourPoint={
-                              drainagePicking
-                                ? (coordinate) => {
-                                    changePourPoint({ ...drainagePicking, coordinate })
-                                    setDetail('drainage')
-                                    if (focusMode) setFocusPane('detail')
-                                  }
-                                : planPick
-                                  ? (coordinate) => {
-                                      setPlanPick(null)
-                                      planPick.onPick(coordinate)
-                                    }
-                                  : undefined
-                            }
-                            onOverlaySelect={(properties) => {
-                              if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
-                              // A failed route search's mark selects the row that explains it.
-                              if (properties?.routeLineId)
-                                routeLines?.find((line) => line.id === properties.routeLineId)?.onSelect?.()
-                              if (properties?.kind === 'dline-support' && properties.cableId) {
-                                selectCable(String(properties.cableId))
-                                setCableDistance(Number(properties.chartDistance) || 0)
-                              }
-                            }}
-                          />
-                        </div>
+                  ) : (
+                    <>
+                      {!inlineWorkflow && <div className="contents" ref={attachEditor} />}
+                      {createPortal(
+                        <DesignSidebar
+                          embedded={inlineWorkflow}
+                          workspace={{ ...w, station }}
+                          workflowTab={workflowTab}
+                          onWorkflowTabChange={showControls}
+                          roadReviewRequest={roadReviewRequest}
+                          onCompareCompleteCosts={openCompleteCosts}
+                          onPlanNetwork={() => setNetworkOpen(true)}
+                          readOnlyPreview={!!costPreview}
+                          mode={mode}
+                          onMode={(next) => {
+                            beginMode(next)
+                            if (inlineWorkflow) showPane('plan')
+                            if (focusMode) setControlsOpen(false)
+                          }}
+                          drawing={
+                            mode === 'road' || mode === 'extend'
+                              ? {
+                                  kind: mode,
+                                  points: draft.length,
+                                  canFinish: draft.length >= minimumDraftPoints(mode),
+                                  onFinish: finishDraw,
+                                }
+                              : null
+                          }
+                          onFile={requestFile}
+                          onTerrain={loadTerrain}
+                          verticalReference={verticalReference}
+                          onVerticalReference={setVerticalReference}
+                          pointCloud={pointCloud}
+                          onPointCloud={setPointCloud}
+                          breaklines={breaklines?.name ?? null}
+                          onClearBreaklines={() => setBreaklines(null)}
+                          selectedPoint={selectedPoint}
+                          onPoint={setSelectedPoint}
+                          onProfile={selectProfile}
+                          activeProfile={activeProfile}
+                          onDuplicate={duplicateRoad}
+                          onRemoveAlignment={() => {
+                            // The neighbouring road is shown, and a notice names the deleted one with a way back.
+                            const result = removeRoad(project, alignment.id)
+                            if (!result) return
+                            w.update(() => result.project)
+                            setRemovedRoad({ removed: result.removed, opened: w.openedCount })
+                          }}
+                          onSuggest={suggest}
+                          onLoadMappedRoad={loadMappedRoad}
+                          onLoadMappedRoadsInView={loadMappedRoadsInView}
+                          onCopyMappedRoad={copyMappedRoad}
+                          onPreviewTerrainRoad={setTerrainRoadOverlay}
+                          onPreviewTerrainRoads={setTerrainRoadsOverlay}
+                          onLocateActiveRoad={() => locateHistory(alignment.points.map((point) => point.coordinate))}
+                          onLoadTerrainAroundRoad={() => loadTerrain('regional')}
+                          onLocateRoad={locateRoad}
+                          onOpenRoadHistory={openRoadReview}
+                          onLocateConstraint={locateConstraint}
+                          onLocateHistory={locateHistory}
+                          historySelection={historySelection}
+                          onInspectHistoryRecord={(kind, id) => inspectHistoryEvidence({ kind, id })}
+                          onSelectHistoryBlock={(id) => inspectHistoryEvidence({ kind: 'block', id })}
+                          focusedConstraintId={focusedConstraintId}
+                          onImportSpatial={importSpatial}
+                          onAskTerrain={askTerrain}
+                          focusedReferenceId={focusedReferenceId}
+                          onLocateReference={locateReference}
+                          onPegAt={pegAt}
+                          onRoadEndAt={moveRoadEnd}
+                          cutblockReviewRequest={cutblockReviewRequest}
+                          onReviewRoad={reviewRoad}
+                          onPreviewRoute={previewRoute}
+                          onPreviewRoutes={setRouteLines}
+                          onPickOnPlan={pickOnPlan}
+                          onLoadFsrsNear={loadFsrsNear}
+                          onPreviewAccessMarks={setAccessMarks}
+                          onPreviewSkidReach={setSkidReachFeatures}
+                          onDrawBlock={() => drawArea('harvest')}
+                          onShowCompare={() => showDetailPane('compare')}
+                          onShowDrainage={() => showDetailPane('drainage')}
+                          onSelectRoad={selectAlignment}
+                          onShowCulverts={showCulverts}
+                          onShowSwept={() => showDetailPane('swept')}
+                          vehicleFit={vehicleFitOnRoad}
+                          engineeringRequest={engineeringRequest}
+                          engineeringInputsRequest={engineeringInputsRequest}
+                          onEngineeringInputs={showEngineeringInputs}
+                          drainageStale={drainageStale}
+                          templatePreviewActive={!!templatePreview}
+                          onPreviewTemplate={(template, name) => {
+                            setPegPreview(null)
+                            setTemplatePreview({ template: structuredClone(template), name })
+                            setActiveProfile(null)
+                            setDetail('section')
+                            setMode('inspect')
+                            setDraft([])
+                          }}
+                          onCloseTemplatePreview={() => setTemplatePreview(null)}
+                          onQuantities={() => showDetailPane('engineering')}
+                        />,
+                        editorHost,
                       )}
-                    </FullscreenPanel>
-                  }
-                  profile={
-                    <ChartHeader storageKey="pgmaps-road-chart-view:profile">
-                      {(chartSlot) => (
+                    </>
+                  )}
+                  {!inlineWorkflow &&
+                    panelCorner('controls', investigation ? 'access evidence panel' : 'road controls panel')}
+                </div>
+              ),
+            },
+            {
+              id: 'main',
+              label: 'connected views',
+              size: 0.78,
+              min: 480,
+              stackedHeight: 'auto' as const,
+              content: (
+                <div
+                  className="road-summary-layout"
+                  data-placement={summaryControls.preferences.placement}
+                  data-small={smallSummary || undefined}
+                >
+                  {summaryAvailable && (
+                    <RoadSummary
+                      metrics={summaryMetrics}
+                      preferences={summaryControls.preferences}
+                      small={smallSummary}
+                      expanded={summaryOpen}
+                      onExpand={() => setSummaryOpen((open) => !open)}
+                      onSettings={showSummarySettings}
+                    />
+                  )}
+                  <main
+                    className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden"
+                    aria-label={investigation ? 'Access investigation map' : 'Connected road views'}
+                  >
+                    {focusMode && !investigation && !shortPanePicker && (
+                      <TabBar
+                        label="Visible road pane"
+                        value={focusedPane ?? 'plan'}
+                        onChange={(value) => {
+                          setFocusPane(value as RoadPaneId)
+                          setControlsOpen(false)
+                        }}
+                        options={focusOptions}
+                        stretch
+                      />
+                    )}
+                    {!investigation && awaitingFirstRoad(project) && !isDrawing && (
+                      <InlineAlert tone="info">
+                        No road yet. Peg or sketch one from the Design tab, or click a mapped road and choose Load as
+                        road.
+                      </InlineAlert>
+                    )}
+                    {!investigation && !awaitingFirstRoad(project) && !displayedAnalysis.stations.length && (
+                      <InlineAlert tone="error">{displayedAnalysis.warnings.join(' ')}</InlineAlert>
+                    )}
+                    {!investigation && displayedAnalysis.stations.length > 0 && displayedAnalysis.invalidInput && (
+                      <div data-testid="road-invalid-input">
+                        <InlineAlert tone="warning" title="The charts, quantities and cost leave out an invalid input">
+                          {invalidInputNotice(displayedAnalysis.invalidInput)} Correct it where it was typed; its field
+                          shows the message.
+                        </InlineAlert>
+                      </div>
+                    )}
+                    {!investigation && routePreview && (
+                      <div
+                        role="status"
+                        data-testid="road-live-route-preview"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                      >
+                        <span>
+                          {routePreview.error
+                            ? `Live route preview: ${routePreview.error}`
+                            : `Live route preview · ${number(routePreview.route?.lengthM)} m · search score $${number(routePreview.route?.cost, 0)} · dashed pink on plan. Use Suggest to save an alternative; profile and quantities show the active road.`}
+                        </span>
+                      </div>
+                    )}
+                    {!investigation && costPreview && (
+                      <div
+                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                        data-testid="full-cost-map-preview"
+                      >
+                        <span>
+                          <strong>Complete-cost candidate preview: {costPreview.alignment.name}.</strong> Teal: reused
+                          access; gold: loaded supply haul; purple: empty return. Profile and sections show this exact
+                          connector.
+                        </span>
+                        <div className="flex gap-2">
+                          <Button size="sm" variant="outline" onClick={openCompleteCosts}>
+                            Return to comparison
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setCompleteCostPreview(null)}>
+                            Close preview
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {!investigation && mode === 'sketch' && (
+                      <div
+                        className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                        data-testid="sketch-feedback"
+                      >
+                        <strong>Sketch road</strong>
+                        <span>
+                          Press and drag on the plan. A stroke that starts or ends at the active road&apos;s end
+                          continues it; corners take the {project.settings.minRadius} m minimum radius where they fit.
+                        </span>
+                        <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
+                          Done sketching
+                        </Button>
+                      </div>
+                    )}
+                    {!investigation && isDrawing && mode !== 'sketch' && (
+                      <div
+                        className="flex flex-wrap items-center gap-2 rounded-lg border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                        data-testid="pegging-feedback"
+                      >
+                        <strong>
+                          {mode === 'road'
+                            ? 'Peg road'
+                            : mode === 'trace'
+                              ? 'Trace road'
+                              : mode === 'extend'
+                                ? `Extend ${alignment.name}`
+                                : mode === 'avoid'
+                                  ? `Draw ${drawnArea}`
+                                  : `Draw ${mode}`}
+                        </strong>
+                        <span>
+                          {shortRibbon
+                            ? 'Tap plan'
+                            : mode === 'extend'
+                              ? 'Add points from the nearer road end'
+                              : 'Add points on the plan'}
+                          {' · '}
+                          {draft.length} points
+                        </span>
+                        {mode === 'trace' && <TraceFeedback trace={trace} />}
+                        <span className="font-mono">
+                          Leg {number(leg)} m · ground {number(zb)} m · grade{' '}
+                          <strong
+                            className={
+                              pegGrade !== null && Math.abs(pegGrade) > project.settings.maxGradePercent
+                                ? 'text-red-600'
+                                : ''
+                            }
+                          >
+                            {number(pegGrade)}%
+                          </strong>
+                        </span>
+                        <Button size="sm" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
+                          {mode === 'extend'
+                            ? 'Finish extension'
+                            : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={!draft.length}
+                          title={`Undo point (${shortcutKeys.undo})`}
+                          aria-keyshortcuts={shortcutKeys.undoAria}
+                          onClick={() => setDraft((p) => p.slice(0, -1))}
+                        >
+                          Undo point
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => beginMode('inspect')}>
+                          Cancel drawing
+                        </Button>
+                      </div>
+                    )}
+                    {terrainProfile && (
+                      <div className="flex items-center justify-between rounded border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
+                        <span>Terrain profile: {terrainProfile.name} · ground elevations and slopes only</span>
+                        <Button size="sm" variant="outline" onClick={() => save('csv')}>
+                          Profile CSV
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => save('report')}>
+                          Profile report
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => selectProfile('')}>
+                          Return to road
+                        </Button>
+                      </div>
+                    )}
+                    {!investigation && numericPegAlignment && !draftAlignment && !terrainProfile && (
+                      <div role="status" className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
+                        Numeric peg preview · plan, profile, section and leg table use the proposed endpoint. Add peg to
+                        save it, or cancel the preview in the peg controls.
+                      </div>
+                    )}
+                    {!investigation && templatePreview && (
+                      <div className="flex flex-wrap items-center justify-between gap-1 rounded border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
+                        <span>
+                          Template preview: {templatePreview.name} · current terrain and station · assignments
+                          temporarily omitted
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              if (
+                                commitValidated({
+                                  ...project,
+                                  alignments: project.alignments.map((a) =>
+                                    a.id === alignment.id ? { ...a, template: templatePreview.template } : a,
+                                  ),
+                                })
+                              )
+                                setTemplatePreview(null)
+                            }}
+                          >
+                            Set as base section
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => setTemplatePreview(null)}>
+                            Close preview
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    {!investigation && selectedRange && !terrainProfile && (
+                      <div
+                        role="status"
+                        data-testid="road-feature-selection"
+                        className="flex items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
+                      >
+                        <span>
+                          {selectedRange.label} · {formatRoadStation(selectedRange.start)}
+                          {selectedRange.end !== selectedRange.start ? `–${formatRoadStation(selectedRange.end)}` : ''}
+                        </span>
+                        <Button variant="ghost" size="sm" onClick={() => w.setFeatureSelection(null)}>
+                          Clear selection
+                        </Button>
+                      </div>
+                    )}
+                    <RoadPaneLayout
+                      layout={layout}
+                      focusedPane={focusMode ? focusedPane : undefined}
+                      hidden={hiddenPanels}
+                      storageId={layoutStorageId}
+                      plan={
                         <FullscreenPanel
-                          actions={
-                            <>
-                              {!terrainProfile && <ProfileSwitcher workspace={w} disabled={!!busy} />}
-                              {chartSlot}
-                              {closePanel('profile')}
-                            </>
-                          }
-                          title={
-                            terrainProfile
-                              ? 'Terrain profile · elevation & distance'
-                              : 'Road profile · ground & formation'
-                          }
+                          resizeHandle={panelCorner('plan', 'plan panel')}
+                          title={investigation ? 'Mapped blocks and road records' : 'Plan · alignment & terrain'}
                           compact
                           className="flex min-h-0 flex-1 flex-col"
+                          actions={
+                            <>
+                              {' '}
+                              <span className="road-plan-hint text-3xs text-muted-foreground">
+                                {investigation
+                                  ? 'Mapped records · select a road to inspect its evidence'
+                                  : drainageOnPlan
+                                    ? 'Blue design streams · dashed existing · red redirected · amber low point'
+                                    : drainageStale && !terrainProfile
+                                      ? 'Drainage out of date · re-run it to show flow'
+                                      : isMappedRoad(alignment)
+                                        ? 'Mapped road in its own colour · red over the grade limit'
+                                        : 'Active road · red over the grade limit'}
+                              </span>
+                              {!investigation && closePanel('plan')}
+                            </>
+                          }
                         >
                           {() => (
                             <div className="min-h-0 flex-1">
-                              <ProfileChart
-                                selectedRange={terrainProfile ? undefined : selectedRange}
-                                onViewRangeChange={onProfileRange}
+                              <PlanView
+                                display={planDisplay}
+                                selectedRange={investigation || terrainProfile ? undefined : selectedRange}
+                                onMapReady={onPlanReady}
                                 selectedCulvertId={currentCulvertId}
+                                onHistorySelect={inspectHistoryEvidence}
+                                historySelection={historySelection}
                                 onSelectCulvert={selectCulvert}
-                                terrainOnly={!!terrainProfile}
-                                sight={sightBand}
-                                gradeLimits={profileGradeLimits}
-                                analysis={profileAnalysis}
+                                onContextSelect={(feature) => {
+                                  if (investigation)
+                                    inspectHistoryEvidence({
+                                      kind: feature.kind === 'harvest' ? 'block' : 'road',
+                                      id: feature.id,
+                                    })
+                                  else if (feature.kind === 'existing-road') openRoadReview(feature.id)
+                                  else if (feature.kind === 'harvest') {
+                                    setFocusedConstraintId(feature.id)
+                                    setCutblockReviewRequest((previous) => ({
+                                      id: feature.id,
+                                      sequence: (previous?.sequence ?? 0) + 1,
+                                    }))
+                                    setWorkflowTab('terrain')
+                                    setCollapsed(false)
+                                    setControlsOpen(true)
+                                  }
+                                }}
+                                project={displayProject}
+                                // Notes are their own collection; a note edit is an ordinary, undoable project edit.
+                                onNotesChange={busy ? undefined : (notes) => update((p) => ({ ...p, notes }))}
+                                focusedReferenceId={focusedReferenceId}
+                                onHighlightRoad={(road) =>
+                                  investigation
+                                    ? inspectHistoryEvidence({ kind: 'road', id: road.id })
+                                    : reviewRoad(road, true)
+                                }
                                 alignment={displayedAlignment}
+                                analyses={displayAnalyses}
+                                source={source}
                                 station={station}
-                                selectedStation={terrainProfile ? undefined : at}
+                                selectedStation={at}
                                 onStation={w.setStation}
-                                rangePick={terrainProfile ? undefined : sectionTools.rangePick}
-                                onVerticalChange={
-                                  busy ||
-                                  terrainProfile ||
-                                  draftAlignment ||
-                                  numericPegAlignment ||
-                                  templatePreview ||
-                                  costPreview
-                                    ? undefined
-                                    : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
+                                onSelectAlignment={selectAlignment}
+                                onMode={investigation || busy || costPreview ? undefined : beginMode}
+                                mode={investigation || costPreview ? 'inspect' : mode}
+                                draft={draft}
+                                onDraw={onDraw}
+                                onSketch={onSketch}
+                                onLoadMappedRoad={busy ? undefined : loadMappedRoad}
+                                onMovePoint={movePoint}
+                                onInsertPoint={(afterId, coordinate) => {
+                                  if (busy || costPreview || alignment.points.length >= 2000) return
+                                  const index = alignment.points.findIndex((point) => point.id === afterId)
+                                  if (index < 0 || index === alignment.points.length - 1) return
+                                  const point = { id: uid(), coordinate, radiusM: project.settings.minRadius }
+                                  updateAlignment((road) => ({
+                                    ...road,
+                                    points: [
+                                      ...road.points.slice(0, index + 1),
+                                      point,
+                                      ...road.points.slice(index + 1),
+                                    ],
+                                  }))
+                                  setSelectedPoint(point.id)
+                                  setMode('edit')
+                                  w.setNotice('Bend added. Drag its number to adjust it, or Undo to remove it.')
+                                }}
+                                onBendHint={() => w.setNotice('Drag the + off the road to bend it there.')}
+                                onPeg={pegOnPlan}
+                                onTypeStation={terrainProfile ? undefined : selectTypedStation}
+                                onHover={setHover}
+                                onSelectPoint={setSelectedPoint}
+                                selectedPoint={selectedPoint}
+                                fitRevision={fitRevision}
+                                terrainOnly={investigation || !!terrainProfile}
+                                activeCableId={detail === 'cable' ? cableLine?.id : undefined}
+                                onSelectCable={selectCable}
+                                cableDistance={cableDistance}
+                                onCableDistance={setCableDistance}
+                                overlay={investigation ? undefined : planOverlay}
+                                drainage={investigation ? undefined : drainageOnPlan}
+                                swept={!investigation && showSwept ? sweptOnPlan : undefined}
+                                sightlines={investigation ? undefined : planSightlines}
+                                // The drainage pour point and the sidebar's plan picks share the plan's one-click pick.
+                                pourPointPicking={!!drainagePicking || !!planPick}
+                                onPourPoint={
+                                  drainagePicking
+                                    ? (coordinate) => {
+                                        changePourPoint({ ...drainagePicking, coordinate })
+                                        setDetail('drainage')
+                                        if (focusMode) setFocusPane('detail')
+                                      }
+                                    : planPick
+                                      ? (coordinate) => {
+                                          setPlanPick(null)
+                                          planPick.onPick(coordinate)
+                                        }
+                                      : undefined
                                 }
-                                onEditGesture={w.editGesture}
-                                junctions={profileJunctions}
-                                onAddControl={(control) =>
-                                  w.updateAlignment((a) => {
-                                    const verticalControls = withVerticalControl(a.verticalControls, control)
-                                    return verticalControls ? { ...a, verticalControls } : a
-                                  })
-                                }
+                                onOverlaySelect={(properties) => {
+                                  if (properties?.spokeId) setSelectedSpokeId(String(properties.spokeId))
+                                  // A failed route search's mark selects the row that explains it.
+                                  if (properties?.routeLineId)
+                                    routeLines?.find((line) => line.id === properties.routeLineId)?.onSelect?.()
+                                  if (properties?.kind === 'dline-support' && properties.cableId) {
+                                    selectCable(String(properties.cableId))
+                                    setCableDistance(Number(properties.chartDistance) || 0)
+                                  }
+                                }}
                               />
                             </div>
                           )}
                         </FullscreenPanel>
-                      )}
-                    </ChartHeader>
-                  }
-                  detail={
-                    <ChartHeader storageKey="pgmaps-road-chart-view:detail">
-                      {(chartSlot) => (
-                        <FullscreenPanel
-                          title={
-                            detail === 'section'
-                              ? 'Cross-section'
-                              : detail === 'terrain'
-                                ? '3D terrain'
-                                : detail === 'mass'
-                                  ? 'Mass haul'
-                                  : detail === 'table'
-                                    ? 'Station schedule'
-                                    : detail === 'compare'
-                                      ? 'Compare alternatives'
-                                      : detail === 'pegs'
-                                        ? 'Pegging data'
-                                        : detail === 'engineering'
-                                          ? 'Engineering quantities'
-                                          : detail === 'landing'
-                                            ? 'Landing deflection explorer'
-                                            : detail === 'drainage'
-                                              ? 'Drainage · existing vs design surface'
-                                              : detail === 'swept'
-                                                ? 'Design vehicle swept path'
-                                                : 'D-line clearance'
-                          }
-                          actions={
-                            <>
-                              {detail === 'mass' && (
-                                <InfoTip label="About mass haul">
-                                  Mass haul is the running total of usable cut minus fill, from the road&apos;s start.
-                                  The line rises through cut and falls through fill. Where it comes back to zero the
-                                  earthwork balances up to that station; where it ends is the surplus (above zero) or
-                                  the shortfall (below) for the whole road.
-                                </InfoTip>
-                              )}
-                              {/* The picker holds eleven views, drainage among them: its label says so. */}
-                              <span className="hidden shrink-0 text-2xs text-muted-foreground sm:inline" aria-hidden>
-                                View
-                              </span>
-                              <RoadSelect
-                                className="min-w-0 h-8 w-32"
-                                value={detail}
-                                onValueChange={(value) => setDetail(value as typeof detail)}
-                                options={[
-                                  { value: 'section', label: 'Section' },
-                                  { value: 'terrain', label: '3D' },
-                                  { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
-                                  { value: 'table', label: 'Stations' },
-                                  { value: 'compare', label: 'Compare' },
-                                  { value: 'cable', label: 'D-line' },
-                                  { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
-                                  { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
-                                  { value: 'landing', label: 'Landing' },
-                                  { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
-                                  { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
-                                ]}
-                                ariaLabel="Road detail view"
-                              />
-                              {detail === 'section' && !terrainProfile && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="shrink-0 px-2 min-[420px]:px-3"
-                                  aria-label="Section CSV"
-                                  title="Download section CSV"
-                                  disabled={!at || !!busy}
-                                  onClick={saveSection}
-                                >
-                                  {/* Phones keep room for the detail-view picker beside the chart controls. */}
-                                  <Download className="size-3.5 min-[420px]:hidden" aria-hidden />
-                                  <span className="sr-only min-[420px]:not-sr-only">Section CSV</span>
-                                </Button>
-                              )}
-                              {chartSlot}
-                              {closePanel('detail')}
-                            </>
-                          }
-                          compact
-                          className="flex min-h-0 flex-1 flex-col"
-                        >
-                          {() => (
-                            <div className="flex min-h-0 flex-1 flex-col gap-2">
-                              {/* The section keeps 7 rem under the section tools, which scroll past it. */}
-                              <div className={`${detail === 'section' ? 'min-h-28' : 'min-h-0'} flex-1`}>
-                                {detail === 'section' && (
-                                  <CrossSectionChart
-                                    holdScale={sectionTools.holdScale}
-                                    pinnedStation={sectionTools.pinnedStation}
-                                    selectedCulvertId={currentCulvertId}
-                                    onSelectCulvert={selectCulvert}
-                                    alignment={displayedAlignment}
-                                    analysis={displayedAnalysis}
-                                    terrainOnly={!!terrainProfile}
-                                    station={
-                                      terrainProfile && at
-                                        ? {
-                                            ...at,
-                                            section: at.section.map((s) => ({ ...s, design: null })),
-                                            cutAreaM2: null,
-                                            fillAreaM2: null,
-                                            leftDaylightM: null,
-                                            rightDaylightM: null,
-                                          }
-                                        : at
-                                    }
-                                    onShift={
-                                      busy ||
-                                      terrainProfile ||
-                                      draftAlignment ||
-                                      numericPegAlignment ||
-                                      templatePreview ||
-                                      costPreview
-                                        ? undefined
-                                        : shiftSection
-                                    }
-                                    onVerticalShift={
-                                      busy ||
-                                      terrainProfile ||
-                                      draftAlignment ||
-                                      numericPegAlignment ||
-                                      templatePreview ||
-                                      costPreview
-                                        ? undefined
-                                        : shiftFormation
-                                    }
-                                  />
-                                )}
-                                {detail === 'terrain' && (
-                                  <TerrainPreview
+                      }
+                      profile={
+                        <ChartHeader storageKey="pgmaps-road-chart-view:profile">
+                          {(chartSlot) => (
+                            <FullscreenPanel
+                              resizeHandle={panelCorner('profile', 'profile panel')}
+                              actions={
+                                <>
+                                  {!terrainProfile && <ProfileSwitcher workspace={w} disabled={!!busy} />}
+                                  {chartSlot}
+                                  {closePanel('profile')}
+                                </>
+                              }
+                              title={
+                                terrainProfile
+                                  ? 'Terrain profile · elevation & distance'
+                                  : 'Road profile · ground & formation'
+                              }
+                              compact
+                              className="flex min-h-0 flex-1 flex-col"
+                            >
+                              {() => (
+                                <div className="min-h-0 flex-1">
+                                  <ProfileChart
                                     selectedRange={terrainProfile ? undefined : selectedRange}
+                                    onViewRangeChange={onProfileRange}
                                     selectedCulvertId={currentCulvertId}
                                     onSelectCulvert={selectCulvert}
                                     terrainOnly={!!terrainProfile}
-                                    sourceLabel={project.terrain.name}
-                                    analysis={displayedAnalysis}
-                                    terrain={source}
+                                    sight={sightBand}
+                                    gradeLimits={profileGradeLimits}
+                                    analysis={profileAnalysis}
+                                    alignment={displayedAlignment}
                                     station={station}
+                                    selectedStation={terrainProfile ? undefined : at}
                                     onStation={w.setStation}
-                                    playing={playing}
-                                    maxGradePercent={project.settings.maxGradePercent}
+                                    rangePick={terrainProfile ? undefined : sectionTools.rangePick}
+                                    onVerticalChange={
+                                      busy ||
+                                      terrainProfile ||
+                                      draftAlignment ||
+                                      numericPegAlignment ||
+                                      templatePreview ||
+                                      costPreview
+                                        ? undefined
+                                        : (vertical) => w.updateAlignment((a) => ({ ...a, vertical }))
+                                    }
+                                    onEditGesture={w.editGesture}
+                                    junctions={profileJunctions}
+                                    onAddControl={(control) =>
+                                      w.updateAlignment((a) => {
+                                        const verticalControls = withVerticalControl(a.verticalControls, control)
+                                        return verticalControls ? { ...a, verticalControls } : a
+                                      })
+                                    }
                                   />
-                                )}
-                                {detail === 'mass' && !terrainProfile && (
-                                  <MassHaulChart
-                                    selectedRange={selectedRange}
-                                    viewRange={sharedProfileRange}
-                                    analysis={displayedAnalysis}
-                                    engineeringInputs={displayedAlignment.engineering}
-                                    station={station}
-                                    onStation={w.setStation}
+                                </div>
+                              )}
+                            </FullscreenPanel>
+                          )}
+                        </ChartHeader>
+                      }
+                      detail={
+                        <ChartHeader storageKey="pgmaps-road-chart-view:detail">
+                          {(chartSlot) => (
+                            <FullscreenPanel
+                              resizeHandle={panelCorner('detail', 'detail panel')}
+                              title={
+                                detail === 'section'
+                                  ? 'Cross-section'
+                                  : detail === 'terrain'
+                                    ? '3D terrain'
+                                    : detail === 'mass'
+                                      ? 'Mass haul'
+                                      : detail === 'table'
+                                        ? 'Station schedule'
+                                        : detail === 'compare'
+                                          ? 'Compare alternatives'
+                                          : detail === 'pegs'
+                                            ? 'Pegging data'
+                                            : detail === 'engineering'
+                                              ? 'Engineering quantities'
+                                              : detail === 'landing'
+                                                ? 'Landing deflection explorer'
+                                                : detail === 'drainage'
+                                                  ? 'Drainage · existing vs design surface'
+                                                  : detail === 'swept'
+                                                    ? 'Design vehicle swept path'
+                                                    : 'D-line clearance'
+                              }
+                              actions={
+                                <>
+                                  {detail === 'mass' && (
+                                    <InfoTip label="About mass haul">
+                                      Mass haul is the running total of usable cut minus fill, from the road&apos;s
+                                      start. The line rises through cut and falls through fill. Where it comes back to
+                                      zero the earthwork balances up to that station; where it ends is the surplus
+                                      (above zero) or the shortfall (below) for the whole road.
+                                    </InfoTip>
+                                  )}
+                                  {/* The picker holds eleven views, drainage among them: its label says so. */}
+                                  <span
+                                    className="hidden shrink-0 text-2xs text-muted-foreground sm:inline"
+                                    aria-hidden
+                                  >
+                                    View
+                                  </span>
+                                  <RoadSelect
+                                    className="min-w-0 h-8 w-32"
+                                    value={detail}
+                                    onValueChange={(value) => setDetail(value as typeof detail)}
+                                    options={[
+                                      { value: 'section', label: 'Section' },
+                                      { value: 'terrain', label: '3D' },
+                                      { value: 'mass', label: 'Mass haul', disabled: !!terrainProfile },
+                                      { value: 'table', label: 'Stations' },
+                                      { value: 'compare', label: 'Compare' },
+                                      { value: 'cable', label: 'D-line' },
+                                      { value: 'pegs', label: 'Pegs', disabled: !!terrainProfile },
+                                      { value: 'engineering', label: 'Quantities', disabled: !!terrainProfile },
+                                      { value: 'landing', label: 'Landing' },
+                                      { value: 'drainage', label: 'Drainage', disabled: !!terrainProfile },
+                                      { value: 'swept', label: 'Swept path', disabled: !!terrainProfile },
+                                    ]}
+                                    ariaLabel="Road detail view"
                                   />
-                                )}
-                                {detail === 'table' && designSchedules}
-                                {detail === 'pegs' && !terrainProfile && (
+                                  {detail === 'section' && !terrainProfile && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="shrink-0 px-2 min-[420px]:px-3"
+                                      aria-label="Section CSV"
+                                      title="Download section CSV"
+                                      disabled={!at || !!busy}
+                                      onClick={saveSection}
+                                    >
+                                      {/* Phones keep room for the detail-view picker beside the chart controls. */}
+                                      <Download className="size-3.5 min-[420px]:hidden" aria-hidden />
+                                      <span className="sr-only min-[420px]:not-sr-only">Section CSV</span>
+                                    </Button>
+                                  )}
+                                  {chartSlot}
+                                  {closePanel('detail')}
+                                </>
+                              }
+                              compact
+                              className="flex min-h-0 flex-1 flex-col"
+                            >
+                              {() => (
+                                <div className="flex min-h-0 flex-1 flex-col gap-2">
+                                  {/* The section keeps 7 rem under the section tools, which scroll past it. */}
+                                  <div className={`${detail === 'section' ? 'min-h-28' : 'min-h-0'} flex-1`}>
+                                    {detail === 'section' && (
+                                      <CrossSectionChart
+                                        holdScale={sectionTools.holdScale}
+                                        pinnedStation={sectionTools.pinnedStation}
+                                        selectedCulvertId={currentCulvertId}
+                                        onSelectCulvert={selectCulvert}
+                                        alignment={displayedAlignment}
+                                        analysis={displayedAnalysis}
+                                        terrainOnly={!!terrainProfile}
+                                        station={
+                                          terrainProfile && at
+                                            ? {
+                                                ...at,
+                                                section: at.section.map((s) => ({ ...s, design: null })),
+                                                cutAreaM2: null,
+                                                fillAreaM2: null,
+                                                leftDaylightM: null,
+                                                rightDaylightM: null,
+                                              }
+                                            : at
+                                        }
+                                        onShift={
+                                          busy ||
+                                          terrainProfile ||
+                                          draftAlignment ||
+                                          numericPegAlignment ||
+                                          templatePreview ||
+                                          costPreview
+                                            ? undefined
+                                            : shiftSection
+                                        }
+                                        onVerticalShift={
+                                          busy ||
+                                          terrainProfile ||
+                                          draftAlignment ||
+                                          numericPegAlignment ||
+                                          templatePreview ||
+                                          costPreview
+                                            ? undefined
+                                            : shiftFormation
+                                        }
+                                      />
+                                    )}
+                                    {detail === 'terrain' && (
+                                      <TerrainPreview
+                                        selectedRange={terrainProfile ? undefined : selectedRange}
+                                        selectedCulvertId={currentCulvertId}
+                                        onSelectCulvert={selectCulvert}
+                                        terrainOnly={!!terrainProfile}
+                                        sourceLabel={project.terrain.name}
+                                        analysis={displayedAnalysis}
+                                        terrain={source}
+                                        station={station}
+                                        onStation={w.setStation}
+                                        playing={playing}
+                                        maxGradePercent={project.settings.maxGradePercent}
+                                      />
+                                    )}
+                                    {detail === 'mass' && !terrainProfile && (
+                                      <MassHaulChart
+                                        selectedRange={selectedRange}
+                                        viewRange={sharedProfileRange}
+                                        analysis={displayedAnalysis}
+                                        engineeringInputs={displayedAlignment.engineering}
+                                        station={station}
+                                        onStation={w.setStation}
+                                      />
+                                    )}
+                                    {detail === 'table' && designSchedules}
+                                    {detail === 'pegs' && !terrainProfile && (
+                                      <PeggingEditor
+                                        alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
+                                        analysis={displayedAnalysis}
+                                        source={source}
+                                        disabled={!!busy || mode === 'road' || !!templatePreview || !!costPreview}
+                                        onStation={setStation}
+                                        onPoint={setSelectedPoint}
+                                        onPreview={setOverlay}
+                                        onPreviewAlignment={previewPeg}
+                                        onChange={(next) =>
+                                          commitValidated({
+                                            ...project,
+                                            alignments: project.alignments.map((a) => (a.id === next.id ? next : a)),
+                                          })
+                                        }
+                                      />
+                                    )}
+                                    {detail === 'engineering' && !terrainProfile && (
+                                      <EngineeringSummary
+                                        selectedCulvertId={currentCulvertId}
+                                        onSelectCulvert={selectCulvert}
+                                        analysis={displayedAnalysis}
+                                        settings={project.settings}
+                                        station={station}
+                                        onStation={setStation}
+                                        onExport={() => {
+                                          try {
+                                            parseProject(project)
+                                            if (draftAlignment || numericPegAlignment || templatePreview || costPreview)
+                                              throw Error(
+                                                'Finish or close the design preview before exporting calculated results.',
+                                              )
+                                            downloadText(
+                                              engineeringCsv(displayedAnalysis, project.terrain),
+                                              'road-engineering-quantities.csv',
+                                              'text/csv;charset=utf-8',
+                                            )
+                                          } catch (error) {
+                                            w.setError(
+                                              error instanceof Error ? error.message : 'Could not export quantities.',
+                                            )
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                    {detail === 'landing' && (
+                                      <RadialDeflectionPanel
+                                        source={source}
+                                        center={at?.coordinate ?? null}
+                                        centerLabel={formatRoadStation(at?.chainage ?? 0)}
+                                        sourceLabel={project.terrain.name}
+                                        onPreview={setOverlay}
+                                        selectedSpokeId={selectedSpokeId}
+                                        onSelectSpoke={setSelectedSpokeId}
+                                        onAdopt={(line) => {
+                                          if (commitValidated({ ...project, cables: [...project.cables, line] })) {
+                                            selectCable(line.id)
+                                            w.setNotice(
+                                              'Selected landing spoke saved as an editable D-line. Its map and profile now share the same span cursor.',
+                                            )
+                                          }
+                                        }}
+                                      />
+                                    )}
+                                    {detail === 'drainage' && !terrainProfile && (
+                                      <DrainagePanel
+                                        run={drainageEntry?.run ?? null}
+                                        onShowCulverts={showCulverts}
+                                        stale={drainageStale}
+                                        settings={drainageSettings}
+                                        onSettings={changeDrainageSettings}
+                                        onRun={checkDrainage}
+                                        busy={!!busy}
+                                        pourPoint={project.drainage?.pourPoint}
+                                        onPourPointChange={changePourPoint}
+                                        pourPointPicking={!!drainagePicking}
+                                        onPickPourPoint={(options) => {
+                                          setDrainagePicking((current) => (current ? null : options))
+                                          setMode('inspect')
+                                          setDraft([])
+                                          if (!drainagePicking && focusMode) {
+                                            setFocusPane('plan')
+                                            setControlsOpen(false)
+                                          }
+                                          w.setNotice(
+                                            drainagePicking
+                                              ? 'Drainage point selection cancelled.'
+                                              : 'Tap the plan to choose the drainage pour point.',
+                                          )
+                                        }}
+                                        watershedMinAreaHa={project.drainage?.watershedMinAreaHa}
+                                        onWatershedMinAreaChange={(watershedMinAreaHa) =>
+                                          update((p) => ({
+                                            ...p,
+                                            drainage: {
+                                              ...p.drainage,
+                                              settings: drainageSettings,
+                                              records: p.drainage?.records ?? [],
+                                              watershedMinAreaHa,
+                                            },
+                                          }))
+                                        }
+                                        evidence={drainageEvidence}
+                                        onExport={exportDrainage}
+                                        comparisons={(project.drainage?.comparisons ?? []).filter(
+                                          (record) => record.alignmentId === alignment.id,
+                                        )}
+                                        totalComparisonRecords={
+                                          (project.drainage?.comparisons ?? []).filter((r) =>
+                                            project.alignments.some((a) => a.id === r.alignmentId),
+                                          ).length
+                                        }
+                                        onSaveComparison={saveDrainageComparison}
+                                        onRemoveComparison={(id) =>
+                                          update((p) => ({
+                                            ...p,
+                                            drainage: {
+                                              ...p.drainage!,
+                                              comparisons: (p.drainage?.comparisons ?? []).filter(
+                                                (record) => drainageComparisonId(record) !== id,
+                                              ),
+                                            },
+                                          }))
+                                        }
+                                        onExportComparisons={exportDrainageComparisons}
+                                        onStation={(chainage) => {
+                                          w.setStation(chainage)
+                                          if (focusMode) setFocusPane('plan')
+                                        }}
+                                      />
+                                    )}
+                                    {detail === 'swept' && !terrainProfile && (
+                                      <div className="h-full overflow-auto overscroll-contain">
+                                        <SweptPathPanel
+                                          check={displayedAlignment.vehicleCheck}
+                                          result={sweptState.result}
+                                          error={sweptState.error}
+                                          onChange={swept.onChange}
+                                          onStation={setStation}
+                                          showOnPlan={showSwept}
+                                          onShowOnPlan={setShowSwept}
+                                          onFocus={swept.onFocus}
+                                          alignment={displayedAlignment}
+                                          junctions={swept.junctions}
+                                          tools={swept.tools}
+                                        />
+                                      </div>
+                                    )}
+                                    {detail === 'compare' && (
+                                      <CompareAlternatives
+                                        alignments={project.alignments}
+                                        analyses={w.analyses}
+                                        activeId={alignment.id}
+                                        onSelect={selectAlignment}
+                                        project={project}
+                                        terrain={source}
+                                        onAlignmentChange={(next) => updateAlignment(() => next)}
+                                        onCompareCompleteCosts={openCompleteCosts}
+                                      />
+                                    )}
+                                    {detail === 'cable' &&
+                                      (cableResult.error ? (
+                                        <InlineAlert tone="error">{cableResult.error}</InlineAlert>
+                                      ) : cableAnalysis ? (
+                                        <div className="flex h-full min-h-0 flex-col">
+                                          <RoadSelect
+                                            ariaLabel="Active D-line"
+                                            className="mb-1 rounded border bg-background text-xs"
+                                            value={cableLine.id}
+                                            onValueChange={(value) => selectCable(value)}
+                                          >
+                                            {project.cables.map((c) => (
+                                              <option key={c.id} value={c.id}>
+                                                {c.name}
+                                              </option>
+                                            ))}
+                                          </RoadSelect>
+                                          {cableResult.summary && (
+                                            <details
+                                              className="mb-1 rounded border px-2 py-1 text-2xs"
+                                              data-testid="road-cable-summary"
+                                            >
+                                              <summary className="cursor-pointer">
+                                                Horizontal span {number(cableResult.summary.horizontalSpanM)} m ·{' '}
+                                                {cableAnalysis.mechanics?.span
+                                                  ? 'rope and load'
+                                                  : `assumed sag ${number(cableResult.summary.assumedSagM)} m`}
+                                              </summary>
+                                              <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+                                                <span>
+                                                  Support Δ elevation{' '}
+                                                  {number(cableResult.summary.supportElevationDifferenceM)} m
+                                                </span>
+                                                <span>
+                                                  Straight chord {number(cableResult.summary.straightSupportChordM)} m
+                                                </span>
+                                                <span>
+                                                  Sampled cable geometry{' '}
+                                                  {number(cableResult.summary.sampledGeometricCableLengthM)} m
+                                                </span>
+                                                <span>
+                                                  Known ground {number(cableResult.summary.knownGroundPercent)}%
+                                                </span>
+                                              </div>
+                                              <p className="mt-1 text-muted-foreground">
+                                                {cableAnalysis.mechanics?.span
+                                                  ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
+                                                  : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'}
+                                              </p>
+                                            </details>
+                                          )}
+                                          <div className="mb-1 flex gap-1">
+                                            <Button size="sm" variant="outline" onClick={() => saveCableProfile('csv')}>
+                                              D-line CSV
+                                            </Button>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              onClick={() => saveCableProfile('report')}
+                                            >
+                                              D-line report
+                                            </Button>
+                                            {(cableLine.supportLayout?.saved || cableLine.supportLayout?.edited) && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => saveCableProfile('stakeout')}
+                                              >
+                                                Stake-out CSV
+                                              </Button>
+                                            )}
+                                          </div>
+                                          <div className="min-h-0 flex-1">
+                                            <CableChart
+                                              analysis={cableAnalysis}
+                                              distance={cableDistance}
+                                              onDistance={setCableDistance}
+                                              layout={cableLayoutOverlay}
+                                              edit={cableLayoutEdit}
+                                            />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <div className="p-4 text-sm text-muted-foreground">
+                                          Draw a D-line in Review to inspect an assumed cable-clearance profile.
+                                        </div>
+                                      ))}
+                                  </div>
+                                  {detail === 'section' && (
+                                    <SectionPaneTools
+                                      tools={sectionTools}
+                                      station={at}
+                                      terrainOnly={!!terrainProfile}
+                                      editable={
+                                        !busy &&
+                                        !terrainProfile &&
+                                        !draftAlignment &&
+                                        !numericPegAlignment &&
+                                        !templatePreview &&
+                                        !costPreview
+                                      }
+                                      updateAlignment={w.updateAlignment}
+                                      onStation={w.setStation}
+                                      onNotice={w.setNotice}
+                                    />
+                                  )}
+                                </div>
+                              )}
+                            </FullscreenPanel>
+                          )}
+                        </ChartHeader>
+                      }
+                      data={
+                        !['engineering', 'pegging'].includes(layout) ? null : (
+                          <FullscreenPanel
+                            resizeHandle={panelCorner('data', 'data panel')}
+                            title={
+                              layout === 'pegging'
+                                ? 'Pegging data · editable legs'
+                                : 'Station data · connected selection'
+                            }
+                            actions={closePanel('data')}
+                            compact
+                            className="flex min-h-0 flex-1 flex-col"
+                          >
+                            {() => (
+                              <div className="min-h-0 flex-1">
+                                {layout === 'pegging' && !terrainProfile ? (
                                   <PeggingEditor
                                     alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
                                     analysis={displayedAnalysis}
@@ -4191,404 +4782,156 @@ export default function DevForestryRoads() {
                                       })
                                     }
                                   />
+                                ) : (
+                                  designSchedules
                                 )}
-                                {detail === 'engineering' && !terrainProfile && (
-                                  <EngineeringSummary
-                                    selectedCulvertId={currentCulvertId}
-                                    onSelectCulvert={selectCulvert}
-                                    analysis={displayedAnalysis}
-                                    settings={project.settings}
-                                    station={station}
-                                    onStation={setStation}
-                                    onExport={() => {
-                                      try {
-                                        parseProject(project)
-                                        if (draftAlignment || numericPegAlignment || templatePreview || costPreview)
-                                          throw Error(
-                                            'Finish or close the design preview before exporting calculated results.',
-                                          )
-                                        downloadText(
-                                          engineeringCsv(displayedAnalysis, project.terrain),
-                                          'road-engineering-quantities.csv',
-                                          'text/csv;charset=utf-8',
-                                        )
-                                      } catch (error) {
-                                        w.setError(
-                                          error instanceof Error ? error.message : 'Could not export quantities.',
-                                        )
-                                      }
-                                    }}
-                                  />
-                                )}
-                                {detail === 'landing' && (
-                                  <RadialDeflectionPanel
-                                    source={source}
-                                    center={at?.coordinate ?? null}
-                                    centerLabel={formatRoadStation(at?.chainage ?? 0)}
-                                    sourceLabel={project.terrain.name}
-                                    onPreview={setOverlay}
-                                    selectedSpokeId={selectedSpokeId}
-                                    onSelectSpoke={setSelectedSpokeId}
-                                    onAdopt={(line) => {
-                                      if (commitValidated({ ...project, cables: [...project.cables, line] })) {
-                                        selectCable(line.id)
-                                        w.setNotice(
-                                          'Selected landing spoke saved as an editable D-line. Its map and profile now share the same span cursor.',
-                                        )
-                                      }
-                                    }}
-                                  />
-                                )}
-                                {detail === 'drainage' && !terrainProfile && (
-                                  <DrainagePanel
-                                    run={drainageEntry?.run ?? null}
-                                    onShowCulverts={showCulverts}
-                                    stale={drainageStale}
-                                    settings={drainageSettings}
-                                    onSettings={changeDrainageSettings}
-                                    onRun={checkDrainage}
-                                    busy={!!busy}
-                                    pourPoint={project.drainage?.pourPoint}
-                                    onPourPointChange={changePourPoint}
-                                    pourPointPicking={!!drainagePicking}
-                                    onPickPourPoint={(options) => {
-                                      setDrainagePicking((current) => (current ? null : options))
-                                      setMode('inspect')
-                                      setDraft([])
-                                      if (!drainagePicking && focusMode) {
-                                        setFocusPane('plan')
-                                        setControlsOpen(false)
-                                      }
-                                      w.setNotice(
-                                        drainagePicking
-                                          ? 'Drainage point selection cancelled.'
-                                          : 'Tap the plan to choose the drainage pour point.',
-                                      )
-                                    }}
-                                    watershedMinAreaHa={project.drainage?.watershedMinAreaHa}
-                                    onWatershedMinAreaChange={(watershedMinAreaHa) =>
-                                      update((p) => ({
-                                        ...p,
-                                        drainage: {
-                                          ...p.drainage,
-                                          settings: drainageSettings,
-                                          records: p.drainage?.records ?? [],
-                                          watershedMinAreaHa,
-                                        },
-                                      }))
-                                    }
-                                    evidence={drainageEvidence}
-                                    onExport={exportDrainage}
-                                    comparisons={(project.drainage?.comparisons ?? []).filter(
-                                      (record) => record.alignmentId === alignment.id,
-                                    )}
-                                    totalComparisonRecords={
-                                      (project.drainage?.comparisons ?? []).filter((r) =>
-                                        project.alignments.some((a) => a.id === r.alignmentId),
-                                      ).length
-                                    }
-                                    onSaveComparison={saveDrainageComparison}
-                                    onRemoveComparison={(id) =>
-                                      update((p) => ({
-                                        ...p,
-                                        drainage: {
-                                          ...p.drainage!,
-                                          comparisons: (p.drainage?.comparisons ?? []).filter(
-                                            (record) => drainageComparisonId(record) !== id,
-                                          ),
-                                        },
-                                      }))
-                                    }
-                                    onExportComparisons={exportDrainageComparisons}
-                                    onStation={(chainage) => {
-                                      w.setStation(chainage)
-                                      if (focusMode) setFocusPane('plan')
-                                    }}
-                                  />
-                                )}
-                                {detail === 'swept' && !terrainProfile && (
-                                  <div className="h-full overflow-auto overscroll-contain">
-                                    <SweptPathPanel
-                                      check={displayedAlignment.vehicleCheck}
-                                      result={sweptState.result}
-                                      error={sweptState.error}
-                                      onChange={swept.onChange}
-                                      onStation={setStation}
-                                      showOnPlan={showSwept}
-                                      onShowOnPlan={setShowSwept}
-                                      onFocus={swept.onFocus}
-                                      alignment={displayedAlignment}
-                                      junctions={swept.junctions}
-                                      tools={swept.tools}
-                                    />
-                                  </div>
-                                )}
-                                {detail === 'compare' && (
-                                  <CompareAlternatives
-                                    alignments={project.alignments}
-                                    analyses={w.analyses}
-                                    activeId={alignment.id}
-                                    onSelect={selectAlignment}
-                                    project={project}
-                                    terrain={source}
-                                    onAlignmentChange={(next) => updateAlignment(() => next)}
-                                    onCompareCompleteCosts={openCompleteCosts}
-                                  />
-                                )}
-                                {detail === 'cable' &&
-                                  (cableResult.error ? (
-                                    <InlineAlert tone="error">{cableResult.error}</InlineAlert>
-                                  ) : cableAnalysis ? (
-                                    <div className="flex h-full min-h-0 flex-col">
-                                      <RoadSelect
-                                        ariaLabel="Active D-line"
-                                        className="mb-1 rounded border bg-background text-xs"
-                                        value={cableLine.id}
-                                        onValueChange={(value) => selectCable(value)}
-                                      >
-                                        {project.cables.map((c) => (
-                                          <option key={c.id} value={c.id}>
-                                            {c.name}
-                                          </option>
-                                        ))}
-                                      </RoadSelect>
-                                      {cableResult.summary && (
-                                        <details
-                                          className="mb-1 rounded border px-2 py-1 text-2xs"
-                                          data-testid="road-cable-summary"
-                                        >
-                                          <summary className="cursor-pointer">
-                                            Horizontal span {number(cableResult.summary.horizontalSpanM)} m ·{' '}
-                                            {cableAnalysis.mechanics?.span
-                                              ? 'rope and load'
-                                              : `assumed sag ${number(cableResult.summary.assumedSagM)} m`}
-                                          </summary>
-                                          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
-                                            <span>
-                                              Support Δ elevation{' '}
-                                              {number(cableResult.summary.supportElevationDifferenceM)} m
-                                            </span>
-                                            <span>
-                                              Straight chord {number(cableResult.summary.straightSupportChordM)} m
-                                            </span>
-                                            <span>
-                                              Sampled cable geometry{' '}
-                                              {number(cableResult.summary.sampledGeometricCableLengthM)} m
-                                            </span>
-                                            <span>Known ground {number(cableResult.summary.knownGroundPercent)}%</span>
-                                          </div>
-                                          <p className="mt-1 text-muted-foreground">
-                                            {cableAnalysis.mechanics?.span
-                                              ? 'These geometric lengths use the assumed sag %. The profile below solves the rope and load for tension and the loaded carriage path; equipment and anchors are not checked.'
-                                              : 'Geometric lengths describe the entered sag model; equipment, tension and operating loads are not calculated.'}
-                                          </p>
-                                        </details>
-                                      )}
-                                      <div className="mb-1 flex gap-1">
-                                        <Button size="sm" variant="outline" onClick={() => saveCableProfile('csv')}>
-                                          D-line CSV
-                                        </Button>
-                                        <Button size="sm" variant="outline" onClick={() => saveCableProfile('report')}>
-                                          D-line report
-                                        </Button>
-                                        {(cableLine.supportLayout?.saved || cableLine.supportLayout?.edited) && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            onClick={() => saveCableProfile('stakeout')}
-                                          >
-                                            Stake-out CSV
-                                          </Button>
-                                        )}
-                                      </div>
-                                      <div className="min-h-0 flex-1">
-                                        <CableChart
-                                          analysis={cableAnalysis}
-                                          distance={cableDistance}
-                                          onDistance={setCableDistance}
-                                          layout={cableLayoutOverlay}
-                                          edit={cableLayoutEdit}
-                                        />
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <div className="p-4 text-sm text-muted-foreground">
-                                      Draw a D-line in Review to inspect an assumed cable-clearance profile.
-                                    </div>
-                                  ))}
                               </div>
-                              {detail === 'section' && (
-                                <SectionPaneTools
-                                  tools={sectionTools}
-                                  station={at}
-                                  terrainOnly={!!terrainProfile}
-                                  editable={
-                                    !busy &&
-                                    !terrainProfile &&
-                                    !draftAlignment &&
-                                    !numericPegAlignment &&
-                                    !templatePreview &&
-                                    !costPreview
-                                  }
-                                  updateAlignment={w.updateAlignment}
-                                  onStation={w.setStation}
-                                  onNotice={w.setNotice}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </FullscreenPanel>
-                      )}
-                    </ChartHeader>
-                  }
-                  data={
-                    !['engineering', 'pegging'].includes(layout) ? null : (
-                      <FullscreenPanel
-                        title={
-                          layout === 'pegging' ? 'Pegging data · editable legs' : 'Station data · connected selection'
-                        }
-                        actions={closePanel('data')}
-                        compact
-                        className="flex min-h-0 flex-1 flex-col"
-                      >
-                        {() => (
-                          <div className="min-h-0 flex-1">
-                            {layout === 'pegging' && !terrainProfile ? (
-                              <PeggingEditor
-                                alignment={costPreview?.alignment ?? draftAlignment ?? alignment}
-                                analysis={displayedAnalysis}
-                                source={source}
-                                disabled={!!busy || mode === 'road' || !!templatePreview || !!costPreview}
-                                onStation={setStation}
-                                onPoint={setSelectedPoint}
-                                onPreview={setOverlay}
-                                onPreviewAlignment={previewPeg}
-                                onChange={(next) =>
-                                  commitValidated({
-                                    ...project,
-                                    alignments: project.alignments.map((a) => (a.id === next.id ? next : a)),
-                                  })
-                                }
-                              />
-                            ) : (
-                              designSchedules
                             )}
-                          </div>
-                        )}
-                      </FullscreenPanel>
-                    )
-                  }
-                />
-                {!investigation && (
-                  <div
-                    className="road-station-controller flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-2 sm:gap-2"
-                    data-testid="road-station-controller"
-                  >
-                    <Button
-                      size="icon"
-                      variant="outline"
-                      className="size-7"
-                      aria-label={playing ? 'Pause station playback' : 'Play station playback'}
-                      onClick={() => {
-                        if (station >= displayedAnalysis.length) w.setStation(0)
-                        setPlaying(!playing)
-                      }}
-                    >
-                      {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
-                    </Button>
-                    <button
-                      className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
-                      aria-label="Previous road station"
-                      onClick={() =>
-                        w.setStation(
-                          [...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
-                            ?.chainage ?? 0,
-                        )
-                      }
-                    >
-                      ‹
-                    </button>
-                    <StationBox
-                      selected={w.station}
-                      shown={station}
-                      length={displayedAnalysis.length}
-                      onType={selectTypedStation}
-                      onCommit={() => setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))}
-                      onStep={(direction) =>
-                        setStation(
-                          direction > 0
-                            ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
-                                displayedAnalysis.length)
-                            : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
-                                ?.chainage ?? 0),
+                          </FullscreenPanel>
                         )
                       }
                     />
-                    <button
-                      className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
-                      aria-label="Next road station"
-                      onClick={() =>
-                        w.setStation(
-                          displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
-                            displayedAnalysis.length,
-                        )
-                      }
-                    >
-                      ›
-                    </button>
-                    <StationJumpMenu
-                      project={project}
-                      alignment={displayedAlignment}
-                      analysis={displayedAnalysis}
-                      station={w.station}
-                      onJump={(target) =>
-                        target.culvertId ? selectCulvert(target.culvertId) : w.setStation(target.chainage)
-                      }
-                      onNotice={w.setNotice}
-                    />
-                    <input
-                      aria-label="Linked road station"
-                      type="range"
-                      min={0}
-                      max={Math.max(1, displayedAnalysis.length)}
-                      step={1}
-                      value={station}
-                      className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
-                      onChange={(e) => w.setStation(Number(e.target.value))}
-                    />
-                    {typedNote && (
-                      <span
-                        role="status"
-                        className="text-xs text-amber-800 dark:text-amber-300"
-                        data-testid="road-station-limited"
+                    {!investigation && !(shortPanePicker && isDrawing && focusedPane === 'plan') && (
+                      <div
+                        className="road-station-controller flex shrink-0 flex-wrap items-center gap-1.5 rounded-lg border bg-card px-3 py-2 sm:gap-2"
+                        data-testid="road-station-controller"
                       >
-                        {typedNote}
-                      </span>
-                    )}
-                    <output className="font-mono text-xs" data-testid="road-selected-station">
-                      {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
-                        <span
-                          className="font-sans text-amber-800 dark:text-amber-300"
-                          data-testid="road-station-terrain-gap"
-                          title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
+                        {focusMode && shortPanePicker && (
+                          <RoadSelect
+                            ariaLabel="Visible road pane"
+                            title="Switch the visible road pane"
+                            className="h-8 w-20"
+                            value={focusedPane ?? 'plan'}
+                            onValueChange={(value) => showPane(value as RoadPaneId)}
+                            options={focusOptions}
+                          />
+                        )}
+                        <Button
+                          size="icon"
+                          variant="outline"
+                          className="size-7"
+                          aria-label={playing ? 'Pause station playback' : 'Play station playback'}
+                          onClick={() => {
+                            if (station >= displayedAnalysis.length) w.setStation(0)
+                            setPlaying(!playing)
+                          }}
                         >
-                          {at.groundElevation === null ? 'No ground elevation' : 'Terrain gaps in the cross-section'} at{' '}
-                          {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
-                        </span>
-                      ) : (
-                        <>
-                          {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
-                          {number(at?.gradePercent)}%
-                        </>
-                      )}
-                    </output>
-                  </div>
-                )}
-              </main>
-            ),
-          },
-        ]}
-      />
+                          {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
+                        </Button>
+                        <button
+                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          aria-label="Previous road station"
+                          onClick={() =>
+                            w.setStation(
+                              [...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                                ?.chainage ?? 0,
+                            )
+                          }
+                        >
+                          ‹
+                        </button>
+                        <StationBox
+                          selected={w.station}
+                          shown={station}
+                          length={displayedAnalysis.length}
+                          onType={selectTypedStation}
+                          onCommit={() => setTypedStation((typed) => (typed ? { ...typed, committed: true } : typed))}
+                          onStep={(direction) =>
+                            setStation(
+                              direction > 0
+                                ? (displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                                    displayedAnalysis.length)
+                                : ([...displayedAnalysis.stations].reverse().find((s) => s.chainage < station - 0.001)
+                                    ?.chainage ?? 0),
+                            )
+                          }
+                        />
+                        <button
+                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          aria-label="Next road station"
+                          onClick={() =>
+                            w.setStation(
+                              displayedAnalysis.stations.find((s) => s.chainage > station + 0.001)?.chainage ??
+                                displayedAnalysis.length,
+                            )
+                          }
+                        >
+                          ›
+                        </button>
+                        <StationJumpMenu
+                          project={project}
+                          alignment={displayedAlignment}
+                          analysis={displayedAnalysis}
+                          station={w.station}
+                          onJump={(target) =>
+                            target.culvertId ? selectCulvert(target.culvertId) : w.setStation(target.chainage)
+                          }
+                          onNotice={w.setNotice}
+                        />
+                        <input
+                          aria-label="Linked road station"
+                          type="range"
+                          min={0}
+                          max={Math.max(1, displayedAnalysis.length)}
+                          step={1}
+                          value={station}
+                          className="min-w-16 flex-1 accent-rose-600 touch:h-10 sm:min-w-24"
+                          onChange={(e) => w.setStation(Number(e.target.value))}
+                        />
+                        {typedNote && (
+                          <span
+                            role="status"
+                            className="text-xs text-amber-800 dark:text-amber-300"
+                            data-testid="road-station-limited"
+                          >
+                            {typedNote}
+                          </span>
+                        )}
+                        <output className="font-mono text-xs" data-testid="road-selected-station">
+                          {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
+                            <span
+                              className="font-sans text-amber-800 dark:text-amber-300"
+                              data-testid="road-station-terrain-gap"
+                              title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
+                            >
+                              {at.groundElevation === null
+                                ? 'No ground elevation'
+                                : 'Terrain gaps in the cross-section'}{' '}
+                              at {formatRoadStation(station)}. Import a DEM with coverage here in Terrain.
+                            </span>
+                          ) : (
+                            <>
+                              {formatRoadStation(at?.chainage ?? 0)} · Z {number(at?.groundElevation)} m ·{' '}
+                              {number(at?.gradePercent)}%
+                            </>
+                          )}
+                        </output>
+                      </div>
+                    )}
+                  </main>
+                </div>
+              ),
+            },
+          ]}
+        />
+        <div className="lp-task-slot" ref={setPaneHost} />
+      </div>
+      {summaryAvailable && summaryTarget !== null && (
+        <RoadSummarySettings
+          metrics={summaryMetrics}
+          controls={summaryControls}
+          selected={summaryTarget}
+          onReveal={() => setSummaryOpen(true)}
+          onClose={() => setSummaryTarget(null)}
+        />
+      )}
     </div>
+  )
+  return (
+    <RibbonPaneHost.Provider
+      value={{ slot: paneHost, resizeKey: panelFrame?.resizeCorners ? cornerKey('settings') : undefined }}
+    >
+      {workspace}
+    </RibbonPaneHost.Provider>
   )
 }

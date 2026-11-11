@@ -1,5 +1,7 @@
 # Forestry road design workspace
 
+Choose Ribbon, Guided map or Engineering workbench when opening the road designer. Switch interfaces within a project to keep the selected road, station and editing history. See [Workspace layouts](forestry-road-design/workspace-layouts.md) for the available controls and configuration.
+
 `/dev/forestry/road-design` is the road-planning workspace in the forestry toolkit.
 `/dev/forestry/roads` is its route alias. The layout follows the connected-view
 pattern used by the water-temperature workspace: a plan, longitudinal profile,

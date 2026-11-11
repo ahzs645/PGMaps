@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import type { WorkflowEditor } from '@/components/interfaces/workspaceLayouts'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ClipboardCheck, HardHat, Mountain, Route, SlidersHorizontal } from 'lucide-react'
 import { TabBar } from '@/components/ui/tab-bar'
 import { EngineeringControls } from './EngineeringControls'
@@ -42,11 +43,15 @@ export interface RoadDrawing {
   canFinish: boolean
   onFinish: () => void
 }
+export type EngineeringInputTab = 'templates' | 'materials' | 'haul'
 export interface SidebarProps {
+  engineeringInputsRequest?: { tab: EngineeringInputTab; sequence: number }
+  onEngineeringInputs?: (tab: EngineeringInputTab) => void
   workspace: RoadWorkspace
   onCompareCompleteCosts?: () => void
   onPlanNetwork?: () => void
   readOnlyPreview?: boolean
+  embedded?: boolean
   workflowTab?: SidebarTab
   onWorkflowTabChange?: (tab: SidebarTab) => void
   roadReviewRequest?: { id?: string; sequence: number }
@@ -152,7 +157,7 @@ export interface SidebarProps {
   onCloseTemplatePreview: () => void
   onQuantities: () => void
 }
-export type SidebarTab = 'terrain' | 'design' | 'template' | 'engineering' | 'review'
+export type SidebarTab = WorkflowEditor
 
 /** The road workflow's tab strip; each tab's panel stays mounted and is `hidden` when not shown. */
 export function DesignSidebar(p: SidebarProps) {
@@ -162,21 +167,17 @@ export function DesignSidebar(p: SidebarProps) {
     setInternalTab(next)
     p.onWorkflowTabChange?.(next)
   }
-  const [aggregateOpen, setAggregateOpen] = useState(false)
+  const [aggregate, setAggregate] = useState({
+    open: false,
+    inputs: p.engineeringInputsRequest,
+    culverts: p.engineeringRequest,
+  })
+  const aggregateOpen =
+    aggregate.open && aggregate.inputs === p.engineeringInputsRequest && aggregate.culverts === p.engineeringRequest
+  const setAggregateOpen = (open: boolean) =>
+    setAggregate({ open, inputs: p.engineeringInputsRequest, culverts: p.engineeringRequest })
   // A template created from the Section tab opens in the library editor on the Engineering tab.
   const [templateRequest, setTemplateRequest] = useState<{ id: string; sequence: number }>()
-  const [inputsRequest, setInputsRequest] = useState<{ tab: 'templates' | 'materials' | 'haul'; sequence: number }>()
-  const showEngineeringInputs = (inputs: 'templates' | 'materials' | 'haul') => {
-    setTab('engineering')
-    setAggregateOpen(false)
-    setInputsRequest((previous) => ({ tab: inputs, sequence: (previous?.sequence ?? 0) + 1 }))
-  }
-  // Asking for the culvert inputs closes the aggregate view, here rather than in EngineeringControls.
-  const [engineeringRequest, setEngineeringRequest] = useState(p.engineeringRequest)
-  if (p.engineeringRequest !== engineeringRequest) {
-    setEngineeringRequest(p.engineeringRequest)
-    if (p.engineeringRequest) setAggregateOpen(false)
-  }
   const [existingRoadsOpen, setExistingRoadsOpen] = useState(false)
   const existingRoads = useRef<HTMLDivElement>(null)
   const [reviewRequest, setReviewRequest] = useState(p.roadReviewRequest)
@@ -192,36 +193,48 @@ export function DesignSidebar(p: SidebarProps) {
     setExistingRoadsOpen(true)
     requestAnimationFrame(() => existingRoads.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
+  const scrollArea = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (p.embedded && scrollArea.current) scrollArea.current.scrollTop = 0
+  }, [p.embedded, tab])
   return (
     <aside
-      aria-label="Road design controls"
-      className="road-design-sidebar flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card"
+      role={p.embedded ? 'group' : undefined}
+      aria-label={p.embedded ? 'Workflow settings' : 'Road design controls'}
+      className={
+        p.embedded
+          ? 'lp-workflow-editor'
+          : 'road-design-sidebar flex h-full min-h-0 min-w-0 flex-col rounded-xl border bg-card'
+      }
     >
       <fieldset disabled={!!p.workspace.busy || p.readOnlyPreview} className="contents">
-        <div className="border-b p-1.5">
-          <TabBar
-            label="Road workflow"
-            value={tab}
-            onChange={setTab}
-            stretch
-            stacked
-            getTabProps={(option) => ({ title: option.label })}
-            options={[
-              { value: 'terrain', label: 'Terrain', icon: Mountain },
-              { value: 'design', label: 'Design', icon: Route },
-              { value: 'template', label: 'Section', icon: SlidersHorizontal },
-              { value: 'engineering', label: 'Engineering', icon: HardHat },
-              { value: 'review', label: 'Review', icon: ClipboardCheck },
-            ]}
-          />
-        </div>
+        {!p.embedded && (
+          <div className="border-b p-1.5">
+            <TabBar
+              label="Road workflow"
+              value={tab}
+              onChange={setTab}
+              stretch
+              stacked
+              getTabProps={(option) => ({ title: option.label })}
+              options={[
+                { value: 'terrain', label: 'Terrain', icon: Mountain },
+                { value: 'design', label: 'Design', icon: Route },
+                { value: 'template', label: 'Section', icon: SlidersHorizontal },
+                { value: 'engineering', label: 'Engineering', icon: HardHat },
+                { value: 'review', label: 'Review', icon: ClipboardCheck },
+              ]}
+            />
+          </div>
+        )}
         {/* A stable gutter: opening a section must not bring in a scrollbar that narrows and shifts everything. */}
         <div
           className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]"
+          ref={scrollArea}
           data-testid="road-sidebar-content"
           data-map-sidebar-scroll="true"
         >
-          <div hidden={tab !== 'terrain'}>
+          <div data-workflow-editor="terrain" hidden={tab !== 'terrain'}>
             <TerrainTab
               {...p}
               existingRoads={
@@ -241,7 +254,7 @@ export function DesignSidebar(p: SidebarProps) {
               }
             />
           </div>
-          <div hidden={tab !== 'design'}>
+          <div data-workflow-editor="design" hidden={tab !== 'design'}>
             <DesignTab
               {...p}
               onShowExistingRoads={showExistingRoads}
@@ -251,7 +264,7 @@ export function DesignSidebar(p: SidebarProps) {
               }}
             />
           </div>
-          <div hidden={tab !== 'template'}>
+          <div data-workflow-editor="template" hidden={tab !== 'template'}>
             <SectionTab
               {...p}
               onTab={setTab}
@@ -262,7 +275,7 @@ export function DesignSidebar(p: SidebarProps) {
               }}
             />
           </div>
-          <div hidden={tab !== 'engineering'}>
+          <div data-workflow-editor="engineering" hidden={tab !== 'engineering'}>
             <StreamCrossingsPanel workspace={p.workspace} />
             <EngineeringControls
               workspace={p.workspace}
@@ -274,12 +287,12 @@ export function DesignSidebar(p: SidebarProps) {
               onAggregateOpenChange={setAggregateOpen}
               culvertRequest={p.engineeringRequest}
               templateRequest={templateRequest}
-              inputsRequest={inputsRequest}
+              inputsRequest={p.engineeringInputsRequest}
               onShowDrainage={p.onShowDrainage}
             />
           </div>
-          <div hidden={tab !== 'review'}>
-            <ReviewTab {...p} onTab={setTab} onEngineeringInputs={showEngineeringInputs} />
+          <div data-workflow-editor="review" hidden={tab !== 'review'}>
+            <ReviewTab {...p} onTab={setTab} />
           </div>
         </div>
       </fieldset>

@@ -11,8 +11,7 @@ export const ROAD_LAYOUT_OPTIONS: { value: RoadLayout; label: string }[] = [
   { value: 'pegging', label: 'Plan · profile · section · pegging' },
 ]
 
-/** The splits a layout remembers; a saved layout copies these under its own id. */
-export const ROAD_PANE_SPLITS = ['columns', 'plan-data', 'views'] as const
+/** A saved layout copies its split sizes and panel corner sizes under its own id. */
 export const roadPaneKey = (storageId: string, split: string) => `pgmaps-road-panes:${storageId}:${split}`
 
 /**

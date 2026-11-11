@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import fs from 'node:fs'
 import { expect, test, type Page } from '@playwright/test'
 import { createDemoProject } from '../../src/pages/dev-forestry-roads/terrain'
@@ -74,7 +75,7 @@ async function open(page: Page, failFish = false) {
         : { type: 'FeatureCollection', features: records },
     })
   })
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   if (page.viewportSize()!.width < 768)
     await page.getByRole('button', { name: 'Show road controls', exact: true }).click()
@@ -122,7 +123,10 @@ test('provincial sources render, retain separate assessment evidence, and travel
   await expect.poll(() => mapEvidenceCounts(page)).toEqual({ fish: 1, watersheds: 1 })
   await row.click()
   await expect(page.getByTestId('stream-source-evidence')).toContainText('FWA source record 42')
-  await expect(page.getByRole('combobox', { name: 'Fish stream', exact: true })).toHaveAttribute('data-value', 'unresolved')
+  await expect(page.getByRole('combobox', { name: 'Fish stream', exact: true })).toHaveAttribute(
+    'data-value',
+    'unresolved',
+  )
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save project JSON', exact: true }).click()

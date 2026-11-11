@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
@@ -17,14 +18,17 @@ async function loadScenario(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   await page.getByRole('button', { name: /Browse \d+ example scenarios/ }).click()
   await page
     .getByRole('button', { name: 'Load Training · connected access, gravel and condition', exact: true })
     .click()
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', IDS.a)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute(
+    'data-value',
+    IDS.a,
+  )
 }
 
 async function comparison(page: Page) {
@@ -120,11 +124,19 @@ test('network hauling changes the chosen horizontal road and adopted totals roun
     .getByRole('button', { name: /^Preview / })
     .click()
   await expect(page.getByTestId('full-cost-map-preview')).toBeVisible()
-  await expect(page.getByRole('term').filter({ hasText: /^Length$/ }).locator('..')).toContainText('400 m')
+  await expect(
+    page
+      .getByRole('term')
+      .filter({ hasText: /^Length$/ })
+      .locator('..'),
+  ).toContainText('400 m')
   await expect(page.getByRole('term').filter({ hasText: 'Candidate complete cost' }).locator('..')).toContainText(
     quotedCost,
   )
-  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute('data-value', IDS.a)
+  await expect(page.getByRole('combobox', { name: 'Active road', exact: true, includeHidden: true })).toHaveAttribute(
+    'data-value',
+    IDS.a,
+  )
   await page.screenshot({ path: '/tmp/full-cost-preview.png' })
   await page.getByRole('button', { name: 'Return to comparison', exact: true }).click()
   await expect(dialog).toBeVisible()
@@ -175,7 +187,10 @@ test('a closed bridge or road access blocks network reuse rather than granting a
   let roads = await reviewRoad(page, IDS.armA)
   let network = await networkEditor(roads)
   await choose(network.getByRole('combobox', { name: 'Bridge / structure status', exact: true }), 'closed')
-  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute('data-value', 'serviceable')
+  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute(
+    'data-value',
+    'serviceable',
+  )
   dialog = await comparison(page)
   await calculate(dialog)
   await expect(candidate(dialog, IDS.a)).toHaveAttribute('data-status', 'infeasible')
@@ -202,8 +217,14 @@ test('dated evidence expires eligibility without fabricating or overwriting the 
   await roads.getByText('Assessment date & evidence age', { exact: true }).click()
   await roads.getByLabel('Assess condition as of', { exact: true }).fill('2028-01-01')
   await expect(estimate).toHaveAttribute('data-estimated-condition', 'unknown')
-  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute('data-value', 'serviceable')
-  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute('data-value', 'assumed')
+  await expect(roads.getByRole('combobox', { name: 'Planning condition', exact: true })).toHaveAttribute(
+    'data-value',
+    'serviceable',
+  )
+  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute(
+    'data-value',
+    'assumed',
+  )
   const dialog = await comparison(page)
   await calculate(dialog)
   await expectNoAdoption(dialog)
@@ -215,7 +236,10 @@ test('dated evidence expires eligibility without fabricating or overwriting the 
   await close(dialog)
   roads = await reviewRoad(page, IDS.armA)
   await expect(roads.getByTestId('road-condition-estimate')).toHaveAttribute('data-estimated-condition', 'serviceable')
-  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute('data-value', 'assumed')
+  await expect(roads.getByRole('combobox', { name: 'Condition evidence', exact: true })).toHaveAttribute(
+    'data-value',
+    'assumed',
+  )
 })
 
 test('final prism and directional-grade failures cannot be adopted even with priced connected access', async ({

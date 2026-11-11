@@ -26,7 +26,7 @@ export function RoadSwitcher({
   activeId: string
   disabled?: boolean
   onSelect: (id: string) => void
-  onCompare: () => void
+  onCompare?: () => void
   className?: string
 }) {
   if (alignments.length < 2) return null
@@ -58,17 +58,19 @@ export function RoadSwitcher({
         disabled={disabled}
         ariaLabel="Viewing road"
       />
-      <button
-        type="button"
-        onClick={onCompare}
-        title="Compare all roads"
-        aria-label="Compare all"
-        className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground touch:h-9"
-      >
-        <Columns3 aria-hidden="true" className="size-3.5" />
-        {/* Between the phone layout and a wide desktop the header line needs the room for the select. */}
-        <span className="md:hidden lg:inline">Compare all</span>
-      </button>
+      {onCompare && (
+        <button
+          type="button"
+          onClick={onCompare}
+          title="Compare all roads"
+          aria-label="Compare all"
+          className="flex h-7 shrink-0 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground touch:h-9"
+        >
+          <Columns3 aria-hidden="true" className="size-3.5" />
+          {/* Between the phone layout and a wide desktop the header line needs the room for the select. */}
+          <span className="md:hidden lg:inline">Compare all</span>
+        </button>
+      )}
     </nav>
   )
 }

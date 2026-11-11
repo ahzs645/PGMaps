@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { choose } from './road-select'
@@ -33,7 +34,7 @@ async function prepare(page: Page, baseURL: string) {
     }
     return route.continue()
   })
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('button', { name: 'Projects', exact: true }).click()
   await page.getByRole('button', { name: /Browse \d+ example scenarios/ }).click()
@@ -185,7 +186,10 @@ for (const phone of [false, true]) {
 
       const nearby = page.getByTestId('road-cutblock-nearby-roads')
       // Nearby roads list distance and status only; a row opens the road in Existing roads & reuse.
-      const deactivated = nearby.getByRole('button', { name: 'Review road Synthetic spur · deactivated 2016', exact: true })
+      const deactivated = nearby.getByRole('button', {
+        name: 'Review road Synthetic spur · deactivated 2016',
+        exact: true,
+      })
       await expect(nearby).toContainText('proximity only')
       await expect(deactivated).toContainText('Recorded deactivation')
       await expect(deactivated).toContainText(/\d+ m$/)

@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
@@ -18,7 +19,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   return errors
 }
@@ -46,9 +47,10 @@ async function saveProject(page: Page): Promise<RoadProject> {
 }
 
 async function chooseLayout(page: Page, name: string) {
-  await choose(page
-    .getByTestId('road-workspace-header')
-    .getByRole('combobox', { name: 'Road view layout', exact: true }), { label: name })
+  await choose(
+    page.getByTestId('road-workspace-header').getByRole('combobox', { name: 'Road view layout', exact: true }),
+    { label: name },
+  )
 }
 
 async function openSwitchbackTools(page: Page) {
@@ -243,7 +245,10 @@ test('a design vehicle swept path checks the switchback as one turn, frames it, 
   const truck = data.getByRole('spinbutton', { name: 'Truck wheelbase (m)', exact: true })
   await truck.fill('7')
   await truck.press('Tab')
-  await expect(data.getByRole('combobox', { name: 'Design vehicle preset', exact: true })).toHaveAttribute('data-value', 'custom')
+  await expect(data.getByRole('combobox', { name: 'Design vehicle preset', exact: true })).toHaveAttribute(
+    'data-value',
+    'custom',
+  )
   // A longer truck tracks further inside: the switchback needs widening again at zero clearance.
   await expect(summary).toContainText('1 of 6 turns need wider formation')
   await expect(summary).toContainText('Loaded log truck + pole trailer (edited)')

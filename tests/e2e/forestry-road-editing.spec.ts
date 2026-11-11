@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { expect, test, type Page } from '@playwright/test'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
@@ -34,7 +35,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   const show = page.getByRole('button', { name: 'Show road controls', exact: true })
   if (await show.isVisible()) await show.click()
@@ -150,7 +151,7 @@ test('dragging a handle bends the road with a curve, and a small slip adds nothi
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await page.getByRole('tab', { name: 'Design', exact: true }).click()
   await page.getByRole('button', { name: 'Edit points', exact: true }).click()

@@ -1,4 +1,5 @@
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { RoadNameField } from '../SharedRoadFields'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Copy,
@@ -50,7 +51,7 @@ const MAX_ALIGNMENTS = 20
 const DRAWING_REASON = 'Finish the road being drawn on the plan first'
 
 export function DesignTab(p: SidebarProps) {
-  const { project, alignment, updateAlignment } = p.workspace
+  const { project, alignment } = p.workspace
   const full = project.alignments.length >= MAX_ALIGNMENTS
   if (awaitingFirstRoad(project))
     return (
@@ -123,14 +124,7 @@ export function DesignTab(p: SidebarProps) {
                 ))}
               </RoadSelect>
             </Field>
-            <Field label="Road name">
-              <input
-                className={roadFieldClass}
-                maxLength={200}
-                value={alignment.name}
-                onChange={(e) => updateAlignment((a) => ({ ...a, name: e.target.value }))}
-              />
-            </Field>
+            <RoadNameField workspace={p.workspace} />
           </div>
           {/* Two rows of two: four labelled buttons do not fit the sidebar's width on one line. */}
           <div className="grid grid-cols-2 gap-1">

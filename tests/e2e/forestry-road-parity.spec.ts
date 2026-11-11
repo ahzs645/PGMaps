@@ -1,3 +1,4 @@
+import { openWorkbench, selectWorkbench } from './road-workbench'
 import JSZip from 'jszip'
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { lasFile } from './road-fixtures'
@@ -15,7 +16,7 @@ async function prepare(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await expect(page.getByRole('heading', { name: 'Forest road design', exact: true })).toBeVisible()
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
   await expect(page.getByTestId('road-profile-chart').locator('path[stroke="#a07845"]')).not.toHaveAttribute('d', '')
@@ -131,6 +132,7 @@ test('station table interval and columns, saved layouts and cost status', async 
   await dialog.getByRole('button', { name: 'Save current layout', exact: true }).click()
   await expect(picker).toHaveText(/Wide plan/)
   await page.reload()
+  await selectWorkbench(page)
   await expect(page.getByTestId('road-profile-chart')).toBeVisible()
   await expect(picker).toHaveText(/Wide plan/)
 

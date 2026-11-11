@@ -1,4 +1,5 @@
 import { RoadSelect } from './Controls'
+import type { FitRequest, usePlanDisplay } from './usePlanDisplay'
 import type { RoadSelectionRange } from './roadSelection'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Map as MapLibreMap, GeoJSONSource, ImageSource, MapMouseEvent, MapTouchEvent } from 'maplibre-gl'
@@ -97,7 +98,6 @@ export type DrawMode =
 /** A sketch stroke keeps detail down to this many screen pixels before it becomes a road. */
 export const SKETCH_CAPTURE_PX = 1.5
 type TerrainLayer = 'hillshade' | 'slope' | 'aspect' | 'elevation' | 'none'
-type FitRequest = { revision: number; target: 'roads' | 'active' | 'terrain' }
 const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   stream: 'Streams',
   'existing-road': 'Existing roads',
@@ -105,6 +105,7 @@ const CONTEXT_LABELS: Record<ContextFeature['kind'], string> = {
   avoid: 'Review areas',
 }
 interface PlanProps {
+  display: ReturnType<typeof usePlanDisplay>
   selectedRange?: RoadSelectionRange
   onMapReady?: (map: MapLibreMap | null) => void
   project: RoadProject
@@ -1948,9 +1949,8 @@ export function PlanView(input: PlanProps) {
     props.project.sharedCrossingCosts,
   ])
   const [terrainLayer, setTerrainLayer] = useState<TerrainLayer>('hillshade')
-  const [showContours, setShowContours] = useState(true)
-  const [showLabels, setShowLabels] = useState(true)
-  const [showEarthwork, setShowEarthwork] = useState(true)
+  const { showContours, setShowContours, showLabels, setShowLabels, showEarthwork, setShowEarthwork, fitRequest, fit } =
+    props.display
   const [sheetSymbols, setSheetSymbols] = useState(false)
   const [editHelpVisible, setEditHelpVisible] = useState(() => {
     try {
@@ -1973,7 +1973,7 @@ export function PlanView(input: PlanProps) {
   // Reference features: imported points, lines and areas that only the plan draws.
   const reference = props.project.reference ?? NO_REFERENCE
   const [referenceVisible, setReferenceVisible] = useState(true)
-  const [notesOpen, setNotesOpen] = useState(false)
+  const { notesOpen, setNotesOpen } = props.display
   const [noteTool, setNoteTool] = useState<NoteTool>(null)
   const [noteColor, setNoteColor] = useState<string>(MAP_NOTE_COLORS[0])
   const [noteArrow, setNoteArrow] = useState(true)
@@ -1999,7 +1999,7 @@ export function PlanView(input: PlanProps) {
   }
   // A road drawing tool and a note tool never run together: picking one puts the other down.
   const roadDrawing = !['inspect', 'edit'].includes(props.mode)
-  if (roadDrawing && noteTool) setNoteTool(null)
+  if ((!notesOpen || roadDrawing) && noteTool) setNoteTool(null)
   const tools = usePlanTools({
     project: props.project,
     alignment: props.alignment,
@@ -2078,9 +2078,6 @@ export function PlanView(input: PlanProps) {
       props.onHighlightRoad?.(feature)
     } else props.onContextSelect?.(feature)
   }
-  const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
-  const fit = (target: FitRequest['target']) =>
-    setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
   const hasTerrainBounds = !!terrainBounds(props.project.terrain)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsButton = useRef<HTMLButtonElement>(null)
@@ -2379,10 +2376,7 @@ export function PlanView(input: PlanProps) {
           aria-label="Map notes"
           aria-pressed={notesOpen}
           title={`Map notes${notes.length ? ` · ${notes.length}` : ''}`}
-          onClick={() => {
-            if (notesOpen) setNoteTool(null)
-            setNotesOpen(!notesOpen)
-          }}
+          onClick={() => setNotesOpen(!notesOpen)}
         >
           <StickyNote className="size-4" />
         </Button>
@@ -2400,10 +2394,7 @@ export function PlanView(input: PlanProps) {
             onVisible={setNotesVisible}
             count={notes.length}
             disabled={!props.onNotesChange}
-            onClose={() => {
-              setNoteTool(null)
-              setNotesOpen(false)
-            }}
+            onClose={() => setNotesOpen(false)}
           />
         </div>
       )}

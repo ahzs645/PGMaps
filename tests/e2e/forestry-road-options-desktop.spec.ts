@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { createHash } from 'node:crypto'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page } from '@playwright/test'
@@ -74,7 +75,7 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
     expect(baseline.settings.maxGradePercent).toBe(12)
     expect(baseline.settings.minRadius).toBe(25)
     await routes(page)
-    await page.goto('/dev/forestry/road-design')
+    await openWorkbench(page, '/dev/forestry/road-design')
     // Where the published LiDAR example is reachable, it loads its 1 m DTM before Open is offered.
     await expect(page.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
     // The baseline is an actual UI-produced edited road file, opened afresh for every preference.
@@ -83,7 +84,10 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
     await expandRoadSection(page, 'road-route-tools')
     await choose(page.getByLabel('Corridor optimization objective', { exact: true }), objective)
     await page.getByLabel('Corridor half-width metres', { exact: true }).fill('100')
-    await expect(page.getByLabel('Corridor optimization objective', { exact: true })).toHaveAttribute('data-value', objective)
+    await expect(page.getByLabel('Corridor optimization objective', { exact: true })).toHaveAttribute(
+      'data-value',
+      objective,
+    )
     await expect(page.getByLabel('Corridor half-width metres', { exact: true })).toHaveValue('100')
     const started = Date.now()
     await page.getByRole('button', { name: 'Optimize sketched corridor', exact: true }).click()
@@ -164,7 +168,7 @@ for (const objective of ['shortest', 'balanced', 'contour'] as const) {
       const reopened = await fresh.newPage()
       reopened.on('pageerror', (error) => errors.push(error.message))
       await routes(reopened)
-      await reopened.goto(new URL('/dev/forestry/road-design', page.url()).href)
+      await openWorkbench(reopened, new URL('/dev/forestry/road-design', page.url()).href)
       await expect(reopened.getByRole('button', { name: 'Open', exact: true })).toBeEnabled({ timeout: 90000 })
       await open(reopened, info.outputPath('adopted.road.json'), adopted.activeAlignmentId)
       expect(await save(reopened)).toEqual(adopted)

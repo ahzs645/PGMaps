@@ -1,3 +1,4 @@
+import { openWorkbench } from './road-workbench'
 import { readFile, writeFile } from 'node:fs/promises'
 import { expect, test, type Page, type Browser, type TestInfo } from '@playwright/test'
 import { analyzeRoad } from '../../src/pages/dev-forestry-roads/engine'
@@ -69,7 +70,7 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
     await page.route('https://basemaps.cartocdn.com/**', (route) =>
       route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
     )
-    await page.goto('/dev/forestry/road-design?example=training')
+    await openWorkbench(page, '/dev/forestry/road-design?example=training')
     await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 
     for (const [objective, label] of [
@@ -79,7 +80,10 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
       // This is the actual downloaded baseline, opened through the file picker before EACH option.
       await open(page, inputPath)
       await design(page)
-      await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', baseline.activeAlignmentId)
+      await expect(page.getByLabel('Active road', { exact: true })).toHaveAttribute(
+        'data-value',
+        baseline.activeAlignmentId,
+      )
       expect(await save(page)).toEqual(baseline)
       for (const [name, value] of [
         ['Curve K', '4'],
@@ -94,7 +98,8 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
       await openRoadPanel(page, 'Optimize vertical profile')
       await page.getByRole('checkbox', { name: 'Tie both ends to ground', exact: true }).check()
       await choose(page.getByRole('combobox', { name: 'Profile optimization objective', exact: true }), objective)
-      await expect(page.getByRole('combobox', { name: 'Profile optimization objective', exact: true })).toHaveAttribute('data-value', 
+      await expect(page.getByRole('combobox', { name: 'Profile optimization objective', exact: true })).toHaveAttribute(
+        'data-value',
         objective,
       )
       const before = await save(page)
@@ -154,6 +159,7 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
         .tap()
       await expect(page.getByTestId('road-profile-chart')).toBeVisible()
       await page.screenshot({ path: info.outputPath(`${objective}-profile.png`) })
+      await page.getByRole('button', { name: 'Show road summary', exact: true }).tap()
       await page.getByRole('button', { name: 'Show how the covered estimate is calculated', exact: true }).tap()
       const costDialog = page.getByRole('dialog').filter({ hasText: 'Covered estimate' })
       await expect(costDialog).toBeVisible()
@@ -177,10 +183,13 @@ async function compareOptions(page: Page, browser: Browser, info: TestInfo, inpu
             ? route.fulfill({ json: { version: 8, sources: {}, layers: [] } })
             : route.abort(),
         )
-        await reopened.goto(new URL('/dev/forestry/road-design?example=training', page.url()).href)
+        await openWorkbench(reopened, new URL('/dev/forestry/road-design?example=training', page.url()).href)
         await open(reopened, path)
         await design(reopened)
-        await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute('data-value', project.activeAlignmentId)
+        await expect(reopened.getByLabel('Active road', { exact: true })).toHaveAttribute(
+          'data-value',
+          project.activeAlignmentId,
+        )
         const restored = await save(reopened)
         expect(restored).toEqual(project)
         const restoredRoad = restored.alignments.find((a) => a.id === restored.activeAlignmentId)!
@@ -268,7 +277,7 @@ test('mobile profile options include a separately entered hypothetical haul and 
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
+  await openWorkbench(page, '/dev/forestry/road-design?example=training')
   await open(page, baselinePath!)
   await design(page)
   await page
