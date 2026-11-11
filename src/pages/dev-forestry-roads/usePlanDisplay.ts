@@ -8,6 +8,8 @@ export function usePlanDisplay() {
   const [showLabels, setShowLabels] = useState(true)
   const [showEarthwork, setShowEarthwork] = useState(true)
   const [notesOpen, setNotesOpen] = useState(false)
+  // Sentinel-2 imagery reads from the network, so it starts off.
+  const [showSentinel, setShowSentinel] = useState(false)
   const [fitRequest, setFitRequest] = useState<FitRequest>({ revision: 0, target: 'roads' })
   const fit = (target: FitRequest['target']) =>
     setFitRequest((previous) => ({ revision: previous.revision + 1, target }))
@@ -20,6 +22,8 @@ export function usePlanDisplay() {
     setShowEarthwork,
     notesOpen,
     setNotesOpen,
+    showSentinel,
+    setShowSentinel,
     fitRequest,
     fit,
   }

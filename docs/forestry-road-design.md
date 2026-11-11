@@ -13,6 +13,11 @@ Before relying on a result, read the [limits and checks guides](forestry-road-de
 They cover terrain and point clouds, alignment and optimization, quantities and costs,
 drainage, and exports, and say what each assumes and how problems show up.
 
+**View → Map layers → Sentinel-2 imagery** draws Copernicus Sentinel-2 true colour, NDVI or the
+NDVI change between two scenes under the plan, as evidence only: never a constraint, never a
+route-search input, never proof of a road. See [Sentinel-2 imagery on the plan](forestry-road-design/sentinel-imagery.md)
+for its sources, limits and the "first seen between" interval.
+
 **Terrain → Access history** reconstructs dated block-to-road-to-crossing candidates
 from explicit entrances, source records and physical events. It preserves reviewed
 assertions in project files separately from present road reuse. See the
