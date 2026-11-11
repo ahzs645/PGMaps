@@ -435,8 +435,16 @@ export function GlobalSearch({ className }: GlobalSearchProps) {
     const sources = SEARCH_SOURCES.filter((source) =>
       source.key === 'properties' ? includeProperties : source.key === 'crime' ? includeCrime : true,
     )
+    // Marked loading from a callback, not the effect body: a synchronous setState here re-renders
+    // the dialog once per source before the first fetch starts.
+    void Promise.resolve().then(() => {
+      if (!mountedRef.current) return
+      setSourceStatus((current) => ({
+        ...current,
+        ...Object.fromEntries(sources.map((source) => [source.key, 'loading' as const])),
+      }))
+    })
     for (const source of sources) {
-      setSourceStatus((current) => ({ ...current, [source.key]: 'loading' }))
       loadSearchSource(source)
         .then((items) => {
           if (!mountedRef.current) return
