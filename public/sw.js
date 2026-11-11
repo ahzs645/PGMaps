@@ -78,8 +78,10 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Manifests and catalogs are mutable pointers to data snapshots.
-  if (/\/(manifest|index|catalog|metadata)\.json$/.test(pathname)) {
+  // Manifests and catalogs are mutable pointers to data snapshots. The road designer's
+  // workspace layouts are a deploy-time configuration file: a changed file must take
+  // effect on the next load, so it never renders from cache while the network answers.
+  if (/\/(manifest|index|catalog|metadata)\.json$/.test(pathname) || pathname === '/workspace-layouts.json') {
     event.respondWith(networkFirst(request, DATA_CACHE, request, 'no-cache'))
     return
   }

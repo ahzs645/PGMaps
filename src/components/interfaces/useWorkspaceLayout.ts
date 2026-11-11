@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import type { RoadPaneId } from '@/pages/dev-forestry-roads/RoadPaneLayout'
 import type { WorkspaceLayout } from './workspaceLayouts'
+import { storeInterface } from './interfacePreference'
 
 const preferenceKey = (id: string) => `light-path-layout-${id}`
 
@@ -28,6 +29,7 @@ export function useWorkspaceLayout(initial: WorkspaceLayout) {
 
   function selectLayout(next: WorkspaceLayout, showEvidence: boolean) {
     if (active.id === next.id) return
+    storeInterface(next.id)
     setActive(next)
     setSelection(readPreset(next))
     setCollapsed(!showEvidence && next.sidebar === 'collapsed')

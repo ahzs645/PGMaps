@@ -102,3 +102,16 @@ describe('service worker data hosts', () => {
     expect(response).toBeUndefined()
   })
 })
+
+describe('service worker configuration files', () => {
+  it('serves the road workspace layouts from the network even when a cached copy exists', async () => {
+    const request = { method: 'GET', url: 'https://example.com/workspace-layouts.json', mode: 'cors' }
+    const put = vi.fn()
+    const network = vi.fn(async () => new Response('[{"id":"fresh"}]'))
+    const { response } = worker(network, async () => ({ put }), { request })
+    // The harness's cache always holds 'offline shell'; a changed layout file must win over it.
+    expect(await (await response).text()).toBe('[{"id":"fresh"}]')
+    expect(network).toHaveBeenCalledWith(request, { cache: 'no-cache' })
+    expect(put).toHaveBeenCalledOnce()
+  })
+})
