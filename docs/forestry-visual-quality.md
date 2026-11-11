@@ -1045,8 +1045,15 @@ landform, existing openings and masks; the road and, after a run, the ground
 classes, the assessment viewpoint and the exposure ramp; terrain candidates,
 other ridge layers and landform clues; sensitivity units, VLI viewpoints,
 viewing directions, rec sites and screenings. Layers and rows read one set of
-colours, `planMapStyle.ts`. Map hovers are `mapTooltipHtml` cards. The road
-view keeps its own status panel and has no legend.
+colours, `planMapStyle.ts`; sensitivity units are drawn in their objective's
+colour, the colour their sidebar rows show. Map hovers are `mapTooltipHtml`
+cards. The road view keeps its own status panel and has no legend.
+
+The plan map also offers the shared table view (`useVisualQualityTable.ts`):
+the scene's polygons, the viewpoints and rec sites loaded around the block
+(with the checked share in view), and the run's viewing stations (with the
+alteration in view from each). It is withdrawn in the road view and while
+drawing, when its corner belongs to the drawing controls.
 
 ## Standing at viewpoints, block colours and EVQO polygons
 
