@@ -7,6 +7,7 @@ import proj4 from 'proj4'
 import { parseProject, type GeoreferenceProject, type Point } from '../../src/pages/dev-georeference/model'
 import { parseCatalogue, type RasterRecord } from '../../src/pages/dev-view/catalogue'
 import { BC_ALBERS } from '../../src/lib/geo/projectedCrs'
+import { choose, expectSelected, optionEntries } from './styled-select'
 
 // These launch settings are local to this map suite; the shared config still owns
 // external baseURL selection and the default development-server lifecycle.
@@ -277,7 +278,7 @@ function addRecoveredProject(fixture: ReturnType<typeof collectionFixture>) {
 
 async function pickCollectionMap(page: Page, title: string, id: string) {
   await page.getByRole('textbox', { name: 'Find a map in the collection', exact: true }).fill(title)
-  await expect(page.getByRole('combobox', { name: 'Map to edit', exact: true })).toHaveValue(id)
+  await expectSelected(page.getByRole('combobox', { name: 'Map to edit', exact: true }), id)
   await page.getByRole('button', { name: 'Load selected map', exact: true }).click()
 }
 
@@ -323,10 +324,10 @@ test('filtered map selection loads its displayed source and keeps independent lo
   await expect(page.getByTestId('georeference-project-state')).toContainText('Edits saved locally')
 
   const drafts = page.getByRole('combobox', { name: 'Local draft to resume', exact: true })
-  await expect(drafts.locator('option')).toHaveCount(2)
-  const alphaDraft = await drafts.locator('option').filter({ hasText: 'Kitimat test map' }).getAttribute('value')
+  await expect.poll(async () => (await optionEntries(drafts)).length).toBe(2)
+  const alphaDraft = (await optionEntries(drafts)).find((entry) => entry.label.includes('Kitimat test map'))?.value
   if (!alphaDraft) throw new Error('Expected the preserved Alpha draft')
-  await drafts.selectOption(alphaDraft)
+  await choose(drafts, { value: alphaDraft })
   await page.getByRole('button', { name: 'Resume local draft', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Kitimat test map', exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Georeferencing notes', exact: true })).toHaveValue(
@@ -344,7 +345,7 @@ test('filtered map selection loads its displayed source and keeps independent lo
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Kitimat test map', exact: true })).toBeVisible()
   await expect(page.getByRole('textbox', { name: 'Georeferencing notes', exact: true })).toHaveValue('')
-  await expect(drafts.locator('option')).toHaveCount(2)
+  await expect.poll(async () => (await optionEntries(drafts)).length).toBe(2)
   await page.getByRole('button', { name: 'Resume local draft', exact: true }).click()
   await expect(page.getByRole('textbox', { name: 'Georeferencing notes', exact: true })).toHaveValue(
     'Keep the Kitimat working draft.',

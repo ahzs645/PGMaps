@@ -6,7 +6,7 @@ import { createDemoProject, demoTerrain, DEMO_ORIGIN } from '../../src/pages/dev
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { dialogsClosed } from './road-dialogs'
 import { openRoadPanel } from './road-sidebar'
-import { choose, optionLabels } from './road-select'
+import { choose, optionLabels } from './styled-select'
 
 test.use({
   viewport: { width: 390, height: 844 },

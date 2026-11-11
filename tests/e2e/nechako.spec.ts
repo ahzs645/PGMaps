@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { FEATURE_COMPARISON, FORMAT_COMPARISON } from '../../src/maps/nechako/comparison'
+import { choose, expectSelected, optionEntries } from './styled-select'
 
 const origin = 'https://nechakowatershed-portal.ca'
 const resource = `${origin}/cgi-bin/qgis_mapserv.fcgi/?map=/var/www/qgis_maps/example.qgs&REQUEST=GetCapabilities`
@@ -118,8 +119,8 @@ for (const viewport of [
     await page.goto('/dev/nechako?view=layers&source=live')
     const workbenchTabs = page.getByRole('tablist', { name: 'Nechako portal views', exact: true })
     await expect(page.getByText('1 WMS services', { exact: false })).toBeVisible()
-    await expect(page.getByLabel('Named layer or group')).toHaveValue('native group')
-    await page.getByLabel('Layer style', { exact: true }).selectOption('native')
+    await expectSelected(page.getByLabel('Named layer or group'), 'native group')
+    await choose(page.getByLabel('Layer style', { exact: true }), 'native')
     const tile = page.waitForRequest((request) => new URL(request.url()).searchParams.get('REQUEST') === 'GetMap')
     await page.getByRole('button', { name: 'Add layer to map', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Map layers (1)' })).toBeVisible()
@@ -164,13 +165,13 @@ for (const viewport of [
     await expect(page.getByRole('button', { name: 'Load portal project', exact: true })).toBeDisabled()
     await workbenchTabs.getByRole('tab', { name: 'Form reports', exact: true }).click()
     await page.getByRole('button', { name: 'Read available report forms', exact: true }).click()
-    await expect(page.getByLabel('Source report form', { exact: true }).getByRole('option')).toHaveCount(1)
+    await expect.poll(async () => optionEntries(page.getByLabel('Source report form', { exact: true }))).toHaveLength(1)
     await workbenchTabs.getByRole('tab', { name: 'Formats', exact: true }).click()
     await expect(page.getByText('"format_extension": ".geojson"', { exact: false })).toBeVisible()
     await page.getByRole('button', { name: 'Refresh formats' }).click()
     await expect(page.getByText('"format_extension": ".geojson"', { exact: false })).toBeVisible()
     await workbenchTabs.getByRole('tab', { name: 'Research', exact: true }).click()
-    await page.getByLabel('Research data source').selectOption('live')
+    await choose(page.getByLabel('Research data source'), 'live')
     await expect(page.getByText('3 total records · 1 without location tags')).toBeVisible()
     await expect(page.getByText('3 matching records')).toBeVisible()
     await page.getByRole('button', { name: 'Unmapped records', exact: true }).click()
@@ -192,7 +193,7 @@ for (const viewport of [
     await workbenchTabs.getByRole('tab', { name: 'Layers', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Map layers (1)' })).toBeVisible()
     await page.getByRole('button', { name: 'Refresh catalogue' }).click()
-    await expect(page.getByLabel('Named layer or group')).toHaveValue('native group')
+    await expectSelected(page.getByLabel('Named layer or group'), 'native group')
     await page.getByRole('button', { name: 'Remove Watershed group' }).click()
     await expect(page.getByRole('heading', { name: 'Map layers (0)' })).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Identify: Watershed group' })).toHaveCount(0)

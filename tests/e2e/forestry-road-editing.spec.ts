@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimizer'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })
 test.setTimeout(120000)

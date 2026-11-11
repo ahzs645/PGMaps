@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { choose, expectSelected } from './styled-select'
 
 const transparentPng = Buffer.from(
   // RGBA (0, 0, 0, 0): the WMS fixture must not cover the asserted basemap colour.
@@ -56,7 +57,7 @@ for (const width of [1440, 390]) {
     const originalCanvas = await canvas.elementHandle()
 
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
-    await page.getByLabel('Named layer or group', { exact: true }).selectOption('River')
+    await choose(page.getByLabel('Named layer or group', { exact: true }), 'River')
     await page.getByRole('button', { name: 'Add layer to map', exact: true }).click()
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await page.getByRole('button', { name: 'Expand Map', exact: true }).click()
@@ -73,15 +74,15 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Export map image', exact: true }).click()
     const dialog = page.getByRole('dialog', { name: 'Export Map', exact: true })
     await expect(dialog).toBeVisible()
-    await page.getByLabel('Map image size', { exact: true }).selectOption('custom')
-    await expect(page.getByLabel('Map image size', { exact: true })).toHaveValue('custom')
+    await choose(page.getByLabel('Map image size', { exact: true }), 'custom')
+    await expectSelected(page.getByLabel('Map image size', { exact: true }), 'custom')
     await page.getByLabel('Map image width', { exact: true }).fill('100')
     await page.getByRole('button', { name: 'Prepare image preview', exact: true }).click()
     await expect(dialog.getByRole('alert')).toContainText('between 240 and 4096')
     await page.getByLabel('Map image width', { exact: true }).fill('1024')
     await page.getByLabel('Map image height', { exact: true }).fill('768')
     await page.getByLabel('Map image title', { exact: true }).fill('Nechako watershed · parity preview')
-    await page.getByLabel('Map image north arrow', { exact: true }).selectOption('compass')
+    await choose(page.getByLabel('Map image north arrow', { exact: true }), 'compass')
     await page.getByRole('button', { name: 'Prepare image preview', exact: true }).click()
     const preview = page.getByRole('img', {
       name: 'Map image preview: Nechako watershed · parity preview',
@@ -137,7 +138,7 @@ test('the options directory distinguishes source handoffs and navigates to the s
   const { errors, unexpected } = await localMap(page)
   await page.goto('/dev/nechako/portal?panel=options')
   await expect(page.getByText('78 of 78 options', { exact: true })).toBeVisible()
-  await page.getByLabel('Option availability').selectOption('original')
+  await choose(page.getByLabel('Option availability'), 'original')
   await page.getByLabel('Find a portal option').fill('impersonation')
   const impersonation = page.locator('[data-portal-option="impersonate"]')
   await expect(impersonation).toBeVisible()
@@ -146,7 +147,7 @@ test('the options directory distinguishes source handoffs and navigates to the s
     'https://nechakowatershed-portal.ca/',
   )
   await expect(impersonation.getByRole('button')).toHaveCount(0)
-  await page.getByLabel('Option availability').selectOption('connected')
+  await choose(page.getByLabel('Option availability'), 'connected')
   await page.getByLabel('Find a portal option').fill('Forms, fields and visibility')
   await page.getByRole('button', { name: 'Open forms, fields and visibility', exact: true }).click()
   await expect(page).toHaveURL(/panel=administration&admin=forms/)

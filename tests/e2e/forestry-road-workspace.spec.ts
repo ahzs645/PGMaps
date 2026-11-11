@@ -1,7 +1,7 @@
 import { openWorkbench, selectWorkbench } from './road-workbench'
 import { inflateSync } from 'node:zlib'
 import { expect, test, type Page } from '@playwright/test'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', viewport: { width: 1512, height: 982 }, actionTimeout: 15000 })

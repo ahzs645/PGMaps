@@ -1,6 +1,6 @@
 import { expect, test, type Download, type Locator, type Page } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 const tabs = ['File', 'Terrain', 'Road', 'Section', 'Engineering', 'Review', 'View'] as const
 const ribbon = (page: Page) => page.getByRole('region', { name: 'Command ribbon' })

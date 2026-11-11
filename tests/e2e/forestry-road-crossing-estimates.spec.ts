@@ -2,7 +2,7 @@ import { openWorkbench } from './road-workbench'
 import fs from 'node:fs'
 import { expect, test } from '@playwright/test'
 import type { RoadProject } from '../../src/pages/dev-forestry-roads/types'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { chooseExport } from './road-files'
 
 test.use({ serviceWorkers: 'block', actionTimeout: 15_000, viewport: { width: 1512, height: 982 } })

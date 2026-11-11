@@ -48,25 +48,52 @@ with the application. `/dev/design` and `/dev/water-temperature` share it.
 
 ## Form fields and ranges
 
-Use `form-field.tsx` exports `FormField`, `NativeSelect`, `SelectField`,
+Use `form-field.tsx` exports `FormField`, `StyledSelect`, `SelectField`,
 `NumberField` and `NullableNumberField`. `FormField` associates a label and
 help/error text with direct native children; compound controls can pass
 `htmlFor` / `descriptionId`. `group` names a group of controls, and `hintAction`
 keeps an optional `InfoTip` outside the input's label.
 
-`NativeSelect` forwards every native select prop and its ref. It retains multiple
-selection, option groups and keyboard behavior. An explicit `className` is used
-unchanged; only an omitted class gets `FORM_INPUT_CLASS`. Use `SelectField` when
-the field wrapper is also needed; its `className` styles the select and
-`fieldClassName` styles the wrapper.
+### Dropdowns
 
-For a styled dropdown, use `AppSelect` (`select.tsx`). `searchable` turns it into a combobox with a
-filter box over the list, for lists too long to scan; `searchText` gives a non-text label something
-to match. The trigger and each option carry their value in `data-value`, so tests and readers can
-pick and check values without depending on labels. The road design page uses styled dropdowns
-throughout through `RoadSelect` (`dev-forestry-roads/Controls.tsx`), which also accepts `<option>`
-children; its e2e specs pick options with `tests/e2e/road-select.ts`, since `selectOption` and
-`toHaveValue` only work on native selects.
+Every dropdown is the shared styled select; a native `<select>` is only for
+multi-select. `StyledSelect` (`styled-select.tsx`) is a drop-in for a native
+select: it takes `<option>` and `<optgroup>` children (through fragments, arrays
+and conditionals; groups get a heading), or `options`; `value` or `defaultValue`;
+and `onChange(event)` with `event.target.value` and `name`, or
+`onValueChange(value)`. It also takes `disabled`, `id`, `name`, `title`,
+`required` and `aria-label` / `-labelledby` / `-describedby` / `-invalid`, and
+`placeholder` for a value that matches no option (without one it shows the
+first option, as a native select does). The menu is the Radix one from `AppSelect`,
+layered at `z-workspace-popover` so it opens above dialogs and fullscreen panes;
+past `SEARCHABLE_FROM` (10) options it becomes a combobox with a filter box, and
+`searchable` forces either way. `multiple` or a `size` above 1 renders a real
+`<select>`.
+
+`className` is read as a native select's: width, flex, grid, margin and display
+classes (`splitSelectClasses`) size the wrapper and the rest style the trigger,
+which brings no border, height or padding of its own. An omitted class gives
+`FORM_INPUT_CLASS`. Page CSS that styled `select` reaches the trigger through
+`[data-select-trigger]`. `SelectField` is `FormField` around it: its
+`className` styles the trigger, `fieldClassName` the wrapper and `menuClassName`
+the menu. A wrapping `<label>` or `htmlFor` names the trigger button, so
+`getByLabel` and `getByRole('combobox', { name })` keep working.
+
+For a dropdown with an options array and no native heritage, `AppSelect`
+(`select.tsx`) is the underlying piece: `searchable` adds the filter box,
+`searchText` gives a non-text label something to match, and an option's `group`
+puts it under a heading. The road design page uses `RoadSelect`
+(`dev-forestry-roads/Controls.tsx`), which sizes it like the other road fields
+and reuses `StyledSelect`'s option and class helpers.
+
+Triggers and options carry their value in `data-value`. E2E specs pick and read
+dropdowns with `tests/e2e/styled-select.ts` (`choose`, `expectSelected`,
+`selectedValue`, `optionLabels`, `optionEntries`, `optionDisabled`,
+`selectTriggers`), since `selectOption`, `toHaveValue` and `option` locators only
+work on native selects. Unit tests that render a page without a DOM (react-test-renderer
+under Node, or static markup) mock `@/components/ui/styled-select` with
+`StyledSelectTestDouble` (`styledSelectTestDouble.ts`), a plain `<select>` with the
+same props: Radix's menu needs `window`, and a closed menu renders no options.
 
 Numeric fields take `value` / `onValueChange` and retain partial drafts. Choose
 `updateOn="change" | "commit"` and `clampOn="change" | "commit" | "never"`

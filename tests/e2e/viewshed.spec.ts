@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 import { encode, decode } from 'fast-png'
 
 test.use({ serviceWorkers: 'block' })
@@ -101,7 +102,7 @@ test('draws terrain-draped visibility polygons, changes comparison colours, and 
       (await mapState(page))?.areas?.features.some((feature) => feature.properties?.color === '#059669'),
     )
     .toBe(true)
-  await page.getByLabel('Sun time zone').selectOption('UTC')
+  await choose(page.getByLabel('Sun time zone'), 'UTC')
   await page.getByLabel('Sun time', { exact: true }).focus()
   await page.getByLabel('Sun time', { exact: true }).press('Home')
   await expect(page.getByText('00:00', { exact: true })).toBeVisible()
@@ -221,7 +222,7 @@ test.describe('viewshed controls on a phone', () => {
         (await mapState(page))?.areas?.features.some((feature) => feature.properties?.color === '#059669'),
       )
       .toBe(true)
-    await page.getByLabel('Sun time zone').selectOption('UTC')
+    await choose(page.getByLabel('Sun time zone'), 'UTC')
     await page.getByLabel('Sun time', { exact: true }).press('Home')
     await expect(page.getByText('00:00', { exact: true })).toBeVisible()
     await handle.press('Home')

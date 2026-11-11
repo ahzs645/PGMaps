@@ -6,7 +6,7 @@ import { corridorFrame } from '../../src/pages/dev-forestry-roads/corridorOptimi
 import { loadRaster, terrainBounds, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 
 // Opt-in real-data workflow. See docs/forestry-road-workflow-check.md for the download command.
 const demPath = process.env.PGMAPS_ROAD_DEM_PATH

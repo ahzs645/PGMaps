@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { expect, test, type Page, type Response as PlaywrightResponse } from '@playwright/test'
+import { choose, expectSelected, optionLabels } from './styled-select'
 import {
   PUBLISHED_PERIODS,
   PUBLISHED_SOURCE,
@@ -38,10 +39,10 @@ test('requires explicit soil selection, preserves published results, and downloa
   const series = publishedSeries(dataset, bgc, 4)
 
   await expect(page.getByRole('button', { name: 'Download selected site CSV' })).toBeDisabled()
-  await page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true }).selectOption(bgc)
+  await choose(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true }), bgc)
   await expect(page.getByRole('heading', { name: 'Choose a BGC unit and soil regime' })).toBeVisible()
-  await expect(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true })).toHaveValue('')
-  await page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }).selectOption('4')
+  await expectSelected(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '')
+  await choose(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '4')
 
   const table = page.getByRole('table', { name: `Published forDRAT drought risks for ${bgc}, soil regime 4` })
   await expect(table).toBeVisible()
@@ -49,9 +50,9 @@ test('requires explicit soil selection, preserves published results, and downloa
   for (const [index, row] of series.entries()) {
     await expect(ratios.getByRole('cell').nth(index)).toHaveText(String(row.aetPet))
   }
-  await page.getByRole('combobox', { name: 'Species comparison' }).selectOption('Pl')
+  await choose(page.getByRole('combobox', { name: 'Species comparison' }), 'Pl')
   await expect(table.getByRole('row')).toHaveCount(3)
-  await page.getByRole('combobox', { name: 'Focus period' }).selectOption('2080')
+  await choose(page.getByRole('combobox', { name: 'Focus period' }), '2080')
   await expect(page.getByRole('heading', { name: `${bgc} · Mesic`, exact: true })).toBeVisible()
   await expect(
     page.getByText(PUBLISHED_PERIODS[5].label, { exact: true }).filter({ visible: true }).first(),
@@ -73,9 +74,9 @@ test('requires explicit soil selection, preserves published results, and downloa
     },
     `/dev/forestry/drought-risk?bgc=${encodeURIComponent(nextBgc)}&smr=2&period=2020`,
   )
-  await expect(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true })).toHaveValue(nextBgc)
-  await expect(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true })).toHaveValue('2')
-  await expect(page.getByRole('combobox', { name: 'Focus period', exact: true })).toHaveValue('2020')
+  await expectSelected(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true }), nextBgc)
+  await expectSelected(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '2')
+  await expectSelected(page.getByRole('combobox', { name: 'Focus period', exact: true }), '2020')
   await expect(page.getByRole('heading', { name: `${nextBgc} · Subxeric`, exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('published-desktop.png'), fullPage: true })
   await page.evaluate(
@@ -85,8 +86,8 @@ test('requires explicit soil selection, preserves published results, and downloa
     },
     `/dev/forestry/drought-risk?bgc=${encodeURIComponent(bgc)}&smr=99&period=2070`,
   )
-  await expect(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true })).toHaveValue('')
-  await expect(page.getByRole('combobox', { name: 'Focus period', exact: true })).toHaveValue('')
+  await expectSelected(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '')
+  await expectSelected(page.getByRole('combobox', { name: 'Focus period', exact: true }), '')
   await expect(
     page.getByText('The linked climate period is not one of the six published periods. Choose a period.'),
   ).toBeVisible()
@@ -181,8 +182,8 @@ test('keeps the phone page within the viewport and tables locally scrollable', a
   await page.setViewportSize({ width: 390, height: 844 })
   const dataset = await publishedFixture(page)
   await openDrought(page)
-  await page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true }).selectOption(dataset.bgcUnits[0])
-  await page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }).selectOption('1')
+  await choose(page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true }), dataset.bgcUnits[0])
+  await choose(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '1')
   await expect(page.getByRole('heading', { name: 'Species risk across all periods' })).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
   const region = page.getByRole('region', {
@@ -247,9 +248,9 @@ test.describe('production delivery', () => {
     const dataset = parsePublishedCsv((await firstResponse.body()).toString('utf8'))
     const bgc = dataset.bgcUnits.find((unit) => unit.startsWith('SBS'))!
     const bgcSelect = page.getByRole('combobox', { name: 'BGC unit (BEC v11)', exact: true })
-    await expect(bgcSelect.locator('option')).toHaveCount(PUBLISHED_SOURCE.bgcUnits + 1)
-    await bgcSelect.selectOption(bgc)
-    await page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }).selectOption('4')
+    await expect.poll(async () => (await optionLabels(bgcSelect)).length).toBe(PUBLISHED_SOURCE.bgcUnits + 1)
+    await choose(bgcSelect, bgc)
+    await choose(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '4')
     await expect(page.getByRole('heading', { name: `${bgc} · Mesic`, exact: true })).toBeVisible()
 
     await page.waitForFunction(() => navigator.serviceWorker.controller?.state === 'activated')
@@ -275,9 +276,9 @@ test.describe('production delivery', () => {
     expect(await page.evaluate(() => navigator.serviceWorker.controller?.scriptURL)).toBe(serviceWorkerUrl)
     expect(await page.evaluate(async (url) => Boolean(await caches.match(url)), csvUrl)).toBe(true)
     expect(await page.evaluate(async (url) => (await caches.match(url))?.text(), canonicalCsvUrl)).toBe(staleCsv)
-    await expect(bgcSelect.locator('option')).toHaveCount(PUBLISHED_SOURCE.bgcUnits + 1)
-    await bgcSelect.selectOption(bgc)
-    await page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }).selectOption('4')
+    await expect.poll(async () => (await optionLabels(bgcSelect)).length).toBe(PUBLISHED_SOURCE.bgcUnits + 1)
+    await choose(bgcSelect, bgc)
+    await choose(page.getByRole('combobox', { name: 'Soil moisture regime', exact: true }), '4')
     await expect(page.getByRole('heading', { name: `${bgc} · Mesic`, exact: true })).toBeVisible()
 
     await page.getByRole('tab', { name: 'Custom calculation' }).click()

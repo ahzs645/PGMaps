@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose } from './styled-select'
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -21,9 +22,9 @@ test('checks authentic published classes, excludes incomplete rows, and saves so
   await expect(counts).toContainText('Matching classes1580')
   await expect(counts).toContainText('Different classes0')
   await expect(counts).toContainText('Excluded rows299')
-  await dialog.getByLabel('Published check rows').selectOption('difference')
+  await choose(dialog.getByLabel('Published check rows'), 'difference')
   await expect(dialog.getByText('No rows match this filter.')).toBeVisible()
-  await dialog.getByLabel('Published check rows').selectOption('skipped')
+  await choose(dialog.getByLabel('Published check rows'), 'skipped')
   const table = dialog.getByRole('table', { name: 'Published period-class comparisons' })
   await expect(table).toContainText('rounded or incomplete')
   const downloaded = page.waitForEvent('download')

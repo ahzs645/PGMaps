@@ -14,6 +14,7 @@ import {
   press,
   readMission,
 } from './mmgis-helpers'
+import { choose } from './styled-select'
 
 test.use({
   actionTimeout: 15000,
@@ -309,7 +310,7 @@ for (const profile of [
       await page.route('https://mission-failure.invalid/**', (r) => r.fulfill({ status: 503, body: 'Unavailable' }))
       const errors = await openMission(page)
       await panel(page, 'Rasters')
-      await page.getByLabel('Source type').selectOption('cog')
+      await choose(page.getByLabel('Source type'), 'cog')
       await page.getByLabel('Layer name', { exact: true }).fill('Test COG')
       await page.getByLabel('COG URL', { exact: true }).fill('https://example.invalid/test.tif')
       await page.getByLabel('TiTiler service').fill('https://mission-raster.invalid')

@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import { gunzipSync, gzipSync } from 'node:zlib'
 import type { LegacyManifest, LegacyReference, LegacyRegion } from '../../src/pages/cciss/legacyAnalysis'
+import { choose, expectSelected, optionLabels } from './styled-select'
 
 // The production data worker can serve JSON before page.route sees it; this fixture must reach its mocked manifest.
 test.use({ serviceWorkers: 'block' })
@@ -47,14 +48,14 @@ test('legacy options follow a manifest with another scenario, period, condition 
   await page.goto('/dev/forestry/cciss-suitability?lng=-122.7497&lat=53.9171&render=tiles&analysis=legacy')
   const dialog = page.getByRole('dialog')
   await expect(dialog.getByRole('table', { name: 'Legacy species suitability' })).toBeVisible()
-  await dialog.getByLabel('Analysis site condition').selectOption('E8')
-  await expect(dialog.getByLabel('Comparison species').getByRole('option')).toHaveCount(2)
-  await dialog.getByLabel('Emissions scenario').selectOption('ssp585')
-  await expect(dialog.getByLabel('Projection period').getByRole('option')).toHaveText(['2031–2050'])
-  await expect(dialog.getByLabel('Climate model').getByRole('option')).toHaveCount(1)
+  await choose(dialog.getByLabel('Analysis site condition'), 'E8')
+  await expect.poll(async () => (await optionLabels(dialog.getByLabel('Comparison species'))).length).toBe(2)
+  await choose(dialog.getByLabel('Emissions scenario'), 'ssp585')
+  await expect.poll(() => optionLabels(dialog.getByLabel('Projection period'))).toEqual(['2031–2050'])
+  await expect.poll(async () => (await optionLabels(dialog.getByLabel('Climate model'))).length).toBe(1)
   await dialog.getByRole('tab', { name: 'Regional outlook', exact: true }).click()
   await expect(dialog.getByRole('heading', { name: 'Regional outlook · SyntheticPilot' })).toBeVisible()
-  await expect(dialog.getByLabel('Regional summary')).toHaveValue('SyntheticPilot')
+  await expectSelected(dialog.getByLabel('Regional summary'), 'SyntheticPilot')
   await expect(dialog.getByText('No regional rows for this selection.', { exact: true })).toBeVisible()
   await dialog.getByLabel('Longitude', { exact: true }).fill('-123.37')
   await dialog.getByLabel('Latitude', { exact: true }).fill('48.43')
@@ -64,9 +65,9 @@ test('legacy options follow a manifest with another scenario, period, condition 
     'aria-selected',
     'true',
   )
-  await expect(dialog.getByLabel('Analysis site condition')).toHaveValue('E8')
-  await expect(dialog.getByLabel('Emissions scenario')).toHaveValue('ssp585')
-  await expect(dialog.getByLabel('Projection period')).toHaveValue('2031_2050')
+  await expectSelected(dialog.getByLabel('Analysis site condition'), 'E8')
+  await expectSelected(dialog.getByLabel('Emissions scenario'), 'ssp585')
+  await expectSelected(dialog.getByLabel('Projection period'), '2031_2050')
   const downloadPromise = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Download analysis JSON' }).click()
   const report = JSON.parse(await readFile((await (await downloadPromise).path())!, 'utf8'))

@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { choose, expectSelected } from './styled-select'
 
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
@@ -81,7 +82,7 @@ for (const width of [1440, 390]) {
       await mapCanvas.click()
       await expect(page.getByRole('region', { name: 'Map Tools', exact: true })).toBeVisible({ timeout: 1000 })
     }).toPass({ timeout: 15000 })
-    await expect(page.getByLabel('Primary vector')).toHaveValue('nechako-watershed-boundary')
+    await expectSelected(page.getByLabel('Primary vector'), 'nechako-watershed-boundary')
     await expect(page.getByRole('row').filter({ hasText: '47257.951' })).toContainText('Nechako River')
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Expand Map Tools', exact: true })).toBeFocused()
@@ -96,11 +97,11 @@ for (const width of [1440, 390]) {
 
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
     await expect(page.getByText('32 WMS services', { exact: false })).toBeVisible()
-    await expect(page.getByLabel('Named layer or group')).not.toHaveValue('')
-    await page.getByLabel('Named layer or group').selectOption('River')
-    await page.getByLabel('Layer style', { exact: true }).selectOption('default')
+    await expect(page.getByLabel('Named layer or group')).not.toHaveAttribute('data-value', '')
+    await choose(page.getByLabel('Named layer or group'), 'River')
+    await choose(page.getByLabel('Layer style', { exact: true }), 'default')
     await page.getByRole('button', { name: 'Add layer to map', exact: true }).click()
-    await page.getByLabel('Named layer or group').selectOption('Lake')
+    await choose(page.getByLabel('Named layer or group'), 'Lake')
     await page.getByRole('button', { name: 'Add layer to map', exact: true }).click()
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await page.getByRole('button', { name: 'Expand Map', exact: true }).click()
@@ -109,7 +110,7 @@ for (const width of [1440, 390]) {
     await page.getByLabel('Lower River', { exact: true }).click()
     await expect(page.getByLabel('Lower River', { exact: true })).toBeDisabled()
     await page.getByLabel('Remove Lake', { exact: true }).click()
-    await page.getByLabel('Inspect on map click', { exact: true }).selectOption({ label: 'Watershed Context — River' })
+    await choose(page.getByLabel('Inspect on map click', { exact: true }), { label: 'Watershed Context — River' })
     await page.getByLabel('Show River', { exact: true }).uncheck()
     await page.getByLabel('Show River', { exact: true }).check()
     await page.getByLabel('Opacity for River', { exact: true }).press('Home')
@@ -144,8 +145,8 @@ for (const width of [1440, 390]) {
     await recordDialog.getByRole('button', { name: 'Close', exact: true }).last().press('Escape')
     await expect(page.getByRole('dialog')).toHaveCount(1)
     await page.getByRole('tab', { name: 'Live portal submissions', exact: true }).click()
-    await page.getByLabel('Search geographic limit').selectOption('polygon')
-    await page.getByLabel('Search area layer').selectOption('nechako-watershed-boundary')
+    await choose(page.getByLabel('Search geographic limit'), 'polygon')
+    await choose(page.getByLabel('Search area layer'), 'nechako-watershed-boundary')
     await page.getByRole('button', { name: 'Search portal', exact: true }).click()
     await expect(page.getByRole('alert').filter({ hasText: 'Portal request failed' })).toContainText(
       'Website is not registered',
@@ -175,7 +176,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('button', { name: 'Add native-site.geojson to map', exact: true }).click()
     await expect(page.getByRole('dialog')).toHaveCount(0)
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()
-    await page.getByLabel('Drawing mode').selectOption('Point')
+    await choose(page.getByLabel('Drawing mode'), 'Point')
     await page.getByRole('button', { name: 'Close Map Tools', exact: true }).click()
     await mapCanvas.click({ position: { x: 140, y: 200 } })
     await page.getByRole('button', { name: 'Expand Map Tools', exact: true }).click()

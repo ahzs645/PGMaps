@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { choose } from './styled-select'
 import { readFile, writeFile } from 'node:fs/promises'
 import { fromArrayBuffer } from 'geotiff'
 import { decode, encode } from 'fast-png'
@@ -67,7 +68,7 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
   await wasm
   await expect(page.getByTestId('returns-read')).toHaveText('80')
   await expect.poll(() => layerState(page)).toMatchObject({ layer: true, loaded: true })
-  await page.getByLabel('Restoration layer').selectOption('understory')
+  await choose(page.getByLabel('Restoration layer'), 'understory')
   // A loaded source can still render black when its GPU texture lacks mipmaps.
   await expect
     .poll(async () => {
@@ -80,9 +81,9 @@ test('real LAZ worker, raster map, GIS export, result invalidation and both libr
   const selected = await layerState(page)
   await page.mouse.click(selected!.pixel!.x, selected!.pixel!.y)
   await expect(page.getByText(/20\.000 % · cell/)).toBeVisible()
-  await page.getByLabel('Restoration layer').selectOption('meanHeight')
+  await choose(page.getByLabel('Restoration layer'), 'meanHeight')
   await expect(page.getByText(/20\.000 % · cell/)).toHaveCount(0)
-  await page.getByLabel('Restoration layer').selectOption('understory')
+  await choose(page.getByLabel('Restoration layer'), 'understory')
   const downloadEvent = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Selected GeoTIFF' }).click()
   const download = await downloadEvent

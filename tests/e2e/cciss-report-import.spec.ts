@@ -3,6 +3,7 @@ import JSZip from 'jszip'
 import { csvParse } from 'd3'
 import { readFile } from 'node:fs/promises'
 import { gunzipSync } from 'node:zlib'
+import { choose, expectSelected } from './styled-select'
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
@@ -70,9 +71,9 @@ test('imports the authentic published CSV inside a Shiny ZIP and exports unmodif
       'report/parameters.csv': 'parameter,value\nsource,published',
     }),
   })
-  await expect(dialog.getByLabel('Archived result CSV')).toHaveValue('report/cciss_export.csv')
-  await dialog.getByLabel('Site and site series').selectOption(JSON.stringify(['4812311', 'IDFxm/01']))
-  await dialog.getByLabel('Species detail').selectOption('Ac')
+  await expectSelected(dialog.getByLabel('Archived result CSV'), 'report/cciss_export.csv')
+  await choose(dialog.getByLabel('Site and site series'), JSON.stringify(['4812311', 'IDFxm/01']))
+  await choose(dialog.getByLabel('Species detail'), 'Ac')
   await expect(dialog.getByRole('img', { name: 'Period 2055 vote proportions' })).toBeVisible()
   await expect(dialog.getByText('No source-backed summary policy matches', { exact: false })).toBeVisible()
   await expect(dialog.getByText('Recalculate with period weights', { exact: true })).toHaveCount(0)
@@ -113,9 +114,9 @@ test('chooses ambiguous ZIP results explicitly, retains the last valid report, a
     }),
   })
   const entry = dialog.getByLabel('Archived result CSV')
-  await expect(entry).toHaveValue('')
+  await expectSelected(entry, '')
   await expect(dialog.getByText('original.csv', { exact: true })).toBeVisible()
-  await entry.selectOption('one/cciss_export.csv')
+  await choose(entry, 'one/cciss_export.csv')
   await expect(dialog.getByText('multiple-results.zip / one/cciss_export.csv', { exact: true })).toBeVisible()
   const result = dialog.getByRole('table', { name: 'Species summary' }).getByRole('row').nth(1)
   await expect(result.getByRole('cell').nth(2)).toHaveText('Moderate')
@@ -137,14 +138,14 @@ test('chooses ambiguous ZIP results explicitly, retains the last valid report, a
     Original_EstabFeas: '2',
     Source: 'multiple-results.zip / one/cciss_export.csv',
   })
-  await entry.selectOption('parameters.csv')
+  await choose(entry, 'parameters.csv')
   await expect(dialog.getByRole('alert')).toContainText('Expected a Shiny suitability CSV')
   await expect(result.getByRole('cell').nth(2)).toHaveText('High')
   await expect(dialog.getByText('multiple-results.zip / one/cciss_export.csv', { exact: true })).toBeVisible()
   await upload.setInputFiles({ name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('broken zip') })
   await expect(dialog.getByRole('alert')).toContainText('corrupt')
   await expect(result.getByRole('cell').nth(2)).toHaveText('High')
-  await dialog.getByLabel('Site and site series').selectOption(JSON.stringify(['second', 'TEST/02']))
+  await choose(dialog.getByLabel('Site and site series'), JSON.stringify(['second', 'TEST/02']))
   await expect(dialog.getByRole('table', { name: 'Species summary' })).toContainText('Fd')
   expect(errors).toEqual([])
 })

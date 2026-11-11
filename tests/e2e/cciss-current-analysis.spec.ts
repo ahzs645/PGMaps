@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
+import { choose, expectSelected, optionLabels } from './styled-select'
 
 // Hand-constructed sites/model votes only; this verifies browser behavior, not
 // ecological validity or equivalence to the deployed Shiny calculator.
@@ -44,27 +45,21 @@ test('synthetic member import derives options, weights predictions and species, 
     dialog.getByText('Synthetic verification data. These results have no geographic or planning meaning.'),
   ).toBeVisible()
   await withoutNovelty(dialog)
-  await expect(dialog.getByLabel('Assessment site')).toHaveValue('990000001')
-  await expect(dialog.getByLabel('Current site series')).toHaveValue('TESTalpha/01')
-  await expect(dialog.getByLabel('Climate models').getByRole('option')).toHaveText([
-    'All available · equal weights',
-    'Custom weights',
-    'TESTmodel1',
-    'TESTmodel2',
-  ])
-  await expect(dialog.getByLabel('Emissions scenarios').getByRole('option')).toHaveText([
-    'All available · equal weights',
-    'Custom weights',
-    'TESTscenario1',
-    'TESTscenario2',
-  ])
+  await expectSelected(dialog.getByLabel('Assessment site'), '990000001')
+  await expectSelected(dialog.getByLabel('Current site series'), 'TESTalpha/01')
+  await expect
+    .poll(() => optionLabels(dialog.getByLabel('Climate models')))
+    .toEqual(['All available · equal weights', 'Custom weights', 'TESTmodel1', 'TESTmodel2'])
+  await expect
+    .poll(() => optionLabels(dialog.getByLabel('Emissions scenarios')))
+    .toEqual(['All available · equal weights', 'Custom weights', 'TESTscenario1', 'TESTscenario2'])
   const bgc = dialog.getByRole('table', { name: 'Current BGC probabilities' })
   const future = bgc.getByRole('row').filter({ hasText: '2041' })
   await expect(future).toHaveCount(2)
   await expect(future.filter({ hasText: 'TESTbeta' })).toContainText('50.0%')
   await expect(future.filter({ hasText: 'TESTgamma' })).toContainText('50.0%')
 
-  await dialog.getByLabel('Climate models').selectOption('TESTmodel1')
+  await choose(dialog.getByLabel('Climate models'), 'TESTmodel1')
   await expect(future).toHaveCount(1)
   await expect(future).toContainText('TESTbeta')
   await expect(future).toContainText('100.0%')
@@ -76,23 +71,23 @@ test('synthetic member import derives options, weights predictions and species, 
   await dialog.getByRole('tab', { name: 'Site-series overlap', exact: true }).click()
   await expect(dialog.getByRole('table', { name: 'Current site-series overlap' })).toContainText('TESTbeta/01')
 
-  await dialog.getByLabel('Climate models').selectOption('__all__')
+  await choose(dialog.getByLabel('Climate models'), '__all__')
   await dialog.getByText('Model weights and calculation options', { exact: true }).click()
   const modelWeights = dialog.getByRole('group', { name: 'Model weights', exact: true })
   await modelWeights.getByLabel('TESTmodel1', { exact: true }).fill('3')
   await dialog.getByRole('tab', { name: 'BGC futures', exact: true }).click()
   await expect(future.filter({ hasText: 'TESTbeta' })).toContainText('75.0%')
-  await expect(dialog.getByLabel('Climate models')).toHaveValue('__custom__')
+  await expectSelected(dialog.getByLabel('Climate models'), '__custom__')
   await modelWeights.getByLabel('TESTmodel1', { exact: true }).fill('0')
   await modelWeights.getByLabel('TESTmodel2', { exact: true }).fill('0')
   await expect(dialog.getByRole('alert')).toContainText('positive weight')
   await expect(bgc).toHaveCount(0)
-  await dialog.getByLabel('Climate models').selectOption('__all__')
+  await choose(dialog.getByLabel('Climate models'), '__all__')
   await dialog.getByLabel('Apply novelty cutoff', { exact: true }).check()
   await dialog.getByRole('tab', { name: 'BGC futures', exact: true }).click()
   await expect(future.filter({ hasText: 'novel' })).toContainText('50.0%')
   await dialog.getByRole('tab', { name: 'Species', exact: true }).click()
-  await dialog.getByLabel('Assessment species detail').selectOption('TESTa')
+  await choose(dialog.getByLabel('Assessment species detail'), 'TESTa')
   const votes = dialog.getByRole('table', { name: 'Current species vote proportions' })
   const votes2041 = votes.getByRole('row').filter({ hasText: '2041' })
   await expect(votes2041.getByRole('cell').nth(2)).toHaveText('50.0%')
@@ -128,7 +123,7 @@ test('synthetic member import derives options, weights predictions and species, 
     .getByLabel('Import current CCISS JSON')
     .setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"schema":"unsupported"}') })
   await expect(dialog.getByRole('alert')).toContainText('previous dataset remains loaded')
-  await expect(dialog.getByLabel('Assessment site')).toHaveValue('990000001')
+  await expectSelected(dialog.getByLabel('Assessment site'), '990000001')
   await expect(dialog.getByRole('button', { name: 'Download assessment JSON', exact: true })).toBeEnabled()
   expect(errors).toEqual([])
 })
@@ -150,20 +145,20 @@ test('coordinate coverage uses containment and requires a choice at shared bound
     mimeType: 'application/json',
     buffer: Buffer.from(JSON.stringify(fixture)),
   })
-  await expect(dialog.getByLabel('Assessment site')).toHaveValue('990000001')
+  await expectSelected(dialog.getByLabel('Assessment site'), '990000001')
   await dialog.getByLabel('Pilot longitude').fill('1')
   await dialog.getByLabel('Pilot latitude').fill('0.5')
   await dialog.getByRole('button', { name: 'Find imported site', exact: true }).click()
   await expect(dialog.getByRole('status')).toContainText('matches sites 990000001, 990000002')
-  await expect(dialog.getByLabel('Assessment site')).toHaveValue('')
+  await expectSelected(dialog.getByLabel('Assessment site'), '')
   await expect(dialog.getByRole('table', { name: 'Current BGC probabilities' })).toHaveCount(0)
-  await dialog.getByLabel('Assessment site').selectOption('990000002')
+  await choose(dialog.getByLabel('Assessment site'), '990000002')
   await expect(dialog.getByRole('table', { name: 'Current BGC probabilities' })).toBeVisible()
   await dialog.getByLabel('Pilot longitude').fill('90')
   await dialog.getByLabel('Pilot latitude').fill('90')
   await dialog.getByRole('button', { name: 'Find imported site', exact: true }).click()
   await expect(dialog.getByRole('status')).toContainText('No imported site covers this location')
-  await expect(dialog.getByLabel('Assessment site')).toHaveValue('')
+  await expectSelected(dialog.getByLabel('Assessment site'), '')
   await expect(dialog.getByRole('table', { name: 'Current BGC probabilities' })).toHaveCount(0)
 })
 

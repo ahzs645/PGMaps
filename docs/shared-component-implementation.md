@@ -13,7 +13,7 @@ verification record below describes the initial extraction before that cleanup.
 
 | Area | Implementation and retained behavior |
 | --- | --- |
-| Form fields | Toolkit `FormField`, `NativeSelect`, `SelectField`, `NumberField` and `NullableNumberField`, with application compatibility exports. Road design, forestry, AVAST, Design Lab and Water Temperature use the shared fields; native selects are adopted across the remaining app forms. Existing native props, refs and explicit classes are preserved. |
+| Form fields | Toolkit `FormField`, `NativeSelect`, `SelectField`, `NumberField` and `NullableNumberField`, with application compatibility exports. Road design, forestry, AVAST, Design Lab and Water Temperature use the shared fields; the remaining app forms use the styled `StyledSelect` / `SelectField`, keeping each select's props and explicit classes. |
 | Numeric ranges | Toolkit `NumericRangeField` shares labels, value/unit readouts, descriptions and accessible range controls. A `renderControl` adapter retains custom sliders. Consumers include walkability, LiDAR, forestry, viewshed and AQMap controls. |
 | Wait-map markers | Toolkit `clusterScreenPoints` and `useScreenPointClusters` replace duplicate projected-marker clustering. Priority, 54 px radius, 140 px margin, incremental centroids and singleton fallback are retained. ER still expands by zooming; specialists still reveal individual facilities. |
 | Viewport observation | Toolkit `MapViewportSnapshot`, `observeMapViewport`, `useObserveMapViewport` and `useMapViewport` share settled-event subscriptions and cleanup. Boundary, data-table, air-quality and transit observers retain their event/initial-publication policies. `refreshKey` republishes when calculation inputs change without a map gesture. Existing fit helpers replace repeated bounds calculations where their behavior matches. |
@@ -28,12 +28,15 @@ verification record below describes the initial extraction before that cleanup.
 
 ## Field contracts
 
-- `NativeSelect` forwards the native select props and ref, including multiple
-  selection and native keyboard behavior. An explicit `className` is used
-  unchanged; `FORM_INPUT_CLASS` is supplied only when it is omitted. Dense
-  engineering controls therefore keep their existing desktop sizing.
-- `FormField` connects labels and help/error text to direct native children and
-  `NativeSelect`. Compound controls can supply `htmlFor` and `descriptionId`.
+- The toolkit's `NativeSelect` forwards the native select props and ref. PG Maps
+  no longer uses it: the application's `form-field.tsx` exports `StyledSelect`
+  and a `SelectField` built on it (see `shared-ui.md`, **Dropdowns**), keeping a
+  native `<select>` only for multi-select. An explicit `className` keeps its
+  look on the styled trigger; `FORM_INPUT_CLASS` is supplied only when it is
+  omitted. The toolkit could adopt the styled select later; it is app-owned
+  until then.
+- `FormField` connects labels and help/error text to direct native children.
+  Compound controls can supply `htmlFor` and `descriptionId`.
   Use `group` for multiple controls and `hintAction` for a help button outside
   the label, so the button does not become part of the control's name.
 - Numeric fields retain incomplete drafts. `updateOn` chooses valid-change or

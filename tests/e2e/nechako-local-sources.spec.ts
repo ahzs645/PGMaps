@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { choose } from './styled-select'
 
 const features = {
   type: 'FeatureCollection',
@@ -114,9 +115,9 @@ for (const width of [1440, 390]) {
       .getByRole('navigation', { name: 'Watershed portal' })
       .getByRole('button', { name: 'Source layers', exact: true })
       .click()
-    await page.getByLabel('Map layer to query', { exact: true }).selectOption({ label: 'Test stations' })
-    await page.getByLabel('Query field', { exact: true }).selectOption('value')
-    await page.getByLabel('Query value type', { exact: true }).selectOption('number')
+    await choose(page.getByLabel('Map layer to query', { exact: true }), { label: 'Test stations' })
+    await choose(page.getByLabel('Query field', { exact: true }), 'value')
+    await choose(page.getByLabel('Query value type', { exact: true }), 'number')
     await page.getByLabel('Query value', { exact: true }).fill('4')
     await expect(dialog).toContainText('1 of 3 cached features match.')
     await page.getByRole('button', { name: 'Save query result locally', exact: true }).click()
@@ -171,7 +172,7 @@ test('complete monitoring downloads every page, verifies totals and reopens its 
   await page.goto('/dev/nechako/portal?panel=monitoring')
   await page.getByRole('button', { name: 'Use verified Upper_Nechako example', exact: true }).click()
   await page.getByRole('button', { name: 'Load observations', exact: true }).click()
-  await page.getByLabel('Monitoring unique row ID', { exact: true }).selectOption('id')
+  await choose(page.getByLabel('Monitoring unique row ID', { exact: true }), 'id')
   await page.getByRole('button', { name: 'Fetch all observation pages', exact: true }).click()
   await expect(page.getByLabel('Complete monitoring extraction')).toContainText(
     'Count-verified complete extract: 1,001 / 1,001 rows.',

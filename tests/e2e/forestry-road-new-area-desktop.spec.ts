@@ -5,7 +5,7 @@ import { analyzeRoad, distance } from '../../src/pages/dev-forestry-roads/engine
 import { loadRaster, terrainFromMetadata } from '../../src/pages/dev-forestry-roads/terrain'
 import type { Coordinate, RoadProject } from '../../src/pages/dev-forestry-roads/types'
 import { expandRoadSection, openRoadPanel } from './road-sidebar'
-import { choose } from './road-select'
+import { choose } from './styled-select'
 import { chooseExport, replaceSavedProjectWhenAsked, savedActiveRoadId } from './road-files'
 
 // This journey deliberately uses only user-facing navigation and camera controls.
