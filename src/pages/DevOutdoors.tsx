@@ -54,6 +54,7 @@ import {
   type LayerStatuses,
 } from '@/maps/outdoors/BaseLayers'
 import { CUTBLOCK_AGE_COLORS, CUTBLOCK_AGE_LABELS, type CutblockAge } from '@/maps/outdoors/bcLayers'
+import { UnitInfo } from '@/maps/outdoors/UnitInfo'
 import {
   AREA_KINDS,
   AREA_KIND_LABELS,
@@ -1144,6 +1145,7 @@ function DevOutdoors() {
                 ))}
               </ul>
             )}
+            <UnitInfo units={plan.wmus} />
             {wmuLayer && (
               <p className="mt-3 text-2xs leading-4 text-muted-foreground">
                 WMU boundaries: BC Data Catalogue snapshot
