@@ -15,6 +15,8 @@ import { BCInteriorBenchmark } from './BCInteriorBenchmark'
 import { BCCoastBenchmark } from './BCCoastBenchmark'
 import { ReferenceHeading, ReferenceLink, ReferenceSelect } from './CostReferenceControls'
 import { CostRateTools } from './CostRateToolsPanel'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type ReferenceTab = 'appraisal' | 'rates' | 'sources'
 const TABS = [
@@ -36,9 +38,8 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
   return (
     <>
       <Button
-        size="sm"
+        size="xs"
         variant="outline"
-        className="h-8 text-xs"
         data-testid="road-bc-cost-toggle"
         title="Dated BC sources, appraisal comparisons and unit-rate converters"
         onClick={() => setOpen(true)}
@@ -120,7 +121,7 @@ export function BCCostReferences({ portalContainer }: { portalContainer?: HTMLEl
                   Local material prices
                 </ReferenceHeading>
                 {region.suppliers.length ? (
-                  <ul className="divide-y rounded-md border">
+                  <ul className={cn(insetBox({ padding: 'none' }), 'divide-y')}>
                     {region.suppliers.map((supplier) => (
                       <li key={supplier.url} className="space-y-0.5 p-2 text-2xs leading-4">
                         <div className="flex items-start gap-1">

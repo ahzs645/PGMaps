@@ -19,6 +19,8 @@ import { resolvedGroundWindow } from './groundTrend'
 import { parseProject } from './project'
 import { terrainDisplayName } from './terrainName'
 import type { Alignment, RoadProject, TerrainSource } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 export type { FileKind } from './DesignSidebarBody'
 export type SidebarProps = Omit<BodyProps, 'onOptimize'>
 type Review = {
@@ -208,13 +210,7 @@ export function DesignSidebar(props: SidebarProps) {
                       <td>{value(candidate)}</td>
                       <td
                         data-change={better === null ? 'neutral' : better ? 'better' : 'worse'}
-                        className={
-                          better === null
-                            ? 'text-muted-foreground'
-                            : better
-                              ? 'text-emerald-700 dark:text-emerald-400'
-                              : 'text-amber-700 dark:text-amber-400'
-                        }
+                        className={better === null ? 'text-muted-foreground' : better ? 'text-success' : 'text-warning'}
                       >
                         {change === null
                           ? '—'
@@ -243,7 +239,7 @@ export function DesignSidebar(props: SidebarProps) {
                 : 'Coarse screening terrain: grades between its cells are interpolated, so check the route on LiDAR or your own DEM.'}
             </InlineAlert>
           )}
-          <details className="mt-3 rounded-md border px-3 py-2 text-xs">
+          <details className={cn(insetBox(), 'mt-3 text-xs')}>
             <summary className="cursor-pointer font-medium">What adopting keeps, and what this does not check</summary>
             <p className="mt-2">
               Adopting adds the candidate as a new road with its fitted horizontal curves. Vertical design, culverts,
@@ -288,7 +284,7 @@ function CorridorPreview({ review }: { review: Review }) {
     ['End', b.at(-1)!],
   ] as const
   return (
-    <figure className="rounded-lg border bg-muted/20 p-2">
+    <figure className={insetBox({ tone: 'muted' })}>
       <svg
         viewBox="0 0 640 260"
         className="max-h-72 w-full"
@@ -334,7 +330,7 @@ function CorridorPreview({ review }: { review: Review }) {
           Your guide
         </span>
         <span className="inline-flex items-center gap-1.5">
-          <span className="h-[3px] w-[22px] rounded bg-[#2563eb]" aria-hidden="true" />
+          <span className="h-[3px] w-[22px] rounded-sm bg-[#2563eb]" aria-hidden="true" />
           Candidate centreline
         </span>
         <span className="inline-flex items-center gap-1.5">

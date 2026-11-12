@@ -6,6 +6,8 @@ import type { TotalCostPlanning } from './fullCostPlanning'
 import type { RoadNetworkPolicy } from './roadNetworkTypes'
 import type { ConnectorCheckOptions } from './connectorCheckOptions'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 export function FullCostSetupEditor({
   planning,
@@ -201,7 +203,7 @@ export function FullCostSetupEditor({
         restrictions are used for all trips. Entered engineering mobilization remains in construction costs. Enter zero
         additional setup when no separate allowance is needed.
       </p>
-      <fieldset className="space-y-2 rounded border p-3">
+      <fieldset className={cn(insetBox({ padding: 'lg' }), 'space-y-2')}>
         <legend className="px-1 text-xs font-semibold">Network review policy</legend>
         {(
           [
@@ -227,7 +229,7 @@ export function FullCostSetupEditor({
           Assumptions are recorded with the comparison.
         </p>
       </fieldset>
-      <fieldset className="space-y-3 rounded border p-3">
+      <fieldset className={cn(insetBox({ padding: 'lg' }), 'space-y-3')}>
         <legend className="px-1 text-xs font-semibold">Final fitted connector checks</legend>
         <Field label="Loaded timber travel direction">
           <RoadSelect
@@ -312,7 +314,7 @@ export function FullCostSetupEditor({
           truck grades are also checked. Missing or coarse terrain cannot pass final checks.
         </p>
         {planning.connectorChecks.approvedCrossings.map((window, index) => (
-          <div key={index} className="space-y-2 rounded border p-2">
+          <div key={index} className={cn(insetBox(), 'space-y-2')}>
             <Field label={`Crossing ${index + 1} stream`}>
               <RoadSelect
                 ariaLabel={`Crossing ${index + 1} stream`}

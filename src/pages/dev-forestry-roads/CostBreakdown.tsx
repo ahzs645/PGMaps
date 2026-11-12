@@ -13,6 +13,7 @@ import { BCCostReferences } from './BCCostReferencesPanel'
 import { unpricedQuantities } from './costReadiness'
 import { invalidInputNotice } from './inputErrors'
 import { InlineAlert } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
 
 const money = (value: number, digits = 0) =>
   `$${value.toLocaleString('en-CA', { minimumFractionDigits: digits, maximumFractionDigits: digits })}`
@@ -474,17 +475,13 @@ export function CostBreakdown({
                     <td className="font-mono">
                       {/* A line with nothing priced on it says so; a part-priced line keeps its amount. */}
                       {row.amountText ? (
-                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">
-                          {row.amountText}
-                        </span>
+                        <span className="font-sans font-medium text-warning">{row.amountText}</span>
                       ) : missing.length > 0 && row.amount === 0 ? (
-                        <span className="font-sans font-medium text-amber-700 dark:text-amber-400">No rate</span>
+                        <span className="font-sans font-medium text-warning">No rate</span>
                       ) : (
                         <>
                           {missing.length > 0 && (
-                            <span className="mr-1 font-sans text-3xs font-medium text-amber-700 dark:text-amber-400">
-                              part unpriced
-                            </span>
+                            <span className="mr-1 font-sans text-3xs font-medium text-warning">part unpriced</span>
                           )}
                           {money(row.amount, 2)}
                         </>
@@ -519,7 +516,7 @@ export function CostBreakdown({
                   {change !== 0 && (
                     <span
                       data-testid="road-cost-change"
-                      className={`ml-2 font-normal ${change > 0 ? 'text-amber-700 dark:text-amber-400' : 'text-emerald-700 dark:text-emerald-400'}`}
+                      className={`ml-2 font-normal ${change > 0 ? 'text-warning' : 'text-success'}`}
                     >
                       {`${change > 0 ? '+' : '−'}${money(Math.abs(change))} since opened`}
                     </span>
@@ -591,7 +588,7 @@ function HaulCostGraph({ haul }: { haul: HaulSettings }) {
   const y = (c: number) => top + (1 - c / top$) * (height - top - bottom)
   const path = distances.map((d, i) => `${i ? 'L' : 'M'}${x(d).toFixed(1)},${y(costs[i]).toFixed(1)}`).join(' ')
   return (
-    <figure className="rounded border p-2" data-testid="road-haul-cost-graph">
+    <figure className={insetBox()} data-testid="road-haul-cost-graph">
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"

@@ -910,7 +910,7 @@ export function ProfileChart({
   // Grow to a tappable size on touch screens; the mouse layout stays compact.
   const control = headerControls
     ? 'h-8 min-w-8 px-1.5 text-sm leading-none'
-    : 'h-5 min-w-5 rounded px-1 text-3xs leading-none touch:h-8 touch:min-w-8 touch:text-xs'
+    : 'h-5 min-w-5 rounded-md px-1 text-3xs leading-none touch:h-8 touch:min-w-8 touch:text-xs'
   // Each control shows only while it can act: the full-road view needs no pan, reset or range
   // readout (the axis already says it), which keeps the bar small enough for a narrow pane.
   const zoomed = viewRange !== null
@@ -918,7 +918,7 @@ export function ProfileChart({
   const canPanForward = zoomed && visibleEnd < analysis.length
   // Pan arrows sit on the plot's own left and right edges, where the hidden road continues.
   const edge =
-    'pointer-events-auto absolute flex h-10 w-5 -translate-y-1/2 items-center justify-center rounded border bg-background/80 text-muted-foreground opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-12 touch:w-8 [&_svg]:size-3.5'
+    'pointer-events-auto absolute flex h-10 w-5 -translate-y-1/2 items-center justify-center rounded-md border bg-background/80 text-muted-foreground opacity-70 shadow-sm backdrop-blur-sm transition-opacity hover:text-foreground hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring touch:h-12 touch:w-8 [&_svg]:size-3.5'
   const toolbar = (exaggeration: number, width: number, frame: ReturnType<typeof chartFrame>) => {
     const bar = (
       <div
@@ -970,7 +970,7 @@ export function ProfileChart({
           className={
             headerControls
               ? 'h-8 rounded-md border-0 bg-transparent px-1.5 text-xs text-foreground'
-              : 'h-5 rounded border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs'
+              : 'h-5 rounded-md border-0 bg-transparent px-0.5 text-3xs text-foreground touch:h-8 touch:text-xs'
           }
           value={verticalScale}
           onValueChange={(value) => setVerticalScale(value)}
@@ -2166,11 +2166,7 @@ export function CrossSectionChart({
           )}
           {/* An incomplete section is left out of every quantity, so its reason is stated, not implied. */}
           {incompleteLabel && (
-            <p
-              role="status"
-              data-testid="road-section-incomplete"
-              className="text-3xs leading-4 text-amber-700 dark:text-amber-400"
-            >
+            <p role="status" data-testid="road-section-incomplete" className="text-3xs leading-4 text-warning">
               {incompleteLabel}. It is left out of quantities.
             </p>
           )}
@@ -2184,18 +2180,18 @@ export function CrossSectionChart({
                 <div role="group" aria-label="Shift alignment" className="flex shrink-0 items-center gap-1">
                   <span className="sr-only md:not-sr-only md:mr-1">Shift alignment</span>
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="outline"
-                    className="h-6 px-2 text-3xs"
+                    className="text-3xs"
                     aria-label="Shift road left one metre"
                     onClick={() => onShift(-1)}
                   >
                     ← 1 m
                   </Button>
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="outline"
-                    className="h-6 px-2 text-3xs"
+                    className="text-3xs"
                     aria-label="Shift road right one metre"
                     onClick={() => onShift(1)}
                   >
@@ -2207,18 +2203,18 @@ export function CrossSectionChart({
                 <div role="group" aria-label="Formation level" className="flex shrink-0 items-center gap-1">
                   <span className="sr-only md:not-sr-only md:mr-1">Formation level</span>
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="outline"
-                    className="h-6 px-2 text-3xs"
+                    className="text-3xs"
                     aria-label="Lower formation 0.25 metres"
                     onClick={() => onVerticalShift(-0.25)}
                   >
                     ↓ 0.25 m
                   </Button>
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="outline"
-                    className="h-6 px-2 text-3xs"
+                    className="text-3xs"
                     aria-label="Raise formation 0.25 metres"
                     onClick={() => onVerticalShift(0.25)}
                   >
@@ -2247,7 +2243,7 @@ export function CrossSectionChart({
               aria-label={`Select section culvert ${c.name}`}
               aria-pressed={selectedCulvertId === c.id}
               onClick={() => onSelectCulvert?.(c.id)}
-              className={`block w-full rounded border px-1 py-0.5 text-left text-3xs ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-amber-700 dark:text-amber-400' : 'border-transparent text-muted-foreground'}`}
+              className={`block w-full rounded-md border px-1 py-0.5 text-left text-3xs ${selectedCulvertId === c.id ? 'border-rose-500 bg-rose-500/10 text-rose-700 dark:text-rose-300' : c.warnings.length ? 'border-transparent text-warning' : 'border-transparent text-muted-foreground'}`}
             >
               {c.name}: projected barrel · cover {format(c.coverM)} m · pipe grade {format(c.gradePercent)}% ·{' '}
               {c.complete ? 'sampled geometry complete' : 'incomplete levels or terrain'}. {c.warnings.join(' ')}

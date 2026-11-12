@@ -55,7 +55,13 @@ canvas,
 }
 
 @layer base {
-  :root {
+  /* PG Maps' design tokens: change a value here and it reaches every page.
+     Each rule also names the toolkit's workspace (`.geo-toolkit`) with the toolkit
+     stylesheet's own selectors, and this file loads after it (main.tsx), so these
+     values win inside map workspaces too. Token names: tailwind-theme.mjs in the
+     toolkit; docs/shared-ui.md, Design tokens. */
+  :root,
+  .geo-toolkit {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
@@ -80,10 +86,31 @@ canvas,
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+    /* Status colours: text on the page, then a tinted box's text, fill and edge. */
+    --warning: 26 90.5% 37.1%;
+    --warning-foreground: 21.7 77.8% 26.5%;
+    --warning-surface: 48 100% 96.1%;
+    --warning-border: 45.9 96.7% 64.5%;
+    --danger: 0 73.7% 41.8%;
+    --danger-foreground: 0 62.8% 30.6%;
+    --danger-surface: 0 85.7% 97.3%;
+    --danger-border: 0 93.5% 81.8%;
+    --success: 142.4 71.8% 29.2%;
+    --success-foreground: 143.8 61.2% 20.2%;
+    --success-surface: 138.5 76.5% 96.7%;
+    --success-border: 141.7 76.6% 73.1%;
+    --info: 201.3 96.3% 32.2%;
+    --info-foreground: 202 80.3% 23.9%;
+    --info-surface: 204 100% 97.1%;
+    --info-border: 199.4 95.5% 73.9%;
+    /* Every corner: rounded-sm/rounded = this − 4px, md − 2px, lg, xl + 4px, 2xl + 8px. */
     --radius: 0.5rem;
   }
 
-  .dark {
+  .dark,
+  .geo-toolkit.dark,
+  .geo-toolkit[data-theme='dark'],
+  .dark .geo-toolkit:not([data-theme='light']) {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;
     --card: 0 0% 3.9%;
@@ -108,6 +135,22 @@ canvas,
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+    --warning: 43.3 96.4% 56.3%;
+    --warning-foreground: 48 96.5% 88.8%;
+    --warning-surface: 20.9 59% 7.6%;
+    --warning-border: 21.9 70.8% 17.5%;
+    --danger: 0 90.6% 70.8%;
+    --danger-foreground: 0 96.3% 89.4%;
+    --danger-surface: 0 54.5% 8.6%;
+    --danger-border: 0 58.4% 19.8%;
+    --success: 141.9 69.2% 58%;
+    --success-foreground: 140.6 84.2% 92.5%;
+    --success-surface: 144 48.4% 6.1%;
+    --success-border: 143.7 54.3% 13.7%;
+    --info: 198.4 93.2% 59.6%;
+    --info-foreground: 204 93.8% 93.7%;
+    --info-surface: 204 52.6% 7.5%;
+    --info-border: 201.3 82.6% 18%;
   }
 }
 
@@ -178,7 +221,7 @@ a,
 /* Hover popup styling - more subtle and lightweight */
 .hover-popup .maplibregl-popup-content {
   padding: 0;
-  border-radius: 6px;
+  border-radius: calc(var(--radius) - 2px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   pointer-events: none;
 }

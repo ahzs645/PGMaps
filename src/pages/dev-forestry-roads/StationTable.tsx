@@ -91,7 +91,7 @@ export function StationTable({
   const columns = available.filter((c) => !hidden.includes(c.id))
   const narrowed = range.start > 0.001 || end < analysis.length - 0.001
   const clearRange = () => setRange({ start: 0, end: null })
-  const field = 'w-full min-w-0 rounded border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
+  const field = 'w-full min-w-0 rounded-md border bg-background px-1.5 py-1 text-base text-foreground md:text-xs'
   // In a panel the two buttons join its header; only active filters take a row above the table.
   // Inside the road data schedule they join its tab row instead.
   const panelHeader = useChartHeaderControls()
@@ -259,14 +259,14 @@ export function StationTable({
                   {columns.map((c) => (
                     <td
                       key={c.id}
-                      className={partial && c.sum ? 'text-amber-700 dark:text-amber-400' : undefined}
+                      className={partial && c.sum ? 'text-warning' : undefined}
                       title={partial && c.sum ? flags[0] : undefined}
                     >
                       {fixed(c.value(row), c.decimals)}
                     </td>
                   ))}
                   <td
-                    className="max-w-64 truncate text-left text-amber-700 dark:text-amber-400"
+                    className="max-w-64 truncate text-left text-warning"
                     title={flags.join('; ')}
                     data-partial={partial || undefined}
                   >
@@ -283,7 +283,7 @@ export function StationTable({
                 {columns.map((c) => (
                   <td key={c.id}>{c.sum ? number(totals[c.sum]) : ''}</td>
                 ))}
-                <td className="text-left font-normal text-amber-700 dark:text-amber-400">{totalsNote(totals)}</td>
+                <td className="text-left font-normal text-warning">{totalsNote(totals)}</td>
               </tr>
             </tfoot>
           )}

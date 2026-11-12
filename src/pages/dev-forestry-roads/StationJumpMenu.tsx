@@ -81,7 +81,7 @@ export function StationJumpMenu({
   }, [])
   const words = kindLabel(kind)
   const button =
-    'flex items-center justify-center rounded border px-1 py-1 text-xs disabled:opacity-50 touch:min-h-10 touch:min-w-10'
+    'flex items-center justify-center rounded-md border px-1 py-1 text-xs disabled:opacity-50 touch:min-h-10 touch:min-w-10'
   return (
     <div role="group" aria-label="Jump along the road" className="flex items-center gap-0.5">
       <button
@@ -100,7 +100,7 @@ export function StationJumpMenu({
         align="start"
         width={248}
         onOpenChange={setMenuOpen}
-        triggerClassName="rounded border px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground touch:min-h-10"
+        triggerClassName="rounded-md border px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground touch:min-h-10"
         trigger={
           <span className="block max-w-[7rem] truncate" data-testid="road-jump-kind">
             {words.label}

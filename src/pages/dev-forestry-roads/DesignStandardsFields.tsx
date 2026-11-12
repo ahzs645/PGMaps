@@ -56,6 +56,12 @@ type StandardProps = {
   value: JobStandards
   onChange: (next: JobStandards) => void
   disabled?: boolean
+  /**
+   * Keep a field that does not apply yet (the adverse limit before a loaded direction is chosen)
+   * in place, disabled, instead of leaving it out, so a fixed strip such as the ribbon does not
+   * reflow when it starts to apply.
+   */
+  keepPlace?: boolean
 }
 
 /** One project standard can be hosted in the ribbon or the full project standards editor. */
@@ -64,6 +70,7 @@ export function DesignStandardField({
   value,
   onChange,
   disabled = false,
+  keepPlace = false,
 }: StandardProps & { field: StandardFieldId }) {
   const s = value.standards
   const set = (patch: Partial<JobStandards>) => onChange(settleJobStandards({ ...value, ...patch }, value))
@@ -149,7 +156,8 @@ export function DesignStandardField({
     }
     default: {
       const options = optionalStandards[field]
-      if (field === 'adverseGradePercent' && !s.loadedDirection) return null
+      const notYet = field === 'adverseGradePercent' && !s.loadedDirection
+      if (notYet && !keepPlace) return null
       const rule = field === 'shortPitchGradePercent' ? gradeRule(value, s) : undefined
       const idlePitch = rule && s.shortPitchGradePercent !== null && s.shortPitchMaxLengthM !== null && !rule.shortPitch
       return (
@@ -157,8 +165,12 @@ export function DesignStandardField({
           label={STANDARD_LABELS[field]}
           value={s[field]}
           updateOn={field === 'shortPitchGradePercent' || field === 'shortPitchMaxLengthM' ? 'commit' : 'change'}
-          disabled={disabled}
-          hint={options.hint}
+          disabled={disabled || notYet}
+          hint={
+            notYet
+              ? `${options.hint} Choose which way loaded trucks travel to set it; until then the grade limit applies both ways.`
+              : options.hint
+          }
           min={options.limits[0]}
           max={field === 'adverseGradePercent' ? value.maxGradePercent : options.limits[1]}
           step={options.step}

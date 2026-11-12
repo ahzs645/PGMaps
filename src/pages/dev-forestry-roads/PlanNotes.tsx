@@ -333,7 +333,7 @@ export function NotesLayer({
                   <button
                     type="button"
                     data-note-label={note.id}
-                    className="max-w-48 -translate-y-5 truncate rounded border-l-4 bg-background/95 px-1.5 py-0.5 text-left text-3xs font-medium leading-4 text-foreground shadow-sm"
+                    className="max-w-48 -translate-y-5 truncate rounded-sm border-l-4 bg-background/95 px-1.5 py-0.5 text-left text-3xs font-medium leading-4 text-foreground shadow-sm"
                     style={{ borderLeftColor: note.color }}
                     title={note.text}
                     onClick={() => onSelect(note.id)}
@@ -377,9 +377,8 @@ export function NotesLayer({
               <div className="flex items-center justify-between gap-2">
                 <NoteColors value={selected.color} onChange={(color) => update(selected.id, { color })} />
                 <Button
-                  size="icon"
+                  size="icon-xs"
                   variant="ghost"
-                  className="size-7"
                   aria-label="Delete note"
                   title="Delete note"
                   disabled={!onChange}
@@ -474,9 +473,9 @@ export function NotesToolbar({
       {TOOLS.map(({ tool: entry, label, hint, icon: Icon }) => (
         <Button
           key={entry}
-          size="sm"
+          size="xs"
           variant="ghost"
-          className={cn('h-7 gap-1 px-2 text-xs', tool === entry && 'bg-accent text-accent-foreground')}
+          className={cn('gap-1', tool === entry && 'bg-accent text-accent-foreground')}
           title={`${label} · ${hint} Esc to stop.`}
           aria-pressed={tool === entry}
           disabled={disabled}
@@ -496,9 +495,8 @@ export function NotesToolbar({
       )}
       <span aria-hidden className="mx-0.5 h-5 w-px bg-border" />
       <Button
-        size="icon"
+        size="icon-xs"
         variant="ghost"
-        className="size-7"
         aria-label={visible ? 'Hide map notes' : 'Show map notes'}
         title={`${visible ? 'Hide' : 'Show'} ${count} note${count === 1 ? '' : 's'}`}
         aria-pressed={!visible}
@@ -506,7 +504,7 @@ export function NotesToolbar({
       >
         {visible ? <Eye className="size-3.5" /> : <EyeOff className="size-3.5" />}
       </Button>
-      <Button size="icon" variant="ghost" className="size-7" aria-label="Close notes bar" onClick={onClose}>
+      <Button size="icon-xs" variant="ghost" aria-label="Close notes bar" onClick={onClose}>
         <X className="size-3.5" />
       </Button>
     </div>

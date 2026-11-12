@@ -759,7 +759,7 @@ export function SkidReachPanel(p: SidebarProps) {
         <div className="space-y-2 text-xs">
           <p className="text-muted-foreground">Draw or import a harvest block first.</p>
           {p.onDrawBlock && (
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={p.onDrawBlock}>
+            <Button size="xs" variant="outline" onClick={p.onDrawBlock}>
               Draw block
             </Button>
           )}
@@ -897,8 +897,8 @@ export function SkidReachPanel(p: SidebarProps) {
             onPickOnPlan={onPickOnPlan}
           />
           <Button
-            size="sm"
-            className="h-8 w-full"
+            size="xs"
+            className="w-full"
             disabled={!block || !!p.drawing}
             onClick={() => void runReach()}
             data-testid="skid-reach-run"
@@ -1032,9 +1032,9 @@ export function SkidReachPanel(p: SidebarProps) {
                   </div>
                   <div className="flex items-center gap-1">
                     <Button
-                      size="sm"
+                      size="xs"
                       variant={picking ? 'default' : 'outline'}
-                      className="h-7 gap-1 px-2 text-xs"
+                      className="gap-1"
                       disabled={!onPickOnPlan}
                       aria-pressed={picking}
                       onClick={pickExit}
@@ -1043,15 +1043,15 @@ export function SkidReachPanel(p: SidebarProps) {
                       {haulExit ? 'Haul exit set' : 'Pick haul exit'}
                     </Button>
                     {haulExit && (
-                      <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setHaulExit(null)}>
+                      <Button size="xs" variant="ghost" onClick={() => setHaulExit(null)}>
                         Clear
                       </Button>
                     )}
                   </div>
                   <Button
-                    size="sm"
+                    size="xs"
                     variant="outline"
-                    className="h-8 w-full"
+                    className="w-full"
                     onClick={() => void suggest()}
                     data-testid="skid-reach-suggest"
                   >
@@ -1075,9 +1075,9 @@ export function SkidReachPanel(p: SidebarProps) {
                               </span>
                             </span>
                             <Button
-                              size="sm"
+                              size="xs"
                               variant="outline"
-                              className="h-7 shrink-0 gap-1 px-2 text-xs"
+                              className="shrink-0 gap-1"
                               disabled={added}
                               onClick={() => adopt(spur.id)}
                               aria-label={`Add spur ${spur.index} as a road`}

@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { EntryProblem } from './InputProblem'
 import { freeStationRange, inputMessage, type InvalidInput } from './inputErrors'
@@ -79,7 +81,7 @@ export function SitePreparationEditor({
         </p>
       )}
       {ranges.map((r, i) => (
-        <div key={r.id} className="space-y-2 rounded border p-2">
+        <div key={r.id} className={cn(insetBox(), 'space-y-2')}>
           <Field label={`Stripping ${i + 1} material`}>
             <RoadSelect
               ariaLabel={`Stripping ${i + 1} material`}

@@ -6,6 +6,7 @@
  */
 import { downloadBlob } from '@/lib/download'
 import { canonicalInput } from '../integrity'
+import { greenUpBasis, greenUpBasisLine, runGreenUpReadings } from '../greenUp'
 import { templateManifest as m } from './templateManifest'
 import type { AnalysisResult, TargetPolygon } from '../types'
 import { bearingDegrees, haversineMeters, polygonBounds } from '../visibility'
@@ -258,6 +259,15 @@ function appendixStreams(request: ExportRequest, inputDigest: string): string[] 
   add(
     'Scenario numerical entries: a = proposed incremental apparent alteration; b = road/site disturbance outside openings; c = existing non-recovered alteration. The form labels a as recent openings; this draft uses that field for the scenario proposal, not an observation of completed harvest.',
   )
+  // Line c says which green-up it used: a dated field check overrides the model, which is kept.
+  const greenUp = runGreenUpReadings(request.result),
+    greenUpLine = greenUpBasisLine(greenUpBasis(greenUp.map((entry) => entry.reading)))
+  add(`c. Existing openings not greened up: ${greenUpLine}.`)
+  for (const { name, reading } of greenUp)
+    if (reading.field)
+      add(
+        `${name}: ${reading.used === 'field' ? `${number(reading.greenedUpPercent, 0)}% greened up, ${reading.label}` : `field check not used (${reading.fieldIssue ?? 'incomplete'})`}; modelled ${reading.modelled.greenedUpPercent === null ? 'not counted' : `${number(reading.modelled.greenedUpPercent, 0)}%`} (${reading.modelled.detail.replace('≥', '>=')}).`,
+      )
   add(
     'Method: shared landform sampling ledger, terrain sightlines and surface-area/solid-angle weighting. This is an estimated apparent-area screening result, not a calibrated photograph or a professional determination of VQO achievement.',
   )
@@ -288,7 +298,7 @@ function appendixStreams(request: ExportRequest, inputDigest: string): string[] 
     )
     add(
       values
-        ? `Estimated perspective: proposed ${number(values.proposedPercent, 3)}%; outside site disturbance ${number(values.disturbancePercent, 3)}%; existing ${number(values.existingPercent, 3)}%; total ${number(values.cumulativePercent, 3)}%. Initial numerical class ${formClass(values.cumulativePercent)}.`
+        ? `Estimated perspective: proposed ${number(values.proposedPercent, 3)}%; outside site disturbance ${number(values.disturbancePercent, 3)}%; existing ${number(values.existingPercent, 3)}% (${greenUpLine.charAt(0).toLowerCase()}${greenUpLine.slice(1)}); total ${number(values.cumulativePercent, 3)}%. Initial numerical class ${formClass(values.cumulativePercent)}.`
         : 'No complete supported numerical value for this station. The form intentionally leaves numerical fields blank.',
     )
     const adj = reviewAdjustment(values?.cumulativePercent ?? null, review)

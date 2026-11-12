@@ -6,7 +6,7 @@ export type RibbonTool = WorkspaceCommand | WorkspaceWidget
 export const ribbonWidgetLabels: Record<WorkspaceWidget, string> = {
   ...ribbonFieldLabels,
   projectInfo: 'Project name and status',
-  roadSelector: 'Viewing road',
+  roadSelector: 'Active road',
   presets: 'Screen presets and panels',
   terrainSource: 'Terrain source',
   interfaceSwitch: 'Workspace interface',

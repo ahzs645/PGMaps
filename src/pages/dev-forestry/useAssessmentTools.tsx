@@ -28,6 +28,7 @@ import {
   stabilityJobs,
   summarizeRun,
   timelineScene,
+  type FieldRecord,
   type ToolJob,
   type ToolRun,
   type ToolsDocument,
@@ -37,6 +38,7 @@ import { useToolRunner } from './useToolRunner'
 import { buildEvidenceHtml, evidenceGaps, exportEvidencePdf } from './toolEvidence'
 import type { AnalysisResult, Viewpoint } from './types'
 import type { SightlineProfile } from './sightlineProfile'
+import { RunRevisionReadout, useRunRevision } from './RunRevisionReadout'
 
 type Props = {
   scene: ForestryScene
@@ -80,6 +82,8 @@ export function useAssessmentTools({
   documentRef.current = d
   const key = useMemo(() => sceneFingerprint(scene), [scene]),
     runner = useToolRunner(key)
+  // The previous run's headline beside this one's, after a boundary edit or an applied design.
+  const revisionReadout = useRunRevision(result, scene, d.options)
   const { cancel: cancelTools, run: runTools } = runner
   useEffect(() => {
     let active = true
@@ -676,13 +680,28 @@ export function useAssessmentTools({
       </div>
     </ToolSection>
   )
+  // Field-record photographs, for lining one up with the road view (Field photo), and a
+  // confirmed camera written back to its record, unchecked until the reviewer ticks it there.
+  const photoRecords = useMemo(() => d.fields.filter((f) => f.kind === 'photo'), [d.fields])
+  const updateFieldRecord = useCallback(
+    (id: string, patch: Partial<FieldRecord>) =>
+      change((current) => ({
+        ...current,
+        fields: current.fields.map((f) => (f.id === id ? { ...f, ...patch, alignmentChecked: false } : f)),
+      })),
+    [change],
+  )
+  const revision = revisionReadout ? <RunRevisionReadout readout={revisionReadout} /> : null
   return {
     field,
     design,
     report,
+    revision,
     inspect,
     cancel: runner.cancel,
     running: runner.running,
+    photoRecords,
+    updateFieldRecord,
     /** Saved design alternatives, so a saved view can say which one it shows. */
     designOptions: d.options,
   }

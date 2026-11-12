@@ -95,9 +95,8 @@ export function TraceEditor({
             <li key={`${t.label}-${i}`} className="flex items-center justify-between gap-1 text-2xs">
               <span className="min-w-0 truncate">{t.label}</span>
               <Button
-                size="sm"
+                size="2xs"
                 variant="ghost"
-                className="h-6 px-2"
                 aria-label={`Stop tracing ${t.label}`}
                 onClick={() => onChange(traces.filter((_, j) => j !== i))}
               >

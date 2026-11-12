@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { analyzeRoad } from './engine'
 import { alternativeCostLabel, alternativeCostStatus } from './alternativeCosts'
@@ -85,7 +87,7 @@ export function VerticalAlternativesEditor({
     hi = Math.max(...zs)
   const length = Math.max(1, ...valid.map((r) => r.analysis.length))
   return (
-    <section className="rounded border" data-testid="road-vertical-alternatives">
+    <section className={insetBox({ padding: 'none' })} data-testid="road-vertical-alternatives">
       <CollapsibleSection
         label="Profiles on this road"
         summary={`${alternatives.length || 1}`}
@@ -138,9 +140,8 @@ export function VerticalAlternativesEditor({
             />
           </Field>
           <Button
-            size="sm"
+            size="field"
             variant="outline"
-            className="h-8"
             onClick={add}
             disabled={(alignment.verticalAlternatives?.length ?? 0) >= MAX_VERTICAL_ALTERNATIVES}
           >
@@ -162,9 +163,8 @@ export function VerticalAlternativesEditor({
               />
             </Field>
             <Button
-              size="sm"
+              size="field"
               variant="outline"
-              className="h-8"
               disabled={alternatives.length < 2}
               onClick={() => change(() => removeVerticalAlternative(alignment, active.id))}
             >
@@ -175,7 +175,7 @@ export function VerticalAlternativesEditor({
         {zs.length > 0 && (
           <svg
             viewBox="0 0 640 180"
-            className="w-full rounded border bg-background"
+            className={cn(insetBox({ padding: 'none', tone: 'background' }), 'w-full')}
             role="img"
             aria-label="Vertical alternatives profile overlay"
           >
@@ -264,19 +264,19 @@ export function VerticalAlternativesEditor({
           </div>
         )}
         {valid.some((entry) => entry.analysis.coveragePercent < 99.99999) && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+          <p className="text-xs text-warning">
             Some profiles have incomplete sections. Their covered subtotals cannot establish the cheapest complete
             design.
           </p>
         )}
         {valid.some((entry) => alternativeCostStatus(entry.analysis) === 'infeasible') && (
-          <p className="text-xs text-amber-700 dark:text-amber-400">
+          <p className="text-xs text-warning">
             A profile has no feasible material supply/movement prescription. Its subtotal is excluded from cost
             comparison even where terrain coverage is complete.
           </p>
         )}
         {error && (
-          <p role="alert" className="text-xs text-amber-700 dark:text-amber-400">
+          <p role="alert" className="text-xs text-warning">
             {error}
           </p>
         )}

@@ -38,6 +38,8 @@ import {
   SKETCH_SIMPLIFY_M,
   type VehicleToolSource,
 } from './vehicleTools'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const m = (value: number) => `${value.toFixed(2)} m`
 const m2 = (value: number) => `${value.toLocaleString('en-CA', { maximumFractionDigits: 1 })} m²`
@@ -194,7 +196,7 @@ export function DrivePathPanel({
   const fp = result?.footprint
   return (
     <details
-      className="rounded-md border"
+      className={insetBox({ padding: 'none' })}
       data-testid="road-drive-path"
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
@@ -254,7 +256,7 @@ export function DrivePathPanel({
           Drive the line from its other end
         </label>
         {!!areas.length && (
-          <fieldset className="space-y-1 rounded-md border p-2">
+          <fieldset className={cn(insetBox(), 'space-y-1')}>
             <legend className="px-1 text-2xs font-medium">Stay on</legend>
             {areas.map((a) => (
               <label key={a.id} className="flex items-center gap-2 text-2xs">
@@ -287,7 +289,7 @@ export function DrivePathPanel({
         </div>
         {error && <p className="text-destructive">{error}</p>}
         {result && (
-          <div className="space-y-1.5 rounded-md border p-2 text-2xs" data-testid="road-drive-result">
+          <div className={cn(insetBox(), 'space-y-1.5 text-2xs')} data-testid="road-drive-result">
             <p className="font-medium">{run!.label}</p>
             <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
               {(
@@ -322,7 +324,7 @@ export function DrivePathPanel({
               ))}
             </dl>
             {result.lockRuns.map((r) => (
-              <p key={r.startS} className="text-red-700 dark:text-red-300">
+              <p key={r.startS} className="text-danger">
                 Beyond the lock from {r.startS.toFixed(1)} to {r.endS.toFixed(1)} m: {steerText(r.maxSteerDeg)}
               </p>
             ))}
@@ -330,7 +332,7 @@ export function DrivePathPanel({
               <p className="text-muted-foreground">No footprint chosen: the swept area is not compared with any.</p>
             )}
             {result.warnings.map((w) => (
-              <p key={w} className="border-l-2 border-amber-500 pl-2 text-amber-800 dark:text-amber-300">
+              <p key={w} className="border-l-2 border-warning pl-2 text-warning">
                 {w}
               </p>
             ))}
@@ -443,12 +445,9 @@ export function DrivePathPanel({
 
 function TemplateSummary({ template: t, fit }: { template: TurningTemplate; fit: TurnaroundFit | null }) {
   return (
-    <div className="space-y-1 rounded-md border p-2 text-2xs" data-testid="road-turning-template">
+    <div className={cn(insetBox(), 'space-y-1 text-2xs')} data-testid="road-turning-template">
       {fit && (
-        <p
-          className={`font-medium ${fit.fits ? 'text-emerald-800 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}`}
-          data-fits={fit.fits}
-        >
+        <p className={`font-medium ${fit.fits ? 'text-success' : 'text-danger'}`} data-fits={fit.fits}>
           {fit.fits
             ? `Loop turnaround fits: the area holds R ${m(fit.disc!.radiusM)}, the loop needs R ${m(fit.neededRadiusM)}.`
             : `Loop turnaround does not fit: it needs R ${m(fit.neededRadiusM)}, the area holds ${fit.disc ? `R ${m(fit.disc.radiusM)}` : 'no circle'} (${m(fit.shortM)} short).`}
@@ -471,9 +470,7 @@ function TemplateSummary({ template: t, fit }: { template: TurningTemplate; fit:
           </div>
         ))}
       </dl>
-      {t.lockExceeded && (
-        <p className="text-red-700 dark:text-red-300">That radius needs more than the steering lock.</p>
-      )}
+      {t.lockExceeded && <p className="text-danger">That radius needs more than the steering lock.</p>}
     </div>
   )
 }

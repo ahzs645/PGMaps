@@ -4,6 +4,7 @@ import { InfoTip } from '@/components/ui/info-tip'
 import { downloadText } from '@/lib/download'
 import { parseSectionComponents } from './sectionAssembly'
 import type { SectionComponent } from './types'
+import { insetBox } from '@/components/ui/inset-box'
 
 const KEY = 'pgmaps-road-components-v1'
 function readLibrary(): SectionComponent[] {
@@ -30,7 +31,7 @@ export function ComponentLibrary({
     setError('')
   }
   return (
-    <details className="rounded border p-2">
+    <details className={insetBox()}>
       <summary className="cursor-pointer text-xs font-medium">
         Component library{library.length ? ` · ${library.length} saved` : ''}
       </summary>
@@ -92,7 +93,7 @@ export function ComponentLibrary({
         }}
       />
       {error && (
-        <p role="alert" className="mt-2 text-xs text-red-600">
+        <p role="alert" className="mt-2 text-xs text-danger">
           {error}
         </p>
       )}

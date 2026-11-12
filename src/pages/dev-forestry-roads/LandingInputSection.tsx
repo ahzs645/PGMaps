@@ -6,6 +6,8 @@
  */
 import { useEffect, useState } from 'react'
 import { Crosshair, Trash2 } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
@@ -153,7 +155,7 @@ export function LandingInputSection({
         {landings.length > 0 && (
           <ul className="space-y-1">
             {landings.map((landing, k) => (
-              <li key={landing.id} className="space-y-1 rounded-md border px-2 py-1.5">
+              <li key={landing.id} className={cn(insetBox(), 'space-y-1')}>
                 <div className="flex items-center gap-1">
                   <span className="inline-block size-2.5 shrink-0 rounded-sm" style={{ background: colorOf(k) }} />
                   <span className="font-medium">{landing.name}</span>
@@ -167,9 +169,9 @@ export function LandingInputSection({
                         : 'point on plan'}
                   </span>
                   <Button
-                    size="icon"
+                    size="icon-2xs"
                     variant="ghost"
-                    className="size-6 shrink-0"
+                    className="shrink-0"
                     aria-label={`Remove landing ${landing.name}`}
                     onClick={() => onLandings((current) => current.filter((l) => l.id !== landing.id))}
                   >
@@ -198,9 +200,9 @@ export function LandingInputSection({
         )}
         <div className="flex flex-wrap items-center gap-1">
           <Button
-            size="sm"
+            size="xs"
             variant={picking ? 'default' : 'outline'}
-            className="h-7 gap-1 px-2 text-xs"
+            className="gap-1"
             disabled={!onPickOnPlan || (full && !picking)}
             aria-pressed={picking}
             onClick={() => setPicking((p) => !p)}
@@ -210,7 +212,7 @@ export function LandingInputSection({
             {picking ? 'Done' : 'Pick on plan'}
           </Button>
           {landings.length > 0 && (
-            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => onLandings(() => [])}>
+            <Button size="xs" variant="ghost" onClick={() => onLandings(() => [])}>
               Clear landings
             </Button>
           )}
@@ -229,9 +231,8 @@ export function LandingInputSection({
               />
             </Field>
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
-              className="h-7 px-2 text-xs"
               disabled={full || !candidate}
               onClick={() =>
                 candidate &&
@@ -271,9 +272,8 @@ export function LandingInputSection({
                 onChange={setToM}
               />
               <Button
-                size="sm"
+                size="xs"
                 variant="outline"
-                className="h-7 px-2 text-xs"
                 disabled={full}
                 onClick={addStretch}
                 data-testid="landing-add-stretch"

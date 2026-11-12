@@ -1,4 +1,4 @@
-import { Check, Mountain, TriangleAlert, X } from 'lucide-react'
+import { Check, Mountain, X } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
@@ -8,6 +8,7 @@ import { formatMeasure, formatNumber } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 import { VisibilityProfile } from './VisibilityProfile'
+import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
 import { formatHa, formatKm, formatPct } from './measureFormat'
 import { resolvedThresholds, resolveThreshold } from './integrity'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon, TargetVisibility } from './types'
@@ -97,6 +98,8 @@ export function ResultsPanel({
   const landscape = result.targets.find((target) => target.role === 'landscape')
   const landformTarget = landscape ? targetsById.get(landscape.targetId) : undefined
   const isCorridor = result.stations.length > 1
+  // Which green-up the existing share rests on: a field check or the model.
+  const greenUpLine = greenUpBasisLine(runGreenUpBasis(result))
 
   // The two scales answer different questions and have different thresholds, so
   // each is judged against its own. Reporting only one of them is how a
@@ -172,6 +175,9 @@ export function ResultsPanel({
                       {formatPct(scale.breakdown.proposedPercent)} proposed
                     </span>
                   )}
+                  {scale.breakdown.existingPercent > 0 && (
+                    <span className="text-2xs leading-4 text-muted-foreground">{greenUpLine}</span>
+                  )}
                 </span>
               ),
             }))}
@@ -204,11 +210,13 @@ export function ResultsPanel({
           </p>
         </div>
       ) : (
-        <InlineAlert>
-          {landformTarget
-            ? 'An active landform is present, but the numerical assessment is provisional. Review the evidence and resolution warnings in Assessment & report before exporting numerical fields.'
-            : 'Per-block percentages describe visibility, not landform alteration. Select an active, delineated landform to compute an alteration ratio.'}
-        </InlineAlert>
+        // Provisional with a landform: the Viewpoint summary and the step headline already say so.
+        !landformTarget && (
+          <InlineAlert>
+            Per-block percentages describe visibility, not landform alteration. Select an active, delineated landform to
+            compute an alteration ratio.
+          </InlineAlert>
+        )
       )}
 
       {blocks.map((block) => {
@@ -344,6 +352,21 @@ export function ResultsPanel({
         <KeyValueRows
           rows={[
             {
+              // One line in place of the old caveat paragraph; the reason is in the tooltip.
+              label: 'Screening',
+              value: (
+                <span
+                  title={
+                    result.canopyCoverageFraction === null
+                      ? 'Standing timber is not modelled, so screened blocks read as visible. Screening figures from sightlines; the handbook rating is made in steps 4 and 5.'
+                      : 'Terrain plus inventory stand height. Understorey, roadside cover and retention inside a block are not modelled.'
+                  }
+                >
+                  {result.canopyCoverageFraction === null ? 'Bare earth only' : 'Terrain + stand height'}
+                </span>
+              ),
+            },
+            {
               label: 'Terrain detail',
               value: `${formatMeasure(result.demResolutionMeters, 'm', { maximumFractionDigits: 0 })} per sample · ${result.demTileCount} tiles`,
             },
@@ -362,13 +385,6 @@ export function ResultsPanel({
             },
           ]}
         />
-        <p className="mt-2 flex items-start gap-1.5 text-2xs leading-4 text-muted-foreground">
-          <TriangleAlert className="mt-px h-3 w-3 shrink-0" />
-          {result.canopyCoverageFraction === null
-            ? 'Bare-earth terrain only — standing timber is not modelled, so screened blocks read as visible.'
-            : 'Terrain plus inventory stand height. Understorey, roadside cover, and retention inside a block are still not modelled.'}{' '}
-          These are screening figures from sightlines; the handbook's rating is made in steps 4 and 5.
-        </p>
       </div>
     </div>
   )

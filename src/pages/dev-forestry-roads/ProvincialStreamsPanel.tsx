@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
@@ -56,7 +58,7 @@ export function ProvincialStreamsPanel({ workspace: w }: { workspace: RoadWorksp
       ({ coordinate: [x, y] }) => x < data.bounds[0] || x > data.bounds[2] || y < data.bounds[1] || y > data.bounds[3],
     )
   return (
-    <div className="space-y-1 rounded border p-2" data-testid="provincial-stream-context">
+    <div className={cn(insetBox(), 'space-y-1')} data-testid="provincial-stream-context">
       <div className="flex items-center gap-1">
         <Button
           size="sm"
@@ -125,7 +127,7 @@ export function ProvincialStreamSourceView({ stream }: { stream: ContextFeature 
   const source = stream.streamSource
   if (!source) return null
   return (
-    <div className="rounded border p-2 text-2xs text-muted-foreground" data-testid="stream-source-evidence">
+    <div className={cn(insetBox(), 'text-2xs text-muted-foreground')} data-testid="stream-source-evidence">
       <p>
         FWA source record {source.sourceId} · retrieved {source.retrievedAt.slice(0, 10)}
       </p>

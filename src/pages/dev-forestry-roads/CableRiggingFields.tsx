@@ -3,6 +3,7 @@ import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { EXAMPLE_RIGGING, RIGGING_LABELS, RIGGING_LIMITS, riggingErrors } from './cableMechanics'
 import type { CableRigging } from './cableMechanics'
 import type { CableLine } from './types'
+import { insetBox } from '@/components/ui/inset-box'
 
 type NumericField = keyof typeof RIGGING_LIMITS
 const ROPE: NumericField[] = [
@@ -76,7 +77,7 @@ export function CableRiggingFields({
         </RoadSelect>
       </Field>
       {mechanics && (
-        <details className="rounded border p-2" data-testid="cable-rigging">
+        <details className={insetBox()} data-testid="cable-rigging">
           <summary className="flex cursor-pointer items-center justify-between gap-1 text-xs">
             <span>
               Rigging · {rigging.ropeDiameterMm} mm · {rigging.payloadKg + rigging.carriageKg} kg

@@ -88,7 +88,7 @@ export function RouteAlternativesList({
                   <td className="tabular-nums" title={`Rank ${record.rank} of ${record.of} in its search`}>
                     ${whole(record.searchScore)}
                   </td>
-                  <td className={checks.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+                  <td className={checks.length ? 'text-warning' : 'text-muted-foreground'}>
                     {checks.length ? checks.join('; ') : 'Nothing flagged'}
                   </td>
                 </tr>

@@ -55,9 +55,9 @@ export function PinnedRunResults({
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <Button
-          size="sm"
+          size="xs"
           variant="outline"
-          className="h-7 gap-1 px-2 text-xs"
+          className="gap-1"
           disabled={isPinnedRun}
           onClick={onPin}
           data-testid="pin-run"
@@ -66,7 +66,7 @@ export function PinnedRunResults({
           {pinnedLabel ? 'Pin this run instead' : 'Pin this run'}
         </Button>
         {pinnedLabel && (
-          <Button size="sm" variant="ghost" className="h-7 gap-1 px-2 text-xs" onClick={onUnpin}>
+          <Button size="xs" variant="ghost" className="gap-1" onClick={onUnpin}>
             <PinOff className="size-3" />
             Unpin
           </Button>

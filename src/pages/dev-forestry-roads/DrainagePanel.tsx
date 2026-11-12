@@ -12,6 +12,8 @@ import { parseDrainageSettings, type DrainageComparisonSnapshot, type DrainageEv
 import type { PourPoint } from './drainageCatchments'
 import { DrainageSensitivityPanel } from './DrainageSensitivityPanel'
 import { depressionPolicyLabel, snapPolicyLabel } from './drainageSensitivity'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 type PourPointOptions = Pick<PourPoint, 'surface' | 'snapRadiusM' | 'snapPolicy'>
 
@@ -110,17 +112,17 @@ export function DrainagePanel({
   return (
     <div className="h-full space-y-3 overflow-auto overscroll-none text-xs" data-testid="road-drainage">
       {/* Run first, then the inputs in three groups; each select's options say what they do. */}
-      <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+      <div className={cn(insetBox({ padding: 'lg', tone: 'muted' }), 'space-y-3')}>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Button size="sm" className="h-8 shrink-0" disabled={busy} onClick={onRun}>
+          <Button size="xs" className="shrink-0" disabled={busy} onClick={onRun}>
             {run ? 'Re-run drainage' : 'Run drainage check'}
           </Button>
           {/* The culverts this check routes through are entered in the sidebar, under Engineering → Drainage. */}
           {onShowCulverts && (
             <Button
-              size="sm"
+              size="xs"
               variant="outline"
-              className="h-8 shrink-0"
+              className="shrink-0"
               data-testid="road-drainage-culvert-inputs"
               onClick={() => onShowCulverts()}
             >
@@ -238,7 +240,7 @@ export function DrainagePanel({
         </div>
       </div>
       {evidence && !run && (
-        <section className="space-y-2 rounded-md border p-2" aria-label="Saved drainage evidence">
+        <section className={cn(insetBox(), 'space-y-2')} aria-label="Saved drainage evidence">
           <h3 className="font-medium">Saved drainage evidence</h3>
           <p>
             {evidence.summary.crossings} crossings · {evidence.summary.lowPoints} cross-drain candidates ·{' '}
@@ -249,7 +251,7 @@ export function DrainagePanel({
             record and settings travel with this project; full flow grids are recomputed.
           </p>
           {stale && (
-            <p role="status" className="text-amber-800 dark:text-amber-300">
+            <p role="status" className="text-warning">
               Saved drainage evidence is out of date. Re-run before using or exporting current results.
             </p>
           )}
@@ -312,7 +314,7 @@ export function DrainagePanel({
           />
           {onShowCulverts && (redirected.length > 0 || uncovered.length > 0 || undersized.length > 0) && (
             <div className="flex items-center gap-2">
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => onShowCulverts()}>
+              <Button size="xs" variant="outline" onClick={() => onShowCulverts()}>
                 Add or size culverts
               </Button>
               <span className="text-muted-foreground">Then re-run to see whether flow reaches them.</span>
@@ -323,7 +325,7 @@ export function DrainagePanel({
             the spill level, independent of routing treatment.
           </p>
           {run.catchment && (
-            <section className="space-y-2 rounded-md border p-2" aria-label="Selected catchment">
+            <section className={cn(insetBox(), 'space-y-2')} aria-label="Selected catchment">
               <h3 className="font-medium">Selected catchment · {run.catchment.feature.properties.surface}</h3>
               <ReadoutGrid
                 minColumnWidth="18rem"
@@ -337,13 +339,7 @@ export function DrainagePanel({
                   { label: 'Selected outlet', value: run.catchment.snappedCoordinate.map((v) => n(v, 6)).join(', ') },
                 ]}
               />
-              <p
-                className={
-                  run.catchment.feature.properties.truncated
-                    ? 'text-amber-800 dark:text-amber-300'
-                    : 'text-muted-foreground'
-                }
-              >
+              <p className={run.catchment.feature.properties.truncated ? 'text-warning' : 'text-muted-foreground'}>
                 {run.catchment.feature.properties.truncated
                   ? 'Boundary contact: contributing area may continue beyond the sampled grid or a terrain gap.'
                   : 'No sampled edge or no-data contact. This is a raster drainage boundary, not a surveyed watershed.'}
@@ -378,9 +374,7 @@ export function DrainagePanel({
                         <td className="text-left">{station(c.chainage)}</td>
                         <td>{n(c.areaHa, 2)}</td>
                         <td>{station(c.exitChainage)}</td>
-                        <td className={bad ? 'font-medium text-red-700 dark:text-red-400' : undefined}>
-                          {n(c.divertedM)}
-                        </td>
+                        <td className={bad ? 'font-medium text-danger' : undefined}>{n(c.divertedM)}</td>
                         <td className="text-left">
                           {c.throughCulvertId
                             ? 'Passes through'
@@ -447,14 +441,12 @@ export function DrainagePanel({
                       key={c.id}
                       aria-label={`Culvert check ${c.name}`}
                       data-adequate={c.adequate}
-                      className="rounded-md border p-2"
+                      className={insetBox()}
                     >
                       <p className="break-words font-medium">
                         {c.name} · {station(c.chainage)}
                       </p>
-                      <p
-                        className={c.adequate ? 'text-muted-foreground' : 'font-medium text-red-700 dark:text-red-400'}
-                      >
+                      <p className={c.adequate ? 'text-muted-foreground' : 'font-medium text-danger'}>
                         {c.adequate ? 'Capacity carries the modeled peak' : 'Modeled peak exceeds pipe capacity'}
                       </p>
                       <ReadoutGrid
@@ -500,9 +492,7 @@ export function DrainagePanel({
                             {n(c.designAreaHa, 2)} / {n(c.existingAreaHa, 2)}
                           </td>
                           <td>{n(c.designFlowM3s, 3)}</td>
-                          <td className={c.adequate ? undefined : 'font-medium text-red-700 dark:text-red-400'}>
-                            {n(c.capacityM3s, 3)}
-                          </td>
+                          <td className={c.adequate ? undefined : 'font-medium text-danger'}>{n(c.capacityM3s, 3)}</td>
                           <td title={c.slopeAssumed ? 'Assumed: inverts missing or not falling' : undefined}>
                             {n(c.slope * 100, 1)}
                             {c.slopeAssumed ? '*' : ''}
@@ -523,7 +513,7 @@ export function DrainagePanel({
             )}
           </section>
           {run.warnings.length > 0 && (
-            <ul className="list-disc pl-4 text-amber-800 dark:text-amber-300">
+            <ul className="list-disc pl-4 text-warning">
               {run.warnings.map((w) => (
                 <li key={w}>{w}</li>
               ))}
@@ -537,7 +527,7 @@ export function DrainagePanel({
         </>
       )}
       {onPickPourPoint && (
-        <section className="rounded-md border" aria-label="Catchment and watershed tools">
+        <section className={insetBox({ padding: 'none' })} aria-label="Catchment and watershed tools">
           <CollapsibleSection
             label="Catchments & watersheds"
             summary={pourPoint ? 'Pour point set' : watershedMinAreaHa !== undefined ? 'Watersheds on' : undefined}

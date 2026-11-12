@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { DEFAULT_PEG_TOOL, type PegToolSettings } from './pegCursor'
 import { useLegendFold } from './PlanLegend'
 import { PegToolPanel } from './PegTool'
-import { isPlanToolKey, PlanToolButtons } from './PlanTools'
+import { isPlanToolKey, leavesDrawingOnEscape, PlanToolButtons } from './PlanTools'
 import { formatOffset, PointQueryPanel } from './PointQueryTool'
 import type { PointQueryResult } from './pointQuery'
 
@@ -54,6 +54,23 @@ describe('keys for the tool in hand', () => {
     expect(isPlanToolKey({ key: 'ArrowLeft', target: target([]) })).toBe(true)
     expect(isPlanToolKey({ key: 'ArrowLeft', target: target([], false) })).toBe(false)
     expect(isPlanToolKey({ key: 'Escape', target: target(['[role="dialog"]']) })).toBe(false)
+  })
+})
+
+describe('Escape and the drawing tool in hand', () => {
+  const escape = (matches: string[], inPlan = true, defaultPrevented = false) =>
+    leavesDrawingOnEscape({ key: 'Escape', target: target(matches, inPlan), defaultPrevented })
+  it('puts the tool down from the page or from the ribbon button that picked it', () => {
+    expect(escape([], false)).toBe(true)
+    expect(escape(['button'], false)).toBe(true)
+    expect(escape(['button'])).toBe(true)
+  })
+  it('leaves Escape to a field, a dialog, a menu, or a handler that took it', () => {
+    expect(escape(['input'])).toBe(false)
+    expect(escape(['[role="dialog"]'])).toBe(false)
+    expect(escape(['[role="menu"]'], false)).toBe(false)
+    expect(escape([], true, true)).toBe(false)
+    expect(leavesDrawingOnEscape({ key: 'Enter', target: target([]), defaultPrevented: false })).toBe(false)
   })
 })
 

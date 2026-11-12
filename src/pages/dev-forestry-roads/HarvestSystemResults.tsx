@@ -35,9 +35,9 @@ export function HarvestSystemResults({
         </InfoTip>
       </div>
       <Button
-        size="sm"
+        size="xs"
         variant="outline"
-        className="h-8 w-full"
+        className="w-full"
         disabled={disabled}
         onClick={onRun}
         data-testid="harvest-systems-run"

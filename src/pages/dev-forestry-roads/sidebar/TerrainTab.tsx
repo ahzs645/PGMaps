@@ -2,6 +2,8 @@ import { CommandButton, type CommandPresentation } from '@/components/interfaces
 import type { WorkspaceCommand } from '@/components/interfaces/workspaceCommands'
 import type { ReactNode } from 'react'
 import { ChevronRight } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, KeyValueRows } from '@/components/ui/map-panels'
@@ -69,7 +71,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         }
       >
         {/* The source by name: a bounding box and raw cell size are kept for the tooltip and report. */}
-        <div className="rounded-md border bg-muted/20 px-2.5 py-2" data-testid="road-scenario-evidence">
+        <div className={insetBox({ tone: 'muted' })} data-testid="road-scenario-evidence">
           <div className="flex items-start gap-1.5">
             <p className="min-w-0 flex-1 text-sm font-medium leading-5" title={project.terrain.name}>
               {terrainSourceName(project.terrain.name)}
@@ -109,11 +111,9 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
           {sourceTool('lidar', {
             caption: 'BC LiDAR',
             ariaLabel: 'Load BC 1 m LiDAR sample',
-            title: 'Classified-ground 1 m LiDAR DTM near Prince George',
           })}
           {sourceTool('regional', {
             caption: 'Regional DEM',
-            title: 'Coarse reconnaissance terrain, not a 1 m LiDAR source',
           })}
           <Button
             variant="outline"
@@ -195,7 +195,7 @@ export function TerrainTab({ existingRoads, ...p }: SidebarProps & { existingRoa
         }
       >
         <TerrainImportField field="importDatum" {...p} />
-        <details className="group rounded-md border" data-testid="road-point-cloud-options">
+        <details className={cn(insetBox({ padding: 'none' }), 'group')} data-testid="road-point-cloud-options">
           <summary className="flex cursor-pointer list-none items-center gap-1.5 px-2 py-1.5 text-xs [&::-webkit-details-marker]:hidden">
             <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
             <span className="font-medium">Point-cloud options</span>

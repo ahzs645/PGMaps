@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import {
@@ -50,7 +52,7 @@ function EstimateItems({
         item.id !== activeId
           ? []
           : [
-              <fieldset key={item.id} className="space-y-2 rounded border p-2">
+              <fieldset key={item.id} className={cn(insetBox(), 'space-y-2')}>
                 <legend className="px-1 text-xs font-medium">
                   {shared ? 'Shared item' : 'Estimate item'} {index + 1}
                 </legend>
@@ -290,7 +292,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
           )}
           <EstimateItems items={row.record.items} onChange={(items) => saveRecord({ ...row.record, items })} />
           {row.missing.length > 0 && (
-            <ul className="list-disc space-y-1 pl-4 text-xs text-amber-800 dark:text-amber-300">
+            <ul className="list-disc space-y-1 pl-4 text-xs text-warning">
               {row.missing.map((message) => (
                 <li key={message}>{message}</li>
               ))}
@@ -309,7 +311,7 @@ export function StreamCrossingsPanel({ workspace }: { workspace: RoadWorkspace }
           onChange={(items) => workspace.update((p) => ({ ...p, sharedCrossingCosts: items }))}
         />
         {sharedPrice.missing.map((message) => (
-          <p key={message} className="text-xs text-amber-800 dark:text-amber-300">
+          <p key={message} className="text-xs text-warning">
             {message}
           </p>
         ))}

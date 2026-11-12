@@ -253,7 +253,7 @@ export function DesignSchedules({
                           ))}
                           <td>{fmt(curve?.k)}</td>
                           <td
-                            className={`text-left ${status === 'Unfitted' ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                            className={`text-left ${status === 'Unfitted' ? 'text-warning' : 'text-muted-foreground'}`}
                             title={
                               status === 'Tangent'
                                 ? 'Tangent break: no vertical curve'
@@ -264,9 +264,9 @@ export function DesignSchedules({
                           </td>
                           <td className="!p-0.5 text-center">
                             <Button
-                              size="icon"
+                              size="icon-2xs"
                               variant="ghost"
-                              className="size-6 text-muted-foreground hover:text-destructive [&_svg]:size-3.5"
+                              className="text-muted-foreground hover:text-destructive [&_svg]:size-3.5"
                               disabled={!onVerticalChange}
                               aria-label={`Remove schedule PVI ${index + 1}`}
                               title={`Remove V${index + 1}`}

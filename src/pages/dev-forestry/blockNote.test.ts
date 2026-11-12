@@ -93,6 +93,76 @@ describe('block note export', () => {
     expect(new TextDecoder('latin1').decode(bytes).startsWith('%PDF')).toBe(true)
   })
 
+  const measures = {
+    items: [
+      "Keep wildlife tree patch 'WTP 1' (1.2 ha, inside the block) standing as mapped.",
+      'Feather the block edges and keep the irregular, interlocking boundary as flagged; do not straighten it.',
+      'Stop operations in the affected area and contact the visual specialist or planning forester if the wildlife tree patches cannot be placed or kept as mapped.',
+    ],
+    drafted: true,
+    basis: [{ text: 'Keep wildlife tree patch …', basis: "Wildlife tree patch / retention mask 'WTP 1', 1.2 ha" }],
+  }
+
+  it('puts the visual measures on a sheet of their own, leaving the Visuals row and screenshots in place', async () => {
+    const plain = new ExcelJS.Workbook()
+    await plain.xlsx.load(await blockNoteWorkbook(note(), ExcelJS))
+    const buffer = await blockNoteWorkbook(note({ measures }), ExcelJS)
+    const workbook = new ExcelJS.Workbook()
+    await workbook.xlsx.load(buffer)
+    expect(workbook.worksheets.map((sheet) => sheet.name)).toEqual([
+      'Other Considerations',
+      'Visual measures',
+      'Block',
+      'Basis',
+    ])
+    // The first sheet is exactly as without measures: same cells, same image anchors.
+    const other = workbook.getWorksheet('Other Considerations')!
+    const before = plain.getWorksheet('Other Considerations')!
+    expect(other.getCell('B2').value).toBe('Visuals')
+    expect(other.getCell('C2').value).toBe(before.getCell('C2').value)
+    expect(other.getImages().map((img) => img.range.tl.nativeRow)).toEqual(
+      before.getImages().map((img) => img.range.tl.nativeRow),
+    )
+    const sheet = workbook.getWorksheet('Visual measures')!
+    expect(sheet.getCell('B2').value).toBe('Visual measures')
+    expect(sheet.getCell('C2').value).toBe(`1. ${measures.items[0]}`)
+    expect(sheet.getCell('C4').value).toBe(`3. ${measures.items[2]}`)
+    expect(sheet.getCell('C5').value).toBe('Draft from the assessment — not yet reviewed.')
+    const basis: string[] = []
+    workbook.getWorksheet('Basis')!.eachRow((row) => basis.push(String(row.getCell(2).value)))
+    expect(basis).toContain("Wildlife tree patch / retention mask 'WTP 1', 1.2 ha")
+  })
+
+  it('leaves the measures sheet out when there are none, and the flag off once they are the reviewer’s', async () => {
+    const none = new ExcelJS.Workbook()
+    await none.xlsx.load(await blockNoteWorkbook(note({ measures: { items: [], drafted: true, basis: [] } }), ExcelJS))
+    expect(none.getWorksheet('Visual measures')).toBeUndefined()
+    const own = new ExcelJS.Workbook()
+    await own.xlsx.load(
+      await blockNoteWorkbook(note({ measures: { items: ['Keep WTP 1.'], drafted: false, basis: [] } }), ExcelJS),
+    )
+    expect(own.getWorksheet('Visual measures')!.getCell('C3').value).toBeNull()
+  })
+
+  it('prints the measures under the paragraph when they fit, else on the next page', () => {
+    const pages = (bytes: ArrayBuffer) =>
+      (new TextDecoder('latin1').decode(new Uint8Array(bytes)).match(/\/Type \/Page\b/g) ?? []).length
+    // A short paragraph leaves room beside the view: still two pages.
+    const short = { text: 'Block may be visible from Hwy 97.', drafted: false }
+    const beside = blockNotePdf(note({ visuals: short, measures }), jspdf)
+    expect(pages(beside)).toBe(2)
+    const text = new TextDecoder('latin1').decode(new Uint8Array(beside))
+    expect(text).toContain('Visual measures')
+    expect(text).toContain('1. Keep wildlife tree patch')
+    // A long paragraph fills the column: the measures take a page before the other views.
+    const long = { text: 'Block may be visible from Hwy 97. '.repeat(60), drafted: false }
+    expect(pages(blockNotePdf(note({ visuals: long }), jspdf))).toBe(3)
+    expect(pages(blockNotePdf(note({ visuals: long, measures }), jspdf))).toBe(3)
+    // A list too long for the column moves to a page of its own, whole.
+    const many = { ...measures, items: Array.from({ length: 20 }, (_, i) => `${measures.items[i % 3]}`) }
+    expect(pages(blockNotePdf(note({ visuals: short, measures: many }), jspdf))).toBe(3)
+  })
+
   it('names the file by block and date', () => {
     expect(blockNoteFileName(note({ blockName: 'CHU 26/1' }), 'xlsx')).toBe('CHU_26_1-visual-note-2026-11-10.xlsx')
   })

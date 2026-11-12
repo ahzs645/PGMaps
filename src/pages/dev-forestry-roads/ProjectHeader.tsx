@@ -34,7 +34,7 @@ export function ProjectName({
         onFocus={(event) => event.currentTarget.select()}
         aria-label="Project name"
         data-testid="road-project-name-field"
-        className="h-6 min-w-0 max-w-64 flex-1 rounded border border-input bg-background px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-6 min-w-0 max-w-64 flex-1 rounded-md border border-input bg-background px-1.5 text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring"
         value={draft}
         maxLength={200}
         onChange={(event) => setDraft(event.target.value)}
@@ -52,7 +52,7 @@ export function ProjectName({
       data-testid="road-project-name"
       title={`${name} · click to rename the project`}
       aria-label={`Project: ${name}. Rename`}
-      className="group flex min-w-[5rem] max-w-[14rem] items-center gap-1 rounded px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
+      className="group flex min-w-[5rem] max-w-[14rem] items-center gap-1 rounded-md px-1 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60"
       onClick={() => setDraft(name)}
     >
       <span className="truncate">{name || 'Untitled road project'}</span>
@@ -77,11 +77,7 @@ export function SaveStateLine({ browser, file }: { browser: BrowserSave; file: F
       data-save={browser.kind}
       title={state.detail}
       className={`block truncate text-xs ${
-        state.tone === 'danger'
-          ? 'text-red-600 dark:text-red-400'
-          : state.tone === 'warning'
-            ? 'text-amber-700 dark:text-amber-400'
-            : 'text-muted-foreground'
+        state.tone === 'danger' ? 'text-danger' : state.tone === 'warning' ? 'text-warning' : 'text-muted-foreground'
       }`}
     >
       {/* Beside the road switcher the line is narrow below a wide desktop; the short form fits it. */}
@@ -190,10 +186,10 @@ export function ExampleStartNotice({
       message="Explore it, or start your own project. Your work is saved in this browser as you go."
       actions={
         <>
-          <Button size="sm" className="h-7 text-xs" onClick={onNewProject}>
+          <Button size="xs" onClick={onNewProject}>
             New project
           </Button>
-          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={onOpenFile}>
+          <Button size="xs" variant="outline" onClick={onOpenFile}>
             Open a project file
           </Button>
         </>

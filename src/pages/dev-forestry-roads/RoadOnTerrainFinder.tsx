@@ -3,6 +3,8 @@ import { Check, ClipboardCheck, ScanSearch, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import { Field, NumberField, roadFieldClass } from './Controls'
 import { runCooperatively } from './cooperative'
@@ -411,9 +413,9 @@ export function RoadOnTerrainFinder({
           </fieldset>
         )}
         <Button
-          size="sm"
+          size="2xs"
           variant="ghost"
-          className="h-6 px-1 text-2xs"
+          className="px-1"
           onClick={() => {
             setSettings(DEFAULT_ROAD_FIND_SETTINGS)
             setWaterIds([])
@@ -523,7 +525,7 @@ export function RoadOnTerrainFinder({
             </ul>
           )}
           {offerable && (
-            <div className="space-y-1 rounded border p-2 text-2xs" data-testid="road-state">
+            <div className={cn(insetBox(), 'space-y-1 text-2xs')} data-testid="road-state">
               {r.state ? (
                 <>
                   <p className="flex items-center gap-1 text-xs font-semibold">

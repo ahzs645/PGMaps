@@ -1,6 +1,8 @@
 import { useStationReader } from '../roadStation'
 import { useState } from 'react'
 import { ArrowRight, Copy, Trash2 } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { formatRoadStation } from '../Charts'
@@ -68,8 +70,8 @@ export function SectionTab(
         <EntryProblem problem={problem} list="template" inlineFields={TEMPLATE_FIELDS.map(([key]) => key)} />
         <Button
           variant="ghost"
-          size="sm"
-          className="mt-2 h-7 w-full justify-between px-2 text-xs"
+          size="xs"
+          className="mt-2 w-full justify-between"
           onClick={() => p.onTab('engineering')}
         >
           Template library & station assignments
@@ -160,13 +162,7 @@ function Widenings(p: SidebarProps) {
       actions={
         // Manage edits what exists; with nothing yet, the section offers the add buttons instead.
         alignment.overrides.length ? (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 px-2 text-xs"
-            aria-label="Manage landings & turnouts"
-            onClick={() => setOpen(true)}
-          >
+          <Button size="xs" variant="outline" aria-label="Manage landings & turnouts" onClick={() => setOpen(true)}>
             Manage
           </Button>
         ) : undefined
@@ -178,8 +174,8 @@ function Widenings(p: SidebarProps) {
             <Button
               key={v.id}
               variant="ghost"
-              size="sm"
-              className="h-7 w-full justify-start text-xs"
+              size="xs"
+              className="w-full justify-start"
               aria-pressed={
                 p.workspace.featureSelection?.alignmentId === alignment.id && p.workspace.featureSelection?.id === v.id
               }
@@ -195,9 +191,8 @@ function Widenings(p: SidebarProps) {
           {(['landing', 'turnout'] as const).map((kind) => (
             <Button
               key={kind}
-              size="sm"
+              size="xs"
               variant="outline"
-              className="h-7 px-2 text-xs"
               disabled={!!p.workspace.busy}
               onClick={() => {
                 add(kind)
@@ -219,7 +214,7 @@ function Widenings(p: SidebarProps) {
           </Button>
         </div>
         {alignment.overrides.map((v) => (
-          <div key={v.id} className="mb-3 space-y-2 rounded border p-2">
+          <div key={v.id} className={cn(insetBox(), 'mb-3 space-y-2')}>
             <Button
               size="sm"
               variant="ghost"
@@ -240,8 +235,8 @@ function Widenings(p: SidebarProps) {
               />
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-7 shrink-0"
+                size="icon-xs"
+                className="shrink-0"
                 aria-label={`Duplicate ${v.name}`}
                 aria-expanded={copying?.id === v.id}
                 title="Copy this widening to another station"
@@ -251,8 +246,8 @@ function Widenings(p: SidebarProps) {
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-7 shrink-0"
+                size="icon-xs"
+                className="shrink-0"
                 aria-label={`Remove ${v.name}`}
                 onClick={() => updateAlignment((a) => ({ ...a, overrides: a.overrides.filter((x) => x.id !== v.id) }))}
               >
@@ -263,7 +258,7 @@ function Widenings(p: SidebarProps) {
               (() => {
                 const result = duplicateWideningAt(v, copying.start, analysis.length, v.id)
                 return (
-                  <div className="space-y-1.5 rounded border border-dashed p-2" data-testid="road-widening-copy">
+                  <div className={cn(insetBox(), 'space-y-1.5 border-dashed')} data-testid="road-widening-copy">
                     <div className="flex items-end gap-1.5">
                       <div className="min-w-0 flex-1">
                         <NumberField
@@ -289,7 +284,7 @@ function Widenings(p: SidebarProps) {
                         Cancel
                       </Button>
                     </div>
-                    <p className={`text-xs ${result.error ? 'text-red-600' : 'text-muted-foreground'}`} role="status">
+                    <p className={`text-xs ${result.error ? 'text-danger' : 'text-muted-foreground'}`} role="status">
                       {result.error ??
                         `Copy at ${formatRoadStation(result.copy.start)}–${formatRoadStation(result.copy.end)}`}
                     </p>
@@ -361,12 +356,12 @@ function Widenings(p: SidebarProps) {
               </p>
             )}
             {limited?.id === v.id && v[`${limited.side}TaperM`] === limited.taperM && (
-              <p role="status" className="text-xs text-amber-800 dark:text-amber-300" data-testid="road-taper-note">
+              <p role="status" className="text-xs text-warning" data-testid="road-taper-note">
                 {limited.note}
               </p>
             )}
             {v.end <= v.start && (
-              <p role="alert" className="text-xs text-red-600">
+              <p role="alert" className="text-xs text-danger">
                 End station must be after start.
               </p>
             )}

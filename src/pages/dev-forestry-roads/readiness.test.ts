@@ -324,6 +324,66 @@ describe('assessReadiness: what the walkthrough found ticked or missing', () => 
     expect(assess().row('crossing-structures').state).toBe('not-assessed')
   })
 
+  it('measures how each crossing meets its stream: square, with 15 m straight each side', () => {
+    // The road heads north; a stream running east–west crosses it square, 100 m from the start.
+    const square = assess({ context: [stream('1', 100)] }).row('crossing-approach')
+    expect(square).toMatchObject({
+      state: 'met',
+      result: 'The 1 crossing is within the screen with straight approaches',
+    })
+    expect(square.measured).toMatch(/^0\+100\.0 Imported stream 1: 0° off square, 100 m \/ 8\d\.\d m straight$/)
+    // A stream running 60° off the road's perpendicular is past the 45° screen.
+    const skewed = assess({
+      context: [stream('1', 100, { geometry: { type: 'LineString', coordinates: [xy(-30, 48), xy(30, 152)] } })],
+    }).row('crossing-approach')
+    expect(skewed).toMatchObject({ state: 'attention', severity: 'todo' })
+    expect(skewed.measured).toMatch(/60° off square/)
+    // On the curve at point 2 there is no straight approach at all.
+    const onCurve = assess({ context: [stream('1', 195)] }).row('crossing-approach')
+    expect(onCurve).toMatchObject({ state: 'attention', result: '1 crossing is skewed or short of straight approach' })
+    expect(onCurve.measured).toMatch(/on a curve/)
+  })
+
+  it('raises a road running inside a riparian area away from a crossing (FPPR s. 50)', () => {
+    // A crossing passes through the area as part of the crossing.
+    expect(assess({ context: [stream('1', 100)] }).row('riparian-areas')).toMatchObject({
+      state: 'met',
+      result: 'The road enters riparian areas only at its 1 crossing',
+    })
+    // A stream 40 m east of the road, running beside it: inside its unresolved 100 m screen.
+    const beside = (patch: Partial<ContextFeature> = {}) =>
+      stream('2', 0, { geometry: { type: 'LineString', coordinates: [xy(40, 20), xy(40, 150)] }, ...patch })
+    const unresolved = assess({ context: [beside()] }).row('riparian-areas')
+    expect(unresolved).toMatchObject({
+      state: 'attention',
+      severity: 'todo',
+      result: 'The road runs inside 1 riparian area away from a crossing',
+    })
+    expect(unresolved.measured).toMatch(/Imported stream 2 \(unresolved, 100 m screen\) at 0\+000\.0 to/)
+    // Reviewed as S4 with a 2 m channel, its area is 1 + 0 + 30 m wide: clear of a road 40 m away.
+    const geometry = beside().geometry
+    const reviewedBeside = (riparianClass: 'S4' | 'S2') => {
+      const assessment = { channelWidthM: 2, fish: 'present' as const, communityWatershed: 'outside' as const }
+      return beside({
+        streamAssessment: {
+          ...assessment,
+          reviewedClass: riparianClass,
+          reviewedFingerprint: assessmentFingerprint(assessment, geometry.coordinates),
+          reviewedRules: `${RIPARIAN_RULES.id}@${RIPARIAN_RULES.consolidatedTo}`,
+        },
+      })
+    }
+    expect(assess({ context: [reviewedBeside('S4')] }).row('riparian-areas')).toMatchObject({
+      state: 'met',
+      result: 'The road stays outside every riparian screening area',
+    })
+    // An S2 reach's 50 m area does reach it, and on a reviewed class the rule is a limit.
+    expect(assess({ context: [reviewedBeside('S2')] }).row('riparian-areas')).toMatchObject({
+      state: 'attention',
+      severity: 'limit',
+    })
+  })
+
   it('raises a cross-section template still at its starting values', () => {
     expect(isStartingTemplate(DEFAULT_TEMPLATE)).toBe(true)
     expect(assess().row('template')).toMatchObject({
@@ -776,6 +836,8 @@ describe('assessReadiness: a check that was not made never reads as met', () => 
     ['clearing-width', 'No sections to measure', 'met'],
     ['crossing-structures', 'No sections were calculated, so crossings were not found', 'attention'],
     ['stream-class', 'No sections were calculated, so crossed streams were not found', 'attention'],
+    ['crossing-approach', 'No sections were calculated, so crossings were not found', 'met'],
+    ['riparian-areas', 'No sections were calculated, so the areas were not tested', 'met'],
     ['cross-drain-spacing', 'No road to measure', 'attention'],
     ['constraints', 'No sections were calculated, so the areas were not tested', 'attention'],
     ['rates', 'No quantities were calculated, so no rate is in use', 'attention'],
@@ -820,6 +882,8 @@ describe('assessReadiness: a check that was not made never reads as met', () => 
       'clearing-width': 'not-assessed',
       'crossing-structures': 'not-assessed',
       'stream-class': 'not-assessed',
+      'crossing-approach': 'not-assessed',
+      'riparian-areas': 'not-assessed',
       drainage: 'not-assessed',
       'cross-drain-spacing': 'not-assessed',
       constraints: 'not-assessed',

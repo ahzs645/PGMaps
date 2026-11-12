@@ -4,15 +4,20 @@
  *
  * Both carry the same thing: the block's header (block, licence, permit,
  * opening, area, EVQO classes under it), the Visuals paragraph — the
- * reviewer's, or the draft marked as one — the landform and its percent
- * alteration, the saved views as captioned screenshots, and a plan map.
+ * reviewer's, or the draft marked as one — the visual measures for the Site
+ * Plan and Logging Plan, the landform and its percent alteration, the saved
+ * views as captioned screenshots, and a plan map.
  *
  * - **Excel** mirrors the planner's own `*_Report.xlsx`: an "Other
  *   Considerations" sheet with the label in column B and the paragraph in C,
  *   screenshots and their captions below, so the row pastes into their
- *   workbook. A "Block" sheet holds the header and figures, and "Basis" the
- *   measurement behind each drafted sentence.
+ *   workbook. A "Visual measures" sheet follows it in the same B/C layout, one
+ *   measure per row, so the list pastes into the site plan and logging plan
+ *   without moving anything on the first sheet. A "Block" sheet holds the
+ *   header and figures, and "Basis" the measurement behind each drafted
+ *   sentence and measure.
  * - **PDF** puts the first view large with the header and paragraph beside it,
+ *   the measures under the paragraph when they fit (else on the next page),
  *   then the other views and the plan map. Where views carry their viewpoint
  *   record, a page per viewpoint follows in the layout consultants' VIA
  *   reports use (Forsite's Logan Lake assessment, pp. 8–11): the field
@@ -100,6 +105,15 @@ export type BlockNote = {
   }
   /** The drafted sentences with their basis, for the "Basis" sheet. */
   sentences: ReadonlyArray<NarrativeSentence>
+  /** The visual measures for the Site Plan and Logging Plan; left out when absent or empty. */
+  measures?: {
+    /** One measure each, without numbers: the files number them. */
+    items: string[]
+    /** Not yet the reviewer's own list: the draft. */
+    drafted: boolean
+    /** The drafted measures with what each was written from, for the "Basis" sheet. */
+    basis: ReadonlyArray<{ text: string; basis: string }>
+  }
   /** The landform figures, already worded. */
   landform: Array<{ label: string; value: string }>
   views: NoteImage[]
@@ -117,6 +131,14 @@ export type BlockNote = {
 }
 
 const DATE = (date: Date) => date.toISOString().slice(0, 10)
+
+export const MEASURES_TITLE = 'Visual measures'
+const MEASURES_FLAG = 'Draft from the assessment — not yet reviewed.'
+
+/** The measures to print, numbered; empty when the note has none. */
+export function numberedMeasures(note: BlockNote): string[] {
+  return (note.measures?.items ?? []).map((item, i) => `${i + 1}. ${item}`)
+}
 
 /** The drafted pointer to the pictures, in the planner's wording. */
 const SCREENSHOTS_SENTENCE = /\s*See (?:the )?screenshots? below\.?/i
@@ -207,6 +229,33 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
   }
   if (note.planMap) placeImage(note.planMap, 720)
 
+  // The measures on a sheet of their own, in the same B/C layout, so the first
+  // sheet's cells and screenshots stay exactly where the planner's report has them.
+  const measures = numberedMeasures(note)
+  if (measures.length) {
+    const sheet = workbook.addWorksheet(MEASURES_TITLE)
+    sheet.getColumn(1).width = 2
+    sheet.getColumn(2).width = 20
+    sheet.getColumn(3).width = 110
+    const title = sheet.getCell('B2')
+    title.value = MEASURES_TITLE
+    title.font = { bold: true }
+    title.alignment = { vertical: 'top' }
+    measures.forEach((text, i) => {
+      const cell = sheet.getCell(`C${i + 2}`)
+      cell.value = text
+      cell.alignment = { wrapText: true, vertical: 'top' }
+      sheet.getRow(i + 2).height = Math.max(15, Math.ceil(text.length / 115) * 15 + 3)
+    })
+    sheet.getCell('B3').value = 'Site Plan and Logging Plan'
+    sheet.getCell('B3').font = { italic: true, color: { argb: 'FF6B7280' } }
+    if (note.measures?.drafted) {
+      const flag = sheet.getCell(`C${measures.length + 2}`)
+      flag.value = MEASURES_FLAG
+      flag.font = { italic: true, color: { argb: 'FF92400E' } }
+    }
+  }
+
   const block = workbook.addWorksheet('Block')
   block.getColumn(1).width = 34
   block.getColumn(2).width = 80
@@ -251,6 +300,14 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
     const added = basis.addRow([sentence.text, sentence.basis])
     added.alignment = { wrapText: true, vertical: 'top' }
   }
+  if (note.measures?.basis.length) {
+    basis.addRow([])
+    basis.addRow(['Drafted visual measure', 'Written from']).font = { bold: true }
+    for (const measure of note.measures.basis) {
+      const added = basis.addRow([measure.text, measure.basis])
+      added.alignment = { wrapText: true, vertical: 'top' }
+    }
+  }
 
   return workbook.xlsx.writeBuffer() as Promise<ArrayBuffer>
 }
@@ -267,6 +324,43 @@ const PAGE = { width: 279.4, height: 215.9, margin: 12 }
 function fitImage(image: NoteImage, maxWidth: number, maxHeight: number) {
   const scale = Math.min(maxWidth / image.width, maxHeight / image.height)
   return { width: image.width * scale, height: image.height * scale }
+}
+
+/** Body text at 9 pt with a 1.35 line height, in millimetres. */
+const LINE_MM = 4.3
+
+/** The measures as wrapped lines, each item's continuation indented under its number. */
+function measureLines(pdf: Pdf, note: BlockNote, width: number): string[][] {
+  return numberedMeasures(note).map((text) => pdf.splitTextToSize(text, width) as string[])
+}
+
+/** Millimetres the measures block takes: title, flag, items. */
+function measuresHeight(note: BlockNote, lines: string[][]): number {
+  if (!lines.length) return 0
+  return 6 + (note.measures?.drafted ? 5 : 0) + lines.reduce((sum, item) => sum + item.length * LINE_MM + 1, 0)
+}
+
+function drawMeasures(pdf: Pdf, note: BlockNote, lines: string[][], x: number, top: number): number {
+  let y = top
+  pdf.setFont('helvetica', 'bold')
+  pdf.setFontSize(10)
+  pdf.text(`${MEASURES_TITLE} · Site Plan and Logging Plan`, x, y + 3)
+  y += 6
+  if (note.measures?.drafted) {
+    pdf.setFont('helvetica', 'italic')
+    pdf.setFontSize(8)
+    pdf.setTextColor(146, 64, 14)
+    pdf.text(MEASURES_FLAG, x, y + 2)
+    pdf.setTextColor(17, 24, 39)
+    y += 5
+  }
+  pdf.setFont('helvetica', 'normal')
+  pdf.setFontSize(9)
+  for (const item of lines) {
+    pdf.text(item, x, y + 3, { lineHeightFactor: 1.35 })
+    y += item.length * LINE_MM + 1
+  }
+  return y
 }
 
 function drawImage(pdf: Pdf, image: NoteImage, x: number, y: number, maxWidth: number, maxHeight: number): number {
@@ -341,13 +435,22 @@ export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer
   pdf.setFontSize(9)
   const paragraph = pdf.splitTextToSize(paragraphForLayout(note, 'pdf'), sideWidth)
   const room = Math.floor((height - margin - 14 - y) / 4.2)
-  pdf.text(paragraph.slice(0, room), sideX, y + 3, { lineHeightFactor: 1.35 })
+  const shown = paragraph.slice(0, room)
+  pdf.text(shown, sideX, y + 3, { lineHeightFactor: 1.35 })
   const overflow = paragraph.slice(room)
+  // The measures follow the paragraph: beside the view when they fit, else on the next page.
+  const sideMeasures = measureLines(pdf, note, sideWidth)
+  const measuresBeside =
+    sideMeasures.length > 0 &&
+    !overflow.length &&
+    y + 3 + shown.length * LINE_MM + 4 + measuresHeight(note, sideMeasures) <= height - margin - 14
+  if (measuresBeside) drawMeasures(pdf, note, sideMeasures, sideX, y + 3 + shown.length * LINE_MM + 4)
+  const measuresLater = sideMeasures.length > 0 && !measuresBeside
   footer()
 
-  // Then the rest: the paragraph's overflow, every other view, the plan map.
+  // Then the rest: the paragraph's overflow and the measures, every other view, the plan map.
   const pages: Array<NoteImage | 'overflow'> = [
-    ...(overflow.length ? (['overflow'] as const) : []),
+    ...(overflow.length || measuresLater ? (['overflow'] as const) : []),
     ...rest,
     ...(lead === note.planMap || !note.planMap ? [] : [note.planMap]),
   ]
@@ -355,11 +458,25 @@ export function blockNotePdf(note: BlockNote, { jsPDF }: PdfModule): ArrayBuffer
   for (const item of pages) {
     if (item === 'overflow') {
       pdf.addPage()
-      pdf.setFont('helvetica', 'normal')
-      pdf.setFontSize(9)
-      pdf.text(overflow, margin, margin + 4, { lineHeightFactor: 1.35 })
-      cursor = Infinity
       footer()
+      let top = margin
+      if (overflow.length) {
+        pdf.setFont('helvetica', 'normal')
+        pdf.setFontSize(9)
+        pdf.text(overflow, margin, margin + 4, { lineHeightFactor: 1.35 })
+        top += overflow.length * LINE_MM + 6
+      }
+      if (measuresLater) {
+        const lines = measureLines(pdf, note, width - 2 * margin)
+        // A list too long for what is left of the page starts a page of its own.
+        if (top + measuresHeight(note, lines) > height - margin - 12 && top > margin) {
+          pdf.addPage()
+          footer()
+          top = margin
+        }
+        drawMeasures(pdf, note, lines, margin, top)
+      }
+      cursor = Infinity
       continue
     }
     // Two to a page: each image, its caption, and the footer's room.

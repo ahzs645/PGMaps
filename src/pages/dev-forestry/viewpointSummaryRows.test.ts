@@ -80,9 +80,12 @@ describe('viewpoint summary rows', () => {
 
   it('names the scale of every percentage and judges each against its own range', () => {
     const rows = viewpointSummaryMetrics(input())
-    expect(row(rows, 'perspective')?.label).toMatch(/perspective scale/)
-    expect(row(rows, 'planimetric')?.label).toMatch(/planimetric scale/)
-    expect(row(rows, 'via')?.label).toMatch(/perspective scale/)
+    expect(row(rows, 'perspective')?.qualifier).toBe('perspective scale')
+    expect(row(rows, 'planimetric')?.qualifier).toBe('planimetric scale')
+    expect(row(rows, 'via')?.qualifier).toBe('perspective scale')
+    // Every percentage-valued row names a scale, a station or a stretch of road next to its label.
+    for (const metric of rows.filter((r) => r.value.includes('%') && r.key !== 'slope'))
+      expect(metric.qualifier, metric.key).toBeTruthy()
     // 6% is inside PR's perspective range while 12% is past its planimetric one: the scales disagree.
     expect(row(rows, 'perspective')).toMatchObject({ tone: 'default' })
     expect(row(rows, 'perspective')?.note).toMatch(/PR range [\d.]+–7% on this scale/)
@@ -91,25 +94,30 @@ describe('viewpoint summary rows', () => {
     expect(row(rows, 'planimetric')?.note).toContain('treed area')
   })
 
-  it('withholds numerical figures from a provisional run and says why', () => {
+  it('withholds numerical figures from a provisional run and says why once, in the status row', () => {
     const result = run({ numericalReady: false })
     const rows = viewpointSummaryMetrics(input({ result }))
-    expect(row(rows, 'perspective')?.value).toBe('Withheld')
-    expect(row(rows, 'planimetric')?.value).toBe('Withheld')
-    expect(row(rows, 'status')).toMatchObject({ value: 'Provisional', note: 'Terrain tiles are missing.' })
+    expect(row(rows, 'perspective')).toMatchObject({ value: 'Withheld', tone: 'muted' })
+    expect(row(rows, 'planimetric')).toMatchObject({ value: 'Withheld', tone: 'muted' })
+    expect(row(rows, 'status')).toMatchObject({ value: 'Provisional', tone: 'warning' })
+    expect(row(rows, 'status')?.note).toMatch(/^Terrain tiles are missing\. .*Assessment & report/)
+    // The withheld rows point at the status row rather than repeating its explanation.
+    expect(rows.filter((r) => r.note.includes('Assessment & report')).map((r) => r.key)).toEqual(['status'])
   })
 
   it('reads green-up height from the run, and labels whole-road distances', () => {
     const rows = viewpointSummaryMetrics(input())
     expect(row(rows, 'slope')?.value).toBe('31% · 5.5 m')
     expect(row(rows, 'distance')).toMatchObject({
-      label: 'Visible ground distance · whole road',
+      label: 'Visible distance',
+      qualifier: 'whole road',
       value: '0.8 km – 2.4 km',
     })
     expect(row(rows, 'distance')?.note).toContain('foreground to middleground')
   })
 
   it('says where the objective came from', () => {
+    expect(row(viewpointSummaryMetrics(input()), 'objective')).toMatchObject({ qualifier: 'established' })
     expect(row(viewpointSummaryMetrics(input()), 'objective')?.note).toMatch(/Established \(EVQO\)/)
     expect(row(viewpointSummaryMetrics(input({ objectiveSource: 'chosen' })), 'objective')?.note).toMatch(
       /not read from the inventory/,

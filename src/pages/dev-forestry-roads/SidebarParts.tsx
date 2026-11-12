@@ -48,14 +48,13 @@ export function SectionReachAlert({ workspace }: { workspace: RoadWorkspace }) {
         </InfoTip>
       </span>
       <span className="mt-1.5 flex flex-wrap gap-1">
-        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setStation(hits[0].chainage)}>
+        <Button size="xs" variant="outline" onClick={() => setStation(hits[0].chainage)}>
           Go to {formatRoadStation(hits[0].chainage)}
         </Button>
         {reach < MAX_SECTION_REACH_M && (
           <Button
-            size="sm"
+            size="xs"
             variant="outline"
-            className="h-7 text-xs"
             onClick={() =>
               update((x) => ({ ...x, settings: { ...x.settings, crossSectionHalfWidth: MAX_SECTION_REACH_M } }))
             }

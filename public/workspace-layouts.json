@@ -162,25 +162,18 @@
           "label": "View",
           "sections": [
             { "label": "Map extent", "primary": "fitRoad", "rows": 2, "items": ["fitRoad", "fitAll", "fitTerrain"] },
-            {
-              "label": "Map layers",
-              "rows": 2,
-              "items": ["contours", "stationLabels", "sentinel2"],
-              "more": ["earthworks"]
-            },
+            { "label": "Map layers", "rows": 2, "items": ["contours", "stationLabels", "sentinel2", "earthworks"] },
             {
               "label": "Drawing views",
               "primary": "plan",
               "rows": 2,
-              "items": ["plan", "profile", "terrain3d"],
-              "more": ["crossSection"]
+              "items": ["plan", "profile", "terrain3d", "crossSection"]
             },
             { "label": "Road summary", "rows": 2, "items": ["summary", "summarySettings"] },
             {
               "label": "Workspace",
               "rows": 2,
-              "items": ["chooseInterface", "presets", "customizeRibbon", "fullscreen"],
-              "more": ["controls"]
+              "items": ["chooseInterface", "presets", "customizeRibbon", "fullscreen"]
             }
           ]
         }

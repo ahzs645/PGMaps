@@ -44,7 +44,7 @@ export function StationBox({
         min={0}
         max={Math.ceil(length * 10) / 10}
         step="any"
-        className="w-[4.5rem] rounded border bg-background px-1 py-1 font-mono sm:w-20"
+        className="w-[4.5rem] rounded-md border bg-background px-1 py-1 font-mono sm:w-20"
         title="Shows the section at exactly the station you type. Arrow keys select the next or previous calculated station."
         value={text ?? Number(shown.toFixed(1))}
         onChange={(e) => {

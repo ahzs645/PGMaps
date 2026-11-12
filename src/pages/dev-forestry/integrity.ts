@@ -1,5 +1,6 @@
 /** Shared integrity rules. No DOM, network, or hidden current-date assumptions. */
 import type { AnalysisInput, AnalysisResult, TargetPolygon } from './types'
+import { appliedFieldGreenUp, type FieldGreenUp } from './greenUp'
 import {
   DEFAULT_VISUAL_QUALITY_THRESHOLDS,
   vacDenudationPercent,
@@ -41,10 +42,14 @@ export function activeLandform<T extends { id: string; role: string }>(
   return forms[0] ?? null
 }
 
-/** Existing alteration is a planning estimate unless recovery was explicitly assessed. */
+/**
+ * Existing alteration is a planning estimate unless recovery was explicitly assessed. A complete
+ * field check (`greenUp.ts`) overrides the supplied estimate and the green-up age.
+ */
 export function alterationWeight(
   target: Pick<TargetPolygon, 'role' | 'harvestYear' | 'clearcutPercent' | 'siteDisturbance'> & {
     recoveryPercent?: number | null
+    fieldGreenUp?: FieldGreenUp | null
   },
   assessmentYear: number,
   greenUpAgeYears: number,
@@ -53,7 +58,8 @@ export function alterationWeight(
   if (target.role === 'block' || target.siteDisturbance) return 1
   const clearcut = target.clearcutPercent == null ? 1 : Math.min(1, Math.max(0, target.clearcutPercent / 100))
   if (target.harvestYear != null && target.harvestYear > assessmentYear) return 0
-  if (target.recoveryPercent != null) return clearcut * (1 - Math.min(1, Math.max(0, target.recoveryPercent / 100)))
+  const recovery = appliedFieldGreenUp(target.fieldGreenUp, assessmentYear) ?? target.recoveryPercent
+  if (recovery != null) return clearcut * (1 - Math.min(1, Math.max(0, recovery / 100)))
   const recovered = target.harvestYear != null && assessmentYear - target.harvestYear >= greenUpAgeYears
   return recovered ? 0 : clearcut
 }

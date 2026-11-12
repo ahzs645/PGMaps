@@ -30,9 +30,8 @@ export function RouteSearchPresets({
       {SEARCH_PRESETS.map((preset) => (
         <Button
           key={preset.id}
-          size="sm"
+          size="xs"
           variant={active?.id === preset.id ? 'default' : 'outline'}
-          className="h-7 px-2 text-xs"
           aria-pressed={active?.id === preset.id}
           disabled={disabled}
           title={searchPresetSummary(preset).sets}

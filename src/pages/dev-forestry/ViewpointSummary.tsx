@@ -11,11 +11,14 @@ import {
 
 const TITLE = 'Viewpoint summary'
 
-/** The two alteration rows open with their range note, which says what scale they are judged on. */
+/**
+ * Every row opens as its value: each card names its scale under its label, and its note (the range
+ * it is judged against, or why it is withheld) is on its tooltip until a row is set to show detail.
+ */
 const DEFAULTS: MetricSummaryPreferences = {
   visible: true,
   placement: 'left',
-  metrics: { perspective: 'detailed', planimetric: 'detailed' },
+  metrics: {},
 }
 
 export function useViewpointSummaryPreferences() {

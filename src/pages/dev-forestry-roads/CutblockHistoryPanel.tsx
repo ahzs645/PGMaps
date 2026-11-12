@@ -16,6 +16,8 @@ import { polygonAreaM2 } from './mapNotes'
 import type { ContextFeature, Coordinate } from './types'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import { SPATIAL_ACCEPT } from './spatialImport'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 export const HISTORY_LOAD_TIMEOUT_MS = 20_000
 export const NEARBY_CUTBLOCK_ROAD_M = 1000
@@ -348,7 +350,7 @@ export function CutblockHistoryPanel({
                     </Button>
                   </div>
                   <div
-                    className="space-y-2 rounded-md border bg-muted/20 p-2.5 text-xs"
+                    className={cn(insetBox({ tone: 'muted' }), 'space-y-2 text-xs')}
                     data-testid="road-cutblock-history-evidence"
                   >
                     <p className="flex items-start gap-1.5 font-medium">
@@ -408,9 +410,9 @@ export function CutblockHistoryPanel({
                           network, and it does not enter route search. Open one to review it in Existing roads & reuse.
                         </InfoTip>
                         <Button
-                          size="sm"
+                          size="xs"
                           variant="ghost"
-                          className="ml-auto h-7 px-2 text-xs"
+                          className="ml-auto"
                           disabled={busy}
                           onClick={() => void load('roads')}
                         >
@@ -424,7 +426,9 @@ export function CutblockHistoryPanel({
                           <p className="text-2xs text-muted-foreground">
                             {candidates.length} within 1 km · proximity only
                           </p>
-                          <div className="max-h-48 overflow-y-auto overscroll-none rounded-md border">
+                          <div
+                            className={cn(insetBox({ padding: 'none' }), 'max-h-48 overflow-y-auto overscroll-none')}
+                          >
                             {candidates.map(({ road, distanceM }) => {
                               const style = roadHistoryStyle(road.roadEvidence)
                               return (

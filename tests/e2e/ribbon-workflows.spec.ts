@@ -11,8 +11,8 @@ async function openRibbon(page: Page) {
   await page.route('https://basemaps.cartocdn.com/**', (route) =>
     route.fulfill({ json: { version: 8, sources: {}, layers: [] } }),
   )
-  await page.goto('/dev/forestry/road-design?example=training')
-  await page.getByRole('button', { name: 'Open Ribbon', exact: true }).click()
+  // The designer opens straight into the interface a link names; there is no chooser in front of it.
+  await page.goto('/dev/forestry/road-design?interface=ribbon&example=training')
   await expect(page.getByTestId('road-map-ready')).toHaveAttribute('data-ready', 'true')
 }
 
@@ -200,7 +200,9 @@ test.describe('field navigation', () => {
     const saved = await exportProject(page)
     expect(saved.drainage?.settings.rainfallMmPerHr).toBe(71)
     expect(saved.standards?.loadedDirection).toBe('end-to-start')
-    await button(commands, 'Switch workspace interface').tap()
+    // On a phone the interface switch is in the tab row's More menu.
+    await button(commands, 'More workspace commands').tap()
+    await page.getByRole('menuitem', { name: 'Switch interface' }).tap()
     await page.getByRole('button', { name: 'Open Engineering workbench', exact: true }).tap()
     await page.getByRole('button', { name: 'Undo road edit', exact: true }).tap()
     await page.getByRole('button', { name: 'Switch workspace interface' }).tap()

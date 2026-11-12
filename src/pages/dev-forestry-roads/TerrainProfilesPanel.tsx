@@ -49,20 +49,19 @@ export function TerrainProfilesPanel({
                 </option>
               ))}
             </RoadSelect>
-            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => onProfile(line.id)}>
+            <Button variant="outline" size="field" onClick={() => onProfile(line.id)}>
               Sample
             </Button>
           </div>
         )}
         {profiles.map((profile) => (
-          <div key={profile.id} className="flex items-center gap-1 rounded border px-2 py-1">
+          <div key={profile.id} className="flex items-center gap-1 rounded-md border px-2 py-1">
             <button className="flex-1 text-left text-xs" onClick={() => onProfile(profile.id)}>
               {profile.name}
             </button>
             <Button
-              size="icon"
+              size="icon-2xs"
               variant="ghost"
-              className="size-6"
               aria-label={`Remove profile ${profile.name}`}
               onClick={() => w.update((x) => ({ ...x, profiles: x.profiles?.filter((v) => v.id !== profile.id) }))}
             >

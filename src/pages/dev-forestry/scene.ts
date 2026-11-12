@@ -32,10 +32,15 @@ import {
   type VisualQualityThresholds,
 } from './vqo'
 
+import { parseTreeFreeAreas, type TreeFreeArea } from './treeFreeAreas'
+import { parseFieldGreenUp } from './greenUp'
+
 export const SCENE_STORAGE_KEY = 'pgmaps.forestry-visual-quality.v1'
 
 export type ForestryScene = {
   masks?: AssessmentMask[]
+  /** Ground the road view draws without timber; display only, never an input to the run. */
+  treeFreeAreas?: TreeFreeArea[]
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -359,6 +364,7 @@ export function stationsToGeoJson(result: AnalysisResult | null): GeoJSON.Featur
 
 type SerializedScene = {
   masks?: AssessmentMask[]
+  treeFreeAreas?: TreeFreeArea[]
   localRasters?: LocalRaster[]
   activeLandformId?: string | null
   assessmentYear?: number
@@ -489,6 +495,9 @@ export function parseScene(input: unknown): ForestryScene | null {
             geometry: target.geometry,
             source: typeof target.source === 'string' ? target.source : 'Imported',
             ...parsePlanning(target.planning),
+            ...(target.role === 'harvested' && parseFieldGreenUp(target.fieldGreenUp)
+              ? { fieldGreenUp: parseFieldGreenUp(target.fieldGreenUp) }
+              : {}),
             ...(typeof target.displayColor === 'string' && /^#[0-9a-f]{6}$/i.test(target.displayColor)
               ? { displayColor: target.displayColor.toLowerCase() }
               : {}),
@@ -503,6 +512,7 @@ export function parseScene(input: unknown): ForestryScene | null {
   return {
     masks: parseMasks(raw.masks),
     localRasters: parseRasters(raw.localRasters),
+    treeFreeAreas: parseTreeFreeAreas(raw.treeFreeAreas),
     viewpoint: {
       id: typeof raw.viewpoint?.id === 'string' ? raw.viewpoint.id : base.viewpoint.id,
       name: typeof raw.viewpoint?.name === 'string' ? raw.viewpoint.name : base.viewpoint.name,

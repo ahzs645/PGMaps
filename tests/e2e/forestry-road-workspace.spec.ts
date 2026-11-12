@@ -301,6 +301,8 @@ test('loading notifications align inline without a dismiss button and errors rem
     .getByRole('tab', { name: 'Terrain', exact: true })
     .click()
   await page.getByRole('button', { name: 'Load BC 1 m LiDAR sample', exact: true }).click()
+  // A sample replaces the open project, so it asks first.
+  await page.getByTestId('road-open-sample').getByRole('button', { name: 'Open as a new project' }).click()
   const toast = page.getByTestId('workspace-toast-loading')
   await expect(toast).toContainText('Reading the published')
   // Road jobs join the app's one notification stack, in the bottom-right corner.

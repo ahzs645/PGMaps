@@ -33,6 +33,7 @@ import {
   polygonAreaMeters,
   polygonBounds,
   polygonGridSamples,
+  preparePolygons,
   type PolygonGeometry,
 } from './visibility'
 import type { VisualQualityClassId } from './vqo'
@@ -213,10 +214,16 @@ export function evqoOverlaps(block: PolygonGeometry, units: ReadonlyArray<EvqoUn
   const samples = polygonGridSamples(block, Math.max(5, Math.sqrt(area / 2500)))
   if (!samples.length) return []
   const [west, south, east, north] = polygonBounds(block)
-  const relevant = units.filter((unit) => {
-    const b = polygonBounds(unit.geometry)
-    return b[0] <= east && b[2] >= west && b[1] <= north && b[3] >= south
-  })
+  // Strictest first, each unit prepared once (parts clipped to the block's box, rings banded): the first
+  // unit containing a sample is then its stricter one. A `pointInPolygon` per sample per unit was about
+  // 100–150 ms on every scene change.
+  const relevant = units
+    .filter((unit) => {
+      const b = polygonBounds(unit.geometry)
+      return b[0] <= east && b[2] >= west && b[1] <= north && b[3] >= south
+    })
+    .sort((a, b) => RESTRICTIVENESS[a.code] - RESTRICTIVENESS[b.code])
+    .map((unit) => ({ code: unit.code, prepared: preparePolygons([unit.geometry], [west, south, east, north]) }))
   const total = samples.reduce((sum, sample) => sum + sample.areaMeters, 0)
   const centre = samples.reduce(
     (sum, sample) => ({ lng: sum.lng + sample.lng / samples.length, lat: sum.lat + sample.lat / samples.length }),
@@ -224,13 +231,7 @@ export function evqoOverlaps(block: PolygonGeometry, units: ReadonlyArray<EvqoUn
   )
   const tally = new Map<EvqoCode, { area: number; lng: number; lat: number; count: number; edge: boolean }>()
   for (const sample of samples) {
-    let code: EvqoCode | null = null
-    for (const unit of relevant)
-      if (
-        (code === null || RESTRICTIVENESS[unit.code] < RESTRICTIVENESS[code]) &&
-        pointInPolygon(unit.geometry, sample.lng, sample.lat)
-      )
-        code = unit.code
+    const code = relevant.find((unit) => unit.prepared.contains(sample.lng, sample.lat))?.code ?? null
     if (!code) continue
     const entry = tally.get(code) ?? { area: 0, lng: 0, lat: 0, count: 0, edge: true }
     entry.area += sample.areaMeters
@@ -286,6 +287,20 @@ export function visibilityShares(
     row[slot] += 1
     counts.set(key, row)
   }
+  // Strictest unit first, each prepared once within the samples' box: the first that contains a sample
+  // is its stricter class, the same answer as testing every unit with `pointInPolygon`.
+  let box: [number, number, number, number] = [Infinity, Infinity, -Infinity, -Infinity]
+  for (let i = 0; i < target.sampleCount; i += 1) {
+    const lng = target.positions[i * 2],
+      lat = target.positions[i * 2 + 1]
+    box = [Math.min(box[0], lng), Math.min(box[1], lat), Math.max(box[2], lng), Math.max(box[3], lat)]
+  }
+  const prepared = units.length
+    ? [...units]
+        .sort((a, b) => RESTRICTIVENESS[a.code] - RESTRICTIVENESS[b.code])
+        .map((unit) => ({ code: unit.code, polygons: preparePolygons([unit.geometry], box) }))
+        .filter((unit) => unit.polygons.partCount > 0)
+    : []
   for (let i = 0; i < target.sampleCount; i += 1) {
     const status = target.anyVisible[i]
     const slot = status === 1 ? 0 : status === 2 ? 3 : target.anyBareEarthVisible?.[i] === 1 ? 1 : 2
@@ -293,13 +308,7 @@ export function visibilityShares(
     if (!units.length) continue
     const lng = target.positions[i * 2],
       lat = target.positions[i * 2 + 1]
-    let code: EvqoCode | null = null
-    for (const unit of units)
-      if (
-        (code === null || RESTRICTIVENESS[unit.code] < RESTRICTIVENESS[code]) &&
-        pointInPolygon(unit.geometry, lng, lat)
-      )
-        code = unit.code
+    const code = prepared.find((unit) => unit.polygons.contains(lng, lat))?.code
     if (code) add(code, slot)
   }
   const shares = (row: [number, number, number, number] | undefined): VisibilityShares => {

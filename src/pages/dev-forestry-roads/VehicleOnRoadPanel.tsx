@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { formatRoadStation } from './Charts'
 import { NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { runCooperatively } from './cooperative'
@@ -121,7 +123,7 @@ export function VehicleOnRoadPanel({
     setStation((s) => Math.max(0, s + by))
   }
   return (
-    <details className="rounded-md border" data-testid="road-vehicle-at-station">
+    <details className={insetBox({ padding: 'none' })} data-testid="road-vehicle-at-station">
       <summary className="cursor-pointer p-2 font-medium">
         Vehicle at a station{' '}
         <span className="font-normal text-muted-foreground">
@@ -194,13 +196,17 @@ export function VehicleOnRoadPanel({
         {!!traceResults.length && (
           <ul className="space-y-1" aria-label="Traced points">
             {traceResults.map((t) => (
-              <li key={t.label} className="rounded border p-1.5 text-2xs" data-testid="road-vehicle-trace">
+              <li
+                key={t.label}
+                className={cn(insetBox({ padding: 'sm' }), 'text-2xs')}
+                data-testid="road-vehicle-trace"
+              >
                 <p className="font-medium">{t.label}</p>
                 <p className="font-mono tabular-nums">
                   Widest left {m(t.leftM)} at {formatRoadStation(t.leftStation)} · right {m(t.rightM)} at{' '}
                   {formatRoadStation(t.rightStation)}
                 </p>
-                <p className={t.beyondStation === null ? 'text-muted-foreground' : 'text-red-700 dark:text-red-300'}>
+                <p className={t.beyondStation === null ? 'text-muted-foreground' : 'text-danger'}>
                   {t.beyondStation === null
                     ? 'Stays over the formation.'
                     : `Past the formation edge by ${m(Math.max(t.beyondLeftM, t.beyondRightM))} at ${formatRoadStation(t.beyondStation)}.`}

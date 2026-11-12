@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import {
   createReportChapter,
@@ -127,7 +129,7 @@ export function ReportSettingsEditor({
       </section>
       <section className="space-y-2">
         <h4 className={heading}>Chapters</h4>
-        <ol className="divide-y overflow-hidden rounded-md border bg-background">
+        <ol className={cn(insetBox({ padding: 'none', tone: 'background' }), 'divide-y overflow-hidden')}>
           {settings.chapters.map((chapter, index) => {
             const open = selected === chapter.id
             return (
@@ -150,9 +152,8 @@ export function ReportSettingsEditor({
                     />
                   </button>
                   <Button
-                    size="icon"
+                    size="icon-xs"
                     variant="ghost"
-                    className="size-7"
                     aria-label={`Move ${chapter.title} up`}
                     title="Move up"
                     disabled={index === 0}
@@ -161,9 +162,8 @@ export function ReportSettingsEditor({
                     <ArrowUp className="size-3.5" />
                   </Button>
                   <Button
-                    size="icon"
+                    size="icon-xs"
                     variant="ghost"
-                    className="size-7"
                     aria-label={`Move ${chapter.title} down`}
                     title="Move down"
                     disabled={index === settings.chapters.length - 1}
@@ -172,9 +172,8 @@ export function ReportSettingsEditor({
                     <ArrowDown className="size-3.5" />
                   </Button>
                   <Button
-                    size="icon"
+                    size="icon-xs"
                     variant="ghost"
-                    className="size-7"
                     aria-label={`Remove ${chapter.title}`}
                     title="Remove chapter"
                     disabled={settings.chapters.length === 1}
@@ -207,9 +206,8 @@ export function ReportSettingsEditor({
             />
           </Field>
           <Button
-            size="sm"
+            size="field"
             variant="outline"
-            className="h-8"
             onClick={add}
             disabled={settings.chapters.length >= MAX_REPORT_CHAPTERS}
           >
@@ -250,7 +248,7 @@ export function ReportSettingsEditor({
         </div>
       </section>
       {error && (
-        <p role="alert" className="text-amber-700 dark:text-amber-400">
+        <p role="alert" className="text-warning">
           {error}
         </p>
       )}
@@ -458,9 +456,7 @@ function DrawingLabelField({
           }}
         />
       </Field>
-      <p className={`mt-1 ${error ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}>
-        {error ?? `Preview: ${preview}`}
-      </p>
+      <p className={`mt-1 ${error ? 'text-warning' : 'text-muted-foreground'}`}>{error ?? `Preview: ${preview}`}</p>
     </div>
   )
 }

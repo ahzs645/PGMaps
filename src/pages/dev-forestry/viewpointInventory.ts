@@ -34,7 +34,9 @@ import {
   polygonInteriorPoint,
   type PolygonGeometry,
 } from './visibility'
-import { lineToPolygonMeters } from './visualsNarrative'
+import { formatMeasure } from '@/lib/format'
+
+import { compassPoint, lineToPolygonMeters } from './visualsNarrative'
 
 export const BC_WFS = 'https://openmaps.gov.bc.ca/geo/pub/wfs'
 
@@ -442,6 +444,27 @@ export type ViewpointCandidate = {
   arrows: CandidateArrow[]
   /** Sort key: nearer and aimed at the block first. Not a visibility figure. */
   weight: number
+}
+
+/**
+ * A candidate's one line: what it is, how far and which side of the block, and
+ * its arrows — "VLI viewpoint · 2.1 km southwest of the block · 2 arrows, one at it".
+ */
+export function viewpointCandidateSummary(candidate: ViewpointCandidate): string {
+  const kind = candidate.kind === 'rec-site' ? 'Rec site' : 'VLI viewpoint'
+  const distance = formatMeasure(candidate.distanceMeters / 1000, 'km', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  })
+  const arrows =
+    candidate.arrows.length > 1
+      ? ` · ${candidate.arrows.length} arrows${candidate.arrows.some((entry) => entry.aims) ? ', one at it' : ''}`
+      : candidate.arrow
+        ? candidate.arrow.aims
+          ? ' · arrow points at it'
+          : ` · arrow points ${compassPoint(candidate.arrow.bearing)}, ${Math.round(candidate.arrow.offsetDegrees)}° off`
+        : ''
+  return `${kind} · ${distance} ${compassPoint(candidate.bearingToBlock + 180)} of the block${arrows}`
 }
 
 export function vliViewpointName(viewpoint: VliViewpoint): string {

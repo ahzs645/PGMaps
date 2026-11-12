@@ -52,7 +52,7 @@ import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { roadSelectionRange } from './dev-forestry-roads/roadSelection'
 import { InfoTip } from '@/components/ui/info-tip'
 import { RoadNotifications } from './dev-forestry-roads/RoadNotifications'
-import { ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
+import { OpenSampleDialog, ProjectFileConflictDialog, RoadRemovedNotice } from './dev-forestry-roads/LifecycleNotices'
 import { distinctProjectName, removeRoad, restoreRoad, type RemovedRoad } from './dev-forestry-roads/roadLifecycle'
 import type { LibraryEntry } from './dev-forestry-roads/projectLibrary'
 import {
@@ -93,6 +93,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { MapToolPanel } from '@/components/ui/map-tool-panel'
+import { leavesDrawingOnEscape } from './dev-forestry-roads/PlanTools'
 import { ReadoutGrid } from '@/components/ui/readout-grid'
 import { Button } from '@/components/ui/button'
 import type { Map as MapLibreMap } from 'maplibre-gl'
@@ -114,6 +115,7 @@ import { mapNotesGeoJson } from './dev-forestry-roads/mapNotes'
 import { streamRegisterCsv } from './dev-forestry-roads/streamReports'
 import { provincialEvidenceGeoJson } from './dev-forestry-roads/provincialStreamData'
 import { FullscreenPanel, useElementFullscreen } from '@/components/ui/fullscreen-panel'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { StatGroup } from '@/components/ui/stat-group'
 import { RoadSummary, RoadSummarySettings } from './dev-forestry-roads/RoadSummary'
@@ -129,6 +131,7 @@ import { TabBar } from '@/components/ui/tab-bar'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
 import './dev-forestry-roads/workspace.css'
 import { downloadBlob, downloadText } from '@/lib/download'
+import { cn } from '@/lib/utils'
 import {
   CableChart,
   ChartHeader,
@@ -163,7 +166,6 @@ import { referenceBounds, type ReferenceFeature } from './dev-forestry-roads/ref
 import type { EngineeringInputTab, PointCloudChoice, SidebarTab } from './dev-forestry-roads/DesignSidebarBody'
 import { FullCostPlanningDialog, type FullCostPreview } from './dev-forestry-roads/FullCostPlanningDialog'
 import { NetworkPlanningDialog } from './dev-forestry-roads/NetworkPlanningDialog'
-import { createTotalCostPlanningDefaults } from './dev-forestry-roads/fullCostPlanning'
 import { isFullCostRecordCurrent } from './dev-forestry-roads/fullCostRecord'
 import { PlanView, type DrawMode } from './dev-forestry-roads/PlanView'
 import { usePlanSightlines } from './dev-forestry-roads/planSightlines'
@@ -758,11 +760,8 @@ export default function DevForestryRoads({
     setFitRevision((revision) => revision + 1)
   }, [investigation, w.projectId, setCollapsed, setControlsOpen, setFocusPane])
   const [roadReviewRequest, setRoadReviewRequest] = useState<{ id?: string; sequence: number }>()
-  const openCompleteCosts = () => {
-    if (!project.totalCostPlanning)
-      update((current) => ({ ...current, totalCostPlanning: createTotalCostPlanningDefaults() }))
-    setCompleteCostOpen(true)
-  }
+  // Opening the comparison is not an edit: the dialog shows the defaults and writes them only when one is changed.
+  const openCompleteCosts = () => setCompleteCostOpen(true)
   // Name of a project waiting for its terrain file; the import then starts it instead of retopping this one.
   const pendingProject = useRef<string | null>(null)
   const pendingStandards = useRef<JobStandards | null>(null)
@@ -1331,14 +1330,14 @@ export default function DevForestryRoads({
     },
     [setStation, setWorkflowTab],
   )
-  /** Refuses a plan edit that crosses the road or leaves a curve that cannot fit, and says why. */
+  /** Refuses a plan edit the road could not be built to (`planEditCheck.ts`), and says why. */
   const refusedPlanEdit = useCallback(
     (next: Alignment) => {
-      const refusal = checkPlanEdit(alignment, next, project.settings.minRadius)
+      const refusal = checkPlanEdit(alignment, next, project.settings.minRadius, { context: project.context })
       if (refusal) setNotice(refusal.message)
       return !!refusal
     },
-    [alignment, project.settings.minRadius, setNotice],
+    [alignment, project.settings.minRadius, project.context, setNotice],
   )
   const movePoint = useCallback(
     (id: string, coordinate: Coordinate) => {
@@ -1841,6 +1840,10 @@ export default function DevForestryRoads({
       w.setError(error instanceof Error ? error.message : 'Could not export drainage comparisons.')
     }
   }
+  // A sample replaces the open project, so it is asked first; the regional DEM only changes this one's terrain.
+  const [sampleRequest, setSampleRequest] = useState<'lidar' | 'demo' | null>(null)
+  const requestTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
+    kind === 'regional' ? loadTerrain(kind) : setSampleRequest(kind)
   const loadTerrain = (kind: 'lidar' | 'regional' | 'demo') =>
     void run('Loading terrain…', async (signal) => {
       if (kind === 'demo') {
@@ -2847,9 +2850,9 @@ export default function DevForestryRoads({
       actions={
         <>
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
-            className="mr-auto h-7"
+            className="mr-auto"
             disabled={!draft.length}
             title={`Undo point (${shortcutKeys.undo})`}
             aria-keyshortcuts={shortcutKeys.undoAria}
@@ -2857,7 +2860,7 @@ export default function DevForestryRoads({
           >
             Undo point
           </Button>
-          <Button size="sm" className="h-7" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
+          <Button size="xs" onClick={finishDraw} disabled={draft.length < minimumDraftPoints(mode)}>
             {mode === 'extend'
               ? 'Finish extension'
               : `Finish ${mode === 'avoid' ? (polygonKind === 'harvest' ? 'block' : 'area') : mode}`}
@@ -2888,12 +2891,20 @@ export default function DevForestryRoads({
     mode === 'edit' && displayedAlignment === alignment && !isMappedRoad(alignment) && alignment.points.length > 2
       ? (selectedPoint ?? null)
       : null
-  const historyKeys = useRef({ w, busy, undo, canUndo, canRedo, removablePoint })
+  // Escape puts down the drawing tool in hand, as its card's Cancel drawing / Done sketching does.
+  const leaveDrawing = mode !== 'inspect' && !investigation ? () => beginMode('inspect') : null
+  const historyKeys = useRef({ w, busy, undo, canUndo, canRedo, removablePoint, leaveDrawing })
   useEffect(() => {
-    historyKeys.current = { w, busy, undo, canUndo, canRedo, removablePoint }
+    historyKeys.current = { w, busy, undo, canUndo, canRedo, removablePoint, leaveDrawing }
   })
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      const { leaveDrawing: leave } = historyKeys.current
+      if (leave && leavesDrawingOnEscape(event)) {
+        event.preventDefault()
+        leave()
+        return
+      }
       if (!event.defaultPrevented && isRemoveKey(event) && !keepsNativeUndo(event.target)) {
         const { w: workspace, busy: working, removablePoint: id } = historyKeys.current
         const index = workspace.alignment.points.findIndex((point) => point.id === id)
@@ -3171,7 +3182,7 @@ export default function DevForestryRoads({
     stationLabels: () => togglePlanOption(planDisplay.setShowLabels),
     sentinel2: () => togglePlanOption(planDisplay.setShowSentinel),
     earthworks: () => togglePlanOption(planDisplay.setShowEarthwork),
-    lidar: () => loadTerrain('lidar'),
+    lidar: () => requestTerrain('lidar'),
     regional: () => loadTerrain('regional'),
     peg: () => drawFromRibbon('road'),
     extend: () => drawFromRibbon('extend'),
@@ -3214,17 +3225,28 @@ export default function DevForestryRoads({
   const editLocked = !!busy || !!costPreview
   const roadLimitReached = roadCount(project) >= MAX_PROJECT_ROADS
   const designResultsUnavailable = editLocked || noRoad || !!terrainProfile
+  // Why a command is unavailable, in the order a user would have to clear them; shown in its tooltip.
+  const busyReason = busy ? 'Wait for the current task to finish.' : undefined
+  const lockedReason = busyReason ?? (costPreview ? 'Close the cost preview first.' : undefined)
+  const noRoadReason = noRoad ? 'Peg or sketch a road first.' : undefined
+  const roadLimitReason = roadLimitReached ? `A project holds at most ${MAX_PROJECT_ROADS} roads.` : undefined
+  const mappedReason = isMappedRoad(alignment)
+    ? 'A mapped road is a record: copy it as a design to edit it.'
+    : undefined
+  const resultsReason =
+    lockedReason ?? noRoadReason ?? (terrainProfile ? 'Not available while a terrain profile is open.' : undefined)
   const commandStates: Partial<Record<WorkspaceCommand, CommandState>> = {
     customizeRibbon: { hidden: !toolbar?.groups.some((group) => group.sections?.length), disabled: false },
-    newProject: { disabled: !!busy },
-    saveProject: { disabled: !!busy },
+    newProject: { disabled: !!busy, reason: busyReason },
+    saveProject: { disabled: !!busy, reason: busyReason },
     duplicateRoad: {
       disabled: editLocked || noRoad || roadLimitReached,
+      reason: lockedReason ?? noRoadReason ?? roadLimitReason,
       label: isMappedRoad(alignment) ? 'Copy as design' : undefined,
     },
-    deleteRoad: { disabled: editLocked || investigation || noRoad },
-    importAlignment: { disabled: editLocked || roadLimitReached },
-    fitRoad: { disabled: noRoad },
+    deleteRoad: { disabled: editLocked || investigation || noRoad, reason: lockedReason ?? noRoadReason },
+    importAlignment: { disabled: editLocked || roadLimitReached, reason: lockedReason ?? roadLimitReason },
+    fitRoad: { disabled: noRoad, reason: noRoadReason },
     fitTerrain: { disabled: !terrainBounds(project.terrain) },
     fitAll: { label: investigation ? 'Fit study records' : undefined },
     contours: { disabled: false, pressed: planDisplay.showContours },
@@ -3241,35 +3263,52 @@ export default function DevForestryRoads({
     sectionCsv: {
       disabled: designResultsUnavailable || !at || !!(draftAlignment || numericPegAlignment || templatePreview),
     },
-    templates: { disabled: editLocked || noRoad },
-    materials: { disabled: editLocked || noRoad },
-    culverts: { disabled: editLocked || noRoad },
-    massHaul: { disabled: designResultsUnavailable },
-    sweptPath: { disabled: designResultsUnavailable },
-    peg: { disabled: editLocked || roadLimitReached, pressed: mode === 'road' },
-    sketch: { disabled: editLocked, pressed: mode === 'sketch' },
-    extend: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'extend' },
-    editPoints: { disabled: editLocked || isMappedRoad(alignment) || noRoad, pressed: mode === 'edit' },
-    undo: { disabled: !canUndo, label: hasDraftPoint ? 'Undo point' : undefined },
-    redo: { disabled: !canRedo },
+    templates: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    materials: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    culverts: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    massHaul: { disabled: designResultsUnavailable, reason: resultsReason },
+    sweptPath: { disabled: designResultsUnavailable, reason: resultsReason },
+    peg: {
+      disabled: editLocked || roadLimitReached,
+      reason: lockedReason ?? roadLimitReason,
+      pressed: mode === 'road',
+    },
+    sketch: { disabled: editLocked, reason: lockedReason, pressed: mode === 'sketch' },
+    extend: {
+      disabled: editLocked || isMappedRoad(alignment) || noRoad,
+      reason: lockedReason ?? noRoadReason ?? mappedReason,
+      pressed: mode === 'extend',
+    },
+    editPoints: {
+      disabled: editLocked || isMappedRoad(alignment) || noRoad,
+      reason: lockedReason ?? noRoadReason ?? mappedReason,
+      pressed: mode === 'edit',
+    },
+    undo: {
+      disabled: !canUndo,
+      reason: 'Nothing to undo.',
+      shortcut: shortcutKeys.undo,
+      label: hasDraftPoint ? 'Undo point' : undefined,
+    },
+    redo: { disabled: !canRedo, reason: 'Nothing to redo.', shortcut: shortcutKeys.redo },
     projects: { disabled: !!busy },
     chooseInterface: { disabled: false },
     // Views and files of a road's results need a road; a terrain profile has its own stations and section.
-    stations: { disabled: noRoad && !terrainProfile },
-    crossSection: { disabled: noRoad && !terrainProfile },
-    profile: { disabled: noRoad && !terrainProfile },
-    landing: { disabled: designResultsUnavailable },
-    compare: { disabled: roadCount(project) < 2 },
-    cable: { disabled: editLocked, pressed: mode === 'cable' },
-    network: { disabled: noRoad },
-    fullCosts: { disabled: editLocked || noRoad },
-    stakeout: { disabled: !!busy || noRoad },
-    plotbook: { disabled: !!busy || noRoad },
-    reportPdf: { disabled: !!busy || noRoad },
-    exportGis: { disabled: !!busy || noRoad },
-    import: { disabled: !!busy },
-    lidar: { disabled: !!busy },
-    regional: { disabled: !!busy },
+    stations: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    crossSection: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    profile: { disabled: noRoad && !terrainProfile, reason: noRoadReason },
+    landing: { disabled: designResultsUnavailable, reason: resultsReason },
+    compare: { disabled: roadCount(project) < 2, reason: 'Needs two or more roads.' },
+    cable: { disabled: editLocked, reason: lockedReason, pressed: mode === 'cable' },
+    network: { disabled: noRoad, reason: noRoadReason },
+    fullCosts: { disabled: editLocked || noRoad, reason: lockedReason ?? noRoadReason },
+    stakeout: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    plotbook: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    reportPdf: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    exportGis: { disabled: !!busy || noRoad, reason: busyReason ?? noRoadReason },
+    import: { disabled: !!busy, reason: busyReason },
+    lidar: { disabled: !!busy, reason: busyReason },
+    regional: { disabled: !!busy, reason: busyReason },
 
     open: { disabled: !!busy },
     export: { disabled: !!busy, label: investigation ? 'Save project' : undefined },
@@ -3287,8 +3326,8 @@ export default function DevForestryRoads({
     summary: { disabled: !summaryAvailable, pressed: summaryControls.preferences.visible },
     summarySettings: { disabled: !summaryAvailable },
     fullscreen: { disabled: false, pressed: fullscreen, label: fullscreen ? 'Exit full screen' : 'Full screen' },
-    drainage: { disabled: designResultsUnavailable },
-    quantities: { disabled: designResultsUnavailable },
+    drainage: { disabled: designResultsUnavailable, reason: resultsReason },
+    quantities: { disabled: designResultsUnavailable, reason: resultsReason },
   }
   // An access investigation has evidence but no design yet: only commands the registry marks for it stay.
   if (investigation) for (const id of designOnlyCommands) commandStates[id] = { hidden: true }
@@ -3298,7 +3337,7 @@ export default function DevForestryRoads({
       aria-label={saveState.detail}
       title={saveState.detail}
       data-testid="road-save-mark"
-      className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-amber-500' : 'bg-red-500'}`}
+      className={`mx-1 size-2 shrink-0 rounded-full ${trainingSave ? 'bg-warning' : 'bg-danger'}`}
     />
   )
   // The registry's Switch interface command, showing the interface in use. The header line names
@@ -3333,7 +3372,9 @@ export default function DevForestryRoads({
   const roadSwitcher = (
     <RoadSwitcher
       // It grows from a small basis to its full width, so the title keeps its floor beside it.
-      className={distributed ? 'w-44' : 'order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]'}
+      className={
+        distributed ? 'w-full' : 'order-last w-full md:order-none md:w-auto md:max-w-[26rem] md:flex-[1_1_8rem]'
+      }
       alignments={project.alignments}
       analyses={w.analyses}
       activeId={project.activeAlignmentId}
@@ -3346,6 +3387,7 @@ export default function DevForestryRoads({
     <LayoutPicker
       compact={!distributed && (compact || focusMode)}
       showButtonLabel={distributed}
+      size={distributed ? 'ribbon' : 'default'}
       hiddenPanels={hiddenPanels}
       onHiddenPanels={setHiddenPanels}
       selection={layoutSelection}
@@ -3391,10 +3433,13 @@ export default function DevForestryRoads({
         {projectStatus}
       </div>
     ),
+    // The road's name is its own field beside this one, so a lone road says so rather than repeating it.
     roadSelector: investigation ? null : project.alignments.length >= 2 ? (
       roadSwitcher
     ) : (
-      <span>{awaitingFirstRoad(project) ? 'No road selected' : alignment.name}</span>
+      <span className="lp-ribbon-note">
+        {awaitingFirstRoad(project) ? 'No road yet' : 'The only road in this project'}
+      </span>
     ),
     presets: investigation ? null : presetPicker,
     terrainSource: (
@@ -3432,7 +3477,7 @@ export default function DevForestryRoads({
           </div>
           {projectStatus}
           {layoutsFallback && (
-            <p role="status" className="truncate text-2xs text-amber-700 dark:text-amber-400">
+            <p role="status" className="truncate text-2xs text-warning">
               Workspace layouts could not be loaded: using the built-in engineering workbench.
             </p>
           )}
@@ -3442,7 +3487,7 @@ export default function DevForestryRoads({
           <span
             title={planningBasis}
             data-testid="road-planning-basis"
-            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-3xs text-amber-700 dark:text-amber-400 sm:block"
+            className="road-source-badge hidden shrink-0 cursor-help whitespace-nowrap rounded-full border border-warning-border bg-warning-surface px-2 py-1 text-3xs text-warning-foreground sm:block"
           >
             {/* One wording at a time, so the badge's text is what it shows: the short one on a
                 header narrower than a wide desktop. */}
@@ -3462,25 +3507,14 @@ export default function DevForestryRoads({
   const controlsCaption = commandStates.controls?.label ?? 'Road controls'
   const headerPresentations: Partial<Record<WorkspaceCommand, CommandPresentation>> = {
     startDesign: { captionFrom: 'always' },
-    loadMapped: {
-      captionFrom: 'always',
-      title: "Load every mapped road in the plan's view as its own road, to read and compare their profiles",
-    },
+    loadMapped: { captionFrom: 'always' },
     controls: {
       ariaLabel: `${controlsShown ? 'Hide' : 'Show'} ${controlsCaption.toLowerCase()}`,
       expanded: controlsShown,
       icon: controlsShown ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />,
     },
-    undo: {
-      ariaLabel: 'Undo road edit',
-      title: `Undo (${shortcutKeys.undo})`,
-      keyShortcuts: shortcutKeys.undoAria,
-    },
-    redo: {
-      ariaLabel: 'Redo road edit',
-      title: `Redo (${shortcutKeys.redo})`,
-      keyShortcuts: shortcutKeys.redoAria,
-    },
+    undo: { ariaLabel: 'Undo road edit', keyShortcuts: shortcutKeys.undoAria },
+    redo: { ariaLabel: 'Redo road edit', keyShortcuts: shortcutKeys.redoAria },
     projects: {
       ariaLabel: 'Projects',
       title: `Projects · ${project.name}`,
@@ -3530,13 +3564,15 @@ export default function DevForestryRoads({
         editorMount={inlineWorkflow ? attachEditor : undefined}
         disabled={editLocked}
         states={commandStates}
+        leading={distributed && <ForestryBackLink />}
+        quickTools={distributed && undoHistory}
+        narrowMenu={distributed ? ['chooseInterface'] : undefined}
         switcher={
           distributed && (
             <>
-              <ForestryBackLink />
-              {undoHistory}
               {!summaryTab && summarySettingsButton}
-              {saveMark}
+              {/* A fixed slot: the mark coming and going never moves the tools beside it. */}
+              <span className="lp-status-slot">{saveMark}</span>
               {interfaceSwitch('lg')}
             </>
           )
@@ -3835,6 +3871,17 @@ export default function DevForestryRoads({
           setRemovedRoad(null)
         }}
       />
+      <OpenSampleDialog
+        sample={sampleRequest}
+        projectName={project.name}
+        portalContainer={ref.current}
+        onCancel={() => setSampleRequest(null)}
+        onOpen={() => {
+          const kind = sampleRequest
+          setSampleRequest(null)
+          if (kind) loadTerrain(kind)
+        }}
+      />
       <ProjectFileConflictDialog
         conflict={fileConflict}
         portalContainer={ref.current}
@@ -3866,9 +3913,9 @@ export default function DevForestryRoads({
                   progress: w.busyProgress ?? undefined,
                   action: w.busyCancel ? (
                     <Button
-                      size="sm"
+                      size="xs"
                       variant="outline"
-                      className="h-7 shrink-0 px-2 text-xs"
+                      className="shrink-0"
                       aria-label={w.busyCancel.label}
                       onClick={w.busyCancel.onCancel}
                     >
@@ -3972,7 +4019,7 @@ export default function DevForestryRoads({
                                 : null
                             }
                             onFile={requestFile}
-                            onTerrain={loadTerrain}
+                            onTerrain={requestTerrain}
                             verticalReference={verticalReference}
                             onVerticalReference={setVerticalReference}
                             pointCloud={pointCloud}
@@ -4103,7 +4150,7 @@ export default function DevForestryRoads({
                       <div
                         role="status"
                         data-testid="road-live-route-preview"
-                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
                       >
                         <span>
                           {routePreview.error
@@ -4114,7 +4161,7 @@ export default function DevForestryRoads({
                     )}
                     {!investigation && costPreview && (
                       <div
-                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-teal-600/40 bg-teal-600/10 px-3 py-2 text-xs"
                         data-testid="full-cost-map-preview"
                       >
                         <span>
@@ -4133,7 +4180,7 @@ export default function DevForestryRoads({
                       </div>
                     )}
                     {terrainProfile && (
-                      <div className="flex items-center justify-between rounded border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
+                      <div className="flex items-center justify-between rounded-md border border-sky-600/40 bg-sky-600/10 px-3 py-1 text-xs">
                         <span>Terrain profile: {terrainProfile.name} · ground elevations and slopes only</span>
                         <Button size="sm" variant="outline" onClick={() => save('csv')}>
                           Profile CSV
@@ -4147,13 +4194,16 @@ export default function DevForestryRoads({
                       </div>
                     )}
                     {!investigation && numericPegAlignment && !draftAlignment && !terrainProfile && (
-                      <div role="status" className="rounded border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
+                      <div
+                        role="status"
+                        className="rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs"
+                      >
                         Numeric peg preview · plan, profile, section and leg table use the proposed endpoint. Add peg to
                         save it, or cancel the preview in the peg controls.
                       </div>
                     )}
                     {!investigation && templatePreview && (
-                      <div className="flex flex-wrap items-center justify-between gap-1 rounded border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
+                      <div className="flex flex-wrap items-center justify-between gap-1 rounded-md border border-violet-600/40 bg-violet-600/10 px-3 py-1 text-xs">
                         <span>
                           Template preview: {templatePreview.name} · current terrain and station · assignments
                           temporarily omitted
@@ -4186,7 +4236,7 @@ export default function DevForestryRoads({
                       <div
                         role="status"
                         data-testid="road-feature-selection"
-                        className="flex items-center justify-between gap-2 rounded border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
+                        className="flex items-center justify-between gap-2 rounded-md border border-rose-500/40 bg-rose-500/10 px-3 py-1 text-xs"
                       >
                         <span>
                           {selectedRange.label} · {formatRoadStation(selectedRange.start)}
@@ -4714,7 +4764,7 @@ export default function DevForestryRoads({
                                         <div className="flex h-full min-h-0 flex-col">
                                           <RoadSelect
                                             ariaLabel="Active D-line"
-                                            className="mb-1 rounded border bg-background text-xs"
+                                            className="mb-1 rounded-md border bg-background text-xs"
                                             value={cableLine.id}
                                             onValueChange={(value) => selectCable(value)}
                                           >
@@ -4726,7 +4776,7 @@ export default function DevForestryRoads({
                                           </RoadSelect>
                                           {cableResult.summary && (
                                             <details
-                                              className="mb-1 rounded border px-2 py-1 text-2xs"
+                                              className={cn(insetBox({ padding: 'none' }), 'mb-1 px-2 py-1 text-2xs')}
                                               data-testid="road-cable-summary"
                                             >
                                               <summary className="cursor-pointer">
@@ -4876,9 +4926,8 @@ export default function DevForestryRoads({
                           />
                         )}
                         <Button
-                          size="icon"
+                          size="icon-xs"
                           variant="outline"
-                          className="size-7"
                           aria-label={playing ? 'Pause station playback' : 'Play station playback'}
                           onClick={() => {
                             if (station >= displayedAnalysis.length) w.setStation(0)
@@ -4888,7 +4937,7 @@ export default function DevForestryRoads({
                           {playing ? <Pause className="size-3" /> : <Play className="size-3" />}
                         </Button>
                         <button
-                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          className="rounded-md border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                           aria-label="Previous road station"
                           onClick={() =>
                             w.setStation(
@@ -4916,7 +4965,7 @@ export default function DevForestryRoads({
                           }
                         />
                         <button
-                          className="rounded border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
+                          className="rounded-md border px-2 py-1 text-xs touch:min-h-10 touch:min-w-10"
                           aria-label="Next road station"
                           onClick={() =>
                             w.setStation(
@@ -4948,11 +4997,7 @@ export default function DevForestryRoads({
                           onChange={(e) => w.setStation(Number(e.target.value))}
                         />
                         {typedNote && (
-                          <span
-                            role="status"
-                            className="text-xs text-amber-800 dark:text-amber-300"
-                            data-testid="road-station-limited"
-                          >
+                          <span role="status" className="text-xs text-warning" data-testid="road-station-limited">
                             {typedNote}
                           </span>
                         )}
@@ -4963,7 +5008,7 @@ export default function DevForestryRoads({
                         >
                           {at && (at.groundElevation === null || at.section.some((p) => p.ground === null)) ? (
                             <span
-                              className="block text-left font-sans text-amber-800 dark:text-amber-300"
+                              className="block text-left font-sans text-warning"
                               data-testid="road-station-terrain-gap"
                               title="The selected terrain has missing data here. Hatched chart areas and holes in the 3D ground show those gaps."
                             >

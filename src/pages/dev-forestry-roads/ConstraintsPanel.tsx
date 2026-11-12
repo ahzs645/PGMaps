@@ -1,5 +1,7 @@
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
 import { resolveConstraint } from './constraints'
 import { RoadSection } from './SidebarParts'
@@ -40,12 +42,12 @@ export function ConstraintsPanel({
         {areas.map((feature) => (
           <div
             key={feature.id}
-            className={`space-y-2 rounded border p-2 ${feature.id === focusedId ? 'border-primary bg-primary/5' : ''}`}
+            className={cn(insetBox(), 'space-y-2', feature.id === focusedId && 'border-primary bg-primary/5')}
           >
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="min-w-0 flex-1 truncate rounded text-left text-xs font-medium hover:text-primary disabled:cursor-default disabled:hover:text-current"
+                className="min-w-0 flex-1 truncate rounded-md text-left text-xs font-medium hover:text-primary disabled:cursor-default disabled:hover:text-current"
                 aria-pressed={feature.id === focusedId}
                 title={onLocate ? `Show ${feature.name} on the plan` : feature.name}
                 disabled={!onLocate}
@@ -54,9 +56,8 @@ export function ConstraintsPanel({
                 {feature.name}
               </button>
               <Button
-                size="icon"
+                size="icon-2xs"
                 variant="ghost"
-                className="size-6"
                 aria-label={`Remove context ${feature.name}`}
                 onClick={() => w.update((x) => ({ ...x, context: x.context.filter((c) => c.id !== feature.id) }))}
               >

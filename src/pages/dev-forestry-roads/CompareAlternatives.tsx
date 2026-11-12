@@ -95,7 +95,7 @@ export function CompareAlternatives({
           Compared with
           <RoadSelect
             ariaLabel="Comparison baseline"
-            className="min-w-0 max-w-48 rounded border bg-background px-1 text-base md:text-xs"
+            className="min-w-0 max-w-48 rounded-md border bg-background px-1 text-base md:text-xs"
             value={baselineAlignment.id}
             onValueChange={(value) => setBaselineId(value)}
           >
@@ -112,7 +112,7 @@ export function CompareAlternatives({
           allowance in Find the best route, and the complete connected-access and delivered-supply comparison.
         </InfoTip>
         {onCompareCompleteCosts && (
-          <Button size="sm" variant="ghost" className="ml-auto h-7 px-2 text-xs" onClick={onCompareCompleteCosts}>
+          <Button size="xs" variant="ghost" className="ml-auto" onClick={onCompareCompleteCosts}>
             Complete access & supply costs
           </Button>
         )}
@@ -149,7 +149,7 @@ export function CompareAlternatives({
                     />
                     <span className="truncate">{names.get(a.id)}</span>
                     {a.mappedRoad && (
-                      <span className="shrink-0 rounded bg-violet-100 px-1 text-3xs text-violet-800 dark:bg-violet-950 dark:text-violet-200">
+                      <span className="shrink-0 rounded-sm bg-violet-100 px-1 text-3xs text-violet-800 dark:bg-violet-950 dark:text-violet-200">
                         mapped
                       </span>
                     )}
@@ -165,7 +165,7 @@ export function CompareAlternatives({
                     )
                   if (m.id === 'cost' && alternativeCostLabel(result))
                     return (
-                      <td key={m.id} data-metric={m.id} className="text-amber-700 dark:text-amber-400">
+                      <td key={m.id} data-metric={m.id} className="text-warning">
                         {alternativeCostLabel(result)}
                       </td>
                     )
@@ -183,14 +183,14 @@ export function CompareAlternatives({
                     <td key={m.id} data-metric={m.id} title={reason ?? undefined}>
                       {m.id === 'cost' ? `$${number(value)}` : number(value, m.digits ?? 0)}
                       {(m.id === 'earthworks' || m.id === 'disturbance') && !hasCompleteCoverage(result) && (
-                        <span className="ml-1 text-3xs text-amber-700 dark:text-amber-400">covered</span>
+                        <span className="ml-1 text-3xs text-warning">covered</span>
                       )}
                       {m.id === 'grade' && !a.vertical.length && (
                         <span className="ml-1 text-3xs text-muted-foreground">ground</span>
                       )}
                       {result !== baseline && change !== null && (
                         <span
-                          className={`ml-1 text-3xs ${better ? 'text-emerald-700 dark:text-emerald-400' : worse ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                          className={`ml-1 text-3xs ${better ? 'text-success' : worse ? 'text-warning' : 'text-muted-foreground'}`}
                         >
                           {change > 0 ? '+' : ''}
                           {number(change, 0)}%

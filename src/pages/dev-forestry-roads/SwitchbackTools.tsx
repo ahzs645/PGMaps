@@ -3,6 +3,8 @@ import { ROAD_LIMIT_MESSAGE } from './roadLimits'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, NumberField, roadFieldClass, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { parseProject } from './project'
@@ -34,7 +36,7 @@ function Sketch({ result }: { result: SwitchbackSketch }) {
   return (
     <svg
       viewBox="0 0 290 150"
-      className="w-full rounded border bg-muted/20"
+      className={cn(insetBox({ padding: 'none', tone: 'muted' }), 'w-full')}
       role="img"
       aria-label="Switchback plan sketch: two 90 degree curves connected by a straight"
     >
@@ -75,7 +77,11 @@ export function SwitchbackTools({
   const [departureM, setDeparture] = useState(80)
   const [gradePercent, setGrade] = useState(3)
   const end = analysis.stations.at(-1)
+  // The panel stays mounted while folded; the sketch and its swept-path run (about 150 ms per road
+  // edit on the Prince George LiDAR road) wait until it is opened.
+  const [open, setOpen] = useState(false)
   const staged = useMemo(() => {
+    if (!open) return { result: null, error: '' }
     try {
       if (end?.designElevation == null) throw Error('A calculated formation level is needed at the road end.')
       return {
@@ -94,7 +100,7 @@ export function SwitchbackTools({
     } catch (error) {
       return { result: null, error: error instanceof Error ? error.message : 'The switchback could not be fitted.' }
     }
-  }, [alignment, direction, radiusM, approachM, tangentM, departureM, gradePercent, end?.designElevation])
+  }, [open, alignment, direction, radiusM, approachM, tangentM, departureM, gradePercent, end?.designElevation])
   const result = staged.result
   // The road's own design vehicle, or the labelled example until one is set.
   const vehicleCheck = alignment.vehicleCheck ?? DEFAULT_VEHICLE_CHECK
@@ -187,6 +193,8 @@ export function SwitchbackTools({
   }
   return (
     <CollapsibleSection
+      open={open}
+      onOpenChange={setOpen}
       label="Add a switchback"
       contentClassName="space-y-2 px-3 pb-3"
       toggleProps={{ 'data-testid': 'road-switchback-toggle' }}
@@ -274,7 +282,11 @@ export function SwitchbackTools({
               <dd>{number(result.endElevationM)} m</dd>
             </dl>
             <div
-              className={`space-y-1.5 rounded-md border p-2 text-xs ${sweptTurn && !sweptTurn.fits ? 'border-red-300 bg-red-50 dark:border-red-900 dark:bg-red-950/40' : 'bg-muted/30'}`}
+              className={cn(
+                insetBox(),
+                'space-y-1.5 text-xs',
+                sweptTurn && !sweptTurn.fits ? 'border-danger-border bg-danger-surface' : 'bg-muted/30',
+              )}
               data-testid="road-switchback-swept"
             >
               <p className="font-medium" role="status">
@@ -319,19 +331,19 @@ export function SwitchbackTools({
               )}
             </div>
             {radiusM < project.settings.minRadius && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 Radius is below your {number(project.settings.minRadius)} m review threshold.
               </p>
             )}
             {Math.abs(gradePercent) > project.settings.maxGradePercent && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="text-xs text-warning">
                 Initial grade exceeds your {number(project.settings.maxGradePercent)}% review threshold.
               </p>
             )}
           </>
         )}
         {staged.error && (
-          <p role="status" className="text-xs text-amber-700 dark:text-amber-400">
+          <p role="status" className="text-xs text-warning">
             {staged.error}
           </p>
         )}

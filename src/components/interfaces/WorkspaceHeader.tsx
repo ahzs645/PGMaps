@@ -1,7 +1,6 @@
 import { Fragment, type ReactNode } from 'react'
-import { Ellipsis } from 'lucide-react'
-import { ActionMenu } from '@/components/ui/action-menu'
 import { CommandButton, type CommandPresentation } from './CommandButton'
+import { CommandMenu } from './CommandMenu'
 import { isWorkspaceCommand, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
 import type { WorkspaceWidget } from './workspaceLayouts'
 
@@ -96,21 +95,7 @@ export function WorkspaceHeader({
         })}
         {overflow.length > 0 && (
           <span className="hidden md:max-lg:contents">
-            <ActionMenu
-              label="More workspace commands"
-              trigger={<Ellipsis className="size-4" aria-hidden="true" />}
-              items={overflow.map((id) => {
-                const command = resolveCommand(id, states[id], disabled)
-                const Icon = command.icon
-                return {
-                  id,
-                  label: command.label,
-                  icon: <Icon className="size-4" aria-hidden="true" />,
-                  disabled: command.disabled,
-                  onSelect: () => onCommand(id),
-                }
-              })}
-            />
+            <CommandMenu commands={overflow} states={states} disabled={disabled} onCommand={onCommand} />
           </span>
         )}
       </div>

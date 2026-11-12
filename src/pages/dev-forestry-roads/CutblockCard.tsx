@@ -65,12 +65,12 @@ export function CutblockCard({
           (onOpenHistory || onAccessHistory) && (
             <div className="grid gap-1.5">
               {onOpenHistory && (
-                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onOpenHistory}>
+                <Button size="xs" variant="outline" className="w-full" onClick={onOpenHistory}>
                   Full history & nearby roads
                 </Button>
               )}
               {onAccessHistory && (
-                <Button size="sm" variant="outline" className="h-7 w-full text-xs" onClick={onAccessHistory}>
+                <Button size="xs" variant="outline" className="w-full" onClick={onAccessHistory}>
                   Access evidence
                 </Button>
               )}

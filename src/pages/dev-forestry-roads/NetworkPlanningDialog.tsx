@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { DialogShell } from '@/components/ui/dialog-shell'
@@ -532,9 +534,9 @@ export function NetworkPlanningDialog({
                             />
                             {reason && onReviewRoad && (
                               <Button
-                                size="sm"
+                                size="xs"
                                 variant="outline"
-                                className="h-7 shrink-0 text-xs"
+                                className="shrink-0"
                                 onClick={() => onReviewRoad(road.id)}
                               >
                                 Review road
@@ -563,7 +565,10 @@ export function NetworkPlanningDialog({
                 >
                   {planning.targets.length > 0 && (
                     <ol
-                      className="max-h-72 divide-y divide-border overflow-y-auto overscroll-none rounded-md border"
+                      className={cn(
+                        insetBox({ padding: 'none' }),
+                        'max-h-72 divide-y divide-border overflow-y-auto overscroll-none',
+                      )}
                       aria-label="Landing target editor"
                     >
                       {planning.targets.map((target, index) => (
@@ -574,8 +579,8 @@ export function NetworkPlanningDialog({
                             </span>
                             <Button
                               variant="ghost"
-                              size="sm"
-                              className="h-7 shrink-0 text-xs"
+                              size="xs"
+                              className="shrink-0"
                               aria-label={`Remove target ${target.name}`}
                               onClick={() =>
                                 patch({ targets: planning.targets.filter((item) => item.id !== target.id) })
@@ -688,7 +693,7 @@ export function NetworkPlanningDialog({
                   <CollapsibleSection
                     label="Generate from harvest polygons"
                     summary={hasHarvest ? undefined : 'No harvest polygons loaded'}
-                    className="rounded-md border"
+                    className={insetBox({ padding: 'none' })}
                     contentClassName="space-y-3 px-3 pb-3"
                   >
                     <div className="grid gap-3 sm:grid-cols-3">
@@ -751,7 +756,7 @@ export function NetworkPlanningDialog({
               <CollapsibleSection
                 label="Settings"
                 summary={methodSummary}
-                className="rounded-md border"
+                className={insetBox({ padding: 'none' })}
                 contentClassName="space-y-3 px-3 pb-3"
               >
                 {planning.mode === 'project' && (
@@ -796,7 +801,9 @@ export function NetworkPlanningDialog({
             <>
               <p className="text-xs text-muted-foreground">{review.prepared.provenance}</p>
               {review.results.length > 1 && (
-                <div className="overflow-x-auto overscroll-none rounded-lg border bg-background">
+                <div
+                  className={cn(insetBox({ padding: 'none', tone: 'background' }), 'overflow-x-auto overscroll-none')}
+                >
                   <EngineeringTable rowHeaders>
                     <caption className="whitespace-normal p-2 text-left text-xs font-semibold">
                       Method comparison · relative objective, unique edge lengths
@@ -865,7 +872,7 @@ export function NetworkPlanningDialog({
                   </ul>
                 </InlineAlert>
               )}
-              <div className="overflow-x-auto overscroll-none rounded-lg border bg-background">
+              <div className={cn(insetBox({ padding: 'none', tone: 'background' }), 'overflow-x-auto overscroll-none')}>
                 <EngineeringTable variant="text" rowHeaders aria-label="Network target outcomes">
                   <thead>
                     <tr>
@@ -1006,7 +1013,7 @@ export function NetworkPlanningDialog({
                 </div>
                 <CollapsibleSection
                   label="Reconstruct raster road lines"
-                  className="rounded-md border"
+                  className={insetBox({ padding: 'none' })}
                   contentClassName="space-y-3 px-3 pb-3"
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -1071,7 +1078,7 @@ function Panel({
   return (
     <SidebarSection
       headingLevel={3}
-      className="rounded-lg border bg-background p-3"
+      className={insetBox({ padding: 'lg', tone: 'background' })}
       title={
         <span className="inline-flex items-center gap-1">
           {title}
@@ -1294,7 +1301,7 @@ export function NetworkResultPreview({
     else seedRuns.push({ first: cell, last: cell })
   }
   return (
-    <figure className="space-y-2 rounded-lg border p-3" data-testid="network-result-preview">
+    <figure className={cn(insetBox({ padding: 'lg' }), 'space-y-2')} data-testid="network-result-preview">
       <figcaption className="text-sm font-semibold">
         {methodLabel(result.method)} · {grid.width} × {grid.height} cells at {fmt(grid.cellM, 2)} m
       </figcaption>
@@ -1302,7 +1309,7 @@ export function NetworkResultPreview({
         role="img"
         aria-label="Projected network on the analysis grid"
         viewBox={`0 0 ${grid.width} ${grid.height}`}
-        className="max-h-96 w-full rounded bg-slate-100"
+        className="max-h-96 w-full rounded-sm bg-slate-100"
       >
         {cells.map((cell) => (
           <rect

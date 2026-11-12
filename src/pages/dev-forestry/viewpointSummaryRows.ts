@@ -1,6 +1,7 @@
 import type { MetricSummaryItem } from '@/components/ui/metric-summary'
 import { formatMeasure } from '@/lib/format'
 import { resolvedThresholds } from './integrity'
+import { runGreenUpBasis } from './greenUp'
 import { formatKm, formatPct } from './measureFormat'
 import type { AlterationBreakdown, AnalysisResult, TargetPolygon } from './types'
 import type { ViaAssessment } from './via'
@@ -17,9 +18,11 @@ import {
 /**
  * The visual-quality "Viewpoint summary" rows. Everything here is read from the run, never
  * recomputed: per-station values from `perspectiveByStation` and each block's `stations`, run-wide
- * values from the run and the VIA assessment. Every percentage names the scale it was measured on,
- * because the perspective and planimetric ranges are not interchangeable (`vqo.ts`). Rows that the
- * run only has as a whole say so in their label.
+ * values from the run and the VIA assessment. Every percentage names the scale it was measured on
+ * in its `qualifier`, the line under its label, because the perspective and planimetric ranges are
+ * not interchangeable (`vqo.ts`). Rows that the run only has as a whole say so there too. Labels
+ * stay short enough for a card; the explanation is the note. Why a provisional run withholds its
+ * figures is said once, by the status row.
  */
 export type ViewpointSummaryInput = {
   result: AnalysisResult
@@ -44,6 +47,7 @@ const metres = (value: number, digits = 0) =>
   formatMeasure(value, 'm', { minimumFractionDigits: digits, maximumFractionDigits: digits })
 
 function verdictNote(
+  result: AnalysisResult,
   breakdown: AlterationBreakdown,
   basis: AlterationBasis,
   objectiveId: VisualQualityClassId,
@@ -57,7 +61,11 @@ function verdictNote(
     met: verdict.met,
     note: `${verdict.objective.code} range ${range} on this scale · reads as ${
       verdict.achieved?.label.toLowerCase() ?? 'beyond maximum modification'
-    }${breakdown.existingPercent > 0 ? ` · ${formatPct(breakdown.existingPercent)} already harvested` : ''}`,
+    }${
+      breakdown.existingPercent > 0
+        ? ` · ${formatPct(breakdown.existingPercent)} already harvested (green-up ${runGreenUpBasis(result).label})`
+        : ''
+    }`,
   }
 }
 
@@ -72,12 +80,14 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     result.targets.find((target) => target.role === 'block')
   const blockName = input.block?.targetId === block?.targetId ? input.block?.name : 'the block'
   const here = input.driving ? 'road view station' : 'assessment station'
+  const withheld = 'Withheld while the run is provisional; see Numerical figures'
   const rows: MetricSummaryItem[] = []
 
   if (station) {
     rows.push({
       key: 'viewpoint',
       label: 'Viewpoint',
+      qualifier: input.driving ? 'road view' : 'assessment station',
       value: corridor ? `${km(station.distanceAlongMeters)} along` : 'Spot',
       note: `${input.viewpointName || 'The road'} · ${here} · ground ${
         Number.isFinite(station.groundElevationMeters) ? metres(station.groundElevationMeters) : 'unknown'
@@ -90,7 +100,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     const incomplete = (exposure.unknownPercent ?? 0) > 0
     rows.push({
       key: 'in-view',
-      label: 'Block ground in view here',
+      label: 'Block ground in view',
+      qualifier: 'this station',
       value: incomplete ? 'Terrain incomplete' : formatPct(exposure.visiblePercent, 0),
       note: `${blockName}: the share of its ground the terrain lets this station see, not the share of the screen${
         incomplete ? `; ${formatPct(exposure.unknownPercent, 0)} of it is over missing terrain` : ''
@@ -104,18 +115,20 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     if (!numericalReady || !atStation) {
       rows.push({
         key: 'perspective',
-        label: 'Perspective alteration here · perspective scale',
+        label: 'Alteration here',
+        qualifier: 'perspective scale',
         value: numericalReady ? 'Unknown here' : 'Withheld',
         note: numericalReady
           ? 'This station has no complete view of the landform (missing terrain or no visible green area)'
-          : 'The run is provisional: resolve its warnings in Assessment & report for a numerical figure',
-        tone: 'warning',
+          : withheld,
+        tone: numericalReady ? 'warning' : 'muted',
       })
     } else {
-      const verdict = verdictNote(atStation, 'perspective', landform.objectiveId, landform.vac, thresholds)
+      const verdict = verdictNote(result, atStation, 'perspective', landform.objectiveId, landform.vac, thresholds)
       rows.push({
         key: 'perspective',
-        label: 'Perspective alteration here · perspective scale',
+        label: 'Alteration here',
+        qualifier: 'perspective scale',
         value: formatPct(atStation.cumulativePercent),
         note: `From this station, apparent area · ${verdict.note}`,
         tone: verdict.met ? 'default' : 'warning',
@@ -124,10 +137,11 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
 
     const planimetric = result.planimetricAlteration
     if (numericalReady && planimetric) {
-      const verdict = verdictNote(planimetric, 'planimetric', landform.objectiveId, landform.vac, thresholds)
+      const verdict = verdictNote(result, planimetric, 'planimetric', landform.objectiveId, landform.vac, thresholds)
       rows.push({
         key: 'planimetric',
-        label: 'Planimetric denudation · planimetric scale',
+        label: 'Denudation',
+        qualifier: 'planimetric scale',
         value: formatPct(planimetric.cumulativePercent),
         note: `${landform.name}, flat map area from any viewpoint, of its ${
           result.landformForestedAreaMeters !== null ? 'treed area' : 'whole area (no inventory)'
@@ -137,19 +151,24 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     } else {
       rows.push({
         key: 'planimetric',
-        label: 'Planimetric denudation · planimetric scale',
+        label: 'Denudation',
+        qualifier: 'planimetric scale',
         value: 'Withheld',
-        note: planimetric
-          ? 'The run is provisional: resolve its warnings in Assessment & report for a numerical figure'
-          : 'The run has no landform area to divide by',
-        tone: 'warning',
+        note: planimetric ? withheld : 'The run has no landform area to divide by',
+        tone: planimetric ? 'muted' : 'warning',
       })
     }
 
     const objective = visualQualityClass(landform.objectiveId)
     rows.push({
       key: 'objective',
-      label: 'Visual quality objective',
+      label: 'Objective',
+      qualifier:
+        input.objectiveSource === 'established'
+          ? 'established'
+          : input.objectiveSource === 'recommended'
+            ? 'recommended'
+            : 'set in assessment',
       value: `${objective.code} · ${objective.label}`,
       note:
         input.objectiveSource === 'established'
@@ -165,7 +184,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     const far = viewingZoneFor(block.farthestVisibleDistanceMeters)
     rows.push({
       key: 'distance',
-      label: corridor ? 'Visible ground distance · whole road' : 'Visible ground distance',
+      label: 'Visible distance',
+      qualifier: corridor ? 'whole road' : undefined,
       value: `${formatKm(block.nearestVisibleDistanceMeters, 1)} – ${formatKm(block.farthestVisibleDistanceMeters, 1)}`,
       note: `${blockName}, nearest to farthest visible ground · ${
         near.id === far.id ? near.label.toLowerCase() : `${near.label.toLowerCase()} to ${far.label.toLowerCase()}`
@@ -177,7 +197,8 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
     const rated = via.rating
     rows.push({
       key: 'via',
-      label: 'VIA rating · perspective scale',
+      label: 'VIA rating',
+      qualifier: 'perspective scale',
       value: rated ? rated.label : via.initialPercent === null ? 'Not rated' : 'In review',
       note: [
         `X ${via.initialPercent === null ? '—' : formatPct(via.initialPercent)}`,
@@ -195,7 +216,7 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
   if (block && block.meanSlopePercent !== null && block.vegHeightMeters !== null) {
     rows.push({
       key: 'slope',
-      label: 'Mean slope · green-up height',
+      label: 'Mean slope · green-up',
       value: `${formatPct(block.meanSlopePercent, 0)} · ${metres(block.vegHeightMeters, 1)}`,
       // The height is the run's, weighted over the block's slope classes (1998 Step 5), not read off the mean.
       note: `${blockName}; green-up height weighted over its slope classes, not read off the mean slope`,
@@ -204,11 +225,11 @@ export function viewpointSummaryMetrics(input: ViewpointSummaryInput): MetricSum
 
   rows.push({
     key: 'status',
-    label: 'Numerical status',
+    label: 'Numerical figures',
     value: numericalReady ? 'Ready' : 'Provisional',
     note: numericalReady
       ? 'The run meets the conditions for numerical figures'
-      : (result.quality?.warnings[0] ?? 'The run did not record why it is provisional'),
+      : `${result.quality?.warnings[0] ?? 'The run did not record why it is provisional.'} Alteration figures are withheld until its warnings are resolved in Assessment & report.`,
     tone: numericalReady ? 'default' : 'warning',
   })
   return rows

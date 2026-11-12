@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { VirtualResultList } from '@/components/ui/virtual-result-list'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Field, OptionalNumberField, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { ConstraintPolicyEditor } from './ConstraintPolicyEditor'
@@ -94,7 +96,7 @@ export function StreamsPanel({
     return (
       <button
         key={f.id}
-        className="block w-full rounded border px-2 py-1 text-left text-xs hover:bg-muted"
+        className="block w-full rounded-md border px-2 py-1 text-left text-xs hover:bg-muted"
         data-stream-row={f.id}
         onClick={() => setOpenId(f.id)}
       >
@@ -217,15 +219,15 @@ function StreamDetails({
     <div className="space-y-2" data-testid="road-stream-details">
       <ProvincialStreamSourceView stream={stream} />
       <div className="flex items-center gap-1">
-        <Button size="icon" variant="ghost" className="size-6" aria-label="Back to streams" onClick={onBack}>
+        <Button size="icon-2xs" variant="ghost" aria-label="Back to streams" onClick={onBack}>
           <ChevronLeft className="size-4" />
         </Button>
         <p className="min-w-0 flex-1 truncate text-xs font-semibold">{stream.name}</p>
-        <Button size="sm" variant="outline" className="h-7 px-2 text-xs" onClick={onProfile}>
+        <Button size="xs" variant="outline" onClick={onProfile}>
           View terrain profile
         </Button>
       </div>
-      <div className="rounded border bg-muted/20 p-2 text-2xs" data-testid="road-stream-suggestion">
+      <div className={cn(insetBox({ tone: 'muted' }), 'text-2xs')} data-testid="road-stream-suggestion">
         <p className="text-xs">
           <span className="font-semibold">{shown ?? 'No class yet'}</span>
           <span className="text-muted-foreground">
@@ -251,12 +253,12 @@ function StreamDetails({
           </p>
         ))}
         {suggestion.outstanding.map((line) => (
-          <p key={line} className="text-amber-700 dark:text-amber-400">
+          <p key={line} className="text-warning">
             Outstanding: {line.toLowerCase()}
           </p>
         ))}
         {assessment.importedClass && (
-          <p className={importedDiffers ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+          <p className={importedDiffers ? 'text-warning' : 'text-muted-foreground'}>
             Source file says {assessment.importedClass}
             {importedDiffers ? `, the rules give ${shown}` : ''}
           </p>
@@ -335,7 +337,7 @@ function StreamDetails({
           onChange={(oneKmAverageWidthM) => onChange({ oneKmAverageWidthM })}
         />
       </div>
-      <details className="rounded border" data-testid="stream-riparian-policy">
+      <details className={insetBox({ padding: 'none' })} data-testid="stream-riparian-policy">
         <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Riparian map & route treatment</summary>
         <div className="space-y-2 border-t p-2">
           <p className="text-2xs text-muted-foreground">
@@ -344,7 +346,7 @@ function StreamDetails({
           <ConstraintPolicyEditor feature={stream} onChange={onPolicyChange} />
         </div>
       </details>
-      <details className="rounded border">
+      <details className={insetBox({ padding: 'none' })}>
         <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Record a review</summary>
         <div className="space-y-2 border-t p-2">
           <div className="grid grid-cols-2 gap-2">

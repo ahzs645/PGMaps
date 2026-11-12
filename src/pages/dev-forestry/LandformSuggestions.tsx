@@ -2,10 +2,12 @@ import { StyledSelect } from '@/components/ui/form-field'
 import { useEffect, useMemo, useState } from 'react'
 import { MapPin } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { downloadText } from '@/lib/download'
+import { cn } from '@/lib/utils'
 import type { ForestryScene } from './scene'
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import { metersPerDegree, polygonBounds } from './visibility'
@@ -102,7 +104,7 @@ export function LandformSuggestions({
           Search area
           <StyledSelect
             aria-label="Landform search area"
-            className="my-1 w-full rounded border bg-background p-1"
+            className="my-1 w-full rounded-md border bg-background p-1"
             value={searchMode}
             onChange={(e) => setSearchMode(e.target.value as 'road' | 'block')}
           >
@@ -116,7 +118,7 @@ export function LandformSuggestions({
           Search near cutblock
           <StyledSelect
             aria-label="Landform search cutblock"
-            className="my-1 w-full rounded border bg-background p-1"
+            className="my-1 w-full rounded-md border bg-background p-1"
             value={selected?.id}
             onChange={(e) => setBlockId(e.target.value)}
           >
@@ -170,7 +172,10 @@ export function LandformSuggestions({
         </p>
       )}
       {candidates.length > 0 && (
-        <ul className="divide-y overflow-hidden rounded-md border" aria-label="Inventory landform candidates">
+        <ul
+          className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}
+          aria-label="Inventory landform candidates"
+        >
           {candidates.map(({ unit, distanceMeters }) => {
             const shown = shownId === unit.id
             const title = `${unit.name} · ${

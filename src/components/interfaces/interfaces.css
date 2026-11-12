@@ -55,7 +55,7 @@
   flex-direction: column;
   text-align: left;
   border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) + 8px);
   overflow: hidden;
   background: hsl(var(--card));
   color: hsl(var(--card-foreground));
@@ -115,7 +115,7 @@
 }
 .lp-current {
   margin-left: auto;
-  border-radius: 999px;
+  border-radius: 9999px;
   background: hsl(var(--primary) / 0.12);
   color: hsl(var(--primary));
   padding: 1px 8px;
@@ -134,7 +134,7 @@
   overflow: auto;
   overscroll-behavior: none;
   border: 1px solid hsl(var(--border));
-  border-radius: calc(var(--radius) * 2);
+  border-radius: calc(var(--radius) + 8px);
   margin: auto;
   padding: 0;
   background: hsl(var(--background));
@@ -382,7 +382,6 @@
 }
 .lp-ribbon-tabs [data-command='chooseInterface'] {
   flex-shrink: 0;
-  margin-bottom: 3px;
 }
 .lp-ribbon .lp-grouped-tools {
   flex-wrap: nowrap;
@@ -516,22 +515,45 @@
 }
 
 /* Compact tabs keep the working set in one horizontal band. The full form
-   remains mounted underneath and opens on request. */
+   remains mounted underneath and opens on request.
+
+   The band's geometry is fixed, so changing tabs never moves the panes below:
+   every tab is the same height whatever its tools are. Anything placed in a
+   section fits one of these boxes rather than growing it:
+   - a row: a command, a field (label + control) or a one-line widget, at most
+     --ribbon-row-height tall, with controls at --ribbon-control-height;
+   - the full stack: a section's `primary` command or a widget that spans rows
+     (project, terrain source), at most --ribbon-items-height tall;
+   - the caption under the section, --ribbon-caption-height tall, whether or
+     not it opens more settings.
+   `rows: 3` divides the same height into three, which suits commands only. */
+.lp-ribbon[data-compact-ribbon] {
+  --ribbon-row-height: 25px;
+  --ribbon-row-gap: 2px;
+  --ribbon-control-height: 24px;
+  --ribbon-items-height: calc(2 * var(--ribbon-row-height) + var(--ribbon-row-gap));
+  --ribbon-caption-gap: 2px;
+  --ribbon-caption-height: 22px;
+  --ribbon-tabs-height: 38px;
+  --ribbon-tab-tool-size: 28px;
+}
 .lp-ribbon[data-compact-ribbon] .lp-command-group {
   padding: 0 10px;
+  height: calc(var(--ribbon-items-height) + var(--ribbon-caption-gap) + var(--ribbon-caption-height));
 }
 .lp-ribbon[data-compact-ribbon] .lp-group-items {
-  --ribbon-row-height: 25px;
-  align-items: flex-start;
-  min-height: 52px;
+  flex: none;
+  align-items: center;
+  height: var(--ribbon-items-height);
+  min-height: 0;
 }
 .lp-ribbon[data-compact-ribbon] .lp-group-items[data-rows] {
   display: grid;
   grid-auto-flow: column;
-  align-content: start;
-  align-items: start;
+  align-content: center;
+  align-items: center;
   column-gap: 10px;
-  row-gap: 2px;
+  row-gap: var(--ribbon-row-gap);
 }
 .lp-group-items[data-rows='2'] {
   grid-template-rows: repeat(2, minmax(var(--ribbon-row-height, 0px), auto));
@@ -539,11 +561,169 @@
 .lp-group-items[data-rows='3'] {
   grid-template-rows: repeat(3, minmax(var(--ribbon-row-height, 0px), auto));
 }
+.lp-ribbon[data-compact-ribbon] .lp-group-items[data-rows='2'] {
+  grid-template-rows: repeat(2, var(--ribbon-row-height));
+}
+.lp-ribbon[data-compact-ribbon] .lp-group-items[data-rows='3'] {
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  row-gap: 1px;
+}
+.lp-ribbon[data-compact-ribbon] .lp-group-items[data-rows='3'] > .lp-command:not([data-primary]) {
+  min-height: 0;
+  padding-block: 0;
+}
+/* Nothing in a section may stretch it: a widget spanning the rows gets the
+   whole stack and clips past it; a row item gets one row. */
+.lp-ribbon[data-compact-ribbon] .lp-group-items > :is(.lp-ribbon-field, .lp-quick-setting) {
+  min-width: 0;
+  max-height: var(--ribbon-items-height);
+}
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-field :is([role='combobox'], select),
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-field > :is(button, a),
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-field > div > button {
+  height: var(--ribbon-control-height);
+  min-height: 0;
+}
 .lp-ribbon[data-compact-ribbon] .lp-group-items > .lp-ribbon-field:has(.lp-source-field, .lp-project-field) {
   grid-row: 1 / -1;
 }
-.lp-ribbon[data-compact-ribbon] .lp-group-label {
-  margin-top: 2px;
+.lp-ribbon[data-compact-ribbon] .lp-command-group > .lp-group-label:not([data-standalone]) {
+  flex: none;
+  height: var(--ribbon-caption-height);
+  min-height: 0;
+  margin-top: var(--ribbon-caption-gap);
+  white-space: nowrap;
+}
+/* The section's caption already says "Current project"; the tool's name stays a heading for screen readers. */
+.lp-ribbon[data-compact-ribbon] .lp-project-field h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* Widgets that print a name (project, terrain) take a fixed slot, so a longer
+   name or a new status line never moves the sections after them. */
+.lp-ribbon[data-compact-ribbon] :is(.lp-project-field, .lp-source-field) {
+  width: 17rem;
+  max-width: 17rem;
+}
+.lp-ribbon[data-compact-ribbon] .lp-project-field [data-testid='road-project-name'] {
+  max-width: 100%;
+}
+.lp-ribbon[data-compact-ribbon] .lp-source-field > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A one-line statement in a field's place, e.g. the only road in the project. */
+.lp-ribbon-note {
+  display: flex;
+  align-items: center;
+  min-height: var(--ribbon-control-height, 24px);
+  font-size: 11px;
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+}
+/* A field's note (out of range, changed to the limit) floats over the row below
+   instead of growing the section, and fades once the field is left. */
+.lp-ribbon[data-compact-ribbon] .lp-quick-setting > div > span[id$='-description'] {
+  position: absolute;
+  top: calc(100% + 1px);
+  inset-inline-start: 0;
+  z-index: 2;
+  width: max-content;
+  max-width: 20rem;
+  margin: 0;
+  padding: 1px 6px;
+  overflow: hidden;
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) - 4px);
+  background: hsl(var(--popover));
+  box-shadow: 0 3px 10px hsl(var(--lp-shadow-color) / 0.14);
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: lp-ribbon-note-out 0.2s ease 6s forwards;
+}
+.lp-ribbon[data-compact-ribbon] .lp-quick-setting:focus-within > div > span[id$='-description'] {
+  animation: none;
+}
+@keyframes lp-ribbon-note-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+/* A field the open editor pane holds: kept in place, inert, so the strip does not reflow. */
+.lp-quick-setting[data-mirror] {
+  opacity: 0.5;
+}
+/* A command whose caption changes while you work keeps the width of its longest caption. */
+.lp-command-caption {
+  display: inline-grid;
+  text-align: start;
+}
+.lp-command[data-primary] .lp-command-caption {
+  text-align: center;
+}
+.lp-command-caption > * {
+  grid-area: 1 / 1;
+}
+.lp-caption-reserve {
+  visibility: hidden;
+}
+/* Holds a status mark (unsaved, training) in the tab row whether or not one shows. */
+.lp-status-slot {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+}
+.lp-status-slot > * {
+  margin: 0;
+}
+/* One height for the tab row, and one size for every tool in it, wherever the tool comes from. */
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-tabs {
+  height: var(--ribbon-tabs-height);
+  flex-wrap: nowrap;
+}
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-tabs > :is(button, a, .lp-fold-editors, .lp-find-tools, .lp-minimize),
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-tabs > .lp-quick-access {
+  height: var(--ribbon-tab-tool-size);
+  min-height: 0;
+  margin-block: 0;
+}
+.lp-ribbon[data-compact-ribbon]
+  .lp-ribbon-tabs
+  > :is(button, a):not(.lp-find-tools, .lp-fold-editors):has(> svg:only-child) {
+  width: var(--ribbon-tab-tool-size);
+  padding: 0;
+}
+/* Two looks only: icon tools (quick access, history, back, minimize) are plain,
+   and the two captioned controls that open a dialog (Find tools, the interface
+   switch) are boxed. Header-line buttons placed here take the same looks. */
+.lp-ribbon[data-compact-ribbon]
+  .lp-ribbon-tabs
+  > :is(button, a):not(.lp-find-tools, .lp-fold-editors, [data-command='chooseInterface']) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  border-radius: calc(var(--radius) - 4px);
+  color: hsl(var(--foreground));
+}
+.lp-ribbon[data-compact-ribbon]
+  .lp-ribbon-tabs
+  > :is(button, a):not(.lp-find-tools, .lp-fold-editors, [data-command='chooseInterface']):hover {
+  background: hsl(var(--accent));
+}
+.lp-ribbon[data-compact-ribbon] .lp-ribbon-tabs > [data-command='chooseInterface'] {
+  border-color: hsl(var(--border));
+  border-radius: calc(var(--radius) - 4px);
+  box-shadow: none;
+  font-size: 12px;
 }
 .lp-ribbon[data-compact-ribbon] .lp-fold-editors {
   display: inline-flex;
@@ -567,29 +747,43 @@
   white-space: nowrap;
   font-size: 11px;
 }
+/* Ribbon fields: three control widths, so boxes line up down a section whether
+   or not they carry a unit, a placeholder or a dropdown. */
+.lp-quick-setting {
+  --ribbon-number-width: 6.5rem;
+  --ribbon-text-width: 10rem;
+  --ribbon-choice-width: 10rem;
+}
 .lp-quick-setting input:not([type='checkbox'], [type='radio']),
 .lp-quick-setting [role='combobox'] {
   font-size: 12px;
-  height: 24px;
+  height: var(--ribbon-control-height, 24px);
   padding-block: 1px;
 }
-.lp-quick-setting input[type='number'] {
-  width: 4.3rem;
-}
-.lp-quick-setting input[type='number'][placeholder] {
-  width: 5.4rem;
+.lp-quick-setting input[type='number'],
+.lp-quick-setting .road-unit-field {
+  flex: none;
+  width: var(--ribbon-number-width);
 }
 .lp-quick-setting input:not([type='number'], [type='checkbox'], [type='radio']) {
-  width: 9rem;
+  flex: none;
+  width: var(--ribbon-text-width);
 }
 .lp-quick-setting [role='combobox'] {
-  width: 10rem;
+  flex: none;
+  width: var(--ribbon-choice-width);
+}
+/* A dropdown's wrapper takes the space after the label, so its box lines up on the right like the inputs. */
+.lp-quick-setting label > :not(span:first-child):has([role='combobox']) {
+  display: flex;
+  flex: 1;
+  justify-content: flex-end;
 }
 .lp-quick-setting label > span.pr-5 {
   padding-right: 0;
 }
 .lp-quick-setting > div:has(button[aria-label^='About']) {
-  padding-right: 18px;
+  padding-right: 22px;
 }
 /* The (i) sits on the field's row, centred on the input rather than above it. */
 .lp-quick-setting > div > .road-field-hint {
@@ -599,8 +793,11 @@
 }
 /* A unit inside the box (`splitUnit`, Controls.tsx): the box takes the input's ribbon size. */
 .lp-quick-setting .road-unit-field {
+  height: var(--ribbon-control-height, 24px);
+}
+.lp-quick-setting .road-unit-field input[type='number'] {
+  flex: 1;
   width: auto;
-  height: 24px;
 }
 .lp-quick-setting .road-unit-field input[type='number'] {
   height: 100%;
@@ -620,8 +817,11 @@
   }
 }
 @media (pointer: coarse) {
-  .lp-ribbon[data-compact-ribbon] .lp-group-items {
+  .lp-ribbon[data-compact-ribbon] {
     --ribbon-row-height: 32px;
+    --ribbon-control-height: 30px;
+    --ribbon-tabs-height: 42px;
+    --ribbon-tab-tool-size: 34px;
   }
   .lp-quick-setting input:not([type='checkbox'], [type='radio']),
   .lp-quick-setting [role='combobox'] {
@@ -702,7 +902,8 @@
   order: 1;
   min-width: 0;
   flex: 1;
-  scrollbar-width: thin;
+  /* A scrollbar would add its height to the band: the edge buttons and the wheel scroll it instead. */
+  scrollbar-width: none;
   scroll-padding-inline: 30px;
   overscroll-behavior: none;
 }
@@ -724,6 +925,9 @@
   order: 2;
   border-inline-start: 1px solid hsl(var(--border));
   box-shadow: -4px 0 7px -4px hsl(var(--lp-shadow-color) / 0.22);
+}
+.lp-strip-frame .lp-grouped-tools::-webkit-scrollbar {
+  display: none;
 }
 .lp-strip-edge:disabled {
   color: hsl(var(--muted-foreground) / 0.4);
@@ -905,10 +1109,34 @@
   }
 }
 
+/* Quick access shows where the tab row has room for it; below that, its commands
+   and the interface switch fold into one More menu (`narrowMenu`). */
 .lp-quick-access {
   display: none;
 }
-@media (min-width: 1120px) {
+.lp-ribbon-more {
+  display: contents;
+}
+.lp-ribbon-more .lp-ribbon-more-trigger {
+  display: inline-grid;
+  flex: none;
+  place-content: center;
+  width: var(--ribbon-tab-tool-size, 28px);
+  height: var(--ribbon-tab-tool-size, 28px);
+  border-radius: calc(var(--radius) - 4px);
+}
+.lp-ribbon-more .lp-ribbon-more-trigger:hover {
+  background: hsl(var(--accent));
+}
+@media (max-width: 899px) {
+  .lp-ribbon-tabs > [data-command='chooseInterface'] {
+    display: none;
+  }
+}
+@media (min-width: 900px) {
+  .lp-ribbon-more {
+    display: none;
+  }
   .lp-quick-access {
     display: flex;
     flex: 0 1 auto;

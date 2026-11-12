@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import { useMemo, type ComponentProps } from 'react'
 import { MapMarker, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
@@ -6,8 +6,19 @@ import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
 import { MapDrawCapture } from './MapDrawCapture'
 import { SatelliteImagery } from './SatelliteImagery'
+import type { LandformVantagePoint } from './TerrainLandformFinder'
 import type { BcSensitivityUnit } from './bcVisualInventory'
-import type { PlanShow } from './PlanMapLegend'
+import {
+  candidateLegendKey,
+  clueLegendKey,
+  evqoLegendKey,
+  inventoryPointLegendKey,
+  maskLegendKey,
+  sampleLegendKey,
+  unitLegendKey,
+  withoutHiddenFeatures,
+  type PlanShow,
+} from './planLayers'
 import {
   ASSESSMENT_VIEWPOINT_COLOR,
   EXPOSURE_RAMP,
@@ -17,6 +28,7 @@ import {
   MASK_COLORS,
   OTHER_RIDGE_LAYER_COLOR,
   ROAD_COLOR,
+  TREE_FREE_COLOR,
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLOR,
   TERRAIN_CANDIDATE_COLOR,
@@ -32,6 +44,7 @@ import { EVQO_COLORS } from './visualsNarrative'
 
 type Collection = GeoJSON.FeatureCollection
 const EMPTY_COLLECTION: Collection = { type: 'FeatureCollection', features: [] }
+const NOTHING_HIDDEN: PlanShow['hidden'] = new Set()
 /** Lakes and rivers in the road view: a still-water blue, with a lighter shoreline. */
 const ROAD_VIEW_WATER_COLOR = '#3f6f99'
 /**
@@ -75,6 +88,10 @@ export type SceneLayerData = {
   forestPatches: ComponentProps<typeof ForestOverlay>['patches']
   facedArrowGeometry: GeoJSON.Polygon | null
   previewTerrainMessage: string | null
+  /** Where "Find a landform from the terrain" reads from: a picked point or an inventory viewpoint. */
+  landformVantage: LandformVantagePoint | null
+  /** Ground the road view draws without timber, outlined on the plan. */
+  treeFreeCollection: Collection
   forestGround: { floor: Collection; soil: Collection; water: Collection; cover: Collection }
   previewRoad: Collection
   /** The road's cut bank and fill slope, by `kind`. */
@@ -191,6 +208,30 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     onInspectSample,
     onRoadClick,
   } = data
+  // The plan's legend rows hide features by class; the road view draws every feature.
+  const hidden = eye ? NOTHING_HIDDEN : planShow.hidden
+  const shown = (key: Parameters<typeof hidden.has>[0]) => !hidden.has(key)
+  const planUnits = useMemo(
+    () => withoutHiddenFeatures(inventoryCollection, hidden, unitLegendKey),
+    [inventoryCollection, hidden],
+  )
+  const planCandidates = useMemo(
+    () => withoutHiddenFeatures(terrainCandidateCollection, hidden, candidateLegendKey),
+    [terrainCandidateCollection, hidden],
+  )
+  const planInventoryPoints = useMemo(
+    () => withoutHiddenFeatures(viewpointLayers.points, hidden, inventoryPointLegendKey),
+    [viewpointLayers.points, hidden],
+  )
+  const planClues = useMemo(() => withoutHiddenFeatures(landformClues, hidden, clueLegendKey), [landformClues, hidden])
+  const evqoCollection = evqoDisplay?.collection ?? EMPTY_COLLECTION
+  const planEvqo = useMemo(() => withoutHiddenFeatures(evqoCollection, hidden, evqoLegendKey), [evqoCollection, hidden])
+  const planMasks = useMemo(
+    () => withoutHiddenFeatures(maskCollection, hidden, maskLegendKey),
+    [maskCollection, hidden],
+  )
+  const samples = eye ? eyeSampleCollection : sampleCollection
+  const planSamples = useMemo(() => withoutHiddenFeatures(samples, hidden, sampleLegendKey), [samples, hidden])
   const roadClick = onRoadClick
     ? (_id: string, event: { lngLat: [number, number] | null }) => {
         if (event.lngLat) onRoadClick(event.lngLat)
@@ -198,7 +239,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
     : undefined
   return (
     <>
-      <SatelliteImagery visible={eye ? drive.imagery : planShow.imagery} />
+      <SatelliteImagery visible={eye ? drive.imagery : planShow.basemap === 'satellite'} />
       {routeViewshed.enabled && routeViewshed.valid && (
         <>
           {routeViewshed.mode !== 'point' && (
@@ -276,6 +317,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         stand aside for it rather than covering it at 82%. */}
           <MapFillLayer
             data={forestGround.floor}
+            interactive={false}
             fillColor="#3a4f35"
             fillOpacity={0.82}
             lineWidth={0}
@@ -290,6 +332,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           />
           <MapFillLayer
             data={forestGround.soil}
+            interactive={false}
             fillColor="#a7977d"
             fillOpacity={0.95}
             lineWidth={0}
@@ -298,6 +341,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           {/* Mapped lakes and rivers read as water from the road; over imagery only a tint. */}
           <MapFillLayer
             data={forestGround.water}
+            interactive={false}
             fillColor={ROAD_VIEW_WATER_COLOR}
             fillOpacity={drive.imagery ? 0.35 : 0.92}
             lineColor={ROAD_VIEW_SHORE_COLOR}
@@ -309,9 +353,17 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             data={previewRoadScar}
             fillColor={['match', ['get', 'kind'], 'cut', '#b9a888', '#9d8b6c']}
             fillOpacity={drive.imagery ? 0.6 : 0.95}
+            interactive={false}
             lineWidth={0}
           />
-          <MapFillLayer data={previewRoad} fillColor="#a7977d" fillOpacity={1} lineColor="#c0b397" lineWidth={1} />
+          <MapFillLayer
+            data={previewRoad}
+            interactive={false}
+            fillColor="#a7977d"
+            fillOpacity={1}
+            lineColor="#c0b397"
+            lineWidth={1}
+          />
         </>
       )}
       {!eye && (
@@ -326,6 +378,22 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             bounds={basemapBounds}
             onChange={setBasemap}
           />
+          {data.landformVantage && (
+            <MapMarker longitude={data.landformVantage.lng} latitude={data.landformVantage.lat} opacityWhenCovered="1">
+              <MarkerContent>
+                <span
+                  role="img"
+                  aria-label={data.landformVantage.label}
+                  title={data.landformVantage.label}
+                  data-testid="landform-vantage-marker"
+                  className="relative flex h-5 w-5 items-center justify-center"
+                >
+                  <span className="absolute inset-0 animate-ping rounded-full bg-sky-400/50 [animation-iteration-count:2]" />
+                  <span className="relative block h-3.5 w-3.5 rounded-full border-2 border-white bg-sky-600 shadow" />
+                </span>
+              </MarkerContent>
+            </MapMarker>
+          )}
           <MapDrawCapture
             active={drawMode !== 'none'}
             onPoint={handleMapPoint}
@@ -345,7 +413,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {/* Inventory polygons sit under the scene's own, and units with nothing
         established are drawn back so the ones that constrain harvesting read first. */}
       <MapFillLayer
-        data={inventoryCollection}
+        data={planUnits}
         fillColor={SENSITIVITY_UNIT_COLOR as never}
         fillOpacity={['case', ['==', ['get', 'rated'], 1], 0.12, 0.03]}
         lineColor={SENSITIVITY_UNIT_COLOR as never}
@@ -353,20 +421,23 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineOpacity={0.9}
         idProperty="id"
         visible={showInventory && inventory.units.length > 0 && (!eye || drive.showAnalysis)}
-        onFeatureClick={(id) => handleAdoptUnit(id)}
+        // With the road view open a click on the plan moves it; adopting a unit is step 1's job.
+        onFeatureClick={(id) => {
+          if (eye || !drive.active) handleAdoptUnit(id)
+        }}
         hoverHtml={inventoryHoverHtml}
       />
       {/* Both terrain readings, coloured by reading; the one in front filled and drawn heavier. */}
       {!eye && (
         <>
           <MapFillLayer
-            data={terrainCandidateCollection}
+            data={planCandidates}
             fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
             fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
             lineWidth={0}
           />
           <MapLineLayer
-            data={terrainCandidateCollection}
+            data={planCandidates}
             color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
             width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
             dashArray={[2, 1.5]}
@@ -377,7 +448,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {/* The other ridge layers a ridge-layer candidate found, as the road sees them stack. */}
       <MapLineLayer
         data={ridgeLayerCollection}
-        visible={eye ? drive.showLandform : planShow.landform}
+        visible={eye ? drive.showLandform : shown('other-ridge-layers')}
         color={['case', ['==', ['get', 'own'], 1], TERRAIN_CANDIDATE_COLOR, OTHER_RIDGE_LAYER_COLOR]}
         width={['case', ['==', ['get', 'own'], 1], 0, eye ? 2.5 : 1.2]}
         opacity={0.75}
@@ -387,7 +458,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {!eye && (
         <MapFillLayer
           data={viewpointLayers.screenings}
-          visible={showInventory}
+          visible={showInventory && shown('screening')}
           fillColor={INVENTORY_COLORS.screening}
           fillOpacity={0.12}
           lineColor={INVENTORY_COLORS.screening}
@@ -397,7 +468,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
       <MapFillLayer
         data={eye ? standingArrows : viewpointLayers.arrows}
-        visible={eye ? standingArrows.features.length > 0 : showInventory}
+        visible={eye ? standingArrows.features.length > 0 : showInventory && shown('arrow')}
         fillColor={INVENTORY_COLORS.viewpoint}
         // Standing at the viewpoint puts its arrows under the eye, so in the
         // road view they are outlines over a faint fill, the faced one heavier.
@@ -413,7 +484,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       {!eye && (
         <>
           <MapCircleLayer
-            data={viewpointLayers.points}
+            data={planInventoryPoints}
             visible={showInventory}
             radius={5}
             color={['case', ['==', ['get', 'kind'], 'rec-site'], INVENTORY_COLORS.recSite, INVENTORY_COLORS.viewpoint]}
@@ -427,7 +498,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
             }}
           />
           <MapCircleLayer
-            data={landformClues}
+            data={planClues}
             radius={3}
             color={[
               'match',
@@ -443,7 +514,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
       <MapFillLayer
         data={landscapeCollection}
-        visible={eye ? drive.showAnalysis || drive.showLandform : planShow.landform}
+        visible={eye ? drive.showAnalysis || drive.showLandform : shown('landform')}
         fillColor={ROLE_COLORS.landscape}
         fillOpacity={eye && drive.showLandform ? 0.18 : 0.08}
         lineColor={ROLE_COLORS.landscape}
@@ -456,7 +527,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       />
       {/* The established VQO polygons draped under everything else in the road view. */}
       <MapFillLayer
-        data={evqoDisplay?.collection ?? EMPTY_COLLECTION}
+        data={eye ? evqoCollection : planEvqo}
         visible={eye ? drive.showEvqo : planShow.evqo}
         fillColor={['match', ['get', 'code'], ...Object.entries(EVQO_COLORS).flat(), '#94a3b8'] as never}
         fillOpacity={0.3}
@@ -468,6 +539,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         are context for the cumulative number, not the thing being assessed. */}
       <MapFillLayer
         data={harvestedCollection}
+        visible={shown('opening')}
         fillColor={ROLE_COLORS.harvested}
         fillOpacity={0.22}
         lineColor={ROLE_COLORS.harvested}
@@ -480,7 +552,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       />
       <MapFillLayer
         data={eye && drive.harvestPhase === 'after' && !drive.showAnalysis ? previewBlockCollection : blockCollection}
-        visible={!eye || drive.harvestPhase === 'after' || drive.showAnalysis}
+        visible={eye ? drive.harvestPhase === 'after' || drive.showAnalysis : shown('block')}
         // A block's own colour wins wherever it is drawn; unset, it is cleared
         // ground in the road view, white in the note screenshot look.
         fillColor={[
@@ -508,8 +580,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       />
 
       <MapFillLayer
-        data={maskCollection}
-        visible={eye ? drive.showAnalysis : planShow.analysis}
+        data={planMasks}
+        visible={!eye || drive.showAnalysis}
         fillColor={[
           'match',
           ['get', 'kind'],
@@ -525,10 +597,32 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         lineColor="#475569"
         lineWidth={1}
       />
+      {!eye && (
+        <>
+          <MapFillLayer
+            data={data.treeFreeCollection}
+            interactive={false}
+            visible={shown('tree-free')}
+            fillColor={TREE_FREE_COLOR}
+            fillOpacity={0.1}
+            lineWidth={0}
+          />
+          <MapLineLayer
+            data={data.treeFreeCollection}
+            visible={shown('tree-free')}
+            color={TREE_FREE_COLOR}
+            width={1.6}
+            dashArray={[2, 1.5]}
+            opacity={0.95}
+            interactive={false}
+          />
+        </>
+      )}
       {/* Distance haze: draped over the ground and the blocks, faded by real distance from the eye. */}
       {eye && (
         <MapFillLayer
           data={hazeCollection}
+          interactive={false}
           visible={drive.haze}
           fillColor="#cbd8e5"
           fillOpacity={['get', 'opacity']}
@@ -537,15 +631,17 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
       )}
       {/* Sample points carry the answer: red is ground the road can see. */}
       <MapCircleLayer
-        data={eye ? eyeSampleCollection : sampleCollection}
+        data={planSamples}
         onFeatureClick={(_id, _event, properties) =>
+          // On the plan, a click moves the open road view instead.
+          (eye || !drive.active) &&
           onInspectSample(
             String(properties.targetId),
             Number(properties.sampleIndex),
             eye ? driveStationIndex : (result?.assessmentStationIndex ?? 0),
           )
         }
-        visible={!preliminaryDrive && (eye ? drive.showAnalysis && drive.harvestPhase === 'after' : planShow.analysis)}
+        visible={!preliminaryDrive && (!eye || (drive.showAnalysis && drive.harvestPhase === 'after'))}
         color={[
           'case',
           ['==', ['get', 'visible'], 2],
@@ -566,6 +662,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         <>
           <MapLineLayer
             data={reverseRoadCollection}
+            visible={shown('exposure')}
             color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
             width={['case', ['==', ['get', 'seen'], 1], 4.5, 2]}
             opacity={['case', ['==', ['get', 'seen'], 1], 0.95, 0.45]}
@@ -575,6 +672,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         and its stations fill the frame instead of marking anything. */}
           <MapLineLayer
             data={corridorCollection}
+            visible={shown('road')}
             color={ROAD_COLOR}
             width={3}
             opacity={0.9}
@@ -584,6 +682,7 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         the block each stretch of road sees, graded along it. */}
           <MapLineLayer
             data={corridorExposureCollection}
+            visible={shown('exposure')}
             onFeatureClick={roadClick}
             color={['case', ['==', ['get', 'unknown'], 1], UNKNOWN_COLOR, EXPOSURE_RAMP] as never}
             width={5}
@@ -593,12 +692,20 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         not a sample of a continuum. */}
           <MapCircleLayer
             data={stationCollection}
+            visible={shown('viewpoint')}
             color={ASSESSMENT_VIEWPOINT_COLOR}
             radius={['case', ['==', ['get', 'assessment'], 1], 6, 0]}
             strokeColor="#ffffff"
             strokeWidth={['case', ['==', ['get', 'assessment'], 1], 1.5, 0]}
           />
-          <MapCircleLayer data={spotCollection} color={ROAD_COLOR} radius={7} strokeColor="#ffffff" strokeWidth={2} />
+          <MapCircleLayer
+            data={spotCollection}
+            visible={shown('road')}
+            color={ROAD_COLOR}
+            radius={7}
+            strokeColor="#ffffff"
+            strokeWidth={2}
+          />
 
           <MapLineLayer data={draftLine} color="#111827" width={2} dashArray={[2, 1.5]} opacity={0.9} />
           <MapCircleLayer data={draftVertices} color="#111827" radius={4} strokeColor="#ffffff" strokeWidth={1.2} />

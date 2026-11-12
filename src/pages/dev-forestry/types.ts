@@ -22,6 +22,11 @@ export type TargetPolygon = {
   siteDisturbance?: boolean
   /** Optional observed/modelled recovery estimate. Null retains the explicitly labelled age assumption. */
   recoveryPercent?: number | null
+  /**
+   * Existing openings only: a dated, signed field check of green-up. When complete it overrides
+   * the modelled share (`greenUp.ts`); the modelled share is kept and shown beside it.
+   */
+  fieldGreenUp?: import('./greenUp').FieldGreenUp | null
   /** Proposed blocks only; absent means clearcut. */
   harvestSystem?: HarvestSystem
   /** Dispersed retention: share of the stand left standing, percent. */
@@ -113,7 +118,7 @@ export type AnalysisInput = {
       | 'siteDisturbance'
       | 'recoveryPercent'
       | 'harvestSystem'
-    >
+    > & { fieldGreenUp?: import('./greenUp').FieldGreenUpInput }
   >
   settings: AnalysisSettings
   assessmentYear: number

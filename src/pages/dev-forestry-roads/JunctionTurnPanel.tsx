@@ -1,4 +1,6 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { InfoTip } from '@/components/ui/info-tip'
 import { formatRoadStation } from './Charts'
 import { NumberField } from './Controls'
@@ -42,11 +44,11 @@ function TurnRow({ row, selected, onSelect }: { row: Row; selected: boolean; onS
   const route = `${armLabel(junction, outcome.from)} → ${armLabel(junction, outcome.to)}`
   if (isJunctionError(outcome))
     return (
-      <li className="rounded-md border p-2 text-xs" data-testid="road-junction-turn" data-state="error">
+      <li className={cn(insetBox(), 'text-xs')} data-testid="road-junction-turn" data-state="error">
         <p className="font-medium">
           {kind === 'in' ? 'In' : 'Out'} · {route}
         </p>
-        <p className="mt-0.5 text-2xs text-amber-800 dark:text-amber-300">{outcome.error}</p>
+        <p className="mt-0.5 text-2xs text-warning">{outcome.error}</p>
       </li>
     )
   const bad = !outcome.fits || outcome.lockExceeded
@@ -63,7 +65,7 @@ function TurnRow({ row, selected, onSelect }: { row: Row; selected: boolean; onS
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className={`w-full rounded-md border p-2 text-left text-xs ${bad ? 'border-red-300 dark:border-red-900' : ''} ${selected ? 'ring-2 ring-primary' : ''}`}
+        className={`w-full rounded-md border p-2 text-left text-xs ${bad ? 'border-danger-border' : ''} ${selected ? 'ring-2 ring-primary' : ''}`}
       >
         <span className="flex flex-wrap items-center justify-between gap-1">
           <span className="font-medium">
@@ -71,7 +73,7 @@ function TurnRow({ row, selected, onSelect }: { row: Row; selected: boolean; onS
             {Math.abs(outcome.deflectionDegrees).toFixed(0)}° · {turnSeverity(outcome.deflectionDegrees)}
           </span>
           <span
-            className={`rounded px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'}`}
+            className={`rounded-sm px-1.5 py-0.5 text-3xs font-medium ${bad ? 'bg-danger/15 text-danger-foreground' : 'bg-success/15 text-success-foreground'}`}
           >
             {badge}
           </span>
@@ -172,7 +174,7 @@ export function JunctionTurnPanel({
   const attention = rows.filter((r) => isJunctionError(r.outcome) || !r.outcome.fits || r.outcome.lockExceeded).length
   return (
     <details
-      className="rounded-md border"
+      className={insetBox({ padding: 'none' })}
       data-testid="road-junction-turns"
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
@@ -250,7 +252,7 @@ export function JunctionTurnPanel({
               </button>
             </div>
             {junction.widthAssumed && (
-              <p className="text-2xs text-amber-800 dark:text-amber-300">
+              <p className="text-2xs text-warning">
                 {junction.otherRoadName}’s width is not known: {m(assumedHalfWidthM)} each side is assumed.
               </p>
             )}

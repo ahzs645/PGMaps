@@ -14,6 +14,41 @@ See [interface motion](interface-motion.md) for interruptible sheets/cards,
 desktop panel lifecycles, selection framing, reduced motion, and dialog close
 callback timing.
 
+## Design tokens
+
+Token **names** live in the toolkit's `src/tailwind-theme.mjs`; both Tailwind builds
+(the toolkit's and `tailwind.config.js`) extend it, so a class means the same inside
+and outside a map workspace. Token **values** live in `src/index.css`. Its rules also
+name `.geo-toolkit` with the toolkit stylesheet's own selectors and load after it, so
+one edit there reaches every page and every workspace. `src/designTokens.test.ts`
+fails if the toolkit gains a token the app does not set, in either theme.
+
+- **Corners.** `--radius` (0.5rem) drives every step: `rounded-sm`/`rounded` 4 px,
+  `rounded-md` 6, `rounded-lg` 8, `rounded-xl` 12, `rounded-2xl` 16. Pick by role:
+  `rounded-sm` for small marks (swatches, tags, map labels), `rounded-md` for controls
+  and bordered boxes, `rounded-lg` for cards, popovers and floating panels,
+  `rounded-full` for pills and dots. Plain CSS uses `calc(var(--radius) ± n)`, never a
+  pixel value.
+- **Status colours.** `warning`, `danger`, `success` and `info`: `text-warning` for text
+  and icons on the page; `border-warning-border bg-warning-surface text-warning-foreground`
+  for a tinted box. They carry their own dark values, so never pair them with `dark:`.
+  `destructive` stays the fill of a destructive button. Category colours (a layer's or a
+  feature's identity, legend swatches) are not status and stay in their palettes, such as
+  `planLegendModel.ts`.
+- **Type.** `text-3xs` (10 px), `text-2xs` (11 px), `text-xs`, `text-sm`; no `text-[Npx]`.
+  A fixed-size SVG that needs smaller text uses its `fontSize` attribute.
+- **Control heights.** `Button` sizes `xs` (28 px) for dense tool panels, `2xs` (24 px)
+  for an action inside a row, `field` (32 px) for a button sharing a row with a dense
+  form field (`roadFieldClass`), and `icon-xs`/`icon-2xs`; no `h-*` override on a `Button`.
+- **Bordered groups.** `insetBox({ padding, tone })` (`inset-box.tsx`) on any element, or
+  `<InsetBox>`: one radius and padding scale for a fieldset, details block, figure or
+  bordered list inside a section. Notes and warnings use `InlineAlert`.
+
+The forestry tools (`/dev/forestry/*` and `src/components/interfaces`) enforce these with a
+lint rule (`designTokenSelectors` in `eslint.config.js`): no plain `rounded`, arbitrary
+radius, pixel font size or palette status text in a className or `cn` call. Other pages
+can join by adding their folders to its `files` list once swept.
+
 ## Sidebars
 
 Basemap appearance: `buildBasemapStyle` (`map-styles.ts`) recolors a supplied
@@ -435,8 +470,11 @@ track grows to the longest cell in any column.
 - Headline measurements beside a workspace: `MetricSummary` (`metric-summary.tsx`) is a titled stack
   of keyed `StatItem` rows (`MetricSummaryItem`), each hidden, value, or value and detail; a
   right-click or Shift+F10 on a row opens its settings, and on a small screen the heading collapses
-  it. `MetricSummaryLayout` puts it beside (`left`) or above (`top`) the views; `variant="pane"`
-  fills a tiled pane instead. `MetricSummarySettings` is the settings form for the tool's own frame
+  it. An optional `qualifier` ("perspective scale", "whole road") prints under the label and joins
+  it in the row's name (`metricName`), so keep labels short; a row's tooltip carries its name and,
+  while only its value shows, its note. `MetricSummaryLayout` puts it beside (`left`) or above
+  (`top`) the views; `variant="pane"` fills a tiled pane instead, as hairline-ruled cards of one
+  height whose labels wrap rather than truncate. `MetricSummarySettings` is the settings form for the tool's own frame
   (ribbon task pane, dialog), with `MetricSummaryReset` as its footer and `children` for a tool's
   own option; leave out `visibility`/`placement` where a preset decides them.
   `useMetricSummaryPreferences(storageKey, defaults, parse?)` keeps the choices on this device. The
@@ -473,12 +511,28 @@ behaviour is summarised in [interface motion](interface-motion.md#mobile-sheet-s
 
 ## Map overlays
 
+- Basemap and overlays: `MapLayersControl` (`map-layers-control.tsx`) is a
+  Layers button that opens a small panel on hover, tap or keyboard focus: a
+  radio list of `basemaps` (`basemap`, `onBasemapChange`) and a checkbox list
+  of `overlays` (`{ id, label, checked, onCheckedChange, description? }`), plus
+  any `children`. Put it inside `MapControls` as a child, which stacks it under
+  the zoom, compass and fullscreen buttons and opens the panel towards the
+  map's middle (`MapControls` now takes `children`). The control only reports
+  choices; the page applies them, as a `styles` swap or, where a `setStyle`
+  would drop layers, as a raster layer under the labels. Escape or a press
+  outside closes it. Clickable legend rows (`LegendItem` `onClick` + `active`)
+  stay the place to hide what the page itself draws.
+
 - Chart/panel expansion: `FullscreenPanel` provides a titled frame and full-window
   expansion button; its render child receives the fullscreen state for layout.
   Opt into `compact` for a single-row header with smaller chrome and truncated
   long titles. `FullscreenButton` also accepts `compact` for a 32px icon button.
   `useElementFullscreen` and `FullscreenButton` support an existing dashboard
   frame. The content stays mounted; Escape or the exit button restores it.
+
+- `MapFillLayer` accepts `interactive={false}` (fixed at mount), as
+  `MapLineLayer` does: no click or hover listeners. Use it for drawn-only fills
+  on a 3D-terrain map, where each hover query is a synchronous GPU readback.
 
 - `MapCircleLayer` accepts `hoverEnabled={false}` to dismiss and suspend hover
   cards during marker dragging or another external interaction. Normal hovering

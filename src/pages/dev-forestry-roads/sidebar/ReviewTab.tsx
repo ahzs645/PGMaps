@@ -3,6 +3,8 @@ import { StationValue } from '../roadStation'
 import type { RoadSettings } from '../types'
 import { useMemo, useRef, useState } from 'react'
 import { ArrowRight, Trash2 } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Field, NumberField, roadFieldClass, RoadSelect } from '../Controls'
 import { RoadSection, SectionReachAlert } from '../SidebarParts'
@@ -148,9 +150,9 @@ export function ReviewTab(
             {confirmedOn ? `Confirmed ${confirmedOn}` : 'Not confirmed: these are the starting values'}
           </span>
           <Button
-            size="sm"
+            size="xs"
             variant={confirmedOn ? 'outline' : 'default'}
-            className="h-7 shrink-0 text-xs"
+            className="shrink-0"
             onClick={() =>
               update((x) =>
                 withJobStandards(x, {
@@ -171,7 +173,7 @@ export function ReviewTab(
           help="What the calculation itself reported about the active road. The checks above judge it against the project's limits."
         >
           {analysis.warnings.map((w, i) => (
-            <p key={i} className="mb-1 border-l-2 border-amber-500 pl-2 text-xs">
+            <p key={i} className="mb-1 border-l-2 border-warning pl-2 text-xs">
               {w}
             </p>
           ))}
@@ -240,12 +242,7 @@ export function ReviewTab(
             <>No aggregate source: the base surfacing rate applies.</>
           )}
         </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 w-full justify-between px-2 text-xs"
-          onClick={() => p.onTab('engineering')}
-        >
+        <Button variant="ghost" size="xs" className="w-full justify-between" onClick={() => p.onTab('engineering')}>
           Materials, drainage, aggregate & haul inputs
           <ArrowRight className="size-3" />
         </Button>
@@ -275,7 +272,7 @@ function CableLines(p: SidebarProps) {
         />
       </div>
       {project.cables.map((c) => (
-        <div key={c.id} className="mt-2 space-y-2 rounded border p-2">
+        <div key={c.id} className={cn(insetBox(), 'mt-2 space-y-2')}>
           <div className="flex items-center justify-between gap-1">
             <input
               className={roadFieldClass}
@@ -286,8 +283,8 @@ function CableLines(p: SidebarProps) {
             />
             <Button
               variant="ghost"
-              size="icon"
-              className="size-6 shrink-0"
+              size="icon-2xs"
+              className="shrink-0"
               aria-label={`Remove ${c.name}`}
               onClick={() => update((x) => ({ ...x, cables: x.cables.filter((a) => a.id !== c.id) }))}
             >
@@ -346,7 +343,7 @@ function CableLines(p: SidebarProps) {
               />
             ))}
           </div>
-          <details className="rounded border p-2">
+          <details className={insetBox()}>
             <summary className="cursor-pointer text-xs">Edit original endpoints</summary>
             <div className="mt-2 grid grid-cols-2 gap-1">
               {(['start', 'end'] as const).flatMap((endpoint) =>

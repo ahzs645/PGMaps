@@ -282,8 +282,10 @@ export function PegTool({
         >
           <MarkerContent>
             <div
-              className={`pointer-events-none max-w-56 rounded border px-1.5 py-0.5 text-3xs font-medium shadow ${
-                preview.ok ? 'bg-background/95 text-foreground' : 'border-amber-400 bg-amber-50 text-amber-900'
+              className={`pointer-events-none max-w-56 rounded-sm border px-1.5 py-0.5 text-3xs font-medium shadow ${
+                preview.ok
+                  ? 'bg-background/95 text-foreground'
+                  : 'border-warning-border bg-warning-surface text-warning-foreground'
               }`}
               data-testid="road-peg-cursor-label"
               data-side={labelSide}
@@ -370,9 +372,9 @@ export function PegToolPanel(props: {
       actions={
         <>
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
-            className="mr-auto h-7"
+            className="mr-auto"
             disabled={!props.legs}
             onClick={props.onUndo}
             title="Remove the last leg · right-click or Backspace"
@@ -380,9 +382,8 @@ export function PegToolPanel(props: {
             Undo leg
           </Button>
           <Button
-            size="sm"
+            size="xs"
             variant="outline"
-            className="h-7"
             disabled={props.aimBearing === null}
             onClick={props.onAdd}
             title={
@@ -394,8 +395,7 @@ export function PegToolPanel(props: {
             Add leg
           </Button>
           <Button
-            size="sm"
-            className="h-7"
+            size="xs"
             disabled={!props.legs}
             onClick={props.onFinish}
             title="Add the legs to the road · Enter or double-click"
@@ -464,7 +464,7 @@ export function PegToolPanel(props: {
         <p
           role="status"
           aria-live="polite"
-          className={props.statusOk ? 'text-foreground' : 'text-amber-800 dark:text-amber-300'}
+          className={props.statusOk ? 'text-foreground' : 'text-warning'}
           data-testid="road-peg-tool-status"
         >
           {props.note || `Next leg: ${props.status}`}

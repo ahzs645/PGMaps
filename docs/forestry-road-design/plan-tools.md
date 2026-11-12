@@ -59,6 +59,11 @@ Shift) and **Space** adds the leg. The panel's **Aim (°)** field and its button
 anywhere. Keys never reach the tool while a field, button or dialog has focus, except Escape and
 Backspace on a plan button.
 
+The road drawing modes (**Peg road**, **Sketch a road**, **Extend road**, **Edit points**, the
+draw tools) also put down on **Escape**, as their card's **Cancel drawing** does, from anywhere but
+a field, a dialog or an open menu (`leavesDrawingOnEscape`, `PlanTools.tsx`). They are usually
+picked from the ribbon, whose button still has focus.
+
 Picking a road drawing mode, **Edit points**, a note tool or a plan pick puts the tool down. If the
 road's end moves while legs are held (an Undo, or an edit elsewhere), the legs are dropped and the
 tool starts again from the new end.

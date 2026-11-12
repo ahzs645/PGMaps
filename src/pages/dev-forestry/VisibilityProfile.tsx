@@ -12,6 +12,10 @@ const PADDING = { top: 10, right: 8, bottom: 20, left: 26 }
 const PLOT_WIDTH = VIEW_WIDTH - PADDING.left - PADDING.right
 const PLOT_HEIGHT = VIEW_HEIGHT - PADDING.top - PADDING.bottom
 
+// Label sizes in viewBox units: the SVG scales to its width, so these sit below the type scale on purpose.
+const AXIS_LABEL_SIZE = 7
+const PEAK_LABEL_SIZE = 8
+
 /** One series, so identity needs no legend — the heading names it. */
 const SERIES_COLOR = '#ef4444'
 
@@ -135,7 +139,8 @@ export function VisibilityProfile({
               x={PADDING.left - 4}
               y={yFor(percent) + 3}
               textAnchor="end"
-              className="fill-muted-foreground text-[7px]"
+              className="fill-muted-foreground"
+              fontSize={AXIS_LABEL_SIZE}
             >
               {percent}
             </text>
@@ -182,7 +187,8 @@ export function VisibilityProfile({
             x={Math.min(VIEW_WIDTH - PADDING.right, Math.max(PADDING.left + 12, xFor(peak.distanceAlongMeters)))}
             y={Math.max(8, yFor(peak.visiblePercent) - 5)}
             textAnchor="middle"
-            className="fill-foreground text-[8px] font-semibold"
+            className="fill-foreground font-semibold"
+            fontSize={PEAK_LABEL_SIZE}
           >
             {formatPct(peak.visiblePercent, 0)}
           </text>
@@ -209,14 +215,15 @@ export function VisibilityProfile({
           </g>
         )}
 
-        <text x={PADDING.left} y={VIEW_HEIGHT - 6} className="fill-muted-foreground text-[7px]">
+        <text x={PADDING.left} y={VIEW_HEIGHT - 6} className="fill-muted-foreground" fontSize={AXIS_LABEL_SIZE}>
           0 km
         </text>
         <text
           x={VIEW_WIDTH - PADDING.right}
           y={VIEW_HEIGHT - 6}
           textAnchor="end"
-          className="fill-muted-foreground text-[7px]"
+          className="fill-muted-foreground"
+          fontSize={AXIS_LABEL_SIZE}
         >
           {formatKm(totalMeters, 1)}
         </text>

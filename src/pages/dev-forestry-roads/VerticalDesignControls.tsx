@@ -6,6 +6,8 @@ import { Plus, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { CollapsibleSection, InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { NumberField, OptionalNumberField, RoadSelect } from './Controls'
 import { formatRoadStation } from './Charts'
 import { RoadSection } from './SidebarParts'
@@ -260,8 +262,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
               />
               <Button
                 variant="ghost"
-                size="icon"
-                className="size-7"
+                size="icon-xs"
                 aria-label={`Remove grade range ${index + 1}`}
                 onClick={() => setStandards({ gradeRanges: standards.gradeRanges.filter((r) => r.id !== range.id) })}
               >
@@ -318,7 +319,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           </div>
           <div className="space-y-2" data-testid="road-curvature-ranges">
             {(standards.curvatureRanges ?? []).map((r, index) => (
-              <div key={r.id} className="rounded border p-2">
+              <div key={r.id} className={insetBox()}>
                 <div className="grid grid-cols-2 gap-1">
                   <OptionalNumberField
                     label={`Curvature ${index + 1} from`}
@@ -430,9 +431,8 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             <NumberField label="Curve K" value={k} min={0.1} max={1000} onChange={setK} />
           </div>
           <Button
-            size="sm"
+            size="field"
             variant="outline"
-            className="h-8"
             disabled={alignment.vertical.length < 3}
             title="Sets each interior PVI's curve length to K × its grade change, at least the minimum curve length"
             onClick={() =>
@@ -473,7 +473,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Search band centre
           <RoadSelect
             ariaLabel="Profile search band centre"
-            className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
+            className="min-w-0 flex-1 rounded-md border bg-background px-1 text-base md:text-xs"
             value={search.bandCenter}
             onValueChange={(value) => setSearch((x) => ({ ...x, bandCenter: value as 'ground' | 'design' }))}
           >
@@ -487,7 +487,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Objective
           <RoadSelect
             ariaLabel="Profile optimization objective"
-            className="min-w-0 flex-1 rounded border bg-background px-1 text-base md:text-xs"
+            className="min-w-0 flex-1 rounded-md border bg-background px-1 text-base md:text-xs"
             value={search.objective}
             onValueChange={(value) => setSearch((x) => ({ ...x, objective: value as 'earthwork' | 'total' }))}
           >
@@ -507,7 +507,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Save optimized result as
           <RoadSelect
             ariaLabel="Profile optimization result target"
-            className="mt-1 w-full rounded border bg-background p-1 text-base md:text-xs"
+            className="mt-1 w-full rounded-md border bg-background p-1 text-base md:text-xs"
             value={resultTarget}
             onValueChange={(value) => setResultTarget(value as typeof resultTarget)}
           >
@@ -524,7 +524,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           Optimize profile (K {k})
         </Button>
         {log && log.roadId === alignment.id && log.profileId === alignment.activeVerticalAlternativeId && (
-          <div className="mt-2 rounded-md border p-2" data-testid="road-profile-optimization-log">
+          <div className={cn(insetBox(), 'mt-2')} data-testid="road-profile-optimization-log">
             <p className="mb-1 text-xs font-medium">Last run</p>
             <KeyValueRows rows={verticalOptimizationLog(log.report)} valueMaxWidth="max-w-[10rem]" />
             {log.report.notes.map((note) => (
@@ -543,16 +543,16 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
       >
         <div className="space-y-2">
           {controls.map((c, index) => (
-            <div key={c.id} className="rounded border p-2" data-vertical-control>
+            <div key={c.id} className={insetBox()} data-vertical-control>
               <div className="mb-1 flex items-center justify-between gap-1">
                 <button className="text-xs font-medium" onClick={() => setStation(c.chainage)}>
                   Control {index + 1} · {formatRoadStation(c.chainage)}
                 </button>
                 <div className="flex items-center">
                   <Button
-                    size="sm"
+                    size="2xs"
                     variant="ghost"
-                    className="h-6 px-1 text-2xs"
+                    className="px-1"
                     title={
                       designed
                         ? 'Sets the elevation and grade from the designed profile at this station'
@@ -564,8 +564,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
                   </Button>
                   <Button
                     variant="ghost"
-                    size="icon"
-                    className="size-6"
+                    size="icon-2xs"
                     aria-label={`Remove control ${index + 1}`}
                     onClick={() =>
                       updateAlignment((a) => ({
@@ -664,7 +663,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
             {checks.map((check, index) => (
               <button
                 key={`${check.kind}-${index}`}
-                className="block w-full border-l-2 border-rose-500 pl-2 text-left text-2xs leading-4"
+                className="block w-full border-l-2 border-danger pl-2 text-left text-2xs leading-4"
                 onClick={() => setStation(check.chainage)}
               >
                 {check.message}
@@ -673,7 +672,7 @@ export function VerticalDesignControls({ workspace }: { workspace: RoadWorkspace
           </div>
         )}
         {designed && checks.length === 0 && (standards !== EMPTY_VERTICAL_STANDARDS || controls.length > 0) && (
-          <p className="mt-2 text-2xs text-emerald-700 dark:text-emerald-400" data-testid="road-vertical-checks-pass">
+          <p className="mt-2 text-2xs text-success" data-testid="road-vertical-checks-pass">
             The profile meets every set standard and control.
           </p>
         )}

@@ -4,8 +4,11 @@ import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { ChevronRight } from 'lucide-react'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
 import { StatGroup, type StatItem } from '@/components/ui/stat-group'
+import { InfoTip } from '@/components/ui/info-tip'
+import { SegmentedControl } from '@/components/ui/segmented-control'
 
 import type { AnalysisResult } from './types'
 import {
@@ -28,7 +31,9 @@ import {
   type ViaStepStatus,
   type ViewpointTypeId,
 } from './via'
+import { LAYOUT_STAGES, type LayoutStage } from './fieldChecklist'
 import { viewpointImportance } from './vqe'
+import { greenUpBasisLine, runGreenUpBasis } from './greenUp'
 import { VISUAL_QUALITY_CLASSES, visualQualityClass, type VisualQualityClassId } from './vqo'
 
 const SELECT_CLASS =
@@ -76,6 +81,8 @@ type HeadlineProps = {
   onOpenStep: (step: ViaStepId) => void
   /** The step on screen; the "Next" prompt is not shown for the step already open. */
   activeStep?: ViaStepId
+  /** Pre- or post-layout: what the whole assessment, and every report from it, is of. */
+  stage?: { value: LayoutStage; onChange: (stage: LayoutStage) => void }
 }
 
 /**
@@ -83,7 +90,15 @@ type HeadlineProps = {
  * Table 7 rating once there is one, and until then the numbers so far and the
  * next thing the handbook asks for.
  */
-export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenStep, activeStep }: HeadlineProps) {
+export function ViaHeadline({
+  assessment,
+  stale,
+  landformName,
+  statuses,
+  onOpenStep,
+  activeStep,
+  stage,
+}: HeadlineProps) {
   const next = VIA_STEPS.find((step) => statuses[step.id] === 'current') ?? null
   const rating = assessment?.rating ?? null
 
@@ -142,6 +157,26 @@ export function ViaHeadline({ assessment, stale, landformName, statuses, onOpenS
           </Badge>
         ) : null}
       </div>
+
+      {stage && (
+        <div className="mt-2 flex items-center gap-2" data-via-stage={stage.value}>
+          <span className="text-3xs font-medium uppercase tracking-wide text-muted-foreground">Stage</span>
+          <SegmentedControl<LayoutStage>
+            size="sm"
+            fullWidth={false}
+            label="VIA stage"
+            value={stage.value}
+            onChange={stage.onChange}
+            options={LAYOUT_STAGES.map((entry) => ({ value: entry.id, label: entry.label, title: entry.meaning }))}
+          />
+          <InfoTip label="About the VIA stage">
+            Pre-layout: the VIA is done on the proposed boundary and goes to the layout crew as the field brief (step
+            2), so wildlife tree patches, leave trees and the boundary are placed for the view. Post-layout: done on the
+            boundary as traversed. A desk run is pre-layout until you say otherwise. The stage is printed on the field
+            brief and the block note.
+          </InfoTip>
+        </div>
+      )}
 
       {stale && (
         <InlineAlert className="mt-3" tone="warning">
@@ -363,7 +398,18 @@ export function NumericalAssessmentSummary({
         rows={[
           { label: 'a. Proposed openings', value: percent(breakdown.proposedPercent) },
           { label: 'b. Visible roads and site disturbance', value: percent(breakdown.disturbancePercent) },
-          { label: 'c. Existing openings not greened up', value: percent(breakdown.existingPercent) },
+          {
+            label: (
+              <span>
+                c. Existing openings not greened up
+                {/* Which green-up the run used: a field check, or the model. */}
+                <span className="block text-3xs leading-4" data-green-up-basis>
+                  {greenUpBasisLine(runGreenUpBasis(result))}
+                </span>
+              </span>
+            ),
+            value: percent(breakdown.existingPercent),
+          },
           ...assessment.partialCuts.map((cut) => ({
             label: `Partial cut · ${cut.name} (Table 6)`,
             value: !cut.visible
@@ -516,7 +562,7 @@ export function FinalRatingFields({
   return (
     <div className="space-y-3" aria-label="Final rating">
       {rating ? (
-        <div className="rounded-md border border-border p-3">
+        <div className={insetBox({ padding: 'lg' })}>
           <div className="flex items-center justify-between gap-2">
             <p className="text-sm font-semibold text-foreground">{rating.label}</p>
             <Badge tone={rating.tone}>{assessment.objective.code} objective</Badge>

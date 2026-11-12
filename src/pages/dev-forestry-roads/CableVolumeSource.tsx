@@ -56,7 +56,7 @@ export function CableVolumeSource({
       </Field>
       {choice === 'vri' && (
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={busy} onClick={onFetchVri}>
+          <Button size="xs" variant="outline" disabled={busy} onClick={onFetchVri}>
             {weights ? 'Read VRI again' : 'Read VRI over the block'}
           </Button>
           <InfoTip label="About VRI volume">
@@ -67,13 +67,7 @@ export function CableVolumeSource({
       )}
       {choice === 'raster' && (
         <div className="flex items-center gap-1">
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 px-2 text-xs"
-            disabled={busy}
-            onClick={() => fileInput.current?.click()}
-          >
+          <Button size="xs" variant="outline" disabled={busy} onClick={() => fileInput.current?.click()}>
             Choose GeoTIFF
           </Button>
           <input

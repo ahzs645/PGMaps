@@ -5,6 +5,8 @@ import { assessHistoricalRoad, assessHistoricalStructures, roadGeometryFingerpri
 import type { HistoricalAccessState, HistoricalSource } from './accessHistoryTypes'
 import type { AccessHistorySelection } from './AccessHistorySelection'
 import type { ContextFeature, Coordinate } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const when = (value: { earliest: string | null; latest: string | null } | null) =>
   value ? `${value.earliest ?? 'unknown'} – ${value.latest ?? 'unknown'}` : 'not recorded'
@@ -67,7 +69,7 @@ export function AccessHistoryRecord({
     const sources = history.sources.filter((source) => sourceIds.has(source.id) || source.id === evidence?.sourceId)
     const structures = history.structures.filter((structure) => structure.roadId === road.id)
     return (
-      <div className="space-y-2 rounded-md border p-2.5 text-xs" data-testid="history-selected-road-record">
+      <div className={cn(insetBox(), 'space-y-2 text-xs')} data-testid="history-selected-road-record">
         <p className="break-words font-medium">{road.name}</p>
         <p className="text-2xs text-muted-foreground">
           {evidence?.source === 'scenario'
@@ -119,9 +121,7 @@ export function AccessHistoryRecord({
           {structures.length} structure record{structures.length === 1 ? ' names' : 's name'} this road;{' '}
           {structures.length === 1 ? 'its' : 'their'} attachment and dates need their own review.
         </p>
-        {assessment.status !== 'compatible' && (
-          <p className="text-2xs text-amber-800 dark:text-amber-300">{assessment.reasons.join(' ')}</p>
-        )}
+        {assessment.status !== 'compatible' && <p className="text-2xs text-warning">{assessment.reasons.join(' ')}</p>}
         {evidence?.sourceUrl && (
           <a href={evidence.sourceUrl} target="_blank" rel="noreferrer" className="inline-block underline">
             Open road data source
@@ -160,7 +160,7 @@ export function AccessHistoryRecord({
     const sourceIds = new Set([...structure.sourceIds, ...structure.evidence.flatMap((item) => item.sourceIds)])
     const sources = history.sources.filter((source) => sourceIds.has(source.id))
     return (
-      <div className="space-y-2 rounded-md border p-2.5 text-xs" data-testid="history-selected-structure-record">
+      <div className={cn(insetBox(), 'space-y-2 text-xs')} data-testid="history-selected-structure-record">
         <p className="break-words font-medium">{structure.name}</p>
         <p className="text-2xs text-muted-foreground">
           {sources.length && sources.every((source) => source.synthetic)
@@ -208,7 +208,7 @@ export function AccessHistoryRecord({
         ) : (
           <p>No dated closure, restriction or load-rating report is attached.</p>
         )}
-        <p className="text-2xs text-amber-800 dark:text-amber-300">{assessment.reasons.join(' ')}</p>
+        <p className="text-2xs text-warning">{assessment.reasons.join(' ')}</p>
         <Sources sources={sources} />
         {onLocate && (
           <Button size="sm" variant="outline" onClick={() => onLocate([structure.coordinate])}>

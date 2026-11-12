@@ -12,6 +12,7 @@ import { assessmentMaskSampler, parseMasks } from './assessmentMasks'
 import { parseRasters, rasterSampler } from './localRaster'
 import { demResolutionMeters, lngLatToMercator, mercatorToLngLat, type Bounds, type ElevationSource } from './terrain'
 import { activeLandform, alterationWeight, canonicalInput, unionContributions } from './integrity'
+import { greenUpReading } from './greenUp'
 import {
   DEFAULT_SIGHTLINE_OPTIONS,
   haversineMeters,
@@ -86,7 +87,7 @@ function validate(input: AnalysisInput) {
     if (point.length !== 2 || Math.abs(point[0]) > 180 || Math.abs(point[1]) > 85)
       throw new Error('The viewpoint must use WGS84 longitude and latitude.')
   for (const target of input.targets)
-    for (const value of [target.clearcutPercent, target.recoveryPercent])
+    for (const value of [target.clearcutPercent, target.recoveryPercent, target.fieldGreenUp?.greenedUpPercent])
       if (value != null && (value < 0 || value > 100))
         throw new Error('Clearcut and recovery percentages must be in [0, 100].')
 }
@@ -636,10 +637,20 @@ export function computeAnalysis(
   warnings.push(
     'Apparent-area integration is a screening approximation, not a calibrated photographic measurement. Grid spacing is not the native accuracy of the elevation source.',
   )
-  if (prepared.some((t) => t.role === 'harvested' && !t.siteDisturbance))
+  if (prepared.some((t) => t.role === 'harvested' && !t.siteDisturbance)) {
+    // A complete, dated field check overrides the model (`greenUp.ts`); say how many did.
+    const fieldChecked = input.targets.filter(
+      (t) =>
+        t.role === 'harvested' &&
+        !t.siteDisturbance &&
+        greenUpReading(t, input.assessmentYear, input.settings.greenUpAgeYears).used === 'field',
+    ).length
     warnings.push(
-      'Recovery uses an explicit percentage where supplied; otherwise the stated green-up-age planning assumption applies. Neither is an automatic field observation.',
+      fieldChecked
+        ? `Recovery of ${fieldChecked} existing opening${fieldChecked === 1 ? '' : 's'} is field-confirmed (dated and signed); the rest use an explicit percentage where supplied, otherwise the stated green-up-age planning assumption, which is modelled, not observed.`
+        : 'Recovery uses an explicit percentage where supplied; otherwise the stated green-up-age planning assumption applies. Neither is an automatic field observation.',
     )
+  }
   if (input.settings.targetOffsetMeters !== 0)
     warnings.push(
       'Target offset is not zero: the sightline target is not the cut surface. Numerical PDF fields are withheld.',

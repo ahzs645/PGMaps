@@ -5,12 +5,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { CopyButton } from '@/components/ui/copy-button'
 import { InfoTip } from '@/components/ui/info-tip'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, KeyValueRows } from '@/components/ui/map-panels'
+import { cn } from '@/lib/utils'
 
 import type { BcSensitivityUnit } from './bcVisualInventory'
 import type { ForestryScene } from './scene'
 import type { AnalysisResult, TargetPolygon } from './types'
-import type { ViaReview } from './via'
+import type { ViaAssessment, ViaReview } from './via'
+import {
+  draftVisualMeasures,
+  MEASURE_LIMITS,
+  measureItems,
+  measuresInputFromScene,
+  type VisualMeasure,
+} from './visualMeasures'
 import { PULLOUT_METERS, roadsNearBlock, type ViewpointInventory } from './viewpointInventory'
 import { lineLengthMeters, polygonAreaMeters, polygonBounds } from './visibility'
 import { queryVisualInventory } from './visualInventoryQuery'
@@ -25,6 +34,9 @@ import {
   type ViewpointFinding,
 } from './visualsNarrative'
 
+/** "0.5 km": how near a retention mask must be to the block to be listed with it. */
+const MEASURE_NEAR_KM = `${MEASURE_LIMITS.patchNearMeters / 1000} km`
+
 /** The paragraph box: the shared input style, tall enough for a planner's paragraph. */
 const TEXTAREA_CLASS = `${FORM_INPUT_CLASS} min-h-32 leading-5`
 
@@ -35,6 +47,8 @@ export type BlockNoteParts = {
   visuals: { text: string; drafted: boolean }
   sentences: ReadonlyArray<NarrativeSentence>
   landform: Array<{ label: string; value: string }>
+  /** The visual measures for the Site Plan and Logging Plan: the reviewer's, else the draft. */
+  measures: { items: string[]; drafted: boolean; basis: ReadonlyArray<VisualMeasure> }
 }
 
 type UnitState = { key: string; status: 'loading' | 'ready' | 'error'; units: EvqoUnit[]; error?: string }
@@ -63,6 +77,7 @@ export function VisualsParagraphPanel({
   otherViewpointsBlockId,
   captions,
   landform,
+  assessment,
   onExportNote,
 }: {
   scene: ForestryScene
@@ -85,6 +100,8 @@ export function VisualsParagraphPanel({
     parts: BlockNoteParts,
   ) => Promise<{ views: number; missing: number; planMap: boolean }>
   landform: TargetPolygon | null
+  /** Step 4's assessment against the landform, for the visual measures; null without a landform. */
+  assessment?: ViaAssessment | null
 }) {
   const blocks = scene.targets.filter((target) => target.role === 'block')
   const [chosen, setChosen] = useState<string | null>(null)
@@ -156,10 +173,30 @@ export function VisualsParagraphPanel({
     return { input, ...visualsNarrative(input) }
   }, [block, units, scene.targets, result, scene.viewpoint, inventory, included, landform, captions.length])
 
+  const measuresDraft = useMemo(
+    () =>
+      block
+        ? draftVisualMeasures(
+            measuresInputFromScene({
+              block,
+              masks: scene.masks ?? [],
+              landform,
+              assessment: assessment ?? null,
+              run: result && !stale ? 'current' : stale ? 'stale' : 'none',
+              landformDesign: result?.landformDesign,
+              viewpointName: scene.viewpoint.name,
+            }),
+          )
+        : null,
+    [block, scene.masks, landform, assessment, result, stale, scene.viewpoint.name],
+  )
+
   if (!block) return <p className="text-2xs text-muted-foreground">Add a cutblock to draft its note.</p>
 
   const note = review.visualsNote ?? ''
   const draft = narrative?.paragraph ?? ''
+  const measures = review.visualMeasures ?? ''
+  const measuresText = measuresDraft?.text ?? ''
   const planning = block.planning
   const headerRows = [
     { label: 'Block', value: planning?.blockId ?? block.name },
@@ -213,6 +250,11 @@ export function VisualsParagraphPanel({
         visuals: { text: note || draft, drafted: !note },
         sentences: narrative?.sentences ?? [],
         landform: [viewpointRow, ...landformRows],
+        measures: {
+          items: measureItems(measures || measuresText),
+          drafted: !measures,
+          basis: measuresDraft?.measures ?? [],
+        },
       })
       setExporting({
         format: null,
@@ -236,7 +278,7 @@ export function VisualsParagraphPanel({
       {blocks.length > 1 && (
         <StyledSelect
           aria-label="Block the paragraph is for"
-          className="w-full rounded border bg-background p-1"
+          className="w-full rounded-md border bg-background p-1"
           value={block.id}
           onChange={(event) => setChosen(event.target.value)}
         >
@@ -308,7 +350,7 @@ export function VisualsParagraphPanel({
           </div>
           <ol className="space-y-1.5" aria-label="Draft sentences">
             {narrative.sentences.map((sentence) => (
-              <li key={sentence.id} className="rounded border border-border/60 p-2">
+              <li key={sentence.id} className={cn(insetBox(), 'border-border/60')}>
                 <p className="text-foreground">{sentence.text}</p>
                 <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">{sentence.basis}</p>
               </li>
@@ -348,15 +390,73 @@ export function VisualsParagraphPanel({
         <p className="text-3xs text-muted-foreground">Your text is kept; the draft above follows the latest run.</p>
       )}
 
+      <div className="space-y-2 border-t border-border/60 pt-3" aria-label="Visual measures">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-medium text-foreground">Visual measures · Site Plan and Logging Plan</p>
+          <InfoTip label="About the visual measures">
+            What the logging crew does to achieve the objective, and when to stop. Drafted from what the assessment
+            records: the objective and its measured and adjusted figure, VAC, the wildlife tree patches and retention
+            drawn or imported in step 3 (in or within {MEASURE_NEAR_KM} of the block), the block's harvest system, the
+            step-4 design ratings the design relies on (good or moderate edges, good force lines, character and
+            position), the run's skyline check and road visibility. It always ends with a stop-work condition. Edit the
+            list: one measure per line. The block note numbers them.
+          </InfoTip>
+        </div>
+        {measuresDraft && (
+          <ol className="space-y-1.5" aria-label="Draft measures">
+            {measuresDraft.measures.map((measure) => (
+              <li key={measure.id} className="rounded-md border border-border/60 p-2">
+                <p className="text-foreground">{measure.text}</p>
+                <p className="mt-0.5 text-3xs leading-4 text-muted-foreground">{measure.basis}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+        <label className="block">
+          <span className="mb-1 block text-2xs font-medium text-muted-foreground">
+            Visual measures (yours, one per line)
+          </span>
+          <textarea
+            className={TEXTAREA_CLASS}
+            value={measures}
+            placeholder={measuresText}
+            onChange={(event) => onReviewChange({ visualMeasures: event.target.value })}
+          />
+        </label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={measures ? 'outline' : 'default'}
+            disabled={!measuresText || measures === measuresText}
+            onClick={() => onReviewChange({ visualMeasures: measuresText })}
+          >
+            {measures ? 'Replace with the draft measures' : 'Use the draft measures'}
+          </Button>
+          <CopyButton
+            text={measureItems(measures || measuresText)
+              .map((item, i) => `${i + 1}. ${item}`)
+              .join('\n')}
+            className={buttonVariants({ variant: 'outline', size: 'sm' })}
+            disabled={!(measures || measuresText)}
+          >
+            Copy measures
+          </CopyButton>
+        </div>
+        {measures && measuresText && measures !== measuresText && (
+          <p className="text-3xs text-muted-foreground">Your list is kept; the draft above follows the assessment.</p>
+        )}
+      </div>
+
       <div className="space-y-1.5 border-t border-border/60 pt-3" aria-label="Block note export">
         <p className="flex items-center gap-1 text-2xs font-medium text-muted-foreground">
           Block note
           <InfoTip label="About the block note">
-            The header above, the Visuals paragraph (yours, or the draft marked as one), the landform and its percent
-            alteration, every saved view's screenshot with its caption — from every place you stood — and a plan map of
-            the block and viewpoint. Excel follows the planner's report: Visuals in column B, the paragraph in C, the
-            screenshots below, so the row pastes into their workbook. PDF puts the first view large with the note beside
-            it. Screenshots are taken when a view is saved and kept for this session.
+            The header above, the Visuals paragraph and the visual measures (yours, or the drafts marked as such), the
+            landform and its percent alteration, every saved view's screenshot with its caption — from every place you
+            stood — and a plan map of the block and viewpoint. Excel follows the planner's report: Visuals in column B,
+            the paragraph in C, the screenshots below, so the row pastes into their workbook. PDF puts the first view
+            large with the note beside it. Screenshots are taken when a view is saved and kept for this session.
           </InfoTip>
         </p>
         <div className="flex flex-wrap gap-2">
@@ -392,7 +492,7 @@ export function VisualsParagraphPanel({
             <p className="text-2xs font-medium text-muted-foreground">Screenshot captions</p>
             <CopyButton
               text={captions.join('\n')}
-              className={buttonVariants({ variant: 'ghost', size: 'sm', className: 'h-7 px-2 text-2xs' })}
+              className={buttonVariants({ variant: 'ghost', size: 'xs', className: 'text-2xs' })}
             >
               Copy
             </CopyButton>

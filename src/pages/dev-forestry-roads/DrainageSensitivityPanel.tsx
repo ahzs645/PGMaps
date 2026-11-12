@@ -16,6 +16,8 @@ import {
 } from './drainageSensitivity'
 import { Field, roadFieldClass, RoadSelect } from './Controls'
 import { RoadSection } from './SidebarParts'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 const number = (v: number, digits = 3) => v.toLocaleString('en-CA', { maximumFractionDigits: digits })
 const delta = (v: number | null, unit: string) =>
@@ -123,7 +125,7 @@ export function DrainageSensitivityPanel({
               return (
                 <article
                   key={id}
-                  className="min-w-0 space-y-2 rounded border p-2"
+                  className={cn(insetBox(), 'min-w-0 space-y-2')}
                   aria-label={`Comparison ${record.label}`}
                 >
                   <div className="flex min-w-0 items-start justify-between gap-2">
@@ -173,7 +175,7 @@ export function DrainageSensitivityPanel({
                     ]}
                   />
                   {catchment && (
-                    <p className={catchment.truncated ? 'text-amber-800 dark:text-amber-300' : 'text-muted-foreground'}>
+                    <p className={catchment.truncated ? 'text-warning' : 'text-muted-foreground'}>
                       {catchment.truncated
                         ? 'Boundary or missing-terrain contact: area may be incomplete.'
                         : 'No sampled boundary contact.'}
@@ -182,7 +184,7 @@ export function DrainageSensitivityPanel({
                   {!isBaseline && <p>Changed: {comparison.changedInputs.join('; ') || 'No recorded input changes'}.</p>}
                   {!isBaseline &&
                     comparison.cautions.map((caution) => (
-                      <p key={caution} className="text-amber-800 dark:text-amber-300">
+                      <p key={caution} className="text-warning">
                         {caution}
                       </p>
                     ))}
@@ -207,10 +209,7 @@ export function DrainageSensitivityPanel({
                       {number(record.summary.pondingAreaM2)} m² potential new ponding.
                     </p>
                     {record.warnings.length > 0 && (
-                      <ul
-                        className="list-disc space-y-1 pl-4 text-amber-800 dark:text-amber-300"
-                        aria-label="Saved run warnings"
-                      >
+                      <ul className="list-disc space-y-1 pl-4 text-warning" aria-label="Saved run warnings">
                         {record.warnings.map((warning, index) => (
                           <li key={index}>{warning}</li>
                         ))}

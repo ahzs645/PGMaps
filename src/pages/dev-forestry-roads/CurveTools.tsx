@@ -17,6 +17,8 @@ import {
 import { sectionCrossfall, templateAt } from './templates'
 import type { RoadWorkspace } from './useRoadWorkspace'
 import type { CurveDesign } from './types'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 /** Bulk curve tools for the horizontal points: one default radius, or a best fit within a tolerance. */
 /** Field height when the label fits; a narrow pane wraps the label and the button grows rather than clipping. */
@@ -86,7 +88,7 @@ export function CurveTools({ workspace }: { workspace: RoadWorkspace }) {
   }
   // Each row is the action and the one value it uses, so the four tools read as a short list.
   return (
-    <div className="mt-2 rounded-md border p-2" data-testid="road-curve-tools">
+    <div className={cn(insetBox(), 'mt-2')} data-testid="road-curve-tools">
       <p className="mb-1 text-xs font-medium">Bulk curve tools</p>
       <div className="grid grid-cols-[minmax(0,1fr)_5.5rem] items-end gap-x-2 gap-y-1.5">
         <Button
@@ -377,7 +379,7 @@ export function CurveDesignControls({ workspace }: { workspace: RoadWorkspace })
                     const inside = sectionCrossfall(resolved, r.direction, fitted)
                     const outside = sectionCrossfall(resolved, r.direction === 'left' ? 'right' : 'left', fitted)
                     return (
-                      <tr key={i} className={c.warnings.length ? 'text-amber-700 dark:text-amber-400' : ''}>
+                      <tr key={i} className={c.warnings.length ? 'text-warning' : ''}>
                         <td title={`Full deflection ${r.deflectionDegrees.toFixed(1)}° including spirals`}>
                           {r.radius.toFixed(1)} m
                         </td>

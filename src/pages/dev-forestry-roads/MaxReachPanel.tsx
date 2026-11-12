@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ColumnHeader, EngineeringTable } from '@/components/ui/engineering-table'
 import { InfoTip } from '@/components/ui/info-tip'
@@ -180,7 +182,7 @@ export function MaxReachPanel({
         summary={`${settings.minLengthM}–${settings.maxLengthM} m · ${settings.bearingStepDeg}° step · ${rigging ? 'rope and load' : `${sag.deflectionPercent}% sag`}`}
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
-        className="mb-2 rounded-md border"
+        className={cn(insetBox({ padding: 'none' }), 'mb-2')}
         contentClassName="space-y-3 px-3 pb-3"
         actions={
           <InfoTip label="About the reach search">
@@ -250,7 +252,7 @@ export function MaxReachPanel({
       </div>
       {error && <InlineAlert tone="error">{error}</InlineAlert>}
       {!result && record && !error && !progress && (
-        <p role="status" className="mb-2 text-xs text-amber-700 dark:text-amber-400">
+        <p role="status" className="mb-2 text-xs text-warning">
           Landing, terrain or settings changed. Run again to replace the previous preview.
         </p>
       )}
@@ -277,12 +279,12 @@ export function MaxReachPanel({
             </span>
           </div>
           {result.warnings.map((warning) => (
-            <p key={warning} className="mb-2 text-3xs text-amber-700 dark:text-amber-400">
+            <p key={warning} className="mb-2 text-3xs text-warning">
               {warning}
             </p>
           ))}
           <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(170px,0.75fr)_minmax(0,1fr)]">
-            <div className="max-h-64 overflow-auto overscroll-none rounded border">
+            <div className={cn(insetBox({ padding: 'none' }), 'max-h-64 overflow-auto overscroll-none')}>
               <EngineeringTable className="whitespace-normal" data-testid="radial-reach-table">
                 <thead className="sticky top-0">
                   <tr>

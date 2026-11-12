@@ -1,6 +1,7 @@
 import type { ForestryScene } from './scene'
 import type { AnalysisInput, TargetPolygon } from './types'
 import { activeLandform, canonicalInput } from './integrity'
+import { fieldGreenUpInput } from './greenUp'
 /** The same builder is used for the worker request and stale-result checks. */
 export function buildSceneInput(scene: ForestryScene): AnalysisInput {
   const forms = scene.targets.filter((t) => t.role === 'landscape')
@@ -17,17 +18,23 @@ export function buildSceneInput(scene: ForestryScene): AnalysisInput {
         siteDisturbance,
         recoveryPercent,
         harvestSystem,
-      }) => ({
-        id,
-        name,
-        role,
-        geometry,
-        harvestYear,
-        clearcutPercent,
-        siteDisturbance,
-        recoveryPercent,
-        ...(harvestSystem === 'partial' ? { harvestSystem } : {}),
-      }),
+        fieldGreenUp,
+      }) => {
+        // Only a complete field check is a run input, and never its note.
+        const field = role === 'harvested' ? fieldGreenUpInput(fieldGreenUp) : undefined
+        return {
+          id,
+          name,
+          role,
+          geometry,
+          harvestYear,
+          clearcutPercent,
+          siteDisturbance,
+          recoveryPercent,
+          ...(harvestSystem === 'partial' ? { harvestSystem } : {}),
+          ...(field ? { fieldGreenUp: field } : {}),
+        }
+      },
     ),
     settings: scene.settings,
     assessmentYear: scene.assessmentYear ?? new Date().getFullYear(),
@@ -45,6 +52,8 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
     const assessed: Partial<ForestryScene> = { ...scene }
     delete assessed.reportMetadata
     delete assessed.viaReview
+    // Tree-free areas only change the drawn timber.
+    delete assessed.treeFreeAreas
     // Likewise a block's retention and partial-cut figures (Tables 5 and 6);
     // only whether a block is a partial cut changes what the run clears.
     assessed.targets = scene.targets.map((target) => {
@@ -55,6 +64,11 @@ export function sceneFingerprint(scene: ForestryScene): string | null {
       delete kept.plannedHarvestYear
       delete kept.displayColor
       if (kept.harvestSystem !== 'partial') delete kept.harvestSystem
+      // A field check counts once complete, as the run reads it; its note is a remark, and a
+      // draft check without a date or observer leaves the model in charge.
+      const field = kept.role === 'harvested' ? fieldGreenUpInput(kept.fieldGreenUp) : undefined
+      if (field) kept.fieldGreenUp = field
+      else delete kept.fieldGreenUp
       return kept
     })
     return canonicalInput({ ...assessed, assessmentYear: buildSceneInput(scene).assessmentYear })

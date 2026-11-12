@@ -35,13 +35,15 @@ import { Button } from '@/components/ui/button'
 import { ColorField } from '@/components/ui/color-field'
 import { FileButton } from '@/components/ui/file-button'
 import { SegmentedControl } from '@/components/ui/segmented-control'
-import { ListHeader, ResultRow, ResultRowDetail } from '@/components/ui/result-list'
-import { TextButton } from '@/components/ui/text-button'
+import { ListHeader, ResultRow } from '@/components/ui/result-list'
+import { ExternalLink, TextButton } from '@/components/ui/text-button'
 import { ToggleRow } from '@/components/ui/toggle-row'
 import { formatMeasure, formatNumber, formatPercentValue } from '@/lib/format'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Notification } from '@/components/ui/notification'
-import { EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
+import { BC_DESIGN_HANDBOOK } from './LandformDesignPanel'
+import { compassPoint, EVQO_COLORS, EVQO_NAMES, type EvqoCode } from './visualsNarrative'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert, MapSidebarShell } from '@/components/ui/map-panels'
 import { ToolSection } from '@/components/ui/tool-section'
 import { StepMarker, stepStatusText } from '@/components/ui/step-section'
@@ -57,7 +59,8 @@ import type { TreeLook, TreeStyle } from './treeLayer'
 import type { AnalysisState, ReverseState } from './useVisibilityAnalysis'
 import { findSceneLandform } from './sceneInput'
 import { lineLengthMeters } from './visibility'
-import { SENSITIVITY_UNIT_COLORS } from './planMapStyle'
+import { SENSITIVITY_UNIT_COLORS, TREE_FREE_COLOR } from './planMapStyle'
+import { polygonAreaMeters } from './visibility'
 import {
   AdjustmentFields,
   FinalRatingFields,
@@ -66,6 +69,7 @@ import {
   ViaHeadline,
   ViewpointTypeField,
 } from './ViaPanels'
+import { layoutStageOf } from './fieldChecklist'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -81,7 +85,7 @@ import {
   type VisualQualityThresholds,
 } from './vqo'
 
-export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape'
+export type DrawMode = 'none' | 'spot' | 'corridor' | 'block' | 'landscape' | 'tree-free' | 'wildlife-tree-patch'
 
 export type InventoryState = {
   status: 'idle' | 'loading' | 'ready' | 'error'
@@ -198,6 +202,7 @@ function Field({
 function NumberField({
   label,
   hint,
+  info,
   value,
   min,
   max,
@@ -207,6 +212,8 @@ function NumberField({
 }: {
   label: string
   hint?: ReactNode
+  /** Background behind an info button beside the label, rather than a line under the field. */
+  info?: ReactNode
   value: number
   min: number
   max: number
@@ -218,6 +225,7 @@ function NumberField({
     <SharedNumberField
       label={label}
       hint={hint}
+      hintAction={info ? <InfoTip label={`About ${label.toLowerCase()}`}>{info}</InfoTip> : undefined}
       value={value}
       onValueChange={onChange}
       min={min}
@@ -269,10 +277,13 @@ function OptionalNumber({
   )
 }
 
+/** The Forest Planning and Practices Regulation (B.C. Reg. 14/2004) on BC Laws. */
+const FPPR_URL = 'https://www.bclaws.gov.bc.ca/civix/document/id/complete/statreg/14_2004'
+
 /** "Which roads see the block" lists this many before *Show all*. */
 const ROADS_SHOWN = 8
 
-/** A row's fields when it is not selected: `ResultRowDetail`'s layout without its tint. */
+/** A polygon card's fields, lined up under its title; the card carries any selection tint. */
 function PlainRowDetail({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn('pb-3 pl-8 pr-3 text-xs', className)}>{children}</div>
 }
@@ -390,6 +401,7 @@ type SidebarProps = {
   onTargetChange: (targetId: string, patch: Partial<TargetPolygon>) => void
   onRemoveTarget: (targetId: string) => void
   onZoomToTarget: (targetId: string) => void
+  onRemoveTreeFreeArea?: (areaId: string) => void
 
   drawMode: DrawMode
   onDrawModeChange: (mode: DrawMode) => void
@@ -459,12 +471,20 @@ type SidebarProps = {
   visit: ReactNode
   /** Step 2: a street-level field photo to line the road view up with. */
   fieldPhoto?: ReactNode
+  /** Step 2: the pre-layout field brief for the layout crew, and the crew's checklist answered back. */
+  fieldBrief?: ReactNode
   /** Step 3: which landform the run measures, and its green area. */
   landformScope: ReactNode
   /** Step 3: assessment masks and local terrain or canopy surfaces, a folded section of its own. */
   localSources?: ReactNode
+  /** Step 3: draw wildlife tree patches (retained masks), under the run. */
+  wildlifeTreePatches?: ReactNode
   /** Step 3: the landform design review. */
   designReview: ReactNode
+  /** Saved design alternatives and their comparisons: step 3's, unlike the reading in Resources. */
+  designComparisons?: ReactNode
+  /** Step 3, heading the Results: the previous run's verdict beside this one's (`runRevision.ts`). */
+  runRevision?: ReactNode
   /** Step 5: the FS1252 draft package. */
   report: ReactNode
   /** Step 5: the VIA evidence package and workspace, a folded section of its own. */
@@ -494,6 +514,7 @@ export function Sidebar({
   onTargetChange,
   onRemoveTarget,
   onZoomToTarget,
+  onRemoveTreeFreeArea,
   drawMode,
   onDrawModeChange,
   onSnapToRoad,
@@ -531,9 +552,13 @@ export function Sidebar({
   landformFinder,
   visit,
   fieldPhoto,
+  fieldBrief,
   landformScope,
   localSources,
+  wildlifeTreePatches,
   designReview,
+  designComparisons,
+  runRevision,
   report,
   evidence,
   viewpointFinder,
@@ -630,13 +655,21 @@ export function Sidebar({
   // objective and whichever of VAC or harvest system applies.
   const renderTarget = (target: TargetPolygon) => {
     const selected = selectedTargetId === target.id
-    // Fields under the row, lined up with its title; tinted with it while selected.
-    const Detail = selected ? ResultRowDetail : PlainRowDetail
+    // The whole card carries the selection (a tinted fill and border, no accent
+    // stripe), so the row, its icon buttons and its fields read as one piece.
     return (
-      <li key={target.id} className="overflow-hidden rounded-md border border-border">
-        <div className="flex items-start">
+      <li
+        key={target.id}
+        className={cn(
+          insetBox({ padding: 'none' }),
+          'overflow-hidden',
+          selected && 'border-sky-300 bg-sky-50/70 dark:border-sky-800 dark:bg-sky-950/30',
+        )}
+        data-target-card={target.id}
+      >
+        <div className="flex items-center gap-0.5 pr-1">
           <ResultRow
-            className="min-w-0 flex-1 px-2 py-2"
+            className="min-w-0 flex-1 bg-transparent px-2 py-2 ring-0 hover:bg-transparent dark:bg-transparent dark:hover:bg-transparent"
             selected={selected}
             onClick={() => onSelectTarget(target.id)}
             leading={
@@ -667,8 +700,8 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="mt-1 h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+            size="icon-xs"
+            className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
             onClick={() => onZoomToTarget(target.id)}
             aria-label={`Zoom to ${target.name}`}
             title="Zoom to polygon"
@@ -678,8 +711,8 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="icon"
-            className="mr-1 mt-1 h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
+            size="icon-xs"
+            className="shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
             onClick={() => onRemoveTarget(target.id)}
             aria-label={`Remove ${target.name}`}
             title="Remove polygon"
@@ -687,10 +720,11 @@ export function Sidebar({
             <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
-        <Detail className="pl-7">
-          <div className="flex flex-wrap items-center gap-1.5">
+        <PlainRowDetail className="pl-[1.625rem] pt-0 pb-2.5">
+          {/* The objective is the long one, so it takes a line; role and VAC share the next. */}
+          <div className="grid grid-cols-2 gap-1.5">
             <StyledSelect
-              className={SELECT_CLASS}
+              className={cn(SELECT_CLASS, 'order-2 w-full')}
               value={target.role}
               onChange={(event) => onTargetChange(target.id, { role: event.target.value as TargetRole })}
               aria-label={`Role for ${target.name}`}
@@ -699,7 +733,7 @@ export function Sidebar({
               <option value="landscape">Landform</option>
             </StyledSelect>
             <StyledSelect
-              className={SELECT_CLASS}
+              className={cn(SELECT_CLASS, 'order-1 col-span-2 w-full')}
               value={target.objectiveId}
               onChange={(event) =>
                 onTargetChange(target.id, {
@@ -718,7 +752,7 @@ export function Sidebar({
                       to hide alteration, so it only means anything on one. */}
             {target.role === 'landscape' && (
               <StyledSelect
-                className={SELECT_CLASS}
+                className={cn(SELECT_CLASS, 'order-3 w-full')}
                 value={target.vac ?? ''}
                 onChange={(event) =>
                   onTargetChange(target.id, { vac: (event.target.value || null) as VacRating | null })
@@ -742,15 +776,15 @@ export function Sidebar({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-7 px-2 text-2xs"
+                size="xs"
+                className="text-2xs"
                 onClick={() => onActivateLandform(target.id)}
               >
                 Assess against this landform
               </Button>
             </div>
           )}
-        </Detail>
+        </PlainRowDetail>
       </li>
     )
   }
@@ -774,6 +808,10 @@ export function Sidebar({
         statuses={via.statuses}
         onOpenStep={goToStep}
         activeStep={activeStep}
+        stage={{
+          value: layoutStageOf(via.review),
+          onChange: (layoutStage) => via.onReviewChange({ layoutStage }),
+        }}
       />
 
       {/* The five handbook steps as tabs, pinned while the step scrolls. */}
@@ -876,7 +914,12 @@ export function Sidebar({
               )}
             </div>
             {hasViewpoint && (
-              <div className="flex items-center gap-1.5 rounded-md border bg-muted/20 py-1 pl-2.5 pr-1 text-xs">
+              <div
+                className={cn(
+                  insetBox({ padding: 'none', tone: 'muted' }),
+                  'flex items-center gap-1.5 py-1 pl-2.5 pr-1 text-xs',
+                )}
+              >
                 <span className="min-w-0 flex-1 truncate text-muted-foreground">
                   {viewpoint.mode === 'spot'
                     ? `${formatMeasure(viewpoint.coordinates[0][1], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}, ${formatMeasure(viewpoint.coordinates[0][0], null, { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`
@@ -885,8 +928,8 @@ export function Sidebar({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
                   onClick={onSnapToRoad}
                   aria-label="Snap to the nearest road"
                   title="Snap to the nearest road"
@@ -896,8 +939,8 @@ export function Sidebar({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 shrink-0 text-muted-foreground touch:h-10 touch:w-10"
+                  size="icon-xs"
+                  className="shrink-0 text-muted-foreground touch:h-10 touch:w-10"
                   onClick={() => onViewpointChange({ ...viewpoint, coordinates: [] })}
                   aria-label={viewpoint.mode === 'spot' ? 'Clear the viewpoint' : 'Clear the road'}
                   title="Clear the viewpoint"
@@ -954,7 +997,7 @@ export function Sidebar({
           )}
 
           {reverse.result && reverse.result.roads.length > 0 && (
-            <div className="overflow-hidden rounded-md border border-border">
+            <div className={cn(insetBox({ padding: 'none' }), 'overflow-hidden')}>
               <ListHeader
                 count={reverse.result.roads.length}
                 noun={['road', 'roads']}
@@ -1090,7 +1133,7 @@ export function Sidebar({
           help="Provincial sensitivity units read live from DataBC, plus harvest and forest-cover context. Boundaries are candidates: review the visible landform before adopting one."
           actions={
             inventory.units.length > 0 && (
-              <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-2xs" onClick={onToggleInventory}>
+              <Button type="button" variant="ghost" size="xs" className="text-2xs" onClick={onToggleInventory}>
                 {showInventory ? 'Hide' : 'Show'}
               </Button>
             )
@@ -1130,7 +1173,7 @@ export function Sidebar({
                   {inventory.stands.length > 0 ? ` · ${inventory.stands.length} surveyed stands` : ''}
                 </p>
                 <ul
-                  className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-md border border-border"
+                  className={cn(insetBox({ padding: 'none' }), 'mt-2 max-h-56 divide-y divide-border overflow-y-auto')}
                   aria-label="Inventory units in this view"
                 >
                   {ratedUnits.map((unit) => (
@@ -1182,14 +1225,14 @@ export function Sidebar({
               title="Road view"
               help={
                 <>
-                  Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery
-                  drapes the photo over the hills. EVQO polygons drape the established objectives over the ground,
-                  coloured by class, as a planner&apos;s Google Earth layer does. Landform drapes the landform being
-                  assessed (light blue) and the other ridge layers read for it (purple), so you can see which band of
-                  the mountain the block takes a share of. Distance haze fades each ridge a little more than the one in
-                  front, as real air does; it changes only the picture. Note screenshot look is how planning-note
-                  screenshots are taken in Google Earth: imagery, the proposed blocks filled white, no drawn timber or
-                  points. Turn timber back on to see what roadside trees would screen.
+                  Analysis points are the block ground the terrain lets the nearest station see. Satellite imagery (the
+                  road view&apos;s Layers button) drapes the photo over the hills. EVQO polygons drape the established
+                  objectives over the ground, coloured by class, as a planner&apos;s Google Earth layer does. Landform
+                  drapes the landform being assessed (light blue) and the other ridge layers read for it (purple), so
+                  you can see which band of the mountain the block takes a share of. Distance haze fades each ridge a
+                  little more than the one in front, as real air does; it changes only the picture. Note screenshot look
+                  is how planning-note screenshots are taken in Google Earth: imagery, the proposed blocks filled white,
+                  no drawn timber or points. Turn timber back on to see what roadside trees would screen.
                 </>
               }
             >
@@ -1200,11 +1243,15 @@ export function Sidebar({
                     value={
                       drive.lookAtTargetId ??
                       (drive.lookBearing !== null
-                        ? `arrow:${lookArrows.find((arrow) => Math.abs(arrow.bearing - drive.lookBearing!) < 0.5)?.id ?? ''}`
+                        ? (() => {
+                            const arrow = lookArrows.find((entry) => Math.abs(entry.bearing - drive.lookBearing!) < 0.5)
+                            return arrow ? `arrow:${arrow.id}` : 'bearing'
+                          })()
                         : '')
                     }
                     onChange={(event) => {
                       const value = event.target.value
+                      if (value === 'bearing') return
                       const arrow = value.startsWith('arrow:')
                         ? lookArrows.find((entry) => `arrow:${entry.id}` === value)
                         : null
@@ -1227,6 +1274,13 @@ export function Sidebar({
                         {arrow.label}
                       </option>
                     ))}
+                    {/* Set by turning the view cone on the plan; picking it again keeps that bearing. */}
+                    {drive.lookBearing !== null &&
+                      !lookArrows.some((arrow) => Math.abs(arrow.bearing - drive.lookBearing!) < 0.5) && (
+                        <option value="bearing">
+                          Turned on the map · {compassPoint(drive.lookBearing)} ({Math.round(drive.lookBearing)}°)
+                        </option>
+                      )}
                   </StyledSelect>
                 </Field>
                 {roadViewJump}
@@ -1239,13 +1293,6 @@ export function Sidebar({
                       label="Analysis points"
                       active={drive.showAnalysis}
                       onClick={() => onDriveChange({ showAnalysis: !drive.showAnalysis })}
-                    />
-                    <ToggleRow
-                      layout="tile"
-                      tone="primary"
-                      label="Satellite imagery"
-                      active={drive.imagery}
-                      onClick={() => onDriveChange({ imagery: !drive.imagery })}
                     />
                     <ToggleRow
                       layout="tile"
@@ -1446,6 +1493,53 @@ export function Sidebar({
                         onChange={(value) => onDriveChange({ roadClearWidthMeters: value })}
                       />
                     </div>
+                    {/* Ground drawn without timber: a pullout, a cleared stretch of roadside, a field. */}
+                    <div className="space-y-1.5" data-testid="tree-free-areas">
+                      <Button
+                        type="button"
+                        variant={drawMode === 'tree-free' ? 'default' : 'outline'}
+                        size="sm"
+                        className="h-8 w-full text-xs touch:h-10"
+                        aria-pressed={drawMode === 'tree-free'}
+                        onClick={() => onDrawModeChange(drawMode === 'tree-free' ? 'none' : 'tree-free')}
+                        title="Trace an area on the plan map where the road view leaves the timber out"
+                      >
+                        <Trees className="h-3.5 w-3.5" />
+                        {drawMode === 'tree-free' ? 'Drawing on the plan…' : 'Draw a tree-free area'}
+                      </Button>
+                      {drawMode === 'tree-free' && setup}
+                      {(scene.treeFreeAreas ?? []).length > 0 && (
+                        <ul className="divide-y divide-border overflow-hidden rounded-md border border-border text-2xs">
+                          {(scene.treeFreeAreas ?? []).map((area) => (
+                            <li key={area.id} className="flex items-center gap-2 py-0.5 pl-2 pr-0.5">
+                              <span
+                                className="h-2.5 w-2.5 shrink-0 rounded-sm border border-dashed"
+                                style={{ borderColor: TREE_FREE_COLOR }}
+                              />
+                              <span className="min-w-0 flex-1 truncate">{area.name}</span>
+                              <span className="shrink-0 tabular-nums text-muted-foreground">
+                                {formatMeasure(polygonAreaMeters(area.geometry) / 10_000, 'ha', {
+                                  maximumFractionDigits: 2,
+                                })}
+                              </span>
+                              {onRemoveTreeFreeArea && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive touch:h-10 touch:w-10"
+                                  onClick={() => onRemoveTreeFreeArea(area.id)}
+                                  aria-label={`Remove ${area.name}`}
+                                  title="Put the timber back"
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                     <SegmentedControl
                       size="sm"
                       label="How a stem is drawn"
@@ -1499,9 +1593,9 @@ export function Sidebar({
         {fieldPhoto && (
           <ToolSection
             title="Field photo"
-            summary="Mapillary street-level photo"
+            summary="Mapillary or your own photo"
             toggleProps={{ 'data-forestry-disclosure': 'field-photo' }}
-            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. A street-level photo from Mapillary can stand in for a first visit: line the road view up with it and see whether the terrain and timber match."
+            help="Handbook 3.2 photographs each viewpoint and 3.3.4 checks the simulation against the photo. Line the road view up with a street-level photo from Mapillary, or with a photo of your own (read in this browser, never uploaded), and see whether the terrain and timber match."
           >
             {fieldPhoto}
           </ToolSection>
@@ -1518,6 +1612,7 @@ export function Sidebar({
             hideLabel
           />
         </ToolSection>
+        {fieldBrief}
       </div>
 
       {/* Step 3 — 3.3: delineate the landform, review the design, simulate. */}
@@ -1601,8 +1696,10 @@ export function Sidebar({
             )}
           </div>
         </ToolSection>
+        {wildlifeTreePatches}
         {result && (
           <ToolSection title="Results">
+            {runRevision}
             <ResultsPanel
               result={result}
               targets={targets}
@@ -1720,7 +1817,7 @@ export function Sidebar({
             min={100}
             max={20000}
             step={100}
-            hint="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
+            info="More points resolve the edges of a block and small openings on a large landform; the run warns when a proposal covers too few landform cells. The grid is coarsened automatically if a run would take too long."
             onChange={(value) => onSettingsChange({ ...settings, sampleBudget: value })}
           />
         </ToolSection>
@@ -1784,17 +1881,15 @@ export function Sidebar({
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-2xs text-muted-foreground"
+            size="xs"
+            className="text-2xs text-muted-foreground"
             onClick={() => onThresholdsChange({ ...DEFAULT_VISUAL_QUALITY_THRESHOLDS })}
           >
             Reset to guidebook defaults
           </Button>
         </ToolSection>
         {localSources}
-        {/* Guidance for reading the design against the terrain: after the
-          results it explains, and folded, since it is reading, not a control. */}
-        {designReview}
+        {designComparisons}
       </div>
 
       {/* Step 4 — 3.4: the ocular class first, then the measured and adjusted figure. */}
@@ -1870,6 +1965,42 @@ export function Sidebar({
           </div>
         </ToolSection>
       </div>
+
+      {/* Reading, not controls: kept folded under every step rather than inside one. */}
+      <ToolSection
+        title="Resources"
+        summary="Handbook and design guidance"
+        toggleProps={{ 'data-forestry-disclosure': 'resources' }}
+      >
+        <ul className="space-y-1 text-xs">
+          <li>
+            <ExternalLink href={BC_DESIGN_HANDBOOK}>BC Visual Impact Assessment Handbook (2001)</ExternalLink>
+          </li>
+          <li>
+            <ExternalLink href={FPPR_URL}>Forest Planning and Practices Regulation, s. 1.1</ExternalLink>
+          </li>
+        </ul>
+        {/* FPPR s. 1.1's visually altered forest landscape categories, as the objectives are defined. */}
+        <div className="space-y-1" data-testid="fppr-categories">
+          <p className="text-2xs font-medium text-muted-foreground">
+            Visually altered landscape categories (FPPR s. 1.1)
+          </p>
+          <dl className="space-y-1.5 text-2xs leading-4">
+            {VISUAL_QUALITY_CLASSES.map((entry) => (
+              <div key={entry.id} className="flex gap-2">
+                <dt className="w-7 shrink-0 font-semibold tabular-nums" style={{ color: entry.color }}>
+                  {entry.code}
+                </dt>
+                <dd className="min-w-0">
+                  <span className="font-medium text-foreground">{entry.label}.</span>{' '}
+                  <span className="text-muted-foreground">{entry.description}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+        {designReview}
+      </ToolSection>
     </MapSidebarShell>
   )
 }

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
+import { commandTooltip, resolveCommand, type CommandState, type WorkspaceCommand } from './workspaceCommands'
 
 /**
  * How a renderer presents one registry command. The label and icon always come from
@@ -49,6 +49,8 @@ export function CommandButton({
   const command = resolveCommand(id, state, disabled)
   if (command.hidden) return null
   const Icon = command.icon
+  // A presentation's own title wins; otherwise every surface reads the same tooltip from the registry.
+  const tooltip = presentation.title ?? commandTooltip(command)
   if (surface === 'sidebar') {
     return (
       <Button
@@ -58,7 +60,7 @@ export function CommandButton({
         data-command={id}
         aria-label={presentation.ariaLabel}
         aria-pressed={command.pressed}
-        title={presentation.title}
+        title={presentation.title ?? (command.description || command.reason ? tooltip : undefined)}
         disabled={command.disabled}
         onClick={() => onRun(id)}
       >
@@ -84,7 +86,7 @@ export function CommandButton({
         aria-pressed={command.pressed}
         aria-expanded={presentation.expanded}
         aria-keyshortcuts={presentation.keyShortcuts}
-        title={presentation.title ?? command.label}
+        title={tooltip}
         disabled={command.disabled}
         onClick={() => onRun(id)}
       >
@@ -117,10 +119,26 @@ export function CommandButton({
       disabled={command.disabled}
       aria-pressed={command.pressed}
       aria-label={quick ? `Quick access: ${command.label}` : undefined}
-      title={quick ? command.label : undefined}
+      aria-keyshortcuts={presentation.keyShortcuts}
+      title={tooltip}
     >
       <Icon size={quick ? 16 : 18} strokeWidth={1.65} aria-hidden="true" />
-      {!quick && command.label}
+      {!quick &&
+        (command.captions.length > 1 ? (
+          // The captions stack in one cell; only the current one shows, the others hold its width.
+          <span className="lp-command-caption">
+            <span>{command.label}</span>
+            {command.captions
+              .filter((caption) => caption !== command.label)
+              .map((caption) => (
+                <span key={caption} className="lp-caption-reserve" aria-hidden="true">
+                  {caption}
+                </span>
+              ))}
+          </span>
+        ) : (
+          command.label
+        ))}
     </button>
   )
 }

@@ -4,6 +4,7 @@ import { OptionalNumberField, roadFieldClass } from './Controls'
 import { RoadSection } from './SidebarParts'
 import { DEFAULT_ROUTE_OPTIONS, parseRouteSearchOptions } from './routing'
 import type { RoadWorkspace } from './useRoadWorkspace'
+import { insetBox } from '@/components/ui/inset-box'
 
 export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }) {
   const streams = workspace.project.context.filter((f) => f.kind === 'stream')
@@ -20,7 +21,7 @@ export function CrossingCostControls({ workspace }: { workspace: RoadWorkspace }
     >
       <div className="space-y-2">
         {streams.map((f) => (
-          <div key={f.id} className="rounded border p-2">
+          <div key={f.id} className={insetBox()}>
             <p className="break-words text-xs font-medium">{f.name}</p>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-xs">

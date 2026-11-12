@@ -1,16 +1,10 @@
-import {
-  CheckboxField,
-  FORM_INPUT_CLASS,
-  FormField,
-  StyledSelect,
-  NullableNumberField,
-  NumberField,
-} from '@/components/ui/form-field'
+import { CheckboxField, FORM_INPUT_CLASS, FormField, StyledSelect, NumberField } from '@/components/ui/form-field'
 import { useEffect, useState } from 'react'
 import { ChevronDown, Eye } from 'lucide-react'
 import { ToolDisclosure } from '@/components/ui/tool-section'
 import { InfoTip } from '@/components/ui/info-tip'
 import { Button } from '@/components/ui/button'
+import { insetBox } from '@/components/ui/inset-box'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { ResultRow, ResultRowDetail } from '@/components/ui/result-list'
 import { TextButton } from '@/components/ui/text-button'
@@ -21,6 +15,7 @@ import { findSceneLandform } from './sceneInput'
 import { resolveThreshold } from './integrity'
 import { downloadFs1252, type FormMetadata, type FormReview } from './pdf/fs1252'
 import { formatKm, formatPct } from './measureFormat'
+import { ExistingOpeningGreenUp, greenUpSummary } from './ExistingOpeningGreenUp'
 /**
  * `scope` is handbook 3.3.2 — which landform the run measures against and what
  * counts as its green area. `report` is 4.0 — the FS1252 draft package.
@@ -119,7 +114,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
           </span>
           <StyledSelect
             aria-label="Active assessment landform"
-            className="mt-1 w-full rounded border bg-background p-2"
+            className="mt-1 w-full rounded-md border bg-background p-2"
             value={landform?.id ?? ''}
             onChange={(e) => onChange({ ...scene, activeLandformId: e.target.value || null })}
           >
@@ -163,36 +158,11 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
           </p>
         )}
         <ToolDisclosure
-          label="Existing-opening recovery overrides"
-          summary="Green-up age unless set"
+          label="Existing-opening green-up"
+          summary={greenUpSummary(scene)}
           toggleProps={{ 'data-forestry-disclosure': 'recovery-overrides' }}
         >
-          <p className="text-muted-foreground">
-            Empty uses the stated green-up-age assumption. A percentage is a supplied recovery estimate, not an
-            automatically observed value. An opening 70% greened up still counts 30% of its area (handbook 3.4.2).
-          </p>
-          {scene.targets
-            .filter((t) => t.role === 'harvested' && !t.siteDisturbance)
-            .map((t) => (
-              <NullableNumberField
-                key={t.id}
-                label={<span className="truncate">{t.name}</span>}
-                aria-label={`Recovery percent for ${t.name}`}
-                contentClassName={INLINE_FIELD}
-                inputClassName={cn(FORM_INPUT_CLASS, 'w-20')}
-                suffix="%"
-                placeholder="Age"
-                min={0}
-                max={100}
-                value={t.recoveryPercent ?? null}
-                onValueChange={(recoveryPercent) =>
-                  onChange({
-                    ...scene,
-                    targets: scene.targets.map((x) => (x.id === t.id ? { ...x, recoveryPercent } : x)),
-                  })
-                }
-              />
-            ))}
+          <ExistingOpeningGreenUp scene={scene} onChange={onChange} />
         </ToolDisclosure>
       </section>
     )
@@ -245,7 +215,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
               </p>
               <div className="flex gap-2">
                 <StyledSelect
-                  className="min-w-0 flex-1 rounded border bg-background p-1"
+                  className="min-w-0 flex-1 rounded-md border bg-background p-1"
                   aria-label="Report viewpoint"
                   value={pick}
                   onChange={(e) => setPick(Number(e.target.value))}
@@ -277,7 +247,10 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                 Add current road-view station
               </Button>
               {selected.length > 0 && (
-                <ul className="divide-y overflow-hidden rounded-md border" aria-label="Viewpoints in the PDF">
+                <ul
+                  className={cn(insetBox({ padding: 'none' }), 'divide-y overflow-hidden')}
+                  aria-label="Viewpoints in the PDF"
+                >
                   {selected.map((index) => {
                     const open = openStation === index
                     return (
@@ -322,7 +295,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                               <label className="flex items-center justify-between gap-2" key={label}>
                                 <span>{label}</span>
                                 <StyledSelect
-                                  className="rounded border bg-background"
+                                  className="rounded-md border bg-background"
                                   value={reviews[index]?.design?.[i] ?? ''}
                                   onChange={(e) => {
                                     const design = [...(reviews[index]?.design ?? Array(5).fill(null))]
@@ -340,7 +313,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                             <label className="flex justify-between">
                               Roads/sidecast within openings
                               <StyledSelect
-                                className="rounded border bg-background"
+                                className="rounded-md border bg-background"
                                 value={reviews[index]?.roads ?? ''}
                                 onChange={(e) =>
                                   changeReview(index, {
@@ -358,7 +331,7 @@ export function AssessmentPanel({ part, scene, onChange, result, stale, snapshot
                             <label className="flex justify-between">
                               Dispersed retention
                               <StyledSelect
-                                className="rounded border bg-background"
+                                className="rounded-md border bg-background"
                                 value={reviews[index]?.retention ?? ''}
                                 onChange={(e) =>
                                   changeReview(index, {

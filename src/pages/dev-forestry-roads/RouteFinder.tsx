@@ -338,7 +338,7 @@ export function RouteFinder({
           <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground" data-testid="road-route-ends">
             {whole(analysis.length)} m · {plural(alignment.points.length, 'point')}
           </p>
-          <Button size="sm" variant="outline" className="h-7 gap-1 px-2 text-xs" onClick={onPegRoad} disabled={full}>
+          <Button size="xs" variant="outline" className="gap-1" onClick={onPegRoad} disabled={full}>
             <MapPin className="size-3" />
             New ends on map
           </Button>
@@ -348,9 +348,8 @@ export function RouteFinder({
           {ROUTE_GOALS.map((goal) => (
             <Button
               key={goal.id}
-              size="sm"
+              size="xs"
               variant={goals.includes(goal.id) ? 'default' : 'outline'}
-              className="h-7 px-2 text-xs"
               aria-pressed={goals.includes(goal.id)}
               title={goal.help}
               onClick={() => toggleGoal(goal.id)}
@@ -534,9 +533,9 @@ export function RouteFinder({
               <p className="min-w-0 flex-1 text-2xs leading-4 text-muted-foreground">Click a road to open it.</p>
               {designed.length > 0 && onShowCompare && (
                 <Button
-                  size="sm"
+                  size="xs"
                   variant="outline"
-                  className="h-7 shrink-0 text-xs"
+                  className="shrink-0"
                   onClick={() => {
                     if (add(designed, designed.find((row) => row.alignment!.id === alignment.id) ?? designed[0]))
                       onShowCompare()
@@ -595,9 +594,7 @@ function RouteResult({
         <span className="shrink-0 text-right font-semibold tabular-nums">
           {row.totalCost !== null ? money(row.totalCost) : '—'}
           {saving !== null && saving !== 0 && (
-            <span
-              className={`ml-1 font-normal ${saving < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-muted-foreground'}`}
-            >
+            <span className={`ml-1 font-normal ${saving < 0 ? 'text-success' : 'text-muted-foreground'}`}>
               {saving > 0 ? '+' : '−'}
               {Math.abs(saving)}%
             </span>
@@ -621,17 +618,14 @@ function RouteResult({
       {row.goal === 'current' && row.best.length > 0 && (
         <span className="mt-1 flex flex-wrap gap-1">
           {row.best.map((goal) => (
-            <span
-              key={goal}
-              className="rounded bg-emerald-100 px-1 text-2xs text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
-            >
+            <span key={goal} className="rounded-sm bg-success/15 px-1 text-2xs text-success-foreground">
               {GOAL_LABEL[goal]}
             </span>
           ))}
         </span>
       )}
       {row.blockers.map((blocker) => (
-        <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-amber-700 dark:text-amber-400">
+        <span key={blocker} className="mt-0.5 block text-2xs leading-4 text-warning">
           {blocker}
         </span>
       ))}

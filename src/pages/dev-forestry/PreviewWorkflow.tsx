@@ -16,6 +16,8 @@ const DRAFT_NOUNS: Record<Exclude<DrawMode, 'none'>, string> = {
   corridor: 'road',
   block: 'cutblock',
   landscape: 'landform',
+  'tree-free': 'area to draw without timber',
+  'wildlife-tree-patch': 'wildlife tree patch',
 }
 
 function ActionButton({ className, ...props }: ButtonProps) {

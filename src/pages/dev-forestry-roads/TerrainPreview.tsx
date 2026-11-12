@@ -748,9 +748,8 @@ export function TerrainPreview({
         )}
         <div className="flex flex-wrap items-center gap-x-0.5">
           <Button
-            size="sm"
+            size="xs"
             variant="ghost"
-            className="h-7 px-2 text-xs"
             aria-label="Fit terrain view"
             title="Fit the whole window in view and reset the angle (Home)"
             onClick={resetCamera}
@@ -759,9 +758,9 @@ export function TerrainPreview({
           </Button>
           {/* Display toggles are icons so the bar fits one row; pressed ones keep a tint. */}
           <Button
-            size="icon"
+            size="icon-xs"
             variant="ghost"
-            className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+            className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
             aria-label="Mesh"
             title="Show the triangle mesh"
             aria-pressed={wireframe}
@@ -770,9 +769,9 @@ export function TerrainPreview({
             <Grid3x3 className="size-3.5" />
           </Button>
           <Button
-            size="icon"
+            size="icon-xs"
             variant="ghost"
-            className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+            className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
             aria-label="Fill small gaps in 3D display"
             aria-pressed={fillGaps}
             title="Fill small gaps: estimate small enclosed gaps for the 3D display only. Turn off to show the original source gaps. Calculations always use the original terrain."
@@ -782,9 +781,9 @@ export function TerrainPreview({
           </Button>
           {!terrainOnly && (
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 aria-pressed:bg-primary/10 aria-pressed:text-primary"
+              className="aria-pressed:bg-primary/10 aria-pressed:text-primary"
               aria-label="Batters"
               title="Show cut and fill batters"
               aria-pressed={showEarthwork}
@@ -1308,12 +1307,18 @@ export function TerrainPreview({
         {sourceGeometry && (
           <div className="pointer-events-none absolute left-2 top-2 z-10 flex max-w-[calc(100%-4rem)] flex-col items-start gap-1 text-3xs">
             {following ? (
-              <p className="rounded border bg-background/90 px-1.5 py-0.5 font-medium" data-testid="road-3d-following">
+              <p
+                className="rounded-sm border bg-background/90 px-1.5 py-0.5 font-medium"
+                data-testid="road-3d-following"
+              >
                 {playing ? 'Following' : 'Around'} {formatRoadStation(station)}
               </p>
             ) : (
               !interacted && (
-                <p className="rounded bg-background/85 px-1.5 py-0.5 text-muted-foreground" data-testid="road-3d-hint">
+                <p
+                  className="rounded-sm bg-background/85 px-1.5 py-0.5 text-muted-foreground"
+                  data-testid="road-3d-hint"
+                >
                   Drag to pan · right-drag or Ctrl-drag to rotate · scroll to zoom
                 </p>
               )
@@ -1322,7 +1327,7 @@ export function TerrainPreview({
               <p
                 role="status"
                 data-testid="road-terrain-infill-note"
-                className="rounded border bg-background/90 px-2 py-1 text-muted-foreground"
+                className="rounded-sm border bg-background/90 px-2 py-1 text-muted-foreground"
                 title="Small enclosed gaps are estimated from surrounding terrain for display. Station elevations, quantities and reports retain the original missing data."
               >
                 Estimated patches · display only
@@ -1332,15 +1337,15 @@ export function TerrainPreview({
         )}
         {sourceGeometry && (
           <div
-            className="absolute right-2 top-2 z-20 flex flex-col rounded border bg-background/90 shadow-sm"
+            className="absolute right-2 top-2 z-20 flex flex-col rounded-md border bg-background/90 shadow-sm"
             role="toolbar"
             aria-orientation="vertical"
             aria-label="3D camera"
           >
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none"
+              className="rounded-none"
               aria-label="Zoom terrain in"
               title="Zoom in (+)"
               onClick={() => zoomAt(1.25)}
@@ -1348,9 +1353,9 @@ export function TerrainPreview({
               <Plus className="size-3.5" />
             </Button>
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none border-b"
+              className="rounded-none border-b"
               aria-label="Zoom terrain out"
               title="Zoom out (−)"
               onClick={() => zoomAt(1 / 1.25)}
@@ -1358,9 +1363,9 @@ export function TerrainPreview({
               <Minus className="size-3.5" />
             </Button>
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none"
+              className="rounded-none"
               aria-label="Face north"
               title="Compass: click to turn north up"
               data-north-degrees={Math.round(northDegrees) || 0}
@@ -1374,9 +1379,9 @@ export function TerrainPreview({
               </svg>
             </Button>
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none"
+              className="rounded-none"
               aria-label="Rotate terrain left"
               title="Rotate left (Shift+←)"
               onClick={() => setYaw((value) => value - 15)}
@@ -1384,9 +1389,9 @@ export function TerrainPreview({
               <RotateCcw className="size-3.5" />
             </Button>
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none border-b"
+              className="rounded-none border-b"
               aria-label="Rotate terrain right"
               title="Rotate right (Shift+→)"
               onClick={() => setYaw((value) => value + 15)}
@@ -1394,9 +1399,9 @@ export function TerrainPreview({
               <RotateCw className="size-3.5" />
             </Button>
             <Button
-              size="icon"
+              size="icon-xs"
               variant="ghost"
-              className="size-7 rounded-none"
+              className="rounded-none"
               aria-label="Centre on selected station"
               title="Centre on the selected station"
               disabled={!activeVertex}
@@ -1418,11 +1423,7 @@ export function TerrainPreview({
       </div>
       <div className="shrink-0 text-3xs">
         {!terrainOnly && active && !active.complete && (
-          <p
-            role="status"
-            data-testid="road-3d-incomplete-section"
-            className="border-t px-2 py-1 text-amber-800 dark:text-amber-200"
-          >
+          <p role="status" data-testid="road-3d-incomplete-section" className="border-t px-2 py-1 text-warning">
             {formatRoadStation(active.chainage)} ·{' '}
             {active.flags.some(isBeyondReachFlag)
               ? 'Batter extends beyond the sampled section reach. Increase “Section reach each side (m)” in Review, or revise the PVI elevations.'
@@ -1462,7 +1463,7 @@ function TerrainColourLegend({
   const top = TERRAIN_SLOPE_STOPS[TERRAIN_SLOPE_STOPS.length - 1].value
   return (
     <div
-      className="pointer-events-none absolute bottom-2 right-2 z-10 w-52 max-w-[calc(100%-3rem)] rounded border bg-background/90 px-2 py-1 text-3xs"
+      className="pointer-events-none absolute bottom-2 right-2 z-10 w-52 max-w-[calc(100%-3rem)] rounded-lg border bg-background/90 px-2 py-1 text-3xs"
       data-testid="road-3d-legend"
     >
       {colour === 'slope' ? (

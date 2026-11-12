@@ -28,6 +28,8 @@ import type { PreviewPick } from './previewPick'
 import type { ReportSectionId } from './reportContents'
 import { ReportContentsEditor } from './ReportContentsEditor'
 import { SheetSetupLibrary } from './SheetSetupLibrary'
+import { insetBox } from '@/components/ui/inset-box'
+import { cn } from '@/lib/utils'
 
 export type { RoadExport } from './exportCatalog'
 
@@ -269,7 +271,7 @@ export function FilesDialog({
                 />
                 {stamped && today && (
                   <span
-                    className={`text-xs ${stamp.missing.length ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}`}
+                    className={`text-xs ${stamp.missing.length ? 'text-warning' : 'text-muted-foreground'}`}
                     data-testid="road-issue-line"
                   >
                     {issueLine(stamp)}
@@ -293,7 +295,7 @@ export function FilesDialog({
             {stampNote && (
               <p
                 role="status"
-                className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs"
+                className="rounded-md border border-warning-border bg-warning-surface p-2 text-xs text-warning-foreground"
                 data-testid="road-export-stamp-note"
               >
                 {stampNote}
@@ -321,7 +323,9 @@ export function FilesDialog({
                   />
                 </div>
               ) : unavailable ? (
-                <p className="rounded-md border border-dashed p-4 text-xs text-muted-foreground">{unavailable}</p>
+                <p className={cn(insetBox({ padding: 'lg' }), 'border-dashed text-xs text-muted-foreground')}>
+                  {unavailable}
+                </p>
               ) : current?.preview ? (
                 <ExportPreviewView
                   preview={current.preview}
@@ -329,7 +333,10 @@ export function FilesDialog({
                   onPick={setupAvailable ? pick : undefined}
                 />
               ) : current?.error ? (
-                <p role="alert" className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+                <p
+                  role="alert"
+                  className="rounded-md border border-warning-border bg-warning-surface p-3 text-xs text-warning-foreground"
+                >
                   {current.error}
                 </p>
               ) : (
