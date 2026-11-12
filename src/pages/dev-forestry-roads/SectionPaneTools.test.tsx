@@ -1,4 +1,4 @@
-import { createElement, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createElement, Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { act, create, type ReactTestInstance, type ReactTestRenderer } from 'react-test-renderer'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CrossSectionChart } from './Charts'
@@ -11,6 +11,11 @@ import type { Alignment, Coordinate } from './types'
 vi.mock('@/components/ui/info-tip', () => ({
   InfoTip: ({ children, label }: { children: ReactNode; label: string }) =>
     createElement('span', { 'aria-label': label }, children),
+}))
+// The section's options open in a popover; here its panel renders in place, always open.
+vi.mock('@/components/ui/toolbar-popover', () => ({
+  ToolbarPopover: ({ children }: { children: ReactNode | ((close: () => void) => ReactNode) }) =>
+    createElement(Fragment, null, typeof children === 'function' ? children(() => {}) : children),
 }))
 
 const origin: Coordinate = [-122.8, 53.9]

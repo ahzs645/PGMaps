@@ -9,6 +9,8 @@ import { cn } from '@/lib/utils'
  * however wide its pane is. `count` shows how many of the panel's settings are active; focus moves
  * to the panel's `[data-autofocus]` control, else its first one, and Escape returns it to the button.
  * Mark one when the first control is an (i) help button, whose bubble would open over the panel.
+ * Pass `children` as a function to close the panel from a control, such as one that starts work
+ * elsewhere on the page.
  */
 export function ToolbarPopover({
   label,
@@ -29,7 +31,7 @@ export function ToolbarPopover({
   /** `ghost` with `buttonClassName="size-8"` matches a panel header's icon buttons. */
   variant?: 'outline' | 'ghost'
   buttonClassName?: string
-  children: ReactNode
+  children: ReactNode | ((close: () => void) => ReactNode)
 }) {
   const anchor = useRef<HTMLButtonElement>(null)
   const panel = useRef<HTMLDivElement>(null)
@@ -85,7 +87,7 @@ export function ToolbarPopover({
         role="dialog"
         ariaLabel={label}
       >
-        {children}
+        {typeof children === 'function' ? children(close) : children}
       </AnchoredPopover>
     </>
   )

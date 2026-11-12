@@ -1,10 +1,13 @@
+import { Check, SlidersHorizontal } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { InfoTip } from '@/components/ui/info-tip'
 import { InlineAlert } from '@/components/ui/map-panels'
 import { insetBox } from '@/components/ui/inset-box'
+import { ToolbarPopover } from '@/components/ui/toolbar-popover'
 import { cn } from '@/lib/utils'
-import { formatRoadStation } from './Charts'
+import { formatRoadStation, useChartHeaderControls } from './Charts'
 import { pinnedSectionOutline, pinnedShiftLabel, pinnedShiftText } from './sectionFrame'
 import {
   batterMisses,
@@ -93,9 +96,131 @@ interface RangeState {
 
 export type SectionTools = ReturnType<typeof useSectionTools>
 
+type SectionViewProps = {
+  tools: SectionTools
+  /** The selected station's section, as the chart shows it. */
+  station: RoadStation | undefined
+  terrainOnly: boolean
+  /** False while a preview, a terrain profile or a busy task holds the road. */
+  editable: boolean
+}
+
 /**
- * Under the cross-section: Hold scale, Pin this section, and **Use this section for…**, which gives
- * the section at the selected station to a station range through the template station assignments.
+ * Hold scale, Pin this section and **Use this section for…**, stacked for the section's options
+ * popover. `onDone` closes the popover when the range form opens under the chart, so the profile
+ * drag that marks the range is not taken as a press outside it.
+ */
+export function SectionViewControls({
+  tools,
+  station,
+  terrainOnly,
+  editable,
+  onDone,
+}: SectionViewProps & { onDone?: () => void }) {
+  const { range, setRange, alignment } = tools
+  const pinned = tools.pinnedStation
+  const button = 'w-full justify-start'
+  return (
+    <div role="group" aria-label="Section view" className="grid gap-1 p-2 text-xs">
+      <div className="flex items-center justify-between gap-1 px-0.5 pb-0.5 text-2xs text-muted-foreground">
+        <span>Section view</span>
+        <InfoTip label="About the section tools">
+          Hold scale keeps the frame's spans and follows the formation, so the ground moves under a still road. A pinned
+          section is drawn dashed, moved to share this station's formation level; it is dropped when another road is
+          shown. Use this section for… gives the section shown here to a range of stations through the template station
+          assignments: a named template by name, the base section by clearing the range, and a mixed or transition
+          section as a new template named after its station.
+        </InfoTip>
+      </div>
+      <Button
+        size="xs"
+        variant={tools.holdScale ? 'secondary' : 'ghost'}
+        className={button}
+        aria-pressed={tools.holdScale}
+        title="Keep the offset and elevation spans while stepping; the frame follows the formation."
+        data-autofocus
+        onClick={() => tools.setHoldScale(!tools.holdScale)}
+      >
+        Hold scale
+        {tools.holdScale && <Check className="ml-auto" aria-hidden />}
+      </Button>
+      {pinned ? (
+        <Button
+          size="xs"
+          variant="secondary"
+          className={button}
+          aria-label={`Unpin section ${formatRoadStation(pinned.chainage)}`}
+          onClick={() => tools.pin(undefined)}
+        >
+          Unpin {formatRoadStation(pinned.chainage)}
+        </Button>
+      ) : (
+        <Button
+          size="xs"
+          variant="ghost"
+          className={button}
+          disabled={!station}
+          title="Draw this station's outline faintly behind every other station of this road"
+          onClick={() => tools.pin(station)}
+        >
+          Pin this section
+        </Button>
+      )}
+      {!terrainOnly && (
+        <Button
+          size="xs"
+          variant={range?.open ? 'secondary' : 'ghost'}
+          className={button}
+          aria-expanded={!!range?.open}
+          disabled={!editable || !station}
+          onClick={() => {
+            const opening = !range?.open
+            setRange((r) =>
+              r?.open
+                ? { ...r, open: false, picking: false, confirm: null }
+                : {
+                    alignmentId: alignment.id,
+                    open: true,
+                    picking: true,
+                    from: station ? String(round(station.chainage)) : '',
+                    to: '',
+                    error: '',
+                    confirm: null,
+                    applied: r?.applied ?? null,
+                  },
+            )
+            if (opening) onDone?.()
+          }}
+        >
+          Use this section for…
+        </Button>
+      )}
+    </div>
+  )
+}
+
+/** The section's options button; its count is how many of the options are in force. */
+function SectionViewOptions({ inHeader, ...props }: SectionViewProps & { inHeader: boolean }) {
+  const { tools } = props
+  return (
+    <ToolbarPopover
+      label="Section view options"
+      icon={<SlidersHorizontal className="size-3.5" />}
+      count={Number(tools.holdScale) + Number(!!tools.pinnedStation) + Number(!!tools.range?.open)}
+      align="end"
+      width={208}
+      {...(inHeader ? ({ variant: 'ghost', buttonClassName: 'size-8' } as const) : { buttonClassName: 'size-6' })}
+    >
+      {(close) => <SectionViewControls {...props} onDone={close} />}
+    </ToolbarPopover>
+  )
+}
+
+/**
+ * The section pane's tools. Hold scale, Pin this section and **Use this section for…** sit in an
+ * options popover in the panel header (in a row of their own outside a `ChartHeader`); under the
+ * cross-section go the pinned outline's shift, the range form, which gives the section at the
+ * selected station to a station range through the template station assignments, and its batter check.
  */
 export function SectionPaneTools({
   tools,
@@ -105,17 +230,12 @@ export function SectionPaneTools({
   updateAlignment,
   onStation,
   onNotice,
-}: {
-  tools: SectionTools
-  /** The selected station's section, as the chart shows it. */
-  station: RoadStation | undefined
-  terrainOnly: boolean
-  /** False while a preview, a terrain profile or a busy task holds the road. */
-  editable: boolean
+}: SectionViewProps & {
   updateAlignment: (change: (alignment: Alignment) => Alignment) => void
   onStation: (chainage: number) => void
   onNotice: (text: string) => void
 }) {
+  const header = useChartHeaderControls()
   const { range, setRange, alignment, analysis } = tools
   const pinned = tools.pinnedStation
   const source = station && !terrainOnly ? sectionSourceAt(alignment, station.chainage, formatRoadStation) : null
@@ -166,255 +286,218 @@ export function SectionPaneTools({
   const field = 'w-20 rounded-md border bg-background px-1 py-0.5 font-mono text-3xs'
   const pinnedOutline = pinned && station ? pinnedSectionOutline(pinned, station, terrainOnly) : null
   const formOpen = !!range?.open && !!source
+  const options = (
+    <SectionViewOptions
+      tools={tools}
+      station={station}
+      terrainOnly={terrainOnly}
+      editable={editable}
+      inHeader={!!header}
+    />
+  )
+  const row = !header || !!pinnedOutline
   return (
-    // The pane gives the chart what the form and the list leave; past `max-h` they scroll instead,
-    // so the section a listed station jumps to stays in view.
-    <div
-      className="flex max-h-[45%] min-h-6 shrink flex-col gap-1 text-3xs text-muted-foreground"
-      data-testid="road-section-tools"
-    >
-      <div role="group" aria-label="Section view" className="flex shrink-0 flex-wrap items-center gap-1">
-        <Button
-          size="sm"
-          variant={tools.holdScale ? 'secondary' : 'outline'}
-          className={small}
-          aria-pressed={tools.holdScale}
-          title="Keep the offset and elevation spans while stepping; the frame follows the formation."
-          onClick={() => tools.setHoldScale(!tools.holdScale)}
+    <>
+      {header && createPortal(options, header)}
+      {(row || formOpen || applied) && (
+        // The pane gives the chart what the form and the list leave; past `max-h` they scroll instead,
+        // so the section a listed station jumps to stays in view.
+        <div
+          className="flex max-h-[45%] min-h-6 shrink flex-col gap-1 text-3xs text-muted-foreground"
+          data-testid="road-section-tools"
         >
-          Hold scale
-        </Button>
-        {pinned ? (
-          <Button
-            size="sm"
-            variant="secondary"
-            className={small}
-            aria-label={`Unpin section ${formatRoadStation(pinned.chainage)}`}
-            onClick={() => tools.pin(undefined)}
-          >
-            Unpin {formatRoadStation(pinned.chainage)}
-          </Button>
-        ) : (
-          <Button
-            size="sm"
-            variant="outline"
-            className={small}
-            disabled={!station}
-            title="Draw this station's outline faintly behind every other station of this road"
-            onClick={() => tools.pin(station)}
-          >
-            Pin this section
-          </Button>
-        )}
-        {!terrainOnly && (
-          <Button
-            size="sm"
-            variant={range?.open ? 'secondary' : 'outline'}
-            className={small}
-            aria-expanded={!!range?.open}
-            disabled={!editable || !station}
-            onClick={() =>
-              setRange((r) =>
-                r?.open
-                  ? { ...r, open: false, picking: false, confirm: null }
-                  : {
-                      alignmentId: alignment.id,
-                      open: true,
-                      picking: true,
-                      from: station ? String(round(station.chainage)) : '',
-                      to: '',
-                      error: '',
-                      confirm: null,
-                      applied: r?.applied ?? null,
-                    },
-              )
-            }
-          >
-            Use this section for…
-          </Button>
-        )}
-        {pinnedOutline && (
-          // The chart's legend is not shown in the compact pane, so the shift is stated here too.
-          <span className="tabular-nums" title={pinnedShiftText(pinnedOutline)} data-testid="road-section-pinned-shift">
-            <span aria-hidden className="mr-1 inline-block w-3 border-t border-dashed border-current align-middle" />
-            {pinnedShiftLabel(pinnedOutline)}
-          </span>
-        )}
-        <InfoTip label="About the section tools">
-          Hold scale keeps the frame's spans and follows the formation, so the ground moves under a still road. A pinned
-          section is drawn dashed, moved to share this station's formation level; it is dropped when another road is
-          shown. Use this section for… gives the section shown here to a range of stations through the template station
-          assignments: a named template by name, the base section by clearing the range, and a mixed or transition
-          section as a new template named after its station.
-        </InfoTip>
-      </div>
-      {(formOpen || applied) && (
-        <div className="min-h-0 space-y-1 overflow-y-auto overscroll-none" data-testid="road-section-tools-body">
-          {range?.open && source && (
-            <div
-              role="group"
-              aria-label="Use this section for a station range"
-              className={cn(insetBox({ padding: 'sm' }), 'space-y-1')}
-              data-testid="road-section-range"
-            >
-              <div className="flex flex-wrap items-center gap-1">
-                <span>
-                  Give <span className="font-medium text-foreground">{source.name}</span>
-                  {source.kind === 'snapshot' ? ' (saved as a new template)' : ''} to
+          {row && (
+            <div className="flex shrink-0 flex-wrap items-center gap-1">
+              {!header && options}
+              {pinnedOutline && (
+                // The chart's legend is not shown in the compact pane, so the shift is stated here too.
+                <span
+                  className="tabular-nums"
+                  title={pinnedShiftText(pinnedOutline)}
+                  data-testid="road-section-pinned-shift"
+                >
+                  <span
+                    aria-hidden
+                    className="mr-1 inline-block w-3 border-t border-dashed border-current align-middle"
+                  />
+                  {pinnedShiftLabel(pinnedOutline)}
                 </span>
-                <input
-                  aria-label="Range from station metres"
-                  type="number"
-                  min={0}
-                  step="any"
-                  className={field}
-                  value={range.from}
-                  onChange={(e) => patch({ from: e.target.value, confirm: null, error: '' })}
-                  onKeyDown={(e) => e.key === 'Enter' && apply()}
-                />
-                <span>–</span>
-                <input
-                  aria-label="Range to station metres"
-                  type="number"
-                  min={0}
-                  step="any"
-                  className={field}
-                  value={range.to}
-                  onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
-                  onKeyDown={(e) => e.key === 'Enter' && apply()}
-                />
-                <span>m</span>
-              </div>
-              <div className="flex flex-wrap items-center gap-1">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className={small}
-                  disabled={!station}
-                  onClick={() => station && patch({ from: String(round(station.chainage)), confirm: null, error: '' })}
-                >
-                  From here
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className={small}
-                  disabled={!station}
-                  onClick={() => station && patch({ to: String(round(station.chainage)), confirm: null, error: '' })}
-                >
-                  To here
-                </Button>
-                <Button
-                  size="sm"
-                  variant={range.picking ? 'secondary' : 'outline'}
-                  className={small}
-                  aria-pressed={range.picking}
-                  title="Drag along the profile to mark the range. Escape stops."
-                  onClick={() => patch({ picking: !range.picking })}
-                >
-                  Drag on profile
-                </Button>
-                <Button size="sm" className={small} disabled={!editable} onClick={apply}>
-                  Apply
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className={small}
-                  onClick={() => patch({ open: false, picking: false, confirm: null, error: '' })}
-                >
-                  Close
-                </Button>
-              </div>
-              {range.error && <InlineAlert tone="error">{range.error}</InlineAlert>}
-              {range.confirm && (
-                <InlineAlert tone="warning" title="This changes existing template ranges">
-                  <ul className="list-disc pl-4">
-                    {range.confirm.affected.map((a) => (
-                      <li key={a.assignment.id}>
-                        Range {a.number} ({a.templateName}, {formatRoadStation(a.assignment.start)}–
-                        {formatRoadStation(a.assignment.end)}){' '}
-                        {a.outcome === 'replaced'
-                          ? 'is replaced'
-                          : a.outcome === 'split'
-                            ? 'is split around it'
-                            : 'is trimmed'}
-                        {a.transitionNote ? `; ${a.transitionNote}` : ''}.
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="mt-1 flex gap-1">
-                    <Button
-                      size="sm"
-                      className={small}
-                      disabled={!editable}
-                      onClick={() => range.confirm && commit(range.confirm)}
-                    >
-                      Replace
-                    </Button>
-                    <Button size="sm" variant="ghost" className={small} onClick={() => patch({ confirm: null })}>
-                      Cancel
-                    </Button>
-                  </div>
-                </InlineAlert>
               )}
             </div>
           )}
-          {applied && (
-            <div role="status" data-testid="road-section-batter-misses" className="flex items-start gap-1">
-              <div className="min-w-0 flex-1">
-                {missStations.length === 0 ? (
-                  <p>
-                    {applied.name}, {formatRoadStation(applied.from)}–{formatRoadStation(applied.to)}: the batter meets
-                    the ground at every station.
-                  </p>
-                ) : (
-                  <InlineAlert
-                    tone="warning"
-                    title={`Batter never met the ground at ${missStations.length} station${missStations.length === 1 ? '' : 's'} of ${formatRoadStation(applied.from)}–${formatRoadStation(applied.to)}`}
+          {(formOpen || applied) && (
+            <div className="min-h-0 space-y-1 overflow-y-auto overscroll-none" data-testid="road-section-tools-body">
+              {range?.open && source && (
+                <div
+                  role="group"
+                  aria-label="Use this section for a station range"
+                  className={cn(insetBox({ padding: 'sm' }), 'space-y-1')}
+                  data-testid="road-section-range"
+                >
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span>
+                      Give <span className="font-medium text-foreground">{source.name}</span>
+                      {source.kind === 'snapshot' ? ' (saved as a new template)' : ''} to
+                    </span>
+                    <input
+                      aria-label="Range from station metres"
+                      type="number"
+                      min={0}
+                      step="any"
+                      className={field}
+                      value={range.from}
+                      onChange={(e) => patch({ from: e.target.value, confirm: null, error: '' })}
+                      onKeyDown={(e) => e.key === 'Enter' && apply()}
+                    />
+                    <span>–</span>
+                    <input
+                      aria-label="Range to station metres"
+                      type="number"
+                      min={0}
+                      step="any"
+                      className={field}
+                      value={range.to}
+                      onChange={(e) => patch({ to: e.target.value, confirm: null, error: '' })}
+                      onKeyDown={(e) => e.key === 'Enter' && apply()}
+                    />
+                    <span>m</span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={small}
+                      disabled={!station}
+                      onClick={() =>
+                        station && patch({ from: String(round(station.chainage)), confirm: null, error: '' })
+                      }
+                    >
+                      From here
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className={small}
+                      disabled={!station}
+                      onClick={() =>
+                        station && patch({ to: String(round(station.chainage)), confirm: null, error: '' })
+                      }
+                    >
+                      To here
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant={range.picking ? 'secondary' : 'outline'}
+                      className={small}
+                      aria-pressed={range.picking}
+                      title="Drag along the profile to mark the range. Escape stops."
+                      onClick={() => patch({ picking: !range.picking })}
+                    >
+                      Drag on profile
+                    </Button>
+                    <Button size="sm" className={small} disabled={!editable} onClick={apply}>
+                      Apply
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className={small}
+                      onClick={() => patch({ open: false, picking: false, confirm: null, error: '' })}
+                    >
+                      Close
+                    </Button>
+                  </div>
+                  {range.error && <InlineAlert tone="error">{range.error}</InlineAlert>}
+                  {range.confirm && (
+                    <InlineAlert tone="warning" title="This changes existing template ranges">
+                      <ul className="list-disc pl-4">
+                        {range.confirm.affected.map((a) => (
+                          <li key={a.assignment.id}>
+                            Range {a.number} ({a.templateName}, {formatRoadStation(a.assignment.start)}–
+                            {formatRoadStation(a.assignment.end)}){' '}
+                            {a.outcome === 'replaced'
+                              ? 'is replaced'
+                              : a.outcome === 'split'
+                                ? 'is split around it'
+                                : 'is trimmed'}
+                            {a.transitionNote ? `; ${a.transitionNote}` : ''}.
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-1 flex gap-1">
+                        <Button
+                          size="sm"
+                          className={small}
+                          disabled={!editable}
+                          onClick={() => range.confirm && commit(range.confirm)}
+                        >
+                          Replace
+                        </Button>
+                        <Button size="sm" variant="ghost" className={small} onClick={() => patch({ confirm: null })}>
+                          Cancel
+                        </Button>
+                      </div>
+                    </InlineAlert>
+                  )}
+                </div>
+              )}
+              {applied && (
+                <div role="status" data-testid="road-section-batter-misses" className="flex items-start gap-1">
+                  <div className="min-w-0 flex-1">
+                    {missStations.length === 0 ? (
+                      <p>
+                        {applied.name}, {formatRoadStation(applied.from)}–{formatRoadStation(applied.to)}: the batter
+                        meets the ground at every station.
+                      </p>
+                    ) : (
+                      <InlineAlert
+                        tone="warning"
+                        title={`Batter never met the ground at ${missStations.length} station${missStations.length === 1 ? '' : 's'} of ${formatRoadStation(applied.from)}–${formatRoadStation(applied.to)}`}
+                      >
+                        <div className="flex flex-wrap gap-1">
+                          {missStations.slice(0, MAX_LISTED_BATTER_MISSES).map((chainage) => {
+                            const here = misses.filter((m) => m.chainage === chainage)
+                            const text = here
+                              .map(
+                                (m) =>
+                                  `${m.side} ${m.batter === 'unknown' ? 'batter' : m.batter}, ${m.cause === 'reach' ? 'past the section reach' : 'terrain ran out'}`,
+                              )
+                              .join('; ')
+                            return (
+                              <button
+                                key={chainage}
+                                type="button"
+                                className="rounded-sm border px-1 font-mono underline-offset-2 hover:underline"
+                                title={text}
+                                aria-label={`Go to ${formatRoadStation(chainage)}: ${text}`}
+                                onClick={() => onStation(chainage)}
+                              >
+                                {formatRoadStation(chainage)}
+                              </button>
+                            )
+                          })}
+                          {missStations.length > MAX_LISTED_BATTER_MISSES && (
+                            <span>and {missStations.length - MAX_LISTED_BATTER_MISSES} more</span>
+                          )}
+                        </div>
+                      </InlineAlert>
+                    )}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className={small}
+                    aria-label="Clear the batter check"
+                    onClick={() => patch({ applied: null })}
                   >
-                    <div className="flex flex-wrap gap-1">
-                      {missStations.slice(0, MAX_LISTED_BATTER_MISSES).map((chainage) => {
-                        const here = misses.filter((m) => m.chainage === chainage)
-                        const text = here
-                          .map(
-                            (m) =>
-                              `${m.side} ${m.batter === 'unknown' ? 'batter' : m.batter}, ${m.cause === 'reach' ? 'past the section reach' : 'terrain ran out'}`,
-                          )
-                          .join('; ')
-                        return (
-                          <button
-                            key={chainage}
-                            type="button"
-                            className="rounded-sm border px-1 font-mono underline-offset-2 hover:underline"
-                            title={text}
-                            aria-label={`Go to ${formatRoadStation(chainage)}: ${text}`}
-                            onClick={() => onStation(chainage)}
-                          >
-                            {formatRoadStation(chainage)}
-                          </button>
-                        )
-                      })}
-                      {missStations.length > MAX_LISTED_BATTER_MISSES && (
-                        <span>and {missStations.length - MAX_LISTED_BATTER_MISSES} more</span>
-                      )}
-                    </div>
-                  </InlineAlert>
-                )}
-              </div>
-              <Button
-                size="sm"
-                variant="ghost"
-                className={small}
-                aria-label="Clear the batter check"
-                onClick={() => patch({ applied: null })}
-              >
-                ×
-              </Button>
+                    ×
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
-    </div>
+    </>
   )
 }

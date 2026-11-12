@@ -492,7 +492,10 @@ and the process time of the last recalculation, which runs on every edit.
 The detail pane (section, 3D, mass haul, stations, compare, D-line, pegs,
 quantities, landing, drainage, swept path) is chosen from a combobox labelled **View** in that
 pane's title row (accessible name **Road detail view**), beside its title and any pane action such
-as Section CSV, so the pane spends no row on a tab strip. The hydrology tools (streams, ponding,
+as Section CSV, so the pane spends no row on a tab strip. Section CSV drops to a download icon when
+the pane is narrower than 34 rem: the panel is an inline-size container, so it follows the pane, not
+the window. The section's Hold scale, Pin and Use this section for… are in its **Section view
+options** popover in the same row. The hydrology tools (streams, ponding,
 drain to point, watersheds) are the **Drainage** view. Engineering → Drainage, where culverts are
 entered, links to it with **Drainage check: streams, ponds, catchments**, and the view links back
 with **Culvert inputs**. The mass-haul view explains the term behind an (i).

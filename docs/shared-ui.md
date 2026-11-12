@@ -294,7 +294,8 @@ Felt-style "layers, legend, table" pages. `/dev/data` is the reference.
   panel of form controls, with a count of the settings in force, so a narrow
   toolbar stays on one row at any pane width. `ActiveFilterChip` shows one such
   setting beside the closed button and clears it. It sets `container` itself when
-  its button is in a `FullscreenPanel`. The road design station table is the
+  its button is in a `FullscreenPanel`. Pass `children` as a function to get a
+  `close` for a control that starts work elsewhere. The road design station table is the
   reference: in a panel it portals both buttons into the panel header
   (`variant="ghost"`, `buttonClassName="size-8"`, `align="end"`) through
   `useChartHeaderControls`, and its chips take a row only while a filter is on.

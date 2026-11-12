@@ -4501,17 +4501,20 @@ export default function DevForestryRoads({
                                   />
                                   {detail === 'section' && !terrainProfile && (
                                     <Button
-                                      size="sm"
+                                      size="field"
                                       variant="outline"
-                                      className="shrink-0 px-2 min-[420px]:px-3"
+                                      className="shrink-0 px-2 [@container(min-width:34rem)]:px-3"
                                       aria-label="Section CSV"
                                       title="Download section CSV"
                                       disabled={!at || !!busy}
                                       onClick={saveSection}
                                     >
-                                      {/* Phones keep room for the detail-view picker beside the chart controls. */}
-                                      <Download className="size-3.5 min-[420px]:hidden" aria-hidden />
-                                      <span className="sr-only min-[420px]:not-sr-only">Section CSV</span>
+                                      {/* A narrow panel keeps room for the view picker beside the chart controls:
+                                          the panel is the container, so this follows the pane, not the window. */}
+                                      <Download className="size-3.5 [@container(min-width:34rem)]:hidden" aria-hidden />
+                                      <span className="sr-only [@container(min-width:34rem)]:not-sr-only">
+                                        Section CSV
+                                      </span>
                                     </Button>
                                   )}
                                   {chartSlot}
@@ -4519,7 +4522,8 @@ export default function DevForestryRoads({
                                 </>
                               }
                               compact
-                              className="flex min-h-0 flex-1 flex-col"
+                              // An inline-size container, so header controls can fold by the panel's width.
+                              className="flex min-h-0 flex-1 flex-col [container-type:inline-size]"
                             >
                               {() => (
                                 <div className="flex min-h-0 flex-1 flex-col gap-2">

@@ -5,11 +5,13 @@ Three tools for walking a road station by station and acting on what you find:
 - **Jump** in the station bar moves the shared station to the next or previous place of one kind:
   a PVI, a curve point, a flagged station, an incomplete section, a culvert or a template change.
   The `]` and `[` keys do the same.
-- **Hold scale** and **Pin this section** under the cross-section keep the section's frame still
-  while stepping, and draw one station's outline behind the others for comparison.
-- **Use this section for…** under the cross-section gives the section at the selected station to a
+- **Hold scale** and **Pin this section**, in the cross-section's **Section view options** (the
+  sliders button in its title row), keep the section's frame still while stepping, and draw one
+  station's outline behind the others for comparison. The button counts the options in force.
+- **Use this section for…**, in the same popover, gives the section at the selected station to a
   range of stations, typed or dragged on the profile, and then lists the stations of that range
-  whose cut or fill batter never met the ground.
+  whose cut or fill batter never met the ground. Its form opens under the cross-section and the
+  popover closes, so a drag on the profile marks the range.
 
 The calculations are `stationJumps.ts`, `sectionFrame.ts` and `sectionRangeApply.ts`. They have no
 DOM or network access. The controls are `StationJumpMenu.tsx` and `SectionPaneTools.tsx`.
@@ -60,7 +62,8 @@ a before-and-after comparison possible. Showing another road, or a terrain profi
 
 ## Use this section for…
 
-1. Select the station whose section you want, and press **Use this section for…**.
+1. Select the station whose section you want, open **Section view options** and press **Use this
+   section for…**.
 2. Mark the range: drag along the profile (the drag marks the range instead of moving the station
    while **Drag on profile** is pressed; Escape stops it), type the from and to stations, or step
    to each end and press **From here** and **To here**.
