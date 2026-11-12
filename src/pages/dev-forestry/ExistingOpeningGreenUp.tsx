@@ -1,3 +1,4 @@
+import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { ChevronDown, Sprout } from 'lucide-react'
 import { FORM_INPUT_CLASS, FormField, NullableNumberField, StyledSelect } from '@/components/ui/form-field'
@@ -18,6 +19,9 @@ import { formatPct } from './measureFormat'
 const INLINE_FIELD = 'flex-row items-center justify-between gap-3'
 
 /** The existing openings whose green-up a field check can confirm. */
+/** What the one-click visual judgement writes into the check's note, so the basis travels with it. */
+export const VISUAL_JUDGEMENT_NOTE = 'Judged visually greened up from the viewpoint photo.'
+
 export function greenUpOpenings(scene: ForestryScene): TargetPolygon[] {
   return scene.targets.filter((t) => t.role === 'harvested' && !t.siteDisturbance)
 }
@@ -122,6 +126,21 @@ export function ExistingOpeningGreenUp({
                     value={t.recoveryPercent ?? null}
                     onValueChange={(recoveryPercent) => update(t.id, { recoveryPercent })}
                   />
+                  {/* A VIA's existing-alteration line is an ocular judgement: one click records it, dated. */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() =>
+                      setField(t, {
+                        finding: 'yes',
+                        observedOn: new Date().toISOString().slice(0, 10),
+                        note: [VISUAL_JUDGEMENT_NOTE, field?.note].filter(Boolean).join(' '),
+                      })
+                    }
+                  >
+                    Judged visually greened up from the viewpoint photo
+                  </Button>
                   <FormField label="Field check" contentClassName={INLINE_FIELD}>
                     <StyledSelect
                       aria-label={`Field check for ${t.name}`}

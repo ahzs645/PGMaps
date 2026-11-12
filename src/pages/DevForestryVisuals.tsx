@@ -127,6 +127,8 @@ import {
   type SavedFigure,
 } from './dev-forestry/FigureSheetPanel'
 import { PrivateLandPanel } from './dev-forestry/PrivateLandPanel'
+import { NetFootprintPanel } from './dev-forestry/NetFootprintPanel'
+import { reserveMaskFields } from './dev-forestry/resultsReserves'
 import { parcelMaskFields } from './dev-forestry/parcelMapPrivateLand'
 import { decodeClassRaster, inLandform, visibleLineParts, type Overlay } from '@/lib/forestry/viaFigure/composeFigure'
 import { findPreset as findFigurePreset } from '@/lib/forestry/viaFigure/presets'
@@ -2986,6 +2988,28 @@ function DevForestryVisuals() {
           onRemove={(id) =>
             setScene((current) => ({ ...current, masks: (current.masks ?? []).filter((mask) => mask.id !== id) }))
           }
+          stale={isStale}
+        />
+      }
+      netFootprints={
+        <NetFootprintPanel
+          blocks={scene.targets.filter((target) => target.role === 'block')}
+          masks={scene.masks ?? []}
+          onAdd={(reserves) => {
+            const ids = reserves.map(() => createId('mask'))
+            setScene((current) => {
+              let masks = current.masks ?? []
+              reserves.forEach((reserve, i) => {
+                masks = withDrawnMask(masks, {
+                  id: ids[i],
+                  kind: 'retained',
+                  geometry: reserve.geometry,
+                  ...reserveMaskFields(reserve),
+                })
+              })
+              return { ...current, masks }
+            })
+          }}
           stale={isStale}
         />
       }
