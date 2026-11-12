@@ -6,7 +6,8 @@
  */
 import { boxesMeet, rectRing, type DrawOp, type Point, type StrokeStyle } from './drawOps'
 import { areaSymbolOps, type AreaSymbol } from './symbols'
-import { textWidth, type SheetFontStyle } from './textMetrics'
+import { pdfText } from './renderPdf'
+import { fitText, textWidth, wrapText, type SheetFontStyle } from './textMetrics'
 
 /** Type as a figure prints it. Sizes are points. */
 export interface SheetTextStyle {
@@ -186,6 +187,8 @@ export function balloonRing(box: Box, anchor: Point, base: number): Point[] {
 }
 
 export interface CalloutBoxStyle {
+  /** A highlighted callout's box and leader (a board triptych's yellow focus box). */
+  focus?: { box?: AreaSymbol; leader?: LeaderStyle }
   box: AreaSymbol
   padding: { x: number; y: number }
   title: SheetTextStyle
@@ -193,20 +196,72 @@ export interface CalloutBoxStyle {
   pointer: { kind: 'wedge'; base: number } | { kind: 'leader'; leader: LeaderStyle }
 }
 
-/** Size of a callout's box for its text, points. */
-export function calloutSize(style: CalloutBoxStyle, title: string, body?: string): { w: number; h: number } {
-  const titleWidth = textWidth(title, style.title.size, style.title.style ?? 'normal')
-  const bodyWidth = body && style.body ? textWidth(body, style.body.size, style.body.style ?? 'normal') : 0
-  return {
-    w: Math.max(titleWidth, bodyWidth) + style.padding.x * 2,
-    h: lineHeight(style.title) + (body && style.body ? lineHeight(style.body) : 0) + style.padding.y * 2 - 1,
+/** Text as it prints: the PDF fonts fold some characters (an em dash prints " - "), so measure the folded text. */
+const printed = (text: string) => pdfText(text).replace(/\s+/g, ' ').trim()
+
+/** Most lines a callout's title and body take before the font shrinks. */
+export const CALLOUT_MAX_TITLE_LINES = 2
+export const CALLOUT_MAX_BODY_LINES = 1
+/** The one step a callout's type shrinks by when wrapping alone does not fit it. */
+export const CALLOUT_SHRINK = 0.85
+
+/** Lines of `text` in `style` within `maxWidth`: wrapped at words, then one size smaller, then cut with "...". */
+export function fitCalloutLines(
+  text: string,
+  style: SheetTextStyle,
+  maxWidth: number,
+  maxLines: number,
+): { lines: string[]; style: SheetTextStyle } {
+  const face = style.style ?? 'normal'
+  const folded = printed(text)
+  for (const size of [style.size, style.size * CALLOUT_SHRINK]) {
+    const lines = wrapText(folded, size, maxWidth, face)
+    if (lines.length <= maxLines) return { lines, style: { ...style, size } }
   }
+  const size = style.size * CALLOUT_SHRINK
+  const lines = wrapText(folded, size, maxWidth, face)
+  const kept = lines.slice(0, maxLines)
+  kept[maxLines - 1] = fitText(`${lines.slice(maxLines - 1).join(' ')}`, size, maxWidth, face)
+  if (!kept[maxLines - 1].endsWith('...'))
+    kept[maxLines - 1] = fitText(`${kept[maxLines - 1]}...`, size, maxWidth, face)
+  return { lines: kept, style: { ...style, size } }
+}
+
+/** A callout's text laid out: its lines in each style, and the box that holds them with padding all round. */
+export type CalloutText = {
+  title: { lines: string[]; style: SheetTextStyle }
+  body: { lines: string[]; style: SheetTextStyle } | null
+  w: number
+  h: number
+}
+
+/**
+ * Lays a callout's text out within `maxWidth` (the box's widest, padding included) and sizes its box
+ * from the measured lines, bold metrics for a bold line.
+ */
+export function calloutText(style: CalloutBoxStyle, title: string, body?: string, maxWidth = Infinity): CalloutText {
+  const inner = Math.max(1, maxWidth - style.padding.x * 2)
+  const t = fitCalloutLines(title, style.title, inner, CALLOUT_MAX_TITLE_LINES)
+  const b = body && style.body ? fitCalloutLines(body, style.body, inner, CALLOUT_MAX_BODY_LINES) : null
+  const widest = Math.max(
+    ...t.lines.map((line) => textWidth(line, t.style.size, t.style.style ?? 'normal')),
+    ...(b ? b.lines.map((line) => textWidth(line, b.style.size, b.style.style ?? 'normal')) : [0]),
+  )
+  const lines = t.lines.length * lineHeight(t.style) + (b ? b.lines.length * lineHeight(b.style) : 0)
+  return { title: t, body: b, w: widest + style.padding.x * 2, h: lines + style.padding.y * 2 }
+}
+
+/** Size of a callout's box for its text, points. */
+export function calloutSize(style: CalloutBoxStyle, title: string, body?: string, maxWidth = Infinity) {
+  const { w, h } = calloutText(style, title, body, maxWidth)
+  return { w, h }
 }
 
 /**
  * A callout in `box` pointing at `anchor`: a balloon whose wedge is part of the outline, or a box
- * with a separate leader drawn first so the box covers its root. `box` overrides the style's box
- * symbol (a highlighted callout), `leader` its leader.
+ * with a separate leader from the box edge nearest the anchor, drawn first so the box covers its
+ * root. `box` overrides the style's box symbol (a highlighted callout), `leader` its leader. `text`
+ * is the layout the box was sized from (`calloutText`); without it the text is laid out unwrapped.
  */
 export function calloutOps(
   style: CalloutBoxStyle,
@@ -215,6 +270,7 @@ export function calloutOps(
   title: string,
   body?: string,
   override: { box?: AreaSymbol; leader?: LeaderStyle } = {},
+  text: CalloutText = calloutText(style, title, body),
 ): DrawOp[] {
   const ops: DrawOp[] = []
   const symbol = override.box ?? style.box
@@ -222,18 +278,31 @@ export function calloutOps(
     ops.push(...areaSymbolOps([balloonRing(box, anchor, style.pointer.base)], symbol, 1))
   else {
     const leader = override.leader ?? style.pointer.leader
-    const from: Point = [
-      Math.max(box.x + 4, Math.min(box.x + box.w - 4, anchor[0])),
-      anchor[1] > box.y + box.h ? box.y + box.h : anchor[1] < box.y ? box.y : box.y + box.h / 2,
-    ]
-    ops.push(...leaderOps(from, anchor, leader, 3))
+    ops.push(...leaderOps(nearestEdgePoint(box, anchor), anchor, leader, 3))
     ops.push(...areaSymbolOps([rectRing(box.x, box.y, box.w, box.h)], symbol, 1))
   }
-  const titleY = box.y + style.padding.y + style.title.size * 0.92
-  ops.push(...textOps(box.x + style.padding.x, titleY, title, style.title))
-  if (body && style.body)
-    ops.push(...textOps(box.x + style.padding.x, titleY + lineHeight(style.body), body, style.body))
+  let y = box.y + style.padding.y
+  for (const block of [text.title, ...(text.body ? [text.body] : [])])
+    for (const line of block.lines) {
+      ops.push(...textOps(box.x + style.padding.x, y + block.style.size * 0.92, line, block.style))
+      y += lineHeight(block.style)
+    }
   return ops
+}
+
+/** The point on a box's edge nearest `anchor`: where a leader leaves the box. */
+export function nearestEdgePoint(box: Box, anchor: Point): Point {
+  const x = Math.max(box.x, Math.min(box.x + box.w, anchor[0])),
+    y = Math.max(box.y, Math.min(box.y + box.h, anchor[1]))
+  if (x !== anchor[0] || y !== anchor[1]) return [x, y]
+  // The anchor is inside the box: leave from the nearest side.
+  const sides: Array<[number, Point]> = [
+    [anchor[1] - box.y, [anchor[0], box.y]],
+    [box.y + box.h - anchor[1], [anchor[0], box.y + box.h]],
+    [anchor[0] - box.x, [box.x, anchor[1]]],
+    [box.x + box.w - anchor[0], [box.x + box.w, anchor[1]]],
+  ]
+  return sides.sort((p, q) => p[0] - q[0])[0][1]
 }
 
 /**
@@ -258,4 +327,186 @@ export function placeClear(box: Box, placed: readonly Box[], bounds: Box, gap = 
     }
   }
   return null
+}
+
+// ---------------------------------------------------------------- label styles
+
+/** How a figure names its features. Independent of the figure's symbols; a preset gives the default. */
+export type LabelStyleId = 'box' | 'underlined' | 'halo' | 'numbered'
+
+export const LABEL_STYLES: ReadonlyArray<{ id: LabelStyleId; name: string }> = [
+  { id: 'box', name: 'Box' },
+  { id: 'underlined', name: 'Underlined label' },
+  { id: 'halo', name: 'Halo text' },
+  { id: 'numbered', name: 'Numbered markers' },
+]
+
+export type FigureLabel = {
+  title: string
+  body?: string
+  /** What the label points at, page points. */
+  anchor: Point
+  /** Highlighted (a board triptych's focus box). */
+  focus?: boolean
+  /** A secondary feature (existing opening, road, another licensee's block): smaller and plainer. */
+  secondary?: boolean
+}
+
+export type LabelOptions = {
+  style: LabelStyleId
+  /** Where labels may go. */
+  area: Box
+  /** Widest a label may be, points (about 28 % of the image width). */
+  maxWidth: number
+  /** Page y of the skyline above page x: labels sit above it. Without it, above the anchor. */
+  ceilingAt?: (x: number) => number
+  /** Gap between a label and the skyline (or anchor) below it, points. */
+  gap?: number
+  /** The box style, for `box`; a plain white box when absent. */
+  box?: CalloutBoxStyle
+  /** Text styles for the boxless styles; sensible defaults when absent. */
+  text?: SheetTextStyle
+  leader?: LeaderStyle
+}
+
+const DARK = '#1a1a1a'
+const PLAIN_BOX: CalloutBoxStyle = {
+  box: { kind: 'area', label: 'Label box', fill: '#ffffff', outline: [{ color: '#000000', width: 0.72 }] },
+  padding: { x: 4, y: 2.5 },
+  title: { size: 9, style: 'bold', color: '#000000' },
+  body: { size: 9, color: '#000000' },
+  pointer: { kind: 'leader', leader: { stroke: { color: '#000000', width: 0.6 } } },
+}
+const SECONDARY_TEXT: SheetTextStyle = { size: 7, color: '#ffffff' }
+const SECONDARY_LEADER: LeaderStyle = {
+  stroke: { color: '#ffffff', width: 0.6 },
+  head: { length: 3.5, width: 3, filled: true },
+}
+
+/** Numbered markers' circle radius, points. */
+export const MARKER_RADIUS = 6
+
+/**
+ * Labels for `labels` in one of the label styles, placed clear of each other inside `area`: above
+ * the skyline over each anchor, moved right and then down when they collide. Every box is sized
+ * from its measured text. Returns the operations, the key a numbered style prints in the legend,
+ * the boxes placed (for tests and later layout) and how many labels found no room.
+ */
+export function labelOps(
+  labels: readonly FigureLabel[],
+  options: LabelOptions,
+): { ops: DrawOp[]; key: Array<{ n: number; text: string }>; boxes: Box[]; dropped: number } {
+  const gap = options.gap ?? 28
+  const ops: DrawOp[] = []
+  const placed: Box[] = []
+  const key: Array<{ n: number; text: string }> = []
+  let dropped = 0
+  const sorted = [...labels].sort((a, b) => Number(!!a.secondary) - Number(!!b.secondary) || a.anchor[0] - b.anchor[0])
+  if (options.style === 'numbered') {
+    // Small numbered circles on the features; the names go in the key.
+    sorted.forEach((label, i) => {
+      const n = i + 1
+      const box = placeClear(
+        {
+          x: label.anchor[0] - MARKER_RADIUS,
+          y: label.anchor[1] - MARKER_RADIUS,
+          w: MARKER_RADIUS * 2,
+          h: MARKER_RADIUS * 2,
+        },
+        placed,
+        options.area,
+        1,
+      )
+      if (!box) {
+        dropped++
+        return
+      }
+      placed.push(box)
+      const cx = box.x + MARKER_RADIUS,
+        cy = box.y + MARKER_RADIUS
+      if (Math.hypot(cx - label.anchor[0], cy - label.anchor[1]) > MARKER_RADIUS)
+        ops.push(...leaderOps([cx, cy], label.anchor, { stroke: { color: DARK, width: 0.5 } }, 0))
+      ops.push({ op: 'circle', x: cx, y: cy, r: MARKER_RADIUS, fill: '#ffffff', stroke: { color: DARK, width: 0.8 } })
+      ops.push(...textOps(cx, cy, String(n), { size: 7, style: 'bold', color: DARK }, 'center', 'middle'))
+      key.push({ n, text: printed([label.title, label.body].filter(Boolean).join(' - ')) })
+    })
+    return { ops, key, boxes: placed, dropped }
+  }
+  for (const label of sorted) {
+    const ceiling = options.ceilingAt ? Math.min(options.ceilingAt(label.anchor[0]), label.anchor[1]) : label.anchor[1]
+    if (options.style === 'box' && !label.secondary) {
+      const style = options.box ?? PLAIN_BOX
+      const text = calloutText(style, label.title, label.body, options.maxWidth)
+      const lean = style.pointer.kind === 'wedge' ? text.w * 0.35 : 0
+      const box = placeClear(
+        { x: label.anchor[0] - text.w / 2 - lean, y: ceiling - gap - text.h, w: text.w, h: text.h },
+        placed,
+        options.area,
+      )
+      if (!box) {
+        dropped++
+        continue
+      }
+      placed.push(box)
+      ops.push(
+        ...calloutOps(
+          style,
+          box,
+          label.anchor,
+          label.title,
+          label.body,
+          label.focus && style.focus ? style.focus : {},
+          text,
+        ),
+      )
+      continue
+    }
+    // Boxless: underlined, halo, and every style's secondary labels.
+    const underlined = options.style === 'underlined' && !label.secondary
+    const base: SheetTextStyle = label.secondary
+      ? SECONDARY_TEXT
+      : underlined
+        ? { size: 9.5, style: 'bold', color: DARK, underline: { width: 0.6 } }
+        : (options.text ?? { size: 9, style: 'bold', color: DARK, halo: { color: '#ffffff', width: 1.8 } })
+    const title = fitCalloutLines(label.title, base, options.maxWidth, CALLOUT_MAX_TITLE_LINES)
+    const body =
+      label.body && !label.secondary
+        ? fitCalloutLines(
+            label.body,
+            { ...base, style: 'normal', underline: undefined, size: base.size * 0.85 },
+            options.maxWidth,
+            1,
+          )
+        : null
+    const blocks = [title, ...(body ? [body] : [])]
+    const w = Math.max(
+      ...blocks.flatMap((b) => b.lines.map((l) => textWidth(l, b.style.size, b.style.style ?? 'normal'))),
+    )
+    const h = blocks.reduce((sum, b) => sum + b.lines.length * lineHeight(b.style), 0)
+    const box = placeClear(
+      { x: label.anchor[0] - w / 2, y: ceiling - (label.secondary ? gap * 0.6 : gap) - h, w, h },
+      placed,
+      options.area,
+    )
+    if (!box) {
+      dropped++
+      continue
+    }
+    placed.push(box)
+    const leader = label.secondary
+      ? SECONDARY_LEADER
+      : (options.leader ?? { stroke: { color: underlined ? DARK : '#000000', width: underlined ? 0.6 : 0.5 } })
+    // Underlined: the leader drops from the underline, straight down when the anchor is under it.
+    const from: Point = underlined
+      ? [Math.max(box.x, Math.min(box.x + box.w, label.anchor[0])), box.y + box.h]
+      : nearestEdgePoint(box, label.anchor)
+    ops.push(...leaderOps(from, label.anchor, leader, 2))
+    let y = box.y
+    for (const block of blocks)
+      for (const line of block.lines) {
+        ops.push(...textOps(box.x + box.w / 2, y + block.style.size * 0.92, line, block.style, 'center'))
+        y += lineHeight(block.style)
+      }
+  }
+  return { ops, key, boxes: placed, dropped }
 }

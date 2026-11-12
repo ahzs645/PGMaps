@@ -3,15 +3,22 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   arrowHeadOps,
   balloonRing,
+  CALLOUT_MAX_TITLE_LINES,
   calloutOps,
   calloutSize,
+  calloutText,
+  fitCalloutLines,
+  LABEL_STYLES,
+  labelOps,
+  lineHeight,
+  type FigureLabel,
   leaderOps,
   placeClear,
   textOps,
   type CalloutBoxStyle,
 } from './callouts'
 import type { DrawOp, Point } from './drawOps'
-import { createSheetPdf, drawSheetPdf } from './renderPdf'
+import { createSheetPdf, drawSheetPdf, pdfText } from './renderPdf'
 import { sheetSvg } from './renderSvg'
 import { textWidth } from './textMetrics'
 
@@ -124,5 +131,106 @@ describe('figure annotation primitives', () => {
     expect(third.y).toBeGreaterThanOrEqual(first.y + first.h + 4)
     expect(placeClear({ x: 95, y: -5, w: 30, h: 10 }, [], bounds)).toEqual({ x: 70, y: 0, w: 30, h: 10 })
     expect(placeClear({ x: 0, y: 0, w: 200, h: 10 }, [], bounds)).toBeNull()
+  })
+})
+
+describe('callout text sizing and label styles', () => {
+  const CYAN: CalloutBoxStyle = { ...STYLE, padding: { x: 2.2, y: 2.4 } }
+
+  it('sizes a box from the text as it prints, an em dash included', () => {
+    const title = 'Block B — over the height of land'
+    const text = calloutText(CYAN, title, 'Likely Not Visible')
+    // The PDF prints "—" as " - ": the box is measured on that.
+    const printedWidth = textWidth(pdfText(title).replace(/\s+/g, ' '), 10, 'bold')
+    expect(text.w).toBeGreaterThanOrEqual(printedWidth + CYAN.padding.x * 2 - 1e-9)
+    // And it draws exactly the text it measured, never the raw em dash.
+    const drawn = calloutOps(
+      CYAN,
+      { x: 0, y: 0, w: text.w, h: text.h },
+      [200, 200],
+      title,
+      'Likely Not Visible',
+      {},
+      text,
+    )
+    expect(drawn.some((op) => op.op === 'text' && op.text === 'Block B - over the height of land')).toBe(true)
+    expect(text.h).toBeCloseTo(2 * lineHeight(CYAN.title) + CYAN.padding.y * 2)
+  })
+
+  it('wraps a long name at words, then shrinks it, then cuts it', () => {
+    const long = 'Block 12 — the long north-facing cutblock above the creek draw and the old landing'
+    const wrapped = calloutText(CYAN, long, undefined, 160)
+    expect(wrapped.title.lines.length).toBeGreaterThan(1)
+    expect(wrapped.title.lines.length).toBeLessThanOrEqual(CALLOUT_MAX_TITLE_LINES)
+    for (const line of wrapped.title.lines)
+      expect(textWidth(line, wrapped.title.style.size, 'bold')).toBeLessThanOrEqual(160 - CYAN.padding.x * 2 + 1e-9)
+    expect(wrapped.w).toBeLessThanOrEqual(160 + 1e-9)
+    const tight = fitCalloutLines(long, CYAN.title, 60, 2)
+    expect(tight.style.size).toBeCloseTo(10 * 0.85)
+    expect(tight.lines.at(-1)).toMatch(/\.\.\.$/)
+  })
+
+  const clustered: FigureLabel[] = Array.from({ length: 6 }, (_, i) => ({
+    title: `Block ${String.fromCharCode(65 + i)} — cutblock`,
+    body: i % 2 ? 'Visible' : 'Possible Glimpses',
+    anchor: [300 + i * 6, 220 + (i % 3) * 4] as Point,
+  }))
+  const area = { x: 0, y: 0, w: 600, h: 300 }
+  const overlap = (a: { x: number; y: number; w: number; h: number }, b: typeof a) =>
+    a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h
+
+  for (const style of LABEL_STYLES.map((entry) => entry.id))
+    it(`places six clustered labels without overlap, inside the area (${style})`, () => {
+      const { boxes, dropped, ops } = labelOps(clustered, {
+        style,
+        area,
+        maxWidth: 160,
+        ceilingAt: () => 200,
+        box: CYAN,
+      })
+      expect(dropped).toBe(0)
+      expect(boxes).toHaveLength(6)
+      for (let i = 0; i < boxes.length; i++) {
+        const b = boxes[i]
+        expect(b.x).toBeGreaterThanOrEqual(area.x)
+        expect(b.y).toBeGreaterThanOrEqual(area.y)
+        expect(b.x + b.w).toBeLessThanOrEqual(area.x + area.w + 1e-9)
+        expect(b.y + b.h).toBeLessThanOrEqual(area.y + area.h + 1e-9)
+        for (let j = i + 1; j < boxes.length; j++) expect(overlap(b, boxes[j])).toBe(false)
+      }
+      expect(ops.length).toBeGreaterThan(6)
+    })
+
+  it('drops an underlined label’s leader from the underline, straight down to an anchor under it', () => {
+    const { ops, boxes } = labelOps([{ title: 'Block 1', anchor: [100, 200] }], {
+      style: 'underlined',
+      area,
+      maxWidth: 160,
+      ceilingAt: () => 150,
+    })
+    const leader = ops.find(
+      (op) => op.op === 'path' && !op.closed && op.stroke && op.parts[0].at(-1)![1] > boxes[0].y + boxes[0].h,
+    ) as Extract<DrawOp, { op: 'path' }>
+    const [[x0], [x1]] = leader.parts[0]
+    expect(x0).toBeCloseTo(100)
+    expect(x1).toBeCloseTo(100)
+    expect(ops.some((op) => op.op === 'text' && op.text === 'Block 1' && op.style === 'bold')).toBe(true)
+  })
+
+  it('draws secondary features as small white text with an arrowhead leader', () => {
+    const { ops } = labelOps([{ title: 'Opening 1998', anchor: [100, 200], secondary: true }], {
+      style: 'underlined',
+      area,
+      maxWidth: 160,
+    })
+    expect(ops.some((op) => op.op === 'text' && op.color === '#ffffff' && op.size === 7)).toBe(true)
+    expect(ops.some((op) => op.op === 'path' && op.closed && op.fill === '#ffffff')).toBe(true)
+  })
+
+  it('numbers markers and returns their key for the legend', () => {
+    const { ops, key } = labelOps(clustered.slice(0, 3), { style: 'numbered', area, maxWidth: 160 })
+    expect(key.map((entry) => entry.n)).toEqual([1, 2, 3])
+    expect(key[0].text).toBe('Block A - cutblock - Possible Glimpses')
+    expect(ops.filter((op) => op.op === 'circle')).toHaveLength(3)
   })
 })
