@@ -1870,7 +1870,13 @@ export function Sidebar({
               title="Percent alteration"
               help="Handbook 3.4.2, Table 2. The share of the landform's visible green face, in perspective from the assessment station, read against Table 2. Estimated from terrain sightlines, not measured on a photograph."
             >
-              <NumericalAssessmentSummary assessment={assessment} result={result} />
+              <NumericalAssessmentSummary
+                assessment={assessment}
+                result={result}
+                blockNames={Object.fromEntries(
+                  scene.targets.filter((target) => target.role === 'block').map((target) => [target.id, target.name]),
+                )}
+              />
             </ToolSection>
             <ToolSection
               title="Design adjustments"

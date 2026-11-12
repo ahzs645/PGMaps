@@ -855,7 +855,9 @@ function DevForestryVisuals() {
         name:
           candidate.method === 'ridge-layer'
             ? `Ridge layer around ${candidate.blockName}`
-            : `Terrain landform around ${candidate.blockName}`,
+            : candidate.method === 'visible-face'
+              ? `Visible face round ${candidate.blockName}`
+              : `Terrain landform around ${candidate.blockName}`,
         role: 'landscape',
         objectiveId: current?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
         vac: current?.vac ?? null,
@@ -865,7 +867,9 @@ function DevForestryVisuals() {
         source:
           candidate.method === 'ridge-layer'
             ? `Ridge layer seen from ${candidate.vantageName ?? 'the road'}; review against the view`
-            : `Face turned to ${candidate.vantageName ?? 'the road'}, from terrain; review against the view`,
+            : candidate.method === 'visible-face'
+              ? `Visible face from ${candidate.vantageName ?? 'the road'} (one station, water and frame break it); review against the view`
+              : `Face turned to ${candidate.vantageName ?? 'the road'}, from terrain; review against the view`,
       }
       setScene((scene) => ({
         ...scene,

@@ -27,7 +27,7 @@
  * Pure: no DOM, no network.
  */
 import type { LandformBoundary, TerrainLandform } from './landformFromTerrain'
-import { morph, signedArea, simplifyRing, traceRings } from './landformFromTerrain'
+import { flowAccumulation, morph, signedArea, simplifyRing, traceRings } from './landformFromTerrain'
 import type { ElevationSource } from './terrain'
 import {
   earthCurvatureDropMeters,
@@ -35,6 +35,7 @@ import {
   pointInPolygon,
   polygonAreaMeters,
   polygonBounds,
+  preparePolygons,
   type PolygonGeometry,
 } from './visibility'
 
@@ -490,5 +491,336 @@ export function ridgeLayerLandform(
     stationCount: picked.length,
     stationsSeeing: seeing,
     layers,
+  }
+}
+
+// ---------------------------------------------------------------- the visible face from one viewpoint
+
+export type VisibleFaceOptions = {
+  /**
+   * The viewing frame: rays only within `hfovDeg` of `bearingDeg`. Nothing outside the frame the
+   * planner renders is ever in the consultants' landforms. Defaults to `VISIBLE_FACE_DEFAULTS.hfovDeg`
+   * centred on the block.
+   */
+  frame?: { bearingDeg: number; hfovDeg: number }
+  eyeHeightMeters?: number
+  /** Water to break a layer at: the shoreline is an edge and the lake is never landform. */
+  water?: ReadonlyArray<PolygonGeometry>
+  /**
+   * Ground at or within half a metre above this is water too, metres: the sea, or a lake the
+   * basemap has no polygon for (the study's own rule, reading the DEM's flat water level).
+   */
+  waterLevelMeters?: number | null
+  /** Ground nearer than this is foreground, not landform, metres. */
+  nearMeters?: number
+  /**
+   * Stop at the first crest: a stretch that reappears behind a hidden gap joins the band only in
+   * the same run order along neighbouring rays. Off by default: in the study it fixed one long face
+   * and cut two others apart.
+   */
+  stopAtFirstCrest?: boolean
+  /** Split at major draws (`drawAreaKm2` upstream). Off by default: sub-landforms are the planner's choice. */
+  splitAtDraws?: boolean
+  drawAreaKm2?: number
+  rayStepDegrees?: number
+  binMeters?: number
+  maxDistanceMeters?: number
+  /** Output grid cell, metres. */
+  cellMeters?: number
+}
+
+export const VISIBLE_FACE_DEFAULTS = {
+  /** The narrowest panorama in the study's sheets (60–141°). */
+  hfovDeg: 60,
+  eyeHeightMeters: 1.6,
+  nearMeters: 300,
+  stopAtFirstCrest: false,
+  splitAtDraws: false,
+  drawAreaKm2: 1,
+  rayStepDegrees: 0.1,
+  binMeters: 15,
+  maxDistanceMeters: 15000,
+  cellMeters: 25,
+} as const
+
+export type VisibleFaceLandform = TerrainLandform & {
+  method: 'visible-face'
+  /** What the band was chosen by: the block's visible ground, or (block hidden) the land in front of it. */
+  seededBy: 'block' | 'in-front'
+  frame: { bearingDeg: number; hfovDeg: number }
+}
+
+/** Bin states along a ray. */
+const HIDDEN = 0,
+  LAND = 1,
+  WATER = 2,
+  UNKNOWN = 3,
+  NEAR = 4,
+  DRAW = 5
+
+/**
+ * The landform as the consultants draw it (study of BC VIA sheets, November 2026): the visible
+ * face of one ridge mass, read from one viewpoint. Rays sweep the viewing frame; along each the
+ * running horizon marks every range bin visible or hidden. Visible land joins along a ray and
+ * across neighbouring rays; a hidden run (a nearer ridge) breaks a ray, water never joins (so the
+ * bottom is the shoreline), ground within `nearMeters` is foreground. The landform is the band
+ * holding most of the block's visible ground, or, when the block is hidden, the band of the last
+ * land seen in front of it on each ray. Hidden pockets are filled. A candidate: the reviewer adopts
+ * it or not. Null when nothing of the block or in front of it is in view.
+ */
+export function visibleFaceLandform(
+  source: ElevationSource,
+  block: PolygonGeometry,
+  station: Station,
+  options: VisibleFaceOptions = {},
+): VisibleFaceLandform | null {
+  const o = { ...VISIBLE_FACE_DEFAULTS, ...options }
+  const scale = metersPerDegree(station.lat)
+  const toLngLat = (x: number, y: number): [number, number] => [
+    station.lng + x / scale.lng,
+    station.lat + y / scale.lat,
+  ]
+  const [bw, bs, be, bn] = polygonBounds(block)
+  const blockCentre = { x: ((bw + be) / 2 - station.lng) * scale.lng, y: ((bs + bn) / 2 - station.lat) * scale.lat }
+  const frame = o.frame ?? {
+    bearingDeg: ((Math.atan2(blockCentre.x, blockCentre.y) * 180) / Math.PI + 360) % 360,
+    hfovDeg: o.hfovDeg,
+  }
+  const blockFar = Math.max(
+    ...[
+      [bw, bs],
+      [be, bs],
+      [bw, bn],
+      [be, bn],
+    ].map(([lng, lat]) => Math.hypot((lng - station.lng) * scale.lng, (lat - station.lat) * scale.lat)),
+  )
+  const reach = Math.min(o.maxDistanceMeters, blockFar + 5000)
+  const az0 = frame.bearingDeg - frame.hfovDeg / 2
+  const rays = Math.min(3600, Math.max(2, Math.ceil(frame.hfovDeg / o.rayStepDegrees) + 1))
+  const rayStep = frame.hfovDeg / (rays - 1)
+  const bin = Math.max(o.binMeters, reach / 2000)
+  const bins = Math.max(2, Math.ceil(reach / bin))
+  const groundAt = source.elevationAt(station.lng, station.lat)
+  if (!Number.isFinite(groundAt)) return null
+  const eye = groundAt + o.eyeHeightMeters
+  const water = o.water?.length ? preparePolygons(o.water) : null
+  const draws = o.splitAtDraws ? drawMask(source, station, reach, o.drawAreaKm2) : null
+
+  const st = new Uint8Array(rays * bins)
+  const inBlock = new Uint8Array(rays * bins)
+  const firstBlock = new Int32Array(rays).fill(-1)
+  for (let k = 0; k < rays; k++) {
+    const a = ((az0 + k * rayStep) * Math.PI) / 180
+    const sin = Math.sin(a),
+      cos = Math.cos(a)
+    let horizon = -Infinity
+    for (let j = 1; j < bins; j++) {
+      const d = j * bin
+      const [lng, lat] = toLngLat(sin * d, cos * d)
+      const i = k * bins + j
+      if (pointInPolygon(block, lng, lat)) {
+        inBlock[i] = 1
+        if (firstBlock[k] < 0) firstBlock[k] = j
+      }
+      const z = source.elevationAt(lng, lat)
+      if (!Number.isFinite(z)) {
+        st[i] = UNKNOWN
+        continue
+      }
+      const tangent = (z - eye - earthCurvatureDropMeters(d)) / d
+      const visible = tangent >= horizon - 1e-9
+      if (tangent > horizon) horizon = tangent
+      if (!visible) continue
+      const wet = water?.contains(lng, lat) || (o.waterLevelMeters != null && z <= o.waterLevelMeters + 0.5)
+      st[i] = wet ? WATER : d < o.nearMeters ? NEAR : draws?.(lng, lat) ? DRAW : LAND
+    }
+    // A one-bin dip out of sight is a hollow in the slope, not a ridge line.
+    for (let j = 2; j < bins - 1; j++) {
+      const i = k * bins + j
+      if (st[i] === HIDDEN && st[i - 1] === LAND && st[i + 1] === LAND) st[i] = LAND
+    }
+  }
+
+  // Run order along each ray: 1 the first stretch of land seen, 2 the next after a hidden gap, ...
+  const run = new Int16Array(rays * bins)
+  if (o.stopAtFirstCrest)
+    for (let k = 0; k < rays; k++) {
+      let order = 0,
+        hidden = 99
+      for (let j = 1; j < bins; j++) {
+        const i = k * bins + j
+        if (st[i] === LAND) {
+          if (order === 0 || hidden >= 3) order++
+          hidden = 0
+          run[i] = order
+        } else if (st[i] === HIDDEN) hidden++
+      }
+    }
+  const parent = new Int32Array(rays * bins).map((_, i) => i)
+  const find = (i: number): number => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]]
+      i = parent[i]
+    }
+    return i
+  }
+  const join = (a: number, b: number) => {
+    const ra = find(a),
+      rb = find(b)
+    if (ra !== rb) parent[ra] = rb
+  }
+  for (let k = 0; k < rays; k++)
+    for (let j = 1; j < bins; j++) {
+      const i = k * bins + j
+      if (st[i] !== LAND) continue
+      if (j + 1 < bins && st[i + 1] === LAND) join(i, i + 1)
+      if (k + 1 < rays && st[i + bins] === LAND && (!o.stopAtFirstCrest || run[i] === run[i + bins])) join(i, i + bins)
+    }
+
+  let seeds: number[] = []
+  for (let i = 0; i < st.length; i++) if (inBlock[i] && st[i] === LAND) seeds.push(i)
+  let seededBy: VisibleFaceLandform['seededBy'] = 'block'
+  if (!seeds.length) {
+    // The block is hidden: the landform is the band in front of it, the last land seen before it on each ray.
+    seededBy = 'in-front'
+    seeds = []
+    for (let k = 0; k < rays; k++)
+      for (let j = firstBlock[k] - 1; firstBlock[k] > 0 && j >= 1; j--)
+        if (st[k * bins + j] === LAND) {
+          seeds.push(k * bins + j)
+          break
+        }
+  }
+  if (!seeds.length) return null
+  const votes = new Map<number, number>()
+  for (const i of seeds) votes.set(find(i), (votes.get(find(i)) ?? 0) + 1)
+  const label = [...votes].sort((a, b) => b[1] - a[1])[0][0]
+
+  // The band, with the hidden pockets between its first and last bin on each ray.
+  const band = new Uint8Array(rays * bins)
+  for (let k = 0; k < rays; k++) {
+    let first = -1,
+      last = -1
+    for (let j = 1; j < bins; j++) {
+      const i = k * bins + j
+      if (st[i] === LAND && find(i) === label) {
+        band[i] = 1
+        if (first < 0) first = j
+        last = j
+      }
+    }
+    if (first >= 0) for (let j = first; j <= last; j++) if (st[k * bins + j] === HIDDEN) band[k * bins + j] = 1
+  }
+
+  // Onto a grid in metres round the band.
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity
+  const polar = (k: number, j: number) => {
+    const a = ((az0 + k * rayStep) * Math.PI) / 180
+    return [Math.sin(a) * j * bin, Math.cos(a) * j * bin]
+  }
+  for (let k = 0; k < rays; k++)
+    for (let j = 1; j < bins; j++) {
+      if (!band[k * bins + j]) continue
+      const [x, y] = polar(k, j)
+      minX = Math.min(minX, x)
+      maxX = Math.max(maxX, x)
+      minY = Math.min(minY, y)
+      maxY = Math.max(maxY, y)
+    }
+  const cell = o.cellMeters
+  const x0 = minX - 3 * cell,
+    y0 = minY - 3 * cell
+  const width = Math.ceil((maxX - x0) / cell) + 4,
+    height = Math.ceil((maxY - y0) / cell) + 4
+  if (width * height > 4_000_000) return null
+  const mask = new Uint8Array(width * height)
+  /** The ray and bin under a grid cell, or null outside the frame or range. */
+  const binOf = (gx: number, gy: number) => {
+    const x = x0 + (gx + 0.5) * cell,
+      y = y0 + (gy + 0.5) * cell
+    let az = (Math.atan2(x, y) * 180) / Math.PI
+    while (az < az0 - 180) az += 360
+    while (az > az0 + 180) az -= 360
+    const k = Math.round((az - az0) / rayStep),
+      j = Math.round(Math.hypot(x, y) / bin)
+    return k < 0 || k >= rays || j < 1 || j >= bins ? null : { k, j, i: k * bins + j }
+  }
+  for (let gy = 0; gy < height; gy++)
+    for (let gx = 0; gx < width; gx++) {
+      const at = binOf(gx, gy)
+      if (at && band[at.i]) mask[gy * width + gx] = 1
+    }
+  const filled = fillHoles(mask, width, height)
+  const corner = (gx: number, gy: number) => toLngLat(x0 + gx * cell, y0 + gy * cell)
+  const geometry = outline(filled, width, height, corner)
+  if (!geometry) return null
+
+  // Why the outline stops: what lies across each edge, read from the rays.
+  const tally = new Map<LandformBoundary, number>()
+  let edges = 0,
+    reachedLimit = false,
+    cells = 0
+  for (let gy = 0; gy < height; gy++)
+    for (let gx = 0; gx < width; gx++) {
+      if (!filled[gy * width + gx]) continue
+      cells++
+      const here = binOf(gx, gy)
+      for (const [nx, ny] of [
+        [gx + 1, gy],
+        [gx - 1, gy],
+        [gx, gy + 1],
+        [gx, gy - 1],
+      ]) {
+        if (nx >= 0 && ny >= 0 && nx < width && ny < height && filled[ny * width + nx]) continue
+        const there = nx >= 0 && ny >= 0 && nx < width && ny < height ? binOf(nx, ny) : null
+        let why: LandformBoundary
+        if (!there) {
+          why = 'search-limit'
+          reachedLimit = true
+        } else if (st[there.i] === WATER) why = 'water'
+        else if (st[there.i] === DRAW) why = 'drainage'
+        else if (st[there.i] === UNKNOWN) why = 'no-data'
+        else if (st[there.i] === NEAR) why = 'nearer-ridge'
+        else why = here && there.j > here.j ? 'skyline' : 'nearer-ridge'
+        edges++
+        tally.set(why, (tally.get(why) ?? 0) + 1)
+      }
+    }
+  const blockArea = polygonAreaMeters(block)
+  return {
+    method: 'visible-face',
+    geometry,
+    areaHectares: polygonAreaMeters(geometry) / 10_000,
+    boundedBy: Object.fromEntries([...tally].map(([key, count]) => [key, count / Math.max(1, edges)])),
+    reachedLimit,
+    blockOnly: cells * cell * cell <= blockArea * 2.5,
+    viewerClose: false,
+    seededBy,
+    frame,
+  }
+}
+
+/** Ground draining at least `areaKm2`, on a 50 m grid round the station: where `splitAtDraws` cuts. */
+function drawMask(source: ElevationSource, station: Station, radius: number, areaKm2: number) {
+  const cell = 50
+  const half = Math.ceil(radius / cell)
+  const width = 2 * half + 1
+  const scale = metersPerDegree(station.lat)
+  const elevation = new Float64Array(width * width)
+  for (let y = 0; y < width; y++)
+    for (let x = 0; x < width; x++)
+      elevation[y * width + x] = source.elevationAt(
+        station.lng + ((x - half) * cell) / scale.lng,
+        station.lat + ((y - half) * cell) / scale.lat,
+      )
+  const accumulation = flowAccumulation(elevation, width, width)
+  const need = (areaKm2 * 1e6) / (cell * cell)
+  return (lng: number, lat: number) => {
+    const x = Math.round(((lng - station.lng) * scale.lng) / cell) + half,
+      y = Math.round(((lat - station.lat) * scale.lat) / cell) + half
+    return x >= 0 && y >= 0 && x < width && y < width && accumulation[y * width + x] >= need
   }
 }

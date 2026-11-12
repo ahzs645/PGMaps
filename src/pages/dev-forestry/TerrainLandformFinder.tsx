@@ -1,4 +1,4 @@
-import { StyledSelect } from '@/components/ui/form-field'
+import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
 import { Loader2, MapPin } from 'lucide-react'
 import { ResultRow } from '@/components/ui/result-list'
 import { useEffect, useRef, useState } from 'react'
@@ -17,7 +17,14 @@ import {
   type LandformBoundary,
   type TerrainLandform,
 } from './landformFromTerrain'
-import { MAX_RIDGE_STATIONS, RIDGE_LAYER_DEFAULTS, ridgeLayerLandform, type RidgeLayer } from './ridgeLayers'
+import {
+  MAX_RIDGE_STATIONS,
+  RIDGE_LAYER_DEFAULTS,
+  ridgeLayerLandform,
+  VISIBLE_FACE_DEFAULTS,
+  visibleFaceLandform,
+  type RidgeLayer,
+} from './ridgeLayers'
 import { nearestPointOnLine } from './roadSnap'
 import type { ForestryScene } from './scene'
 import { findSceneLandform } from './sceneInput'
@@ -58,13 +65,14 @@ export type TerrainCandidate = TerrainLandform & {
   vantageName?: string
 }
 
-export type LandformMethod = 'facing' | 'ridge-layer'
+export type LandformMethod = 'facing' | 'ridge-layer' | 'visible-face'
 
 export const LANDFORM_METHOD_LABELS: Record<LandformMethod, string> = {
+  'visible-face': 'Visible face from the viewpoint',
   'ridge-layer': 'Ridge layer seen',
   facing: 'Face turned to the view',
 }
-const METHODS: LandformMethod[] = ['ridge-layer', 'facing']
+const METHODS: LandformMethod[] = ['visible-face', 'ridge-layer', 'facing']
 
 /** A place to read the landform from other than the road: an inventory viewpoint or rec site. */
 export type LandformVantage = {
@@ -143,6 +151,10 @@ export function TerrainLandformFinder({
   const [status, setStatus] = useState<{ state: 'idle' | 'working' | 'failed'; message?: string }>({ state: 'idle' })
   const [vantage, setVantage] = useState<Vantage>({ kind: 'road' })
   const [pickRequested, setPicking] = useState(false)
+  // The visible face's two study options (docs/forestry-visual-quality.md): each helped some sheets
+  // and hurt others, so both start off.
+  const [stopAtFirstCrest, setStopAtFirstCrest] = useState<boolean>(VISIBLE_FACE_DEFAULTS.stopAtFirstCrest)
+  const [splitAtDraws, setSplitAtDraws] = useState<boolean>(VISIBLE_FACE_DEFAULTS.splitAtDraws)
   // The map's own Cancel ends a pick too.
   const picking = pickRequested && pickActive
   const controller = useRef<AbortController | null>(null)
@@ -250,6 +262,14 @@ export function TerrainLandformFinder({
         eyeHeightMeters: scene.settings.observerHeightMeters,
       })
       if (ridge) found.push({ ...ridge, ...base })
+      // The visible face reads from one station only: the assessment viewpoint, as a planner renders it.
+      const visible = visibleFaceLandform(grid, target.geometry, viewpoint, {
+        water,
+        eyeHeightMeters: scene.settings.observerHeightMeters,
+        stopAtFirstCrest,
+        splitAtDraws,
+      })
+      if (visible) found.push({ ...visible, ...base })
       const face = landformFromTerrain(grid, target.geometry, viewpoint, { water })
       if (face) found.push({ ...face, method: 'facing', ...base })
       if (!found.length) throw new Error('No terrain under this block.')
@@ -302,11 +322,17 @@ export function TerrainLandformFinder({
           ? candidates
               .map((entry) => `${LANDFORM_METHOD_LABELS[methodOf(entry)]} ${formatHa(entry.areaHectares * 10_000, 0)}`)
               .join(' · ')
-          : 'Ridge layer and face, side by side'
+          : 'Visible face, ridge layer and face, side by side'
       }
       help={
         <>
-          Both readings at once, drawn on the map side by side. <b>Ridge layer seen</b>: the layer of ridge the block
+          Three readings at once, drawn on the map side by side. <b>Visible face from the viewpoint</b>: the face of one
+          ridge mass as a planner draws it on a VIA sheet, read from the one viewpoint: bounded below by the shoreline
+          where the view crosses water (water is never landform) and by the foreground within{' '}
+          {VISIBLE_FACE_DEFAULTS.nearMeters} m, above by the skyline of that ridge mass (a farther ridge seen behind is
+          another landform), and at the sides by a {VISIBLE_FACE_DEFAULTS.hfovDeg}° viewing frame. A hidden block takes
+          the face in front of it. Stopping at the first crest and splitting at draws are off by default: each helped
+          some sheets in the November 2026 study and hurt others. <b>Ridge layer seen</b>: the layer of ridge the block
           sits in, as the view sees the hills stack up — the visible ground joined to the block&apos;s, stopped where a
           nearer ridge hides what lies in front and where the ground drops out of view behind. From the road it is read
           from up to {MAX_RIDGE_STATIONS} stations and joined, as the block is seen driving past.{' '}
@@ -451,6 +477,18 @@ export function TerrainLandformFinder({
           ))}
         </StyledSelect>
       )}
+      <div className="space-y-1" role="group" aria-label="Visible face options">
+        <CheckboxField
+          label="Visible face: stop at the first crest"
+          checked={stopAtFirstCrest}
+          onCheckedChange={setStopAtFirstCrest}
+        />
+        <CheckboxField
+          label="Visible face: split at major draws"
+          checked={splitAtDraws}
+          onCheckedChange={setSplitAtDraws}
+        />
+      </div>
       <Button
         type="button"
         variant="outline"

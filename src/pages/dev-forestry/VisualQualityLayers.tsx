@@ -33,6 +33,7 @@ import {
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLOR,
   TERRAIN_CANDIDATE_COLOR,
+  VISIBLE_FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
   VISIBLE_COLOR,
 } from './planMapStyle'
@@ -398,13 +399,33 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         <>
           <MapFillLayer
             data={planCandidates}
-            fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+            fillColor={
+              [
+                'match',
+                ['get', 'method'],
+                'facing',
+                FACE_CANDIDATE_COLOR,
+                'visible-face',
+                VISIBLE_FACE_CANDIDATE_COLOR,
+                TERRAIN_CANDIDATE_COLOR,
+              ] as never
+            }
             fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
             lineWidth={0}
           />
           <MapLineLayer
             data={planCandidates}
-            color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+            color={
+              [
+                'match',
+                ['get', 'method'],
+                'facing',
+                FACE_CANDIDATE_COLOR,
+                'visible-face',
+                VISIBLE_FACE_CANDIDATE_COLOR,
+                TERRAIN_CANDIDATE_COLOR,
+              ] as never
+            }
             width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
             dashArray={[2, 1.5]}
             opacity={['case', ['==', ['get', 'selected'], 1], 0.95, 0.7] as never}
