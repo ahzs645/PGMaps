@@ -27,6 +27,7 @@ export type PlanLegendKey =
   | 'exposure'
   | 'candidate:ridge-layer'
   | 'candidate:facing'
+  | 'candidate:visible-face'
   | 'other-ridge-layers'
   | `clue:${LandformCluePosition}`
   | `unit:${VisualQualityClassId | 'none'}`
@@ -89,7 +90,11 @@ export function clueLegendKey(properties: Record<string, unknown>): PlanLegendKe
 }
 
 export function candidateLegendKey(properties: Record<string, unknown>): PlanLegendKey {
-  return properties.method === 'facing' ? 'candidate:facing' : 'candidate:ridge-layer'
+  return properties.method === 'facing'
+    ? 'candidate:facing'
+    : properties.method === 'visible-face'
+      ? 'candidate:visible-face'
+      : 'candidate:ridge-layer'
 }
 
 /** Sensitivity units carry `objectiveId`, empty when nothing is established. */

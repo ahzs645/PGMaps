@@ -6,7 +6,13 @@
  */
 
 import { analysisBounds, buildStations, computeAnalysis } from './analysis'
-import { fetchVegetationStands, forestedGeometries, clampVegetationBounds } from './bcVegetationInventory'
+import {
+  fetchVegetationStands,
+  forestedGeometries,
+  clampVegetationBounds,
+  nonVegetatedGeometries,
+  nonVegetatedNear,
+} from './bcVegetationInventory'
 import { groundCoverFromBclcs } from './forest'
 import type { CanopyStand } from './canopy'
 import { loadElevationGrid } from './demLoader'
@@ -106,6 +112,8 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
   // Non-treed inventory ground, for the road view only: no figure reads it.
   let renderCover: NonNullable<import('./types').AnalysisResult['renderCover']> = []
   let forestedGround: PolygonGeometry[] = []
+  let nonVegetatedGround: PolygonGeometry[] = []
+  let nonVegetatedAll: PolygonGeometry[] = []
   let vegetation: import('./types').InventoryEvidence = { status: 'not-requested' }
   if (vegetationRequest) {
     const queryBounds = clampVegetationBounds(bounds)
@@ -124,7 +132,21 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
         retrievedAt: new Date().toISOString(),
         source: 'BC VRI rank-1 WFS',
       }
-      if (wantsGreenArea) forestedGround = forestedGeometries(stands)
+      if (wantsGreenArea) {
+        forestedGround = forestedGeometries(stands)
+        nonVegetatedAll = nonVegetatedGeometries(stands)
+        // Rock for VIA figures, around the landforms only: display, never a figure.
+        const landforms = input.targets
+          .filter((target) => target.role === 'landscape')
+          .map((t) => polygonBounds(t.geometry))
+        if (landforms.length)
+          nonVegetatedGround = nonVegetatedNear(stands, [
+            Math.min(...landforms.map((b) => b[0])),
+            Math.min(...landforms.map((b) => b[1])),
+            Math.max(...landforms.map((b) => b[2])),
+            Math.max(...landforms.map((b) => b[3])),
+          ])
+      }
       renderCover = stands.flatMap((stand) => {
         const cover = stand.landCover
           ? groundCoverFromBclcs(
@@ -176,8 +198,9 @@ async function runAnalysis(request: Extract<AnalysisWorkerRequest, { type: 'anal
     (progress) => post({ type: 'progress', requestId, progress }),
     canopyStands,
     forestedGround,
-    { vegetation, inspection: request.inspection },
+    { vegetation, inspection: request.inspection, nonVegetatedGround: nonVegetatedAll },
   )
+  if (nonVegetatedGround.length) result.nonVegetatedGround = nonVegetatedGround
   result.renderCover = renderCover
   result.sourceNotes =
     input.localRasters?.map(

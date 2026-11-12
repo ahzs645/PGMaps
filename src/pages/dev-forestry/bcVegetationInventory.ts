@@ -23,7 +23,7 @@
  * feature cap below.
  */
 
-import type { PolygonGeometry } from './visibility'
+import { polygonBounds, type PolygonGeometry } from './visibility'
 
 export const BC_VEGETATION_WFS = 'https://openmaps.gov.bc.ca/geo/pub/WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY/ows'
 
@@ -68,6 +68,13 @@ export type VriStand = {
    * distinction the denudation procedure turns on.
    */
   treed: boolean
+  /**
+   * BCLCS level 1 `N` with level 2 `L`: non-vegetated land (rock, rubble, exposed soil, ice), not
+   * water. What a VIA figure draws as rock or non-vegetated ground. Absent on stands parsed before it.
+   */
+  nonVegetatedLand?: boolean
+  /** BCLCS level 1 `N`: non-vegetated ground of any kind, water and ice included. */
+  nonVegetated?: boolean
   /** Leading species as the inventory spells it — `SX`, `PLI`, `BL`, `AT`. */
   speciesCode: string | null
   /**
@@ -182,6 +189,10 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
       {
         featureId: finiteNumber(properties.FEATURE_ID),
         treed: trimmed(properties.BCLCS_LEVEL_2)?.toUpperCase() === 'T',
+        nonVegetated: trimmed(properties.BCLCS_LEVEL_1)?.toUpperCase() === 'N',
+        nonVegetatedLand:
+          trimmed(properties.BCLCS_LEVEL_1)?.toUpperCase() === 'N' &&
+          trimmed(properties.BCLCS_LEVEL_2)?.toUpperCase() === 'L',
         speciesCode: trimmed(properties.SPECIES_CD_1),
         heightMeters: finiteNumber(properties.PROJ_HEIGHT_1),
         crownClosurePercent: finiteNumber(properties.CROWN_CLOSURE),
@@ -207,6 +218,31 @@ export function parseVegetationStands(payload: unknown, maxFeatures = MAX_VEGETA
 /** Just the treed ground, which is what the denudation denominator divides by. */
 export function forestedGeometries(stands: ReadonlyArray<VriStand>): PolygonGeometry[] {
   return stands.filter((stand) => stand.treed).map((stand) => stand.geometry)
+}
+
+/** Non-vegetated ground of any kind (rock, water, ice): what the perspective denominator leaves out. */
+export function nonVegetatedGeometries(stands: ReadonlyArray<VriStand>): PolygonGeometry[] {
+  return stands.filter((stand) => stand.nonVegetated).map((stand) => stand.geometry)
+}
+
+/**
+ * Non-vegetated land whose box meets `bounds` ([w, s, e, n]), at most `limit` polygons: the rock
+ * a VIA figure draws in and around the landform. Display only; no figure in the run reads it.
+ */
+export function nonVegetatedNear(
+  stands: ReadonlyArray<VriStand>,
+  bounds: [number, number, number, number],
+  limit = 400,
+): PolygonGeometry[] {
+  const [w, s, e, n] = bounds
+  return stands
+    .filter((stand) => {
+      if (!stand.nonVegetatedLand) return false
+      const b = polygonBounds(stand.geometry)
+      return b[0] <= e && b[2] >= w && b[1] <= n && b[3] >= s
+    })
+    .slice(0, limit)
+    .map((stand) => stand.geometry)
 }
 
 export async function fetchVegetationStands(

@@ -122,8 +122,47 @@ import {
   type NoteImage,
   type ViewpointPage,
 } from './dev-forestry/blockNote'
-import { captureImageUrl, captureMapImage, capturePlanMap } from './dev-forestry/mapCapture'
+import {
+  captureClassPass,
+  captureFramed,
+  captureImageUrl,
+  captureMapImage,
+  capturePlanMap,
+} from './dev-forestry/mapCapture'
 import { matchingDesign } from './dev-forestry/assessmentTools'
+import {
+  focalForHfov,
+  HFOV_50_MM,
+  landformAngularExtent,
+  planFraming,
+  projectToFrames,
+} from './dev-forestry/figureFraming'
+import { inventoryBadge } from './dev-forestry/inventoryBadge'
+import type { DrivePose } from './dev-forestry/driveController'
+import { classPassLayers, zonePassLayers, type ClassPassInput } from './dev-forestry/figureClassPass'
+import { blockCallouts, type BlockSight } from './dev-forestry/figureCallouts'
+import type { FigureStyleData } from './dev-forestry/FigureStyleLayers'
+import {
+  DEFAULT_FIGURE_STYLE,
+  FigureSheetPanel,
+  figureNoteImage,
+  type SavedFigure,
+} from './dev-forestry/FigureSheetPanel'
+import { PrivateLandPanel } from './dev-forestry/PrivateLandPanel'
+import { NetFootprintPanel } from './dev-forestry/NetFootprintPanel'
+import { reserveMaskFields } from './dev-forestry/resultsReserves'
+import { parcelMaskFields } from './dev-forestry/parcelMapPrivateLand'
+import {
+  decodeClassRaster,
+  inLandform,
+  landformCropRows,
+  type Overlay,
+  visibleLineParts,
+  ZONE_PALETTE,
+} from '@/lib/forestry/viaFigure/composeFigure'
+import { findPreset as findFigurePreset, VQO_ZONE_ROLES } from '@/lib/forestry/viaFigure/presets'
+import { splitLandform, subLandformDividers } from './dev-forestry/subLandforms'
+import { terrainLines } from './dev-forestry/terrainLines'
 import {
   fetchViewpointInventory,
   pulloutThrough,
@@ -136,7 +175,7 @@ import {
 } from './dev-forestry/viewpointInventory'
 import { EVQO_CODE_FOR_CLASS, viewCaption, type EvqoCode, type ViewpointFinding } from './dev-forestry/visualsNarrative'
 import { distanceAlongRoad, hazeRings, roadPath, roadPlacement } from './dev-forestry/driveMath'
-import { metersPerDegree, polygonInteriorPoint } from './dev-forestry/visibility'
+import { metersPerDegree, pointInPolygon, polygonInteriorPoint, type PolygonGeometry } from './dev-forestry/visibility'
 import {
   createEmptyScene,
   createId,
@@ -171,7 +210,7 @@ import {
   visibleVisualsPanes,
   type VisualsPane,
 } from './dev-forestry/visualsWorkspace'
-import { assessVia, fs1252ReviewFromVia, viaStepStatuses, type ViaReview } from './dev-forestry/via'
+import { assessVia, fs1252ReviewFromVia, table2Class, viaStepStatuses, type ViaReview } from './dev-forestry/via'
 import { DEFAULT_VISUAL_QUALITY_CLASS_ID, visualQualityClass } from './dev-forestry/vqo'
 import { bearingDegrees, lineLengthMeters, polygonBounds } from './dev-forestry/visibility'
 
@@ -213,6 +252,8 @@ const DEFAULT_DRIVE: DriveState = {
   showEvqo: false,
   showLandform: false,
   haze: false,
+  figureStyle: null,
+  labelStyle: null,
 }
 
 const HARVEST_PHASE_OPTIONS = [
@@ -298,6 +339,9 @@ function DevForestryVisuals() {
   const [lowFrameRate, setLowFrameRate] = useState(false)
   const [restoreLook, setRestoreLook] = useState({ yaw: 0, tilt: 0 })
   const cameraLook = useRef({ yaw: 0, tilt: 0 })
+  // The drive's last pose, exactly: the analysis sheet's framed capture stands the eye here. A ref,
+  // never state, so a pose report does not re-render the page.
+  const drivePoseRef = useRef<DrivePose | null>(null)
   const [preliminaryDrive, setPreliminaryDrive] = useState(false)
   const [drive, setDrive] = useState<DriveState>(DEFAULT_DRIVE)
   const driveRef = useRef(drive)
@@ -846,7 +890,9 @@ function DevForestryVisuals() {
         name:
           candidate.method === 'ridge-layer'
             ? `Ridge layer around ${candidate.blockName}`
-            : `Terrain landform around ${candidate.blockName}`,
+            : candidate.method === 'visible-face'
+              ? `Visible face round ${candidate.blockName}`
+              : `Terrain landform around ${candidate.blockName}`,
         role: 'landscape',
         objectiveId: current?.objectiveId ?? DEFAULT_VISUAL_QUALITY_CLASS_ID,
         vac: current?.vac ?? null,
@@ -856,7 +902,9 @@ function DevForestryVisuals() {
         source:
           candidate.method === 'ridge-layer'
             ? `Ridge layer seen from ${candidate.vantageName ?? 'the road'}; review against the view`
-            : `Face turned to ${candidate.vantageName ?? 'the road'}, from terrain; review against the view`,
+            : candidate.method === 'visible-face'
+              ? `Visible face from ${candidate.vantageName ?? 'the road'} (one station, water and frame break it); review against the view`
+              : `Face turned to ${candidate.vantageName ?? 'the road'}, from terrain; review against the view`,
       }
       setScene((scene) => ({
         ...scene,
@@ -1089,11 +1137,13 @@ function DevForestryVisuals() {
     setSaved({ key, views: arriving.views })
   }, [key, saved, shelvedViews])
   // Screenshots taken when views were saved, by view id, for the block note. This session only.
-  // Each carries its viewpoint record (design, settings, any lined-up field photo) for the report's
-  // per-viewpoint pages.
+  // With each, the class pass, callouts and run figures its VIA figure is composed from (`FigureSheetPanel`),
+  // and its viewpoint record (design, settings, any lined-up field photo) for the report's per-viewpoint pages.
   const [viewImages, setViewImages] = useState<
-    Record<string, NoteImage & { savedAt: number; viewpoint?: Omit<ViewpointPage, 'simulation'> }>
+    Record<string, NoteImage & { savedAt: number; figure?: SavedFigure; viewpoint?: Omit<ViewpointPage, 'simulation'> }>
   >({})
+  // The block note's views as composed VIA figures (FigureSheetPanel) rather than plain screenshots.
+  const [noteFigures, setNoteFigures] = useState(false)
   // Where the road view opens after a stand or a step back. Entering the view
   // resets position and facing unless they arrive as a view, as a saved one does.
   const [standRequest, setStandRequest] = useState<{
@@ -1203,10 +1253,20 @@ function DevForestryVisuals() {
         sentences: parts.sentences,
         measures: parts.measures,
         landform: parts.landform,
-        // In the order they were saved, whichever place they were saved at.
-        views: views
-          .flatMap((view) => (viewImages[view.id] ? [viewImages[view.id]] : []))
-          .sort((a, b) => a.savedAt - b.savedAt),
+        // In the order they were saved, whichever place they were saved at; as composed figures
+        // when the analysis sheet panel asks for them.
+        views: await Promise.all(
+          views
+            .flatMap((view) => (viewImages[view.id] ? [viewImages[view.id]] : []))
+            .sort((a, b) => a.savedAt - b.savedAt)
+            .map((image) =>
+              noteFigures
+                ? figureNoteImage(image, drive.figureStyle ?? DEFAULT_FIGURE_STYLE, {
+                    labelStyle: drive.labelStyle,
+                  }).catch(() => image)
+                : image,
+            ),
+        ),
         missingViews: views.filter((view) => !viewImages[view.id]).map((view) => view.name),
         // A page per view that carries its viewpoint record, in the order saved.
         viewpoints: views
@@ -1235,7 +1295,7 @@ function DevForestryVisuals() {
       }
       return { views: note.views.length, missing: note.missingViews.length, planMap: !!planMap }
     },
-    [scene, savedViews, shelvedViews, viewImages],
+    [scene, savedViews, shelvedViews, viewImages, noteFigures, drive.figureStyle, drive.labelStyle],
   )
   /** Back to the road the first stand replaced, at the point on it nearest where you stood. */
   const handleBackToRoad = useCallback(() => {
@@ -1510,7 +1570,12 @@ function DevForestryVisuals() {
   // The established VQO polygons around the scene, coloured by class when the
   // road view drapes them. Read from the inventory only once switched on.
   // The plan map and the road view each drape EVQO by their own switch; either one loads it.
-  const showEvqo = planShow.evqo || (drive.active && drive.showEvqo)
+  // A figure style that tints the VQO zones needs them too, for its road-view drape and zone pass.
+  const figureZones = (() => {
+    const preset = findFigurePreset(drive.figureStyle)
+    return !!preset && VQO_ZONE_ROLES.some(([role]) => preset.symbols[role])
+  })()
+  const showEvqo = planShow.evqo || (drive.active && (drive.showEvqo || figureZones))
   const evqoKey = useMemo(() => {
     if (!showEvqo) return null
     const bounds = sceneBounds(scene)
@@ -2134,6 +2199,166 @@ function DevForestryVisuals() {
     [driveStationIndex, drive.active, result],
   )
 
+  // VIA figure classes (docs/forestry-visual-quality.md, "Figure styles and analysis sheets"): the
+  // landform, the blocks, openings still counting, private-land masks and VRI non-vegetated land.
+  // Display only: none of it reaches the run.
+  const figureClassInput = useMemo<ClassPassInput>(() => {
+    const year = result?.inputSnapshot?.assessmentYear ?? scene.assessmentYear ?? new Date().getFullYear()
+    return {
+      landform: sceneLandform?.geometry ?? null,
+      blocks: scene.targets.filter((target) => target.role === 'block').map((target) => target.geometry),
+      existing: scene.targets
+        .filter(
+          (target) => target.role === 'harvested' && alterationWeight(target, year, scene.settings.greenUpAgeYears) > 0,
+        )
+        .map((target) => target.geometry),
+      privateLand: (scene.masks ?? []).filter((mask) => mask.kind === 'private').map((mask) => mask.geometry),
+      rock: result?.nonVegetatedGround ?? [],
+    }
+  }, [scene.targets, scene.masks, scene.assessmentYear, scene.settings.greenUpAgeYears, sceneLandform, result])
+  const figureClasses = useMemo(() => classPassLayers(figureClassInput), [figureClassInput])
+  // Terrain candidates a figure style can draw: sub-landform dividers at the VSU boundaries in the
+  // landform, and lines of force from the road view's DEM. Designer aids: never adopted, never a figure.
+  const figurePreset = findFigurePreset(drive.figureStyle)
+  const wantsDividers = !!figurePreset?.symbols.subLandform
+  const wantsForces = !!(figurePreset?.symbols.forceConvex || figurePreset?.symbols.forceConcave)
+  const figureLines = useMemo(() => {
+    const lines: Array<{ role: 'subLandform' | 'forceConvex' | 'forceConcave'; points: [number, number][] }> = []
+    if (!sceneLandform) return lines
+    if (wantsDividers && inventory.units.length) {
+      const [lng, lat] = scene.viewpoint.coordinates[0] ?? polygonBounds(sceneLandform.geometry).slice(0, 2)
+      try {
+        const split = splitLandform({
+          landform: sceneLandform.geometry,
+          landformName: '1',
+          vsus: inventory.units.map((unit) => ({
+            id: unit.polygonNumber,
+            evqo: unit.objectiveId,
+            geometry: unit.geometry,
+          })),
+          barriers: [],
+          viewpoint: { lng, lat },
+          cellMeters: 30,
+        })
+        for (const points of subLandformDividers(split)) lines.push({ role: 'subLandform', points })
+      } catch {
+        // A landform the grid cannot hold draws no dividers.
+      }
+    }
+    const ground = previewTerrain.source
+    if (wantsForces && ground) {
+      const [w, s, e, n] = polygonBounds(sceneLandform.geometry)
+      try {
+        const found = terrainLines(ground, {
+          bounds: [w - 0.005, s - 0.005, e + 0.005, n + 0.005],
+          inside: (x, y) => pointInPolygon(sceneLandform.geometry, x, y),
+        })
+        for (const line of found.lines)
+          lines.push({
+            role: line.kind === 'convex' ? 'forceConvex' : 'forceConcave',
+            points: line.points.map((p) => [p.lng, p.lat]),
+          })
+      } catch {
+        // No lines of force where the terrain cannot be read.
+      }
+    }
+    return lines
+  }, [sceneLandform, wantsDividers, wantsForces, inventory.units, scene.viewpoint.coordinates, previewTerrain.source])
+  const figureStyleData = useMemo<FigureStyleData>(() => {
+    if (!drive.figureStyle) return {}
+    const multi = (geometries: ReadonlyArray<GeoJSON.Polygon | GeoJSON.MultiPolygon>): GeoJSON.FeatureCollection => ({
+      type: 'FeatureCollection',
+      features: geometries.map((geometry, i) => ({ type: 'Feature', id: i, properties: {}, geometry })),
+    })
+    const rock = figureClasses.layers.find((layer) => layer.id === 'rock')?.data
+    return {
+      landform: multi(figureClassInput.landform ? [figureClassInput.landform] : []),
+      proposedBlock: blockCollection,
+      treatedGround: blockCollection,
+      existingNonVeg: multi(figureClassInput.existing),
+      privateLand: multi(figureClassInput.privateLand),
+      ...(rock ? { rockNonVeg: rock } : {}),
+      vsuLine: inventoryCollection,
+      // Each established objective's polygons, for the styles that tint the zones.
+      ...Object.fromEntries(
+        VQO_ZONE_ROLES.map(([role, code]) => [
+          role,
+          {
+            type: 'FeatureCollection',
+            features: (evqoCurrent?.collection.features ?? []).filter((feature) => feature.properties?.code === code),
+          } satisfies GeoJSON.FeatureCollection,
+        ]),
+      ),
+      ...Object.fromEntries(
+        (['subLandform', 'forceConvex', 'forceConcave'] as const).map((role) => [
+          role,
+          {
+            type: 'FeatureCollection',
+            features: figureLines
+              .filter((line) => line.role === role)
+              .map((line, i) => ({
+                type: 'Feature',
+                id: i,
+                properties: {},
+                geometry: { type: 'LineString', coordinates: line.points },
+              })),
+          } satisfies GeoJSON.FeatureCollection,
+        ]),
+      ),
+    }
+  }, [
+    drive.figureStyle,
+    figureClassInput,
+    figureClasses,
+    blockCollection,
+    inventoryCollection,
+    figureLines,
+    evqoCurrent,
+  ])
+  /** Existing openings still counting, by their sightlines: a saved view's secondary labels. */
+  const openingSights = useMemo<BlockSight[]>(
+    () =>
+      (result?.targets ?? []).flatMap((target) => {
+        const opening = scene.targets.find((entry) => entry.id === target.targetId && entry.role === 'harvested')
+        if (!opening || !(target.alterationWeight > 0)) return []
+        return [
+          {
+            id: opening.id,
+            name: opening.name,
+            positions: target.positions,
+            elevations: target.elevations,
+            sampleCount: target.sampleCount,
+            visibleByStation: target.visibleByStation,
+            interior: null,
+          },
+        ]
+      }),
+    [result, scene.targets],
+  )
+  /** Each block's sightlines, for the callouts of a saved view. */
+  const blockSights = useMemo<BlockSight[]>(
+    () =>
+      (result?.targets ?? []).flatMap((target) => {
+        const block = scene.targets.find((entry) => entry.id === target.targetId && entry.role === 'block')
+        if (!block) return []
+        const interior = polygonInteriorPoint(block.geometry)
+        let elevation = 0
+        for (let i = 0; i < target.sampleCount; i++) elevation += target.elevations[i] / Math.max(1, target.sampleCount)
+        return [
+          {
+            id: block.id,
+            name: block.name,
+            positions: target.positions,
+            elevations: target.elevations,
+            sampleCount: target.sampleCount,
+            visibleByStation: target.visibleByStation,
+            interior: interior ? { lng: interior.lng, lat: interior.lat, elevation } : null,
+          },
+        ]
+      }),
+    [result, scene.targets],
+  )
+
   const lookAtTarget = useMemo(() => {
     // Facing an arrow: a point 5 km out along its bearing, level with the eye.
     if (!drive.lookAtTargetId && drive.lookBearing !== null && result?.stations.length) {
@@ -2325,6 +2550,167 @@ function DevForestryVisuals() {
       targetNames: target ? [target.name] : [],
     })
   }
+  /**
+   * The class pass of the road view as it stands, and what its VIA figure prints: callouts from the
+   * run's own sightlines at this station, the run's perspective figure there, the lens and facts.
+   */
+  const captureViewFigure = async (
+    map: NonNullable<typeof eyeMapRef.current>,
+    at: {
+      stationIndex: number
+      eye: { lng: number; lat: number } | null
+      fov: number
+      name: string
+      /** The drive's own pose: the eye's exact place and height. */
+      pose: DrivePose | null
+      /** A field photo's horizontal field, when the view is lined up on one. */
+      photoHfov: number | null
+    },
+  ): Promise<SavedFigure> => {
+    const ground = previewTerrain.source
+    const eye = at.pose ? { lng: at.pose.lng, lat: at.pose.lat, elevation: at.pose.eyeElevationMeters } : null
+    // Frame the landform (or, with none, the blocks) as the reference sheets crop it, then put the
+    // reviewer's camera back (figureFraming.ts, captureFramed).
+    const blocksOnly = scene.targets.filter((target) => target.role === 'block')
+    const subject: PolygonGeometry | null =
+      sceneLandform?.geometry ??
+      (blocksOnly.length
+        ? {
+            type: 'MultiPolygon',
+            coordinates: blocksOnly.flatMap((block) =>
+              block.geometry.type === 'Polygon' ? [block.geometry.coordinates] : block.geometry.coordinates,
+            ),
+          }
+        : null)
+    const extent = eye && ground && subject ? landformAngularExtent(ground, eye, subject) : null
+    const plan = extent ? planFraming(extent, { lensHfovDeg: at.photoHfov ?? HFOV_50_MM }) : null
+    let classes: ReturnType<typeof decodeClassRaster>
+    let frameImage: NoteImage | undefined
+    let project: (lng: number, lat: number, elevation: number) => [number, number] | null
+    let lens: string
+    let hfovDeg = at.fov
+    let zones: ReturnType<typeof decodeClassRaster> | null = null
+    // The crop to the landform is kept, not applied: each style decides (FigureSheetPanel).
+    let crop: { y: number; height: number } | null = null
+    let frames = 1
+    let azimuth = map.getBearing()
+    const zoneLayers = evqoCurrent ? zonePassLayers(evqoCurrent.collection) : []
+    if (plan && eye) {
+      const framed = await captureFramed(map, plan, eye, figureClasses.layers, zoneLayers.length ? zoneLayers : null)
+      if (!framed.classes) throw new Error('The class pass of the framed view could not be taken.')
+      classes = decodeClassRaster(framed.classes.data, framed.classes.width, framed.classes.height)
+      if (framed.zones)
+        zones = decodeClassRaster(framed.zones.data, framed.zones.width, framed.zones.height, ZONE_PALETTE)
+      project = projectToFrames(plan.frames, eye, { frameWidth: framed.frameWidth, height: framed.image.height })
+      crop = landformCropRows(classes)
+      frameImage = { ...framed.image, caption: `${at.name}.` }
+      lens = `framed: ${plan.label}`
+      hfovDeg = plan.totalHfovDeg
+      frames = plan.frames.length
+      // The centre line of all the frames together.
+      azimuth = plan.frames[0].bearingDeg + (plan.totalHfovDeg - plan.frames[0].hfovDeg) / 2
+    } else {
+      // No pose or no terrain yet: the class pass of the view as it stands.
+      const pass = await captureClassPass(map, figureClasses.layers)
+      classes = decodeClassRaster(pass.data, pass.width, pass.height)
+      const canvas = map.getCanvas()
+      const scale = pass.width / Math.max(1, canvas.clientWidth)
+      const bearing = map.getBearing()
+      // MapLibre projects a point behind the camera onto the screen too; those are left out.
+      project = (lng, lat) => {
+        if (at.eye) {
+          const turn = ((bearingDegrees(at.eye, { lng, lat }) - bearing + 540) % 360) - 180
+          if (Math.abs(turn) > 89) return null
+        }
+        const point = map.project([lng, lat])
+        return [point.x * scale, point.y * scale]
+      }
+      const focal = 18 / Math.tan((at.fov * Math.PI) / 360)
+      lens = `road view, ${Math.round(at.fov)}° horizontal (${Math.round(focal)} mm full-frame equivalent), facing ${Math.round((bearing + 360) % 360)}°`
+    }
+    const callouts = [
+      ...blockCallouts(blockSights, at.stationIndex, project, classes),
+      // Existing openings the station sees, as secondary labels (small and plain in the boxless styles).
+      ...blockCallouts(openingSights, at.stationIndex, project, classes, '')
+        .filter((callout) => callout.status === 'visible' || callout.status === 'possible glimpses')
+        .slice(0, 6)
+        .map((callout) => ({ ...callout, body: undefined, secondary: true })),
+    ]
+    // Dividers and lines of force, cut to where the picture shows the landform. Their ground height
+    // comes from the terrain, so the pinhole projector of a framed capture places them on it.
+    const lines: Overlay[] = figureLines.flatMap((line) => {
+      const parts = visibleLineParts(
+        line.points.map(([lng, lat]) => project(lng, lat, ground?.elevationAt(lng, lat) ?? 0)),
+        classes,
+        inLandform,
+      )
+      return parts.length ? [{ role: line.role, parts }] : []
+    })
+    const breakdown = result?.perspectiveByStation[at.stationIndex] ?? null
+    const percent = breakdown ? breakdown.cumulativePercent : null
+    const station = result?.stations[at.stationIndex]
+    const visibleBlockPoints = blockSights.flatMap((sight) => {
+      const row = at.stationIndex * sight.sampleCount
+      const points: Array<[number, number]> = []
+      for (let i = 0; i < sight.sampleCount; i++)
+        if (sight.visibleByStation[row + i] === 1) points.push([sight.positions[i * 2], sight.positions[i * 2 + 1]])
+      return points
+    })
+    const badge = inventoryBadge(inventory.units, {
+      visibleBlockPoints,
+      landformUnitId: sceneLandform?.inventoryUnitId ?? null,
+      landform: sceneLandform?.geometry ?? null,
+    })
+    const nearest = callouts
+      .filter((callout) => !callout.secondary)
+      .map((callout) => result?.targets.find((target) => target.targetId === callout.blockId))
+      .flatMap((target) => (target?.nearestVisibleDistanceMeters != null ? [target.nearestVisibleDistanceMeters] : []))
+    return {
+      classes,
+      ...(frameImage ? { frameImage } : {}),
+      callouts,
+      stationIndex: at.stationIndex,
+      sightlinePercent: percent,
+      sightlineClass: percent === null ? null : (table2Class(percent)?.label ?? null),
+      lens,
+      distanceKm: nearest.length ? Math.min(...nearest) / 1000 : null,
+      hfovDeg,
+      facts: [
+        {
+          label: 'Viewpoint',
+          value: `${scene.viewpoint.name || 'Road'}${station ? `, ${(station.distanceAlongMeters / 1000).toFixed(2)} km` : ''}`,
+        },
+        ...(at.eye ? [{ label: 'Location', value: `${at.eye.lat.toFixed(5)}, ${at.eye.lng.toFixed(5)}` }] : []),
+        ...(nearest.length
+          ? [{ label: 'Distance to block', value: `${(Math.min(...nearest) / 1000).toFixed(1)} km` }]
+          : []),
+      ],
+      rating: badge.unit ? badge.values : null,
+      ratingNote: badge.note,
+      area: sceneLandform?.name ?? 'Landform',
+      viewpoint: at.name,
+      splitFailed: figureClasses.failed,
+      lines,
+      ...(zones ? { zones } : {}),
+      ...(crop ? { crop } : {}),
+      camera: {
+        frames,
+        focalMm: focalForHfov(hfovDeg / frames),
+        fovDeg: hfovDeg,
+        observerHeightM: scene.settings.observerHeightMeters,
+        above: eye && basemap.water.some((water) => pointInPolygon(water, eye.lng, eye.lat)) ? 'lake level' : 'ground',
+        lng: eye?.lng ?? at.eye?.lng ?? scene.viewpoint.coordinates[0]?.[0] ?? 0,
+        lat: eye?.lat ?? at.eye?.lat ?? scene.viewpoint.coordinates[0]?.[1] ?? 0,
+        elevationM: eye?.elevation ?? 0,
+        azimuthDeg: azimuth,
+        maxTreeHeightM:
+          drive.forest && result?.renderStands?.length
+            ? Math.max(...result.renderStands.map((stand) => stand.heightMeters))
+            : null,
+        renderedOn: new Date(),
+      },
+    }
+  }
   const saveView = () => {
     if (!canSaveView) return
     if (savedViews.length >= 12) {
@@ -2349,8 +2735,9 @@ function DevForestryVisuals() {
       growthMetersPerYear: drive.growthMetersPerYear,
       regenerationLagYears: drive.regenerationLagYears,
     }
-    // The screenshot for the block note, taken from the frame being saved, with
-    // what produced it and, where a field photo is lined up, the photo itself.
+    // The screenshot for the block note, taken from the frame being saved, with what produced it
+    // and, where a field photo is lined up, the photo itself; then the class pass of the same camera
+    // for its VIA figure (FigureSheetPanel).
     const map = eyeMapRef.current
     if (map) {
       const caption = `${view.name}.`
@@ -2383,11 +2770,34 @@ function DevForestryVisuals() {
           { label: 'Terrain', value: 'AWS Open Data (CDEM/SRTM) at 1×' },
         ],
       }
-      captureMapImage(map)
-        .then((image) =>
-          setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt, viewpoint } })),
-        )
-        .catch(() => setPreviewMessage(`Saved ${view.name}, but its screenshot could not be taken.`))
+      const at = {
+        stationIndex: driveStationIndex,
+        eye: cameraEye,
+        fov: viewerFov,
+        name: view.name,
+        pose: drivePoseRef.current,
+        photoHfov: photoLook ? fieldPhoto.viewHfov : null,
+      }
+      void (async () => {
+        let image: Awaited<ReturnType<typeof captureMapImage>>
+        try {
+          image = await captureMapImage(map)
+        } catch {
+          setPreviewMessage(`Saved ${view.name}, but its screenshot could not be taken.`)
+          return
+        }
+        setViewImages((current) => ({ ...current, [view.id]: { ...image, caption, savedAt, viewpoint } }))
+        try {
+          const figure = await captureViewFigure(map, at)
+          setViewImages((current) =>
+            current[view.id] ? { ...current, [view.id]: { ...current[view.id], figure } } : current,
+          )
+        } catch {
+          setPreviewMessage(
+            `Saved ${view.name}, but its class pass could not be taken: its analysis sheet will have no outlines.`,
+          )
+        }
+      })()
       if (photo?.thumbUrl) {
         void captureImageUrl(photo.thumbUrl).then((image) => {
           if (!image) return
@@ -2716,6 +3126,7 @@ function DevForestryVisuals() {
     harvestedGroundColor,
     maskCollection,
     hazeCollection,
+    figureStyleData,
     sampleCollection,
     eyeSampleCollection,
     reverseRoadCollection,
@@ -2839,6 +3250,64 @@ function DevForestryVisuals() {
             setScene((current) => ({ ...current, masks: (current.masks ?? []).filter((mask) => mask.id !== id) }))
           }
           stale={isStale}
+        />
+      }
+      privateLand={
+        <PrivateLandPanel
+          landform={sceneLandform?.geometry ?? null}
+          masks={scene.masks ?? []}
+          onAdd={(parcels) =>
+            setScene((current) => {
+              let masks = current.masks ?? []
+              for (const parcel of parcels)
+                masks = withDrawnMask(masks, {
+                  id: createId('mask'),
+                  kind: 'private',
+                  geometry: parcel.geometry,
+                  ...parcelMaskFields(parcel),
+                })
+              return { ...current, masks }
+            })
+          }
+          onRemove={(id) =>
+            setScene((current) => ({ ...current, masks: (current.masks ?? []).filter((mask) => mask.id !== id) }))
+          }
+          stale={isStale}
+        />
+      }
+      netFootprints={
+        <NetFootprintPanel
+          blocks={scene.targets.filter((target) => target.role === 'block')}
+          masks={scene.masks ?? []}
+          onAdd={(reserves) => {
+            const ids = reserves.map(() => createId('mask'))
+            setScene((current) => {
+              let masks = current.masks ?? []
+              reserves.forEach((reserve, i) => {
+                masks = withDrawnMask(masks, {
+                  id: ids[i],
+                  kind: 'retained',
+                  geometry: reserve.geometry,
+                  ...reserveMaskFields(reserve),
+                })
+              })
+              return { ...current, masks }
+            })
+          }}
+          stale={isStale}
+        />
+      }
+      figureSheet={
+        <FigureSheetPanel
+          views={[...shelvedViews.flatMap((entry) => entry.views), ...savedViews].map((view) => ({
+            id: view.id,
+            name: view.name,
+            image: viewImages[view.id],
+          }))}
+          styleId={drive.figureStyle}
+          labelStyleId={drive.labelStyle}
+          noteFigures={noteFigures}
+          onNoteFiguresChange={setNoteFigures}
         />
       }
       runRevision={tools.revision}
@@ -3477,7 +3946,9 @@ function DevForestryVisuals() {
                                     }
                                     lookAt={preliminaryDrive ? null : lookAtTarget}
                                     spotBearing={spotBearing}
-                                    onPosition={({ distanceMeters, stationIndex, lng, lat, bearing }) => {
+                                    onPosition={(pose) => {
+                                      drivePoseRef.current = pose
+                                      const { distanceMeters, stationIndex, lng, lat, bearing } = pose
                                       setDriveStationIndex(stationIndex)
                                       // Rounded, so a slow turn does not re-render the page every report.
                                       setLookBearing((current) =>

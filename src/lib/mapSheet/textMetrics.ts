@@ -22,11 +22,11 @@ const HELVETICA_BOLD = [
 const DEGREE = 400
 const OTHER = 556
 
-export type SheetFontStyle = 'normal' | 'bold' | 'italic'
+export type SheetFontStyle = 'normal' | 'bold' | 'italic' | 'bolditalic'
 
 /** Width of `text` in points at `size` points. Italic is measured as the upright face. */
 export function textWidth(text: string, size: number, style: SheetFontStyle = 'normal'): number {
-  const table = style === 'bold' ? HELVETICA_BOLD : HELVETICA
+  const table = style === 'bold' || style === 'bolditalic' ? HELVETICA_BOLD : HELVETICA
   let units = 0
   for (const character of text) {
     const code = character.charCodeAt(0)

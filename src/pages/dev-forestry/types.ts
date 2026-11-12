@@ -90,6 +90,21 @@ export type AnalysisSettings = {
   /** Explicit scenario assumptions, NEVER silently enabled by migration or by a failed query. */
   greenAreaConfirmed?: boolean
   existingDisturbanceConfirmed?: boolean
+  /**
+   * What the perspective figure's denominator leaves out of the landform. `non-vegetated-out`
+   * (absent reads as this): VRI non-vegetated ground (BCLCS level 1 `N`: rock, water, ice), as a
+   * VIA's "net of rock" does. `non-treed-out`: every non-treed polygon, the 1998 procedure's "green
+   * (forested)" portion, which the planimetric figure always uses. See the doc's evidence.
+   */
+  perspectiveDenominator?: 'non-vegetated-out' | 'non-treed-out'
+  /**
+   * Private-land masks leave both denominators (a VIA's landform − private land) while keeping
+   * their timber for screening. Off by default: until on, private land stays in the denominator
+   * and only carries no alteration.
+   */
+  privateLandOutOfDenominator?: boolean
+  /** With screening on, timber this close to each station is cleared, metres (VRI stands cover roads and shores). */
+  screeningEyeClearingMeters?: number
 }
 export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   demZoom: DEFAULT_DEM_ZOOM,
@@ -103,6 +118,9 @@ export const DEFAULT_ANALYSIS_SETTINGS: AnalysisSettings = {
   minCrownClosurePercent: 30,
   greenAreaConfirmed: false,
   existingDisturbanceConfirmed: false,
+  perspectiveDenominator: 'non-vegetated-out',
+  privateLandOutOfDenominator: false,
+  screeningEyeClearingMeters: 50,
 }
 export type AnalysisInput = {
   viewpoint: Pick<Viewpoint, 'mode' | 'coordinates'>
@@ -222,6 +240,11 @@ export type AnalysisResult = {
   largestVisibleAreaStationIndex?: number
   quality?: AnalysisQuality
   actualSightlineCount?: number
+  /**
+   * VRI non-vegetated land (rock, rubble, exposed soil) around the landform, from the run's own
+   * vegetation read: the rock a VIA figure draws. Display only; no figure reads it.
+   */
+  nonVegetatedGround?: Array<GeoJSON.Polygon | GeoJSON.MultiPolygon>
   renderStands?: Array<{
     geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon
     heightMeters: number

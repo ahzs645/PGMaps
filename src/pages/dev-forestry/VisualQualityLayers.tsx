@@ -3,6 +3,7 @@ import { MapMarker, MapScaleBar, MarkerContent } from '@/components/ui/map'
 import { MapCircleLayer, MapFillLayer, MapLineLayer } from '@/components/ui/map-layers'
 import { ViewshedOverlay, VIEWSHED_COLORS } from '@/features/terrain-viewshed'
 import { BasemapContextProbe, type BasemapContext } from './BasemapContextProbe'
+import { FigureStyleLayers, type FigureStyleData } from './FigureStyleLayers'
 import { ForestOverlay, type ForestStatus } from './ForestOverlay'
 import { MapDrawCapture } from './MapDrawCapture'
 import { SatelliteImagery } from './SatelliteImagery'
@@ -32,6 +33,7 @@ import {
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLOR,
   TERRAIN_CANDIDATE_COLOR,
+  VISIBLE_FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
   VISIBLE_COLOR,
 } from './planMapStyle'
@@ -113,6 +115,8 @@ export type SceneLayerData = {
   harvestedGroundColor: unknown
   maskCollection: Collection
   hazeCollection: Collection
+  /** The scene's data by VIA figure role, for the road view's figure style (`drive.figureStyle`). */
+  figureStyleData: FigureStyleData
   /** Every station's union, for the plan; the road view's own station, for the eye. */
   sampleCollection: Collection
   eyeSampleCollection: Collection
@@ -432,13 +436,33 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
         <>
           <MapFillLayer
             data={planCandidates}
-            fillColor={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+            fillColor={
+              [
+                'match',
+                ['get', 'method'],
+                'facing',
+                FACE_CANDIDATE_COLOR,
+                'visible-face',
+                VISIBLE_FACE_CANDIDATE_COLOR,
+                TERRAIN_CANDIDATE_COLOR,
+              ] as never
+            }
             fillOpacity={['case', ['==', ['get', 'selected'], 1], 0.08, 0] as never}
             lineWidth={0}
           />
           <MapLineLayer
             data={planCandidates}
-            color={['match', ['get', 'method'], 'facing', FACE_CANDIDATE_COLOR, TERRAIN_CANDIDATE_COLOR] as never}
+            color={
+              [
+                'match',
+                ['get', 'method'],
+                'facing',
+                FACE_CANDIDATE_COLOR,
+                'visible-face',
+                VISIBLE_FACE_CANDIDATE_COLOR,
+                TERRAIN_CANDIDATE_COLOR,
+              ] as never
+            }
             width={['case', ['==', ['get', 'selected'], 1], 2.4, 1.4] as never}
             dashArray={[2, 1.5]}
             opacity={['case', ['==', ['get', 'selected'], 1], 0.95, 0.7] as never}
@@ -629,6 +653,8 @@ export function VisualQualityLayers({ mode, data }: { mode: 'plan' | 'eye'; data
           lineWidth={0}
         />
       )}
+      {/* A VIA figure style, draped over everything but the sample points. Display only. */}
+      {eye && drive.figureStyle && <FigureStyleLayers styleId={drive.figureStyle} data={data.figureStyleData} />}
       {/* Sample points carry the answer: red is ground the road can see. */}
       <MapCircleLayer
         data={planSamples}

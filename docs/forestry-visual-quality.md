@@ -6,6 +6,12 @@
 
 > **Work log:** [September 2026 round](forestry-visual-quality-worklog.md) — the handbook steps as tabs, map scale, field photos, retention and partial cuts, inventory-calibrated forest density, terrain landforms, and what each turned up.
 
+> **Report survey:** [November 2026](forestry-visual-quality-report-survey-2026-11-11.md) — what 26 real visual-quality assessments ask of the page.
+
+> **Criteria reference:** [wording, tables, factors and criteria](forestry-visual-quality-criteria-reference.md) — every definition, table, conversion factor and decision rule found in those assessments.
+
+> **Simulation formats:** [the simulation and report formats to remake](forestry-visual-quality-simulation-formats.md) — the figure and sheet formats the analysis sheet's styles reproduce.
+
 # Forestry visual quality (`/dev/forestry/visual-quality`)
 
 A screening tool for the question a visual landscape assessment starts from:
@@ -349,7 +355,9 @@ cutblocks and the results report existing + proposed = cumulative.
   most recorded harvest is 2003–2005, which sits right on a 20-year default —
   moving it to 25 flips those openings back into the count.
 - **Partial cuts.** `PERCENT_CLEARCUT` scales the contribution, so an opening
-  that was 40% clearcut counts 40%.
+  that was 40% clearcut counts 40%. A recorded 0% is a retention-system harvest
+  (RESULTS `RETEN`), which is still an opening to the eye, so it counts whole
+  (`alterationWeight`, see *Evidence for the defaults*).
 - **No double counting.** A proposed block laid over an opening that still
   counts is not charged for that ground again; ground under a *recovered*
   opening is free for the proposal to claim.
@@ -390,7 +398,15 @@ denominator is the landform's treed area, not all of it.
 That comes from **VRI rank-1** (`WHSE_FOREST_VEGETATION.VEG_COMP_LYR_R1_POLY`),
 queried live from DataBC's WFS. `BCLCS_LEVEL_2` is exactly the distinction the
 procedure turns on: `T` for treed ground, anything else for water, rock, or
-clearing. It is not in the ArcGIS map service the rest of this page uses — that
+clearing.
+
+The **perspective** figure divides differently by default. A VIA nets rock out of
+the landform ("VLU net of rock / private land"), not every non-treed polygon, so
+the perspective denominator leaves out only VRI non-vegetated ground
+(`BCLCS_LEVEL_1 = 'N'`: rock, water, ice); burns, shrub and herb stay in.
+*Simulation settings → Perspective denominator* switches it back to the treed
+rule (`perspectiveDenominator: 'non-treed-out'`). The planimetric figure always
+keeps the treed rule. See *Evidence for the defaults*. It is not in the ArcGIS map service the rest of this page uses — that
 service publishes only the VRI *Dead* layer — which is why there are two service
 clients here.
 
@@ -432,6 +448,13 @@ it — but switching it on is now a real answer rather than a partial one.
 Stands more open than a crown-closure threshold do not screen at all. The
 inventory carries no transmission model, so that cut-off is a stated assumption
 rather than a published figure.
+
+VRI stand polygons run over roads, beaches and shorelines, so with screening on
+the timber within `screeningEyeClearingMeters` (50 m, up to 150 m) of each station
+is cleared; without it 20 of 44 study views saw no landform at all. And when
+screening hides more than three quarters of the landform the bare ground shows
+(`MIN_SCREENED_LANDFORM_SHARE`), the screened figure is withheld: the denominator
+has collapsed and the ratio is noise (one study view went from 10.6% to 56.6%).
 
 ## What it does not model
 
@@ -1550,6 +1573,282 @@ map (`capturePlanMap`), which is a map of its own and stays a plan whether or
 not the road view is open. exceljs and jsPDF load on demand and are passed in,
 so `blockNote.test.ts` writes and reads back real files.
 
+## Figure styles and analysis sheets
+
+BC VIA packages draw the same few things on their perspective figures — the
+landform outline, the proposed blocks, existing openings not yet greened up,
+private land, rock, VSU boundaries, block callouts, a legend and a percent
+alteration box — each licensee and district in its own look. The page carries
+those looks as **figure styles** and uses them in two places: draped on the road
+view, and composed onto a saved view as an exported analysis sheet.
+`docs/forestry-visual-quality-simulation-formats.md` describes the reference
+formats; `/dev/forestry/block-sheets` → *VIA figure styles* shows every style's
+legend beside its source values and a sample figure.
+
+**The catalogue.** `src/lib/forestry/viaFigure/presets.ts` holds twelve presets
+(analysis sheets with a magenta, orange or purple landform; existing / proposed /
+analysed panels; a board triptych; a district greyscale analysis with lines of
+force; a referral montage; calculation-on-photo; forest-plan time-step ramps;
+small extras). Each drawn thing is a `SheetSymbol` with a `spec` string citing
+the reference document by number and the value read from it (PDF drawing
+operators where the figure is vector, the median of the ink's pixels where it is
+raster). Names are generic: no company or agency name, logo or title-block
+artwork reaches a preset, and the analysis sheet's logo slot is the user's own.
+`presets.test.ts` checks every colour parses, every legend role has a symbol,
+and every printed string fits the PDF fonts.
+
+**In the road view** (step 2, *Figure style*), `FigureStyleLayers.tsx` drapes the
+roles the scene has data for through `areaSymbolPaint` / `lineSymbolPaint`, so
+the live view and the exported sheet read the same symbol objects. Draped layers
+sit in the terrain texture, so nearer terrain hides them exactly as it hides the
+blocks. Strokes are drawn `LIVE_STROKE_SCALE` (1.6×) wider than print, because a
+stroke draped at a grazing angle reads thinner than one printed flat. The choice
+is `DriveState.figureStyle`: display only, never in `sceneFingerprint` or
+`AnalysisInput`, like block colours. Hatched and stippled areas (rock, treated
+ground) need a `fill-pattern`, which the toolkit's `MapFillLayer` does not take
+yet: the road view draws their outline and fill colour, and the export hatches
+them (follow-up below).
+
+**The class pass.** *Save viewpoint* takes the screenshot as before, then a class
+pass of the same camera (`captureClassPass`, `mapCapture.ts`): every style layer
+hidden, the sky and its terrain fog off, and each class painted as one flat,
+unblended colour over a flat terrain colour (`CLASS_PALETTE`, built by
+`figureClassPass.ts`). Blocks, counting openings, private land and rock are split
+at the landform's edge with polygon clipping, and stacked in the VIA precedence
+(block over opening over private land over rock over landform). The pass is read
+back unsmoothed at the screenshot's size and decoded (`decodeClassRaster`); an
+edge pixel blended between two classes takes its neighbours' class, never a
+third. This capture is the one place the page adds MapLibre layers itself: it is
+a capture recipe, not a map look, and the map is put back as it was, even on
+failure. The road view shows the flat colours for the frames the pass takes.
+
+**Composing** (`src/lib/forestry/viaFigure/composeFigure.ts`, no DOM or network
+access) traces each role's pixels to rings with `contours.ts`, so outlines follow
+the *visible* edge of each class, including the edge a nearer ridge cuts — what
+the reference figures draw, and what a line draped on the polygon's ground edge
+cannot. Callouts come from the run, not the picture (`figureCallouts.ts`): a
+block the station sees anchors at the screen centroid of its visible samples, a
+hidden one at its footprint, with the run's own status (Visible; Possible
+Glimpses under `GLIMPSE_PERCENT`; Likely Not Visible; Unknown where terrain is
+missing). Boxes go above the skyline over their anchor and are moved clear of
+each other (`placeClear`, `src/lib/mapSheet/callouts.ts`). The legend lists only
+the roles drawn, each swatch drawn by `swatchOps` from the preset's own symbol.
+
+**Two figures, side by side.** The calculation box prints the preset's own
+pixel calculation from the class pass — gross, net of private land, or net of
+rock, as the preset words it — and beside it PGMaps' sightline figure for the
+station, which stays the assessment's number. They measure different things:
+the pixel figure is what this one picture shows at this lens; the sightline
+figure is the run's terrain sightlines in perspective. Neither replaces the
+other, and the panel says so.
+
+**Framing.** The figure is not the reviewer's road-view screenshot (that stays the
+block note's). At *Save viewpoint* the page reads, from the drive's exact pose
+over the DEM, the bearings and elevation angles of the landform ground the eye
+sees (`landformAngularExtent`, `figureFraming.ts`), and plans the capture as the
+reference sheets crop it (`planFraming`, ported from the prototype's
+`framing.ts`): the landform mid-frame, about a fifth of the height sky above the
+skyline, at most about 12% ground below its base, small side margins, never
+stretched. The lens is a 50 mm full-frame equivalent (39.6° across), or a field
+photo's own lens when the view is lined up on one; a landform wider than one
+frame takes up to four frames of the lens side by side across its bearings (the
+consultants' renders are 60–141° panoramas), and a long, low landform makes a
+strip up to 4:1. `captureFramed` (`mapCapture.ts`) stands the eye map at the pose
+on each frame (`calculateCameraOptionsFromTo` to a target 40 m ahead, pitch
+through `horizonSafePitch`, roll 0), sets the frame's vertical field, reads the
+display and the class pass from the frame's window of the canvas, joins the
+frames, and puts the camera and field back. Callouts and lines are placed by a
+pinhole from the same eye (`projectToFrames`), which needs no map once the camera
+is restored. The sheet prints the lens, field and bearings. A very large landform seen
+as a thin, distant band (Tabor Mountain's 4,489 ha sample landform, 3–11 km out,
+takes two frames across 79°) would still leave the strip mostly sky, so after the
+capture the landform's rows in the class pass are kept with the view
+(`landformCropRows`) and the strip is cropped to them at export by every style that crops
+(all but the overlay style, which keeps its sky for the title): about a fifth of the height above its top, at most 12% below
+its base, the full width kept, never stretched, and the class pass cropped by the
+same rows so the pixel counts match. The lens line then says "cropped to the
+landform". The sheet fits the strip into its image box at its own aspect,
+centred.
+
+**The inventory circle** (`inventoryBadge.ts`, from the prototype's `vsuBadge.ts`)
+is filled from the page's live visual inventory read, which now also asks for
+`REC_EVC_FINAL_VALUE_CODE` and `VSU_NUMBER`: the unit under the blocks' visible
+ground at the view's station (dominant by visible samples), else the unit the
+landform was adopted from, else the unit holding most of the landform. The rule
+that chose it is printed small under the circle. With no unit under the landform or
+the blocks, the cell holds one line saying so, not a circle of placeholder
+labels; the VSU / VSC / VAC / EVC / VQO key is printed only with a circle.
+
+**Label styles** (`LABEL_STYLES`, `labelOps` in `src/lib/mapSheet/callouts.ts`) are
+independent of the figure style, which only supplies the default; *Label style* sits beside
+*Figure style* in the road view's settings and in the export panel. *Box* is the filled
+callout box (cyan, white or red by style). *Underlined label* has no box: bold dark text,
+underlined, above the skyline, with a thin leader dropping straight down to the block where it
+can. *Underlined label · arrow* (`underlined-arrow`, the overlay style's default) runs the
+underline a little past the name's right end and turns it down there into the leader, one line
+like an inverted L, ending in an arrowhead at the block; the label sits with that turn over its
+block when there is room, above the skyline along its whole width, with the status line small
+above the name. Its colours follow the picture as printed (`figureLuminance`: the frame's
+brightness with the style's zone and block fills laid over it): the leader is split into runs
+(`contrastRuns`, `src/lib/mapSheet/contrastRuns.ts`) that are near-black over light sky or ground
+and white over dark forest, the arrowhead taking the last run's colour, and the name and its
+underline take whichever of the two reads over the area behind them, with a subtle halo when that
+area is busy. A change of colour needs the ground to cross a band (darker than 0.36 to turn white,
+lighter than 0.5 to turn back) and stay across it for three samples 2 points apart, so tree
+texture does not make the line flicker. The composer cannot read a JPEG, so the page decodes the
+frame for this style only (`rgbaLuminance`) and still embeds the JPEG.
+*Halo text* is text with a white (or dark) halo and a leader. *Numbered markers* puts small
+numbered circles on the features and their names in a key in the legend cell, for crowded views.
+In the boxless styles existing openings the station sees are labelled too, in small white text
+with a thin white leader and arrowhead. Every label is sized from its measured text as it prints
+(the PDF folds "—" to " - ", so the text is folded before it is measured or drawn), with padding
+all round; a line wider than 28% of the image wraps at words (at most two title lines and one
+body line), then shrinks one step, and only then is cut with "...". The placement then keeps
+every label clear of the others and inside the image, or the sheet's image band when the strip
+is cropped to the landform, with the leader leaving the edge nearest its anchor.
+
+**Camera information on the image.** Any style can print, at the image's bottom left in white
+text with a dark halo, the six lines a licensee's perspective view render prints and the
+handbook's Appendix 7 recommends for a simulation: "Composite of *n* simulated *mm* mm camera
+images: FOV *deg* degrees", "Observer height: *h* metres above ground" (or "lake level" when the
+eye stands on mapped water), "Observer position (UTM zone *z*): *x*, *y*, *z* metres" (WGS84 UTM
+through proj4, `cameraInfo.ts`), "Viewline azimuth: *deg* degrees", "Maximum tree height: *m*
+metres" (the tallest VRI stand drawn, or "trees not modelled" when the road view drew none), and
+"Date of rendering". *Camera info on image* turns it on; the overlay style has it on by default.
+
+**Perspective view · overlay text** (`perspective-overlay`, family I) is modelled on the
+structure of a licensee's perspective view render (no logo or name): the full framed view (the
+strip is not cropped, so the title has its sky) on a tabloid page, the title drawn in the sky at
+top centre, a "Visual Quality Objective Legend" panel at top left listing the objectives in view,
+the established VQO polygons tinted subtly over the terrain from a second zone pass of the same
+frames (`zonePassLayers`, `ZONE_PALETTE`, so a nearer ridge hides them as it hides the blocks),
+proposed blocks filled yellow-tan, existing openings paler tan, underlined labels with
+arrowed leaders that turn white over the forest (*Underlined label · arrow*; plain *Underlined
+label* stays available), and the camera block. The EVQO polygons load whenever this style is chosen.
+
+**Exports.** Step 5's *Analysis sheet* composes a saved view in any style as PDF
+(`renderPdf.ts`) or PNG (`sheetPng.ts`), with a preview. Family A styles print
+the tabloid analysis sheet (title block, figure, facts, visual inventory key,
+calculation, legend); the others print the analysed figure on a page of its own
+with the legend inset and the calculation under it. *Use these figures in the
+block note* puts each view's analysed figure in the block note in place of its
+screenshot; `blockNote.ts` embeds PNG as well as JPEG, so the planner's Excel
+and PDF layouts do not change. A view saved before the class pass existed, or
+whose pass failed, still exports, without outlines or pixel figure, and says so.
+The figure is drawn over the saved screenshot: save with the figure style off for
+a sheet with only its traced outlines.
+
+**Data each role reads.**
+
+| Role | Source |
+| --- | --- |
+| Landform | The active landform |
+| Proposed block, treated ground | The scene's blocks |
+| Existing opening (NonV.E.G.) | Openings with `alterationWeight` above zero |
+| Private land | Private-land masks: drawn, or ParcelMap BC parcels the reviewer adds (step 3, *Private land*) |
+| Rock / non-vegetated | VRI rank-1 `BCLCS_LEVEL_1 = N`, `BCLCS_LEVEL_2 = L` round the landform, from the run's own VRI read (`nonVegetatedGround`) |
+| VSU boundary | The sensitivity units the inventory lookup read |
+| Sub-landform divider | Candidate: `subLandforms.ts` splits at VSU boundaries in the landform |
+| Line of force | Candidate: `terrainLines.ts`, ridges and draws by D8 flow on the road view's DEM with a curvature check |
+
+**Private land** (`parcelMapPrivateLand.ts`) is read live from the ParcelMap BC
+parcel fabric (`WHSE_CADASTRE.PMBC_PARCEL_FABRIC_POLY_SVW`, `OWNER_TYPE =
+'Private'`) round the landform, with the box in `CQL_FILTER` longitude first and
+a narrow `propertyName`, like the vegetation read. Parcels are candidates: each
+one the reviewer adds becomes a `private` assessment mask, which the run already
+keeps out of the alteration, so adding one stales the run. A failed lookup is an
+error with a retry, never "no private land".
+
+**Rock** is VRI non-vegetated land (rock, rubble, exposed soil, not water). It
+is display and figure only: no number in the run reads it, and the pixel
+calculation's net-of-rock figure is labelled as the preset's own.
+
+**Candidates, never figures.** Sub-landform dividers and lines of force are
+designer aids. They are drawn when a style defines them, cut in exports to where
+the class pass shows the landform (a nearer part of the same landform can still
+hide them unseen), and never adopted into the scene or fed into a number.
+Per-sub-landform figures, FWA creek barriers and the far-ridge rule
+(`depthLayers`) are not ported: they need the prototype's own renderer
+(per-pixel ground position and distance), which MapLibre does not give. Callouts
+are drawn on the exported sheet only, not live on the road view. Lines of force are drawn without their arrowheads, live
+and in exports: a draped arrow needs an arrowhead icon in `icons.ts` and an
+end-only `LineMarker`.
+
+**Toolkit follow-up.** An opt-in `pattern` prop on the toolkit's `MapFillLayer`
+(`ahzs645/geo-toolkit`, `map/layers/fill.tsx`), fed by `keepSymbolImages`, would
+let the road view hatch rock and stipple treated ground as the exports do.
+
+## The visible face from the viewpoint
+
+A study of BC VIA sheets (November 2026: 31 landforms on 15 sheets, back-projected
+from the sheets' own vector outlines onto the ground through a camera registered
+to the DEM skyline) found the consultants' landform is the **visible face of one
+ridge mass, seen from the viewpoint**, and small: median 1/25 of the named VSU,
+1/11 of the face reading, 1/5 of the ridge layer. Its edges, by share of outline:
+shoreline 25% (water is never landform), open slope 23% (the toe above the
+foreground), skyline 21%, spurs 10%, a crest with farther ground behind 7%, draws
+7%, the VSU boundary only 3%. A farther ridge seen behind is a separate landform;
+a hidden block is assessed against the face in front of it; nothing outside the
+rendered frame is included.
+
+*Find a landform from the terrain* therefore offers a third candidate,
+**Visible face from the viewpoint** (`visibleFaceLandform`, `ridgeLayers.ts`). It
+reads from one station only (the assessment viewpoint, or the chosen vantage),
+across a viewing frame (`VISIBLE_FACE_DEFAULTS.hfovDeg`, 60°, the narrowest
+panorama on the sheets, centred on the block). Rays keep a running horizon;
+visible land joins along a ray and across neighbouring rays; a hidden run breaks a
+ray; water (the basemap's polygons, or ground at `waterLevelMeters`) never joins,
+so the bottom is the shoreline; ground within 300 m is foreground. The landform is
+the band holding most of the block's visible ground, or, with the block hidden,
+the band of the last land seen in front of it on each ray (`seededBy:
+'in-front'`). Hidden pockets are filled. In the study this rule took the mean
+ground IoU with the consultants' landforms from 0.24 (ridge layer) to 0.42 and the
+median size from 5.4× theirs to 1.8×. `visibleFace.test.ts` holds a regression
+fixture generated from one study sheet (doc 22, p027: its back-projected landform,
+the block, the registered camera and a 60 m Terrarium grid; no image): IoU 0.57
+against the sheet's landform, against 0.54 for the ridge layer.
+
+Two options are **off by default**, because each helped some sheets and hurt
+others in the study: *stop at the first crest* (a stretch that reappears behind a
+hidden gap joins only at the same run order; it took one lakeside face from 0.23
+to 0.61 IoU but cut long faces apart elsewhere), and *split at major draws* (1 km²
+upstream; a planner's choice of sub-landforms, which helped one sheet and hurt
+another). Like every terrain reading it is a candidate the reviewer adopts or
+not.
+
+**Visible net block.** The sheets draw only the visible, net part of a block: in
+image pixels FTEN blocks covered 1.6–16× the consultants' drawn blocks. Step 4
+lists each block's share of footprint seen from the assessment station beside X
+(`visibleNetBlocks.ts`), as a reading, not a figure in X.
+
+## Evidence for the defaults (November 2026 accuracy study)
+
+A variant study ran the page's perspective figure against printed VIA figures:
+seven cases, 87 viewpoint × landform pairs, one input changed at a time, scored by
+the change in |PGMaps − printed| (case-balanced, percentage points, negative is
+closer). The baseline was above the printed figure in 76 of 87 pairs, mostly
+because of the landform (previous section), so a change that lowers the figure
+scores as closer whether or not a VIA works that way; each change below was
+adopted only where it is also how a VIA is done, or fixes a defect.
+
+| Change | Evidence (VSU / terrain landform) | On this page |
+| --- | --- | --- |
+| Block footprint net of RESULTS group reserves | −1.50 / −0.67 pp, −31% at one case; reproduced that VIA's printed net block areas to 0.1 ha (13.1 / 26.9 / 17.1 / 31.2 against 13.1 / 26.9 / 17.1 / 31.3) | Step 3 *Net block footprints*: FTEN gross, FTEN planned net and net of reserves side by side; reserves added as `retained` masks by the reviewer (`resultsReserves.ts`). Dispersed retention stays in. |
+| Perspective denominator net of non-vegetated ground, not non-treed | −1.97 / −1.02 pp; a 2009–2010 burn is non-treed in VRI and lifted one viewpoint from 22% to 37% under the treed rule | Default `perspectiveDenominator: 'non-vegetated-out'`; planimetric keeps the treed rule. |
+| Private land out of the denominator | VIAs print (LF − PL), PL up to 35% of the landform; scored +1.13 / +1.01 pp only because the baseline is high | Option `privateLandOutOfDenominator`, off by default; ParcelMap parcels stay reviewer-added. |
+| Existing openings judged greened up by eye | VIAs printed 0 existing non-VEG in four of six cases; counting none moved −1.39 / −1.64 pp | One-click *Judged visually greened up from the viewpoint photo* per opening (dated, observer required). The 20-year age rule stays the default: the handbook counts every alteration not visually greened up. |
+| Screening with a clearing round the eye, withheld on collapse | Off: 20 views had no landform with VRI stands over the eye; 50 m cleared most, some needed 150 m; one view's ratio went 10.6% → 56.6% | Screening stays off by default; when on, `screeningEyeClearingMeters` (50) and the 25% withhold rule. |
+| 0% clearcut openings counted | Retention-system harvests are 0 in RESULTS; one case's existing share dropped by a third | `alterationWeight` counts 0% as a whole opening. |
+
+**Not adopted:** a z14 DEM (no effect, 0.15 pp), the printed viewpoint elevation
+as ground (template lake levels bury the eye), automatic shore-to-water snapping
+(no consistent direction), a shorter green-up age (closer to VIA outcomes but not
+a VIA rule), and green-up by height (the procedure's own test, but stricter than
+the VIAs were; worth showing beside the age rule later). **Deferred:** replacing
+the diagnostics' ±0.5 m eye check with a ±100 m position check that flags
+position-sensitive viewpoints (the study found 100 m moves close, enclosed views
+by more than the gap studied).
+
 ## The Hwy 16 · Purden Lake sample
 
 *Start from → Hwy 16 · Purden Lake* (`purdenLakeScenario.ts`) is the worked
@@ -1723,7 +2022,10 @@ none establishes a completed field visit or verified VQO achievement.
 - **Step 3 — masks and sources:** import classified polygons, or copy an outline
   drawn with the existing map controls. Natural non-green areas leave numerator
   and denominator; private land and permanent non-forestry disturbance remain in
-  the assessable land base but contribute no forestry alteration. Retained patches
+  the assessable land base but contribute no forestry alteration, unless
+  *Private land out of the landform* is on (`privateLandOutOfDenominator`), which
+  takes private land out of both denominators as a VIA's (LF − PL) does while its
+  timber still screens. Retained patches
   remain green, are excluded from cleared canopy and alteration, and suppress a
   second Table 5 retention credit. Clearings, thinning and cut-surface fill in the
   drive also exclude retained/private/permanent polygons; natural non-green masks

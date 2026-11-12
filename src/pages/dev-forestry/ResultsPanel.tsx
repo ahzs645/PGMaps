@@ -127,7 +127,11 @@ export function ResultsPanel({
         'perspective',
         'Alteration in perspective view',
         result.perspectiveAlteration,
-        'Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement.',
+        `Estimated apparent-area screening ratio from the selected assessment station; not a calibrated photographic measurement. ${
+          result.settings.perspectiveDenominator === 'non-treed-out'
+            ? 'Divided by the visible treed landform (the 1998 rule).'
+            : 'Divided by the visible landform net of non-vegetated ground (rock, water, ice), as a VIA nets out rock.'
+        }${result.settings.privateLandOutOfDenominator ? ' Private land is left out of the landform.' : ''}`,
       )
     if (result.quality?.numericalReady)
       add(

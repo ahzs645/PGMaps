@@ -62,8 +62,8 @@ export function sheetSvg(
       case 'text': {
         const anchor = op.align === 'center' ? 'middle' : op.align === 'right' ? 'end' : 'start'
         const family = op.family === 'times' ? 'Times New Roman,Times,serif' : 'Helvetica,Arial,sans-serif'
-        const weight = op.style === 'bold' ? ' font-weight="bold"' : ''
-        const italic = op.style === 'italic' ? ' font-style="italic"' : ''
+        const weight = op.style === 'bold' || op.style === 'bolditalic' ? ' font-weight="bold"' : ''
+        const italic = op.style === 'italic' || op.style === 'bolditalic' ? ' font-style="italic"' : ''
         const rotate = op.angle ? ` transform="rotate(${n(-op.angle)} ${n(op.x)} ${n(op.y)})"` : ''
         const baseline = op.baseline === 'middle' ? ' dominant-baseline="central"' : ''
         const common = `x="${n(op.x)}" y="${n(op.y)}" font-family="${family}" font-size="${n(op.size)}" text-anchor="${anchor}"${weight}${italic}${baseline}${rotate}`

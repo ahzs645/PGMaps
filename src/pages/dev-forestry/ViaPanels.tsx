@@ -1,5 +1,6 @@
+import { visibleNetBlocks } from './visibleNetBlocks'
 import { CheckboxField, StyledSelect } from '@/components/ui/form-field'
-import { formatPercentValue } from '@/lib/format'
+import { formatMeasure, formatPercentValue } from '@/lib/format'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -377,9 +378,12 @@ export function OcularAssessmentFields({
 export function NumericalAssessmentSummary({
   assessment,
   result,
+  blockNames = {},
 }: {
   assessment: ViaAssessment
   result: AnalysisResult | null
+  /** Block names by id, for the visible net block rows. */
+  blockNames?: Readonly<Record<string, string>>
 }) {
   const breakdown = result?.quality?.numericalReady ? result.perspectiveAlteration : null
   if (!breakdown) {
@@ -426,6 +430,18 @@ export function NumericalAssessmentSummary({
               </span>
             ),
           },
+          // Beside X, not in it: the share of each block's footprint the station sees.
+          ...(result
+            ? visibleNetBlocks(result, blockNames).map((block) => ({
+                label: (
+                  <span>
+                    Visible net block · {block.name}
+                    <span className="block text-3xs leading-4">seen from the assessment station; not part of X</span>
+                  </span>
+                ),
+                value: `${percent(block.visiblePercent)} · ${formatMeasure(block.visibleHectares, 'ha', { maximumFractionDigits: 1 })} of ${formatMeasure(block.grossHectares, 'ha', { maximumFractionDigits: 1 })}${block.unknownPercent > 0 ? ` (${percent(block.unknownPercent)} unknown)` : ''}`,
+              }))
+            : []),
         ]}
       />
     </div>

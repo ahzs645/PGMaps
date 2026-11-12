@@ -547,6 +547,13 @@ export function parseScene(input: unknown): ForestryScene | null {
       minCrownClosurePercent: numeric(raw.settings?.minCrownClosurePercent, base.settings.minCrownClosurePercent),
       greenAreaConfirmed: raw.settings?.greenAreaConfirmed === true,
       existingDisturbanceConfirmed: raw.settings?.existingDisturbanceConfirmed === true,
+      perspectiveDenominator:
+        raw.settings?.perspectiveDenominator === 'non-treed-out' ? 'non-treed-out' : 'non-vegetated-out',
+      privateLandOutOfDenominator: raw.settings?.privateLandOutOfDenominator === true,
+      screeningEyeClearingMeters: Math.min(
+        150,
+        Math.max(0, numeric(raw.settings?.screeningEyeClearingMeters, base.settings.screeningEyeClearingMeters ?? 50)),
+      ),
     },
     thresholds: parseThresholds(raw.thresholds),
   }

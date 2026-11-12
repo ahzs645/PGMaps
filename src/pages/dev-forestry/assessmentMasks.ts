@@ -23,6 +23,7 @@ export function maskAt(masks: AssessmentMask[], lng: number, lat: number) {
     excludeGreen: present.some((m) => m.kind === 'natural'),
     excludeAlteration: present.some((m) => m.kind === 'private' || m.kind === 'permanent'),
     retained: present.some((m) => m.kind === 'retained'),
+    privateLand: present.some((m) => m.kind === 'private'),
     forceGreen: present.some((m) => m.kind === 'private' || m.kind === 'permanent' || m.kind === 'retained'),
   }
 }

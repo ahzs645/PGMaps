@@ -70,6 +70,8 @@ import {
   ViewpointTypeField,
 } from './ViaPanels'
 import { layoutStageOf } from './fieldChecklist'
+import { LIVE_PRESETS } from '@/lib/forestry/viaFigure/presets'
+import { LABEL_STYLES, type LabelStyleId } from '@/lib/mapSheet/callouts'
 import { VIA_STEPS, type ViaAssessment, type ViaReview, type ViaStepId, type ViaStepStatus } from './via'
 import {
   ALTERATION_BASIS_LABELS,
@@ -149,6 +151,13 @@ export type DriveState = {
   showLandform: boolean
   /** Stronger distance haze, so ridge layers separate as they do in real air. Display only. */
   haze: boolean
+  /**
+   * A VIA figure style (`src/lib/forestry/viaFigure/presets.ts`) draped on the road view, and the
+   * style the analysis sheet is composed in. Display only, like block colours: never in the run.
+   */
+  figureStyle: string | null
+  /** How the analysis sheet names features (`LABEL_STYLES`); the figure style's own when null. Display only. */
+  labelStyle: LabelStyleId | null
 }
 
 const VIA_CLASS_CODES = {
@@ -479,6 +488,12 @@ type SidebarProps = {
   localSources?: ReactNode
   /** Step 3: draw wildlife tree patches (retained masks), under the run. */
   wildlifeTreePatches?: ReactNode
+  /** Step 3: private land from ParcelMap BC, added by the reviewer as private-land masks. */
+  privateLand?: ReactNode
+  /** Step 3: FTEN gross, planned net and net of RESULTS group reserves, reserves added as retained masks. */
+  netFootprints?: ReactNode
+  /** Step 5: a saved view composed as a VIA analysis sheet in a figure style. */
+  figureSheet?: ReactNode
   /** Step 3: the landform design review. */
   designReview: ReactNode
   /** Saved design alternatives and their comparisons: step 3's, unlike the reading in Resources. */
@@ -556,6 +571,9 @@ export function Sidebar({
   landformScope,
   localSources,
   wildlifeTreePatches,
+  privateLand,
+  netFootprints,
+  figureSheet,
   designReview,
   designComparisons,
   runRevision,
@@ -1232,7 +1250,10 @@ export function Sidebar({
                   you can see which band of the mountain the block takes a share of. Distance haze fades each ridge a
                   little more than the one in front, as real air does; it changes only the picture. Note screenshot look
                   is how planning-note screenshots are taken in Google Earth: imagery, the proposed blocks filled white,
-                  no drawn timber or points. Turn timber back on to see what roadside trees would screen.
+                  no drawn timber or points. Turn timber back on to see what roadside trees would screen. Figure style
+                  drapes the outlines of a BC VIA figure style (landform, blocks, openings, private land, rock) over the
+                  terrain, which hides them behind nearer ridges; a saved view's analysis sheet (step 5) is drawn in the
+                  same style. Hatched rock is outlined here and hatched in the sheet.
                 </>
               }
             >
@@ -1346,6 +1367,40 @@ export function Sidebar({
                     </p>
                   )}
                 </div>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  Figure style
+                  <StyledSelect
+                    aria-label="Figure style"
+                    className={SELECT_CLASS}
+                    value={drive.figureStyle ?? ''}
+                    onChange={(event) => onDriveChange({ figureStyle: event.target.value || null })}
+                  >
+                    <option value="">None</option>
+                    {LIVE_PRESETS.map((preset) => (
+                      <option key={preset.id} value={preset.id}>
+                        {preset.name}
+                      </option>
+                    ))}
+                  </StyledSelect>
+                </label>
+                <label className="flex items-center justify-between gap-2 text-xs">
+                  Label style
+                  <StyledSelect
+                    aria-label="Label style"
+                    className={SELECT_CLASS}
+                    value={drive.labelStyle ?? ''}
+                    onChange={(event) =>
+                      onDriveChange({ labelStyle: (event.target.value || null) as LabelStyleId | null })
+                    }
+                  >
+                    <option value="">The figure style's own</option>
+                    {LABEL_STYLES.map((entry) => (
+                      <option key={entry.id} value={entry.id}>
+                        {entry.name}
+                      </option>
+                    ))}
+                  </StyledSelect>
+                </label>
                 <label className="flex items-center justify-between gap-2 text-xs">
                   Display quality
                   <StyledSelect
@@ -1697,6 +1752,8 @@ export function Sidebar({
           </div>
         </ToolSection>
         {wildlifeTreePatches}
+        {privateLand}
+        {netFootprints}
         {result && (
           <ToolSection title="Results">
             {runRevision}
@@ -1811,6 +1868,59 @@ export function Sidebar({
               and a slow query — it fetches every inventory polygon over the run&apos;s extent.
             </InfoTip>
           </div>
+          {settings.screeningEnabled && (
+            <NumberField
+              label="Timber cleared round the eye"
+              suffix="m"
+              value={settings.screeningEyeClearingMeters ?? 50}
+              min={0}
+              max={150}
+              step={10}
+              info="VRI stand polygons run over roads, beaches and shorelines, so without a clearing the eye stands inside a stand and sees nothing. In the November 2026 study 50 m restored most views; some roadside views needed 150 m. The screened figure is withheld when screening hides more than three quarters of the landform the bare ground shows."
+              onChange={(value) => onSettingsChange({ ...settings, screeningEyeClearingMeters: value })}
+            />
+          )}
+          <label className="flex items-center justify-between gap-2 text-xs">
+            <span className="flex items-center gap-1">
+              Perspective denominator
+              <InfoTip label="About the perspective denominator">
+                Non-vegetated out (the default) leaves rock, water and ice (VRI BCLCS level 1 N) out of the landform, as
+                a VIA's &ldquo;net of rock&rdquo; does; burns, shrub and herb stay in. Non-treed out uses the 1998
+                procedure's green (forested) portion, as the planimetric figure always does. In the November 2026 study
+                the non-vegetated rule moved the figure closer to the printed VIAs (case-balanced, 1.97 points for the
+                named VSU, 1.02 for the terrain landform).
+              </InfoTip>
+            </span>
+            <StyledSelect
+              aria-label="Perspective denominator"
+              className={SELECT_CLASS}
+              value={settings.perspectiveDenominator ?? 'non-vegetated-out'}
+              onChange={(event) =>
+                onSettingsChange({
+                  ...settings,
+                  perspectiveDenominator: event.target.value as NonNullable<AnalysisSettings['perspectiveDenominator']>,
+                })
+              }
+            >
+              <option value="non-vegetated-out">Non-vegetated out</option>
+              <option value="non-treed-out">Non-treed out (1998)</option>
+            </StyledSelect>
+          </label>
+          <div className="flex items-start gap-1">
+            <CheckboxField
+              className="flex-1"
+              label={<span className="text-2xs font-medium">Private land out of the landform</span>}
+              checked={settings.privateLandOutOfDenominator === true}
+              onCheckedChange={(privateLandOutOfDenominator) =>
+                onSettingsChange({ ...settings, privateLandOutOfDenominator })
+              }
+            />
+            <InfoTip label="About private land and the denominator">
+              VIAs print (landform − private land). With this on, private-land masks leave both denominators; their
+              timber still screens. Off, private land stays in the landform and only carries no alteration. Private land
+              comes from masks you draw or ParcelMap BC parcels you add in step 3.
+            </InfoTip>
+          </div>
           <NumberField
             label="Sample points per polygon"
             value={settings.sampleBudget}
@@ -1907,7 +2017,13 @@ export function Sidebar({
               title="Percent alteration"
               help="Handbook 3.4.2, Table 2. The share of the landform's visible green face, in perspective from the assessment station, read against Table 2. Estimated from terrain sightlines, not measured on a photograph."
             >
-              <NumericalAssessmentSummary assessment={assessment} result={result} />
+              <NumericalAssessmentSummary
+                assessment={assessment}
+                result={result}
+                blockNames={Object.fromEntries(
+                  scene.targets.filter((target) => target.role === 'block').map((target) => [target.id, target.name]),
+                )}
+              />
             </ToolSection>
             <ToolSection
               title="Design adjustments"
@@ -1948,6 +2064,16 @@ export function Sidebar({
         >
           {report}
         </ToolSection>
+        {figureSheet && (
+          <ToolSection
+            title="Analysis sheet"
+            summary="VIA figure styles"
+            toggleProps={{ 'data-forestry-disclosure': 'analysis-sheet' }}
+            help="A saved view drawn as a perspective viewpoint analysis in the style of a BC VIA figure: outlines traced from the view's class pass (what each pixel shows), block callouts from the run, a legend of what was drawn, and the pixel percent printed beside the run's sightline percent. The sightline figure is the assessment's; the pixel figure is what this picture shows."
+          >
+            {figureSheet}
+          </ToolSection>
+        )}
         {evidence}
         {/* Secondary to the FS1252 above: the worked figures, and the scene to reopen later. */}
         <ToolSection title="Also download">

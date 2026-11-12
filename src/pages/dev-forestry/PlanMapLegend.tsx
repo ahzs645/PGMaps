@@ -16,6 +16,7 @@ import {
   SCREENED_COLOR,
   SENSITIVITY_UNIT_COLORS,
   TERRAIN_CANDIDATE_COLOR,
+  VISIBLE_FACE_CANDIDATE_COLOR,
   UNKNOWN_COLOR,
   VISIBLE_COLOR,
 } from './planMapStyle'
@@ -110,7 +111,7 @@ export type PlanMapLegendProps = {
   /** The objectives among the sensitivity units drawn (null: none established). */
   sensitivityUnits: ReadonlyArray<VisualQualityClassId | null>
   /** The terrain readings drawn: the ridge layer, the face, or both. */
-  terrainCandidates: ReadonlyArray<'ridge-layer' | 'facing'>
+  terrainCandidates: ReadonlyArray<'ridge-layer' | 'facing' | 'visible-face'>
   otherRidgeLayers: boolean
   landformClues: boolean
   inventory: { viewpoints: boolean; arrows: boolean; recSites: boolean; screenings: boolean } | null
@@ -270,6 +271,14 @@ export function PlanMapLegend(props: PlanMapLegendProps) {
                   color={FACE_CANDIDATE_COLOR}
                   swatch={<AreaSwatch color={FACE_CANDIDATE_COLOR} dashed />}
                   label="Landform candidate · face turned to the view"
+                />
+              )}
+              {props.terrainCandidates.includes('visible-face') && (
+                <Row
+                  id="candidate:visible-face"
+                  color={VISIBLE_FACE_CANDIDATE_COLOR}
+                  swatch={<AreaSwatch color={VISIBLE_FACE_CANDIDATE_COLOR} dashed />}
+                  label="Landform candidate · visible face from the viewpoint"
                 />
               )}
               {props.otherRidgeLayers && (

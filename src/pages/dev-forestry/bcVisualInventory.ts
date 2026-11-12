@@ -92,6 +92,13 @@ export type BcSensitivityUnit = {
   vac: VacRating | null
   /** Visual sensitivity class: 1–5, or a code such as `W` or `NVS`. */
   vsc: string | null
+  /**
+   * Existing visual condition as the inventory codes it (`REC_EVC_FINAL_VALUE_CODE`: P, R, PR, M,
+   * MM). Read from the WFS only; absent on units from other reads.
+   */
+  evc?: string | null
+  /** The inventory's own visual sensitivity unit number (`VSU_NUMBER`), where it has one. */
+  vsuNumber?: string | null
   scenicArea: boolean
   rationale: string | null
   geometry: PolygonGeometry
@@ -192,6 +199,8 @@ export function buildInventoryWfsUrl(bounds: Bounds): string {
       'REC_RVQC_CODE',
       'REC_VAC_FINAL_VALUE_CODE',
       'REC_VSC_FINAL_VALUE_CODE',
+      'REC_EVC_FINAL_VALUE_CODE',
+      'VSU_NUMBER',
       'RATIONALE',
       'GEOMETRY',
     ].join(','),
@@ -231,6 +240,8 @@ export function parseSensitivityUnits(payload: unknown): BcSensitivityUnit[] {
         recommendedId: visualQualityClassForCode(properties.REC_RVQC_CODE),
         vac: vacRatingForCode(properties.REC_VAC_FINAL_VALUE_CODE),
         vsc: text(properties.REC_VSC_FINAL_VALUE_CODE),
+        evc: text(properties.REC_EVC_FINAL_VALUE_CODE),
+        vsuNumber: properties.VSU_NUMBER == null ? null : text(String(properties.VSU_NUMBER)),
         scenicArea: text(properties.SCENIC_AREA_IND)?.toUpperCase() === 'Y',
         rationale: text(properties.RATIONALE),
         geometry,

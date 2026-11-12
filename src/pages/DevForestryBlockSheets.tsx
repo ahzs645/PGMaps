@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { Diff, LayoutTemplate, Map as MapIcon, Shapes } from 'lucide-react'
+import { Diff, Eye, LayoutTemplate, Map as MapIcon, Shapes } from 'lucide-react'
 import { ForestryBackLink } from '@/components/dev/ForestryBackLink'
 import { Badge } from '@/components/ui/badge'
 import { TabBar } from '@/components/ui/tab-bar'
 import { ToolPageHeader } from '@/components/ui/tool-page-header'
 import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 import { SYMBOL_CATALOGUE } from '@/lib/forestry/blockSheet/symbolCatalogue'
+import { FigureStyleGallery } from './dev-forestry-block-sheets/FigureStyleGallery'
 import { MismatchPanel } from './dev-forestry-block-sheets/MismatchPanel'
 import { PresetGallery } from './dev-forestry-block-sheets/PresetGallery'
 import { SymbolSheet } from './dev-forestry-block-sheets/SymbolSheet'
 
-type View = 'presets' | 'symbols' | 'mismatches'
+type View = 'presets' | 'symbols' | 'mismatches' | 'figures'
 
 /**
  * The block map sheets' variants and symbols in one place: every preset at a few scales and papers,
@@ -35,7 +36,7 @@ export default function DevForestryBlockSheets() {
           eyebrowIcon={MapIcon}
           eyebrowClassName="text-amber-700 dark:text-amber-400"
           title="Block sheet symbol gallery"
-          description="Every block sheet preset at several scales and papers, every map symbol beside the values it was drawn from, and where the reference legends disagreed with their maps."
+          description="Every block sheet preset at several scales and papers, every map symbol beside the values it was drawn from, where the reference legends disagreed with their maps, and the VIA figure styles."
           aside={
             <Badge tone="neutral" variant="outline">
               {SYMBOL_CATALOGUE.length} symbols · synthetic data
@@ -51,10 +52,11 @@ export default function DevForestryBlockSheets() {
             { value: 'presets', label: 'Sheet presets', icon: LayoutTemplate },
             { value: 'symbols', label: 'Symbols', icon: Shapes },
             { value: 'mismatches', label: 'Legend vs map', icon: Diff },
+            { value: 'figures', label: 'VIA figure styles', icon: Eye },
           ]}
           className="mb-5"
         />
-        {(['presets', 'symbols', 'mismatches'] as const).map((id) => (
+        {(['presets', 'symbols', 'mismatches', 'figures'] as const).map((id) => (
           <div
             key={id}
             role="tabpanel"
@@ -63,7 +65,15 @@ export default function DevForestryBlockSheets() {
             hidden={view !== id}
           >
             {opened.has(id) &&
-              (id === 'presets' ? <PresetGallery /> : id === 'symbols' ? <SymbolSheet /> : <MismatchPanel />)}
+              (id === 'presets' ? (
+                <PresetGallery />
+              ) : id === 'symbols' ? (
+                <SymbolSheet />
+              ) : id === 'mismatches' ? (
+                <MismatchPanel />
+              ) : (
+                <FigureStyleGallery />
+              ))}
           </div>
         ))}
       </div>

@@ -25,18 +25,22 @@
  *   produced it beside them. Two views from the same pose under different
  *   design alternatives get a before-and-after page of their own.
  *
- * No DOM: the images arrive as JPEG data URLs with their pixel size, and
+ * No DOM: the images arrive as JPEG (or, for a composed VIA figure, PNG) data
+ * URLs with their pixel size, and
  * exceljs and jsPDF are passed in, so the tests write real files in Node.
  */
 import type { NarrativeSentence } from './visualsNarrative'
 
 export type NoteImage = {
   caption: string
-  /** `data:image/jpeg;base64,…` */
+  /** `data:image/jpeg;base64,…`, or `data:image/png;base64,…` for a composed VIA figure. */
   dataUrl: string
   width: number
   height: number
 }
+
+/** Whether a note image is a PNG (a composed figure) rather than a JPEG screenshot. */
+export const isPngImage = (image: Pick<NoteImage, 'dataUrl'>) => image.dataUrl.startsWith('data:image/png')
 
 /** A saved view's record for its own report page. */
 export type ViewpointPage = {
@@ -213,7 +217,7 @@ export async function blockNoteWorkbook(note: BlockNote, ExcelJS: ExcelModule): 
   row += 1
   const placeImage = (image: NoteImage, widthPx: number) => {
     const heightPx = Math.round((image.height / image.width) * widthPx)
-    const id = workbook.addImage({ base64: base64Of(image.dataUrl), extension: 'jpeg' })
+    const id = workbook.addImage({ base64: base64Of(image.dataUrl), extension: isPngImage(image) ? 'png' : 'jpeg' })
     // exceljs anchors are zero-based: column 1 is B.
     other.addImage(id, { tl: { col: 1, row: row - 1 }, ext: { width: widthPx, height: heightPx } })
     row += rowsFor(heightPx)
@@ -365,7 +369,7 @@ function drawMeasures(pdf: Pdf, note: BlockNote, lines: string[][], x: number, t
 
 function drawImage(pdf: Pdf, image: NoteImage, x: number, y: number, maxWidth: number, maxHeight: number): number {
   const size = fitImage(image, maxWidth, maxHeight)
-  pdf.addImage(image.dataUrl, 'JPEG', x, y, size.width, size.height)
+  pdf.addImage(image.dataUrl, isPngImage(image) ? 'PNG' : 'JPEG', x, y, size.width, size.height)
   pdf.setFont('helvetica', 'italic')
   pdf.setFontSize(9)
   pdf.setTextColor(55, 65, 81)
