@@ -51,7 +51,8 @@ go there leaves the handle where the road still has it.
   refusal notice says so for turns over 90° and for surface overlaps between nearby legs.
 - **Conditional, priced and riparian areas.** FPPR s. 50 lets a road into a riparian management
   area in three stated cases, and a conditional or priced area is a planning decision, so they stay
-  with the route searches and the Review list's **Excluded and conditional areas kept clear** row.
+  with the route searches and the Review list: **Excluded and conditional areas kept clear** and
+  **Road kept out of riparian areas except at crossings** ([Review](review-and-standards.md)).
 
 Deleting a point and route searches are not checked here: a search's own rules already keep its
 roads open and fitted.
