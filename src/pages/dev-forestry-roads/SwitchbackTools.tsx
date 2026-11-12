@@ -75,7 +75,11 @@ export function SwitchbackTools({
   const [departureM, setDeparture] = useState(80)
   const [gradePercent, setGrade] = useState(3)
   const end = analysis.stations.at(-1)
+  // The panel stays mounted while folded; the sketch and its swept-path run (about 150 ms per road
+  // edit on the Prince George LiDAR road) wait until it is opened.
+  const [open, setOpen] = useState(false)
   const staged = useMemo(() => {
+    if (!open) return { result: null, error: '' }
     try {
       if (end?.designElevation == null) throw Error('A calculated formation level is needed at the road end.')
       return {
@@ -94,7 +98,7 @@ export function SwitchbackTools({
     } catch (error) {
       return { result: null, error: error instanceof Error ? error.message : 'The switchback could not be fitted.' }
     }
-  }, [alignment, direction, radiusM, approachM, tangentM, departureM, gradePercent, end?.designElevation])
+  }, [open, alignment, direction, radiusM, approachM, tangentM, departureM, gradePercent, end?.designElevation])
   const result = staged.result
   // The road's own design vehicle, or the labelled example until one is set.
   const vehicleCheck = alignment.vehicleCheck ?? DEFAULT_VEHICLE_CHECK
@@ -187,6 +191,8 @@ export function SwitchbackTools({
   }
   return (
     <CollapsibleSection
+      open={open}
+      onOpenChange={setOpen}
       label="Add a switchback"
       contentClassName="space-y-2 px-3 pb-3"
       toggleProps={{ 'data-testid': 'road-switchback-toggle' }}
